@@ -869,6 +869,24 @@ final class BazaarFlipAutopilot {
         done("skipped");
     }
 
+    /** The job as {@code type}, or null after failing with "unknown menu" when it is another kind of job. */
+    private static <T extends FlipAction> T actionAs(Class<T> type, AbstractContainerScreen<?> screen) {
+        if (type.isInstance(action)) {
+            return type.cast(action);
+        }
+        fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+        return null;
+    }
+
+    /** The named item of {@code page}, or null after failing with "unknown menu: no NAME". */
+    private static BazaarPages.Item menuItem(BazaarPages.Page page, String name, AbstractContainerScreen<?> screen) {
+        BazaarPages.Item it = BazaarFlipMenus.item(page, name);
+        if (it == null) {
+            fail("unknown menu: no " + name + " on " + BazaarFlipMenus.describe(screen));
+        }
+        return it;
+    }
+
     private static void fail(String why) {
         LOGGER.info("[BazaarFlip] Autopilot stopping: {} (job {})", why, jobName());
         BazaarFlipFeature.stopFromAutopilot(why);
@@ -1115,13 +1133,7 @@ final class BazaarFlipAutopilot {
         String id = action.productId();
         switch (page.kind()) {
             case SEARCH, GROUP, CATEGORY -> {
-                BazaarPages.Item product = null;
-                for (BazaarPages.Item it : page.content()) {
-                    if (it.name().equalsIgnoreCase(name)) {
-                        product = it;
-                        break;
-                    }
-                }
+                BazaarPages.Item product = BazaarFlipMenus.contentItem(page, name);
                 if (product == null) {
                     reopen(client, "\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
                     return;
@@ -1136,9 +1148,8 @@ final class BazaarFlipAutopilot {
                 String button = action instanceof FlipAction.InstaBuy ? "Buy Instantly"
                         : action instanceof FlipAction.InstaSell ? "Sell Instantly"
                         : action instanceof FlipAction.PlaceBuyOrder ? "Create Buy Order" : "Create Sell Offer";
-                BazaarPages.Item it = BazaarFlipMenus.item(page, button);
+                BazaarPages.Item it = menuItem(page, button, screen);
                 if (it == null) {
-                    fail("unknown menu: no " + button + " on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 if (action instanceof FlipAction.InstaSell) {
@@ -1159,8 +1170,8 @@ final class BazaarFlipAutopilot {
                 instantBuyStep(client, screen, page, b, cfg);
             }
             case ORDER_AMOUNT -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
                 // A preset stating exactly the amount (lore "Amount: Nx", else its name: "Buy only one!", "Buy 32!");
@@ -1170,9 +1181,8 @@ final class BazaarFlipAutopilot {
                     click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, true);
                     return;
                 }
-                BazaarPages.Item custom = BazaarFlipMenus.item(page, "Custom Amount");
+                BazaarPages.Item custom = menuItem(page, "Custom Amount", screen);
                 if (custom == null) {
-                    fail("unknown menu: no Custom Amount on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 if (click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
@@ -1182,13 +1192,12 @@ final class BazaarFlipAutopilot {
                 }
             }
             case ORDER_PRICE -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Top Order +0.1");
+                BazaarPages.Item it = menuItem(page, "Top Order +0.1", screen);
                 if (it == null) {
-                    fail("unknown menu: no Top Order +0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 // When the top order is already one of the session's own (a second offer on the product, or a relist
@@ -1207,13 +1216,12 @@ final class BazaarFlipAutopilot {
                 click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_BUY -> {
-                if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceBuyOrder b = actionAs(FlipAction.PlaceBuyOrder.class, screen);
+                if (b == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Buy Order");
+                BazaarPages.Item it = menuItem(page, "Buy Order", screen);
                 if (it == null) {
-                    fail("unknown menu: no Buy Order on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 long amount = loreOrderAmount(it.lore());
@@ -1232,25 +1240,22 @@ final class BazaarFlipAutopilot {
                 }
             }
             case OFFER_PRICE -> {
-                if (!(action instanceof FlipAction.PlaceSellOffer)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                if (actionAs(FlipAction.PlaceSellOffer.class, screen) == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Best Offer -0.1");
+                BazaarPages.Item it = menuItem(page, "Best Offer -0.1", screen);
                 if (it == null) {
-                    fail("unknown menu: no Best Offer -0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_SELL -> {
-                if (!(action instanceof FlipAction.PlaceSellOffer s)) {
-                    fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
+                FlipAction.PlaceSellOffer s = actionAs(FlipAction.PlaceSellOffer.class, screen);
+                if (s == null) {
                     return;
                 }
-                BazaarPages.Item it = BazaarFlipMenus.item(page, "Sell Offer");
+                BazaarPages.Item it = menuItem(page, "Sell Offer", screen);
                 if (it == null) {
-                    fail("unknown menu: no Sell Offer on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
                 int have = carried(client, s.productId());
@@ -1665,10 +1670,8 @@ final class BazaarFlipAutopilot {
             finishNpcSell(client, s, "sold " + npcSoldUnits);
             return;
         }
-        for (Slot slot : BazaarFlipMenus.playerSlots(menu)) {
-            if (!BazaarFlipMenus.isProduct(slot.getItem(), s.productId(), s.name())) {
-                continue;
-            }
+        Slot slot = BazaarFlipMenus.firstProductSlot(menu, s.productId(), s.name());
+        if (slot != null) {
             int count = slot.getItem().getCount();
             if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
                 sellPendingSlot = slot.index;

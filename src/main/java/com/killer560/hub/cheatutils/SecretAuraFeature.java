@@ -335,28 +335,14 @@ public final class SecretAuraFeature {
         // Ask each chunk section under the cube whether it can hold anything classify() answers for, the way Secret
         // Waypoints' lever scan does: a section that cannot is skipped block by block, in the same order as before, so
         // the pick (and its tie-break) is unchanged while ~1,300 block reads a tick become a few palette checks.
-        int sx0 = min.getX() >> 4;
-        int sy0 = min.getY() >> 4;
-        int sz0 = min.getZ() >> 4;
-        int nsx = (max.getX() >> 4) - sx0 + 1;
-        int nsy = (max.getY() >> 4) - sy0 + 1;
-        int nsz = (max.getZ() >> 4) - sz0 + 1;
-        boolean[] sectionMay = sectionsThatMayHold(client.level, sx0, sy0, sz0, nsx, nsy, nsz);
+        ScanCube cube = new ScanCube(client.level, min, max);
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-            if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
-                continue;
-            }
-            // The block first: done.contains boxes the key (a Long per block of the cube, ~33 KB a tick in a room
-            // whose sections hold a decorative skull), and for a block classify() never answers for both orders
-            // end in the same `continue` with nothing changed.
-            BlockState state = client.level.getBlockState(pos);
-            if (!mayClassify(state)) {
+            // The block first: done.contains boxes the key (a Long per block of the cube, ~33 KB a tick)
+            BlockState state = cube.candidate(pos, done);
+            if (state == null) {
                 continue;
             }
             long key = pos.asLong();
-            if (done.contains(key)) {
-                continue;
-            }
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 if (state.getBlock() != Blocks.REDSTONE_BLOCK) {
@@ -568,6 +554,36 @@ public final class SecretAuraFeature {
         Block block = state.getBlock();
         return block == Blocks.LEVER || block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST
                 || block instanceof AbstractSkullBlock || block == Blocks.REDSTONE_BLOCK;
+    }
+
+    /** A scan cube's section prefilter plus the block-first, done-set-last skip shared by both scans. */
+    private static final class ScanCube {
+        private final net.minecraft.world.level.Level level;
+        private final int sx0;
+        private final int sy0;
+        private final int sz0;
+        private final int nsy;
+        private final int nsz;
+        private final boolean[] sectionMay;
+
+        ScanCube(net.minecraft.world.level.Level level, BlockPos min, BlockPos max) {
+            this.level = level;
+            sx0 = min.getX() >> 4;
+            sy0 = min.getY() >> 4;
+            sz0 = min.getZ() >> 4;
+            nsy = (max.getY() >> 4) - sy0 + 1;
+            nsz = (max.getZ() >> 4) - sz0 + 1;
+            sectionMay = sectionsThatMayHold(level, sx0, sy0, sz0, (max.getX() >> 4) - sx0 + 1, nsy, nsz);
+        }
+
+        /** The block at pos, or null when its section cannot hold one, classify never answers for it, or it is done. */
+        BlockState candidate(BlockPos pos, Set<Long> done) {
+            if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
+                return null;
+            }
+            BlockState state = level.getBlockState(pos);
+            return mayClassify(state) && !done.contains(pos.asLong()) ? state : null;
+        }
     }
 
     /**
@@ -817,26 +833,13 @@ public final class SecretAuraFeature {
         double bestDist = Double.MAX_VALUE;
         BlockPos min = BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange);
         BlockPos max = BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange);
-        // The tick's own section prefilter, and the block first: Auto Secret and a route's await ask this every tick, and
-        // it used to box a Long per block of the cube for the done-set before reading what the block was.
-        int sx0 = min.getX() >> 4;
-        int sy0 = min.getY() >> 4;
-        int sz0 = min.getZ() >> 4;
-        int nsy = (max.getY() >> 4) - sy0 + 1;
-        int nsz = (max.getZ() >> 4) - sz0 + 1;
-        boolean[] sectionMay = sectionsThatMayHold(client.level, sx0, sy0, sz0, (max.getX() >> 4) - sx0 + 1, nsy, nsz);
+        ScanCube cube = new ScanCube(client.level, min, max);
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-            if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
-                continue;
-            }
-            BlockState state = client.level.getBlockState(pos);
-            if (!mayClassify(state)) {
+            BlockState state = cube.candidate(pos, done);
+            if (state == null) {
                 continue;
             }
             long key = pos.asLong();
-            if (done.contains(key)) {
-                continue;
-            }
             Attempt a = attempts.get(key);
             if (mode == Taking.CLICKED && a == null
                     || a != null && a.count() >= MAX_ATTEMPTS && now - a.lastMs() >= RETRY_AFTER_MS) {

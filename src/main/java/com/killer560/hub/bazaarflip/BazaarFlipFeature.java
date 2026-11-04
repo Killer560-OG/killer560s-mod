@@ -745,13 +745,7 @@ public final class BazaarFlipFeature {
         String name = target.displayName();
         switch (page.kind()) {
             case SEARCH, GROUP, CATEGORY -> {
-                BazaarPages.Item product = null;
-                for (BazaarPages.Item it : page.content()) {
-                    if (it.name().equalsIgnoreCase(name)) {
-                        product = it;
-                        break;
-                    }
-                }
+                BazaarPages.Item product = BazaarFlipMenus.contentItem(page, name);
                 if (product == null) {
                     stop("\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
                     return;
@@ -1254,10 +1248,8 @@ public final class BazaarFlipFeature {
         if (now < nextActionAtMs || !settledTrades(screen)) {
             return;
         }
-        for (Slot slot : BazaarFlipMenus.playerSlots(menu)) {
-            if (!BazaarFlipMenus.isProduct(slot.getItem(), target.productId(), target.displayName())) {
-                continue;
-            }
+        Slot slot = BazaarFlipMenus.firstProductSlot(menu, target.productId(), target.displayName());
+        if (slot != null) {
             int count = slot.getItem().getCount();
             // A shift-click on his own stack sells it, the way any Hypixel shop takes items.
             if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
