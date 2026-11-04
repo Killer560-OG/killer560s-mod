@@ -199,101 +199,53 @@ public final class RagAxeConfig {
 
 
     /** Master. Skyblock Only gate lives here, so every sub-setting inherits it. */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
-    public boolean isCastAlert() {
-        return castAlert;
-    }
+    public boolean isCastAlert() { return castAlert; }
 
-    public void setCastAlert(boolean v) {
-        castAlert = v;
-    }
+    public void setCastAlert(boolean v) { castAlert = v; }
 
-    public boolean isCancelAlert() {
-        return cancelAlert;
-    }
+    public boolean isCancelAlert() { return cancelAlert; }
 
-    public void setCancelAlert(boolean v) {
-        cancelAlert = v;
-    }
+    public void setCancelAlert(boolean v) { cancelAlert = v; }
 
-    public boolean isStrengthMessage() {
-        return strengthMessage;
-    }
+    public boolean isStrengthMessage() { return strengthMessage; }
 
-    public void setStrengthMessage(boolean v) {
-        strengthMessage = v;
-    }
+    public void setStrengthMessage(boolean v) { strengthMessage = v; }
 
-    public boolean isAnnounceStrength() {
-        return announceStrength;
-    }
+    public boolean isAnnounceStrength() { return announceStrength; }
 
-    public void setAnnounceStrength(boolean v) {
-        announceStrength = v;
-    }
+    public void setAnnounceStrength(boolean v) { announceStrength = v; }
 
-    public boolean isChannelTimer() {
-        return channelTimer;
-    }
+    public boolean isChannelTimer() { return channelTimer; }
 
-    public void setChannelTimer(boolean v) {
-        channelTimer = v;
-    }
+    public void setChannelTimer(boolean v) { channelTimer = v; }
 
-    public boolean isBuffTimer() {
-        return buffTimer;
-    }
+    public boolean isBuffTimer() { return buffTimer; }
 
-    public void setBuffTimer(boolean v) {
-        buffTimer = v;
-    }
+    public void setBuffTimer(boolean v) { buffTimer = v; }
 
-    public boolean isCooldownTimer() {
-        return cooldownTimer;
-    }
+    public boolean isCooldownTimer() { return cooldownTimer; }
 
-    public void setCooldownTimer(boolean v) {
-        cooldownTimer = v;
-    }
+    public void setCooldownTimer(boolean v) { cooldownTimer = v; }
 
-    public boolean isEndAlert() {
-        return endAlert;
-    }
+    public boolean isEndAlert() { return endAlert; }
 
-    public void setEndAlert(boolean v) {
-        endAlert = v;
-    }
+    public void setEndAlert(boolean v) { endAlert = v; }
 
-    public boolean isReadyAlert() {
-        return readyAlert;
-    }
+    public boolean isReadyAlert() { return readyAlert; }
 
-    public void setReadyAlert(boolean v) {
-        readyAlert = v;
-    }
+    public void setReadyAlert(boolean v) { readyAlert = v; }
 
-    public boolean isMageCooldownReduction() {
-        return mageCooldownReduction;
-    }
+    public boolean isMageCooldownReduction() { return mageCooldownReduction; }
 
-    public void setMageCooldownReduction(boolean v) {
-        mageCooldownReduction = v;
-    }
+    public void setMageCooldownReduction(boolean v) { mageCooldownReduction = v; }
 
-    public float getMageCooldownReductionPercent() {
-        return mageCooldownReductionPercent;
-    }
+    public float getMageCooldownReductionPercent() { return mageCooldownReductionPercent; }
 
-    public void setMageCooldownReductionPercent(float v) {
-        mageCooldownReductionPercent = Math.max(0f, Math.min(90f, v));
-    }
+    public void setMageCooldownReductionPercent(float v) { mageCooldownReductionPercent = Math.max(0f, Math.min(90f, v)); }
 
     /** The cooldown to actually count down, with Mage's reduction applied when he is playing Mage. */
     public float effectiveCooldownSeconds() {
@@ -305,73 +257,39 @@ public final class RagAxeConfig {
                 : cooldownSeconds;
     }
 
-    public float getCooldownSeconds() {
-        return cooldownSeconds;
-    }
+    public float getCooldownSeconds() { return cooldownSeconds; }
 
-    public void setCooldownSeconds(float v) {
-        cooldownSeconds = clamp(v, MIN_COOLDOWN_S, MAX_COOLDOWN_S);
-    }
+    public void setCooldownSeconds(float v) { cooldownSeconds = clamp(v, MIN_COOLDOWN_S, MAX_COOLDOWN_S); }
 
-    public boolean isSoundIsBuffStart() {
-        return soundIsBuffStart;
-    }
+    public boolean isSoundIsBuffStart() { return soundIsBuffStart; }
 
-    public void setSoundIsBuffStart(boolean v) {
-        soundIsBuffStart = v;
-    }
+    public void setSoundIsBuffStart(boolean v) { soundIsBuffStart = v; }
 
-    public String getPromptText() {
-        return promptText == null || promptText.isEmpty() ? "rag" : promptText;
-    }
+    public String getPromptText() { return promptText == null || promptText.isEmpty() ? "rag" : promptText; }
 
-    public void setPromptText(String v) {
-        promptText = v == null ? "" : v;
-    }
+    public void setPromptText(String v) { promptText = v == null ? "" : v; }
 
-    public boolean isPromptTitle() {
-        return promptTitle;
-    }
+    public boolean isPromptTitle() { return promptTitle; }
 
-    public void setPromptTitle(boolean v) {
-        promptTitle = v;
-    }
+    public void setPromptTitle(boolean v) { promptTitle = v; }
 
-    public boolean isSkipTankHealer() {
-        return skipTankHealer;
-    }
+    public boolean isSkipTankHealer() { return skipTankHealer; }
 
-    public void setSkipTankHealer(boolean v) {
-        skipTankHealer = v;
-    }
+    public void setSkipTankHealer(boolean v) { skipTankHealer = v; }
 
-    public boolean isPromptEnabled(RagAxePrompt p) {
-        return promptEnabled[p.ordinal()];
-    }
+    public boolean isPromptEnabled(RagAxePrompt p) { return promptEnabled[p.ordinal()]; }
 
-    public void setPromptEnabled(RagAxePrompt p, boolean v) {
-        promptEnabled[p.ordinal()] = v;
-    }
+    public void setPromptEnabled(RagAxePrompt p, boolean v) { promptEnabled[p.ordinal()] = v; }
 
-    public int getPromptLeadMs(RagAxePrompt p) {
-        return promptLeadMs[p.ordinal()];
-    }
+    public int getPromptLeadMs(RagAxePrompt p) { return promptLeadMs[p.ordinal()]; }
 
-    public void setPromptLeadMs(RagAxePrompt p, int v) {
-        promptLeadMs[p.ordinal()] = clampLead(v);
-    }
+    public void setPromptLeadMs(RagAxePrompt p, int v) { promptLeadMs[p.ordinal()] = clampLead(v); }
 
-    public boolean isPromptSound(RagAxePrompt p) {
-        return promptSound[p.ordinal()];
-    }
+    public boolean isPromptSound(RagAxePrompt p) { return promptSound[p.ordinal()]; }
 
-    public void setPromptSound(RagAxePrompt p, boolean v) {
-        promptSound[p.ordinal()] = v;
-    }
+    public void setPromptSound(RagAxePrompt p, boolean v) { promptSound[p.ordinal()] = v; }
 
-    private static int clampLead(int v) {
-        return Math.max(0, Math.min(MAX_LEAD_MS, v));
-    }
+    private static int clampLead(int v) { return Math.max(0, Math.min(MAX_LEAD_MS, v)); }
 
     private static float clamp(float v, float min, float max) {
         return Float.isFinite(v) ? Math.max(min, Math.min(max, v)) : min;

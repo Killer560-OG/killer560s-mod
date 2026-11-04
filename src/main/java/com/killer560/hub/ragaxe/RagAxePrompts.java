@@ -135,9 +135,7 @@ final class RagAxePrompts {
     }
 
     /** F7/M7, or p3sim.net (which simulates the P3 -&gt; P4 hand-off these lines sit around). */
-    private static boolean onFloor7() {
-        return DungeonState.isF7OrM7() || P5State.isP3Sim(Minecraft.getInstance());
-    }
+    private static boolean onFloor7() { return DungeonState.isF7OrM7() || P5State.isP3Sim(Minecraft.getInstance()); }
 
     private static boolean onFloor5() {
         String floor = DungeonState.getFloor();
