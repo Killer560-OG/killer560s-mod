@@ -45,6 +45,9 @@ public final class ChatTidyConfig {
     private boolean hideActionbar = false;
     private boolean hideNonRankInvites = false;
     private boolean hideBanAnnouncements = false;
+    // Mining pack (chattidy-1104): default ON, still under the Chat Hider master switch.
+    private boolean hideMiningReminders = true;
+    private boolean hideSackMessages = true;
     // Dungeon pack (2026-10-25): each hides one family of dungeon chat, only while in a dungeon (ChatTidy).
     private boolean hideBossDialogue = false;
     private boolean hideMort = false;
@@ -87,6 +90,8 @@ public final class ChatTidyConfig {
                 cfg.hideActionbar = ConfigJson.getBool(obj, "hideActionbar", false);
                 cfg.hideNonRankInvites = ConfigJson.getBool(obj, "hideNonRankInvites", false);
                 cfg.hideBanAnnouncements = ConfigJson.getBool(obj, "hideBanAnnouncements", false);
+                cfg.hideMiningReminders = ConfigJson.getBool(obj, "hideMiningReminders", true);
+                cfg.hideSackMessages = ConfigJson.getBool(obj, "hideSackMessages", true);
                 cfg.hideBossDialogue = ConfigJson.getBool(obj, "hideBossDialogue", false);
                 cfg.hideMort = ConfigJson.getBool(obj, "hideMort", false);
                 cfg.hideBlessings = ConfigJson.getBool(obj, "hideBlessings", false);
@@ -147,6 +152,8 @@ public final class ChatTidyConfig {
             obj.addProperty("hideActionbar", hideActionbar);
             obj.addProperty("hideNonRankInvites", hideNonRankInvites);
             obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
+            obj.addProperty("hideMiningReminders", hideMiningReminders);
+            obj.addProperty("hideSackMessages", hideSackMessages);
             obj.addProperty("hideBossDialogue", hideBossDialogue);
             obj.addProperty("hideMort", hideMort);
             obj.addProperty("hideBlessings", hideBlessings);
@@ -175,6 +182,30 @@ public final class ChatTidyConfig {
     /** Hide Damage Messages: ability-damage AND incoming-hit lines (one switch since 2026-10-08). */
     public boolean isHideDamageMessages() {
         return on(hideDamageMessages);
+    }
+
+    public boolean isHideMiningReminders() {
+        return on(hideMiningReminders);
+    }
+
+    public boolean getHideMiningRemindersRaw() {
+        return hideMiningReminders;
+    }
+
+    public void setHideMiningReminders(boolean v) {
+        hideMiningReminders = v;
+    }
+
+    public boolean isHideSackMessages() {
+        return on(hideSackMessages);
+    }
+
+    public boolean getHideSackMessagesRaw() {
+        return hideSackMessages;
+    }
+
+    public void setHideSackMessages(boolean v) {
+        hideSackMessages = v;
     }
 
     public boolean isHideUselessMessages() {

@@ -21,6 +21,8 @@ public class ChestLootCompactTab extends BaseTab {
                 requestRebuild, contentX, contentY, contentWidth, 20));
         MiningQolRows.cycle(w, contentX, contentY + MiningQolRows.STEP, contentWidth, "Show", () -> cfg.getLootShow().label(),
                 cfg::stepLootShow, cfg::save);
+        w.add(onOffButton("Hide Treasure Chest Uncovered", cfg::isHideTreasureUncoveredRaw, cfg::setHideTreasureUncovered,
+                cfg::save, requestRebuild, contentX, contentY + 2 * MiningQolRows.STEP, contentWidth, 20));
         return w;
     }
 }
