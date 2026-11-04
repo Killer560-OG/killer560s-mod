@@ -39,11 +39,7 @@ public enum ZpewSource {
         this.cheatOnly = cheatOnly;
     }
 
-    public String label() {
-        return label;
-    }
+    public String label() { return label; }
 
-    public boolean cheatOnly() {
-        return cheatOnly;
-    }
+    public boolean cheatOnly() { return cheatOnly; }
 }

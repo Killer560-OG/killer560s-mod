@@ -56,9 +56,7 @@ public final class OpenMicSegmenter {
     private long lastVoiceAt;
     private long voicedMs;
 
-    public OpenMicSegmenter(long silenceMs) {
-        this.silenceMs = Math.max(200, silenceMs);
-    }
+    public OpenMicSegmenter(long silenceMs) { this.silenceMs = Math.max(200, silenceMs); }
 
     /** Feed one chunk of 16 kHz 16-bit little-endian mono PCM that ended at {@code nowMs}. */
     public Result feed(byte[] buf, int len, long nowMs) {
@@ -69,9 +67,7 @@ public final class OpenMicSegmenter {
 
         if (!speaking) {
             keepPreRoll(buf, len);
-            if (!voice) {
-                return new Result(Action.CONTINUE, null, 0, 0);
-            }
+            if (!voice) return new Result(Action.CONTINUE, null, 0, 0);
             speaking = true;
             utterance.reset();
             for (byte[] b : preRoll) {
@@ -102,10 +98,6 @@ public final class OpenMicSegmenter {
                     : new Result(Action.DISCARD, null, voiced, quiet);
         }
         return new Result(Action.CONTINUE, null, voicedMs, quiet);
-    }
-
-    public boolean isSpeaking() {
-        return speaking;
     }
 
     /** The quietest chunk of the last {@link #FLOOR_WINDOW_MS}, this one included. */

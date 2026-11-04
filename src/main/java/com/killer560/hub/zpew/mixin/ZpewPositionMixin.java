@@ -29,9 +29,7 @@ public abstract class ZpewPositionMixin {
     private void killer560smod$zpewPosition(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         try {
             LocalPlayer player = Minecraft.getInstance().player;
-            if (player == null || packet == null || packet.change() == null) {
-                return;
-            }
+            if (player == null || packet == null || packet.change() == null) return;
             PositionMoveRotation target = PositionMoveRotation.calculateAbsolute(
                     PositionMoveRotation.of(player), packet.change(), packet.relatives());
             ZeroPingEtherwarp.onServerPosition(player.position(), target.position());

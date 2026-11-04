@@ -24,23 +24,17 @@ public final class ModUsers {
     private ModUsers() {
     }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /** The variant a player shows as ("legit" or "cheat"), or null when they show nothing. */
-    public static String variantOf(String name) {
-        return name == null ? null : SHOWN.get(name);
-    }
+    public static String variantOf(String name) { return name == null ? null : SHOWN.get(name); }
 
     /** Called on the relay welcome: the full list of who shows. */
     public static void onWelcome(JsonObject mods) {
         Map<String, String> fresh = new ConcurrentHashMap<>();
         if (mods != null) {
             for (Map.Entry<String, com.google.gson.JsonElement> e : mods.entrySet()) {
-                if (fresh.size() >= MAX_SHOWN) {
-                    break;
-                }
+                if (fresh.size() >= MAX_SHOWN) break;
                 if (e.getValue().isJsonPrimitive() && validName(e.getKey()) && validVariant(e.getValue().getAsString())) {
                     fresh.put(e.getKey(), e.getValue().getAsString());
                 }
@@ -52,9 +46,7 @@ public final class ModUsers {
 
     /** A presence event: {@code shareAs} null means that player stopped showing (or left). */
     public static void onPresence(String name, String shareAs) {
-        if (!validName(name)) {
-            return;
-        }
+        if (!validName(name)) return;
         Map<String, String> shown = SHOWN;
         if (shareAs == null) {
             shown.remove(name);
@@ -66,20 +58,14 @@ public final class ModUsers {
         version++;
     }
 
-    private static boolean validVariant(String v) {
-        return "legit".equals(v) || "cheat".equals(v);
-    }
+    private static boolean validVariant(String v) { return "legit".equals(v) || "cheat".equals(v); }
 
     /** A Minecraft name: 1-16 of letters, digits, underscore. */
     private static boolean validName(String name) {
-        if (name == null || name.isEmpty() || name.length() > 16) {
-            return false;
-        }
+        if (name == null || name.isEmpty() || name.length() > 16) return false;
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
-                return false;
-            }
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) return false;
         }
         return true;
     }

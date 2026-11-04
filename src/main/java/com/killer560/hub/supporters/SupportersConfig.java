@@ -90,9 +90,7 @@ public final class SupportersConfig {
         return instance;
     }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     public static void load() {
         SupportersConfig cfg = new SupportersConfig();
@@ -155,99 +153,77 @@ public final class SupportersConfig {
         version++;
     }
 
-    public boolean isShowSupporterNames() {
-        return showSupporterNames;
-    }
+    public boolean isShowSupporterNames() { return showSupporterNames; }
 
     public void setShowSupporterNames(boolean value) {
         this.showSupporterNames = value;
         version++;
     }
 
-    public boolean isShowSupporterSizes() {
-        return showSupporterSizes;
-    }
+    public boolean isShowSupporterSizes() { return showSupporterSizes; }
 
     public void setShowSupporterSizes(boolean value) {
         this.showSupporterSizes = value;
         version++;
     }
 
-    public boolean isShareIfSupporter() {
-        return shareIfSupporter;
-    }
+    public boolean isShareIfSupporter() { return shareIfSupporter; }
 
     public void setShareIfSupporter(boolean value) {
         this.shareIfSupporter = value;
         version++;
     }
 
-    public float getModelWidth() {
-        return modelWidth;
-    }
+    public float getModelWidth() { return modelWidth; }
 
     public void setModelWidth(float value) {
         this.modelWidth = clamp(value);
         version++;
     }
 
-    public float getModelHeight() {
-        return modelHeight;
-    }
+    public float getModelHeight() { return modelHeight; }
 
     public void setModelHeight(float value) {
         this.modelHeight = clamp(value);
         version++;
     }
 
-    public float getModelThickness() {
-        return modelThickness;
-    }
+    public float getModelThickness() { return modelThickness; }
 
     public void setModelThickness(float value) {
         this.modelThickness = clamp(value);
         version++;
     }
 
-    public float getOwnScale() {
-        return ownScale;
-    }
+    public float getOwnScale() { return ownScale; }
 
     public void setOwnScale(float value) {
         this.ownScale = clampSize(value);
         version++;
     }
 
-    public float getOthersScale() {
-        return othersScale;
-    }
+    public float getOthersScale() { return othersScale; }
 
     public void setOthersScale(float value) {
         this.othersScale = clampSize(value);
         version++;
     }
 
-    public boolean isOwnNameInF5() {
-        return ownNameInF5;
-    }
+    public boolean isOwnNameInF5() { return ownNameInF5; }
 
     public void setOwnNameInF5(boolean value) {
         this.ownNameInF5 = value;
         version++;
     }
 
-    public boolean isShareTrail() {
-        return shareTrail;
-    }
+    public boolean isShareTrail() { return shareTrail; }
 
     public void setShareTrail(boolean value) {
         this.shareTrail = value;
         version++;
     }
 
-    public boolean isShowOthersTrails() {
-        return showOthersTrails;
-    }
+    public boolean isShowOthersTrails() { return showOthersTrails; }
 
     public void setShowOthersTrails(boolean value) {
         this.showOthersTrails = value;
@@ -255,18 +231,12 @@ public final class SupportersConfig {
     }
 
     /** Your mob ({@code MobSkins} id), or "" for your normal player. */
-    public String getOwnMob() {
-        return ownMob;
-    }
+    public String getOwnMob() { return ownMob; }
 
     /** Your mob as it is drawn and shared: "" while Play as Mob is off, otherwise {@link #getOwnMob()}. */
-    public String getActiveOwnMob() {
-        return playAsMob ? ownMob : "";
-    }
+    public String getActiveOwnMob() { return playAsMob ? ownMob : ""; }
 
-    public boolean isPlayAsMob() {
-        return playAsMob;
-    }
+    public boolean isPlayAsMob() { return playAsMob; }
 
     public void setPlayAsMob(boolean value) {
         this.playAsMob = value;
@@ -279,9 +249,7 @@ public final class SupportersConfig {
         version++;
     }
 
-    public boolean isShowOthersMobs() {
-        return showOthersMobs;
-    }
+    public boolean isShowOthersMobs() { return showOthersMobs; }
 
     public void setShowOthersMobs(boolean value) {
         this.showOthersMobs = value;
@@ -294,9 +262,7 @@ public final class SupportersConfig {
     }
 
     private static float clampSize(float v) {
-        if (Float.isNaN(v)) {
-            return 1.0f;
-        }
+        if (Float.isNaN(v)) return 1.0f;
         return v < MIN_PLAYER_SIZE ? MIN_PLAYER_SIZE : (v > MAX_PLAYER_SIZE ? MAX_PLAYER_SIZE : v);
     }
 
@@ -309,9 +275,7 @@ public final class SupportersConfig {
     }
 
     private static float clamp(float v) {
-        if (Float.isNaN(v)) {
-            return 1.0f;
-        }
+        if (Float.isNaN(v)) return 1.0f;
         return v < MIN_MODEL_DIMENSION ? MIN_MODEL_DIMENSION : (v > MAX_MODEL_DIMENSION ? MAX_MODEL_DIMENSION : v);
     }
 }

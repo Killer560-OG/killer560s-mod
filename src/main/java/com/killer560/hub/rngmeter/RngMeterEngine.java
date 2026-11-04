@@ -16,16 +16,12 @@ public final class RngMeterEngine {
     }
 
     /** Ranks every item given, with no group filtering - for a live-scanned menu's own item list. */
-    public static List<RankedItem> rankAll(List<RngItem> items) {
-        return rank(items, item -> true);
-    }
+    public static List<RankedItem> rankAll(List<RngItem> items) { return rank(items, item -> true); }
 
     private static List<RankedItem> rank(List<RngItem> items, Predicate<RngItem> filter) {
         List<RankedItem> ranked = new ArrayList<>();
         for (RngItem item : items) {
-            if (!filter.test(item)) {
-                continue;
-            }
+            if (!filter.test(item)) continue;
             Long price = item.soulbound() ? null : PRICES.getPrice(item);
             Double cpp = price != null ? price / (double) item.pityXp() : null;
             ranked.add(new RankedItem(item, price, cpp, 0));

@@ -30,9 +30,7 @@ public abstract class PauseMenuIconRowMixin {
     private LayoutElement killer560smod$hideIconRow(GridLayout.RowHelper helper, LayoutElement element, int span,
                                                     LayoutSettings settings, Operation<LayoutElement> original) {
         try {
-            if (element instanceof LinearLayout && MainMenuThemeConfig.getInstance().isHidePauseIcons()) {
-                return element;
-            }
+            if (element instanceof LinearLayout && MainMenuThemeConfig.getInstance().isHidePauseIcons()) return element;
         } catch (Throwable t) {
             MainMenuTheme.fail("pause icons", t);
         }

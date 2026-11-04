@@ -49,9 +49,7 @@ public final class PuzzleCoords {
      * clay corner of - they all take it from {@code LiveMapFeature.currentRoomClayAndRotation()}.
      */
     private static int simRoomNudge() {
-        if (!com.killer560.hub.roomsim.SimState.isActive()) {
-            return 0;
-        }
+        if (!com.killer560.hub.roomsim.SimState.isActive()) return 0;
         RoomEntry room = com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
         return room == null ? 0 : com.killer560.hub.roomsim.SimRoomPuzzles.dyFor(room.name);
     }

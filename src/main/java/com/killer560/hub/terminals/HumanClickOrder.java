@@ -51,9 +51,7 @@ final class HumanClickOrder {
     }
 
     /** A quick reopen of the same terminal: clicks start over, the habit stays. */
-    static void resetClicks() {
-        committed = -1;
-    }
+    static void resetClicks() { committed = -1; }
 
     /** The slot just clicked; {@code needsMore} keeps it as the target (the cursor stays on it). */
     static void clicked(int slot, boolean needsMore) {
@@ -81,17 +79,12 @@ final class HumanClickOrder {
                     following = e.getKey();
                 }
             }
-            if (primary >= 0 && waiting.test(primary) && following >= 0) {
-                return following;
-            }
-            return primary;
+            return primary >= 0 && waiting.test(primary) && following >= 0 ? following : primary;
         }
         // Stay on a slot that still needs clicks. While its click is unanswered the slot can read empty (Rubix's click
         // is a real PICKUP, which the client predicts by lifting the pane until the server answers), so an unanswered
         // click keeps it too; leaving there was the "goes off it and comes back" the owner saw (2026-10-27).
-        if (committed >= 0 && (highlights.containsKey(committed) || waiting.test(committed))) {
-            return committed;
-        }
+        if (committed >= 0 && (highlights.containsKey(committed) || waiting.test(committed))) return committed;
         committed = -1;
         ThreadLocalRandom r = ThreadLocalRandom.current();
         if (r.nextFloat() < 0.08f) {
@@ -122,9 +115,7 @@ final class HumanClickOrder {
         float secondKey = Float.MAX_VALUE;
         int readingFirst = -1;
         for (int slot : highlights.keySet()) {
-            if (waiting.test(slot)) {
-                continue;
-            }
+            if (waiting.test(slot)) continue;
             if (readingFirst < 0 || slot < readingFirst) {
                 readingFirst = slot;
             }
@@ -139,9 +130,7 @@ final class HumanClickOrder {
                 secondKey = key;
             }
         }
-        if (best < 0) {
-            return -1;
-        }
+        if (best < 0) return -1;
         int pick = best;
         if (second >= 0 && r.nextFloat() < skipChance) {
             pick = second;

@@ -38,7 +38,6 @@ import org.slf4j.Logger;
  */
 public final class PackDisabler {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-packdisabler");
     public static final String HYPIXEL_NAMESPACE = "hypixel_skyblock";
     private static boolean idleNoticeShown;
 
@@ -56,9 +55,7 @@ public final class PackDisabler {
         });
     }
 
-    public static boolean noammInstalled() {
-        return DetectedMods.isPackDisablerActive();
-    }
+    public static boolean noammInstalled() { return DetectedMods.isPackDisablerActive(); }
 
     /** The setting is on, Noamm's mod is not doing the job, and "Skyblock Only" allows it. */
     public static boolean isActive() {
@@ -75,9 +72,7 @@ public final class PackDisabler {
     private static final Identifier PAPER_MODEL = Identifier.withDefaultNamespace("paper");
 
     /** {@link #resolveModel(ItemStack, Identifier, ItemDisplayContext)} for a caller with no display context. */
-    public static Identifier resolveModel(ItemStack stack, Identifier current) {
-        return resolveModel(stack, current, null);
-    }
+    public static Identifier resolveModel(ItemStack stack, Identifier current) { return resolveModel(stack, current, null); }
 
     /**
      * The model {@code stack} should be drawn with. Called by the item-model mixin with the model the stack asked for;
@@ -86,30 +81,20 @@ public final class PackDisabler {
      * throws.
      */
     public static Identifier resolveModel(ItemStack stack, Identifier current, ItemDisplayContext context) {
-        if (isMenuMap(stack, current, context)) {
-            return PAPER_MODEL;
-        }
-        if (!isHypixelModel(current) || !isActive()) {
-            return current;
-        }
+        if (isMenuMap(stack, current, context)) return PAPER_MODEL;
+        if (!isHypixelModel(current) || !isActive()) return current;
         try {
             CompoundTag tag = ItemNbt.view(stack);
             String id = tag == null ? null : tag.getStringOr("id", null);
             if (id == null) {
-                if (tag != null && tag.contains("quiver_arrow")) {
-                    return Identifier.withDefaultNamespace("arrow");
-                }
+                if (tag != null && tag.contains("quiver_arrow")) return Identifier.withDefaultNamespace("arrow");
                 // Menus show items without their SkyBlock id (Bazaar and AH pages, recipes, collections): the
                 // Hypixel model alone names the item when exactly one table row uses it.
                 id = ItemLooks.idForModel(current);
-                if (id == null) {
-                    return current;
-                }
+                if (id == null) return current;
             }
             Identifier model = ItemLooks.modelFor(id);
-            if (model == null) {
-                return current;
-            }
+            if (model == null) return current;
             Identifier dynamic = tag == null ? null : dynamicModel(id, stack, tag, current);
             return dynamic != null ? dynamic : model;
         } catch (Exception e) {
@@ -129,25 +114,19 @@ public final class PackDisabler {
                 || !(MAP_MODEL.equals(current) || FILLED_MAP_MODEL.equals(current))) {
             return false;
         }
-        if (!(stack.is(Items.MAP) || stack.is(Items.FILLED_MAP))) {
-            return false;
-        }
+        if (!(stack.is(Items.MAP) || stack.is(Items.FILLED_MAP))) return false;
         // Create Buy Order is a filled map WITH a map number but no map data ("Unknown Map" in its tooltip; killer560,
         // 2026-11-03 screenshot). A map whose picture the client holds is a real map and keeps its look.
         if (stack.has(DataComponents.MAP_ID)) {
             try {
                 net.minecraft.client.multiplayer.ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
-                if (level == null || level.getMapData(stack.get(DataComponents.MAP_ID)) != null) {
-                    return false;
-                }
+                if (level == null || level.getMapData(stack.get(DataComponents.MAP_ID)) != null) return false;
             } catch (Exception e) {
                 return false;
             }
         }
         try {
-            if (!PackDisablerConfig.getInstance().isPaperMenuButtons() || !isActive()) {
-                return false;
-            }
+            if (!PackDisablerConfig.getInstance().isPaperMenuButtons() || !isActive()) return false;
             CompoundTag tag = ItemNbt.view(stack);
             return tag == null || tag.getStringOr("id", null) == null;
         } catch (Exception e) {
@@ -160,16 +139,10 @@ public final class PackDisabler {
      * player head keeps its own skin; anything else that we redirected to the player-head model gets its old skin.
      */
     public static ResolvableProfile resolveProfile(ItemStack stack, ResolvableProfile current) {
-        if (stack == null || stack.isEmpty() || !isActive()) {
-            return current;
-        }
+        if (stack == null || stack.isEmpty() || !isActive()) return current;
         try {
-            if (current != null && stack.is(Items.PLAYER_HEAD)) {
-                return current;
-            }
-            if (!isHypixelModel(stack.get(DataComponents.ITEM_MODEL))) {
-                return current;
-            }
+            if (current != null && stack.is(Items.PLAYER_HEAD)) return current;
+            if (!isHypixelModel(stack.get(DataComponents.ITEM_MODEL))) return current;
             CompoundTag tag = ItemNbt.view(stack);
             String id = tag == null ? null : tag.getStringOr("id", null);
             if (id == null) {

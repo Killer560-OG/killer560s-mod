@@ -58,9 +58,7 @@ public final class IdentityCommandFeature {
     /** @return true if this feature handled (sent or prompted for) the message itself - the caller must
      *  cancel vanilla's own send in that case, same contract as {@code TranslateFeature#tryIntercept}. */
     public static boolean tryIntercept(String normalizedMessage, boolean addToHistory) {
-        if (normalizedMessage == null || !normalizedMessage.startsWith("/")) {
-            return false;
-        }
+        if (normalizedMessage == null || !normalizedMessage.startsWith("/")) return false;
         String verb;
         String typedName;
         Matcher m = PARTY_EXPLICIT_INVITE.matcher(normalizedMessage);
@@ -105,9 +103,7 @@ public final class IdentityCommandFeature {
      *  through {@code ChatScreen.handleChatInput}, so the chosen command goes out as-is and is not re-resolved. */
     private static void promptCollision(String verb, IdentityResolver.Resolution res) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         MutableComponent line = Component.literal("§6[Killer560's Mod] §fTwo players are named §e"
                 + res.typedText() + "§f - which one did you mean?");
         Component nicknameOption = option(" §a[renamed player]", verb, res.realIgn());

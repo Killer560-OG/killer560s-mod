@@ -51,13 +51,9 @@ public final class WitherDoorsConfig {
             this.label = label;
         }
 
-        public boolean fills() {
-            return this != OUTLINE;
-        }
+        public boolean fills() { return this != OUTLINE; }
 
-        public boolean outlines() {
-            return this != FILL;
-        }
+        public boolean outlines() { return this != FILL; }
     }
 
     private static WitherDoorsConfig instance;
@@ -152,137 +148,75 @@ public final class WitherDoorsConfig {
         WitherDoorsFeature.invalidateCache();
     }
 
-    private static int clampDistance(int value) {
-        return Math.max(MIN_RENDER_DISTANCE, Math.min(MAX_RENDER_DISTANCE, value));
-    }
+    private static int clampDistance(int value) { return Math.max(MIN_RENDER_DISTANCE, Math.min(MAX_RENDER_DISTANCE, value)); }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getWitherLockedColor() {
-        return witherLockedColor;
-    }
+    public int getWitherLockedColor() { return witherLockedColor; }
 
-    public void setWitherLockedColor(int witherLockedColor) {
-        this.witherLockedColor = witherLockedColor;
-    }
+    public void setWitherLockedColor(int witherLockedColor) { this.witherLockedColor = witherLockedColor; }
 
-    public int getWitherReadyColor() {
-        return witherReadyColor;
-    }
+    public int getWitherReadyColor() { return witherReadyColor; }
 
-    public void setWitherReadyColor(int witherReadyColor) {
-        this.witherReadyColor = witherReadyColor;
-    }
+    public void setWitherReadyColor(int witherReadyColor) { this.witherReadyColor = witherReadyColor; }
 
-    public int getBloodLockedColor() {
-        return bloodLockedColor;
-    }
+    public int getBloodLockedColor() { return bloodLockedColor; }
 
-    public void setBloodLockedColor(int bloodLockedColor) {
-        this.bloodLockedColor = bloodLockedColor;
-    }
+    public void setBloodLockedColor(int bloodLockedColor) { this.bloodLockedColor = bloodLockedColor; }
 
-    public int getBloodReadyColor() {
-        return bloodReadyColor;
-    }
+    public int getBloodReadyColor() { return bloodReadyColor; }
 
-    public void setBloodReadyColor(int bloodReadyColor) {
-        this.bloodReadyColor = bloodReadyColor;
-    }
+    public void setBloodReadyColor(int bloodReadyColor) { this.bloodReadyColor = bloodReadyColor; }
 
-    public int getRenderDistance() {
-        return renderDistance;
-    }
+    public int getRenderDistance() { return renderDistance; }
 
-    public void setRenderDistance(int renderDistance) {
-        this.renderDistance = clampDistance(renderDistance);
-    }
+    public void setRenderDistance(int renderDistance) { this.renderDistance = clampDistance(renderDistance); }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
-    public void setStyle(Style style) {
-        this.style = style == null ? Style.OUTLINE : style;
-    }
+    public void setStyle(Style style) { this.style = style == null ? Style.OUTLINE : style; }
 
-    public int getFillOpacity() {
-        return fillOpacity;
-    }
+    public int getFillOpacity() { return fillOpacity; }
 
     public void setFillOpacity(int fillOpacity) {
         this.fillOpacity = Math.max(MIN_FILL_OPACITY, Math.min(MAX_FILL_OPACITY, fillOpacity));
     }
 
-    public boolean isCustomFillColor() {
-        return customFillColor;
-    }
+    public boolean isCustomFillColor() { return customFillColor; }
 
-    public void setCustomFillColor(boolean customFillColor) {
-        this.customFillColor = customFillColor;
-    }
+    public void setCustomFillColor(boolean customFillColor) { this.customFillColor = customFillColor; }
 
-    public int getFillColor() {
-        return fillColor;
-    }
+    public int getFillColor() { return fillColor; }
 
-    public void setFillColor(int fillColor) {
-        this.fillColor = fillColor;
-    }
+    public void setFillColor(int fillColor) { this.fillColor = fillColor; }
 
     /** Cheat-gated: the legit jar can never show every door, whatever the saved value says. */
-    public boolean isShowAllDoors() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && showAllDoors;
-    }
+    public boolean isShowAllDoors() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && showAllDoors; }
 
-    public boolean isShowAllDoorsRaw() {
-        return showAllDoors;
-    }
+    public boolean isShowAllDoorsRaw() { return showAllDoors; }
 
-    public void setShowAllDoors(boolean showAllDoors) {
-        this.showAllDoors = showAllDoors;
-    }
+    public void setShowAllDoors(boolean showAllDoors) { this.showAllDoors = showAllDoors; }
 
     /** Cheat-gated: the legit jar can never draw through walls, whatever the saved value says. There is no
      *  separate Through Walls toggle since 2026-10-14 (killer560: it was "the exact same thing" as Show All
      *  Doors) - Show All Doors draws every highlight through walls. */
-    public boolean isThroughWalls() {
-        return isShowAllDoors();
-    }
+    public boolean isThroughWalls() { return isShowAllDoors(); }
 
     /** Both builds since 2026-10-15. The legit build only ever gets the held-map inference ({@link MapDoors}): the
      *  path-to-Blood version needs Show All Doors, which is cheat-gated. */
-    public boolean isFairyDoor() {
-        return fairyDoor;
-    }
+    public boolean isFairyDoor() { return fairyDoor; }
 
-    public boolean isFairyDoorRaw() {
-        return fairyDoor;
-    }
+    public boolean isFairyDoorRaw() { return fairyDoor; }
 
-    public void setFairyDoor(boolean fairyDoor) {
-        this.fairyDoor = fairyDoor;
-    }
+    public void setFairyDoor(boolean fairyDoor) { this.fairyDoor = fairyDoor; }
 
-    public boolean isDoorLabels() {
-        return doorLabels;
-    }
+    public boolean isDoorLabels() { return doorLabels; }
 
-    public void setDoorLabels(boolean doorLabels) {
-        this.doorLabels = doorLabels;
-    }
+    public void setDoorLabels(boolean doorLabels) { this.doorLabels = doorLabels; }
 
-    public int getFairyDoorColor() {
-        return fairyDoorColor;
-    }
+    public int getFairyDoorColor() { return fairyDoorColor; }
 
-    public void setFairyDoorColor(int fairyDoorColor) {
-        this.fairyDoorColor = fairyDoorColor;
-    }
+    public void setFairyDoorColor(int fairyDoorColor) { this.fairyDoorColor = fairyDoorColor; }
 }

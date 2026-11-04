@@ -53,9 +53,7 @@ public final class TerminalAuraFeature {
     }
 
     public static void register() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return;
         TerminalAuraConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalAuraFeature.tick", TerminalAuraFeature::tick));
         LOGGER.debug("[TerminalAura] Registered (default OFF)");
@@ -159,15 +157,12 @@ public final class TerminalAuraFeature {
         }
     }
 
-    // ---- logging only ----
     private static String lastGateLogged = "init";
 
     /** One line when the reason the aura is holding changes (null = it has a target). */
     private static void logGate(String gate) {
         String g = gate == null ? "" : gate;
-        if (g.equals(lastGateLogged)) {
-            return;
-        }
+        if (g.equals(lastGateLogged)) return;
         lastGateLogged = g;
         if (gate == null) {
             LOGGER.info("[TerminalAura] target in range tick={}", ActionGate.currentTick());
@@ -176,9 +171,7 @@ public final class TerminalAuraFeature {
         }
     }
 
-    private static String fmt(double d) {
-        return String.format(java.util.Locale.ROOT, "%.2f", d);
-    }
+    private static String fmt(double d) { return String.format(java.util.Locale.ROOT, "%.2f", d); }
 
     /** The click a body turn was made for, one tick later; retried for a few ticks if the ActionGate is busy. */
     private static void clickPending(Minecraft client, LocalPlayer player) {
@@ -241,9 +234,7 @@ public final class TerminalAuraFeature {
      * {@link ActionGate}: the caller (AP3's tick start) already has this tick's interaction.
      */
     public static boolean clickNow(Minecraft client, Player player, ArmorStand stand, double range) {
-        if (client.gameMode == null || McCompat.screen(client) != null) {
-            return false;
-        }
+        if (client.gameMode == null || McCompat.screen(client) != null) return false;
         Vec3 hit = hitFromEye(player, stand, range);
         if (hit == null) {
             LOGGER.info("[TerminalAura] AP3 term click refused: {} gone or out of range {}", TerminalStands.describe(stand),
@@ -274,9 +265,7 @@ public final class TerminalAuraFeature {
 
     /** The nearest terminal the aura may click, or null. */
     private static Target pick(Minecraft client, Player player, double range, int fovDegrees) {
-        if (client.level == null || client.gameMode == null || range <= 0) {
-            return null;
-        }
+        if (client.level == null || client.gameMode == null || range <= 0) return null;
         Vec3 eyes = player.getEyePosition();
         double rangeSqr = range * range;
         Vec3 look = player.getViewVector(1f).normalize();
@@ -295,12 +284,8 @@ public final class TerminalAuraFeature {
             Vec3 center = TerminalStands.center(stand);
             // Since Hypixel's 2026 terminal update a terminal does not open from below: QUOI (jcnlk's fork,
             // 077adbe/44eac98, 2026-10-07) skips any stand whose feet are above your EYES, not your feet.
-            if (eyes.y < stand.getY()) {
-                continue;
-            }
-            if (!fullCircle && center.subtract(eyes).normalize().dot(look) < minFovDot) {
-                continue;
-            }
+            if (eyes.y < stand.getY()) continue;
+            if (!fullCircle && center.subtract(eyes).normalize().dot(look) < minFovDot) continue;
             // To the BOX. The center reads further than the server measures, so a terminal at the edge of
             // the 3.0 entity limit was refused when it was really in range.
             if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyes,
@@ -311,9 +296,7 @@ public final class TerminalAuraFeature {
             // point a real right-click would report - not at the entity's origin.
             AABB box = stand.getBoundingBox().inflate(TerminalStands.INFLATE);
             Vec3 hit = box.clip(eyes, center).orElse(null);
-            if (hit == null) {
-                continue;
-            }
+            if (hit == null) continue;
             // One per pass, so the delay actually paces them. The ActionGate is asked after the target is chosen
             // but before anything is sent or lastClickMs moves, so a denied tick costs nothing.
             boolean lookHits = box.clip(eyes, eyes.add(look.scale(range + 1.0))).isPresent();

@@ -38,15 +38,11 @@ public abstract class ChestBlockMixin implements OriginalCollisionShapeProvider 
     private static Map<Direction, VoxelShape> HALF_SHAPES;
 
     @Shadow
-    public static Direction getConnectedDirection(BlockState blockState) {
-        throw new AssertionError();
-    }
+    public static Direction getConnectedDirection(BlockState blockState) { throw new AssertionError(); }
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (!SecretsFeature.shouldExpandChests()) {
-            return;
-        }
+        if (!SecretsFeature.shouldExpandChests()) return;
         com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
         if (cfg.getChestShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
             // A double chest's half still reaches across to its other half, like vanilla's own half shapes.
@@ -60,9 +56,7 @@ public abstract class ChestBlockMixin implements OriginalCollisionShapeProvider 
 
     @Override
     public VoxelShape killer560smod$getOriginalCollisionShape(BlockState state) {
-        if (state.getValue(ChestBlock.TYPE) == ChestType.SINGLE) {
-            return SHAPE;
-        }
+        if (state.getValue(ChestBlock.TYPE) == ChestType.SINGLE) return SHAPE;
         return HALF_SHAPES.get(getConnectedDirection(state));
     }
 }

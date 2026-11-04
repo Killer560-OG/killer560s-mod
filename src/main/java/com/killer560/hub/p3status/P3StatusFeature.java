@@ -68,9 +68,6 @@ public final class P3StatusFeature {
                     new Vec3(39, 108, 142)},
             {new Vec3(-2, 109, 112), new Vec3(-2, 119, 93), new Vec3(18, 123, 93), new Vec3(-2, 109, 77)},
             {new Vec3(41, 109, 30), new Vec3(44, 121, 30), new Vec3(67, 109, 30), new Vec3(72, 114, 47)}};
-    /** Device and lever blocks per section (Skyblocker {@code goldorwaypoints.json}). */
-    private static final Vec3[] DEVICES = {
-            new Vec3(110.5, 121.5, 91.5), new Vec3(60.5, 132.5, 143.5), new Vec3(0.5, 120.5, 77.5), new Vec3(63.5, 127.5, 35.5)};
     private static final Vec3[][] LEVERS = {
             {new Vec3(106.5, 124.5, 113.5), new Vec3(94.5, 124.5, 113.5)},
             {new Vec3(27.5, 124.5, 127.5), new Vec3(23.5, 132.5, 138.5)},
@@ -115,7 +112,6 @@ public final class P3StatusFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("P3StatusFeature.tick", P3StatusFeature::tick));
     }
 
-    // ------------------------------------------------------------------------------------------------- tracking
 
     private static void syncRun() {
         int g = P3SectionTracker.generation();
@@ -130,9 +126,7 @@ public final class P3StatusFeature {
     }
 
     private static void onObjective(int section, String name, String kind, int current, int total) {
-        if (section < 1 || section > 4) {
-            return;
-        }
+        if (section < 1 || section > 4) return;
         syncRun();
         int s = section - 1;
         Vec3 at = playerPos(name);
@@ -155,9 +149,7 @@ public final class P3StatusFeature {
         int best = -1;
         double bestD = Double.MAX_VALUE;
         for (int i = 0; i < spots.length; i++) {
-            if (done[i]) {
-                continue;
-            }
+            if (done[i]) continue;
             double d = at == null ? i : spots[i].distanceToSqr(at);
             if (d < bestD) {
                 bestD = d;
@@ -171,13 +163,9 @@ public final class P3StatusFeature {
 
     private static Vec3 playerPos(String name) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return null;
-        }
+        if (client.level == null) return null;
         for (AbstractClientPlayer p : client.level.players()) {
-            if (name.equals(p.getGameProfile().name())) {
-                return p.position();
-            }
+            if (name.equals(p.getGameProfile().name())) return p.position();
         }
         return null;
     }
@@ -186,24 +174,16 @@ public final class P3StatusFeature {
         P3SectionTracker.poll(client);
         syncRun();
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isShowHud() || client.level == null || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) {
-            return;
-        }
+        if (!cfg.isShowHud() || client.level == null || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) return;
         int s = P3SectionTracker.section() - 1;
-        if (s < 0 || s > 3) {
-            return;
-        }
+        if (s < 0 || s > 3) return;
         // Terminal holograms are the truth wherever they are loaded.
         Vec3[] terms = TERMINALS[s];
         for (Entity e : client.level.entitiesForRendering()) {
-            if (!(e instanceof ArmorStand stand) || stand.getCustomName() == null) {
-                continue;
-            }
+            if (!(e instanceof ArmorStand stand) || stand.getCustomName() == null) continue;
             String n = ChatObserver.strip(stand.getCustomName());
             boolean inactive = "Inactive Terminal".equals(n);
-            if (!inactive && !"Terminal Active".equals(n)) {
-                continue;
-            }
+            if (!inactive && !"Terminal Active".equals(n)) continue;
             for (int i = 0; i < terms.length; i++) {
                 if (stand.position().distanceToSqr(terms[i]) <= STAND_MATCH_SQ) {
                     TERMINAL_DONE[s][i] = !inactive;
@@ -212,32 +192,21 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- titles
 
     /** From the title mixin: true cancels Hypixel's title/subtitle (a replacement may already have been shown). */
     public static boolean onTitle(Component text, boolean subtitle) {
-        if (text == null) {
-            return false;
-        }
+        if (text == null) return false;
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isF7OrM7()) {
-            return false;
-        }
+        if (!cfg.isEnabled() || !DungeonState.isF7OrM7()) return false;
         String plain = ChatObserver.strip(text).trim();
-        if (plain.isEmpty() || plain.length() > 120) {
-            return false;
-        }
+        if (plain.isEmpty() || plain.length() > 120) return false;
         if (subtitle && cfg.isHideLaserSubtitle() && LASER_CHARGING.equals(plain)) {
             dropped++;
             return true;
         }
-        if (!cfg.isRewriteTitles()) {
-            return false;
-        }
+        if (!cfg.isRewriteTitles()) return false;
         Matcher m = COMPLETION.matcher(plain);
-        if (!m.matches()) {
-            return false;
-        }
+        if (!m.matches()) return false;
         Component line = shortTitle(m.group(1), m.group(2), parse(m.group(3)), parse(m.group(4)));
         Minecraft client = Minecraft.getInstance();
         if (!subtitle && System.currentTimeMillis() - bigTitleAtMs > 1500) {
@@ -286,7 +255,6 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- HUD
 
     /** The rows the HUD draws now (the editor's sample in the HUD editor). */
     static List<String> lines() {
@@ -295,14 +263,10 @@ public final class P3StatusFeature {
             return List.of("§fTerminals §e2§7/§a5", "§fDevice §a1§7/§a1", "§fLevers §e1§7/§a2", "§fGate §c✘");
         }
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isShowHud() || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) {
-            return List.of();
-        }
+        if (!cfg.isShowHud() || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) return List.of();
         int section = P3SectionTracker.section();
         int s = section - 1;
-        if (s < 0 || s > 3) {
-            return List.of();
-        }
+        if (s < 0 || s > 3) return List.of();
         List<String> out = new ArrayList<>(4);
         out.add("§fTerminals " + count(TERMINAL_DONE[s]));
         out.add("§fDevice " + count(new boolean[]{DEVICE_DONE[s]}));
@@ -327,34 +291,22 @@ public final class P3StatusFeature {
     private static final class StatusHud implements HudElement {
 
         @Override
-        public String id() {
-            return "p3_status";
-        }
+        public String id() { return "p3_status"; }
 
         @Override
-        public String displayName() {
-            return "P3 Status";
-        }
+        public String displayName() { return "P3 Status"; }
 
         @Override
-        public int defaultX() {
-            return F7HudSlots.x(F7HudSlots.P3_STATUS);
-        }
+        public int defaultX() { return F7HudSlots.x(F7HudSlots.P3_STATUS); }
 
         @Override
-        public int defaultY() {
-            return F7HudSlots.y(F7HudSlots.P3_STATUS);
-        }
+        public int defaultY() { return F7HudSlots.y(F7HudSlots.P3_STATUS); }
 
         @Override
-        public int width() {
-            return HudText.width(lines());
-        }
+        public int width() { return HudText.width(lines()); }
 
         @Override
-        public int height() {
-            return HudText.height(lines().size(), 10);
-        }
+        public int height() { return HudText.height(lines().size(), 10); }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -376,7 +328,6 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- test hooks
 
     private static volatile String lastDrawn = "";
 
@@ -390,33 +341,16 @@ public final class P3StatusFeature {
     }
 
     /** What the HUD last really drew (rows joined by newlines, with formatting codes). */
-    public static String testLastDrawn() {
-        return lastDrawn;
-    }
+    public static String testLastDrawn() { return lastDrawn; }
 
     /** The last short title as built, with its styles (the name's class color, the gold count). */
-    public static Component testLastReplacementComponent() {
-        return lastReplacementComponent;
-    }
+    public static Component testLastReplacementComponent() { return lastReplacementComponent; }
 
-    /** Builds the short title for a test without a title packet. */
-    public static Component testShortTitle(String name, String kind, int cur, int tot) {
-        return shortTitle(name, kind, cur, tot);
-    }
+    public static String testLastReplacement() { return lastReplacement; }
 
-    public static String testLastReplacement() {
-        return lastReplacement;
-    }
+    public static String testLastBigTitle() { return lastBigTitle; }
 
-    public static String testLastBigTitle() {
-        return lastBigTitle;
-    }
+    public static long testReplaced() { return replaced; }
 
-    public static long testReplaced() {
-        return replaced;
-    }
-
-    public static long testDropped() {
-        return dropped;
-    }
+    public static long testDropped() { return dropped; }
 }

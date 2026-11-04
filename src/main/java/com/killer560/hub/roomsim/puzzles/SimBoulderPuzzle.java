@@ -125,9 +125,7 @@ public final class SimBoulderPuzzle {
 
     /** Hooks the button right-click. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         // THE SERVER presses the box, from the use-on packet, like Hypixel's. Until 2026-10-04 this listened on the
         // CLIENT copy of the callback, which only a client-side useItemOn reaches; Fabric's server copy fires inside
@@ -147,16 +145,13 @@ public final class SimBoulderPuzzle {
                 return InteractionResult.PASS;
             }
             int[] hit = BUTTONS.get(clicked);
-            if (hit == null) {
-                return InteractionResult.PASS;
-            }
+            if (hit == null) return InteractionResult.PASS;
             press(server, hit[0], hit[1]);
             // PASS: vanilla's own press (click, animation) is what makes it read as a button.
             return InteractionResult.PASS;
         });
     }
 
-    // ------------------------------------------------------------------------------------------- binding
 
     /**
      * Arms the puzzle on a REAL captured Boulder room: identifies the room by its own button row, clears the
@@ -192,9 +187,7 @@ public final class SimBoulderPuzzle {
                 com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, fixed,
                         com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.DIORITE, Blocks.STONE_BRICK_STAIRS,
                                 Blocks.BARRIER), new int[]{0}, fixed.size() - 4);
-        if (anchor == null || PATTERNS.isEmpty()) {
-            return false;
-        }
+        if (anchor == null || PATTERNS.isEmpty()) return false;
         forget();
         bound = true;
         grid = anchor::world;
@@ -248,13 +241,9 @@ public final class SimBoulderPuzzle {
 
     /** A standalone board in front of him, for {@code /simpuzzle boulder}: the same grid on a stone floor. */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null || PATTERNS.isEmpty()) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null || PATTERNS.isEmpty()) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         // Relative (15, 64, 7) - the middle of the grid's near edge - lands on the block in front of him.
         BlockPos base = origin.immutable();
         server.execute(() -> {
@@ -290,9 +279,7 @@ public final class SimBoulderPuzzle {
     /** Puts {@code layout} into the world over whatever is there, and re-places every button. Server thread. */
     private static void lay(ServerLevel level, BlockState[] layout) {
         Grid g = grid;
-        if (g == null) {
-            return;
-        }
+        if (g == null) return;
         // Every block of every cell, top to bottom, so the captured boxes and the captured buttons both go.
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int i = 0; i < layout.length; i++) {
@@ -323,25 +310,19 @@ public final class SimBoulderPuzzle {
         BlockState[] c = cells;
         Map<BlockPos, int[]> fresh = new java.util.HashMap<>();
         for (int i = 0; i < c.length; i++) {
-            if (c[i] == null) {
-                continue;
-            }
+            if (c[i] == null) continue;
             int col = i % COLS;
             int row = i / COLS;
             for (int d = 0; d < DIRS.length; d++) {
                 int n = neighbour(col, row, d);
-                if (n < 0 || c[n] != null) {
-                    continue;
-                }
+                if (n < 0 || c[n] != null) continue;
                 int fx = X_VALUES[col] + DIRS[d][0];
                 int fz = Z_VALUES[row] + DIRS[d][1];
                 BlockPos face = g.at(fx, BUTTON_Y, fz);
                 BlockPos button = g.at(fx + DIRS[d][0], BUTTON_Y, fz + DIRS[d][1]);
                 fresh.put(button.immutable(), new int[]{i, d});
                 Direction facing = horizontal(button.getX() - face.getX(), button.getZ() - face.getZ());
-                if (facing == null) {
-                    continue;
-                }
+                if (facing == null) continue;
                 BlockState state = Blocks.STONE_BUTTON.defaultBlockState()
                         .setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.WALL)
                         .setValue(HorizontalDirectionalBlock.FACING, facing)
@@ -362,18 +343,10 @@ public final class SimBoulderPuzzle {
 
     /** The world direction of a one-block step, or null when it is not a single horizontal step. */
     private static Direction horizontal(int dx, int dz) {
-        if (dx == 1 && dz == 0) {
-            return Direction.EAST;
-        }
-        if (dx == -1 && dz == 0) {
-            return Direction.WEST;
-        }
-        if (dx == 0 && dz == 1) {
-            return Direction.SOUTH;
-        }
-        if (dx == 0 && dz == -1) {
-            return Direction.NORTH;
-        }
+        if (dx == 1 && dz == 0) return Direction.EAST;
+        if (dx == -1 && dz == 0) return Direction.WEST;
+        if (dx == 0 && dz == 1) return Direction.SOUTH;
+        if (dx == 0 && dz == -1) return Direction.NORTH;
         return null;
     }
 
@@ -388,14 +361,11 @@ public final class SimBoulderPuzzle {
 
     private static int indexOf(int[] values, int v) {
         for (int i = 0; i < values.length; i++) {
-            if (values[i] == v) {
-                return i;
-            }
+            if (values[i] == v) return i;
         }
         return -1;
     }
 
-    // ------------------------------------------------------------------------------------------ pressing
 
     /**
      * A button on side {@code d} of box {@code cell} was pressed: the box goes one cell the other way, or
@@ -403,9 +373,7 @@ public final class SimBoulderPuzzle {
      */
     private static void press(ServerLevel level, int cell, int d) {
         BlockState[] c = cells;
-        if (cell < 0 || cell >= c.length || c[cell] == null || complete) {
-            return;
-        }
+        if (cell < 0 || cell >= c.length || c[cell] == null || complete) return;
         int away = d ^ 1;   // DIRS pairs opposites: 0/1 and 2/3
         int dest = neighbour(cell % COLS, cell / COLS, away);
         BlockState[] next = c.clone();
@@ -474,19 +442,13 @@ public final class SimBoulderPuzzle {
      * tab line and the map's tick off for that whole run. The tab list ({@code SimTabList}) and the map
      * ({@code SimRoomState}) both read this. The pushes still stop at {@link #complete}, the board's own state.
      */
-    public static boolean isComplete() {
-        return complete || rewardOpened;
-    }
+    public static boolean isComplete() { return complete || rewardOpened; }
 
     /** Whether the boxes leave a way through - the board itself solved, whatever the chest. */
-    public static boolean isPathOpen() {
-        return complete;
-    }
+    public static boolean isPathOpen() { return complete; }
 
     /** Whether the reward chest has been opened (right-clicked) since the board was laid. */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world - for a floor about to be rebuilt, where the
@@ -510,20 +472,14 @@ public final class SimBoulderPuzzle {
     }
 
     /** Whether a Boulder board is up (so a player reset has something to put back). */
-    public static boolean isBuilt() {
-        return grid != null;
-    }
+    public static boolean isBuilt() { return grid != null; }
 
     /** The same arrangement back, boxes and buttons, for an Architect's First Draft or {@code /simpuzzle reset}. */
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (grid == null || !SimState.canAct(client)) {
-            return;
-        }
+        if (grid == null || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         BlockState[] start = startCells.clone();
         server.execute(() -> {
             complete = false;
@@ -536,16 +492,12 @@ public final class SimBoulderPuzzle {
     private static List<String> loadPatterns() {
         try (InputStream stream = SimBoulderPuzzle.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
-            if (stream == null) {
-                return List.of();
-            }
+            if (stream == null) return List.of();
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 Type type = new TypeToken<Map<String, List<List<Integer>>>>() {
                 }.getType();
                 Map<String, List<List<Integer>>> parsed = new Gson().fromJson(reader, type);
-                if (parsed == null) {
-                    return List.of();
-                }
+                if (parsed == null) return List.of();
                 List<String> out = new ArrayList<>();
                 for (String key : parsed.keySet()) {
                     if (key.length() == ROWS * COLS) {

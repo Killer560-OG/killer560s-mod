@@ -51,9 +51,7 @@ public final class ServerCorrections {
      *
      * @param what the whole sentence after "Server correction: ", without the full stop
      */
-    public static void reportEvent(String feature, String what) {
-        say(feature, what, what + ".");
-    }
+    public static void reportEvent(String feature, String what) { say(feature, what, what + "."); }
 
     private static void say(String feature, String logText, String chatText) {
         int folded;
@@ -101,22 +99,14 @@ public final class ServerCorrections {
     }
 
     /** How far the last server position packet turned the camera, in degrees (the larger of yaw and pitch). */
-    public static float lastRotationChange() {
-        return lastRotationChange;
-    }
+    public static float lastRotationChange() { return lastRotationChange; }
 
     /** Distance of the last server position packet's move, in blocks (0 before the first). */
-    public static double lastMoveDistance() {
-        return lastMoveDistance;
-    }
+    public static double lastMoveDistance() { return lastMoveDistance; }
 
     /** Server position packets seen since launch: a feature keeps its own copy and compares each tick. */
-    public static int packetCount() {
-        return packetCount;
-    }
+    public static int packetCount() { return packetCount; }
 
     /** Total reports since launch (the testkit reads this). */
-    public static int reports() {
-        return reports;
-    }
+    public static int reports() { return reports; }
 }

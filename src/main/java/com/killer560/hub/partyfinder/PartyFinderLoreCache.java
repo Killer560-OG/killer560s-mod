@@ -51,9 +51,7 @@ public final class PartyFinderLoreCache {
      *  and a slot update for the player's own inventory (container 0, which vanilla's handleContainerSetSlot
      *  writes to the inventory menu even while another menu is open) cannot wipe the open menu's lore. */
     public static synchronized void onSlot(int id, int slot, ItemStack stack) {
-        if (id != containerId) {
-            return;
-        }
+        if (id != containerId) return;
         put(slot, stack);
     }
 
@@ -78,9 +76,7 @@ public final class PartyFinderLoreCache {
      * @param slot the slot index within the open menu; a negative slot always returns null, which is how the
      *             single-stack callers (a hovered item, with no slot of its own) opt out
      */
-    public static synchronized List<String> serverLore(int slot) {
-        return slot < 0 ? null : BY_SLOT.get(slot);
-    }
+    public static synchronized List<String> serverLore(int slot) { return slot < 0 ? null : BY_SLOT.get(slot); }
 
     /** Called when a container closes, so nothing survives into the next menu. */
     public static synchronized void clear() {

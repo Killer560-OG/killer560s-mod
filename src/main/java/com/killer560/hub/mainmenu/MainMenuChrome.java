@@ -42,9 +42,7 @@ public final class MainMenuChrome {
         cardH = h;
     }
 
-    static void clearCard() {
-        cardScreen = new WeakReference<>(null);
-    }
+    static void clearCard() { cardScreen = new WeakReference<>(null); }
 
     /** The panel's box on {@code screen}, or null when the layout did not place one (testkit reads it). */
     public static int[] cardBox(Screen screen) {
@@ -56,9 +54,7 @@ public final class MainMenuChrome {
         return w == null ? 1f : Math.max(0f, Math.min(1f, w.getAlpha()));
     }
 
-    private static int f(int argb, float a) {
-        return MainMenuTheme.fade(argb, a);
-    }
+    private static int f(int argb, float a) { return MainMenuTheme.fade(argb, a); }
 
     /** Applies the main menu's palette to {@link MenuStyle}'s statics; the next {@code MenuStyle.use()} restores the
      *  mod menu's. */
@@ -111,9 +107,7 @@ public final class MainMenuChrome {
 
     private static void accentLine(GuiRects r, int x0, int x1, int y, float a) {
         int w = x1 - x0;
-        if (w <= 2) {
-            return;
-        }
+        if (w <= 2) return;
         int half = w / 2;
         int steps = 12;
         for (int i = 0; i < steps; i++) {
@@ -176,9 +170,7 @@ public final class MainMenuChrome {
     /** Label colors on a title-screen button. */
     public static int labelColour(boolean active, boolean hover) {
         MenuWidgets.sync();
-        if (!active) {
-            return MenuStyle.DIM2 & 0xFFFFFF;
-        }
+        if (!active) return MenuStyle.DIM2 & 0xFFFFFF;
         return (hover ? (MenuStyle.LIGHT ? MenuStyle.OR_DARK : MenuStyle.OR_HOVER) : MenuStyle.TXT) & 0xFFFFFF;
     }
 

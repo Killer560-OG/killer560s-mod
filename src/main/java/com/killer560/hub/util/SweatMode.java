@@ -34,14 +34,10 @@ public final class SweatMode {
     private SweatMode() {
     }
 
-    public static boolean isOn() {
-        return ticksLeft > 0;
-    }
+    public static boolean isOn() { return ticksLeft > 0; }
 
     /** How many times it has been entered since launch (for tests). */
-    public static int timesEntered() {
-        return entered;
-    }
+    public static int timesEntered() { return entered; }
 
     /** {@link #enter} from a menu button whose label {@code text} reads the state - put back to OFF when it ends. */
     public static void enter(net.minecraft.client.gui.components.AbstractWidget button,
@@ -78,9 +74,7 @@ public final class SweatMode {
             return;
         }
         List<String> cmd = List.of(chrome.toString(), URL);
-        if (ExternalOpen.suppress(cmd)) {
-            return;
-        }
+        if (ExternalOpen.suppress(cmd)) return;
         try {
             new ProcessBuilder(cmd).start();
         } catch (Exception e) {
@@ -91,9 +85,7 @@ public final class SweatMode {
 
     /** chrome.exe in its usual Windows places, or null (another OS, or not installed). */
     private static Path findChrome() {
-        if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
-            return null;
-        }
+        if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) return null;
         List<Path> where = new ArrayList<>();
         for (String env : new String[]{"ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"}) {
             String base = System.getenv(env);
@@ -102,9 +94,7 @@ public final class SweatMode {
             }
         }
         for (Path p : where) {
-            if (Files.isRegularFile(p)) {
-                return p;
-            }
+            if (Files.isRegularFile(p)) return p;
         }
         return null;
     }

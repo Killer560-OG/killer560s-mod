@@ -18,24 +18,14 @@ public final class PowderMining {
     }
 
     /** A treasure chest was uncovered or looted. */
-    static void markChest() {
-        lastChestAt = System.currentTimeMillis();
-    }
+    static void markChest() { lastChestAt = System.currentTimeMillis(); }
 
     public static boolean activeRecently() {
         Boolean f = forced;
-        if (f != null) {
-            return f;
-        }
-        if (MiningState.crystalHollows()) {
-            return true;
-        }
+        if (f != null) return f;
+        if (MiningState.crystalHollows()) return true;
         long at = lastChestAt;
         return at >= 0 && System.currentTimeMillis() - at <= RECENT_MS;
     }
 
-    /** Testkit: force the answer (null = real). */
-    public static void forceForTest(Boolean v) {
-        forced = v;
-    }
 }

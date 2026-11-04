@@ -40,9 +40,7 @@ public final class SimDiagnosticFeature {
     }
 
     private static void onChatMessage(Component message) {
-        if (!DungeonState.isSimOverrideActive()) {
-            return;
-        }
+        if (!DungeonState.isSimOverrideActive()) return;
         LOGGER.info("[SimDiag] Chat: \"{}\"", message.getString());
     }
 
@@ -52,14 +50,10 @@ public final class SimDiagnosticFeature {
             return;
         }
         tickCounter++;
-        if (tickCounter < 40) {
-            return;
-        }
+        if (tickCounter < 40) return;
         tickCounter = 0;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         var pos = client.player.position();
         LOGGER.info("[SimDiag] Position: x={} y={} z={}", pos.x, pos.y, pos.z);
     }

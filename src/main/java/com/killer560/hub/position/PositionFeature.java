@@ -96,9 +96,7 @@ public final class PositionFeature {
         return fmt;
     }
 
-    private static String format(double value, int decimalPlaces) {
-        return formatter(decimalPlaces).format(value);
-    }
+    private static String format(double value, int decimalPlaces) { return formatter(decimalPlaces).format(value); }
 
     /** Builds (or reuses) the current set of HUD lines. Package-visible for the settings tab preview. */
     static String[] lines(PositionConfig cfg, LocalPlayer player) {
@@ -246,9 +244,7 @@ public final class PositionFeature {
      */
     public static Vec3 shownVelocity(LocalPlayer player) {
         Vec3 v = player.getDeltaMovement();
-        if (player.onGround() && v.y < 0.0) {
-            return new Vec3(v.x, 0.0, v.z);
-        }
+        if (player.onGround() && v.y < 0.0) return new Vec3(v.x, 0.0, v.z);
         return v;
     }
 
@@ -266,37 +262,25 @@ public final class PositionFeature {
         }
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Advanced Position";
-        }
+        public String displayName() { return "Advanced Position"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 60;
-        }
+        public int defaultY() { return 60; }
 
         @Override
         public int width() {
             LocalPlayer player = Minecraft.getInstance().player;
             Font font = Minecraft.getInstance().font;
-            if (player == null || font == null) {
-                return 90;
-            }
+            if (player == null || font == null) return 90;
             String[] lines = lines(PositionConfig.getInstance(), player);
             // Measured once per new set of lines: each font.width of a formatted line builds a Style per color code.
-            if (lines == widthLines && font == widthFont) {
-                return widthValue;
-            }
+            if (lines == widthLines && font == widthFont) return widthValue;
             int max = 20;
             for (String line : lines) {
                 max = Math.max(max, font.width(line) + 1);
@@ -324,20 +308,14 @@ public final class PositionFeature {
         }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return PositionConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return PositionConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             PositionConfig cfg = PositionConfig.getInstance();
-            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) return;
             LocalPlayer player = Minecraft.getInstance().player;
-            if (player == null) {
-                return;
-            }
+            if (player == null) return;
             Font font = Minecraft.getInstance().font;
             int lineY = y;
             for (String line : lines(cfg, player)) {

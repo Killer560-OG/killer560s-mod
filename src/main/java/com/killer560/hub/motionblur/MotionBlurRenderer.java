@@ -6,7 +6,6 @@ import com.killer560.hub.motionblur.mixin.PostChainAccessor;
 import com.killer560.hub.motionblur.mixin.PostPassAccessor;
 import com.killer560.hub.util.ModChat;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
@@ -106,9 +105,7 @@ public final class MotionBlurRenderer {
                 resetHistory();
                 return;
             }
-            if (failed || cfg.isBlurGui() != afterGui) {
-                return;
-            }
+            if (failed || cfg.isBlurGui() != afterGui) return;
 
             Minecraft mc = Minecraft.getInstance();
             // Same condition GameRenderer.render uses to decide whether the level was drawn this frame.
@@ -132,9 +129,7 @@ public final class MotionBlurRenderer {
                 primed = false;
             }
 
-            if (chain == null && !buildChain(mc)) {
-                return;
-            }
+            if (chain == null && !buildChain(mc)) return;
 
             float blend = primed ? computeBlend(cfg.getStrength()) : 0.0f;
             if (!primed) {
@@ -163,16 +158,11 @@ public final class MotionBlurRenderer {
         double referenceBlend = (strengthPercent / 100.0) * MAX_REFERENCE_BLEND;
         // Keep the per-second decay constant: blend_fps = blend_ref ^ (refFps / fps).
         double blend = Math.pow(referenceBlend, smoothedFrameSeconds * REFERENCE_FPS);
-        if (!Double.isFinite(blend)) {
-            return 0.0f;
-        }
-        return (float) Math.max(0.0, Math.min(MAX_BLEND, blend));
+        return !Double.isFinite(blend) ? 0.0f : (float) Math.max(0.0, Math.min(MAX_BLEND, blend));
     }
 
     private static void writeBlend(float blend) {
-        if (blend == lastWrittenBlend) {
-            return;
-        }
+        if (blend == lastWrittenBlend) return;
         McRender.writeUniformVec4(uniformBuffer, blend, 0.0f, 0.0f, 0.0f);
         lastWrittenBlend = blend;
     }
@@ -181,9 +171,7 @@ public final class MotionBlurRenderer {
         PostChain built = null;
         try {
             PostChainConfig config = readConfig(mc);
-            if (config == null) {
-                return false;
-            }
+            if (config == null) return false;
             if (projection == null) {
                 projection = new Projection();
                 projectionBuffer = new ProjectionMatrixBuffer("killer560smod motion blur");
@@ -215,9 +203,7 @@ public final class MotionBlurRenderer {
             boolean installed = false;
             for (PostPass pass : passes) {
                 Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).killer560smod$getCustomUniforms();
-                if (!uniforms.containsKey(UNIFORM_BLOCK)) {
-                    continue;
-                }
+                if (!uniforms.containsKey(UNIFORM_BLOCK)) continue;
                 GpuBuffer old = uniforms.put(UNIFORM_BLOCK, buffer);
                 if (old != null && old != buffer) {
                     old.close();

@@ -40,9 +40,7 @@ public final class ProxyConfig {
      *  shared file every instance reads). */
     private static Path universalPath() {
         String override = System.getProperty("prismaccountswitcher.universalProxyFile");
-        if (override != null && !override.isBlank()) {
-            return java.nio.file.Paths.get(override);
-        }
+        if (override != null && !override.isBlank()) return java.nio.file.Paths.get(override);
         return com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
                 .resolve("prismaccountswitcher").resolve("universal-proxy.json");
     }
@@ -70,15 +68,12 @@ public final class ProxyConfig {
         return instance;
     }
 
-    // ---- Persistence ----
 
     /**
      * Loads config from disk, replacing the current singleton. Missing or
      * malformed files fall back to defaults (and are left untouched).
      */
-    public static void load() {
-        instance = readFrom(CONFIG_PATH);
-    }
+    public static void load() { instance = readFrom(CONFIG_PATH); }
 
     /** The shared universal proxy, re-read from disk if another instance changed it. Never null. */
     public static synchronized ProxyConfig universal() {
@@ -122,9 +117,7 @@ public final class ProxyConfig {
      */
     public static synchronized boolean enableUniversalFromInstance() {
         ProxyConfig inst = getInstance();
-        if (!inst.hasValidAddress()) {
-            return false;
-        }
+        if (!inst.hasValidAddress()) return false;
         ProxyConfig u = universal();
         u.copyConnectionFrom(inst);
         u.setEnabled(true);
@@ -147,9 +140,7 @@ public final class ProxyConfig {
      */
     public static synchronized void syncUniversalFromInstance() {
         ProxyConfig u = universal();
-        if (!u.isEnabled()) {
-            return;
-        }
+        if (!u.isEnabled()) return;
         u.copyConnectionFrom(getInstance());
         u.setEnabled(u.hasValidAddress());
         u.save();
@@ -165,16 +156,12 @@ public final class ProxyConfig {
         normalize();
     }
 
-    public boolean isUniversal() {
-        return UNIVERSAL_PATH.equals(path);
-    }
+    public boolean isUniversal() { return UNIVERSAL_PATH.equals(path); }
 
     private static ProxyConfig readFrom(Path file) {
         ProxyConfig fallback = new ProxyConfig();
         fallback.path = file;
-        if (!Files.exists(file)) {
-            return fallback;
-        }
+        if (!Files.exists(file)) return fallback;
         try {
             String json = Files.readString(file, StandardCharsets.UTF_8);
             // Per-key reads (2026-09-15 persistence audit) instead of GSON.fromJson(whole class): one
@@ -221,7 +208,6 @@ public final class ProxyConfig {
         if (port < 1 || port > 65535) port = 1080;
     }
 
-    // ---- Netty handler factory ----
 
     /**
      * Builds a fresh {@link ProxyHandler} for the configured proxy, or
@@ -229,9 +215,7 @@ public final class ProxyConfig {
      * connection because Netty handlers are not shareable across channels.
      */
     public ProxyHandler createHandler() {
-        if (host == null || host.isBlank()) {
-            return null;
-        }
+        if (host == null || host.isBlank()) return null;
         // Resolved locally; this is the proxy server address, not the game server.
         InetSocketAddress proxyAddress = new InetSocketAddress(host, port);
         boolean hasAuth = username != null && !username.isBlank();
@@ -248,7 +232,6 @@ public final class ProxyConfig {
         }
     }
 
-    // ---- Address parsing helpers ----
 
     /**
      * Parses a "host:port" string (splitting on the last colon so IPv6-ish
@@ -256,9 +239,7 @@ public final class ProxyConfig {
      * invalid port defaults to 1080.
      */
     public void parseAndSetAddress(String input) {
-        if (input == null) {
-            return;
-        }
+        if (input == null) return;
         String trimmed = input.trim();
         int colon = trimmed.lastIndexOf(':');
         if (colon < 0) {
@@ -276,58 +257,30 @@ public final class ProxyConfig {
         }
     }
 
-    public String getAddressString() {
-        if (host == null || host.isBlank()) {
-            return "";
-        }
-        return host + ":" + port;
-    }
+    public String getAddressString() { return host == null || host.isBlank() ? "" : host + ":" + port; }
 
-    public boolean hasValidAddress() {
-        return host != null && !host.isBlank() && port >= 1 && port <= 65535;
-    }
+    public boolean hasValidAddress() { return host != null && !host.isBlank() && port >= 1 && port <= 65535; }
 
-    // ---- Accessors ----
 
-    public ProxyType getType() {
-        return type;
-    }
+    public ProxyType getType() { return type; }
 
-    public void setType(ProxyType type) {
-        this.type = type;
-    }
+    public void setType(ProxyType type) { this.type = type; }
 
-    public String getHost() {
-        return host;
-    }
+    public String getHost() { return host; }
 
-    public int getPort() {
-        return port;
-    }
+    public int getPort() { return port; }
 
-    public String getUsername() {
-        return username;
-    }
+    public String getUsername() { return username; }
 
-    public void setUsername(String username) {
-        this.username = (username == null) ? "" : username;
-    }
+    public void setUsername(String username) { this.username = (username == null) ? "" : username; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getPassword() { return password; }
 
-    public void setPassword(String password) {
-        this.password = (password == null) ? "" : password;
-    }
+    public void setPassword(String password) { this.password = (password == null) ? "" : password; }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     /** Per killer560's "add a button to set a proxy by account... whenever i swap to that account it
      *  should auto swap to that proxy" request (2026-09-10), with his explicit choice that swapping to

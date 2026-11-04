@@ -174,9 +174,7 @@ public final class SimAbilities {
     private static volatile int usesTakenAsClickHalf;
 
     /** Uses the sim's server took as the second half of a stored block click and dropped - read by the testkit. */
-    public static int usesTakenAsClickHalf() {
-        return usesTakenAsClickHalf;
-    }
+    public static int usesTakenAsClickHalf() { return usesTakenAsClickHalf; }
 
     /** From {@code SimUseLookMixin}, on the server thread, as a use packet arrives: the look he was last heard with. */
     public static void noteUseArrives(ServerPlayer sp) {
@@ -192,9 +190,7 @@ public final class SimAbilities {
     private static boolean takenAsClickHalf(ServerPlayer sp, String id) {
         StoredClick c = storedClicks.get(sp.getUUID());
         float[] look = heardLook.remove(sp.getUUID());
-        if (c == null) {
-            return false;
-        }
+        if (c == null) return false;
         float yaw = look != null ? look[0] : sp.getYRot();
         float pitch = look != null ? look[1] : sp.getXRot();
         int age = sp.level().getServer().getTickCount() - c.serverTick();
@@ -220,9 +216,7 @@ public final class SimAbilities {
             return false; // a right click in the air: it fires, and the click stays stored
         }
         storedClicks.remove(sp.getUUID());
-        if (!c.denied()) {
-            return false;
-        }
+        if (!c.denied()) return false;
         usesTakenAsClickHalf++;
         com.killer560.hub.util.ModLog.get("killer560smod-sim").info(String.format(java.util.Locale.ROOT,
                 "[Sim] use of %s taken as the second half of the block click at %s with %s %d server tick(s) ago: the "
@@ -284,17 +278,11 @@ public final class SimAbilities {
      */
     private static InteractionResult onClientUse(Player player, InteractionHand hand, BlockHitResult onBlock) {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client) || player != client.player) {
-            return InteractionResult.PASS;
-        }
+        if (!SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
         String id = CheatUtils.skyblockId(player.getItemInHand(hand));
-        if (id == null) {
-            return InteractionResult.PASS;
-        }
+        if (id == null) return InteractionResult.PASS;
         if (onBlock != null) {
-            if (!isAbilityItem(id) || blockWins(player, player.level(), onBlock)) {
-                return InteractionResult.PASS;
-            }
+            if (!isAbilityItem(id) || blockWins(player, player.level(), onBlock)) return InteractionResult.PASS;
             markAbilityUsed();
             blockClicksClaimed++; // mixin/SimUseHalfMixin: vanilla's right click still sends its use half after this
             return sendHeldSlotFirst(client);
@@ -305,9 +293,7 @@ public final class SimAbilities {
         }
         // An item the server is about to refuse in a trap room (an ender pearl): no client prediction of a throw
         // the server will not make.
-        if (trapLocked(id, SimState.currentRoomName())) {
-            return sendHeldSlotFirst(client);
-        }
+        if (trapLocked(id, SimState.currentRoomName())) return sendHeldSlotFirst(client);
         return InteractionResult.PASS;
     }
 
@@ -336,9 +322,7 @@ public final class SimAbilities {
      * {@code startUseItem} carry on to the use half, as on Hypixel; the sim's server pairs it with the click
      * ({@link #ABILITY_CLICK_PAIR_TICKS}), one right click, one ability.
      */
-    public static int blockClicksClaimed() {
-        return blockClicksClaimed;
-    }
+    public static int blockClicksClaimed() { return blockClicksClaimed; }
 
     private static int blockClicksClaimed;
 
@@ -361,22 +345,14 @@ public final class SimAbilities {
      * carried ({@code handleUseItem} snaps the server player to it before calling {@code useItem}).
      */
     private static InteractionResult onServerUse(ServerPlayer sp, InteractionHand hand, BlockHitResult onBlock) {
-        if (!simServer(sp)) {
-            return InteractionResult.PASS;
-        }
+        if (!simServer(sp)) return InteractionResult.PASS;
         ItemStack held = sp.getItemInHand(hand);
         String id = CheatUtils.skyblockId(held);
-        if (id == null) {
-            return InteractionResult.PASS;
-        }
+        if (id == null) return InteractionResult.PASS;
         // A bare use first: is it the second half of a stored block click (storedClicks)? Then nothing happens.
-        if (onBlock == null && takenAsClickHalf(sp, id)) {
-            return InteractionResult.FAIL;
-        }
+        if (onBlock == null && takenAsClickHalf(sp, id)) return InteractionResult.FAIL;
         boolean ours = isAbilityItem(id);
-        if (onBlock != null && (!ours || blockWins(sp, sp.level(), onBlock))) {
-            return InteractionResult.PASS;
-        }
+        if (onBlock != null && (!ours || blockWins(sp, sp.level(), onBlock))) return InteractionResult.PASS;
         String room = SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ());
         if (trapLocked(id, room)) {
             // The line only for an item that HAS an ability: Hypixel does not say it for a plain item or a pearl.
@@ -387,9 +363,7 @@ public final class SimAbilities {
             // all the way down - it would still throw and still teleport him out of the trap.
             return InteractionResult.FAIL;
         }
-        if (!ours) {
-            return InteractionResult.PASS;
-        }
+        if (!ours) return InteractionResult.PASS;
         boolean sneaking = sp.isShiftKeyDown();
         if (ETHERWARP_ITEMS.contains(id) && sneaking && etherwarpLocked(room)) {
             sayEtherwarpLocked(sp);
@@ -481,9 +455,7 @@ public final class SimAbilities {
     @SuppressWarnings("unused")
     private static boolean instantTransmission(Minecraft client, ItemStack held) {
         var server = client.getSingleplayerServer();
-        if (!SimState.canAct(client) || server == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || server == null) return false;
         java.util.UUID uuid = client.player.getUUID();
         ItemStack copy = held.copy();
         server.execute(() -> {
@@ -501,17 +473,12 @@ public final class SimAbilities {
      * <p>Public for the teleport logger, so the range it checks Hypixel against is the sim's own number and
      * not a second copy of the base-plus-tuners rule.
      */
-    public static double instantTransmissionRange(ItemStack held) {
-        return INSTANT_TRANSMISSION_BASE + tuners(held);
-    }
+    public static double instantTransmissionRange(ItemStack held) { return INSTANT_TRANSMISSION_BASE + tuners(held); }
 
     /** Tuners on this item, read off its own tag - capped, because Hypixel caps it at four. */
     private static int tuners(ItemStack held) {
         var data = held.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return 0;
-        }
-        return Math.min(MAX_TUNERS, Math.max(0, data.copyTag().getIntOr("tuned_transmission", 0)));
+        return data == null ? 0 : Math.min(MAX_TUNERS, Math.max(0, data.copyTag().getIntOr("tuned_transmission", 0)));
     }
 
     /**
@@ -555,9 +522,7 @@ public final class SimAbilities {
                         e -> e.isAlive() && e != sp)) {
             // The BOX is a box and the blast is a sphere - the corners of an axis-aligned box reach 1.7x further
             // than its faces. Same check, same reason as the Spirit Sceptre.
-            if (target.getBoundingBox().distanceToSqr(centre) > WITHER_BLAST_RADIUS * WITHER_BLAST_RADIUS) {
-                continue;
-            }
+            if (target.getBoundingBox().distanceToSqr(centre) > WITHER_BLAST_RADIUS * WITHER_BLAST_RADIUS) continue;
             target.hurtServer(level, source, WITHER_BLAST_DAMAGE);
             hit++;
         }
@@ -595,9 +560,7 @@ public final class SimAbilities {
      * </ul>
      */
     public static Vec3 dashTarget(Level level, Player player, double range) {
-        if (player == null || level == null) {
-            return null;
-        }
+        if (player == null || level == null) return null;
         // THE BODY'S AIM, NOT THE CAMERA'S. getLookAngle reads getXRot/getYRot, which on the server is the
         // rotation the use packet carried - what Hypixel receives. (On the client, getViewVector would read
         // ViewFreeze's held view while an auto turns him; that bug is why "ice fill starts completing it then
@@ -612,9 +575,7 @@ public final class SimAbilities {
      * sim's answer cannot disagree.
      */
     public static Vec3 dashTarget(Level level, Player player, Vec3 from, Vec3 look, double range) {
-        if (player == null || level == null || from == null || look == null) {
-            return null;
-        }
+        if (player == null || level == null || from == null || look == null) return null;
         net.minecraft.world.phys.AABB box = player.getBoundingBox().move(from.subtract(player.position()));
         Vec3 best = null;
         // Once the look has driven the travel into something it stays at the height it settled at for the rest
@@ -630,9 +591,7 @@ public final class SimAbilities {
         double settledLimit = eyeHit != null && eyeHit.getType() == HitResult.Type.BLOCK
                 ? eyeHit.getLocation().distanceTo(eye) : range;
         for (double d = STEP; d <= range + 1.0e-6; d += STEP) {
-            if (lockedY != null && d > settledLimit + 1.0e-6) {
-                break;
-            }
+            if (lockedY != null && d > settledLimit + 1.0e-6) break;
             Vec3 full = from.add(look.scale(d));
             Vec3 candidate = snap(lockedY == null ? full : new Vec3(full.x, lockedY, full.z));
             if (candidate.equals(best)) {
@@ -700,9 +659,7 @@ public final class SimAbilities {
      *
      * <p>{@code floor} rather than {@code round} on y because the landing is the block you stand ON.
      */
-    private static Vec3 snap(Vec3 at) {
-        return new Vec3(Math.floor(at.x) + 0.5, Math.floor(at.y), Math.floor(at.z) + 0.5);
-    }
+    private static Vec3 snap(Vec3 at) { return new Vec3(Math.floor(at.x) + 0.5, Math.floor(at.y), Math.floor(at.z) + 0.5); }
 
     private static boolean dash(ServerPlayer sp, double range) {
         Vec3 best = dashTarget(sp.level(), sp, range);
@@ -754,18 +711,12 @@ public final class SimAbilities {
     private static final java.util.Set<String> TRAP_ALLOWED = java.util.Set.of("SUPERBOOM_TNT", "ENDER_PEARL");
 
     private static boolean trapLocked(String skyblockId, String room) {
-        if (skyblockId == null || room == null) {
-            return false;
-        }
+        if (skyblockId == null || room == null) return false;
         // Teleport Maze too. killer560 (2026-10-01): "disable all abilites and dungeon breaker in teleprot maze."
         // The chambers are sealed by iron bars; an etherwarp, a teleport or a pearl skips the whole puzzle, so the trap
         // room's allow list does not apply here.
-        if (isTeleportMaze(room)) {
-            return !"SUPERBOOM_TNT".equals(skyblockId);
-        }
-        if (TRAP_ALLOWED.contains(skyblockId)) {
-            return false;
-        }
+        if (isTeleportMaze(room)) return !"SUPERBOOM_TNT".equals(skyblockId);
+        if (TRAP_ALLOWED.contains(skyblockId)) return false;
         var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
         String type = entry == null ? null : entry.type;
         return type == null
@@ -780,9 +731,7 @@ public final class SimAbilities {
      * in the room. Instant Transmission is left alone: it stops at a box like any wall, while an etherwarp lands
      * on top of one, and the boxes' barrier ceiling is what keeps the far side of the room behind the puzzle.
      */
-    private static boolean etherwarpLocked(String room) {
-        return room != null && room.equalsIgnoreCase("Boulder");
-    }
+    private static boolean etherwarpLocked(String room) { return room != null && room.equalsIgnoreCase("Boulder"); }
 
     /**
      * Hypixel's own refusal, from the server: "You cannot do that in this room!" is what his 2026-09-24 and 2026-10-14
@@ -791,9 +740,7 @@ public final class SimAbilities {
      */
     private static void sayEtherwarpLocked(ServerPlayer sp) {
         long now = System.currentTimeMillis();
-        if (now - lastTrapMessageMs < 1000L) {
-            return;
-        }
+        if (now - lastTrapMessageMs < 1000L) return;
         lastTrapMessageMs = now;
         SIM_LOG.info("[Sim] No etherwarp in Boulder - solve it and walk.");
         sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("You cannot do that in this room!")
@@ -802,9 +749,7 @@ public final class SimAbilities {
 
     private static final org.slf4j.Logger SIM_LOG = com.killer560.hub.util.ModLog.get("killer560smod-sim");
 
-    static boolean isTeleportMaze(String room) {
-        return room != null && room.equalsIgnoreCase("Teleport Maze");
-    }
+    static boolean isTeleportMaze(String room) { return room != null && room.equalsIgnoreCase("Teleport Maze"); }
 
     /** Said at most once a second, or holding right-click fills chat with it. */
     private static volatile long lastTrapMessageMs = 0L;
@@ -812,9 +757,7 @@ public final class SimAbilities {
     /** Hypixel's line for a trap room ("You cannot use abilities in this room!", his 2026-10-15 log in New Trap). */
     private static void sayTrapLocked(ServerPlayer sp, String room) {
         long now = System.currentTimeMillis();
-        if (now - lastTrapMessageMs < 1000L) {
-            return;
-        }
+        if (now - lastTrapMessageMs < 1000L) return;
         lastTrapMessageMs = now;
         boolean maze = isTeleportMaze(room);
         SIM_LOG.info("[Sim] {} - walk it.", maze ? "No abilities in the Teleport Maze" : "No abilities in a trap room");
@@ -822,14 +765,10 @@ public final class SimAbilities {
                 .withStyle(net.minecraft.ChatFormatting.RED));
     }
 
-    public static boolean usedAbilityRecently() {
-        return abilityGraceTicks > 0;
-    }
+    public static boolean usedAbilityRecently() { return abilityGraceTicks > 0; }
 
     /** Called by every ability entry point, so one place decides what counts as "just used". */
-    private static void markAbilityUsed() {
-        abilityGraceTicks = ABILITY_GRACE_TICKS;
-    }
+    private static void markAbilityUsed() { abilityGraceTicks = ABILITY_GRACE_TICKS; }
 
     /**
      * How long an insertion waits before returning you. killer560 (2026-09-30): "tactical insertion goes off
@@ -853,17 +792,13 @@ public final class SimAbilities {
         if (!storedClicks.isEmpty()) {
             expireAbilityClicks(server);
         }
-        if (insertion == null) {
-            return;
-        }
+        if (insertion == null) return;
         if (!SimState.canAct(Minecraft.getInstance())) {
             insertion = null;
             insertionTicks = 0;
             return;
         }
-        if (--insertionTicks > 0) {
-            return;
-        }
+        if (--insertionTicks > 0) return;
         Vec3 back = insertion;
         java.util.UUID owner = insertionOwner;
         insertion = null;
@@ -892,9 +827,7 @@ public final class SimAbilities {
     }
 
     /** Chat belongs on the client thread; the abilities run on the server's. */
-    static void onClient(Runnable r) {
-        Minecraft.getInstance().execute(r);
-    }
+    static void onClient(Runnable r) { Minecraft.getInstance().execute(r); }
 
     /** Dropped when a sim session ends, so a marker cannot survive into the next map. */
     public static void reset() {

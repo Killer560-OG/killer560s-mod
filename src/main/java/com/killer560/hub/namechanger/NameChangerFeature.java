@@ -72,14 +72,10 @@ public final class NameChangerFeature {
     static boolean noteChatName(String name) {
         Minecraft client = Minecraft.getInstance();
         String own = client.getUser() == null ? "" : client.getUser().getName();
-        if (!NameTable.isValidName(name) || name.length() < 3 || name.equalsIgnoreCase(own)) {
-            return false;
-        }
+        if (!NameTable.isValidName(name) || name.length() < 3 || name.equalsIgnoreCase(own)) return false;
         boolean added;
         synchronized (SEEN_PLAYERS) {
-            if (SEEN_PLAYERS.size() >= MAX_SEEN_PLAYERS && !SEEN_PLAYERS.contains(name)) {
-                return false;
-            }
+            if (SEEN_PLAYERS.size() >= MAX_SEEN_PLAYERS && !SEEN_PLAYERS.contains(name)) return false;
             added = SEEN_PLAYERS.add(name);
             if (added) {
                 seenVersion++;
@@ -92,13 +88,9 @@ public final class NameChangerFeature {
         // Ticks run between frames on the same thread, so no EditBox can be mid-render here: clears the suppression
         // counter in case an exception ever skipped the RETURN hook.
         NameReplacer.resetSuppress();
-        if (++tickCounter % 20 != 0) {
-            return;
-        }
+        if (++tickCounter % 20 != 0) return;
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isActive() || !cfg.isRandomizeOthers()) {
-            return;
-        }
+        if (!cfg.isActive() || !cfg.isRandomizeOthers()) return;
         boolean added = false;
         String own = client.getUser() == null ? "" : client.getUser().getName();
         ClientPacketListener connection = client.getConnection();
@@ -120,9 +112,7 @@ public final class NameChangerFeature {
     }
 
     private static boolean notePlayer(GameProfile profile, String ownName) {
-        if (profile == null) {
-            return false;
-        }
+        if (profile == null) return false;
         String name = profile.name();
         UUID id = profile.id();
         // Hypixel's fake tab-list columns ("!A-a" etc.) fail the name-shape check; Hypixel NPC player entities
@@ -132,9 +122,7 @@ public final class NameChangerFeature {
             return false;
         }
         synchronized (SEEN_PLAYERS) {
-            if (SEEN_PLAYERS.size() >= MAX_SEEN_PLAYERS && !SEEN_PLAYERS.contains(name)) {
-                return false;
-            }
+            if (SEEN_PLAYERS.size() >= MAX_SEEN_PLAYERS && !SEEN_PLAYERS.contains(name)) return false;
             return SEEN_PLAYERS.add(name);
         }
     }
@@ -142,9 +130,7 @@ public final class NameChangerFeature {
     /** @return the current lookup table, or {@code null} when the feature is off / has nothing to replace. */
     static NameTable currentTable() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isActive()) {
-            return null;
-        }
+        if (!cfg.isActive()) return null;
         // Font is used during early startup (loading overlay) - don't assume the client/user exist yet.
         Minecraft mc = Minecraft.getInstance();
         net.minecraft.client.User user = mc == null ? null : mc.getUser();
@@ -159,9 +145,7 @@ public final class NameChangerFeature {
     }
 
     private static synchronized void rebuild(NameChangerConfig cfg, String own, int cv, int sv) {
-        if (cv == builtConfigVersion && sv == builtSeenVersion && java.util.Objects.equals(own, builtOwnName)) {
-            return;
-        }
+        if (cv == builtConfigVersion && sv == builtSeenVersion && java.util.Objects.equals(own, builtOwnName)) return;
         List<NameTable.Entry> entries = new ArrayList<>();
         // Priority order: own name, then manual mappings, then randomized others (first entry wins on duplicates).
         // The Name Changer toggle gates own name and renames; Randomize Others (Nickhider tab) stands alone.
@@ -192,9 +176,7 @@ public final class NameChangerFeature {
             synchronized (SEEN_PLAYERS) {
                 for (String name : SEEN_PLAYERS) {
                     // Your own name is never one of "others", even when it was noted before an account swap.
-                    if (own != null && name.equalsIgnoreCase(own)) {
-                        continue;
-                    }
+                    if (own != null && name.equalsIgnoreCase(own)) continue;
                     // Case-sensitive: displayed IGNs always use their real capitalization, and this keeps a player
                     // literally named e.g. "Mage" from eating the plain word "mage" in lore. The entry is kept per
                     // name (a rebuild runs for every newly seen player), and dropped when the base name changes.
@@ -216,9 +198,7 @@ public final class NameChangerFeature {
 
     /** A display name with its picked color applied as a legacy code prefix (see {@link NameColor}) - the
      *  name itself may still carry {@code &} format codes, which {@link #colorize} converts as before. */
-    static String styled(String display, int argb) {
-        return NameColor.prefix(argb) + colorize(display);
-    }
+    static String styled(String display, int argb) { return NameColor.prefix(argb) + colorize(display); }
 
     /** Cosmetics tab's own display name specifically - same as {@link #styled}, except when "Fade Color" is
      *  on, in which case a per-letter gradient ({@link NameColor#buildFade}) is built instead of one flat
@@ -243,9 +223,7 @@ public final class NameChangerFeature {
         }
         int from = cfg.getOwnColor() == NameColor.NONE ? 0xFFFFFFFF : cfg.getOwnColor();
         int to = cfg.getOwnColorFadeTo() == NameColor.NONE ? 0xFFFF5555 : cfg.getOwnColorFadeTo();
-        if (!perChar) {
-            return NameColor.buildFade(display, from, to);
-        }
+        if (!perChar) return NameColor.buildFade(display, from, to);
         // Letter colors: each letter with its own pick uses it, the rest keep the fade (or the flat color,
         // white when none was picked - a letter cannot fall back to "whatever surrounds the name" once its
         // neighbors carry their own color codes).
@@ -266,9 +244,7 @@ public final class NameChangerFeature {
         }
         int[] colours = NameColor.letterColours(ownStyled(cfg));
         for (int c : colours) {
-            if (c < 0) {
-                return null;
-            }
+            if (c < 0) return null;
         }
         return colours.length == 0 ? null : colours;
     }
@@ -277,17 +253,13 @@ public final class NameChangerFeature {
      *  letter colors to animate (a flat name never animates). */
     public static NameAnimation.Spec ownAnimation() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) {
-            return null;
-        }
+        if (cfg.getOwnDisplayName().isEmpty() || (!cfg.isOwnColorFadeEnabled() && !cfg.hasOwnCharColors())) return null;
         return NameAnimation.Spec.of(cfg.getOwnAnimation(), cfg.getOwnAnimationSpeed());
     }
 
     /** What Share if Supporter sends as {@code animation}: {@link #ownAnimation} when {@link #ownShareColours} sends a
      *  color list for it to animate, else {@code null}. */
-    public static NameAnimation.Spec ownShareAnimation() {
-        return ownShareColours() == null ? null : ownAnimation();
-    }
+    public static NameAnimation.Spec ownShareAnimation() { return ownShareColours() == null ? null : ownAnimation(); }
 
     /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (color, fade, letter
      *  colors), or your real IGN when no display name is typed, as a styled Component. */
@@ -318,13 +290,9 @@ public final class NameChangerFeature {
     }
 
     public static String mappingDisplayFor(String currentIgn) {
-        if (currentIgn == null || currentIgn.isEmpty()) {
-            return null;
-        }
+        if (currentIgn == null || currentIgn.isEmpty()) return null;
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isMappingsEnabled()) {
-            return null;
-        }
+        if (!cfg.isEnabled() || !cfg.isMappingsEnabled()) return null;
         for (NameChangerConfig.Mapping m : cfg.mappings()) {
             if (m.real != null && m.real.equalsIgnoreCase(currentIgn) && m.display != null && !m.display.isEmpty()) {
                 return styled(m.display, m.color);
@@ -335,9 +303,7 @@ public final class NameChangerFeature {
 
     /** Vanilla edit boxes filter out the § sign, so "&" + a format code is accepted too ("&6Cool" -> "§6Cool"). */
     public static String colorize(String s) {
-        if (s.indexOf('&') < 0) {
-            return s;
-        }
+        if (s.indexOf('&') < 0) return s;
         StringBuilder sb = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
@@ -357,9 +323,7 @@ public final class NameChangerFeature {
     static String randomNameFor(String realName) {
         synchronized (RANDOM_NAMES) {
             String cached = RANDOM_NAMES.get(realName);
-            if (cached != null) {
-                return cached;
-            }
+            if (cached != null) return cached;
             int len = realName.length();
             SplittableRandom rng = new SplittableRandom(SESSION_SEED ^ (realName.hashCode() * 0x9E3779B97F4A7C15L));
             StringBuilder sb = new StringBuilder(len);
@@ -402,9 +366,7 @@ public final class NameChangerFeature {
     public static int numberFor(String realName) {
         synchronized (NAME_NUMBERS) {
             Integer cached = NAME_NUMBERS.get(realName);
-            if (cached != null) {
-                return cached;
-            }
+            if (cached != null) return cached;
             SplittableRandom rng = new SplittableRandom(SESSION_SEED ^ (realName.hashCode() * 0xC2B2AE3D27D4EB4FL));
             int bound = 999;
             int n;
@@ -426,9 +388,7 @@ public final class NameChangerFeature {
      *  null when Randomize Others is off. For the testkit and the settings tab. */
     public static String fakeNameFor(String realName) {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isRandomizeOthers() || realName == null) {
-            return null;
-        }
+        if (!cfg.isRandomizeOthers() || realName == null) return null;
         String base = baseName(cfg);
         return base.isEmpty() ? randomNameFor(realName) : base + numberFor(realName);
     }

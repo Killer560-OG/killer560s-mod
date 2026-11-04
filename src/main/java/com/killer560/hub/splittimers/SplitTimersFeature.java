@@ -59,7 +59,6 @@ public final class SplitTimersFeature {
     private record SplitDef(Pattern pattern, String label) {
     }
 
-    // ---- clear boundaries ------------------------------------------------------------------------------------------
     // Odin SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
     private static final SplitDef RUN_START = def(
             "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$",
@@ -105,16 +104,12 @@ public final class SplitTimersFeature {
     private static final SplitDef FLOOR5 = def("^\\[BOSS\\] Livid: Welcome, you've arrived right on time\\. I am Livid, the Master of Shadows\\.$", "§cLivid");
     private static final SplitDef FLOOR6 = def("^\\[BOSS\\] Sadan: So you made it all the way here\\.\\.\\. Now you wish to defy me\\? Sadan\\?!$", "§cSadan");
 
-    private static SplitDef def(String regex, String label) {
-        return new SplitDef(Pattern.compile(regex), label);
-    }
+    private static SplitDef def(String regex, String label) { return new SplitDef(Pattern.compile(regex), label); }
 
     /** The boundary list for a floor ("F7", "M3", "E"): the three clear boundaries, the floor's boss boundaries, then
      *  Total. Empty when the floor is unknown or is the Entrance (no blood room, no boss split worth a layout). */
     static List<SplitDef> splitsForFloor(String floor) {
-        if (floor == null || floor.length() < 2) {
-            return List.of();
-        }
+        if (floor == null || floor.length() < 2) return List.of();
         int number;
         try {
             number = Integer.parseInt(floor.substring(1));
@@ -280,9 +275,7 @@ public final class SplitTimersFeature {
             CoreEntryTimes.onPhaseFourStarted();
         }
 
-        if (run.splits.isEmpty()) {
-            return;
-        }
+        if (run.splits.isEmpty()) return;
         int index = -1;
         for (int i = 0; i < run.splits.size(); i++) {
             if (run.splits.get(i).pattern().matcher(raw).matches()) {
@@ -290,9 +283,7 @@ public final class SplitTimersFeature {
                 break;
             }
         }
-        if (index < 0 || run.timeMs[index] != 0L) {
-            return;
-        }
+        if (index < 0 || run.timeMs[index] != 0L) return;
         // Mort's line never came (changed wording, joined late): the run started when Mort normally speaks, one
         // second after "Starting in 1 second.", so every later row and the Total still have their real start.
         if (index > 0 && run.timeMs[0] == 0L && run.armedAtMs > 0L) {
@@ -312,9 +303,7 @@ public final class SplitTimersFeature {
             }
         }
 
-        if (index == 0) {
-            return;
-        }
+        if (index == 0) return;
         int prev = previousRecorded(index);
         if (prev < 0) {
             LOGGER.warn("[SplitTimers] SPLIT \"{}\" hit with no earlier split recorded - nothing to time. Line: \"{}\"",
@@ -326,9 +315,7 @@ public final class SplitTimersFeature {
         boolean last = index == run.splits.size() - 1;
 
         Minecraft client = Minecraft.getInstance();
-        if (!SplitTimersConfig.getInstance().isAnnounceInChat() || client.player == null) {
-            return;
-        }
+        if (!SplitTimersConfig.getInstance().isAnnounceInChat() || client.player == null) return;
         boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes();
         Component tookLine = tookLine(run.splits.get(prev).label(),
                 String.format(Locale.US, "%.2fs", segment / 1000.0) + laglessSuffix(lagless, segmentLagless, true), "!");
@@ -368,9 +355,7 @@ public final class SplitTimersFeature {
      * ({@code >= 0}) and {@link SplitLagClock} has seen real server ticks (else it would be a dishonest copy).
      */
     static String laglessSuffix(boolean on, long laglessMs, boolean seconds) {
-        if (!on || laglessMs < 0L || !SplitLagClock.isTrustworthy()) {
-            return "";
-        }
+        if (!on || laglessMs < 0L || !SplitLagClock.isTrustworthy()) return "";
         return " (" + (seconds ? String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(laglessMs) / 1000.0) : formatTime(laglessMs)) + ")";
     }
 
@@ -398,18 +383,14 @@ public final class SplitTimersFeature {
 
     private static int previousRecorded(int index) {
         for (int i = index - 1; i >= 0; i--) {
-            if (run.timeMs[i] != 0L) {
-                return i;
-            }
+            if (run.timeMs[i] != 0L) return i;
         }
         return -1;
     }
 
     private static int firstRecorded() {
         for (int i = 0; i < run.timeMs.length; i++) {
-            if (run.timeMs[i] != 0L) {
-                return i;
-            }
+            if (run.timeMs[i] != 0L) return i;
         }
         return -1;
     }
@@ -429,9 +410,7 @@ public final class SplitTimersFeature {
     /** Time and lag at the end of segment {@code i}: the next recorded boundary, else the run's end, else now. */
     private static long[] segmentEnd(int i, long now, long nowLag) {
         for (int j = i + 1; j < run.timeMs.length; j++) {
-            if (run.timeMs[j] != 0L) {
-                return new long[]{run.timeMs[j], run.lagMs[j]};
-            }
+            if (run.timeMs[j] != 0L) return new long[]{run.timeMs[j], run.lagMs[j]};
         }
         return new long[]{now, nowLag};
     }
@@ -452,9 +431,7 @@ public final class SplitTimersFeature {
     static List<SplitRow> layoutRows(long now) {
         int n = run.splits.size();
         int first = firstRecorded();
-        if (n == 0 || first < 0) {
-            return List.of();
-        }
+        if (n == 0 || first < 0) return List.of();
         long nowLag = SplitLagClock.accumulatedLagMs();
         int last = n - 1;
         boolean ended = run.timeMs[last] != 0L;
@@ -503,15 +480,11 @@ public final class SplitTimersFeature {
     }
 
     /** "3.35s": lag is always shown in seconds. */
-    static String lagSeconds(long ms) {
-        return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0);
-    }
+    static String lagSeconds(long ms) { return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0); }
 
     /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s" (to the nearest 0.05 s with Tick Counting). */
     static String formatTime(long timeMs) {
-        if (timeMs == 0L) {
-            return "0s";
-        }
+        if (timeMs == 0L) return "0s";
         long remaining = SplitTimersConfig.shown(timeMs);
         long hours = remaining / 3600000L;
         remaining -= hours * 3600000L;
@@ -526,9 +499,7 @@ public final class SplitTimersFeature {
         return stripped != null ? stripped : label;
     }
 
-    private static String plainLabel(SplitDef def) {
-        return plain(def.label());
-    }
+    private static String plainLabel(SplitDef def) { return plain(def.label()); }
 
     /** For {@code RunSummaryFeature}/{@code TerminalTimersFeature}: the wall-clock moment the CURRENTLY running split
      *  segment began. 0 if no segment is running. */
@@ -555,19 +526,13 @@ public final class SplitTimersFeature {
 
     public static final class SplitTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "split_timers";
-        }
+        public String id() { return "split_timers"; }
 
         @Override
-        public String displayName() {
-            return "Split Timers";
-        }
+        public String displayName() { return "Split Timers"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {
@@ -580,9 +545,7 @@ public final class SplitTimersFeature {
          *  In the HUD editor its own saved position, which this never changes. */
         @Override
         public int[] layoutPosition() {
-            if (HudVisibility.editorOpen()) {
-                return null;
-            }
+            if (HudVisibility.editorOpen()) return null;
             return com.killer560.hub.hud.HudAvoid.clear(this, "live_map");
         }
 
@@ -748,9 +711,7 @@ public final class SplitTimersFeature {
         /** F7/M7 "time to enter the core after terms" rows ({@link CoreEntryTimes}). In the HUD editor a
          *  sample is shown while the toggle is on, so the block can be positioned. */
         private static List<String> coreLines() {
-            if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) {
-                return List.of();
-            }
+            if (!SplitTimersConfig.getInstance().isCoreEntryTimes()) return List.of();
             return inEditor() ? CoreEntryTimes.editorLines() : CoreEntryTimes.lines();
         }
 
@@ -758,9 +719,7 @@ public final class SplitTimersFeature {
          *  either toggle is on, so the column can be positioned before a run. */
         private static List<String> p5Lines() {
             SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-            if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) {
-                return List.of();
-            }
+            if (!cfg.isP5DragonLines() && !cfg.isP5RelicLines()) return List.of();
             if (inEditor()) {
                 List<String> out = new ArrayList<>();
                 if (cfg.isP5DragonLines()) {
@@ -779,12 +738,8 @@ public final class SplitTimersFeature {
         /** "at the very bottom of the split timers show the slowest person into core and their time" - killer560,
          *  2026-09-20. Independent of Core Entry's chat/party announce toggles. */
         private static List<String> slowestCoreLine() {
-            if (!SplitTimersConfig.getInstance().isCoreEntrySlowestHud()) {
-                return List.of();
-            }
-            if (inEditor()) {
-                return List.of("§6Slowest§f: §cTeammate§f: 6.20s");
-            }
+            if (!SplitTimersConfig.getInstance().isCoreEntrySlowestHud()) return List.of();
+            if (inEditor()) return List.of("§6Slowest§f: §cTeammate§f: 6.20s");
             String line = CoreEntryTimes.slowestHudLine();
             return line == null ? List.of() : List.of("§6Slowest§f: " + line);
         }
@@ -796,9 +751,7 @@ public final class SplitTimersFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!isEnabledInSettings() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!isEnabledInSettings() || HudVisibility.hidesHud()) return;
             List<Line> lines = layout();
             for (Line line : lines) {
                 graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);

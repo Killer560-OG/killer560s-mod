@@ -57,29 +57,19 @@ public final class SpotifyHud implements HudElement {
     }
 
     @Override
-    public String id() {
-        return ELEMENT_ID;
-    }
+    public String id() { return ELEMENT_ID; }
 
     @Override
-    public String displayName() {
-        return "Spotify HUD";
-    }
+    public String displayName() { return "Spotify HUD"; }
 
     @Override
-    public int defaultX() {
-        return 10;
-    }
+    public int defaultX() { return 10; }
 
     @Override
-    public int defaultY() {
-        return 60;
-    }
+    public int defaultY() { return 60; }
 
     @Override
-    public int width() {
-        return W;
-    }
+    public int width() { return W; }
 
     @Override
     public int height() {
@@ -94,9 +84,7 @@ public final class SpotifyHud implements HudElement {
     }
 
     @Override
-    public boolean isEnabledInSettings() {
-        return SpotifyHudConfig.getInstance().isHudEnabled();
-    }
+    public boolean isEnabledInSettings() { return SpotifyHudConfig.getInstance().isHudEnabled(); }
 
     /** The editor's sample, so the panel can be placed before anything plays. */
     private static final LyricsEngine.Snapshot DEMO;
@@ -114,9 +102,7 @@ public final class SpotifyHud implements HudElement {
     public void render(GuiGraphicsExtractor graphics, int x, int y) {
         SpotifyHudConfig cfg = SpotifyHudConfig.getInstance();
         boolean editor = HudVisibility.editorOpen();
-        if ((!cfg.isHudEnabled() && !editor) || HudVisibility.hidesHud()) {
-            return;
-        }
+        if ((!cfg.isHudEnabled() && !editor) || HudVisibility.hidesHud()) return;
         LyricsEngine.Snapshot snap = SpotifyLyricsFeature.snapshot();
         boolean live = snap.hasTrack() || snap.kind() == NowPlaying.Kind.AD;
         if (!live) {
@@ -126,9 +112,7 @@ public final class SpotifyHud implements HudElement {
             snap = DEMO;
         }
         boolean paused = snap.kind() == NowPlaying.Kind.PAUSED;
-        if (paused && cfg.isHideWhenPaused() && !editor) {
-            return;
-        }
+        if (paused && cfg.isHideWhenPaused() && !editor) return;
         // Paused for over a minute: gone whatever the settings say (killer560, 2026-11-01).
         if (!editor && SpotifyLyricsFeature.pausedTooLong(snap)) {
             pauseHides++;
@@ -200,7 +184,6 @@ public final class SpotifyHud implements HudElement {
         }
         r.submit();
 
-        // ---- the cover picture, or the note ----
         Identifier art = ad ? null : coverTexture(snap);
         if (art != null) {
             graphics.blit(RenderPipelines.GUI_TEXTURED, art, cx, cy, 0f, 0f, COVER, COVER, coverW, coverH, coverW, coverH,
@@ -217,7 +200,6 @@ public final class SpotifyHud implements HudElement {
             }
         }
 
-        // ---- title, artist, time ----
         int tx = cx + COVER + 6;
         int textW = x + W - PAD - tx;
         graphics.text(font, fit(font, ad ? "Advertisement" : shown(snap.title()), textW), tx, y + 6, p.textHover(), true);
@@ -264,9 +246,7 @@ public final class SpotifyHud implements HudElement {
     private static volatile long pauseHides;
 
     /** A word, title or line as the HUD draws it: starred at the Display Censor level, with no formatting codes. */
-    private static String shown(String s) {
-        return clean(SpotifyLyricsFeature.censorDisplay(s));
-    }
+    private static String shown(String s) { return clean(SpotifyLyricsFeature.censorDisplay(s)); }
 
     // ---- Smooth Lyric Scroll (killer560, 2026-10-26: "have a smoother transition of moving the lines up when a line
     // finishes for lyrics"). When the top row moves on to a later row (the next line, or the next wrapped row of a long
@@ -336,9 +316,7 @@ public final class SpotifyHud implements HudElement {
 
     /** The row that just ended, sliding up and fading; {@code left} is 1 at the start of the slide and 0 at its end. */
     private static void drawOutgoing(GuiGraphicsExtractor graphics, Font font, OverlayPalette p, int lx, int y, float left) {
-        if (outLine == null || outRow == null || left <= 0.05f) {
-            return;
-        }
+        if (outLine == null || outRow == null || left <= 0.05f) return;
         List<String> words = outLine.parsed().words();
         int alpha = Math.max(8, Math.min(255, Math.round(left * 255)));
         int colour = OverlayPalette.alpha(p.textHover(), alpha);
@@ -391,14 +369,10 @@ public final class SpotifyHud implements HudElement {
     private static LyricPlan planLyrics(Font font, LyricsEngine.Snapshot snap, double elapsed, boolean highlight,
                                         int lx, int ly, int lw) {
         LyricPlan plan = new LyricPlan();
-        if (snap.lines().isEmpty()) {
-            return plan;
-        }
+        if (snap.lines().isEmpty()) return plan;
         plan.lineIdx = snap.lineAt(elapsed);
         plan.line = plan.lineIdx < 0 ? null : snap.lines().get(plan.lineIdx);
-        if (plan.line == null || plan.line.parsed().words().isEmpty()) {
-            return plan;
-        }
+        if (plan.line == null || plan.line.parsed().words().isEmpty()) return plan;
         List<String> words = plan.line.parsed().words();
         int at = sungWord(snap, plan.lineIdx, elapsed);
         plan.sung = highlight ? at : -1;
@@ -486,9 +460,7 @@ public final class SpotifyHud implements HudElement {
     /** The cover for the track on the snapshot, uploaded once per new picture, or null for the placeholder. */
     private static Identifier coverTexture(LyricsEngine.Snapshot snap) {
         SpotifyMediaSession.Cover c = SpotifyLyricsFeature.cover();
-        if (c == null) {
-            return null;
-        }
+        if (c == null) return null;
         if (c.seq() != coverSeq) {
             coverSeq = c.seq();
             try {
@@ -521,9 +493,7 @@ public final class SpotifyHud implements HudElement {
     private static List<int[]> wrap(Font font, List<LyricsEngine.LyricLine> lines, int index, List<String> words,
                                     int width) {
         ProfanityLevel censor = SpotifyHudConfig.getInstance().getDisplayCensor();
-        if (lines == wrapLines && index == wrapIndex && width == wrapWidth && censor == wrapCensor) {
-            return wrapRows;
-        }
+        if (lines == wrapLines && index == wrapIndex && width == wrapWidth && censor == wrapCensor) return wrapRows;
         wrapCensor = censor;
         List<int[]> rows = new ArrayList<>();
         int space = font.width(" ");
@@ -549,16 +519,11 @@ public final class SpotifyHud implements HudElement {
     }
 
     /** A lyric or title never carries formatting codes into the HUD. */
-    private static String clean(String s) {
-        return s.indexOf('§') < 0 ? s : s.replace('§', '?');
-    }
+    private static String clean(String s) { return s.indexOf('§') < 0 ? s : s.replace('§', '?'); }
 
     private static String fit(Font font, String s, int width) {
         String c = clean(s);
-        if (font.width(c) <= width) {
-            return c;
-        }
-        return font.plainSubstrByWidth(c, Math.max(0, width - font.width("..."))) + "...";
+        return font.width(c) <= width ? c : font.plainSubstrByWidth(c, Math.max(0, width - font.width("..."))) + "...";
     }
 
     /** {@code m:ss}. */

@@ -56,9 +56,7 @@ public final class SharedRecords {
 
     private static Path resolveRoot() {
         String override = System.getProperty("killer560smod.sharedDir");
-        if (override != null && !override.isBlank()) {
-            return Paths.get(override).toAbsolutePath().normalize();
-        }
+        if (override != null && !override.isBlank()) return Paths.get(override).toAbsolutePath().normalize();
         if (System.getProperty("testkit.scenario") != null || System.getProperty("testkit.quiet") != null
                 || System.getProperty("testkit.suite") != null) {
             // A test client's own sandbox, emptied when the client starts so one run's records never reach the next.
@@ -79,9 +77,7 @@ public final class SharedRecords {
             // store the game never saw - the owner opened /profit in a 26.3 instance and it was empty.
             return Paths.get(home, ".killer560smod", "shared");
         }
-        if (os.contains("mac")) {
-            return Paths.get(home, "Library", "Application Support", "killer560smod", "shared");
-        }
+        if (os.contains("mac")) return Paths.get(home, "Library", "Application Support", "killer560smod", "shared");
         String xdg = System.getenv("XDG_DATA_HOME");
         return Paths.get(xdg != null && !xdg.isBlank() ? xdg : Paths.get(home, ".local", "share").toString(),
                 "killer560smod", "shared");
@@ -93,13 +89,9 @@ public final class SharedRecords {
      */
     private static void foldOldAppDataStore(Path root) {
         String appData = System.getenv("APPDATA");
-        if (appData == null) {
-            return;
-        }
+        if (appData == null) return;
         Path old = Paths.get(appData, "killer560smod", "shared");
-        if (!Files.isDirectory(old) || old.toAbsolutePath().normalize().equals(root.toAbsolutePath().normalize())) {
-            return;
-        }
+        if (!Files.isDirectory(old) || old.toAbsolutePath().normalize().equals(root.toAbsolutePath().normalize())) return;
         int folded = 0;
         try {
             List<Path[]> pairs = new java.util.ArrayList<>();
@@ -116,9 +108,7 @@ public final class SharedRecords {
                 }
             }
             for (Path[] pair : pairs) {
-                if (!Files.isRegularFile(pair[0])) {
-                    continue;
-                }
+                if (!Files.isRegularFile(pair[0])) continue;
                 RecordCatalog.Kind kind = RecordCatalog.ALL.stream()
                         .filter(k -> k.sharedName().equals(pair[0].getFileName().toString())).findFirst().orElseThrow();
                 if (new SharedFile(pair[1], kind.policy()).importLegacy(Files.readAllBytes(pair[0]),
@@ -136,9 +126,7 @@ public final class SharedRecords {
     }
 
     private static void deleteTree(Path dir) {
-        if (!Files.isDirectory(dir)) {
-            return;
-        }
+        if (!Files.isDirectory(dir)) return;
         try (java.util.stream.Stream<Path> walk = Files.walk(dir)) {
             for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
                 Files.deleteIfExists(p);
@@ -213,9 +201,7 @@ public final class SharedRecords {
         } catch (RuntimeException e) {
             return;
         }
-        if (!Files.isRegularFile(legacy)) {
-            return;
-        }
+        if (!Files.isRegularFile(legacy)) return;
         try {
             byte[] bytes = Files.readAllBytes(legacy);
             boolean added = f.importLegacy(bytes, legacy.toAbsolutePath().normalize().toString());
@@ -235,9 +221,7 @@ public final class SharedRecords {
     }
 
     /** Runs {@code reload} after the account changes (the in-game account switcher), so ACCOUNT records follow it. */
-    public static void onAccountChange(Runnable reload) {
-        ACCOUNT_LISTENERS.add(reload);
-    }
+    public static void onAccountChange(Runnable reload) { ACCOUNT_LISTENERS.add(reload); }
 
     /** Called by {@code AccountApplier} after it swapped the signed-in account. */
     public static void accountChanged() {

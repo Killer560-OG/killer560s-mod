@@ -55,12 +55,8 @@ public final class AttackCooldown {
 
     /** Ticks that must pass between two clicks for each to do full damage with what he holds now. At least 1. */
     public static int intervalTicks(Minecraft client) {
-        if (client.player == null) {
-            return 10;
-        }
-        if (onHypixel(client)) {
-            return hypixelTicks(attackSpeed(client), isShortbow(client.player.getMainHandItem()));
-        }
+        if (client.player == null) return 10;
+        if (onHypixel(client)) return hypixelTicks(attackSpeed(client), isShortbow(client.player.getMainHandItem()));
         return Math.max(1, (int) Math.ceil(client.player.getCurrentItemAttackStrengthDelay() - 1e-4));
     }
 
@@ -115,13 +111,9 @@ public final class AttackCooldown {
 
     /** One tab line's Attack Speed, 0-100, or -1 when the line is not the stat. */
     public static int parseTabLine(String line) {
-        if (line == null) {
-            return -1;
-        }
+        if (line == null) return -1;
         Matcher m = TAB.matcher(ChatObserver.stripCodes(line));
-        if (!m.matches()) {
-            return -1;
-        }
+        if (!m.matches()) return -1;
         try {
             return clamp(Integer.parseInt(m.group(1)));
         } catch (NumberFormatException e) {
@@ -130,28 +122,18 @@ public final class AttackCooldown {
     }
 
     /** Where the last {@link #attackSpeed} came from (testkit, logging). */
-    public static String attackSpeedSource() {
-        return lastSource;
-    }
+    public static String attackSpeedSource() { return lastSource; }
 
     /** A Hypixel shortbow says so in its lore ("Shortbow: Instantly shoots!"). */
     public static boolean isShortbow(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return false;
-        }
+        if (lore == null) return false;
         for (Component line : lore.lines()) {
-            if (ChatObserver.stripCodes(line.getString()).trim().startsWith("Shortbow: ")) {
-                return true;
-            }
+            if (ChatObserver.stripCodes(line.getString()).trim().startsWith("Shortbow: ")) return true;
         }
         return false;
     }
 
-    private static int clamp(int as) {
-        return Math.max(0, Math.min(MAX_ATTACK_SPEED, as));
-    }
+    private static int clamp(int as) { return Math.max(0, Math.min(MAX_ATTACK_SPEED, as)); }
 }

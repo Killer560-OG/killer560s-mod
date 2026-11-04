@@ -41,9 +41,7 @@ public final class MagicFindTracker {
         }
         // Players could type "(99999% Magic Find)" and overwrite the value (testkit WP2, 2026-10-04).
         String plain = net.minecraft.ChatFormatting.stripFormatting(text);
-        if (plain == null || PLAYER_CHAT.matcher(plain.trim()).find()) {
-            return;
-        }
+        if (plain == null || PLAYER_CHAT.matcher(plain.trim()).find()) return;
         Matcher m = MAGIC_FIND_PATTERN.matcher(text);
         if (m.find()) {
             try {
@@ -55,7 +53,5 @@ public final class MagicFindTracker {
     }
 
     /** Last observed Magic Find percentage, or null if no drop message has been seen yet this session. */
-    public static Integer getLastMagicFind() {
-        return lastMagicFind;
-    }
+    public static Integer getLastMagicFind() { return lastMagicFind; }
 }

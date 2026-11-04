@@ -133,20 +133,14 @@ public final class RemoteTrails {
 
     private static void onWorldRender(LevelRenderContext context) {
         lastDrawnTrails = 0;
-        if (SLOTS.isEmpty() || !SupportersConfig.getInstance().isShowOthersTrails()) {
-            return;
-        }
+        if (SLOTS.isEmpty() || !SupportersConfig.getInstance().isShowOthersTrails()) return;
         ClientLevel level = Minecraft.getInstance().level;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         int drawn = 0;
         for (Iterator<Slot> it = SLOTS.values().iterator(); it.hasNext(); ) {
             Slot slot = it.next();
             Entity e = level.getEntity(slot.entityId);
-            if (!(e instanceof Player p) || slot.spec == null) {
-                continue;
-            }
+            if (!(e instanceof Player p) || slot.spec == null) continue;
             long before = slot.ribbon.frames();
             slot.ribbon.draw(context, p, slot.spec, slot.fadeEnds, false);
             if (slot.ribbon.frames() > before) {
@@ -160,19 +154,13 @@ public final class RemoteTrails {
     }
 
     /** Frames in which at least one other player's trail was drawn. */
-    public static long framesDrawn() {
-        return framesDrawn;
-    }
+    public static long framesDrawn() { return framesDrawn; }
 
     /** Other players' trails drawn in the last frame. */
-    public static int lastDrawnTrails() {
-        return lastDrawnTrails;
-    }
+    public static int lastDrawnTrails() { return lastDrawnTrails; }
 
     /** Players with a trail slot right now. */
-    public static int tracked() {
-        return SLOTS.size();
-    }
+    public static int tracked() { return SLOTS.size(); }
 
     /** {@code id}'s ribbon: {points, length in blocks, frames drawn} for their last frame, or null when untracked. */
     public static double[] ribbonState(UUID id) {

@@ -100,7 +100,6 @@ public final class SpotifyLyricsFeature {
         }
     }
 
-    // ---- Config persistence ----
 
     public static void loadConfig() {
         try {
@@ -134,15 +133,10 @@ public final class SpotifyLyricsFeature {
     }
 
     /** Send Lyrics To Chat: whether lyric lines (or the song title) are posted to the chosen chat. */
-    public static boolean isSendLyricsToChat() {
-        return enabled;
-    }
+    public static boolean isSendLyricsToChat() { return enabled; }
 
-    public static void setSendLyricsToChat(boolean send) {
-        enabled = send;
-    }
+    public static void setSendLyricsToChat(boolean send) { enabled = send; }
 
-    // ---- Party detection ----
 
     // Hypixel's own party lines, whole-line and with a name group no chat prefix can fill: the old contains() checks
     // let any player's message ("... joined the party", "... disbanded the party") flip where lyrics went. The same
@@ -159,9 +153,7 @@ public final class SpotifyLyricsFeature {
         // Party lines are server (GAME) lines, never signed player chat, so only GAME is read, and never the action
         // bar. Caught: a throw in a raw listener disconnects him from Hypixel.
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) {
-                return;
-            }
+            if (overlay) return;
             try {
                 updatePartyStatus(com.killer560.hub.util.ChatObserver.strip(message));
             } catch (RuntimeException e) {
@@ -171,9 +163,7 @@ public final class SpotifyLyricsFeature {
     }
 
     private static void updatePartyStatus(String text) {
-        if (text == null) {
-            return;
-        }
+        if (text == null) return;
         String line = text.trim();
         if (PARTY_JOINED.matcher(line).matches()) {
             inParty = true;
@@ -182,7 +172,6 @@ public final class SpotifyLyricsFeature {
         }
     }
 
-    // ---- Poll + send ----
 
     private static void tick() {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
@@ -222,9 +211,7 @@ public final class SpotifyLyricsFeature {
         }
         ENGINE.setFetchLyrics(lyricsWanted);
         ENGINE.poll(DESKTOP, lyricsWanted || otherPlayers ? MEDIA : null, fullLyrics);
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
 
         // The sim counts as a place lyrics may play.
         //
@@ -246,18 +233,12 @@ public final class SpotifyLyricsFeature {
             return;
         }
         String lyric = ENGINE.getCurrentLyric();
-        if (lyric.isEmpty() || lyric.equals(lastSentLyric)) {
-            return;
-        }
+        if (lyric.isEmpty() || lyric.equals(lastSentLyric)) return;
         lastSentLyric = lyric;
 
         boolean isTrackChange = ENGINE.isCurrentLyricTransition();
-        if (!isTrackChange && !fullLyrics) {
-            return;
-        }
-        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) {
-            return;
-        }
+        if (!isTrackChange && !fullLyrics) return;
+        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) return;
 
         sendToChat(applyProfanityFilter(lyric), inSim);
     }
@@ -340,20 +321,14 @@ public final class SpotifyLyricsFeature {
             new java.util.concurrent.ConcurrentHashMap<String, String>()};
 
     /** {@code text} as the HUD and the F5 lines show it: starred at the Display Censor level. Any thread. */
-    public static String censorDisplay(String text) {
-        return censor(text, SpotifyHudConfig.getInstance().getDisplayCensor());
-    }
+    public static String censorDisplay(String text) { return censor(text, SpotifyHudConfig.getInstance().getDisplayCensor()); }
 
     /** {@code text} starred at {@code level}, cached. */
     public static String censor(String text, ProfanityLevel level) {
-        if (text == null || text.isEmpty() || level == null || level == ProfanityLevel.NONE) {
-            return text == null ? "" : text;
-        }
+        if (text == null || text.isEmpty() || level == null || level == ProfanityLevel.NONE) return text == null ? "" : text;
         java.util.Map<String, String> cache = CENSORED[level.ordinal()];
         String hit = cache.get(text);
-        if (hit != null) {
-            return hit;
-        }
+        if (hit != null) return hit;
         String out = filterProfanity(text, level);
         if (cache.size() > 4096) {
             cache.clear();
@@ -372,9 +347,7 @@ public final class SpotifyLyricsFeature {
     }
 
     /** The Windows media-session helper, which Spotify Controls also send through. */
-    static SpotifyMediaSession media() {
-        return MEDIA;
-    }
+    static SpotifyMediaSession media() { return MEDIA; }
 
     /** Runs {@code task} on the Spotify poll thread, so a pipe write or a process start never stalls a frame. */
     static void runOffThread(Runnable task) {
@@ -388,34 +361,22 @@ public final class SpotifyLyricsFeature {
     }
 
     /** Moves the lyric clock by {@code deltaMs} at once, for a seek a control just sent. */
-    static void nudge(long deltaMs) {
-        runOffThread(() -> ENGINE.nudge(deltaMs, System.currentTimeMillis()));
-    }
+    static void nudge(long deltaMs) { runOffThread(() -> ENGINE.nudge(deltaMs, System.currentTimeMillis())); }
 
     /** The current track's cover from Windows' media controls, or null; any thread. */
-    public static SpotifyMediaSession.Cover cover() {
-        return MEDIA.cover();
-    }
+    public static SpotifyMediaSession.Cover cover() { return MEDIA.cover(); }
 
     /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */
-    public static String sourceProblem() {
-        return DESKTOP.available() ? "" : DESKTOP.unavailableReason();
-    }
+    public static String sourceProblem() { return DESKTOP.available() ? "" : DESKTOP.unavailableReason(); }
 
     /** What the last poll saw Spotify doing, or null when nothing polls (chat lyrics, the HUD and Share My Song all off). */
-    public static NowPlaying nowPlaying() {
-        return ENGINE.lastNowPlaying();
-    }
+    public static NowPlaying nowPlaying() { return ENGINE.lastNowPlaying(); }
 
     private static void sendToChat(String raw, boolean localOnly) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return;
-        }
+        if (client == null || client.player == null) return;
         String message = chatSafe(raw, localOnly ? "" : chatDestination.prefix);
-        if (message.isEmpty()) {
-            return;
-        }
+        if (message.isEmpty()) return;
         if (localOnly) {
             // In the sim there is nobody to send to - /pc in a single-player world is just an unknown command
             // - so the line is printed where he can read it instead.
@@ -436,7 +397,6 @@ public final class SpotifyLyricsFeature {
         });
     }
 
-    // ---- Profanity filter ----
 
     private static final Set<String> MINIMAL_BANNED_WORDS;
     static {
@@ -495,16 +455,12 @@ public final class SpotifyLyricsFeature {
 
     private static final Pattern WORD_PATTERN = Pattern.compile("[\\w']+|[^\\w']+");
 
-    private static String applyProfanityFilter(String input) {
-        return filterProfanity(input, profanityLevel);
-    }
+    private static String applyProfanityFilter(String input) { return filterProfanity(input, profanityLevel); }
 
     /** Stars out every word {@code level} bans after its first letter. Song Tag runs other players' text through it at
      *  {@link ProfanityLevel#ALL}. */
     public static String filterProfanity(String input, ProfanityLevel level) {
-        if (input == null || input.isEmpty() || level == ProfanityLevel.NONE) {
-            return input == null ? "" : input;
-        }
+        if (input == null || input.isEmpty() || level == ProfanityLevel.NONE) return input == null ? "" : input;
 
         Set<String> banned = (level == ProfanityLevel.MINIMAL) ? MINIMAL_BANNED_WORDS : ALL_BANNED_WORDS;
 

@@ -12,16 +12,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -122,13 +118,9 @@ public final class SimItems {
         // server half is the item. That is what lets Auto Routes' raw START packets work in here unchanged.
         net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register(
                 (player, level, hand, pos, direction) -> {
-                    if (player instanceof ServerPlayer sp) {
-                        return onServerAttack(sp, hand, pos.immutable(), direction);
-                    }
+                    if (player instanceof ServerPlayer sp) return onServerAttack(sp, hand, pos.immutable(), direction);
                     Minecraft client = Minecraft.getInstance();
-                    if (!SimState.canAct(client) || player != client.player) {
-                        return net.minecraft.world.InteractionResult.PASS;
-                    }
+                    if (!SimState.canAct(client) || player != client.player) return net.minecraft.world.InteractionResult.PASS;
                     // PUZZLES GET THE CLICK FIRST, whatever is in hand.
                     //
                     // Creeper Beams: killer560 (2026-10-01) "creeper beams does nothing when i shoot the
@@ -156,9 +148,7 @@ public final class SimItems {
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (level, player, pos, state, entity) -> {
                     Minecraft client = Minecraft.getInstance();
-                    if (!SimState.isActive() || client == null || player != client.player) {
-                        return true;
-                    }
+                    if (!SimState.isActive() || client == null || player != client.player) return true;
                     // NOTHING breaks through vanilla in the sim, not even the Dungeon Breaker.
                     //
                     // It used to allow the break when the breaker was held, which meant two things destroyed
@@ -206,9 +196,7 @@ public final class SimItems {
         });
     }
 
-    private static String literalName(GiveItem item) {
-        return item.name().toLowerCase(java.util.Locale.ROOT);
-    }
+    private static String literalName(GiveItem item) { return item.name().toLowerCase(java.util.Locale.ROOT); }
 
     /**
      * Gives one item. Registered as both {@code /simitem <item>} and {@code /item <item>}; the short
@@ -257,9 +245,7 @@ public final class SimItems {
     }
 
     /** Everything at once, for the picker's one button. */
-    public static void giveEverything(Minecraft client) {
-        giveAll();
-    }
+    public static void giveEverything(Minecraft client) { giveAll(); }
 
     /** The Architect's First Draft, named once so the sim's Architect handler cannot drift from the enum. */
     public static final String ARCHITECT_DRAFT_ID = "ARCHITECT_FIRST_DRAFT";
@@ -273,9 +259,7 @@ public final class SimItems {
      * @return whether the id was one the sim can give
      */
     public static boolean give(Minecraft client, String skyblockId) {
-        if (!SimState.canAct(client) || client.player == null || skyblockId == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || client.player == null || skyblockId == null) return false;
         for (GiveItem item : GiveItem.values()) {
             if (item.skyblockId.equalsIgnoreCase(skyblockId)) {
                 giveOnServer(client, item);
@@ -293,16 +277,12 @@ public final class SimItems {
      */
     private static void giveOnServer(Minecraft client, GiveItem item) {
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         ItemStack stack = build(item);
         var uuid = client.player.getUUID();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             if (!sp.getInventory().add(stack)) {
                 com.killer560.hub.compat.McEntities.serverDrop(sp, stack);
             }
@@ -352,16 +332,12 @@ public final class SimItems {
      * and secret item drops - and killer560 asked for "the same tooltip as main [...] for all items the player
      * gets", which means all of them, not just the ones this class builds.
      */
-    public static void applySkyblockTooltip(ItemStack stack, String skyblockId) {
-        SimItemLore.apply(stack, skyblockId);
-    }
+    public static void applySkyblockTooltip(ItemStack stack, String skyblockId) { SimItemLore.apply(stack, skyblockId); }
 
-    // ---------------------------------------------------------------------------------------------------
     // Ability behavior for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
     // packet - the way Hypixel's server answers it. SimAbilities' server-side use handler delegates any skyblock
     // id it does not itself recognize to useOnServer; the left-click packet (START_DESTROY_BLOCK) arrives at
     // onServerAttack. Etherwarp items, the wither blades and Tactical Insertion stay in SimAbilities.
-    // ---------------------------------------------------------------------------------------------------
 
     /**
      * A use packet (or use-on-block packet) with one of this file's items, on the server thread.
@@ -371,9 +347,7 @@ public final class SimItems {
      *         may still do with the click.
      */
     static boolean useOnServer(ServerPlayer sp, String skyblockId, BlockHitResult onBlock) {
-        if (skyblockId == null) {
-            return false;
-        }
+        if (skyblockId == null) return false;
         return switch (skyblockId) {
             // The flight, the particles and the blast live in SimSpiritSceptre, and the Terminator owns its own
             // file. Both are aimed by the SERVER player's eye and rotation - the rotation the use packet carried -
@@ -432,9 +406,7 @@ public final class SimItems {
      * Dungeon Breaker is in his hand.
      */
     public static boolean consumesUse(String skyblockId) {
-        if (skyblockId == null) {
-            return false;
-        }
+        if (skyblockId == null) return false;
         return switch (skyblockId) {
             case "BAT_WAND", "TERMINATOR", "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT" -> true;
             // Ender pearls and the Dungeon Breaker are deliberately absent: the pearl is plain vanilla and
@@ -452,9 +424,7 @@ public final class SimItems {
                                                                         net.minecraft.world.InteractionHand hand,
                                                                         BlockPos pos,
                                                                         net.minecraft.core.Direction face) {
-        if (!SimAbilities.simServer(sp)) {
-            return net.minecraft.world.InteractionResult.PASS;
-        }
+        if (!SimAbilities.simServer(sp)) return net.minecraft.world.InteractionResult.PASS;
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemInHand(hand));
         if ("DUNGEONBREAKER".equals(id)) {
             // ONE charge per block per press, which is what the real item costs.
@@ -503,9 +473,7 @@ public final class SimItems {
      * where it was used.
      */
     private static boolean superboom(ServerPlayer sp, BlockPos target, net.minecraft.core.Direction face) {
-        if (target == null || face == null) {
-            return false;
-        }
+        if (target == null || face == null) return false;
         Minecraft client = Minecraft.getInstance();
         BlockPos center = target.immutable();
         {
@@ -626,9 +594,7 @@ public final class SimItems {
             for (BlockPos here : targets) {
                 // What a blast never takes, whichever group brought it in: a secret, and anything unbreakable.
                 BlockState was = level.getBlockState(here);
-                if (was.isAir() || isSecretBlock(level, here) || was.getDestroySpeed(level, here) < 0) {
-                    continue;
-                }
+                if (was.isAir() || isSecretBlock(level, here) || was.getDestroySpeed(level, here) < 0) continue;
                 // The prince: the golden crypt that was already in the room. Blowing one opens it and drops
                 // its zombie; only the FIRST prince of the run scores, on his word "multiple princes still
                 // the first one only gives 1 score".
@@ -661,9 +627,7 @@ public final class SimItems {
                     net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(aimed.getBlock()),
                     cryptZombies.size(), slabCrypt ? slabSection.size() : 0, aimedCracked, wallCrypt,
                     princeAt != null, chains, tombs.size(), broken);
-            if (broken == 0) {
-                return true;
-            }
+            if (broken == 0) return true;
             if (openedCrypt) {
                 // The crypt point comes when its undead DIES (SimMobs.spawnCrypt), as Hypixel's "Crypts: N" does.
                 // The zombie that is standing in the crypt. killer560 (2026-09-29): "It should break crypts
@@ -767,9 +731,7 @@ public final class SimItems {
      */
     public static ItemStack build(String skyblockId) {
         for (GiveItem item : GiveItem.values()) {
-            if (item.skyblockId.equals(skyblockId)) {
-                return build(item);
-            }
+            if (item.skyblockId.equals(skyblockId)) return build(item);
         }
         return ItemStack.EMPTY;
     }
@@ -793,9 +755,7 @@ public final class SimItems {
     }
 
     private static boolean isPuzzleCell(int cell) {
-        if (cell < 0) {
-            return false;
-        }
+        if (cell < 0) return false;
         String name = SimRoomIndex.nameAtCell(cell);
         return name != null && "PUZZLE".equals(SimFloorGen.typeOf(name));
     }
@@ -858,9 +818,7 @@ public final class SimItems {
             // Silent. killer560 (2026-09-30): "Remove the chat line about it being locked until start."
             return false;
         }
-        if (at == null) {
-            return false;
-        }
+        if (at == null) return false;
         final BlockPos target = at.immutable();
         ServerLevel level = (ServerLevel) sp.level();
         // NOT IN A PUZZLE ROOM, and NOT ON A SECRET. Both refusals happen BEFORE trySpend below, so a refused
@@ -881,9 +839,7 @@ public final class SimItems {
         // Nothing to break (air, or a negative destroy speed: barrier, bedrock): no charge spent, since the swing
         // breaks nothing. Before this check a swing at Boulder's barrier ceiling cost a charge.
         BlockState before = level.getBlockState(target);
-        if (before.isAir() || before.getDestroySpeed(level, target) < 0) {
-            return false;
-        }
+        if (before.isAir() || before.getDestroySpeed(level, target) < 0) return false;
         if (!SimBreakerState.trySpend()) {
             // Hypixel's own line, word for word, and at Hypixel's pace: his 2026-10-07 log has it once a second
             // (23:50:28 to :37, one each second) while the pickaxe was held on a block with no charges - never one
@@ -910,9 +866,7 @@ public final class SimItems {
         if (!state.isAir()) {
             SimBreakerState.remember(level, pos, state);
         }
-        if (state.isAir() || state.getDestroySpeed(level, pos) < 0) {
-            return;
-        }
+        if (state.isAir() || state.getDestroySpeed(level, pos) < 0) return;
         level.destroyBlock(pos, false, breaker, 512);
     }
 
@@ -926,9 +880,7 @@ public final class SimItems {
         return hit != null && hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 
-    private static void fail(Minecraft client, String why) {
-        ModChat.send("Sim", ModChat.dim(why));
-    }
+    private static void fail(Minecraft client, String why) { ModChat.send("Sim", ModChat.dim(why)); }
 
     /**
      * An ability refusal on the server thread: logged, never said. Hypixel sends no chat line of its own for these
@@ -937,9 +889,7 @@ public final class SimItems {
     /** When the sim last said Hypixel's "not enough charges" line (server thread only). */
     private static long lastNoChargesMs = 0L;
 
-    private static void failOnServer(String why) {
-        LOGGER.info("[Sim] {}", why);
-    }
+    private static void failOnServer(String why) { LOGGER.info("[Sim] {}", why); }
     /**
      * Every fragile block joined to {@code start}, so one charge opens a whole crypt wall.
      *
@@ -977,9 +927,7 @@ public final class SimItems {
 
     private static boolean anyInReach(Vec3 boom, java.util.Collection<BlockPos> blocks) {
         for (BlockPos b : blocks) {
-            if (inReach(boom, b)) {
-                return true;
-            }
+            if (inReach(boom, b)) return true;
         }
         return false;
     }
@@ -991,25 +939,9 @@ public final class SimItems {
      * {@link #SUPERBOOM_MAX_BLOCKS} and {@link #SUPERBOOM_CHAIN_SPAN} horizontally from the hit, so it stays in the room.
      */
     private static java.util.List<BlockPos> fragileChain(ServerLevel level, BlockPos start, BlockPos hit) {
-        java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
-        queue.add(start.immutable());
-        seen.add(start.immutable());
-        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
-            BlockPos here = queue.poll();
-            found.add(here);
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
-                BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next) || Math.abs(next.getX() - hit.getX()) > SUPERBOOM_CHAIN_SPAN
-                        || Math.abs(next.getZ() - hit.getZ()) > SUPERBOOM_CHAIN_SPAN) {
-                    continue;
-                }
-                if (isFragile(level.getBlockState(next))) {
-                    queue.add(next);
-                }
-            }
-        }
+        java.util.List<BlockPos> found = floodFrom(start, next -> Math.abs(next.getX() - hit.getX()) <= SUPERBOOM_CHAIN_SPAN
+                && Math.abs(next.getZ() - hit.getZ()) <= SUPERBOOM_CHAIN_SPAN
+                && isFragile(level.getBlockState(next)));
         if (found.size() >= SUPERBOOM_MAX_BLOCKS) {
             LOGGER.info("Sim superboom: fragile chain from {} hit the {}-block cap", start, SUPERBOOM_MAX_BLOCKS);
         }
@@ -1019,14 +951,10 @@ public final class SimItems {
     /** Whether a slab run is a crypt lid: at least {@link #MIN_CRYPT_SLABS}, and not part of a prince (Big Red Flag's
      *  prince is ringed by smooth stone slabs - SimPrince's lid rule - and is a prince, not a crypt as well). */
     private static boolean isCryptRun(ServerLevel level, java.util.List<BlockPos> run) {
-        if (run.size() < MIN_CRYPT_SLABS) {
-            return false;
-        }
+        if (run.size() < MIN_CRYPT_SLABS) return false;
         int bottom = 0;
         for (BlockPos p : run) {
-            if (SimPrince.isPart(p)) {
-                return false;
-            }
+            if (SimPrince.isPart(p)) return false;
             BlockState st = level.getBlockState(p);
             if (st.getValue(net.minecraft.world.level.block.SlabBlock.TYPE)
                     == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM) {
@@ -1054,9 +982,7 @@ public final class SimItems {
     private static java.util.Set<BlockPos> chamberBehind(ServerLevel level, BlockPos wall) {
         for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
             java.util.Set<BlockPos> air = chamberFrom(level, wall.relative(dir).immutable());
-            if (air != null) {
-                return air;
-            }
+            if (air != null) return air;
         }
         return null;
     }
@@ -1069,9 +995,7 @@ public final class SimItems {
                                                             java.util.Set<BlockPos> claimed) {
         for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
             BlockPos start = wall.relative(dir).immutable();
-            if (claimed.contains(start)) {
-                return null;
-            }
+            if (claimed.contains(start)) return null;
             java.util.Set<BlockPos> air = chamberFrom(level, start);
             if (air != null) {
                 claimed.addAll(air);
@@ -1083,9 +1007,7 @@ public final class SimItems {
 
     /** The air pocket from {@code start} when it is a sealed chamber of at most {@link #CRYPT_CHAMBER_MAX}, else null. */
     private static java.util.Set<BlockPos> chamberFrom(ServerLevel level, BlockPos start) {
-        if (!level.getBlockState(start).isAir()) {
-            return null;
-        }
+        if (!level.getBlockState(start).isAir()) return null;
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
         seen.add(start);
@@ -1094,9 +1016,7 @@ public final class SimItems {
             BlockPos at = queue.poll();
             for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
                 BlockPos next = at.relative(d).immutable();
-                if (seen.contains(next) || !level.getBlockState(next).isAir()) {
-                    continue;
-                }
+                if (seen.contains(next) || !level.getBlockState(next).isAir()) continue;
                 if (seen.size() >= CRYPT_CHAMBER_MAX) {
                     return null;   // too big to be a crypt - this is the room
                 }
@@ -1115,9 +1035,7 @@ public final class SimItems {
      */
     private static java.util.List<BlockPos> connectedSlabs(ServerLevel level, BlockPos start) {
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        if (!level.getBlockState(start).is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)) {
-            return found;
-        }
+        if (!level.getBlockState(start).is(net.minecraft.world.level.block.Blocks.SMOOTH_STONE_SLAB)) return found;
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
         queue.add(start.immutable());
@@ -1201,10 +1119,13 @@ public final class SimItems {
     }
 
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {
+        if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) return new java.util.ArrayList<>();
+        return floodFrom(start, next -> isFragile(level.getBlockState(next)) || SimPrince.isPrince(next));
+    }
+
+    /** Six-way flood fill from {@code start} over positions {@code take} accepts, capped at {@link #SUPERBOOM_MAX_BLOCKS}. */
+    private static java.util.List<BlockPos> floodFrom(BlockPos start, java.util.function.Predicate<BlockPos> take) {
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) {
-            return found;
-        }
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
         queue.add(start.immutable());
@@ -1214,10 +1135,7 @@ public final class SimItems {
             found.add(here);
             for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
                 BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next)) {
-                    continue;
-                }
-                if (isFragile(level.getBlockState(next)) || SimPrince.isPrince(next)) {
+                if (seen.add(next) && take.test(next)) {
                     queue.add(next);
                 }
             }
@@ -1261,25 +1179,8 @@ public final class SimItems {
     private static java.util.List<BlockPos> wallSlab(ServerLevel level, BlockPos start,
                                                      net.minecraft.core.Direction face) {
         net.minecraft.core.Direction.Axis normal = face.getAxis();
-        java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
-        queue.add(start.immutable());
-        seen.add(start.immutable());
-        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
-            BlockPos here = queue.poll();
-            found.add(here);
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
-                BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next) || !withinSlab(start, next, normal)) {
-                    continue;
-                }
-                if (isWallMaterial(level.getBlockState(next)) || SimPrince.isPrince(next)) {
-                    queue.add(next);
-                }
-            }
-        }
-        return found;
+        return floodFrom(start, next -> withinSlab(start, next, normal)
+                && (isWallMaterial(level.getBlockState(next)) || SimPrince.isPrince(next)));
     }
 
     /** Whether this position is still inside the slab: near the aimed face, and shallow into it. */

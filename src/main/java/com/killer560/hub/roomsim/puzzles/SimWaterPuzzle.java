@@ -198,7 +198,6 @@ public final class SimWaterPuzzle {
     private static volatile BlockState powerOn = null;
     private static volatile BlockState powerOff = null;
 
-    // ------------------------------------------------------------------------------------- where it is bound
 
     /** Non-null while bound to a real captured room. */
     private static volatile SimRoomPuzzles.Anchor anchor = null;
@@ -255,21 +254,11 @@ public final class SimWaterPuzzle {
 
     /** Which lever an ore block on the board belongs to. The lapis slot is in no lever's list. */
     private static LeverBlock leverForOre(BlockState state) {
-        if (state.is(Blocks.COAL_BLOCK)) {
-            return LeverBlock.COAL;
-        }
-        if (state.is(Blocks.GOLD_BLOCK)) {
-            return LeverBlock.GOLD;
-        }
-        if (state.is(Blocks.QUARTZ_BLOCK)) {
-            return LeverBlock.QUARTZ;
-        }
-        if (state.is(Blocks.DIAMOND_BLOCK)) {
-            return LeverBlock.DIAMOND;
-        }
-        if (state.is(Blocks.EMERALD_BLOCK)) {
-            return LeverBlock.EMERALD;
-        }
+        if (state.is(Blocks.COAL_BLOCK)) return LeverBlock.COAL;
+        if (state.is(Blocks.GOLD_BLOCK)) return LeverBlock.GOLD;
+        if (state.is(Blocks.QUARTZ_BLOCK)) return LeverBlock.QUARTZ;
+        if (state.is(Blocks.DIAMOND_BLOCK)) return LeverBlock.DIAMOND;
+        if (state.is(Blocks.EMERALD_BLOCK)) return LeverBlock.EMERALD;
         if (state.is(Blocks.TERRACOTTA)) {
             return LeverBlock.CLAY;   // "hardened_clay" in the solution file's own spelling
         }
@@ -291,9 +280,7 @@ public final class SimWaterPuzzle {
         for (int x = BOARD_MIN_X; x <= BOARD_MAX_X; x++) {
             for (int y = BOARD_MIN_Y; y <= BOARD_MAX_Y; y++) {
                 BlockPos piston = at(x, y, BOARD_PISTON_Z);
-                if (piston == null || !level.getBlockState(piston).is(Blocks.STICKY_PISTON)) {
-                    continue;
-                }
+                if (piston == null || !level.getBlockState(piston).is(Blocks.STICKY_PISTON)) continue;
                 BlockPos face = at(x, y, BOARD_FACE_Z);
                 BlockPos behind = at(x, y, BOARD_BEHIND_Z);
                 BlockState atFace = level.getBlockState(face);
@@ -346,13 +333,9 @@ public final class SimWaterPuzzle {
             List<LayerPiston> list = new ArrayList<>();
             for (int[] xy : LAYER_PISTONS) {
                 BlockPos piston = at(xy[0], xy[1], colour.relZ());
-                if (piston == null) {
-                    continue;
-                }
+                if (piston == null) continue;
                 BlockState state = level.getBlockState(piston);
-                if (!state.is(Blocks.STICKY_PISTON)) {
-                    continue;
-                }
+                if (!state.is(Blocks.STICKY_PISTON)) continue;
                 Direction facing = state.getValue(DirectionalBlock.FACING);
                 BlockPos head = piston.relative(facing);
                 BlockPos push = head.relative(facing);
@@ -380,7 +363,6 @@ public final class SimWaterPuzzle {
         LOGGER.info("Sim Water Board: bottom path read - {} layer piston(s) over {} color(s)", found, LAYERS.size());
     }
 
-    // ------------------------------------------------------------------------------------------- the board
 
     /** The three colors this board starts with pushed out, in the order the water reaches them. */
     private static volatile List<WoolColor> board = List.of();
@@ -417,9 +399,7 @@ public final class SimWaterPuzzle {
                 return InteractionResult.PASS;
             }
             LeverBlock lever = BLOCK_INDEX.get(hitResult.getBlockPos());
-            if (lever == null) {
-                return InteractionResult.PASS;
-            }
+            if (lever == null) return InteractionResult.PASS;
             onLeverClicked(client, lever);
             // PASS, not SUCCESS: vanilla's own lever toggle (sound, redstone, animation) is what makes this
             // read as a real lever - we only observe the click, never fake or consume it.
@@ -443,15 +423,11 @@ public final class SimWaterPuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!isArmed() || !SimState.canAct(client)) {
-            return;
-        }
+        if (!isArmed() || !SimState.canAct(client)) return;
         tickCounter++;
     }
 
-    private static boolean isArmed() {
-        return anchor != null || standaloneOrigin != null;
-    }
+    private static boolean isArmed() { return anchor != null || standaloneOrigin != null; }
 
     /**
      * A room-relative position in the world, however this puzzle is currently standing.
@@ -462,15 +438,12 @@ public final class SimWaterPuzzle {
      */
     private static BlockPos at(int rx, int ry, int rz) {
         SimRoomPuzzles.Anchor a = anchor;
-        if (a != null) {
-            return a.world(rx, ry, rz);
-        }
+        if (a != null) return a.world(rx, ry, rz);
         BlockPos o = standaloneOrigin;
         return o == null ? null : o.offset(rx - LeverBlock.WATER.relX(), ry - LeverBlock.WATER.relY(),
                 rz - LeverBlock.WATER.relZ());
     }
 
-    // --------------------------------------------------------------------------------------------- binding
 
     /**
      * Arms this puzzle on a REAL captured Water Board room the sim has just pasted.
@@ -491,9 +464,7 @@ public final class SimWaterPuzzle {
         }
         SimRoomPuzzles.Anchor found = SimRoomPuzzles.bestAnchor(level, p, rels,
                 SimRoomPuzzles.is(Blocks.LEVER), new int[]{0}, 5);
-        if (found == null) {
-            return false;
-        }
+        if (found == null) return false;
         forget();
         anchor = found;
         boundRoom = p.room().name;
@@ -509,13 +480,9 @@ public final class SimWaterPuzzle {
      * which is said in chat so it does not read as broken.
      */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         BlockPos base = origin;
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -657,9 +624,7 @@ public final class SimWaterPuzzle {
         for (String key : candidates) {
             List<Map.Entry<LeverBlock, Double>> order =
                     WaterSolverFeature.bundledClickOrder(optimized, identifier, key);
-            if (order != null && !order.isEmpty()) {
-                return key;
-            }
+            if (order != null && !order.isEmpty()) return key;
         }
         return null;
     }
@@ -669,9 +634,7 @@ public final class SimWaterPuzzle {
     private static int identifierAt(ServerLevel level) {
         for (WaterSolverFeature.IdentifierMarker marker : WaterSolverFeature.IDENTIFIER_MARKERS) {
             BlockPos pos = at(marker.x(), marker.y(), marker.z());
-            if (pos != null && level.getBlockState(pos).is(marker.block())) {
-                return marker.identifier();
-            }
+            if (pos != null && level.getBlockState(pos).is(marker.block())) return marker.identifier();
         }
         return -1;
     }
@@ -682,13 +645,10 @@ public final class SimWaterPuzzle {
         return state.setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.FLOOR);
     }
 
-    // ---------------------------------------------------------------------------------------- the mechanic
 
     private static void onLeverClicked(Minecraft client, LeverBlock lever) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         if (lever == LeverBlock.WATER) {
             onWaterLever(server);
             return;
@@ -696,9 +656,7 @@ public final class SimWaterPuzzle {
         // The blocks move whatever the click turns out to be worth - also after the board is solved. That is the
         // lever's job, and seeing them move is how he knows which lever he just pulled.
         toggleGate(server, lever);
-        if (complete) {
-            return;
-        }
+        if (complete) return;
 
         if (!preFlowDone.containsAll(preFlow)) {
             // Still setting the gates. Order does not matter among these - they are all "time 0", i.e. before
@@ -769,9 +727,7 @@ public final class SimWaterPuzzle {
         // before the server drained its queue read the old value and asked for "on" twice.
         flowing = turnOn;
         setFlowingOn(server, turnOn);
-        if (complete) {
-            return;
-        }
+        if (complete) return;
         if (!preFlowDone.containsAll(preFlow)) {
             ModChat.send("Sim", ModChat.text(turnOn ? "Water running. " : "Water stopped. "),
                     ModChat.dim((preFlow.size() - preFlowDone.size())
@@ -821,9 +777,7 @@ public final class SimWaterPuzzle {
      */
     private static void toggleGate(MinecraftServer server, LeverBlock lever) {
         List<Slot> gate = GATES.get(lever);
-        if (gate == null || gate.isEmpty()) {
-            return;
-        }
+        if (gate == null || gate.isEmpty()) return;
         if (!GATES_OPEN.add(lever)) {
             GATES_OPEN.remove(lever);
         }
@@ -879,9 +833,7 @@ public final class SimWaterPuzzle {
      */
     private static void setFlowing(ServerLevel level, boolean on) {
         flowing = on;
-        if (!hasWater) {
-            return;
-        }
+        if (!hasWater) return;
         for (Slot slot : WATER_GATE) {
             setSlot(level, slot, !on);   // the lapis OUT is the water stopped
         }
@@ -917,9 +869,7 @@ public final class SimWaterPuzzle {
     }
 
     private static void checkComplete(MinecraftServer server) {
-        if (complete || !preFlowDone.containsAll(preFlow) || timedDone < timed.size()) {
-            return;
-        }
+        if (complete || !preFlowDone.containsAll(preFlow) || timedDone < timed.size()) return;
         complete = true;
         ModChat.send("Sim", ModChat.good("Water Board"), ModChat.text(" solved."));
         // Queued after syncWool's own server task, so the last layer is already down when the chest appears.
@@ -933,9 +883,7 @@ public final class SimWaterPuzzle {
      */
     private static void placeRewardChest(ServerLevel level) {
         SimRoomPuzzles.Anchor a = anchor;
-        if (a == null || rewardChest != null || !complete) {
-            return;
-        }
+        if (a == null || rewardChest != null || !complete) return;
         BlockPos spot = a.world(CHEST_SPOT);
         BlockPos front = a.world(CHEST_FRONT);
         Direction facing = null;
@@ -964,9 +912,7 @@ public final class SimWaterPuzzle {
         BlockPos chest = rewardChest;
         rewardChest = null;
         rewardOpened = false;
-        if (chest == null) {
-            return;
-        }
+        if (chest == null) return;
         com.killer560.hub.roomsim.SimMimic.unmarkPuzzleReward(chest);
         if (level.getBlockState(chest).is(Blocks.CHEST)) {
             level.setBlockAndUpdate(chest, Blocks.AIR.defaultBlockState());
@@ -1009,9 +955,7 @@ public final class SimWaterPuzzle {
         }
         BlockPos inPos = at(15, WOOL_IN_Y, colour.relZ());
         BlockPos outPos = at(15, WOOL_OUT_Y, colour.relZ());
-        if (inPos == null || outPos == null) {
-            return;
-        }
+        if (inPos == null || outPos == null) return;
         BlockState wool = woolFor(colour).defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         level.setBlock(outPos, out ? wool : air, WRITE_FLAGS);
@@ -1042,9 +986,7 @@ public final class SimWaterPuzzle {
         };
     }
 
-    private static String fmt(double seconds) {
-        return String.format(Locale.ROOT, "%.1f", seconds);
-    }
+    private static String fmt(double seconds) { return String.format(Locale.ROOT, "%.1f", seconds); }
 
     /**
      * A click the board did not ask for. Named, and nothing else: the puzzle cannot be failed (killer560,
@@ -1095,19 +1037,13 @@ public final class SimWaterPuzzle {
         });
     }
 
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Where the reward chest stands, or null before the board is solved. For the testkit's 93-solve-waterboard. */
-    public static BlockPos rewardChestPos() {
-        return rewardChest;
-    }
+    public static BlockPos rewardChestPos() { return rewardChest; }
 
     /** Whether the reward chest has been opened (right-clicked) since it appeared. */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
@@ -1158,9 +1094,7 @@ public final class SimWaterPuzzle {
     /** Puts the arena back to its starting state, for an Architect's First Draft or {@code /simpuzzle reset}. */
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (!isArmed() || !SimState.canAct(client)) {
-            return;
-        }
+        if (!isArmed() || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
         if (server != null) {
             restart(server);

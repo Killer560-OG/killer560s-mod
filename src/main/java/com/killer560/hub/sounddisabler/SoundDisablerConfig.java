@@ -96,25 +96,15 @@ public final class SoundDisablerConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean value) {
-        enabled = value;
-    }
+    public void setEnabled(boolean value) { enabled = value; }
 
-    public boolean isOn(MutedSound s) {
-        return on[s.ordinal()];
-    }
+    public boolean isOn(MutedSound s) { return on[s.ordinal()]; }
 
-    public void setOn(MutedSound s, boolean value) {
-        on[s.ordinal()] = value;
-    }
+    public void setOn(MutedSound s, boolean value) { on[s.ordinal()] = value; }
 
-    public String getCustom() {
-        return custom;
-    }
+    public String getCustom() { return custom; }
 
     /**
      * Sets the Custom Sound IDs list: ids separated by commas, spaces or new lines. An id without a namespace is a
@@ -150,28 +140,18 @@ public final class SoundDisablerConfig {
     /** Whether the full id {@code id} ({@code namespace:path}) is on the Custom Sound IDs list. */
     public boolean customMatches(String id) {
         for (String e : customExact) {
-            if (e.equals(id)) {
-                return true;
-            }
+            if (e.equals(id)) return true;
         }
         for (String p : customPrefix) {
-            if (id.startsWith(p)) {
-                return true;
-            }
+            if (id.startsWith(p)) return true;
         }
         return false;
     }
 
     /** The number of entries the Custom Sound IDs list parsed to. */
-    public int customCount() {
-        return customExact.size() + customPrefix.size();
-    }
+    public int customCount() { return customExact.size() + customPrefix.size(); }
 
-    public boolean isShowIds() {
-        return showIds;
-    }
+    public boolean isShowIds() { return showIds; }
 
-    public void setShowIds(boolean value) {
-        showIds = value;
-    }
+    public void setShowIds(boolean value) { showIds = value; }
 }

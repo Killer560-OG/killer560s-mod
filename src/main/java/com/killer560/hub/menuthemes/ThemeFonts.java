@@ -23,10 +23,7 @@ public final class ThemeFonts {
      *  or its font is gone (an imported file deleted since). */
     public static String effective(String base) {
         String own = ThemeExtrasConfig.getInstance().getFont(MenuConfig.getInstance().getTheme());
-        if (own == null || ThemeExtrasConfig.FONT_KEEP.equals(own) || FontChoices.find(own) == null) {
-            return base;
-        }
-        return own;
+        return own == null || ThemeExtrasConfig.FONT_KEEP.equals(own) || FontChoices.find(own) == null ? base : own;
     }
 
     /** Keep Current, then every font the Font setting can pick. */
@@ -51,9 +48,7 @@ public final class ThemeFonts {
     }
 
     public static String label(String id) {
-        if (id == null || ThemeExtrasConfig.FONT_KEEP.equals(id)) {
-            return "Keep Current";
-        }
+        if (id == null || ThemeExtrasConfig.FONT_KEEP.equals(id)) return "Keep Current";
         return FontChoices.find(id) == null ? "Keep Current (font missing)" : FontChoices.label(id);
     }
 }

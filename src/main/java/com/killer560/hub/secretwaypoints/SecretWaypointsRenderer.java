@@ -1,16 +1,9 @@
 package com.killer560.hub.secretwaypoints;
 
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -48,9 +41,7 @@ public final class SecretWaypointsRenderer {
 
     /** Called from {@link SecretWaypointsFeature#register()} so the pipelines exist before the renderer
      *  precompiles its pipeline list. */
-    static void init() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    static void init() { RenderType unused = ThroughWalls.LINES; }
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
@@ -66,9 +57,7 @@ public final class SecretWaypointsRenderer {
      */
     static int draw(LevelRenderContext context, List<SecretWaypointsFeature.Waypoint> waypoints,
                     SecretWaypointsConfig.Style style, boolean throughWalls, double maxDistance) {
-        if (waypoints.isEmpty()) {
-            return 0;
-        }
+        if (waypoints.isEmpty()) return 0;
         boolean fill = style != SecretWaypointsConfig.Style.OUTLINE;
         boolean outline = style != SecretWaypointsConfig.Style.FILL;
         float fillAlphaScale = style == SecretWaypointsConfig.Style.FILL_OUTLINE ? 0.5f : 1.0f;
@@ -103,9 +92,7 @@ public final class SecretWaypointsRenderer {
                     waypoints.size(), drawn, style, throughWalls, maxDistance,
                     drawn == 0 ? " - every waypoint is beyond the render distance" : "");
         }
-        if (drawn == 0) {
-            return 0;
-        }
+        if (drawn == 0) return 0;
 
         // Captured for the lambdas below: `drawn` is reassigned in the catch, so it is not effectively final
         // and cannot be captured directly.

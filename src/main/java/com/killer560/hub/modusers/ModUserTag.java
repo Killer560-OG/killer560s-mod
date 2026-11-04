@@ -28,7 +28,5 @@ public final class ModUserTag {
     }
 
     /** {@code name} with the tag in front. */
-    public static Component tag(String variant, Component name) {
-        return prefix(variant).append(name);
-    }
+    public static Component tag(String variant, Component name) { return prefix(variant).append(name); }
 }

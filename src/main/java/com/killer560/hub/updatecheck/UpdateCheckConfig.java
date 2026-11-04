@@ -70,11 +70,7 @@ public final class UpdateCheckConfig {
         }
     }
 
-    public boolean isNotifyOnStart() {
-        return notifyOnStart;
-    }
+    public boolean isNotifyOnStart() { return notifyOnStart; }
 
-    public void setNotifyOnStart(boolean v) {
-        this.notifyOnStart = v;
-    }
+    public void setNotifyOnStart(boolean v) { this.notifyOnStart = v; }
 }

@@ -67,9 +67,7 @@ public final class SimBreakerState {
     private SimBreakerState() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimBreakerState::tick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimBreakerState::tick); }
 
     /** Wipes charges and pending restores - for a new room or leaving the sim. */
     public static synchronized void reset() {
@@ -78,9 +76,7 @@ public final class SimBreakerState {
         PENDING.clear();
     }
 
-    public static synchronized int charges() {
-        return charges;
-    }
+    public static synchronized int charges() { return charges; }
 
     /**
      * Spends a charge, if there is one.
@@ -88,9 +84,7 @@ public final class SimBreakerState {
      * @return whether the break may go ahead
      */
     public static synchronized boolean trySpend() {
-        if (charges <= 0) {
-            return false;
-        }
+        if (charges <= 0) return false;
         charges--;
         return true;
     }
@@ -114,9 +108,7 @@ public final class SimBreakerState {
     private static int secretCharges = -1;
 
     /** A profile load replaced the file: read it again on next use. */
-    public static synchronized void forgetSecretCharges() {
-        secretCharges = -1;
-    }
+    public static synchronized void forgetSecretCharges() { secretCharges = -1; }
 
     /**
      * Charges a secret gives back: the sim's "Echoes of the Lost" level, 0 (off) to {@link #MAX_SECRET_CHARGES}.
@@ -125,16 +117,8 @@ public final class SimBreakerState {
      */
     public static synchronized int secretCharges() {
         if (secretCharges < 0) {
-            secretCharges = DEFAULT_SECRET_CHARGES;
-            try {
-                if (java.nio.file.Files.exists(SECRET_FILE)) {
-                    int v = Integer.parseInt(java.nio.file.Files
-                            .readString(SECRET_FILE, java.nio.charset.StandardCharsets.UTF_8).trim());
-                    secretCharges = Math.max(0, Math.min(MAX_SECRET_CHARGES, v));
-                }
-            } catch (Exception ignored) {
-                // Unreadable means unknown, and the default is a safe unknown.
-            }
+            int v = SimIntFile.read(SECRET_FILE, Integer.MIN_VALUE);
+            secretCharges = v == Integer.MIN_VALUE ? DEFAULT_SECRET_CHARGES : Math.max(0, Math.min(MAX_SECRET_CHARGES, v));
         }
         return secretCharges;
     }
@@ -146,13 +130,7 @@ public final class SimBreakerState {
             return;
         }
         secretCharges = clamped;
-        try {
-            java.nio.file.Files.createDirectories(SECRET_FILE.getParent());
-            java.nio.file.Files.writeString(SECRET_FILE, String.valueOf(secretCharges),
-                    java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // Losing the preference is not worth failing the click he just made.
-        }
+        SimIntFile.write(SECRET_FILE, secretCharges);
     }
 
     /**
@@ -244,9 +222,7 @@ public final class SimBreakerState {
                     continue;
                 }
                 var lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
-                if (lore == null) {
-                    continue;
-                }
+                if (lore == null) continue;
                 java.util.List<net.minecraft.network.chat.Component> lines = new java.util.ArrayList<>(lore.lines());
                 boolean changed = false;
                 for (int i = 0; i < lines.size(); i++) {

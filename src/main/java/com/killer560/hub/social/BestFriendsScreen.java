@@ -121,17 +121,13 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         refilter();
     }
 
-    private static String sortText(BestFriendsConfig cfg) {
-        return sortText(cfg.getSortMode());
-    }
+    private static String sortText(BestFriendsConfig cfg) { return sortText(cfg.getSortMode()); }
 
     private static String sortText(BestFriendsConfig.SortMode mode) {
         return "Sort: §f" + mode.label; // white, not aqua (killer560, 2026-11-01)
     }
 
-    private static String filterText(boolean dungeonOnly) {
-        return dungeonOnly ? "§6Dungeon Only" : "§fAny Party Time";
-    }
+    private static String filterText(boolean dungeonOnly) { return dungeonOnly ? "§6Dungeon Only" : "§fAny Party Time"; }
 
     private int widestSortLabel() {
         int w = 0;
@@ -144,9 +140,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     /** The label, cut to what fits inside a button {@code boxW} wide. */
     private Component fit(String label, int boxW) {
         int room = Math.max(0, boxW - LABEL_PAD);
-        if (this.font.width(label) <= room) {
-            return Component.literal(label);
-        }
+        if (this.font.width(label) <= room) return Component.literal(label);
         return Component.literal(this.font.plainSubstrByWidth(label, Math.max(0, room - this.font.width(".."))) + "..");
     }
 
@@ -155,13 +149,9 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         String query = searchBox == null ? "" : searchBox.getValue().trim().toLowerCase(Locale.US);
         List<BestFriendsStore.Record> out = new ArrayList<>();
         for (BestFriendsStore.Record record : BestFriendsStore.records()) {
-            if (cfg.isDungeonOnlyFilter() && record.totalDungeonRuns() == 0) {
-                continue;
-            }
+            if (cfg.isDungeonOnlyFilter() && record.totalDungeonRuns() == 0) continue;
             String name = record.lastKnownName == null ? "" : record.lastKnownName;
-            if (!query.isEmpty() && !name.toLowerCase(Locale.US).contains(query)) {
-                continue;
-            }
+            if (!query.isEmpty() && !name.toLowerCase(Locale.US).contains(query)) continue;
             out.add(record);
         }
         Comparator<BestFriendsStore.Record> comparator = switch (cfg.getSortMode()) {
@@ -173,7 +163,6 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         visible = out;
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
     /** Typing with no box focused goes into the search box (as on the Friends List), so typing a name narrows the list. */
     @Override
@@ -200,20 +189,14 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     }
 
     private BestFriendsStore.Record rowAt(double mx, double my) {
-        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
-    private int contentHeight(List<String> lines) {
-        return lines != null ? lines.size() * 10 : visible.size() * ROW_H;
-    }
+    private int contentHeight(List<String> lines) { return lines != null ? lines.size() * 10 : visible.size() * ROW_H; }
 
-    private int maxScroll() {
-        return Math.max(0, contentHeight(selected != null ? detailLines(selected) : null) - listH);
-    }
+    private int maxScroll() { return Math.max(0, contentHeight(selected != null ? detailLines(selected) : null) - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -224,7 +207,6 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -278,9 +260,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         int first = Math.max(0, scroll / ROW_H);
         for (int i = first; i < visible.size(); i++) {
             int rowY = listY + i * ROW_H - scroll;
-            if (rowY > listY + listH) {
-                break;
-            }
+            if (rowY > listY + listH) break;
             BestFriendsStore.Record record = visible.get(i);
             GuiRects rr = GuiRects.begin(graphics);
             ScreenChrome.row(rr, listX, rowY, listW - 5, ROW_H, record == hovered, false, i % 2 == 0);
@@ -310,9 +290,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
 
         int y = listY + 6 - scroll + 38;
         for (String line : lines) {
-            if (y > listY + listH) {
-                break;
-            }
+            if (y > listY + listH) break;
             if (!line.isEmpty()) {
                 ScreenChrome.text(graphics, this.font.plainSubstrByWidth(line, listW - 16), listX + 6, y, MenuStyle.TXT);
             }
@@ -349,16 +327,9 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         long d = total / 86_400L;
         long h = (total % 86_400L) / 3600L;
         long m = (total % 3600L) / 60L;
-        if (d > 0) {
-            return d + "d " + h + "h " + m + "m";
-        }
-        if (h > 0) {
-            return h + "h " + m + "m";
-        }
-        if (m > 0) {
-            return m + "m";
-        }
-        return total + "s";
+        if (d > 0) return d + "d " + h + "h " + m + "m";
+        if (h > 0) return h + "h " + m + "m";
+        return m > 0 ? m + "m" : total + "s";
     }
 
     /** A clicked player's form, to the second: "10d 3h 10m 5s", "1h 32m 5s", "45m 0s", "38s". */
@@ -368,22 +339,13 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         long h = (total % 86_400L) / 3600L;
         long m = (total % 3600L) / 60L;
         long sec = total % 60L;
-        if (d > 0) {
-            return d + "d " + h + "h " + m + "m " + sec + "s";
-        }
-        if (h > 0) {
-            return h + "h " + m + "m " + sec + "s";
-        }
-        if (m > 0) {
-            return m + "m " + sec + "s";
-        }
-        return sec + "s";
+        if (d > 0) return d + "d " + h + "h " + m + "m " + sec + "s";
+        if (h > 0) return h + "h " + m + "m " + sec + "s";
+        return m > 0 ? m + "m " + sec + "s" : sec + "s";
     }
 
     private static String formatDate(long epochMs) {
-        if (epochMs <= 0) {
-            return "-";
-        }
+        if (epochMs <= 0) return "-";
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.ofEpochMilli(epochMs));
@@ -393,22 +355,14 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "bestfriends";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

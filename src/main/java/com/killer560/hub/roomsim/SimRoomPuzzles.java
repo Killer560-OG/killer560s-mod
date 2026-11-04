@@ -121,9 +121,7 @@ public final class SimRoomPuzzles {
     public record Placement(RoomLibrary.Room room, int gridX, int gridZ, int pasteRotation, int dbRotation) {
 
         /** The anchor this placement was recorded with. */
-        public Anchor anchor() {
-            return anchorAt(dbRotation, 0);
-        }
+        public Anchor anchor() { return anchorAt(dbRotation, 0); }
 
         /** The anchor for a different database rotation and vertical nudge, for {@link #bestAnchor}. */
         public Anchor anchorAt(int rotation, int dy) {
@@ -152,9 +150,7 @@ public final class SimRoomPuzzles {
             return new BlockPos(real.getX(), SimAltitude.toWorld(real.getY()), real.getZ());
         }
 
-        public BlockPos world(int[] rel) {
-            return world(rel[0], rel[1], rel[2]);
-        }
+        public BlockPos world(int[] rel) { return world(rel[0], rel[1], rel[2]); }
     }
 
     /**
@@ -173,19 +169,14 @@ public final class SimRoomPuzzles {
 
     /** The nudge for a room, 0 when it needed none. Keyed by the room's own name, case-insensitively. */
     public static int dyFor(String roomName) {
-        if (roomName == null || ROOM_DY.isEmpty()) {
-            return 0;
-        }
-        return ROOM_DY.getOrDefault(roomName.toLowerCase(Locale.ROOT), 0);
+        return roomName == null || ROOM_DY.isEmpty() ? 0 : ROOM_DY.getOrDefault(roomName.toLowerCase(Locale.ROOT), 0);
     }
 
     /** A predicate for "is one of these blocks", for the self-checks below. */
     public static Predicate<BlockState> is(Block... blocks) {
         return state -> {
             for (Block b : blocks) {
-                if (state.is(b)) {
-                    return true;
-                }
+                if (state.is(b)) return true;
             }
             return false;
         };
@@ -242,9 +233,7 @@ public final class SimRoomPuzzles {
         int bestScore = recordedScore;
         for (int rotation : new int[]{0, 90, 180, 270}) {
             for (int dy : dyCandidates) {
-                if (rotation == recorded.rotation() && dy == 0) {
-                    continue;
-                }
+                if (rotation == recorded.rotation() && dy == 0) continue;
                 Anchor candidate = p.anchorAt(rotation, dy);
                 int score = hits(level, candidate, rels, ok);
                 if (score > bestScore) {
@@ -299,9 +288,7 @@ public final class SimRoomPuzzles {
      * room is not one of the eleven the generator treats as a puzzle. Also read by {@link SimTabList}.
      */
     public static String puzzleKey(String roomName) {
-        if (roomName == null) {
-            return null;
-        }
+        if (roomName == null) return null;
         return switch (roomName.toLowerCase(Locale.ROOT)) {
             case "water board" -> "water";
             case "teleport maze" -> "teleportmaze";
@@ -327,9 +314,7 @@ public final class SimRoomPuzzles {
      * @return how many puzzle rooms were armed
      */
     public static int armFloor(ServerLevel level) {
-        if (level == null) {
-            return 0;
-        }
+        if (level == null) return 0;
         // Whatever the LAST floor armed is gone with it, and a stale click index is a click on some unrelated
         // block counting as a move in a puzzle that is not on this floor. Dropped BEFORE anything is armed and
         // through forget() rather than reset(): reset() would put the previous floor's blocks back, at absolute
@@ -352,16 +337,12 @@ public final class SimRoomPuzzles {
         StringBuilder names = new StringBuilder();
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
             RoomLibrary.Room room = RoomLibrary.get(placed.name());
-            if (room == null) {
-                continue;
-            }
+            if (room == null) continue;
             String key = placed.name().toLowerCase(Locale.ROOT);
             Placement p = new Placement(room, placed.gridX(), placed.gridZ(),
                     placed.pasteRotation(), placed.rotation());
             String puzzle = puzzleKey(key);
-            if (puzzle == null) {
-                continue;
-            }
+            if (puzzle == null) continue;
             seen++;
             if (!tried.add(puzzle)) {
                 LOGGER.warn("Sim puzzles: {} is the second {} room on this floor - only one can be armed, "
@@ -449,9 +430,7 @@ public final class SimRoomPuzzles {
                 }
             }
         }
-        if (wanted.isEmpty()) {
-            return out;
-        }
+        if (wanted.isEmpty()) return out;
         BlockPos origin = com.killer560.hub.livemap.DungeonLayout.cellCenter(
                 p.gridZ() * com.killer560.hub.livemap.DungeonLayout.GRID + p.gridX());
         int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
@@ -459,9 +438,7 @@ public final class SimRoomPuzzles {
         for (int y = room.minY; y <= room.maxY; y++) {
             for (int x = 0; x < room.sizeX; x++) {
                 for (int z = 0; z < room.sizeZ; z++) {
-                    if (!wanted.contains((int) room.at(x, y, z))) {
-                        continue;
-                    }
+                    if (!wanted.contains((int) room.at(x, y, z))) continue;
                     int[] local = RoomPlacer.rotateLocal(x, z, room.sizeX, room.sizeZ, p.pasteRotation());
                     out.add(new BlockPos(worldX0 + local[0], SimAltitude.toWorld(y), worldZ0 + local[1]));
                 }

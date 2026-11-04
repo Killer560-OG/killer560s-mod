@@ -68,7 +68,6 @@ public final class RunStatsTracker {
     private RunStatsTracker() {
     }
 
-    // ------------------------------------------------------------------------------------- run lifecycle
 
     /** Clears everything for a fresh run (world change / dungeon entry). */
     public static synchronized void resetRun() {
@@ -83,16 +82,12 @@ public final class RunStatsTracker {
         RunStatsBridge.reset();
     }
 
-    public static boolean snapshotTaken() {
-        return snapshotTaken;
-    }
+    public static boolean snapshotTaken() { return snapshotTaken; }
 
     /** Records everyone's lifetime secret count at the start of the run. No-op if secrets are off. */
     public static void snapshotSecrets(Minecraft client) {
         snapshotTaken = true;
-        if (!RunStatsConfig.getInstance().isFetchSecrets()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
         for (String name : partyNames(client)) {
             fetchSecrets(name, SECRETS_BEFORE);
         }
@@ -100,26 +95,19 @@ public final class RunStatsTracker {
 
     /** Records everyone's lifetime secret count at the end of the run (cache bypassed). */
     public static void captureSecrets(Minecraft client) {
-        if (!RunStatsConfig.getInstance().isFetchSecrets()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
         for (String name : partyNames(client)) {
             fetchSecrets(name, SECRETS_AFTER);
         }
     }
 
-    // ------------------------------------------------------------------------------------- collection
 
     /** Feeds the map-derived room clears in. Call every few ticks while in a dungeon. */
     public static synchronized void pollRooms(Minecraft client) {
-        if (!RunStatsConfig.getInstance().isTrackRooms()) {
-            return;
-        }
+        if (!RunStatsConfig.getInstance().isTrackRooms()) return;
         for (RunStatsBridge.Clear clear : RunStatsBridge.pollClears(client)) {
             List<String> inside = clear.players();
-            if (inside.isEmpty()) {
-                continue;
-            }
+            if (inside.isEmpty()) continue;
             if (inside.size() == 1) {
                 rooms(SOLO_ROOMS, inside.get(0)).add(clear.roomName());
             } else {
@@ -133,26 +121,19 @@ public final class RunStatsTracker {
     /** Feeds one stripped chat line in; picks up the run's death messages. */
     public static synchronized void onChatLine(Minecraft client, String plain) {
         Matcher m = DEATH.matcher(plain);
-        if (!m.matches()) {
-            return;
-        }
+        if (!m.matches()) return;
         String name = m.group(1);
         if (name == null) {
             name = client.player == null ? null : client.player.getGameProfile().name();
         }
-        if (name == null) {
-            return;
-        }
+        if (name == null) return;
         remember(name);
         DEATHS.computeIfAbsent(key(name), k -> new ArrayList<>()).add(m.group(2));
     }
 
-    // ------------------------------------------------------------------------------------- results
 
     /** The rows of the most recent finished run, in party order. Consume this from {@code runsummary}. */
-    public static List<PlayerRunStats> lastRun() {
-        return lastRun;
-    }
+    public static List<PlayerRunStats> lastRun() { return lastRun; }
 
     /** Builds (and remembers) the rows for the run that just ended. */
     public static synchronized List<PlayerRunStats> buildRows(Minecraft client) {
@@ -186,24 +167,17 @@ public final class RunStatsTracker {
                 new ArrayList<>(STACKED_ROOMS.getOrDefault(key, Set.of())));
     }
 
-    // ------------------------------------------------------------------------------------- internals
 
     private static Set<String> rooms(Map<String, Set<String>> map, String name) {
         remember(name);
         return map.computeIfAbsent(key(name), k -> new LinkedHashSet<>());
     }
 
-    private static void remember(String name) {
-        DISPLAY_NAMES.putIfAbsent(key(name), name);
-    }
+    private static void remember(String name) { DISPLAY_NAMES.putIfAbsent(key(name), name); }
 
-    private static String displayName(String name) {
-        return DISPLAY_NAMES.getOrDefault(key(name), name);
-    }
+    private static String displayName(String name) { return DISPLAY_NAMES.getOrDefault(key(name), name); }
 
-    private static String key(String name) {
-        return name.toLowerCase(Locale.US);
-    }
+    private static String key(String name) { return name.toLowerCase(Locale.US); }
 
     /** You first, then the party in Hypixel's listing order. */
     private static List<String> partyNames(Minecraft client) {
@@ -248,17 +222,11 @@ public final class RunStatsTracker {
 
     /** Hypixel's lifetime secret counter: {@code player.achievements.skyblock_treasure_hunter}. */
     private static Long treasureHunter(JsonObject player) {
-        if (player == null) {
-            return null;
-        }
+        if (player == null) return null;
         JsonElement achievements = player.get("achievements");
-        if (achievements == null || !achievements.isJsonObject()) {
-            return null;
-        }
+        if (achievements == null || !achievements.isJsonObject()) return null;
         JsonElement value = achievements.getAsJsonObject().get("skyblock_treasure_hunter");
-        if (value == null || !value.isJsonPrimitive()) {
-            return null;
-        }
+        if (value == null || !value.isJsonPrimitive()) return null;
         try {
             return value.getAsLong();
         } catch (Exception e) {

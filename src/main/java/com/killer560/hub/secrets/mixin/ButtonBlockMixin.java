@@ -26,9 +26,7 @@ public abstract class ButtonBlockMixin {
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (!SecretsFeature.shouldExpandButtons()) {
-            return;
-        }
+        if (!SecretsFeature.shouldExpandButtons()) return;
         // F7/M7 boss: only the Simon Says device's buttons are enlarged; every other button keeps its vanilla
         // shape (killer560, 2026-11-03).
         if (com.killer560.hub.secrets.DungeonState.isBossPhaseActive()

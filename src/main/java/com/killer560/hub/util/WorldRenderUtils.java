@@ -1,21 +1,17 @@
 package com.killer560.hub.util;
 
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.killer560.hub.compat.McRender;
 
-import java.util.Optional;
 
 /**
  * This mod's first world-space (3D) box renderer - killer560s-mod had none before (every prior HUD
@@ -166,9 +162,7 @@ public final class WorldRenderUtils {
 
     private static SphereTrig sphereTrig(int ns, int nl) {
         SphereTrig t = sphereTrig;
-        if (t != null && t.ns() == ns && t.nl() == nl) {
-            return t;
-        }
+        if (t != null && t.ns() == ns && t.nl() == nl) return t;
         double[] sinP = new double[ns + 1];
         double[] cosP = new double[ns + 1];
         for (int i = 0; i <= ns; i++) {
@@ -223,9 +217,7 @@ public final class WorldRenderUtils {
      *  solve path) - each consecutive pair of points gets one line segment, in order. */
     public static void renderLineStrip(LevelRenderContext context, java.util.List<Vec3> points,
                                         float r, float g, float b, float a, float thickness) {
-        if (points.size() < 2) {
-            return;
-        }
+        if (points.size() < 2) return;
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists the tick
         // rewrites (Ice Fill's currentPath, the solvers' routes).
         renderLineStrip(context, points.toArray(new Vec3[0]), r, g, b, a, thickness);
@@ -293,9 +285,7 @@ public final class WorldRenderUtils {
             boolean front = sx == ex && faces[sx == x0 ? 0 : 1]
                     || sy == ey && faces[sy == y0 ? 2 : 3]
                     || sz == ez && faces[sz == z0 ? 4 : 5];
-            if (!front) {
-                continue;
-            }
+            if (!front) continue;
             float dx = ex - sx, dy = ey - sy, dz = ez - sz;
             buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
             buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
@@ -374,9 +364,7 @@ public final class WorldRenderUtils {
         return m == 1 || m == 2 ? x1 : x0;
     }
 
-    private static float cornerY(int k, float y0, float y1) {
-        return (k & 3) >= 2 ? y1 : y0;
-    }
+    private static float cornerY(int k, float y0, float y1) { return (k & 3) >= 2 ? y1 : y0; }
 
     private static void addChainedFilledBoxVertices(PoseStack.Pose pose, VertexConsumer buffer,
                                                       float minX, float minY, float minZ,
@@ -424,19 +412,13 @@ public final class WorldRenderUtils {
      * Must run at client init (before the level renderer precompiles {@code RenderPipelines}' list) by any feature
      * that will call the batched methods below with {@code throughWalls = true}.
      */
-    public static void initThroughWalls() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    public static void initThroughWalls() { RenderType unused = ThroughWalls.LINES; }
 
     /** The through-walls line type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
-    public static RenderType throughWallsLines() {
-        return ThroughWalls.LINES;
-    }
+    public static RenderType throughWallsLines() { return ThroughWalls.LINES; }
 
     /** The through-walls fill type the batched methods use, for a {@link BoxBatch} (needs {@link #initThroughWalls()}). */
-    public static RenderType throughWallsFilled() {
-        return ThroughWalls.FILLED;
-    }
+    public static RenderType throughWallsFilled() { return ThroughWalls.FILLED; }
 
     /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with
      *  its own pipeline ids so the registrations cannot collide. */
@@ -454,9 +436,7 @@ public final class WorldRenderUtils {
      */
     public static void renderOutlineBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
                                           float thickness, boolean throughWalls) {
-        if (count <= 0) {
-            return;
-        }
+        if (count <= 0) return;
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {
@@ -469,9 +449,7 @@ public final class WorldRenderUtils {
     /** Filled counterpart of {@link #renderOutlineBoxes}; each box's alpha is multiplied by {@code alphaScale}. */
     public static void renderFilledBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
                                          float alphaScale, boolean throughWalls) {
-        if (count <= 0) {
-            return;
-        }
+        if (count <= 0) return;
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {

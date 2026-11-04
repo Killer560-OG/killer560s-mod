@@ -6,7 +6,6 @@ import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -118,9 +117,7 @@ public final class MiningHighlights {
 
     /** Which titanium counts (wanted null: every block). */
     private record TitaniumRule(MiningState.Wanted wanted, String here) {
-        boolean test(BlockPos p) {
-            return wanted == null || wanted.at(MinesAreaMap.areaAt(p.getX(), p.getY(), p.getZ()), here);
-        }
+        boolean test(BlockPos p) { return wanted == null || wanted.at(MinesAreaMap.areaAt(p.getX(), p.getY(), p.getZ()), here); }
     }
 
     private static final TitaniumRule ALWAYS = new TitaniumRule(null, null);
@@ -171,14 +168,10 @@ public final class MiningHighlights {
             next.add(p.asLong());
         }
         java.util.Set<Long> old = carpetKeys;
-        if (old.equals(next)) {
-            return;
-        }
+        if (old.equals(next)) return;
         carpetKeys = java.util.Set.copyOf(next);
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return;
-        }
+        if (mc.level == null) return;
         java.util.Set<Long> sections = new java.util.HashSet<>();
         for (Long k : old) {
             if (!next.contains(k)) {
@@ -235,24 +228,13 @@ public final class MiningHighlights {
     private static final java.util.concurrent.atomic.AtomicLong carpetAsked = new java.util.concurrent.atomic.AtomicLong();
     private static int carpetDirtied = 0;
 
-    /** Vein-carpet blocks the mesher asked about (testkit). */
-    public static long carpetAskedCount() {
-        return carpetAsked.get();
-    }
-
-    public static int carpetDirtied() {
-        return carpetDirtied;
-    }
+    public static int carpetDirtied() { return carpetDirtied; }
 
     /** Mesher draws swapped to red carpet since start (testkit). */
-    public static long carpetSwapCount() {
-        return carpetSwaps.get();
-    }
+    public static long carpetSwapCount() { return carpetSwaps.get(); }
 
     /** Whether the block at x, y, z is drawn as red carpet now (testkit). */
-    public static boolean carpetRetextured(int x, int y, int z) {
-        return carpetKeys.contains(BlockPos.asLong(x, y, z));
-    }
+    public static boolean carpetRetextured(int x, int y, int z) { return carpetKeys.contains(BlockPos.asLong(x, y, z)); }
 
     /**
      * A block the server changed (client thread, after the change is in the level; from {@code MiningBlockUpdateMixin}):
@@ -260,9 +242,7 @@ public final class MiningHighlights {
      */
     public static void onBlockChanged(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         BlockPos p = pos.immutable();
         boolean changed = false;
@@ -297,13 +277,9 @@ public final class MiningHighlights {
     /** A chunk arrived: its blocks are evaluated now, not on the next safety scan. */
     public static void onChunkLoaded(int chunkX, int chunkZ) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) return;
         BlockPos at = client.player.blockPosition();
-        if (Math.abs((chunkX << 4) + 8 - at.getX()) > RADIUS + 8 || Math.abs((chunkZ << 4) + 8 - at.getZ()) > RADIUS + 8) {
-            return;
-        }
+        if (Math.abs((chunkX << 4) + 8 - at.getX()) > RADIUS + 8 || Math.abs((chunkZ << 4) + 8 - at.getZ()) > RADIUS + 8) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         BlockPos center = new BlockPos((chunkX << 4) + 8, at.getY(), (chunkZ << 4) + 8);
         boolean changed = false;
@@ -321,18 +297,14 @@ public final class MiningHighlights {
         }
     }
 
-    static boolean isTitanium(BlockState s) {
-        return s.is(Blocks.POLISHED_DIORITE);
-    }
+    static boolean isTitanium(BlockState s) { return s.is(Blocks.POLISHED_DIORITE); }
 
     private static List<double[]> findTickets(Minecraft client) {
         java.util.ArrayList<double[]> out = new java.util.ArrayList<>();
         for (Entity e : client.level.entitiesForRendering()) {
             if (isTicket(e)) {
                 out.add(new double[]{e.getX(), e.getY(), e.getZ(), e.getBbWidth(), e.getBbHeight()});
-                if (out.size() >= 200) {
-                    break;
-                }
+                if (out.size() >= 200) break;
             }
         }
         return List.copyOf(out);
@@ -341,12 +313,8 @@ public final class MiningHighlights {
     static boolean isTicket(Entity e) {
         if (e instanceof ItemEntity item) {
             ItemStack stack = item.getItem();
-            if (stack.isEmpty()) {
-                return false;
-            }
-            if (stack.is(Items.NAME_TAG)) {
-                return true;
-            }
+            if (stack.isEmpty()) return false;
+            if (stack.is(Items.NAME_TAG)) return true;
             String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
             return name != null && name.contains("Raffle Ticket");
         }
@@ -360,9 +328,7 @@ public final class MiningHighlights {
     /** A face of {@code p} touches air: the block can be reached and mined (Exposed Only, Through Walls). */
     static boolean exposed(net.minecraft.world.level.Level level, BlockPos p) {
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-            if (level.getBlockState(p.relative(d)).isAir()) {
-                return true;
-            }
+            if (level.getBlockState(p.relative(d)).isAir()) return true;
         }
         return false;
     }
@@ -371,9 +337,7 @@ public final class MiningHighlights {
     static boolean inSight(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, BlockPos p) {
         net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-            if (!level.getBlockState(p.relative(d)).isAir()) {
-                continue;
-            }
+            if (!level.getBlockState(p.relative(d)).isAir()) continue;
             net.minecraft.world.phys.Vec3 face = net.minecraft.world.phys.Vec3.atCenterOf(p)
                     .add(d.getStepX() * 0.501, d.getStepY() * 0.501, d.getStepZ() * 0.501);
             if (face.subtract(eye).dot(net.minecraft.world.phys.Vec3.atCenterOf(p).subtract(face)) > 0) {
@@ -395,9 +359,7 @@ public final class MiningHighlights {
         List<BlockPos> c = carpets;
         List<BlockPos> t = titanium;
         List<double[]> r = tickets;
-        if (c.isEmpty() && t.isEmpty() && r.isEmpty()) {
-            return;
-        }
+        if (c.isEmpty() && t.isEmpty() && r.isEmpty()) return;
         FILLS.clear();
         LINES.clear();
         WALL_FILLS.clear();
@@ -425,12 +387,8 @@ public final class MiningHighlights {
                 line = WALL_LINES;
             }
             for (BlockPos p : t) {
-                if (exposedOnly && level != null && !exposed(level, p)) {
-                    continue;
-                }
-                if (!walls && (level == null || mc.player == null || !inSight(level, mc.player, p))) {
-                    continue;
-                }
+                if (exposedOnly && level != null && !exposed(level, p)) continue;
+                if (!walls && (level == null || mc.player == null || !inSight(level, mc.player, p))) continue;
                 drawnNow.add(p);
                 double e = 0.002;
                 fill.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e, p.getZ() + 1 + e,
@@ -461,70 +419,38 @@ public final class MiningHighlights {
         WALL_LINES.drawOutlines(context, WorldRenderUtils.throughWallsLines(), 2f);
     }
 
-    // ---- testkit hooks
 
-    public static int carpetCount() {
-        return carpets.size();
-    }
+    public static int carpetCount() { return carpets.size(); }
 
     private static final java.util.ArrayList<BlockPos> drawnNow = new java.util.ArrayList<>();
     private static volatile List<BlockPos> drawnTitanium = List.of();
 
     /** Testkit: whether the last frame drew a titanium box at x,y,z (after line of sight and Exposed Only). */
-    public static boolean drewTitaniumAt(int x, int y, int z) {
-        return drawnTitanium.contains(new BlockPos(x, y, z));
-    }
+    public static boolean drewTitaniumAt(int x, int y, int z) { return drawnTitanium.contains(new BlockPos(x, y, z)); }
 
-    public static int titaniumCount() {
-        return titanium.size();
-    }
+    public static int titaniumCount() { return titanium.size(); }
 
-    public static int ticketCount() {
-        return tickets.size();
-    }
+    public static int ticketCount() { return tickets.size(); }
 
     private static volatile double[] lastCarpetBox = null;
 
     /** The last carpet fill box drawn (testkit: no face lies on the carpet's or the lantern's own face). */
-    public static double[] lastCarpetBox() {
-        return lastCarpetBox;
-    }
+    public static double[] lastCarpetBox() { return lastCarpetBox; }
 
-    /** Full scans so far, block events handled (testkit: the event path ran). */
-    public static int scanCount() {
-        return scans;
-    }
+    public static int blockEvents() { return events; }
 
-    public static int blockEvents() {
-        return events;
-    }
+    public static boolean hasTitaniumAt(int x, int y, int z) { return titanium.contains(new BlockPos(x, y, z)); }
 
-    public static boolean hasTitaniumAt(int x, int y, int z) {
-        return titanium.contains(new BlockPos(x, y, z));
-    }
+    public static boolean hasCarpetAt(int x, int y, int z) { return carpets.contains(new BlockPos(x, y, z)); }
 
-    public static boolean hasCarpetAt(int x, int y, int z) {
-        return carpets.contains(new BlockPos(x, y, z));
-    }
+    public static int carpetFrames() { return carpetFrames; }
 
-    public static int carpetFrames() {
-        return carpetFrames;
-    }
+    public static int titaniumFrames() { return titaniumFrames; }
 
-    public static int titaniumFrames() {
-        return titaniumFrames;
-    }
-
-    public static int raffleFrames() {
-        return raffleFrames;
-    }
+    public static int raffleFrames() { return raffleFrames; }
 
     /** Whether the boxes drawn now go through walls (testkit: legit jars must say false). */
-    public static boolean titaniumThroughWalls() {
-        return MiningQolConfig.getInstance().isTitaniumEsp();
-    }
+    public static boolean titaniumThroughWalls() { return MiningQolConfig.getInstance().isTitaniumEsp(); }
 
-    public static boolean raffleThroughWalls() {
-        return MiningQolConfig.getInstance().isRaffleEsp();
-    }
+    public static boolean raffleThroughWalls() { return MiningQolConfig.getInstance().isRaffleEsp(); }
 }

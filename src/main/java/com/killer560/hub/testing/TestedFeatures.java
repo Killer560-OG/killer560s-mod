@@ -50,16 +50,12 @@ public final class TestedFeatures {
     private TestedFeatures() {
     }
 
-    public static String id(BaseTab tab) {
-        return tab.getClass().getSimpleName();
-    }
+    public static String id(BaseTab tab) { return tab.getClass().getSimpleName(); }
 
     public static synchronized boolean isTested(BaseTab tab) {
         String id = id(tab);
         ensureLoaded();
-        if (markedUntested.contains(id) || markedBugged.contains(id)) {
-            return false;
-        }
+        if (markedUntested.contains(id) || markedBugged.contains(id)) return false;
         return markedTested.contains(id) || repo.contains(id);
     }
 
@@ -121,9 +117,7 @@ public final class TestedFeatures {
         return new ArrayList<>(markedBugged);
     }
 
-    public static Path marksFile() {
-        return ModPaths.config("killer560smod-tested-" + TestingBuild.VARIANT + ".json");
-    }
+    public static Path marksFile() { return ModPaths.config("killer560smod-tested-" + TestingBuild.VARIANT + ".json"); }
 
     /** Forget everything read so far (the testkit points the config dir elsewhere between cases). */
     public static synchronized void reload() {
@@ -167,9 +161,7 @@ public final class TestedFeatures {
 
     private static void readMarks() {
         Path file = marksFile();
-        if (!Files.exists(file)) {
-            return;
-        }
+        if (!Files.exists(file)) return;
         try {
             JsonObject o = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
             addAll(o.get("tested"), markedTested);
@@ -181,9 +173,7 @@ public final class TestedFeatures {
     }
 
     private static void addAll(JsonElement e, Set<String> into) {
-        if (e == null || !e.isJsonArray()) {
-            return;
-        }
+        if (e == null || !e.isJsonArray()) return;
         for (JsonElement x : e.getAsJsonArray()) {
             if (x != null && x.isJsonPrimitive()) {
                 into.add(x.getAsString());

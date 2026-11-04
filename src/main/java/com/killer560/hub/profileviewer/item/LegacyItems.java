@@ -86,17 +86,11 @@ public final class LegacyItems {
     /** Decodes an API inventory object; slots stay in order (empty slots are {@link ItemStack#EMPTY}).
      *  Returns an empty list for null/unsupported/corrupt data. */
     public static List<ItemStack> decodeInventory(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return List.of();
-        }
+        if (element == null || !element.isJsonObject()) return List.of();
         try {
             JsonObject obj = element.getAsJsonObject();
-            if (obj.has("type") && obj.get("type").isJsonPrimitive() && obj.get("type").getAsInt() != 0) {
-                return List.of();
-            }
-            if (!obj.has("data") || !obj.get("data").isJsonPrimitive()) {
-                return List.of();
-            }
+            if (obj.has("type") && obj.get("type").isJsonPrimitive() && obj.get("type").getAsInt() != 0) return List.of();
+            if (!obj.has("data") || !obj.get("data").isJsonPrimitive()) return List.of();
             return decodeBase64(obj.get("data").getAsString());
         } catch (Exception e) {
             // e.g. a non-numeric "type" - one bad blob must not fail the whole profile's decode.
@@ -111,9 +105,7 @@ public final class LegacyItems {
     private static final int MAX_PROFILE_CACHE = 4096;
 
     public static List<ItemStack> decodeBase64(String data) {
-        if (data == null || data.isBlank() || data.length() > MAX_BASE64_CHARS) {
-            return List.of();
-        }
+        if (data == null || data.isBlank() || data.length() > MAX_BASE64_CHARS) return List.of();
         try {
             byte[] bytes = Base64.getDecoder().decode(data.trim());
             CompoundTag root = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.create(NBT_QUOTA_BYTES));
@@ -130,13 +122,9 @@ public final class LegacyItems {
 
     public static ItemStack fromLegacyTag(CompoundTag tag) {
         try {
-            if (tag == null || tag.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
+            if (tag == null || tag.isEmpty()) return ItemStack.EMPTY;
             Item item = resolveItem(tag);
-            if (item == Items.AIR) {
-                return ItemStack.EMPTY;
-            }
+            if (item == Items.AIR) return ItemStack.EMPTY;
             int count = Math.max(1, tag.getByteOr("Count", (byte) 1));
             ItemStack stack = new ItemStack(item, count);
             CompoundTag extra = tag.getCompoundOrEmpty("tag");
@@ -154,14 +142,10 @@ public final class LegacyItems {
             legacyName = stringId.get();
         } else {
             int numeric = tag.getShort("id").map(Short::intValue).orElseGet(() -> tag.getIntOr("id", 0));
-            if (numeric == 0) {
-                return Items.AIR;
-            }
+            if (numeric == 0) return Items.AIR;
             legacyName = ItemIdFix.getItem(numeric);
         }
-        if (legacyName == null) {
-            return Items.BARRIER;
-        }
+        if (legacyName == null) return Items.BARRIER;
         if (!legacyName.contains(":")) {
             legacyName = "minecraft:" + legacyName;
         }
@@ -173,9 +157,7 @@ public final class LegacyItems {
     /** A 1.8 item name ({@code minecraft:dye}) and damage value (3) -> the modern item (cocoa beans), through
      *  vanilla's own flattening fix plus the post-1.13 renames; null if nothing in this version's registry. */
     public static Item legacyItem(String legacyName, int damage) {
-        if (legacyName == null || legacyName.isBlank()) {
-            return null;
-        }
+        if (legacyName == null || legacyName.isBlank()) return null;
         if (!legacyName.contains(":")) {
             legacyName = "minecraft:" + legacyName;
         }
@@ -183,17 +165,13 @@ public final class LegacyItems {
         String name = flattened != null ? flattened : legacyName;
         name = POST_FLATTEN_RENAMES.getOrDefault(name, name);
         Identifier id = Identifier.tryParse(name);
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         Optional<Item> item = BuiltInRegistries.ITEM.getOptional(id);
         return item.isPresent() && item.get() != Items.AIR ? item.get() : null;
     }
 
     private static void applyTag(ItemStack stack, CompoundTag tag) {
-        if (tag.isEmpty()) {
-            return;
-        }
+        if (tag.isEmpty()) return;
         CompoundTag display = tag.getCompoundOrEmpty("display");
         display.getString("Name").ifPresent(name -> stack.set(DataComponents.CUSTOM_NAME, LegacyText.parse(name)));
         ListTag lore = display.getListOrEmpty("Lore");

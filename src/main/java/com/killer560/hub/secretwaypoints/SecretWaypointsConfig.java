@@ -174,144 +174,76 @@ public final class SecretWaypointsConfig {
         SecretWaypointsFeature.invalidateCache();
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
-    public void setStyle(Style style) {
-        this.style = style;
-    }
+    public void setStyle(Style style) { this.style = style; }
 
-    public boolean isThroughWalls() {
-        return throughWalls;
-    }
+    public boolean isThroughWalls() { return throughWalls; }
 
-    public void setThroughWalls(boolean throughWalls) {
-        this.throughWalls = throughWalls;
-    }
+    public void setThroughWalls(boolean throughWalls) { this.throughWalls = throughWalls; }
 
-    public BoxSize getBoxSize() {
-        return boxSize;
-    }
+    public BoxSize getBoxSize() { return boxSize; }
 
-    public void setBoxSize(BoxSize boxSize) {
-        this.boxSize = boxSize;
-    }
+    public void setBoxSize(BoxSize boxSize) { this.boxSize = boxSize; }
 
-    public boolean isShowNames() {
-        return showNames;
-    }
+    public boolean isShowNames() { return showNames; }
 
-    public void setShowNames(boolean v) {
-        showNames = v;
-    }
+    public void setShowNames(boolean v) { showNames = v; }
 
-    public int getChestColor() {
-        return chestColor;
-    }
+    public int getChestColor() { return chestColor; }
 
-    public void setChestColor(int argb) {
-        chestColor = argb;
-    }
+    public void setChestColor(int argb) { chestColor = argb; }
 
-    public int getItemColor() {
-        return itemColor;
-    }
+    public int getItemColor() { return itemColor; }
 
-    public void setItemColor(int argb) {
-        itemColor = argb;
-    }
+    public void setItemColor(int argb) { itemColor = argb; }
 
-    public int getWitherColor() {
-        return witherColor;
-    }
+    public int getWitherColor() { return witherColor; }
 
-    public void setWitherColor(int argb) {
-        witherColor = argb;
-    }
+    public void setWitherColor(int argb) { witherColor = argb; }
 
-    public int getBatColor() {
-        return batColor;
-    }
+    public int getBatColor() { return batColor; }
 
-    public void setBatColor(int argb) {
-        batColor = argb;
-    }
+    public void setBatColor(int argb) { batColor = argb; }
 
-    public int getRedstoneKeyColor() {
-        return redstoneKeyColor;
-    }
+    public int getRedstoneKeyColor() { return redstoneKeyColor; }
 
-    public void setRedstoneKeyColor(int argb) {
-        redstoneKeyColor = argb;
-    }
+    public void setRedstoneKeyColor(int argb) { redstoneKeyColor = argb; }
 
     /** killer560, 2026-09-27: "You can choose the color for levers." */
-    public int getLeverColor() {
-        return leverColor;
-    }
+    public int getLeverColor() { return leverColor; }
 
-    public void setLeverColor(int argb) {
-        leverColor = argb;
-    }
+    public void setLeverColor(int argb) { leverColor = argb; }
 
     /** killer560, 2026-10-05: "a toggle to show crypts". */
-    public boolean isShowCrypts() {
-        return showCrypts;
-    }
+    public boolean isShowCrypts() { return showCrypts; }
 
-    public void setShowCrypts(boolean v) {
-        showCrypts = v;
-    }
+    public void setShowCrypts(boolean v) { showCrypts = v; }
 
     /** killer560, 2026-10-05: "a toggle to show princes". */
-    public boolean isShowPrinces() {
-        return showPrinces;
-    }
+    public boolean isShowPrinces() { return showPrinces; }
 
-    public void setShowPrinces(boolean v) {
-        showPrinces = v;
-    }
+    public void setShowPrinces(boolean v) { showPrinces = v; }
 
-    public int getCryptColor() {
-        return cryptColor;
-    }
+    public int getCryptColor() { return cryptColor; }
 
-    public void setCryptColor(int argb) {
-        cryptColor = argb;
-    }
+    public void setCryptColor(int argb) { cryptColor = argb; }
 
-    public int getPrinceColor() {
-        return princeColor;
-    }
+    public int getPrinceColor() { return princeColor; }
 
-    public void setPrinceColor(int argb) {
-        princeColor = argb;
-    }
+    public void setPrinceColor(int argb) { princeColor = argb; }
 
     /** killer560, 2026-11-01: stop drawing crypts once the tab list's "Crypts:" reaches 5. */
-    public boolean isHideCryptsAfterFive() {
-        return hideCryptsAfterFive;
-    }
+    public boolean isHideCryptsAfterFive() { return hideCryptsAfterFive; }
 
-    public void setHideCryptsAfterFive(boolean v) {
-        hideCryptsAfterFive = v;
-    }
+    public void setHideCryptsAfterFive(boolean v) { hideCryptsAfterFive = v; }
 
     /** killer560, 2026-11-01: stop drawing princes once "A Prince falls" has been said this run. */
-    public boolean isHidePrincesAfterOne() {
-        return hidePrincesAfterOne;
-    }
+    public boolean isHidePrincesAfterOne() { return hidePrincesAfterOne; }
 
-    public void setHidePrincesAfterOne(boolean v) {
-        hidePrincesAfterOne = v;
-    }
+    public void setHidePrincesAfterOne(boolean v) { hidePrincesAfterOne = v; }
 }

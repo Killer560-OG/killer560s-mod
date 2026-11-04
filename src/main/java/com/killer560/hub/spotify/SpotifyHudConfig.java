@@ -76,9 +76,7 @@ public final class SpotifyHudConfig {
         }
 
         /** The sources the menu offers. */
-        public static MusicSource[] offered() {
-            return new MusicSource[]{MUSIC_PLAYERS, ANYTHING};
-        }
+        public static MusicSource[] offered() { return new MusicSource[]{MUSIC_PLAYERS, ANYTHING}; }
     }
 
     private SpotifyHudConfig() {
@@ -134,73 +132,39 @@ public final class SpotifyHudConfig {
         }
     }
 
-    public boolean isHudEnabled() {
-        return hudEnabled;
-    }
+    public boolean isHudEnabled() { return hudEnabled; }
 
-    public void setHudEnabled(boolean hudEnabled) {
-        this.hudEnabled = hudEnabled;
-    }
+    public void setHudEnabled(boolean hudEnabled) { this.hudEnabled = hudEnabled; }
 
-    public boolean isShowLyrics() {
-        return showLyrics;
-    }
+    public boolean isShowLyrics() { return showLyrics; }
 
-    public void setShowLyrics(boolean showLyrics) {
-        this.showLyrics = showLyrics;
-    }
+    public void setShowLyrics(boolean showLyrics) { this.showLyrics = showLyrics; }
 
-    public boolean isWordHighlight() {
-        return wordHighlight;
-    }
+    public boolean isWordHighlight() { return wordHighlight; }
 
-    public void setWordHighlight(boolean wordHighlight) {
-        this.wordHighlight = wordHighlight;
-    }
+    public void setWordHighlight(boolean wordHighlight) { this.wordHighlight = wordHighlight; }
 
-    public boolean isHideWhenPaused() {
-        return hideWhenPaused;
-    }
+    public boolean isHideWhenPaused() { return hideWhenPaused; }
 
-    public void setHideWhenPaused(boolean hideWhenPaused) {
-        this.hideWhenPaused = hideWhenPaused;
-    }
+    public void setHideWhenPaused(boolean hideWhenPaused) { this.hideWhenPaused = hideWhenPaused; }
 
-    public boolean isSmoothScroll() {
-        return smoothScroll;
-    }
+    public boolean isSmoothScroll() { return smoothScroll; }
 
-    public void setSmoothScroll(boolean smoothScroll) {
-        this.smoothScroll = smoothScroll;
-    }
+    public void setSmoothScroll(boolean smoothScroll) { this.smoothScroll = smoothScroll; }
 
-    public boolean isWordTimedLyrics() {
-        return wordTimedLyrics;
-    }
+    public boolean isWordTimedLyrics() { return wordTimedLyrics; }
 
-    public void setWordTimedLyrics(boolean wordTimedLyrics) {
-        this.wordTimedLyrics = wordTimedLyrics;
-    }
+    public void setWordTimedLyrics(boolean wordTimedLyrics) { this.wordTimedLyrics = wordTimedLyrics; }
 
-    public boolean isAlwaysShowControls() {
-        return alwaysShowControls;
-    }
+    public boolean isAlwaysShowControls() { return alwaysShowControls; }
 
-    public void setAlwaysShowControls(boolean alwaysShowControls) {
-        this.alwaysShowControls = alwaysShowControls;
-    }
+    public void setAlwaysShowControls(boolean alwaysShowControls) { this.alwaysShowControls = alwaysShowControls; }
 
-    public ProfanityLevel getDisplayCensor() {
-        return displayCensor;
-    }
+    public ProfanityLevel getDisplayCensor() { return displayCensor; }
 
-    public void setDisplayCensor(ProfanityLevel level) {
-        this.displayCensor = level == null ? ProfanityLevel.MINIMAL : level;
-    }
+    public void setDisplayCensor(ProfanityLevel level) { this.displayCensor = level == null ? ProfanityLevel.MINIMAL : level; }
 
-    public MusicSource getMusicSource() {
-        return musicSource;
-    }
+    public MusicSource getMusicSource() { return musicSource; }
 
     public void setMusicSource(MusicSource source) {
         this.musicSource = source == null || source == MusicSource.SPOTIFY ? MusicSource.MUSIC_PLAYERS : source;

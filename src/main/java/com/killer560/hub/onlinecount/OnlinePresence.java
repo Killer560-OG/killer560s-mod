@@ -113,14 +113,10 @@ public final class OnlinePresence {
         return System.getProperty("fabric.client.gametest") == null || Boolean.getBoolean("killer560.test.presence");
     }
 
-    static long interval() {
-        return Long.getLong("killer560.test.presenceIntervalMs", INTERVAL_MS);
-    }
+    static long interval() { return Long.getLong("killer560.test.presenceIntervalMs", INTERVAL_MS); }
 
     private static void onTick(Minecraft mc) {
-        if (++tick % 20 != 0) {
-            return;
-        }
+        if (++tick % 20 != 0) return;
         boolean on = allowedHere() && mc.level != null && mc.player != null && onHypixel(mc.getCurrentServer());
         long now = System.currentTimeMillis();
         if (!on) {
@@ -158,9 +154,7 @@ public final class OnlinePresence {
 
     /** The address the player connected to is hypixel.net or one of its subdomains. */
     static boolean onHypixel(ServerData server) {
-        if (server == null || server.ip == null) {
-            return false;
-        }
+        if (server == null || server.ip == null) return false;
         String h = server.ip.toLowerCase(Locale.ROOT).strip();
         int colon = h.lastIndexOf(':');
         if (colon > 0 && h.indexOf(':') == colon) {
@@ -182,23 +176,16 @@ public final class OnlinePresence {
     public static String locationFor(boolean onSkyblock, String tabArea, String floor) {
         if (floor != null && !floor.isBlank()) {
             String f = clean(floor);
-            if (!f.isEmpty() && f.length() <= 3) {
-                return "Catacombs " + f;
-            }
-            return "Catacombs";
+            return !f.isEmpty() && f.length() <= 3 ? "Catacombs " + f : "Catacombs";
         }
-        if (!onSkyblock) {
-            return NOT_SKYBLOCK;
-        }
+        if (!onSkyblock) return NOT_SKYBLOCK;
         String area = clean(tabArea);
         return area.isEmpty() ? SKYBLOCK : area;
     }
 
     /** Formatting codes and anything but letters, digits, space and ' . ( ) - removed; at most {@link #MAX_LOCATION}. */
     static String clean(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         String plain = ChatObserver.stripCodes(s);
         if (plain == null) {
             plain = s;
@@ -208,18 +195,12 @@ public final class OnlinePresence {
     }
 
     private static String readTabArea(Minecraft mc) {
-        if (mc.getConnection() == null) {
-            return "";
-        }
+        if (mc.getConnection() == null) return "";
         for (PlayerInfo info : mc.getConnection().getListedOnlinePlayers()) {
             String plain = TabText.plain(info);
-            if (plain == null || !(plain.contains("Area:") || plain.contains("Dungeon:"))) {
-                continue;
-            }
+            if (plain == null || !(plain.contains("Area:") || plain.contains("Dungeon:"))) continue;
             Matcher m = TAB_AREA.matcher(plain.strip());
-            if (m.matches()) {
-                return m.group(1).strip();
-            }
+            if (m.matches()) return m.group(1).strip();
         }
         return "";
     }
@@ -245,9 +226,7 @@ public final class OnlinePresence {
             }
         }
         // At most two queued: a relay that hangs never builds a backlog.
-        if (PENDING.get() >= 2) {
-            return;
-        }
+        if (PENDING.get() >= 2) return;
         PENDING.incrementAndGet();
         try {
             IO.execute(() -> {
@@ -324,11 +303,7 @@ public final class OnlinePresence {
         lastLocation = "";
     }
 
-    public static boolean warnedForTest() {
-        return warned;
-    }
+    public static boolean warnedForTest() { return warned; }
 
-    public static String sessionForTest() {
-        return SESSION;
-    }
+    public static String sessionForTest() { return SESSION; }
 }

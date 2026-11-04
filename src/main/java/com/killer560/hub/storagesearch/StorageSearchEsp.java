@@ -1,25 +1,16 @@
 package com.killer560.hub.storagesearch;
 
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import com.killer560.hub.compat.McRender;
 
 /**
@@ -53,9 +44,7 @@ public final class StorageSearchEsp {
 
     /** Marks a chest for {@code durationMs}. Re-marking the same chest just refreshes its timer. */
     public static void mark(BlockPos pos, long durationMs) {
-        if (pos == null) {
-            return;
-        }
+        if (pos == null) return;
         long expiry = System.currentTimeMillis() + durationMs;
         TARGETS.removeIf(t -> t.pos().equals(pos));
         TARGETS.add(new Target(pos.immutable(), expiry));
@@ -64,20 +53,14 @@ public final class StorageSearchEsp {
         }
     }
 
-    public static void clear() {
-        TARGETS.clear();
-    }
+    public static void clear() { TARGETS.clear(); }
 
     private static void onWorldRender(LevelRenderContext context) {
         // Nothing marked is the normal case - this must cost effectively nothing then.
-        if (TARGETS.isEmpty()) {
-            return;
-        }
+        if (TARGETS.isEmpty()) return;
         long now = System.currentTimeMillis();
         TARGETS.removeIf(t -> t.expiresAt() <= now);
-        if (TARGETS.isEmpty()) {
-            return;
-        }
+        if (TARGETS.isEmpty()) return;
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isSearchChests() || !cfg.isChestEsp()) {
             TARGETS.clear();

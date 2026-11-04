@@ -21,7 +21,6 @@ import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -98,13 +97,11 @@ public final class ScoreCalculatorFeature {
     private static final Pattern SIDEBAR_CLEARED = Pattern.compile("Cleared: (\\d+)%");
     private static final Pattern SIDEBAR_ELAPSED = Pattern.compile("Time Elapsed: (?:(\\d+)h ?)?(?:(\\d+)m ?)?(?:(\\d+)s)?");
 
-    // ---- chat ----
     /** Public for Auto Routes' crypt node, which counts a prince kill of its own by the same line. */
     public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
-    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)"); // testkit fixture chat.team-score reads it
     // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",
             "mimic dead!", "$skytils-dungeon-score-mimic$");
@@ -126,7 +123,6 @@ public final class ScoreCalculatorFeature {
     private static final long ELECTION_RETRY_MS = 60 * 1000L;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
-    // ---- per-run state ----
     private static WeakReference<ClientLevel> runLevel = new WeakReference<>(null);
     private static long runStartMs = 0L;
     private static int runTicks = 0;
@@ -179,7 +175,6 @@ public final class ScoreCalculatorFeature {
         });
     }
 
-    // ------------------------------------------------------------------ tick
 
     /**
      * Whether anything wants this run's estimate: the Score Calculator itself, or a map's Extra Info section.
@@ -207,9 +202,7 @@ public final class ScoreCalculatorFeature {
 
     private static void tick(Minecraft client) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        if (!estimateWanted() || client.level == null || client.player == null || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if (!estimateWanted() || client.level == null || client.player == null || !DungeonState.isInDungeon()) return;
         if (client.level != runLevel.get()) {
             resetRun(client.level);
         }
@@ -278,9 +271,7 @@ public final class ScoreCalculatorFeature {
             return; // world-change placeholder position settles first
         }
         Vec3 pos = client.player.position();
-        if (pos.x == 0.0 && pos.y == 100.0 && pos.z == 0.0) {
-            return;
-        }
+        if (pos.x == 0.0 && pos.y == 100.0 && pos.z == 0.0) return;
         int floor = ScoreCalculator.floorNumber(DungeonState.getFloor());
         boolean boss = switch (floor) {
             case 1 -> pos.x > -71 && pos.z > -39;
@@ -302,9 +293,7 @@ public final class ScoreCalculatorFeature {
     }
 
     private static void checkMimic(Minecraft client) {
-        if (ScoreCalculator.floorNumber(DungeonState.getFloor()) < 6) {
-            return;
-        }
+        if (ScoreCalculator.floorNumber(DungeonState.getFloor()) < 6) return;
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof Zombie zombie && zombie.isBaby() && zombie.isDeadOrDying()) {
                 mimicKilled = true;
@@ -326,9 +315,7 @@ public final class ScoreCalculatorFeature {
      *  here, so this can't double up with that announcement. The interop check is still kept as a second
      *  guard for the case where our own detection and a party mate's mod both fire in the same tick. */
     private static void maybeSendKillAlert(String label, boolean enabled, String message, PartyInteropState.Flag flag) {
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
         if (InteropFeature.alreadyAnnouncedInParty(flag)) {
             LOGGER.info("[ScoreCalc] {} kill alert suppressed - a party mate's mod already announced it", label);
             return;
@@ -342,26 +329,18 @@ public final class ScoreCalculatorFeature {
      * score calculator reads, so the two can never disagree about what a crypt line looks like.
      */
     public static int tabCrypts(Minecraft client) {
-        if (client.getConnection() == null) {
-            return -1;
-        }
+        if (client.getConnection() == null) return -1;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher m = TAB_CRYPTS.matcher(plain);
-            if (m.matches()) {
-                return parseInt(m.group(1), -1);
-            }
+            if (m.matches()) return parseInt(m.group(1), -1);
         }
         return -1;
     }
 
     private static void readTabList(Minecraft client) {
-        if (client.getConnection() == null) {
-            return;
-        }
+        if (client.getConnection() == null) return;
         // No sim branch: the dungeon sim publishes a Hypixel-shaped tab list (roomsim.SimTabList), so the
         // score HUD reads the same lines in the sim as on Hypixel.
         int completedPuzzles = 0;
@@ -371,9 +350,7 @@ public final class ScoreCalculatorFeature {
         Map<String, Character> states = new HashMap<>();
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null || plain.isBlank()) {
-                continue;
-            }
+            if (plain == null || plain.isBlank()) continue;
             Matcher m;
             if ((m = TAB_SECRETS_PERCENT.matcher(plain)).matches()) {
                 secretsPercent = parseDouble(m.group(1), secretsPercent);
@@ -428,15 +405,11 @@ public final class ScoreCalculatorFeature {
     private static void readSidebar(Minecraft client) {
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-        if (sidebar == null) {
-            return;
-        }
+        if (sidebar == null) return;
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
             String text = sidebarLine(scoreboard, entry);
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(text);
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher cleared = SIDEBAR_CLEARED.matcher(plain);
             if (cleared.find()) {
                 int value = parseInt(cleared.group(1), clearedPercent);
@@ -461,9 +434,7 @@ public final class ScoreCalculatorFeature {
     /** Hypixel's visible sidebar text lives in the team prefix/suffix (same approach as DungeonState). */
     private static String sidebarLine(Scoreboard scoreboard, PlayerScoreEntry entry) {
         PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
-        if (team == null) {
-            return entry.display() != null ? entry.display().getString() : entry.owner();
-        }
+        if (team == null) return entry.display() != null ? entry.display().getString() : entry.owner();
         StringBuilder sb = new StringBuilder();
         if (team.getPlayerPrefix() != null) {
             sb.append(team.getPlayerPrefix().getString());
@@ -474,22 +445,17 @@ public final class ScoreCalculatorFeature {
         return sb.toString();
     }
 
-    // ------------------------------------------------------------------ chat
 
     private static void onChat(Component message) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        if (!estimateWanted() || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if (!estimateWanted() || !DungeonState.isInDungeon()) return;
         // Map-only tracking records the kills but offers no Party Interop flag and sends no alert.
         boolean acts = cfg.isEnabled();
         String plain = ChatObserver.strip(message).trim();
         if (PRINCE_KILLED.matcher(plain).matches()) {
             if (!princeKilled) {
                 princeKilled = true;
-                if (!acts) {
-                    return;
-                }
+                if (!acts) return;
                 // The bonus-score line is public server chat identical for the whole party, so this is a
                 // SELF fact for Party Interop - same as DungeonInfoFeature used to offer it.
                 PartyInteropState.offerFlag(PartyInteropState.Flag.PRINCE_KILLED, InteropSource.SELF, null);
@@ -502,9 +468,7 @@ public final class ScoreCalculatorFeature {
             // is one per player (ScoreCalculator.BAT_BONUS_CAP), so it is HIS bonus: keyed on his name, which is also
             // the key his own "Bat Killed!" party echo lands on.
             if (batKillers.add(selfKey())) {
-                if (!acts) {
-                    return;
-                }
+                if (!acts) return;
                 PartyInteropState.offerFlag(PartyInteropState.Flag.BAT_KILLED, InteropSource.SELF, null);
                 // Never held back because a mate already announced A bat: that was the mate's bonus, this is his.
                 if (cfg.isBatAlertEnabled()) {
@@ -552,7 +516,6 @@ public final class ScoreCalculatorFeature {
         return player == null ? SELF_KEY : player.getGameProfile().name().toLowerCase(Locale.ROOT);
     }
 
-    // ------------------------------------------------------------------ score + alerts
 
     private static void recalculate(ScoreCalculatorConfig cfg) {
         // A mimic killed in a room nobody from this client ever entered is the one bonus point a lone client
@@ -665,13 +628,9 @@ public final class ScoreCalculatorFeature {
     }
 
     private static boolean hasEzpz(ScoreboardExtraData.Candidate candidate) {
-        if (candidate == null || candidate.perks() == null) {
-            return false;
-        }
+        if (candidate == null || candidate.perks() == null) return false;
         for (ScoreboardExtraData.Perk perk : candidate.perks()) {
-            if (perk != null && "EZPZ".equalsIgnoreCase(perk.name())) {
-                return true;
-            }
+            if (perk != null && "EZPZ".equalsIgnoreCase(perk.name())) return true;
         }
         return false;
     }
@@ -715,13 +674,9 @@ public final class ScoreCalculatorFeature {
     /** @return whether the current mayor (or minister) has the EZPZ perk, or null if the JSON isn't usable. */
     private static Boolean parseEzpz(String json) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        if (!ConfigJson.getBool(root, "success", false)) {
-            return null;
-        }
+        if (!ConfigJson.getBool(root, "success", false)) return null;
         JsonObject mayor = ConfigJson.getObject(root, "mayor");
-        if (mayor == null) {
-            return null;
-        }
+        if (mayor == null) return null;
         JsonArray perks = ConfigJson.getArray(mayor, "perks");
         if (perks != null) {
             for (JsonElement el : perks) {
@@ -735,17 +690,12 @@ public final class ScoreCalculatorFeature {
         return perk != null && "EZPZ".equalsIgnoreCase(ConfigJson.getString(perk, "name", ""));
     }
 
-    // ------------------------------------------------------------------ helpers / API
 
     /** Latest estimate for the current run, or null before the first poll / outside a tracked run. */
-    public static ScoreCalculator.Result currentResult() {
-        return DungeonState.isInDungeon() ? lastResult : null;
-    }
+    public static ScoreCalculator.Result currentResult() { return DungeonState.isInDungeon() ? lastResult : null; }
 
     /** The inputs behind {@link #currentResult()}, or null. */
-    public static ScoreCalculator.Inputs currentInputs() {
-        return DungeonState.isInDungeon() ? lastInputs : null;
-    }
+    public static ScoreCalculator.Inputs currentInputs() { return DungeonState.isInDungeon() ? lastInputs : null; }
 
     /**
      * A puzzle room's state from the tab list - '✔' done, '✖' failed, '✦' open - or 0 when the tab list does not name
@@ -753,9 +703,7 @@ public final class ScoreCalculatorFeature {
      * are "Higher Or Lower" on Hypixel's tab list.
      */
     public static char puzzleState(String roomName) {
-        if (roomName == null || !DungeonState.isInDungeon()) {
-            return 0;
-        }
+        if (roomName == null || !DungeonState.isInDungeon()) return 0;
         String key = roomName.trim().toLowerCase(Locale.ROOT);
         if (key.equals("higher blaze") || key.equals("lower blaze")) {
             key = "higher or lower";
@@ -768,17 +716,11 @@ public final class ScoreCalculatorFeature {
     // The map never re-derives mimic/prince/bat state or the score formula itself - it only reads what this
     // class already tracks, exactly like this class's own HUD (buildLines above) does.
 
-    public static boolean isMimicKilled() {
-        return DungeonState.isInDungeon() && mimicKilled;
-    }
+    public static boolean isMimicKilled() { return DungeonState.isInDungeon() && mimicKilled; }
 
-    public static boolean isPrinceKilled() {
-        return DungeonState.isInDungeon() && princeKilled;
-    }
+    public static boolean isPrinceKilled() { return DungeonState.isInDungeon() && princeKilled; }
 
-    public static boolean isBatKilled() {
-        return DungeonState.isInDungeon() && !batKillers.isEmpty();
-    }
+    public static boolean isBatKilled() { return DungeonState.isInDungeon() && !batKillers.isEmpty(); }
 
     /** The Murkbat bonus this run counts: one per player known to have had it, at most
      *  {@link ScoreCalculator#BAT_BONUS_CAP}. */
@@ -786,9 +728,7 @@ public final class ScoreCalculatorFeature {
         return DungeonState.isInDungeon() ? Math.min(ScoreCalculator.BAT_BONUS_CAP, batKillers.size()) : 0;
     }
 
-    public static int getCrypts() {
-        return DungeonState.isInDungeon() ? crypts : 0;
-    }
+    public static int getCrypts() { return DungeonState.isInDungeon() ? crypts : 0; }
 
     /**
      * Same "S+ Secrets" readout {@link #buildLines} shows on this feature's own HUD, exposed for the Dungeon
@@ -800,15 +740,9 @@ public final class ScoreCalculatorFeature {
      */
     public static String secretsNeededSummary() {
         ScoreCalculator.Result r = currentResult();
-        if (r == null || r.secretsNeeded() < 0) {
-            return "?";
-        }
-        if (r.secretsNeeded() == Integer.MAX_VALUE) {
-            return "not reachable";
-        }
-        if (r.secretsRemaining() <= 0) {
-            return "done (" + secretsFound + "/" + r.secretsNeeded() + ")";
-        }
+        if (r == null || r.secretsNeeded() < 0) return "?";
+        if (r.secretsNeeded() == Integer.MAX_VALUE) return "not reachable";
+        if (r.secretsRemaining() <= 0) return "done (" + secretsFound + "/" + r.secretsNeeded() + ")";
         return "§b" + r.secretsRemaining() + " §7more (" + secretsFound + "/" + r.secretsNeeded() + ")";
     }
 
@@ -857,14 +791,10 @@ public final class ScoreCalculatorFeature {
     }
 
     /** A bonus letter, green when it is done and red when not (NoammAddons' M | P | B). */
-    private static String mark(String letter, boolean done) {
-        return (done ? "§a" : "§c") + letter;
-    }
+    private static String mark(String letter, boolean done) { return (done ? "§a" : "§c") + letter; }
 
     private static int parseInt(String s, int def) {
-        if (s == null) {
-            return def;
-        }
+        if (s == null) return def;
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {
@@ -888,12 +818,10 @@ public final class ScoreCalculatorFeature {
                 : String.format(Locale.US, "%d:%02d", s / 60, s % 60);
     }
 
-    // ------------------------------------------------------------------ HUD
 
     private record Segment(String text, int color) {
     }
 
-    private static final int SCORE_RED = 0xFF5555;
     private static final int SCORE_YELLOW = 0xFFFF55;
 
     private static int scoreColor(int score, ScoreCalculatorConfig cfg) {
@@ -930,9 +858,7 @@ public final class ScoreCalculatorFeature {
 
     /** {@link #buildLines}, reused while none of its inputs changed. Off the render thread it just builds. */
     private static List<List<Segment>> lines(ScoreCalculatorConfig cfg, boolean demo) {
-        if (!Minecraft.getInstance().isSameThread()) {
-            return buildLines(cfg, demo);
-        }
+        if (!Minecraft.getInstance().isSameThread()) return buildLines(cfg, demo);
         ScoreCalculator.Result r = demo ? DEMO_RESULT : lastResult;
         boolean paul = !demo && lastInputs != null && lastInputs.paul();
         String floor = DungeonState.getFloor();
@@ -969,9 +895,7 @@ public final class ScoreCalculatorFeature {
     /** Where each segment of each of {@code lines} starts in {@code font}, plus the line's width as the last entry, kept
      *  with the cached lines it was measured from. */
     private static int[][] segmentX(net.minecraft.client.gui.Font font, List<List<Segment>> lines) {
-        if (lines == cachedLines && font == cachedWidthFont) {
-            return cachedSegmentX;
-        }
+        if (lines == cachedLines && font == cachedWidthFont) return cachedSegmentX;
         int[][] out = new int[lines.size()][];
         for (int i = 0; i < out.length; i++) {
             List<Segment> line = lines.get(i);
@@ -994,9 +918,7 @@ public final class ScoreCalculatorFeature {
     private static List<List<Segment>> buildLines(ScoreCalculatorConfig cfg, boolean demo) {
         List<List<Segment>> lines = new ArrayList<>();
         ScoreCalculator.Result r = demo ? DEMO_RESULT : lastResult;
-        if (r == null) {
-            return lines;
-        }
+        if (r == null) return lines;
         int sc = scoreColor(r.total(), cfg);
         final int LABEL = cfg.getLabelColor();
         final int SUB = cfg.getSubLabelColor();
@@ -1074,9 +996,7 @@ public final class ScoreCalculatorFeature {
         return lines;
     }
 
-    private static boolean inEditor() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
-    }
+    private static boolean inEditor() { return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen; }
 
     public static final class ScoreHudElement implements HudElement {
 
@@ -1086,19 +1006,13 @@ public final class ScoreCalculatorFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Score Calculator";
-        }
+        public String displayName() { return "Score Calculator"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {
@@ -1115,9 +1029,7 @@ public final class ScoreCalculatorFeature {
         @Override
         public int width() {
             Font font = Minecraft.getInstance().font;
-            if (font == null) {
-                return 100;
-            }
+            if (font == null) return 100;
             int max = 40;
             for (int[] xs : segmentX(font, currentLines())) {
                 max = Math.max(max, xs[xs.length - 1]);
@@ -1144,12 +1056,8 @@ public final class ScoreCalculatorFeature {
             ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
             boolean editor = inEditor();
-            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
-            if (!editor && (!DungeonState.isInDungeon() || com.killer560.hub.cheatutils.CheatUtils.isOnP3Sim())) {
-                return;
-            }
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) return;
+            if (!editor && (!DungeonState.isInDungeon() || com.killer560.hub.cheatutils.CheatUtils.isOnP3Sim())) return;
             Font font = client.font;
             int lineY = y;
             List<List<Segment>> lines = lines(cfg, editor && (lastResult == null || !DungeonState.isInDungeon()));

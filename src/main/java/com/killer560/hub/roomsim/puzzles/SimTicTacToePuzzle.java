@@ -113,20 +113,14 @@ public final class SimTicTacToePuzzle {
      * 2026-10-15: "the server moved you 4.2 blocks" right after the first click). On Hypixel the click stays a click
      * (his Mod Only Test log of 2026-10-14 17:26: no move after any board click), so SimAbilities lets a square win.
      */
-    public static boolean isCell(BlockPos pos) {
-        return pos != null && CELL_INDEX.containsKey(pos);
-    }
+    public static boolean isCell(BlockPos pos) { return pos != null && CELL_INDEX.containsKey(pos); }
 
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (pendingReply == null || --replyTicksLeft > 0) {
-                return;
-            }
+            if (pendingReply == null || --replyTicksLeft > 0) return;
             Integer reply = pendingReply;
             pendingReply = null;
-            if (!built || complete || board[reply] != EMPTY || !SimState.canAct(client)) {
-                return;
-            }
+            if (!built || complete || board[reply] != EMPTY || !SimState.canAct(client)) return;
             board[reply] = COMPUTER;
             MinecraftServer server = client.getSingleplayerServer();
             if (server != null) {
@@ -138,9 +132,7 @@ public final class SimTicTacToePuzzle {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // try to play twice - the same double-fire guard SimDoors uses for its own UseBlockCallback.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) {
-                return InteractionResult.PASS;
-            }
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
             if (index == null || !built || complete || board[index] != EMPTY || pendingReply != null) {
                 return InteractionResult.PASS; // not his turn while the computer's reply is pending
@@ -162,13 +154,9 @@ public final class SimTicTacToePuzzle {
      * TicTacToeSolverFeature's own "even mark count = computer's turn" rule applied to an empty board.
      */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         reset();
         BlockPos[] positions = new BlockPos[9];
         for (int row = 0; row < 3; row++) {
@@ -227,9 +215,7 @@ public final class SimTicTacToePuzzle {
         com.killer560.hub.roomsim.SimRoomPuzzles.Anchor anchor =
                 com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
                         com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.STONE_BUTTON), new int[]{0}, 6);
-        if (anchor == null) {
-            return false;
-        }
+        if (anchor == null) return false;
         // forget(), not reset(): reset() queues an AIR write at the PREVIOUS board's nine positions for the
         // next server tick, and on a rebuild of the same room those are the nine about to be painted - it
         // would blank the board this method just built.
@@ -308,9 +294,7 @@ public final class SimTicTacToePuzzle {
 
     /** Whether the last game finished without the computer winning (a draw or an O win). False before any game
      *  finishes, and false again after a loss resets the board. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Clears the board (blocks and bookkeeping) if a session is still open, and always clears the in-memory
      *  state. Safe to call with no board built, and safe to call after the sim session has already ended. */
@@ -398,12 +382,8 @@ public final class SimTicTacToePuzzle {
      * something invented there.
      */
     private static BlockState stateFor(char mark) {
-        if (mark != EMPTY) {
-            return colourFor(mark);
-        }
-        if (boundAnchor == null) {
-            return McBlocks.WHITE_CONCRETE.defaultBlockState();
-        }
+        if (mark != EMPTY) return colourFor(mark);
+        if (boundAnchor == null) return McBlocks.WHITE_CONCRETE.defaultBlockState();
         return buttonState;
     }
 
@@ -472,9 +452,7 @@ public final class SimTicTacToePuzzle {
     private static void finishIfOver() {
         int score = getScore(board);
         boolean full = isFull(board);
-        if (score == 0 && !full) {
-            return;
-        }
+        if (score == 0 && !full) return;
         if (score < 0) {
             // The computer got three in a row - the one outcome the real puzzle's "safe prediction" logic
             // exists to make impossible. Treated as a fail: reset, not a silent pass.
@@ -515,9 +493,7 @@ public final class SimTicTacToePuzzle {
 
     private static void paintCell(MinecraftServer server, int index, char mark) {
         java.util.List<Object[]> writes = writesFor(index, mark);
-        if (writes.isEmpty()) {
-            return;
-        }
+        if (writes.isEmpty()) return;
         server.execute(() -> {
             for (Object[] w : writes) {
                 server.overworld().setBlockAndUpdate((BlockPos) w[0], (BlockState) w[1]);
@@ -535,25 +511,19 @@ public final class SimTicTacToePuzzle {
 
     private static boolean isFull(char[] b) {
         for (char c : b) {
-            if (c == EMPTY) {
-                return false;
-            }
+            if (c == EMPTY) return false;
         }
         return true;
     }
 
-    // ---------------------------------------------------------------------------------------------------------
     // Ported verbatim from com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature - the real win rule and the
     // real move-selection algorithm this puzzle has to honor. Not re-derived, not approximated.
-    // ---------------------------------------------------------------------------------------------------------
 
     private static Integer getBestMove(char[] b, boolean isPlayerTurn) {
         int bestScore = isPlayerTurn ? -1000 : 1000;
         Integer bestIndex = null;
         for (int i : MOVE_ORDER) {
-            if (b[i] != EMPTY) {
-                continue;
-            }
+            if (b[i] != EMPTY) continue;
             b[i] = isPlayerTurn ? PLAYER : COMPUTER;
             int score = alphaBeta(b, 0, -1000, 1000, !isPlayerTurn);
             b[i] = EMPTY;
@@ -570,19 +540,13 @@ public final class SimTicTacToePuzzle {
 
     private static int alphaBeta(char[] b, int depth, int alpha, int beta, boolean maximising) {
         int score = getScore(b);
-        if (score != 0) {
-            return score + (score > 0 ? -depth : depth);
-        }
-        if (isFull(b)) {
-            return 0;
-        }
+        if (score != 0) return score + (score > 0 ? -depth : depth);
+        if (isFull(b)) return 0;
         int a = alpha;
         int bBound = beta;
         int best = maximising ? -1000 : 1000;
         for (int i : MOVE_ORDER) {
-            if (b[i] != EMPTY) {
-                continue;
-            }
+            if (b[i] != EMPTY) continue;
             b[i] = maximising ? PLAYER : COMPUTER;
             int s = alphaBeta(b, depth + 1, a, bBound, !maximising);
             b[i] = EMPTY;
@@ -593,9 +557,7 @@ public final class SimTicTacToePuzzle {
                 best = Math.min(best, s);
                 bBound = Math.min(bBound, best);
             }
-            if (bBound <= a) {
-                break;
-            }
+            if (bBound <= a) break;
         }
         return best;
     }
@@ -603,9 +565,7 @@ public final class SimTicTacToePuzzle {
     private static int getScore(char[] b) {
         for (int i = 0; i < WIN_SETS.length; i += 3) {
             char c = b[WIN_SETS[i]];
-            if (c != EMPTY && c == b[WIN_SETS[i + 1]] && c == b[WIN_SETS[i + 2]]) {
-                return c == COMPUTER ? -10 : 10;
-            }
+            if (c != EMPTY && c == b[WIN_SETS[i + 1]] && c == b[WIN_SETS[i + 2]]) return c == COMPUTER ? -10 : 10;
         }
         return 0;
     }

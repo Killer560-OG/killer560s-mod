@@ -42,7 +42,6 @@ public final class ScoreboardData {
     private static final Comparator<PlayerScoreEntry> SCORE_DISPLAY_ORDER = Comparator
             .comparing(PlayerScoreEntry::value).reversed()
             .thenComparing(PlayerScoreEntry::owner, String.CASE_INSENSITIVE_ORDER);
-    private static final Pattern COLOR_CODES = Pattern.compile("(?:§[0-9a-fk-orA-FK-OR])+");
     private static final Pattern RESETS = Pattern.compile("(?:§f)*?(?<!§)§r");
     private static final Map<Integer, ChatFormatting> COLOR_LUT = new HashMap<>();
 
@@ -68,7 +67,6 @@ public final class ScoreboardData {
     private ScoreboardData() {
     }
 
-    // ---- refresh ----
 
     static void refresh(Minecraft client) {
         if (client.level == null || client.player == null) {
@@ -85,9 +83,7 @@ public final class ScoreboardData {
         island = "";
         for (String line : tabPlain) {
             // Only an "Area: " / "Dungeon: " line can match; the rest of the ~80 entries skip the Matcher.
-            if (!line.contains("Area: ") && !line.contains("Dungeon: ")) {
-                continue;
-            }
+            if (!line.contains("Area: ") && !line.contains("Dungeon: ")) continue;
             Matcher m = ScoreboardPattern.TAB_AREA.matcher(line.trim());
             if (m.matches()) {
                 island = m.group("island").trim();
@@ -98,9 +94,7 @@ public final class ScoreboardData {
 
     /** Same objective choice as vanilla {@code Gui#extractScoreboardSidebar}: team-color slot first, then SIDEBAR. */
     public static Objective sidebarObjective(Minecraft client) {
-        if (client.level == null) {
-            return null;
-        }
+        if (client.level == null) return null;
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective objective = null;
         if (client.player != null) {
@@ -139,13 +133,9 @@ public final class ScoreboardData {
     }
 
     private static String lineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
-        if (entry.display() != null) {
-            return formatted(entry.display(), true);
-        }
+        if (entry.display() != null) return formatted(entry.display(), true);
         PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
-        if (team == null) {
-            return entry.owner();
-        }
+        if (team == null) return entry.owner();
         String start = formatted(team.getPlayerPrefix(), true);
         String owner = entry.owner();
         // Hypixel's owners are invisible code-only names; only keep a real, visible owner (other servers). They are
@@ -162,9 +152,7 @@ public final class ScoreboardData {
     /** True when {@code s} draws anything: vanilla's renderer ({@code StringDecomposer}) skips '§' and the character
      *  after it whether or not that is a real formatting code, so "§i§r" is as invisible as "§1§r". */
     static boolean hasVisibleText(String s) {
-        if (s == null) {
-            return false;
-        }
+        if (s == null) return false;
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
             if (ch == '§') {
@@ -269,30 +257,23 @@ public final class ScoreboardData {
 
     /** Called from {@code Gui#setOverlayMessage} (action bar). */
     public static void onActionBar(Component message) {
-        if (message == null) {
-            return;
-        }
+        if (message == null) return;
         String plain = com.killer560.hub.util.ChatObserver.stripCodes(message.getString());
         actionBarPlain = plain == null ? "" : plain;
         actionBarAtMs = System.currentTimeMillis();
     }
 
-    // ---- text conversion ----
 
     /**
      * Component to legacy {@code §} text, SkyHanni's {@code computeFormattedTextCompat(noExtraResets = true)}: each
      * styled run is prefixed with its color + decoration codes, except a leading plain {@code §f}.
      */
     public static String formatted(Component component, boolean lessResets) {
-        if (component == null) {
-            return "";
-        }
+        if (component == null) return "";
         StringBuilder sb = new StringBuilder(50);
         boolean[] wasFormatted = {false};
         component.visit((style, text) -> {
-            if (text.isEmpty()) {
-                return Optional.empty();
-            }
+            if (text.isEmpty()) return Optional.empty();
             String chatStyle = chatStyle(style);
             if (!chatStyle.isEmpty() && (wasFormatted[0] || !chatStyle.equals("§f"))) {
                 sb.append(chatStyle);
@@ -343,19 +324,14 @@ public final class ScoreboardData {
     }
 
     public static String removeResets(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         // RESETS can only match where a "§r" is; without one replaceAll would hand back the same text after building a
         // Matcher for it - for every tab entry, every refresh (most of the Custom Scoreboard's allocation, 95-fps-bench).
         return s.contains("§r") ? RESETS.matcher(s).replaceAll("") : s;
     }
 
-    // ---- accessors ----
 
-    public static List<String> sidebar() {
-        return sidebarLines;
-    }
+    public static List<String> sidebar() { return sidebarLines; }
 
     /**
      * The sidebar read right now, for callers that must not depend on the Custom Scoreboard: {@link #sidebar()} is
@@ -363,52 +339,32 @@ public final class ScoreboardData {
      * flipper read no purse and refused to start (2026-10-11). Render thread only.
      */
     public static List<String> sidebarNow(Minecraft client) {
-        if (client == null || client.level == null || client.player == null) {
-            return Collections.emptyList();
-        }
+        if (client == null || client.level == null || client.player == null) return Collections.emptyList();
         readSidebar(client);
         return sidebarLines;
     }
 
-    public static String objectiveTitle() {
-        return objectiveTitle;
-    }
+    public static String objectiveTitle() { return objectiveTitle; }
 
-    public static List<String> tabPlain() {
-        return tabPlain;
-    }
+    public static List<String> tabPlain() { return tabPlain; }
 
-    public static List<String> tabFormatted() {
-        return tabFormatted;
-    }
+    public static List<String> tabFormatted() { return tabFormatted; }
 
-    public static String tabFooter() {
-        return tabFooterPlain;
-    }
+    public static String tabFooter() { return tabFooterPlain; }
 
     /** Latest action bar text, or "" if none arrived in the last 3 seconds. */
-    public static String actionBar() {
-        return System.currentTimeMillis() - actionBarAtMs < 3000L ? actionBarPlain : "";
-    }
+    public static String actionBar() { return System.currentTimeMillis() - actionBarAtMs < 3000L ? actionBarPlain : ""; }
 
     /** Island name from the tab list's "Area:"/"Dungeon:" line, or "" when unknown (e.g. p3sim). */
-    public static String island() {
-        return island;
-    }
+    public static String island() { return island; }
 
-    public static boolean islandKnown() {
-        return !island.isEmpty();
-    }
+    public static boolean islandKnown() { return !island.isEmpty(); }
 
     /** True when the island is known and equals one of {@code names}; always true when the island is unknown. */
     public static boolean inIslandOrUnknown(String... names) {
-        if (island.isEmpty()) {
-            return true;
-        }
+        if (island.isEmpty()) return true;
         for (String n : names) {
-            if (island.equalsIgnoreCase(n)) {
-                return true;
-            }
+            if (island.equalsIgnoreCase(n)) return true;
         }
         return false;
     }
@@ -416,24 +372,18 @@ public final class ScoreboardData {
     /** True only when the island is known and equals one of {@code names}. */
     public static boolean inIsland(String... names) {
         for (String n : names) {
-            if (island.equalsIgnoreCase(n)) {
-                return true;
-            }
+            if (island.equalsIgnoreCase(n)) return true;
         }
         return false;
     }
 
     // ---- list helpers (SkyHanni RegexUtils / CollectionUtils equivalents) ----
 
-    public static boolean matches(Pattern pattern, String line) {
-        return line != null && pattern.matcher(line).matches();
-    }
+    public static boolean matches(Pattern pattern, String line) { return line != null && pattern.matcher(line).matches(); }
 
     public static String firstMatches(Pattern pattern, List<String> lines) {
         for (String line : lines) {
-            if (matches(pattern, line)) {
-                return line;
-            }
+            if (matches(pattern, line)) return line;
         }
         return null;
     }
@@ -457,9 +407,7 @@ public final class ScoreboardData {
             if (m.matches()) {
                 try {
                     String g = m.group(group);
-                    if (g != null) {
-                        return g;
-                    }
+                    if (g != null) return g;
                 } catch (IllegalArgumentException ignored) {
                     return null;
                 }
@@ -470,17 +418,13 @@ public final class ScoreboardData {
 
     public static String nextAfter(List<String> lines, String item, int skip) {
         int i = item == null ? -1 : lines.indexOf(item);
-        if (i < 0 || i + skip >= lines.size()) {
-            return null;
-        }
+        if (i < 0 || i + skip >= lines.size()) return null;
         return lines.get(i + skip);
     }
 
     public static List<String> sublistAfter(List<String> lines, String item, int amount) {
         int i = lines.indexOf(item);
-        if (i < 0) {
-            return Collections.emptyList();
-        }
+        if (i < 0) return Collections.emptyList();
         return new ArrayList<>(lines.subList(i + 1, Math.min(lines.size(), i + 1 + amount)));
     }
 
@@ -493,9 +437,7 @@ public final class ScoreboardData {
         List<String> lines = tabPlain;
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
-            if (line.startsWith(" ") || !header.matcher(line.trim()).matches()) {
-                continue;
-            }
+            if (line.startsWith(" ") || !header.matcher(line.trim()).matches()) continue;
             out.add(i);
             for (int j = i + 1; j < lines.size() && lines.get(j).startsWith(" ") && !lines.get(j).isBlank(); j++) {
                 out.add(j);
@@ -508,9 +450,7 @@ public final class ScoreboardData {
     /** First named group of {@code header}'s tab widget header line, or null. */
     public static String tabHeaderGroup(Pattern header, String group) {
         List<Integer> widget = tabWidget(header);
-        if (widget.isEmpty()) {
-            return null;
-        }
+        if (widget.isEmpty()) return null;
         Matcher m = header.matcher(tabPlain.get(widget.get(0)).trim());
         return m.matches() ? m.group(group) : null;
     }

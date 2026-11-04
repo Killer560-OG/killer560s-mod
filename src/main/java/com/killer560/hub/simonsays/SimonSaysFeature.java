@@ -283,9 +283,7 @@ public final class SimonSaysFeature {
                 .append(nowOnRound - 1).append("->").append(nowOnRound).append(' ').append(observedMs);
         int index = nowOnRound - 2; // index 0 = round 1 -> 2
         double[] estimates = transitionEstimates();
-        if (index < 0 || index >= estimates.length || observedMs <= 0 || observedMs > 10_000L) {
-            return;
-        }
+        if (index < 0 || index >= estimates.length || observedMs <= 0 || observedMs > 10_000L) return;
         double expected = estimates[index];
         attemptObservedTransitionMs += observedMs;
         attemptExpectedTransitionMs += expected;
@@ -660,9 +658,7 @@ public final class SimonSaysFeature {
                 com.killer560.hub.util.FeatureBits.register("Simon Says tick", () -> SimonSaysConfig.getInstance().isEnabledRaw()),
                 client -> tick()));
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
-            if (!DungeonState.isF7OrM7()) {
-                return;
-            }
+            if (!DungeonState.isF7OrM7()) return;
             String plain = com.killer560.hub.util.ChatObserver.strip(message);
             if (DEVICE_COMPLETE_PATTERN.matcher(plain).matches()) {
                 onDeviceCompleteLine();
@@ -701,9 +697,7 @@ public final class SimonSaysFeature {
      *  (Auto Start's look-only approach, PRE_DRIFT, IDLE's grid-center look) only checked the Rotate mode setting,
      *  which stays saved as Rotate even with Auto Solve switched off. Rotation now requires Auto Solve itself to
      *  be on; with it off, Auto Start clicks aura-style and the camera is never touched. */
-    private static boolean rotateActive(SimonSaysConfig cfg) {
-        return cfg.isAutoSolveEnabled() && cfg.isAutoSolveRotate();
-    }
+    private static boolean rotateActive(SimonSaysConfig cfg) { return cfg.isAutoSolveEnabled() && cfg.isAutoSolveRotate(); }
 
     private static boolean isDeviceInRange(Minecraft client) {
         return DungeonState.isF7OrM7() && client.player != null
@@ -723,21 +717,15 @@ public final class SimonSaysFeature {
 
     public static boolean shouldBlockClick(BlockPos pos, boolean shiftDown) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isPreventMisclicksEnabled() || !wasActive || shiftDown) {
-            return false;
-        }
-        if (!GRID_BUTTONS.contains(pos)) {
-            return false;
-        }
+        if (!cfg.isEnabled() || !cfg.isPreventMisclicksEnabled() || !wasActive || shiftDown) return false;
+        if (!GRID_BUTTONS.contains(pos)) return false;
         // Nothing detected means nothing to protect.
         //
         // With clickInOrder empty, "clickNeeded >= size" is true, so EVERY button click was blocked - which
         // is what happens if the mod missed the reveal because you arrived late or a skip was misread. The
         // guard exists to stop a misclick on a known sequence; with no sequence it has no opinion, and
         // silently eating every click is the worst way to have none.
-        if (clickInOrder.isEmpty()) {
-            return false;
-        }
+        if (clickInOrder.isEmpty()) return false;
         boolean block = clickNeeded >= clickInOrder.size() || !pos.equals(clickInOrder.get(clickNeeded).west());
         // killer560, 2026-11-01: after a skip attempt the first light may be the round the skip already satisfied, so the
         // second is let through until the first click of the attempt lands; onButtonPressed then follows whichever he
@@ -763,9 +751,7 @@ public final class SimonSaysFeature {
      *  event rather than poll block state). Ignores this mod's own synthetic clicks via
      *  {@link #syntheticClickInProgress}, and anything that isn't the start button. */
     public static void onRealBlockInteractAttempt(BlockPos pos) {
-        if (syntheticClickInProgress || !pos.equals(START_BUTTON)) {
-            return;
-        }
+        if (syntheticClickInProgress || !pos.equals(START_BUTTON)) return;
         long now = System.currentTimeMillis();
         if (lastStartButtonPressAtMs > 0) {
             verboseLog("[SimonSays] Real start-button click attempt - {}ms since previous.", now - lastStartButtonPressAtMs);
@@ -783,9 +769,7 @@ public final class SimonSaysFeature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Chat
-    // ------------------------------------------------------------------
 
     private static void onChatMessage(Component message) {
         String raw = com.killer560.hub.util.ChatObserver.raw(message);
@@ -819,9 +803,7 @@ public final class SimonSaysFeature {
                 total = Integer.parseInt(m.group(3));
             } else {
                 Matcher simple = PROGRESS_PATTERN_SIMPLE.matcher(raw);
-                if (!simple.find()) {
-                    return;
-                }
+                if (!simple.find()) return;
                 sender = raw.length() > 20 ? raw.substring(0, 20).trim() : raw.trim();
                 progress = Integer.parseInt(simple.group(1));
                 total = Integer.parseInt(simple.group(2));
@@ -855,9 +837,7 @@ public final class SimonSaysFeature {
         p.lastUpdateMs = now;
     }
 
-    // ------------------------------------------------------------------
     // Tick: detection, auto-start pacing, auto-solve pacing, trigger bot, announce key
-    // ------------------------------------------------------------------
 
     /** The body turn for a button the reported look does not reach (util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
@@ -967,19 +947,13 @@ public final class SimonSaysFeature {
     private static volatile int resetAnnounces = 0;
     private static volatile int resetAnnouncesSkipped = 0;
 
-    public static int resetAnnounces() {
-        return resetAnnounces;
-    }
+    public static int resetAnnounces() { return resetAnnounces; }
 
-    public static int resetAnnouncesSkipped() {
-        return resetAnnouncesSkipped;
-    }
+    public static int resetAnnouncesSkipped() { return resetAnnouncesSkipped; }
 
     private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
         long now = System.currentTimeMillis();
-        if (now - lastResetAnnounceAtMs < 5_000L) {
-            return;
-        }
+        if (now - lastResetAnnounceAtMs < 5_000L) return;
         if (cfg.isAutoSendResetMessage() && client.player != null) {
             lastResetAnnounceAtMs = now;
             resetAnnounces++;
@@ -1038,9 +1012,7 @@ public final class SimonSaysFeature {
         BlockState now = client.level.getBlockState(START_BUTTON);
         BlockState old = lastStartButtonState;
         lastStartButtonState = now;
-        if (old == null) {
-            return;
-        }
+        if (old == null) return;
         boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
         boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
         if (nowPowered && !oldPowered) {
@@ -1053,9 +1025,7 @@ public final class SimonSaysFeature {
             // what N or the tick delay was set to. This is (almost certainly) never a genuine "the device
             // is restarting from scratch" press while our own sequence is actively mid-click, so skip the
             // reset entirely in that case and let Auto Start finish what it started.
-            if (autoStartRunning) {
-                return;
-            }
+            if (autoStartRunning) return;
             // Real click-timing logging moved to onRealBlockInteractAttempt (2026-09-14) - a real stone
             // button stays POWERED for about a second after being clicked, and clicking it again WHILE
             // still powered doesn't emit a new block-state transition (POWERED was already true), so this
@@ -1118,9 +1088,7 @@ public final class SimonSaysFeature {
         for (BlockPos pos : GRID_LANTERNS) {
             BlockState now = client.level.getBlockState(pos);
             BlockState old = lastGridStates.put(pos, now);
-            if (old == null) {
-                continue;
-            }
+            if (old == null) continue;
             if (now.is(Blocks.SEA_LANTERN) && old.is(Blocks.OBSIDIAN) && clickInOrder.contains(pos) && firstPhase
                     && clickNeeded == 0 && autoStartClickedThisPhase && !skipDropped && clickInOrder.size() >= 2) {
                 // killer560, 2026-11-01 (manual solves): "sometimes it'll do the first button a second button then
@@ -1214,9 +1182,7 @@ public final class SimonSaysFeature {
             if (now.is(Blocks.STONE_BUTTON)) {
                 stoneButtonCount++;
             }
-            if (old == null) {
-                continue;
-            }
+            if (old == null) continue;
             boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
             boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
             if (nowPowered && !oldPowered) {
@@ -1359,9 +1325,7 @@ public final class SimonSaysFeature {
      *  settle-timeout (see {@link #lastLanternChangeTick}'s doc comment) to every round, not just round 1
      *  - killer560's own explicit report (2026-09-14): "After finishing a set it has to show the new
      *  pattern, then it can click." Used to gate Auto Solve so it doesn't click mid-reveal on any round. */
-    private static boolean isStillRevealing() {
-        return lastLanternChangeTick >= 0 && lastLanternChangeTick <= 10;
-    }
+    private static boolean isStillRevealing() { return lastLanternChangeTick >= 0 && lastLanternChangeTick <= 10; }
 
     private static void onButtonPressed(BlockPos buttonPos, SimonSaysConfig cfg, Minecraft client) {
         // Diagnostic-only (2026-09-14): server-confirmation latency for this mod's own synthetic click -
@@ -1500,9 +1464,7 @@ public final class SimonSaysFeature {
         stimIndex = 0;
         stimDwellTicks = 0f;
         int size = clickInOrder.size();
-        if (size == 0) {
-            return;
-        }
+        if (size == 0) return;
         for (int i = 0; i < size; i++) {
             stimQueue.add(clickInOrder.get(i).west().immutable());
         }
@@ -1516,9 +1478,7 @@ public final class SimonSaysFeature {
         verboseLog("[SimonSays][Stim] Rehearsing {} button(s) of round {}: {}", stimQueue.size(), size, stimQueue);
     }
 
-    // ------------------------------------------------------------------
     // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
-    // ------------------------------------------------------------------
 
     /** The whole device is done: the client-side completion message (Terminal Timers' Simon Says time), and idle
      *  look / break detection stand down. {@code completedAtMs} is when the last click landed. */
@@ -1655,9 +1615,7 @@ public final class SimonSaysFeature {
 
     /** ChatObserver: any player's "completed a device!" line while at the Simon Says device. */
     private static void onDeviceCompleteLine() {
-        if (!wasActive) {
-            return;
-        }
+        if (!wasActive) return;
         deviceCompleteLineAtMs = System.currentTimeMillis();
         if (roundVerdictPending) {
             settleRoundVerdictAsFour("\"completed a device!\" right after round 4");
@@ -1691,9 +1649,7 @@ public final class SimonSaysFeature {
             blankGridTicks = 0;
             return;
         }
-        if (++blankGridTicks < BREAK_CONFIRM_TICKS) {
-            return;
-        }
+        if (++blankGridTicks < BREAK_CONFIRM_TICKS) return;
         breakArmed = false;
         blankGridTicks = 0;
         LOGGER.warn("[SimonSays] Device BROKE - no lit lantern and no buttons for {} ticks (round {}, {} of {} steps clicked, "
@@ -1730,9 +1686,7 @@ public final class SimonSaysFeature {
         if (!isWithinAutoAnchor(client)) {
             return; // out of the 2-block anchor: solver only, nothing clicks
         }
-        if ((!cfg.isAutoStartEnabled() && !autoStartIsRestart) || !autoStartRunning) {
-            return;
-        }
+        if ((!cfg.isAutoStartEnabled() && !autoStartIsRestart) || !autoStartRunning) return;
         if (autoStartClicksSent >= cfg.getAutoStartClicks()) {
             autoStartRunning = false;
             autoStartIsRestart = false;
@@ -1776,9 +1730,7 @@ public final class SimonSaysFeature {
                         REAL_INTERACT_RANGE_SQ);
                 lastAutoStartTooFarLogged = tooFar;
             }
-            if (tooFar) {
-                return;
-            }
+            if (tooFar) return;
         }
         if (autoStartTicksUntilNextClick > 0) {
             autoStartTicksUntilNextClick--;
@@ -1790,9 +1742,7 @@ public final class SimonSaysFeature {
         // applyRotateApproachFrame); No Rotate = aura, the instant synthetic click that works regardless of
         // where the player is looking. Either way the click itself lands on the button's true center.
         if (rotateActive(cfg)) {
-            if (!tickRotateClick(client, START_BUTTON, null)) {
-                return;
-            }
+            if (!tickRotateClick(client, START_BUTTON, null)) return;
         } else if (!sendNoRotateInteract(client, START_BUTTON)) {
             // ActionGate held this tick back and NOTHING was sent - booking the click below would burn one of
             // the Auto Start burst's clicks (and set autoStartClickedThisPhase) for a packet that never left.
@@ -1817,9 +1767,7 @@ public final class SimonSaysFeature {
      *  instead of this mod's old guessed six-preset "skip mode" system (removed 2026-09-14 - killer560's
      *  own call, since this session never had confirmed real per-mode click counts). Only actually
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
-    private static void beginAutoStart(SimonSaysConfig cfg) {
-        beginAutoStart(cfg, null, 0);
-    }
+    private static void beginAutoStart(SimonSaysConfig cfg) { beginAutoStart(cfg, null, 0); }
 
     /** @param restartReason non-null for Auto Restart SS / Restart Key (runs even with Auto Start off);
      *  @param extraInitialTicks extra wait before the first click (lets a just-broken device settle). */
@@ -1874,18 +1822,14 @@ public final class SimonSaysFeature {
         blankGridTicks = 0;
     }
 
-    // ------------------------------------------------------------------
     // Auto-solve (no-rotate) + trigger bot
-    // ------------------------------------------------------------------
 
     /** Diagnostic-only - logs {@code state} only when it actually changes, same convention as
      *  {@code tickRotateFrame}'s own [RotateFrame] logger. See {@link #lastLoggedAutoSolveState}. */
     private static void logAutoSolveState(java.util.function.Supplier<String> stateSupplier) {
         // The state text is built only with Diagnostic Logging on: this runs every tick inside the 2-block anchor, and the
         // DISPATCH line is a six-argument String.format.
-        if (!SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled()) {
-            return;
-        }
+        if (!SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled()) return;
         String state = stateSupplier.get();
         if (!state.equals(lastLoggedAutoSolveState)) {
             verboseLog("[SimonSays][AutoSolve] {}", state);
@@ -2067,9 +2011,7 @@ public final class SimonSaysFeature {
                 long minDelay = sameTarget ? 300 : 0;
                 dueNow = (!autoSolveArmed || now >= autoSolveNextClickAtMs) && now - lastAutoClickAtMs >= minDelay;
             }
-            if (!dueNow) {
-                return;
-            }
+            if (!dueNow) return;
             if (!cfg.isAutoSolveRotate()) {
                 // Booking a click the gate refused would advance the sequence past a button that was never
                 // pressed, which fails the device outright - so only book it once it has actually gone out.
@@ -2150,9 +2092,7 @@ public final class SimonSaysFeature {
      *  are still consumed by tickAutoStart itself, by exact position (see tickRotateClick). */
     private static void consumeFiredRotateClick(SimonSaysConfig cfg) {
         BlockPos fired = rotateClickFiredFor;
-        if (fired == null) {
-            return;
-        }
+        if (fired == null) return;
         if (fired.equals(START_BUTTON)) {
             // Left for tickAutoStart - unless its run was canceled mid-burst (resetSolveState), in which
             // case nothing will ever consume it, so drop it instead of letting it linger.
@@ -2196,9 +2136,7 @@ public final class SimonSaysFeature {
         lastAutoClickedPos = clickedButton;
         autoSolveClicksDoneThisAttempt++;
 
-        if (cfg.isAutoSolveFixedDelayMode()) {
-            return;
-        }
+        if (cfg.isAutoSolveFixedDelayMode()) return;
 
         if (!autoSolveArmed) {
             // Arm the "Target ± Variance overall" pacing window ONCE per full device attempt (not once per
@@ -2293,9 +2231,7 @@ public final class SimonSaysFeature {
 
     /** No Rotate mode's instant click - booked by the caller via bookAutoSolveClick in the same tick.
      *  @return false if {@link ActionGate} held this tick back (nothing sent); the caller must NOT book it. */
-    private static boolean fireInstantClick(Minecraft client, BlockPos pos) {
-        return sendNoRotateInteract(client, pos);
-    }
+    private static boolean fireInstantClick(Minecraft client, BlockPos pos) { return sendNoRotateInteract(client, pos); }
 
     /** Rotate Mode's tick-side half - called once per tick while a click is due. Ownership split
      *  (2026-09-14, "still choppy... update far more often" fix): the actual rotation-applying step now
@@ -2306,9 +2242,7 @@ public final class SimonSaysFeature {
      *  exactly once per real click. Auto Solve's grid clicks never report back through here; they're
      *  booked by {@link #consumeFiredRotateClick} at the start of the next tick instead. */
     private static boolean tickRotateClick(Minecraft client, BlockPos buttonPos, BlockPos nextHint) {
-        if (client.player == null) {
-            return false;
-        }
+        if (client.player == null) return false;
         // Exact-position match only. History (2026-09-14): an exact match used to orphan every Auto Solve
         // grid click, because detectGridChanges advances clickNeeded before Auto Solve asks again - that
         // was first "fixed" by accepting ANY pending click here, which reported success but booked each
@@ -2604,9 +2538,7 @@ public final class SimonSaysFeature {
 
     /** The 2-block gate every automated click and every camera move has to pass (see IDLE_LOOK_RANGE_SQ).
      *  Standing further away means the solver still draws, and nothing acts. */
-    private static boolean isWithinAutoAnchor(Minecraft client) {
-        return isNearIdleLookAnchor(client);
-    }
+    private static boolean isWithinAutoAnchor(Minecraft client) { return isNearIdleLookAnchor(client); }
 
     private static boolean isNearIdleLookAnchor(Minecraft client) {
         return client.player != null && client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR) <= IDLE_LOOK_RANGE_SQ;
@@ -2664,9 +2596,7 @@ public final class SimonSaysFeature {
      *  rotation must hit the button. Never looser than the face itself, so it can never click early. */
     private static boolean crosshairOnInnerFace(Minecraft client, BlockPos buttonPos) {
         var player = client.player;
-        if (player == null || client.level == null) {
-            return false;
-        }
+        if (player == null || client.level == null) return false;
         if (!(player.pick(com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH, 1f, false) instanceof BlockHitResult hit)
                 || !hit.getBlockPos().equals(buttonPos)) {
             return false;
@@ -2890,9 +2820,7 @@ public final class SimonSaysFeature {
      */
     private static void fireReadyRotateClick(Minecraft client) {
         BlockPos buttonPos = rotateFireReadyFor;
-        if (buttonPos == null) {
-            return;
-        }
+        if (buttonPos == null) return;
         // The frames stop setting this the moment Auto Solve / Rotate goes off or he leaves the 2-block anchor, but they
         // do not clear what they left: without this a stale "ready" sent one more click after the switch was turned off.
         if (!rotateActive(SimonSaysConfig.getInstance()) || !isWithinAutoAnchor(client)) {
@@ -3086,9 +3014,7 @@ public final class SimonSaysFeature {
      *  button; this reads the block's own real shape instead - same real technique already proven in
      *  {@code EtherwarpOverlayFeature#realBoxFor} - so the aim point matches wherever this specific
      *  button's real model actually sits, regardless of its real facing/attach-face. */
-    private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) {
-        return aimBoxFor(client, pos).getCenter();
-    }
+    private static Vec3 realBlockCenter(Minecraft client, BlockPos pos) { return aimBoxFor(client, pos).getCenter(); }
 
     /** The real box to aim at for {@code pos} - its live shape when it has one. For a grid button that's
      *  currently AIR (Hypixel removes all 16 between rounds - see {@link #lastSeenGridButtonBoxes}'s own
@@ -3109,9 +3035,7 @@ public final class SimonSaysFeature {
         }
         if (gridButton) {
             AABB seen = lastSeenGridButtonBoxes.get(pos);
-            if (seen != null) {
-                return seen;
-            }
+            if (seen != null) return seen;
             return new AABB(pos.getX() + 14.0 / 16.0, pos.getY() + 6.0 / 16.0, pos.getZ() + 5.0 / 16.0,
                     pos.getX() + 1.0, pos.getY() + 10.0 / 16.0, pos.getZ() + 11.0 / 16.0);
         }
@@ -3182,9 +3106,7 @@ public final class SimonSaysFeature {
      *  happens on a later tick.
      *  @return false if the gate held this tick back (nothing sent) */
     private static boolean sendNoRotateInteract(Minecraft client, BlockPos pos) {
-        if (client.player == null || client.gameMode == null) {
-            return false;
-        }
+        if (client.player == null || client.gameMode == null) return false;
         // REACH, at the one place every Simon Says click goes through.
         //
         // Nothing on the No Rotate path checked distance at all. The only gate that ran was the 30-block
@@ -3203,12 +3125,8 @@ public final class SimonSaysFeature {
         // Never a click on a button that is not there. The device takes its buttons away between rounds, and a click
         // into the empty block (surfaceOrCentre's center fallback) is GrimAC AirLiquidPlace - testkit 422/423 drew one
         // per round from Auto Solve, before and after the turn below. False is the callers' "retry next tick".
-        if (!(client.level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock)) {
-            return false;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) {
-            return false;
-        }
+        if (!(client.level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock)) return false;
+        if (!ActionGate.tryAct(ActionGate.Actor.SIMON_SAYS)) return false;
         // A surface hit from the eye. This method was the precedent Secret Aura and Lever Aura copied, so it
         // carried the same fault: the block's center - a point inside it - with a hardcoded east face. Measured
         // 2026-09-28, that shape draws a PositionPlace violation per click even inside vanilla's reach. See
@@ -3239,9 +3157,7 @@ public final class SimonSaysFeature {
     /** Diagnostic-only (2026-09-14) - remembers a synthetic GRID click's fire time so onButtonPressed can
      *  log its server-confirmation latency; warns if the previous one was never confirmed at all. */
     private static void diagNoteGridClickFired(BlockPos pos, long firedAtMs) {
-        if (!GRID_BUTTONS.contains(pos)) {
-            return;
-        }
+        if (!GRID_BUTTONS.contains(pos)) return;
         if (pos.equals(diagPendingConfirmButton)) {
             diagPendingConfirmFires++;
             diagPendingConfirmFiredAtMs = firedAtMs;
@@ -3258,19 +3174,13 @@ public final class SimonSaysFeature {
         diagPendingConfirmFires = 1;
     }
 
-    // ------------------------------------------------------------------
     // Rendering
-    // ------------------------------------------------------------------
 
     private static void onWorldRender(LevelRenderContext context) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isSolverEnabled() || clickInOrder.isEmpty()) {
-            return;
-        }
+        if (!cfg.isEnabled() || !cfg.isSolverEnabled() || clickInOrder.isEmpty()) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
 
         for (int index = clickNeeded; index < clickInOrder.size(); index++) {
             BlockPos lanternPos = clickInOrder.get(index);
@@ -3353,9 +3263,7 @@ public final class SimonSaysFeature {
         poseStack.popPose();
     }
 
-    // ------------------------------------------------------------------
     // Party progress tracker HUD
-    // ------------------------------------------------------------------
 
     private static final class PartyProgress {
         int progress;
@@ -3366,14 +3274,10 @@ public final class SimonSaysFeature {
 
     public static final class PartyProgressHudElement implements HudElement {
         @Override
-        public String id() {
-            return "simonsays_party_progress";
-        }
+        public String id() { return "simonsays_party_progress"; }
 
         @Override
-        public String displayName() {
-            return "Simon Says Party Progress";
-        }
+        public String displayName() { return "Simon Says Party Progress"; }
 
         @Override
         public int defaultX() {
@@ -3382,18 +3286,14 @@ public final class SimonSaysFeature {
         }
 
         @Override
-        public int defaultY() {
-            return 300;
-        }
+        public int defaultY() { return 300; }
 
         @Override
         public int width() {
             // The widest drawn line (2026-10-07 box audit: it was a fixed 180); 180 with nothing to show, so the
             // HUD editor still has something to grab.
             List<Map.Entry<String, PartyProgress>> entries = visibleEntries();
-            if (entries.isEmpty()) {
-                return 180;
-            }
+            if (entries.isEmpty()) return 180;
             long now = System.currentTimeMillis();
             int w = 1;
             for (Map.Entry<String, PartyProgress> e : entries) {
@@ -3403,9 +3303,7 @@ public final class SimonSaysFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12); }
 
         private static String lineText(Map.Entry<String, PartyProgress> e, long now) {
             PartyProgress p = e.getValue();
@@ -3438,9 +3336,7 @@ public final class SimonSaysFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() || HudVisibility.hidesHud()) return;
             long now = System.currentTimeMillis();
             int lineY = y;
             for (Map.Entry<String, PartyProgress> e : visibleEntries()) {

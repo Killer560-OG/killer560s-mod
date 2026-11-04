@@ -57,9 +57,7 @@ public abstract class PartyFinderLoreCacheMixin {
 
     @Inject(method = "handleContainerContent", at = @At("HEAD"), require = 1)
     private void killer560smod$cacheContent(ClientboundContainerSetContentPacket packet, CallbackInfo ci) {
-        if (!killer560smod$wanted()) {
-            return;
-        }
+        if (!killer560smod$wanted()) return;
         try {
             PartyFinderLoreCache.onContent(packet.containerId(), packet.items());
         } catch (Throwable ignored) {
@@ -69,9 +67,7 @@ public abstract class PartyFinderLoreCacheMixin {
 
     @Inject(method = "handleContainerSetSlot", at = @At("HEAD"), require = 1)
     private void killer560smod$cacheSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
-        if (!killer560smod$wanted()) {
-            return;
-        }
+        if (!killer560smod$wanted()) return;
         try {
             PartyFinderLoreCache.onSlot(packet.getContainerId(), packet.getSlot(), packet.getItem());
         } catch (Throwable ignored) {

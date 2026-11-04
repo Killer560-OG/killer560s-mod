@@ -30,17 +30,11 @@ public final class BoxBatch {
     private final McRender.Geometry fillInPlace = (pose, buffer) -> emitFilled(pose, buffer, data, count);
     private final McRender.Geometry outlineInPlace = (pose, buffer) -> emitOutlines(pose, buffer, data, count, lineWidth);
 
-    public void clear() {
-        count = 0;
-    }
+    public void clear() { count = 0; }
 
-    public int size() {
-        return count;
-    }
+    public int size() { return count; }
 
-    public boolean isEmpty() {
-        return count == 0;
-    }
+    public boolean isEmpty() { return count == 0; }
 
     public void add(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
                     float r, float g, float b, float a) {
@@ -64,9 +58,7 @@ public final class BoxBatch {
 
     /** Every box filled, in one call. */
     public void drawFilled(LevelRenderContext context, RenderType type) {
-        if (count == 0) {
-            return;
-        }
+        if (count == 0) return;
         if (McRender.CALLBACK_RUNS_LATER) {
             float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
             int n = count;
@@ -78,9 +70,7 @@ public final class BoxBatch {
 
     /** Every box outlined, {@code width} wide, in one call. */
     public void drawOutlines(LevelRenderContext context, RenderType type, float width) {
-        if (count == 0) {
-            return;
-        }
+        if (count == 0) return;
         if (McRender.CALLBACK_RUNS_LATER) {
             float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
             int n = count;

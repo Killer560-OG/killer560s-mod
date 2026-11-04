@@ -29,9 +29,7 @@ public enum DungeonClass {
 
     public static DungeonClass from(String name) {
         for (DungeonClass c : values()) {
-            if (c.displayName.equalsIgnoreCase(name)) {
-                return c;
-            }
+            if (c.displayName.equalsIgnoreCase(name)) return c;
         }
         return UNKNOWN;
     }

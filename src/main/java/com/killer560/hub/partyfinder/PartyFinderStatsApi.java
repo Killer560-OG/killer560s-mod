@@ -165,7 +165,6 @@ public final class PartyFinderStatsApi {
         volatile long relayErrorUntil;
         /** When the relay first answered it stale: polling then only follows the refresh, for a bounded time. */
         volatile long staleSince;
-        // direct
         volatile boolean directBusy;
         volatile long directRetryAt;
         volatile int directFailures;
@@ -180,9 +179,7 @@ public final class PartyFinderStatsApi {
         }
 
         Tier tier(long now) {
-            if (now - lastHotAt < HOT_MS) {
-                return Tier.HOT;
-            }
+            if (now - lastHotAt < HOT_MS) return Tier.HOT;
             return now - lastSeenAt < VISIBLE_MS ? Tier.VISIBLE : Tier.BACKGROUND;
         }
     }
@@ -246,14 +243,10 @@ public final class PartyFinderStatsApi {
     private PartyFinderStatsApi() {
     }
 
-    public static PlayerStats get(String name) {
-        return name == null ? null : CACHE.get(name.toLowerCase(Locale.ROOT));
-    }
+    public static PlayerStats get(String name) { return name == null ? null : CACHE.get(name.toLowerCase(Locale.ROOT)); }
 
     /** True when the last lookup for {@code name} failed (no answer, or no SkyBlock dungeon data for it). */
-    public static boolean hasFailed(String name) {
-        return name != null && FAILED.containsKey(name.toLowerCase(Locale.ROOT));
-    }
+    public static boolean hasFailed(String name) { return name != null && FAILED.containsKey(name.toLowerCase(Locale.ROOT)); }
 
     /** Why the last lookup for {@code name} failed, naming the source ("SkyBlockPV backend: ..."), or null. */
     public static String failureReason(String name) {
@@ -262,15 +255,11 @@ public final class PartyFinderStatsApi {
 
     /** Ask for every name that has no fresh answer (names on the open page). Cheap and network-free: safe on the
      *  client tick. */
-    public static void request(Collection<String> names) {
-        request(names, false);
-    }
+    public static void request(Collection<String> names) { request(names, false); }
 
     /** As {@link #request}, for the names that matter most right now: the hovered party, Auto Kick's joiner. These
      *  go to the front of both paths. Safe to call every frame. */
-    public static void requestHot(Collection<String> names) {
-        request(names, true);
-    }
+    public static void requestHot(Collection<String> names) { request(names, true); }
 
     private static void request(Collection<String> names, boolean hot) {
         try {
@@ -280,9 +269,7 @@ public final class PartyFinderStatsApi {
             boolean promoted = false;
             for (String raw : names) {
                 // Names come from item lore and end up in a URL path: real Minecraft usernames only.
-                if (raw == null || !NAME.matcher(raw).matches()) {
-                    continue;
-                }
+                if (raw == null || !NAME.matcher(raw).matches()) continue;
                 String name = raw.toLowerCase(Locale.ROOT);
                 Want want = WANTS.get(name);
                 if (want != null) {
@@ -293,13 +280,9 @@ public final class PartyFinderStatsApi {
                     }
                     continue;
                 }
-                if (isFresh(name, now)) {
-                    continue;
-                }
+                if (isFresh(name, now)) continue;
                 Long retryAt = FAILED.get(name);
-                if (retryAt != null && now < retryAt) {
-                    continue;
-                }
+                if (retryAt != null && now < retryAt) continue;
                 if (WANTS.size() >= MAX_WANTS) {
                     dropOldestWant();
                 }
@@ -356,9 +339,7 @@ public final class PartyFinderStatsApi {
 
     private static boolean isFresh(String name, long now) {
         PlayerStats cached = CACHE.get(name);
-        if (cached == null) {
-            return false;
-        }
+        if (cached == null) return false;
         Long expires = EXPIRES.get(name);
         return now < (expires != null ? expires : cached.fetchedAtMs() + CACHE_MS);
     }
@@ -380,9 +361,7 @@ public final class PartyFinderStatsApi {
                         oldest = e.getKey();
                     }
                 }
-                if (oldest == null) {
-                    break;
-                }
+                if (oldest == null) break;
                 CACHE.remove(oldest);
             }
         }
@@ -394,9 +373,7 @@ public final class PartyFinderStatsApi {
 
     /** A want is finished: removed, and the burst's summary logged when it was the last one. */
     private static void settle(Want w, boolean byRelay) {
-        if (w == null || !WANTS.remove(w.name, w)) {
-            return;
-        }
+        if (w == null || !WANTS.remove(w.name, w)) return;
         (byRelay ? BURST_RELAY : BURST_DIRECT).incrementAndGet();
         if (WANTS.isEmpty() && burstStartedAt != 0) {
             LOGGER.info("[PartyFinder] all {} name(s) settled {} ms after the first request ({} by the relay, {} directly)",
@@ -418,7 +395,6 @@ public final class PartyFinderStatsApi {
         }
     }
 
-    // ------------------------------------------------------------------ the direct path
 
     private static void wakeDirect() {
         synchronized (DIRECT_LOCK) {
@@ -428,18 +404,12 @@ public final class PartyFinderStatsApi {
 
     /** May the direct path take this name now? See the class comment. */
     static boolean directEligible(Want w, long now) {
-        if (w.directBusy || now < w.directRetryAt || isFresh(w.name, now)) {
-            return false;
-        }
-        if (!relayUsable(now) || now < w.relayErrorUntil) {
-            return true;
-        }
+        if (w.directBusy || now < w.directRetryAt || isFresh(w.name, now)) return false;
+        if (!relayUsable(now) || now < w.relayErrorUntil) return true;
         if (w.staleSince != 0) {
             return false; // the relay has numbers for it and is refreshing them
         }
-        if (w.relayAnsweredAt == 0) {
-            return now - w.firstAt > RELAY_FIRST_ANSWER_MS;
-        }
+        if (w.relayAnsweredAt == 0) return now - w.firstAt > RELAY_FIRST_ANSWER_MS;
         return w.relayEtaAt - now > DIRECT_HELP_MS || now - w.firstAt > PENDING_TRUST_MS;
     }
 
@@ -448,9 +418,7 @@ public final class PartyFinderStatsApi {
         Tier bestTier = null;
         boolean bestHas = false;
         for (Want w : WANTS.values()) {
-            if (!directEligible(w, now)) {
-                continue;
-            }
+            if (!directEligible(w, now)) continue;
             Tier t = w.tier(now);
             boolean has = CACHE.containsKey(w.name);
             if (best == null) {
@@ -641,7 +609,6 @@ public final class PartyFinderStatsApi {
         }
     }
 
-    // ------------------------------------------------------------------ the relay
 
     private static void relayLoop() {
         while (true) {
@@ -696,9 +663,7 @@ public final class PartyFinderStatsApi {
     /** Drops wants that are answered, unseen for {@link #KEEP_MS}, or done following a stale refresh. */
     private static void prune(long now) {
         for (Want w : WANTS.values()) {
-            if (w.directBusy) {
-                continue;
-            }
+            if (w.directBusy) continue;
             if (now - w.lastSeenAt > KEEP_MS) {
                 WANTS.remove(w.name, w);
             } else if (w.staleSince != 0 ? now - w.staleSince > STALE_FOLLOW_MS : isFresh(w.name, now)) {
@@ -852,17 +817,12 @@ public final class PartyFinderStatsApi {
         wakeDirect();
     }
 
-    // ------------------------------------------------------------------ the disk cache
 
-    private static Path diskPath() {
-        return ModPaths.config("killer560smod-partyfinder-stats-cache.json");
-    }
+    private static Path diskPath() { return ModPaths.config("killer560smod-partyfinder-stats-cache.json"); }
 
     /** Loads the last sessions' answers once, so players seen before show at once (refreshed behind new ones). */
     static void loadDiskOnce() {
-        if (!DISK_LOADED.compareAndSet(false, true)) {
-            return;
-        }
+        if (!DISK_LOADED.compareAndSet(false, true)) return;
         int loaded = 0;
         try {
             Path p = diskPath();
@@ -879,9 +839,7 @@ public final class PartyFinderStatsApi {
                             }
                             JsonObject s = e.getValue().getAsJsonObject();
                             long at = s.get("at").getAsLong();
-                            if (at > now || now - at > DISK_MAX_AGE_MS) {
-                                continue;
-                            }
+                            if (at > now || now - at > DISK_MAX_AGE_MS) continue;
                             CACHE.put(name, new PlayerStats(s.get("level").getAsDouble(), s.get("secrets").getAsInt(),
                                     s.get("avg").getAsDouble(),
                                     s.get("pbNormal") instanceof JsonObject n ? n : null,
@@ -1013,9 +971,7 @@ public final class PartyFinderStatsApi {
     /** The stats the overlay shows, from a player's parsed profiles, or null for none. */
     static PlayerStats toStats(List<SbProfile> profiles, long now) {
         SbProfile chosen = SbProfile.dungeonProfile(profiles);
-        if (chosen == null) {
-            return null;
-        }
+        if (chosen == null) return null;
         long secrets = 0;
         long runs = 0;
         for (SbProfile p : profiles) {

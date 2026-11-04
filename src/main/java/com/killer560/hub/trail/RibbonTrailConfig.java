@@ -48,9 +48,7 @@ public final class RibbonTrailConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -81,109 +79,60 @@ public final class RibbonTrailConfig {
     }
 
     /** Gated by Skyblock Only like every other master toggle ({@link SkyblockGate}). */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     /** The raw saved toggle, ignoring {@link SkyblockGate}. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean v) {
         enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isShowInFirstPerson() {
-        return showInFirstPerson;
-    }
+    public boolean isShowInFirstPerson() { return showInFirstPerson; }
 
-    public void setShowInFirstPerson(boolean v) {
-        showInFirstPerson = v;
-    }
+    public void setShowInFirstPerson(boolean v) { showInFirstPerson = v; }
 
     /** How tall the band stands, in blocks. */
-    public float getRibbonHeight() {
-        return ribbonHeight;
-    }
+    public float getRibbonHeight() { return ribbonHeight; }
 
-    public void setRibbonHeight(float v) {
-        ribbonHeight = clampF(v, MIN_RIBBON_HEIGHT, MAX_RIBBON_HEIGHT);
-    }
+    public void setRibbonHeight(float v) { ribbonHeight = clampF(v, MIN_RIBBON_HEIGHT, MAX_RIBBON_HEIGHT); }
 
     /** How long (seconds) a point of the ribbon lasts - so also how long it takes to shrink away when standing still. */
-    public float getRibbonSeconds() {
-        return ribbonSeconds;
-    }
+    public float getRibbonSeconds() { return ribbonSeconds; }
 
-    public void setRibbonSeconds(float v) {
-        ribbonSeconds = clampF(v, MIN_RIBBON_SECONDS, MAX_RIBBON_SECONDS);
-    }
+    public void setRibbonSeconds(float v) { ribbonSeconds = clampF(v, MIN_RIBBON_SECONDS, MAX_RIBBON_SECONDS); }
 
-    public int getOpacityPercent() {
-        return opacityPercent;
-    }
+    public int getOpacityPercent() { return opacityPercent; }
 
-    public void setOpacityPercent(int v) {
-        opacityPercent = Math.max(MIN_OPACITY_PERCENT, Math.min(MAX_OPACITY_PERCENT, v));
-    }
+    public void setOpacityPercent(int v) { opacityPercent = Math.max(MIN_OPACITY_PERCENT, Math.min(MAX_OPACITY_PERCENT, v)); }
 
-    public ColorMode getColorMode() {
-        return colorMode;
-    }
+    public ColorMode getColorMode() { return colorMode; }
 
-    public void setColorMode(ColorMode v) {
-        colorMode = v == null ? ColorMode.GRADIENT : v;
-    }
+    public void setColorMode(ColorMode v) { colorMode = v == null ? ColorMode.GRADIENT : v; }
 
     /** 2 (head to tail) or 3 (head, middle, tail). */
-    public int getColorCount() {
-        return colorCount;
-    }
+    public int getColorCount() { return colorCount; }
 
-    public void setColorCount(int v) {
-        colorCount = Math.max(2, Math.min(3, v));
-    }
+    public void setColorCount(int v) { colorCount = Math.max(2, Math.min(3, v)); }
 
     /** What the ribbon does across a teleport (an etherwarp, an AOTV): a gap, a straight line or an arc. */
-    public TeleportMode getTeleportMode() {
-        return teleportMode;
-    }
+    public TeleportMode getTeleportMode() { return teleportMode; }
 
-    public void setTeleportMode(TeleportMode v) {
-        teleportMode = v == null ? TeleportMode.CONNECT : v;
-    }
+    public void setTeleportMode(TeleportMode v) { teleportMode = v == null ? TeleportMode.CONNECT : v; }
 
-    public int getHeadColor() {
-        return headColor;
-    }
+    public int getHeadColor() { return headColor; }
 
-    public void setHeadColor(int argb) {
-        headColor = argb;
-    }
+    public void setHeadColor(int argb) { headColor = argb; }
 
-    public int getMidColor() {
-        return midColor;
-    }
+    public int getMidColor() { return midColor; }
 
-    public void setMidColor(int argb) {
-        midColor = argb;
-    }
+    public void setMidColor(int argb) { midColor = argb; }
 
-    public int getTailColor() {
-        return tailColor;
-    }
+    public int getTailColor() { return tailColor; }
 
-    public void setTailColor(int argb) {
-        tailColor = argb;
-    }
+    public void setTailColor(int argb) { tailColor = argb; }
 
-    private static float clampF(float v, float min, float max) {
-        if (Float.isNaN(v)) {
-            return min;
-        }
-        return Math.max(min, Math.min(max, v));
-    }
+    private static float clampF(float v, float min, float max) { return Float.isNaN(v) ? min : Math.max(min, Math.min(max, v)); }
 
     private static <E extends Enum<E>> E enumOr(JsonObject obj, String key, Class<E> type, E fallback) {
         try {
@@ -236,9 +185,7 @@ public final class RibbonTrailConfig {
      * this file does not exist yet, and leaves the Ribbon Trail off - nothing visible changes.
      */
     static void migrateFrom(JsonObject old, boolean wasRibbon, boolean trailWasOn) {
-        if (!wasRibbon && Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!wasRibbon && Files.exists(CONFIG_PATH)) return;
         RibbonTrailConfig cfg = new RibbonTrailConfig();
         cfg.read(old, "ribbonWidth");
         cfg.enabled = wasRibbon && trailWasOn;

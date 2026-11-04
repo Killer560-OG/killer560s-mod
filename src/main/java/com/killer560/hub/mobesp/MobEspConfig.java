@@ -223,14 +223,10 @@ public final class MobEspConfig {
 
     /** Pulls the old Cheat Utils Wither ESP enabled flag, if that file still has it. */
     private static boolean migrateWitherEsp(MobEspConfig cfg) {
-        if (!Files.exists(OLD_CHEATUTILS_PATH)) {
-            return false;
-        }
+        if (!Files.exists(OLD_CHEATUTILS_PATH)) return false;
         try {
             JsonObject o = JsonParser.parseString(Files.readString(OLD_CHEATUTILS_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (!o.has("witherEspEnabled")) {
-                return false;
-            }
+            if (!o.has("witherEspEnabled")) return false;
             cfg.withers = ConfigJson.getBool(o, "witherEspEnabled", false);
             return true;
         } catch (Exception e) {
@@ -281,9 +277,7 @@ public final class MobEspConfig {
         }
     }
 
-    private static boolean cheat() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
-    }
+    private static boolean cheat() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED; }
 
     // ---- Targets (gated getters for the feature, raw getters for the tab's toggle labels) ----
     public boolean isStarredMobsEnabled() { return starredMobs && com.killer560.hub.util.SkyblockGate.allows(); }
@@ -331,7 +325,6 @@ public final class MobEspConfig {
     public boolean getWitherHighlightRaw() { return witherHighlight; }
     public void setWitherHighlight(boolean v) { witherHighlight = v; }
 
-    // ---- Colors ----
     public int getStarredColor() { return starredColor; }
     public void setStarredColor(int v) { starredColor = v; }
     public int getBatColor() { return batColor; }
@@ -339,11 +332,8 @@ public final class MobEspConfig {
     public int getWitherHighlightColor() { return witherHighlightColor; }
     public void setWitherHighlightColor(int v) { witherHighlightColor = v; }
 
-    // ---- Render ----
     public Style getStyle() { return style; }
-    public void cycleStyle() {
-        cycleStyle(1);
-    }
+    public void cycleStyle() { cycleStyle(1); }
 
     public void cycleStyle(int dir) {
         Style[] all = Style.values();
@@ -378,7 +368,5 @@ public final class MobEspConfig {
     public void setRoomScoped(boolean v) { roomScoped = v; }
 
     public double getRoomMargin() { return roomMargin; }
-    public void setRoomMargin(double v) {
-        roomMargin = Math.max(MIN_ROOM_MARGIN, Math.min(MAX_ROOM_MARGIN, Math.round(v)));
-    }
+    public void setRoomMargin(double v) { roomMargin = Math.max(MIN_ROOM_MARGIN, Math.min(MAX_ROOM_MARGIN, Math.round(v))); }
 }

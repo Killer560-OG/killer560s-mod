@@ -24,9 +24,7 @@ public final class ModOverlayMessage {
     /** @return the message to draw this frame, or null if nothing is currently showing. */
     public static String current() {
         String t = text;
-        if (t == null || System.currentTimeMillis() >= expiresAtMs) {
-            return null;
-        }
+        if (t == null || System.currentTimeMillis() >= expiresAtMs) return null;
         return t;
     }
 

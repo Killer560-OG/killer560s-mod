@@ -62,9 +62,7 @@ public final class FriendsListCommands {
      *  chat would need quoting rules the brief never specifies). */
     private static int customSubcommand(String args) {
         String trimmed = args == null ? "" : args.trim();
-        if (trimmed.isEmpty()) {
-            return openCustomScreen();
-        }
+        if (trimmed.isEmpty()) return openCustomScreen();
         String[] parts = trimmed.split("\\s+", 2);
         String sub = parts[0].toLowerCase(Locale.US);
         String name = parts.length > 1 ? parts[1].trim() : "";
@@ -94,13 +92,9 @@ public final class FriendsListCommands {
     /** Sends the real {@code /f add <name>} - see {@link FriendsListSync}'s doc for why this no longer
      *  resolves a UUID or touches {@link FriendsListConfig} directly at all: Hypixel itself validates the
      *  name, and the list only ever updates from a real {@code /fl} re-sync afterward. */
-    private static int addByName(String name) {
-        return FriendsListSync.requestAdd(name) ? 1 : 0;
-    }
+    private static int addByName(String name) { return FriendsListSync.requestAdd(name) ? 1 : 0; }
 
-    private static int removeByName(String name) {
-        return FriendsListSync.requestRemove(name) ? 1 : 0;
-    }
+    private static int removeByName(String name) { return FriendsListSync.requestRemove(name) ? 1 : 0; }
 
     private static int openCustomScreen() {
         Minecraft client = Minecraft.getInstance();
@@ -112,9 +106,7 @@ public final class FriendsListCommands {
 
     private static int forwardToHypixel(String args) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.player.connection == null) {
-            return 0;
-        }
+        if (client.player == null || client.player.connection == null) return 0;
         String trimmed = args == null ? "" : args.trim();
         // BELOW the client dispatcher - see ServerCommands. sendCommand is the method Fabric's command API hooks,
         // so forwarding "fl" from the /fl handler fed it straight back to itself until the stack ran out. This is

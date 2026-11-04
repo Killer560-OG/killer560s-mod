@@ -84,9 +84,7 @@ public final class SimClass {
         wasAttacking = attacking;
         redrawLingeringBeam(client);
         SimTerminator.tick();
-        if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) {
-            return;
-        }
+        if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) return;
         // THE TERMINATOR FIRES ON LEFT CLICK TOO, and the beam must not also go off.
         //
         // killer560 (2026-09-30): "it needs to function like a shortbow. So on left or right click it shoots
@@ -103,9 +101,7 @@ public final class SimClass {
         // And not immediately after an ability. killer560 (2026-09-30): "Dont make hyperion left click when i
         // teleport as well." A right-click ability makes the client swing, which reads here as a left click
         // and fired the beam on every teleport.
-        if (SimAbilities.usedAbilityRecently()) {
-            return;
-        }
+        if (SimAbilities.usedAbilityRecently()) return;
         lastBeamTick = tickCounter;
         fire(client);
     }
@@ -124,9 +120,7 @@ public final class SimClass {
      * rest.
      */
     private static void redrawLingeringBeam(Minecraft client) {
-        if (lingerTicks <= 0 || lingerFrom == null || lingerTo == null || client.level == null) {
-            return;
-        }
+        if (lingerTicks <= 0 || lingerFrom == null || lingerTo == null || client.level == null) return;
         lingerTicks--;
         drawBeam(client, lingerFrom, lingerTo);
     }
@@ -154,9 +148,7 @@ public final class SimClass {
     private static void drawBeam(Minecraft client, Vec3 from, Vec3 to) {
         Vec3 delta = to.subtract(from);
         double length = delta.length();
-        if (length < 0.01) {
-            return;
-        }
+        if (length < 0.01) return;
         Vec3 dir = delta.scale(1.0 / length);
         for (double d = BEAM_PARTICLE_START; d < length; d += BEAM_PARTICLE_SPACING) {
             Vec3 at = from.add(dir.scale(d));
@@ -203,9 +195,7 @@ public final class SimClass {
                 e -> e instanceof LivingEntity && e.isAlive() && e != player)) {
             AABB box = e.getBoundingBox().inflate(BEAM_RADIUS * 0.5);
             var hit = box.clip(eye, stop);
-            if (hit.isEmpty()) {
-                continue;
-            }
+            if (hit.isEmpty()) continue;
             double d = eye.distanceToSqr(hit.get());
             if (d < nearestDist) {
                 nearestDist = d;
@@ -233,17 +223,13 @@ public final class SimClass {
             return;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         java.util.UUID id = nearest.getUUID();
         java.util.UUID shooter = player.getUUID();
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var sp = server.getPlayerList().getPlayer(shooter);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             if (level.getEntity(id) instanceof LivingEntity living && living.isAlive()) {
                 // playerAttack, NOT magic(). A sim mob has 1 HP, so SimMobs blocks every damage source with no
                 // entity behind it - otherwise a practice target suffocates on the ceiling before he reaches

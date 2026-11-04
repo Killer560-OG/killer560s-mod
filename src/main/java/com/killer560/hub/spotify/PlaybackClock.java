@@ -50,13 +50,9 @@ final class PlaybackClock {
         }
     }
 
-    boolean running() {
-        return playingSinceMs >= 0;
-    }
+    boolean running() { return playingSinceMs >= 0; }
 
-    long elapsedMs(long nowMs) {
-        return playedMs + (playingSinceMs < 0 ? 0 : Math.max(0, nowMs - playingSinceMs));
-    }
+    long elapsedMs(long nowMs) { return playedMs + (playingSinceMs < 0 ? 0 : Math.max(0, nowMs - playingSinceMs)); }
 
     /**
      * Believes Spotify's position {@code realMs} when it differs from the clock by more than {@link #JUMP_MS}.
@@ -65,9 +61,7 @@ final class PlaybackClock {
      */
     boolean follow(long realMs, long nowMs) {
         long diff = realMs - elapsedMs(nowMs);
-        if (Math.abs(diff) <= JUMP_MS) {
-            return false;
-        }
+        if (Math.abs(diff) <= JUMP_MS) return false;
         playedMs = Math.max(0, realMs);
         if (playingSinceMs >= 0) {
             playingSinceMs = nowMs;
@@ -84,12 +78,8 @@ final class PlaybackClock {
     }
 
     /** The two parts the HUD's {@link LyricsEngine.Snapshot} carries: time played before {@link #sinceMs()}. */
-    long playedMs() {
-        return playedMs;
-    }
+    long playedMs() { return playedMs; }
 
     /** Wall time playback last resumed, or 0 while paused (the Snapshot's convention). */
-    long sinceMs() {
-        return playingSinceMs < 0 ? 0 : playingSinceMs;
-    }
+    long sinceMs() { return playingSinceMs < 0 ? 0 : playingSinceMs; }
 }

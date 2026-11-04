@@ -53,9 +53,7 @@ public final class SimSidebar {
      * does. {@code ScoreboardData.lineText} already drops an owner that is blank once formatting is stripped,
      * so the Custom Scoreboard and every sidebar reader see the prefix alone.
      */
-    private static String holder(int i) {
-        return "\u00a7" + "0123456789abcdef".charAt(i & 15) + "\u00a7r";
-    }
+    private static String holder(int i) { return "\u00a7" + "0123456789abcdef".charAt(i & 15) + "\u00a7r"; }
 
     /** Top line of the sidebar and the tab list header. */
     public static final String INFO_TITLE = "killer560's personal testing sim";
@@ -99,22 +97,16 @@ public final class SimSidebar {
      * server that sends none of its own.
      */
     public static void clearTabInfo(Minecraft client) {
-        if (client == null || client.gui == null) {
-            return;
-        }
+        if (client == null || client.gui == null) return;
         var tab = com.killer560.hub.compat.McCompat.tabList(client);
         tab.setHeader(null);
         tab.setFooter(null);
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         // Compose only when one of its three inputs changed (fps-sim-1015): building the seven lines every tick was
         // ~6 KB a tick for a sidebar that changes when a secret is found or he walks into another room.
         String floor = SimState.floorLabel();
@@ -132,9 +124,7 @@ public final class SimSidebar {
         inTotal = total;
         inRoom = room;
         List<String> lines = compose(floor, found, total, room);
-        if (lines.equals(lastLines)) {
-            return;
-        }
+        if (lines.equals(lastLines)) return;
         lastLines = lines;
         // On the server thread: the scoreboard belongs to the server, and touching it from the render thread
         // is the kind of cross-thread write that works until it does not.
@@ -173,9 +163,7 @@ public final class SimSidebar {
 
     private static void apply(MinecraftServer server, List<String> lines) {
         ServerLevel level = server.overworld();
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         Scoreboard board = server.getScoreboard();
         Objective objective = board.getObjective(OBJECTIVE);
         if (objective == null) {
@@ -221,7 +209,5 @@ public final class SimSidebar {
         built = true;
     }
 
-    public static boolean isBuilt() {
-        return built;
-    }
+    public static boolean isBuilt() { return built; }
 }

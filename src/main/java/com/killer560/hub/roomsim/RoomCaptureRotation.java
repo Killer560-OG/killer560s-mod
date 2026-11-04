@@ -111,14 +111,10 @@ public final class RoomCaptureRotation {
                           int[] votes) {
 
         /** {@code "0:a 90:b 180:c 270:d"} for the secret hits. */
-        public String secretScores() {
-            return perRotation(secretHits);
-        }
+        public String secretScores() { return perRotation(secretHits); }
 
         /** {@code "0:a 90:b 180:c 270:d"} for the weighed votes. */
-        public String voteScores() {
-            return perRotation(votes);
-        }
+        public String voteScores() { return perRotation(votes); }
 
         private static String perRotation(int[] values) {
             StringBuilder sb = new StringBuilder();
@@ -140,13 +136,9 @@ public final class RoomCaptureRotation {
 
     /** The full verdict for a capture, worked out once per library load. Null for a null room. */
     public static Verdict verdict(RoomLibrary.Room room) {
-        if (room == null) {
-            return null;
-        }
+        if (room == null) return null;
         Verdict cached = CACHE.get(room.name);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         Verdict v = derive(room);
         // Not cached until the room database is loaded: without it there are no secrets and no shapes to vote
         // with, and a verdict made from the roof alone called Market, Fairy and Mage uncertain in Ashfall
@@ -163,13 +155,9 @@ public final class RoomCaptureRotation {
      * <p>Same cache as {@link #of}, so this can never disagree with the rotation the sim published.
      */
     public static Verdict verdict(String roomName) {
-        if (roomName == null) {
-            return null;
-        }
+        if (roomName == null) return null;
         Verdict cached = CACHE.get(roomName);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         return verdict(RoomLibrary.get(roomName));
     }
 
@@ -188,14 +176,10 @@ public final class RoomCaptureRotation {
     }
 
     /** For Auto Routes' recording warning: the same answer as {@link #isUncertain(String)}. */
-    public static boolean uncertainForRecording(RoomLibrary.Room room) {
-        return room != null && isUncertain(room.name);
-    }
+    public static boolean uncertainForRecording(RoomLibrary.Room room) { return room != null && isUncertain(room.name); }
 
     /** Forget everything - for a room library reload, and for tests that rewrite captures. */
-    public static void clearCache() {
-        CACHE.clear();
-    }
+    public static void clearCache() { CACHE.clear(); }
 
     private static Verdict derive(RoomLibrary.Room room) {
         RoomEntry entry = RoomDatabase.lookupByName(room.name);
@@ -372,9 +356,7 @@ public final class RoomCaptureRotation {
      * @return how many secrets sit in the captured y band and so could be checked at all
      */
     private static int secretHits(RoomLibrary.Room room, RoomEntry entry, int[] hits) {
-        if (entry == null || entry.secretCoords == null) {
-            return 0;
-        }
+        if (entry == null || entry.secretCoords == null) return 0;
         int tested = 0;
         tested += score(room, entry.secretCoords.chest, false, hits);
         tested += score(room, entry.secretCoords.wither, true, hits);
@@ -383,9 +365,7 @@ public final class RoomCaptureRotation {
     }
 
     private static int score(RoomLibrary.Room room, List<RoomEntry.Pos> list, boolean head, int[] hits) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int tested = 0;
         for (RoomEntry.Pos p : list) {
             if (p.y < room.minY || p.y > room.maxY) {
@@ -422,16 +402,12 @@ public final class RoomCaptureRotation {
         for (int degrees = 0; degrees < 360; degrees += 90) {
             for (int sx = -1; sx <= 1; sx++) {
                 for (int sz = -1; sz <= 1; sz++) {
-                    if (sx == 0 && sz == 0) {
-                        continue;
-                    }
+                    if (sx == 0 && sz == 0) continue;
                     int landed = 0;
                     for (int pass = 0; pass < 3; pass++) {
                         List<RoomEntry.Pos> list = pass == 0 ? entry.secretCoords.chest
                                 : pass == 1 ? entry.secretCoords.wither : entry.secretCoords.redstoneKey;
-                        if (list == null) {
-                            continue;
-                        }
+                        if (list == null) continue;
                         for (RoomEntry.Pos p : list) {
                             int frameX = (degrees == 90 || degrees == 270) ? room.sizeZ : room.sizeX;
                             int frameZ = (degrees == 90 || degrees == 270) ? room.sizeX : room.sizeZ;
@@ -450,9 +426,7 @@ public final class RoomCaptureRotation {
                 }
             }
         }
-        if (where == null) {
-            return null;
-        }
+        if (where == null) return null;
         return "no secret lands at any rotation, but " + best + " land " + where + " - the capture looks anchored a "
                 + "tile off, holding one tile of this room and one of a neighbor; re-capture it";
     }
@@ -476,9 +450,7 @@ public final class RoomCaptureRotation {
         int[][] corners = corners(room);
         int roof = roofLine(room, corners);
         List<Integer> hits = new ArrayList<>(4);
-        if (roof == Integer.MIN_VALUE) {
-            return hits;
-        }
+        if (roof == Integer.MIN_VALUE) return hits;
         for (int i = 0; i < 4; i++) {
             String block = blockAt(room, corners[i][0], roof, corners[i][1]);
             if (block != null && block.startsWith("minecraft:blue_terracotta")) {
@@ -500,16 +472,12 @@ public final class RoomCaptureRotation {
         for (int i = 0; i < 4; i++) {
             for (int y = room.maxY; y >= room.minY; y--) {
                 String block = blockAt(room, corners[i][0], y, corners[i][1]);
-                if (block == null) {
-                    continue;
-                }
+                if (block == null) continue;
                 if (block.startsWith("minecraft:lapis_block")) {
                     out.add((i * 90 + 180) % 360);
                     break;
                 }
-                if (block.startsWith("minecraft:redstone_block") || block.startsWith("minecraft:blue_terracotta")) {
-                    break;
-                }
+                if (block.startsWith("minecraft:redstone_block") || block.startsWith("minecraft:blue_terracotta")) break;
             }
         }
         return out;
@@ -538,9 +506,7 @@ public final class RoomCaptureRotation {
         for (int y = room.maxY; y >= room.minY; y--) {
             for (int[] c : corners) {
                 String block = blockAt(room, c[0], y, c[1]);
-                if (block != null && block.startsWith("minecraft:blue_terracotta")) {
-                    return y;
-                }
+                if (block != null && block.startsWith("minecraft:blue_terracotta")) return y;
             }
         }
         return Integer.MIN_VALUE;
@@ -553,24 +519,16 @@ public final class RoomCaptureRotation {
             return null;
         }
         short id = room.blockAt(room.index(x, y, z));
-        if (id < 0 || id >= room.palette.size()) {
-            return null;
-        }
+        if (id < 0 || id >= room.palette.size()) return null;
         return room.palette.get(id);
     }
 
-    private static List<Integer> allFour() {
-        return new ArrayList<>(List.of(0, 90, 180, 270));
-    }
+    private static List<Integer> allFour() { return new ArrayList<>(List.of(0, 90, 180, 270)); }
 
-    private static String perRotation(int[] values) {
-        return Verdict.perRotation(values);
-    }
+    private static String perRotation(int[] values) { return Verdict.perRotation(values); }
 
     /** Tiles across, from a captured size - 33 is one tile, 65 two, 129 four. */
-    private static int tiles(int size) {
-        return (size - 1) / (RoomLibrary.TILE + 1);
-    }
+    private static int tiles(int size) { return (size - 1) / (RoomLibrary.TILE + 1); }
 
     /**
      * How far the database's secrets reach from the room's corner, as {@code {maxX, maxZ}}, or null.
@@ -579,9 +537,7 @@ public final class RoomCaptureRotation {
      * frame, and a bat or an item marks that out as well as a chest does. Y is irrelevant here.
      */
     private static int[] secretSpan(RoomEntry entry) {
-        if (entry == null || entry.secretCoords == null) {
-            return null;
-        }
+        if (entry == null || entry.secretCoords == null) return null;
         int maxX = -1;
         int maxZ = -1;
         for (List<RoomEntry.Pos> list : List.of(
@@ -596,9 +552,7 @@ public final class RoomCaptureRotation {
         return maxX < 0 ? null : new int[]{maxX, maxZ};
     }
 
-    private static List<RoomEntry.Pos> nullToEmpty(List<RoomEntry.Pos> list) {
-        return list == null ? List.of() : list;
-    }
+    private static List<RoomEntry.Pos> nullToEmpty(List<RoomEntry.Pos> list) { return list == null ? List.of() : list; }
 
     /**
      * Whether the database's secrets still land inside the capture once turned by {@code degrees}.

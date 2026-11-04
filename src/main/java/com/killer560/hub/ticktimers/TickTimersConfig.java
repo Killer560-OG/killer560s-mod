@@ -168,9 +168,7 @@ public final class TickTimersConfig {
      *  @return true if the old file existed and was read (the caller then persists the result immediately). */
     private boolean migrateFromGoldorFrenzy() {
         JsonObject o = read(OLD_GOLDOR_FRENZY_PATH);
-        if (o == null) {
-            return false;
-        }
+        if (o == null) return false;
         boolean oldEnabled = ConfigJson.getBool(o, "enabled", false);
         enabled = enabled || oldEnabled;
         goldorTimer = goldorTimer || oldEnabled;
@@ -203,9 +201,7 @@ public final class TickTimersConfig {
      *  @return true if the old file existed and was read (the caller then persists the result immediately). */
     private boolean migrateFromF7SpotsCrush() {
         JsonObject o = read(OLD_F7SPOTS_PATH);
-        if (o == null) {
-            return false;
-        }
+        if (o == null) return false;
         // Since 2026-11-02 only the pad outlines and the pad line (now part of the Storm line) are carried over.
         crushPadHighlight = ConfigJson.getBool(o, "crushPadHighlight", crushPadHighlight);
         crushAllPads = ConfigJson.getBool(o, "crushAllPads", crushAllPads);
@@ -218,9 +214,7 @@ public final class TickTimersConfig {
 
     private static JsonObject read(Path path) {
         try {
-            if (!Files.exists(path)) {
-                return null;
-            }
+            if (!Files.exists(path)) return null;
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
             LOGGER.warn("[TickTimers] Failed to read {}, skipping migration", path.getFileName(), e);
@@ -228,9 +222,7 @@ public final class TickTimersConfig {
         }
     }
 
-    private static boolean getBool(JsonObject obj, String key, boolean def) {
-        return ConfigJson.getBool(obj, key, def);
-    }
+    private static boolean getBool(JsonObject obj, String key, boolean def) { return ConfigJson.getBool(obj, key, def); }
 
     public void save() {
         try {
@@ -257,119 +249,63 @@ public final class TickTimersConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isDisplayInTicks() {
-        return displayInTicks;
-    }
+    public boolean isDisplayInTicks() { return displayInTicks; }
 
-    public void setDisplayInTicks(boolean displayInTicks) {
-        this.displayInTicks = displayInTicks;
-    }
+    public void setDisplayInTicks(boolean displayInTicks) { this.displayInTicks = displayInTicks; }
 
-    public boolean isShowSymbol() {
-        return showSymbol;
-    }
+    public boolean isShowSymbol() { return showSymbol; }
 
-    public void setShowSymbol(boolean showSymbol) {
-        this.showSymbol = showSymbol;
-    }
+    public void setShowSymbol(boolean showSymbol) { this.showSymbol = showSymbol; }
 
-    public boolean isShowPrefix() {
-        return showPrefix;
-    }
+    public boolean isShowPrefix() { return showPrefix; }
 
-    public void setShowPrefix(boolean showPrefix) {
-        this.showPrefix = showPrefix;
-    }
+    public void setShowPrefix(boolean showPrefix) { this.showPrefix = showPrefix; }
 
-    public boolean isNecronTimer() {
-        return necronTimer;
-    }
+    public boolean isNecronTimer() { return necronTimer; }
 
-    public void setNecronTimer(boolean necronTimer) {
-        this.necronTimer = necronTimer;
-    }
+    public void setNecronTimer(boolean necronTimer) { this.necronTimer = necronTimer; }
 
-    public boolean isGoldorTimer() {
-        return goldorTimer;
-    }
+    public boolean isGoldorTimer() { return goldorTimer; }
 
-    public void setGoldorTimer(boolean goldorTimer) {
-        this.goldorTimer = goldorTimer;
-    }
+    public void setGoldorTimer(boolean goldorTimer) { this.goldorTimer = goldorTimer; }
 
-    public boolean isGoldorStartTimer() {
-        return goldorStartTimer;
-    }
+    public boolean isGoldorStartTimer() { return goldorStartTimer; }
 
-    public void setGoldorStartTimer(boolean goldorStartTimer) {
-        this.goldorStartTimer = goldorStartTimer;
-    }
+    public void setGoldorStartTimer(boolean goldorStartTimer) { this.goldorStartTimer = goldorStartTimer; }
 
     /** The HUD box's center x in baseline GUI pixels, or -1 when never set. */
-    public int getHudCenterX() {
-        return hudCenterX;
-    }
+    public int getHudCenterX() { return hudCenterX; }
 
-    public void setHudCenterX(int x) {
-        this.hudCenterX = x;
-    }
+    public void setHudCenterX(int x) { this.hudCenterX = x; }
 
     /** Storm's one line: lightning, then the purple pad, then the yellow pad ({@link StormLine}). */
-    public boolean isStormLine() {
-        return stormLine;
-    }
+    public boolean isStormLine() { return stormLine; }
 
-    public void setStormLine(boolean stormLine) {
-        this.stormLine = stormLine;
-    }
+    public void setStormLine(boolean stormLine) { this.stormLine = stormLine; }
 
-    public boolean isGoldorShowTotal() {
-        return goldorShowTotal;
-    }
+    public boolean isGoldorShowTotal() { return goldorShowTotal; }
 
-    public void setGoldorShowTotal(boolean goldorShowTotal) {
-        this.goldorShowTotal = goldorShowTotal;
-    }
+    public void setGoldorShowTotal(boolean goldorShowTotal) { this.goldorShowTotal = goldorShowTotal; }
 
-    public boolean isMaxorStartTimer() {
-        return maxorStartTimer;
-    }
+    public boolean isMaxorStartTimer() { return maxorStartTimer; }
 
-    public void setMaxorStartTimer(boolean maxorStartTimer) {
-        this.maxorStartTimer = maxorStartTimer;
-    }
+    public void setMaxorStartTimer(boolean maxorStartTimer) { this.maxorStartTimer = maxorStartTimer; }
 
     // ---- Storm pads (F7/M7 P2) ----
-    public boolean isCrushPadHighlightEnabled() {
-        return crushPadHighlight;
-    }
+    public boolean isCrushPadHighlightEnabled() { return crushPadHighlight; }
 
-    public void setCrushPadHighlight(boolean crushPadHighlight) {
-        this.crushPadHighlight = crushPadHighlight;
-    }
+    public void setCrushPadHighlight(boolean crushPadHighlight) { this.crushPadHighlight = crushPadHighlight; }
 
-    public boolean isCrushAllPads() {
-        return crushAllPads;
-    }
+    public boolean isCrushAllPads() { return crushAllPads; }
 
-    public void setCrushAllPads(boolean crushAllPads) {
-        this.crushAllPads = crushAllPads;
-    }
+    public void setCrushAllPads(boolean crushAllPads) { this.crushAllPads = crushAllPads; }
 
-    public int getCrushPadColor() {
-        return crushPadColor;
-    }
+    public int getCrushPadColor() { return crushPadColor; }
 
-    public void setCrushPadColor(int crushPadColor) {
-        this.crushPadColor = crushPadColor;
-    }
+    public void setCrushPadColor(int crushPadColor) { this.crushPadColor = crushPadColor; }
 
 }

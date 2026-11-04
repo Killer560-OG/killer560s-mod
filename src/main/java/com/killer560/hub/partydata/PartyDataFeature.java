@@ -111,12 +111,8 @@ public final class PartyDataFeature {
             PartyRoomIntel.reset();
         }
         drainQueue();
-        if (!inDungeon || !(publishActive() || melodyPublishActive())) {
-            return;
-        }
-        if (++tickCounter < SCAN_TICKS) {
-            return;
-        }
+        if (!inDungeon || !(publishActive() || melodyPublishActive())) return;
+        if (++tickCounter < SCAN_TICKS) return;
         tickCounter = 0;
         noteDragonTransitions();
         publishSnapshot();
@@ -124,13 +120,9 @@ public final class PartyDataFeature {
 
     /** Everything publishing needs, besides "we found something new to say" - see the class doc. */
     private static boolean publishActive() {
-        if (!PartyDataConfig.getInstance().isShareEnabled()) {
-            return false;
-        }
+        if (!PartyDataConfig.getInstance().isShareEnabled()) return false;
         InteropConfig cfg = InteropConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isRelayData()) {
-            return false;
-        }
+        if (!cfg.isEnabled() || !cfg.isRelayData()) return false;
         return inPartyRoom();
     }
 
@@ -140,9 +132,7 @@ public final class PartyDataFeature {
         return com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress() && inPartyRoom();
     }
 
-    private static boolean inPartyRoom() {
-        return RelayClient.isConnected() && RelayClient.room().startsWith("party:");
-    }
+    private static boolean inPartyRoom() { return RelayClient.isConnected() && RelayClient.room().startsWith("party:"); }
 
     // ------------------------------------------------------------------ publish: what we know ourselves
 
@@ -203,9 +193,7 @@ public final class PartyDataFeature {
         }
         for (WitherDragon d : WitherDragon.values()) {
             WitherDragon.State state = d.state();
-            if (state != WitherDragon.State.SPAWNING && state != WitherDragon.State.ALIVE) {
-                continue;
-            }
+            if (state != WitherDragon.State.SPAWNING && state != WitherDragon.State.ALIVE) continue;
             String colour = d.colourName.toLowerCase(java.util.Locale.ROOT);
             String event = state == WitherDragon.State.SPAWNING ? "spawning" : "alive";
             // timesSpawned only ticks up on ALIVE (WitherDragonsFeature), so ids run "spawning:n", "alive:n+1",
@@ -217,26 +205,18 @@ public final class PartyDataFeature {
         DungeonLayout layout = DungeonLayout.current();
         for (int room = 0; room < layout.roomCount(); room++) {
             String name = layout.name(room);
-            if (name == null || name.isBlank() || "Unknown".equals(name)) {
-                continue;
-            }
+            if (name == null || name.isBlank() || "Unknown".equals(name)) continue;
             int col = Math.round(layout.labelGX(room));
             int row = Math.round(layout.labelGZ(room));
-            if (col < 0 || col >= DungeonLayout.GRID || row < 0 || row >= DungeonLayout.GRID) {
-                continue;
-            }
+            if (col < 0 || col >= DungeonLayout.GRID || row < 0 || row >= DungeonLayout.GRID) continue;
             BlockPos centre = DungeonLayout.cellCenter(row * DungeonLayout.GRID + col);
             out.add(new SelfFact(KEY_ROOM, "room:" + room + ":" + name,
                     PartyDataProtocol.roomPayload(name, centre.getX(), centre.getZ(), col, row)));
         }
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-            if (!layout.isDoor(idx)) {
-                continue;
-            }
+            if (!layout.isDoor(idx)) continue;
             String type = PartyDataProtocol.doorTypeWireName(layout.doorType(idx));
-            if (type == null) {
-                continue;
-            }
+            if (type == null) continue;
             BlockPos pos = DungeonLayout.doorBlock(idx);
             out.add(new SelfFact(KEY_DOOR, "door:" + idx,
                     PartyDataProtocol.doorPayload(pos.getX(), pos.getZ(), idx % DungeonLayout.GRID,
@@ -287,9 +267,7 @@ public final class PartyDataFeature {
                 continue;
             }
             String json = fact.payload().toString();
-            if (json.equals(SENT.get(fact.id()))) {
-                continue;
-            }
+            if (json.equals(SENT.get(fact.id()))) continue;
             if (enqueue(fact.key(), fact.payload())) {
                 SENT.put(fact.id(), json);
             }
@@ -303,9 +281,7 @@ public final class PartyDataFeature {
         for (WitherDragon d : WitherDragon.values()) {
             WitherDragon.State state = d.state();
             WitherDragon.State last = LAST_DRAGON_STATE.get(d);
-            if (state == last) {
-                continue;
-            }
+            if (state == last) continue;
             LAST_DRAGON_STATE.put(d, state); // track DEAD too, so the next SPAWNING is still an edge
             if (state == WitherDragon.State.SPAWNING || state == WitherDragon.State.ALIVE) {
                 // Never called anywhere before this feature - see the class doc's dragon bullet.
@@ -320,9 +296,7 @@ public final class PartyDataFeature {
     /** @return true if the packet was queued (i.e. will be sent) - callers only mark a fact "sent" once this
      *  returns true, so a full queue does not silently drop a dedupe entry for a fact that never went out. */
     private static boolean enqueue(String key, JsonObject payload) {
-        if (QUEUE.size() >= MAX_QUEUE) {
-            return false;
-        }
+        if (QUEUE.size() >= MAX_QUEUE) return false;
         JsonObject packet = new JsonObject();
         packet.addProperty("key", key);
         packet.add("payload", payload);
@@ -331,9 +305,7 @@ public final class PartyDataFeature {
     }
 
     private static void drainQueue() {
-        if (QUEUE.isEmpty()) {
-            return;
-        }
+        if (QUEUE.isEmpty()) return;
         refillTokens();
         while (!QUEUE.isEmpty() && tokens >= 1.0) {
             boolean all = publishActive();
@@ -370,14 +342,11 @@ public final class PartyDataFeature {
         tokens = Math.min(8.0, tokens + elapsedSec * 2.0); // 2/sec refill, well under the relay's 4/sec
     }
 
-    // ------------------------------------------------------------------ consume
 
     private static final class Listener implements RelayListener {
         @Override
         public void onData(String from, String key, JsonElement value) {
-            if (key == null || from == null || from.isBlank()) {
-                return;
-            }
+            if (key == null || from == null || from.isBlank()) return;
             Minecraft.getInstance().execute(() -> handleData(from, key, value));
         }
     }
@@ -386,22 +355,16 @@ public final class PartyDataFeature {
         InteropConfig cfg = InteropConfig.getInstance();
         // Team Melody is received whatever the relay data switches say, like it is sent (2026-11-01).
         boolean melody = PartyDataProtocol.KEY_MELODY.equals(key);
-        if ((!melody && (!cfg.isEnabled() || !cfg.isRelayData())) || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if ((!melody && (!cfg.isEnabled() || !cfg.isRelayData())) || !DungeonState.isInDungeon()) return;
         // The relay only ever delivers a packet to sockets already in the room it broadcasts to, so being
         // here already proves the sender shares our room - this is a second, cheap check that the room
         // itself is a party (never a lobby-wide) one, per the class doc.
-        if (!inPartyRoom()) {
-            return;
-        }
+        if (!inPartyRoom()) return;
         // The party room is a hash of the members' public names, so anyone who knows them can join it (security
         // audit 2026-10-24). The relay's verified sender must also be on HIS team as this client knows it (Hypixel's
         // party list or the dungeon tab list), or the packet is dropped. The relay's own "online" list is not used:
         // it lists whoever joined the room, an intruder included.
-        if (!com.killer560.hub.partycommands.PartyCommandsFeature.isTeammate(from)) {
-            return;
-        }
+        if (!com.killer560.hub.partycommands.PartyCommandsFeature.isTeammate(from)) return;
         switch (key) {
             case PartyDataProtocol.KEY_FLAG -> {
                 PartyInteropState.Flag flag = PartyDataProtocol.readFlag(value);

@@ -76,9 +76,7 @@ public final class RelicHelpersFeature {
     }
 
     public static void register() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return;
         RelicHelpersConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("RelicHelpersFeature.tick", RelicHelpersFeature::tick));
         LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(
@@ -87,20 +85,11 @@ public final class RelicHelpersFeature {
     }
 
     /** Clicks sent by the triggerbot (ever) - read by the testkit. */
-    public static int clicksSent() {
-        return clicksSent;
-    }
+    public static int clicksSent() { return clicksSent; }
 
     /** Look approaches begun (ever) - read by the testkit. */
-    public static int looksStarted() {
-        return looksStarted;
-    }
+    public static int looksStarted() { return looksStarted; }
 
-    public static boolean isLooking() {
-        return looking;
-    }
-
-    // ------------------------------------------------------------------------------------------- tick
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -130,24 +119,17 @@ public final class RelicHelpersFeature {
 
     /** M7 (or p3sim) Phase 5: {@link P5State#inP5} on floor 7 - F7 has no relics. */
     static boolean inRelicPhase(Minecraft client) {
-        if (!P5State.inP5()) {
-            return false;
-        }
+        if (!P5State.inP5()) return false;
         return P5State.isP3Sim(client) || DungeonState.isSimOverrideActive() || !"F7".equals(DungeonState.getFloor())
                 && DungeonState.isF7OrM7();
     }
 
-    // ------------------------------------------------------------------------------------------- triggerbot
 
     private static void tickTrigger(Minecraft client, LocalPlayer player, RelicHelpersConfig cfg, KingRelic held) {
         long now = ActionGate.currentTick();
-        if (now - lastClickTick < ActionGate.delayTicks(cfg.getCooldownMs())) {
-            return;
-        }
+        if (now - lastClickTick < ActionGate.delayTicks(cfg.getCooldownMs())) return;
         float[] heard = RightClick.heardLook();
-        if (heard == null) {
-            return;
-        }
+        if (heard == null) return;
         Vec3 eye = player.getEyePosition();
         Vec3 heardLook = Vec3.directionFromRotation(heard[1], heard[0]);
         HitResult crosshair = client.hitResult;
@@ -156,16 +138,12 @@ public final class RelicHelpersFeature {
                 && !recentlyClicked(stand.getId(), now)) {
             AABB box = stand.getBoundingBox();
             double reach = CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
-            if (BlockHits.boxDistanceSq(eye, box) > reach * reach) {
-                return;
-            }
+            if (BlockHits.boxDistanceSq(eye, box) > reach * reach) return;
             Optional<Vec3> point = box.clip(eye, eye.add(heardLook.scale(reach)));
             if (point.isEmpty()) {
                 return; // the server's look does not meet it yet: the movement packet carries the turn first
             }
-            if (!ActionGate.tryAct(ActionGate.Actor.RELIC)) {
-                return;
-            }
+            if (!ActionGate.tryAct(ActionGate.Actor.RELIC)) return;
             client.gameMode.interact(player, stand, new EntityHitResult(stand, point.get()), InteractionHand.MAIN_HAND);
             com.killer560.hub.compat.McCompat.swingUse(player);
             clickedStands.put(stand.getId(), now);
@@ -179,14 +157,10 @@ public final class RelicHelpersFeature {
                 && bh.getBlockPos().equals(held.cauldronPos)) {
             BlockPos pos = held.cauldronPos;
             double reach = CheatUtilsConfig.MEASURED_MAX_REACH;
-            if (BlockHits.boxDistanceSq(eye, pos) > reach * reach) {
-                return;
-            }
+            if (BlockHits.boxDistanceSq(eye, pos) > reach * reach) return;
             BlockHitResult srv = client.level.clip(new ClipContext(eye, eye.add(heardLook.scale(reach)), ClipContext.Block.OUTLINE,
                     ClipContext.Fluid.NONE, player));
-            if (srv.getType() != HitResult.Type.BLOCK || !srv.getBlockPos().equals(pos)) {
-                return;
-            }
+            if (srv.getType() != HitResult.Type.BLOCK || !srv.getBlockPos().equals(pos)) return;
             if (cfg.isSwapToRelic()) {
                 int slot = hotbarSlotOf(player, held);
                 if (slot >= 0 && player.getInventory().getSelectedSlot() != slot) {
@@ -194,13 +168,9 @@ public final class RelicHelpersFeature {
                     swappedTick = now;
                     return; // click next tick, after the server has the held item
                 }
-                if (now == swappedTick) {
-                    return;
-                }
+                if (now == swappedTick) return;
             }
-            if (!ActionGate.tryAct(ActionGate.Actor.RELIC)) {
-                return;
-            }
+            if (!ActionGate.tryAct(ActionGate.Actor.RELIC)) return;
             client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, srv);
             com.killer560.hub.compat.McCompat.swingUse(player);
             lastClickTick = now;
@@ -209,7 +179,6 @@ public final class RelicHelpersFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- look
 
     private static void tickLook(Minecraft client, LocalPlayer player, RelicHelpersConfig cfg, KingRelic held) {
         if (RouteExecutor.isRunning() || MimicKiller.isBusy() || com.killer560.hub.ap3.Ap3Executor.isRunning()) {
@@ -237,9 +206,7 @@ public final class RelicHelpersFeature {
             releasedTarget = null;
             return;
         }
-        if (target.equals(releasedTarget)) {
-            return;
-        }
+        if (target.equals(releasedTarget)) return;
         if (looking && RouteRotation.userMovedCamera(player)) {
             releasedTarget = target;
             stopLook("you moved the camera");
@@ -264,9 +231,7 @@ public final class RelicHelpersFeature {
     }
 
     private static void stopLook(String why) {
-        if (!looking) {
-            return;
-        }
+        if (!looking) return;
         looking = false;
         lookTarget = null;
         if (!RouteExecutor.isRunning() && !MimicKiller.isBusy() && !com.killer560.hub.ap3.Ap3Executor.isRunning()) {
@@ -282,7 +247,6 @@ public final class RelicHelpersFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static boolean recentlyClicked(int id, long now) {
         Long at = clickedStands.get(id);
@@ -292,9 +256,7 @@ public final class RelicHelpersFeature {
     /** The relic an armor stand wears on its head, or null. */
     static KingRelic relicOnStand(ArmorStand stand) {
         var head = stand.getItemBySlot(EquipmentSlot.HEAD);
-        if (head.isEmpty()) {
-            return null;
-        }
+        if (head.isEmpty()) return null;
         return KingRelic.fromStack(head);
     }
 
@@ -303,9 +265,7 @@ public final class RelicHelpersFeature {
         for (KingRelic r : KingRelic.values()) {
             double dx = stand.getX() - r.placedX;
             double dz = stand.getZ() - r.placedZ;
-            if (dx * dx + dz * dz < 1.5 * 1.5) {
-                return true;
-            }
+            if (dx * dx + dz * dz < 1.5 * 1.5) return true;
         }
         return false;
     }
@@ -332,18 +292,14 @@ public final class RelicHelpersFeature {
         var inv = player.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             KingRelic r = KingRelic.fromStack(inv.getItem(i));
-            if (r != null) {
-                return r;
-            }
+            if (r != null) return r;
         }
         return null;
     }
 
     private static int hotbarSlotOf(LocalPlayer player, KingRelic relic) {
         for (int i = 0; i < 9; i++) {
-            if (KingRelic.fromStack(player.getInventory().getItem(i)) == relic) {
-                return i;
-            }
+            if (KingRelic.fromStack(player.getInventory().getItem(i)) == relic) return i;
         }
         return -1;
     }

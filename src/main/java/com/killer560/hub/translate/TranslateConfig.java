@@ -61,17 +61,11 @@ public final class TranslateConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public String getTargetLanguageCode() {
-        return targetLanguageCode;
-    }
+    public String getTargetLanguageCode() { return targetLanguageCode; }
 
     public void setTargetLanguageCode(String targetLanguageCode) {
         this.targetLanguageCode = (targetLanguageCode == null) ? "" : targetLanguageCode;

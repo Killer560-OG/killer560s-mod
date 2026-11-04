@@ -110,72 +110,40 @@ public final class ZeroPingEtherwarpConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getTimeoutMs() {
-        return timeoutMs;
-    }
+    public int getTimeoutMs() { return timeoutMs; }
 
-    public void setTimeoutMs(int timeoutMs) {
-        this.timeoutMs = Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, timeoutMs));
-    }
+    public void setTimeoutMs(int timeoutMs) { this.timeoutMs = Math.max(MIN_TIMEOUT_MS, Math.min(MAX_TIMEOUT_MS, timeoutMs)); }
 
-    public boolean isChain() {
-        return chain;
-    }
+    public boolean isChain() { return chain; }
 
-    public void setChain(boolean chain) {
-        this.chain = chain;
-    }
+    public void setChain(boolean chain) { this.chain = chain; }
 
-    public boolean isOverlayFromPrediction() {
-        return overlayFromPrediction;
-    }
+    public boolean isOverlayFromPrediction() { return overlayFromPrediction; }
 
-    public void setOverlayFromPrediction(boolean overlayFromPrediction) {
-        this.overlayFromPrediction = overlayFromPrediction;
-    }
+    public void setOverlayFromPrediction(boolean overlayFromPrediction) { this.overlayFromPrediction = overlayFromPrediction; }
 
     /** The saved Warps Per Tick (1..{@link #MAX_WARPS_PER_TICK}), whatever the build (the tab and the testkit read this). */
-    public int getWarpsPerTick() {
-        return warpsPerTick;
-    }
+    public int getWarpsPerTick() { return warpsPerTick; }
 
-    public void setWarpsPerTick(int warpsPerTick) {
-        this.warpsPerTick = Math.max(1, Math.min(MAX_WARPS_PER_TICK, warpsPerTick));
-    }
+    public void setWarpsPerTick(int warpsPerTick) { this.warpsPerTick = Math.max(1, Math.min(MAX_WARPS_PER_TICK, warpsPerTick)); }
 
     /** The saved Aimed Warps switch, whatever the build. */
-    public boolean isAimedWarps() {
-        return aimedWarps;
-    }
+    public boolean isAimedWarps() { return aimedWarps; }
 
-    public void setAimedWarps(boolean aimedWarps) {
-        this.aimedWarps = aimedWarps;
-    }
+    public void setAimedWarps(boolean aimedWarps) { this.aimedWarps = aimedWarps; }
 
     /** The saved Multi Warps switch, whatever the build. */
-    public boolean isMultiWarps() {
-        return multiWarps;
-    }
+    public boolean isMultiWarps() { return multiWarps; }
 
-    public void setMultiWarps(boolean multiWarps) {
-        this.multiWarps = multiWarps;
-    }
+    public void setMultiWarps(boolean multiWarps) { this.multiWarps = multiWarps; }
 
-    public boolean isDungeonsOnly() {
-        return dungeonsOnly;
-    }
+    public boolean isDungeonsOnly() { return dungeonsOnly; }
 
-    public void setDungeonsOnly(boolean dungeonsOnly) {
-        this.dungeonsOnly = dungeonsOnly;
-    }
+    public void setDungeonsOnly(boolean dungeonsOnly) { this.dungeonsOnly = dungeonsOnly; }
 
     /** ZPEW's switch, and Dungeons Only: whether it predicts where the player is now. */
     public boolean isActiveHere() {
@@ -194,27 +162,17 @@ public final class ZeroPingEtherwarpConfig {
 
     /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */
     public boolean worksFor(ZpewSource source) {
-        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         return worksFor.get(source);
     }
 
     /** The saved switch, whatever the build (the tab and the testkit read this). */
-    public boolean getWorksForSetting(ZpewSource source) {
-        return worksFor.get(source);
-    }
+    public boolean getWorksForSetting(ZpewSource source) { return worksFor.get(source); }
 
-    public void setWorksFor(ZpewSource source, boolean on) {
-        worksFor.put(source, on);
-    }
+    public void setWorksFor(ZpewSource source, boolean on) { worksFor.put(source, on); }
 
     /** By name, for the testkit's reflection. */
-    public boolean getWorksForByName(String source) {
-        return getWorksForSetting(ZpewSource.valueOf(source));
-    }
+    public boolean getWorksForByName(String source) { return getWorksForSetting(ZpewSource.valueOf(source)); }
 
-    public void setWorksForByName(String source, boolean on) {
-        setWorksFor(ZpewSource.valueOf(source), on);
-    }
+    public void setWorksForByName(String source, boolean on) { setWorksFor(ZpewSource.valueOf(source), on); }
 }

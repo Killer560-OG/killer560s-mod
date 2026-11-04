@@ -31,13 +31,9 @@ public final class SlotBindsConfig {
             this.label = label;
         }
 
-        public OverlayMode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public OverlayMode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public OverlayMode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public OverlayMode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -111,41 +107,23 @@ public final class SlotBindsConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getBindKey() {
-        return bindKey;
-    }
+    public int getBindKey() { return bindKey; }
 
-    public void setBindKey(int bindKey) {
-        this.bindKey = bindKey;
-    }
+    public void setBindKey(int bindKey) { this.bindKey = bindKey; }
 
-    public Map<Integer, Integer> getBinds() {
-        return binds;
-    }
+    public Map<Integer, Integer> getBinds() { return binds; }
 
-    public OverlayMode getOverlayMode() {
-        return overlayMode;
-    }
+    public OverlayMode getOverlayMode() { return overlayMode; }
 
-    public void setOverlayMode(OverlayMode mode) {
-        this.overlayMode = mode == null ? OverlayMode.ALWAYS : mode;
-    }
+    public void setOverlayMode(OverlayMode mode) { this.overlayMode = mode == null ? OverlayMode.ALWAYS : mode; }
 
-    public int getOverlayColor() {
-        return overlayColor;
-    }
+    public int getOverlayColor() { return overlayColor; }
 
-    public void setOverlayColor(int argb) {
-        this.overlayColor = argb;
-    }
+    public void setOverlayColor(int argb) { this.overlayColor = argb; }
 
     /** Real semantics ported from Odin: a bind links two slots symmetrically for swap purposes - either
      *  end can be shift-clicked to swap with the other, matching {@link SlotBindsFeature}'s real lookup. */

@@ -65,23 +65,15 @@ public final class ViewFreeze {
     }
 
     /** The number of {@link #hold} calls so far (see util/TurnFirst: it never takes away a hold somebody else renewed). */
-    public static long holdCount() {
-        return holds;
-    }
+    public static long holdCount() { return holds; }
 
-    public static boolean isHeld() {
-        return !Float.isNaN(yaw) && System.currentTimeMillis() < heldUntil;
-    }
+    public static boolean isHeld() { return !Float.isNaN(yaw) && System.currentTimeMillis() < heldUntil; }
 
     /** The held view yaw, or NaN when nothing is held. Deliberately NOT wrapped to 0-360 - see the mod's standing
      *  rule about running rotation values; this is a view, and wrapping it would jump the camera. */
-    public static float viewYaw() {
-        return isHeld() ? yaw : Float.NaN;
-    }
+    public static float viewYaw() { return isHeld() ? yaw : Float.NaN; }
 
-    public static float viewPitch() {
-        return isHeld() ? pitch : Float.NaN;
-    }
+    public static float viewPitch() { return isHeld() ? pitch : Float.NaN; }
 
     /**
      * Every client tick, at its END - after {@code LocalPlayer.aiStep} has moved the first-person hand sway toward the
@@ -90,18 +82,14 @@ public final class ViewFreeze {
      * screen on every aim even though the camera stays put.
      */
     public static void followHandSway(LocalPlayer player) {
-        if (player == null || !isHeld()) {
-            return;
-        }
+        if (player == null || !isHeld()) return;
         player.yBob = player.yBobO + (yaw - player.yBobO) * 0.5f;
         player.xBob = player.xBobO + (pitch - player.xBobO) * 0.5f;
     }
 
     /** His mouse, moving the held view instead of his body. */
     public static void turnView(float dYaw, float dPitch) {
-        if (!isHeld()) {
-            return;
-        }
+        if (!isHeld()) return;
         yaw += dYaw;
         pitch = Mth.clamp(pitch + dPitch, -90f, 90f);
     }

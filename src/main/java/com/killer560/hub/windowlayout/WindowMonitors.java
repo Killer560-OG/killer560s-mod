@@ -23,9 +23,7 @@ public final class WindowMonitors {
             return respectTaskbar ? new int[]{workX, workY, workWidth, workHeight} : new int[]{x, y, width, height};
         }
 
-        public String label() {
-            return (index + 1) + " (" + width + "x" + height + ")";
-        }
+        public String label() { return (index + 1) + " (" + width + "x" + height + ")"; }
     }
 
     private WindowMonitors() {
@@ -36,9 +34,7 @@ public final class WindowMonitors {
         try {
             for (long handle : McWindow.displays()) {
                 int[] b = McWindow.displayBounds(handle);
-                if (b == null) {
-                    continue;
-                }
+                if (b == null) continue;
                 String name = McWindow.displayName(handle);
                 String device = WindowLayoutWin32.isWindows() ? McWindow.displayWin32Device(handle) : "";
                 int[] work = WindowLayoutWin32.isWindows() ? WindowLayoutWin32.workArea(b[0], b[1], b[2], b[3]) : null;
@@ -58,33 +54,25 @@ public final class WindowMonitors {
 
     /** The monitor this Minecraft window is currently on. */
     public static MonitorInfo current(List<MonitorInfo> monitors) {
-        if (monitors.isEmpty()) {
-            return null;
-        }
+        if (monitors.isEmpty()) return null;
         try {
             Window window = Minecraft.getInstance().getWindow();
             Monitor best = window.findBestMonitor();
             if (best != null) {
                 for (MonitorInfo m : monitors) {
-                    if (m.handle() == McWindow.displayOf(best)) {
-                        return m;
-                    }
+                    if (m.handle() == McWindow.displayOf(best)) return m;
                 }
             }
             int cx = window.getX() + window.getWidth() / 2;
             int cy = window.getY() + window.getHeight() / 2;
             for (MonitorInfo m : monitors) {
-                if (cx >= m.x() && cx < m.x() + m.width() && cy >= m.y() && cy < m.y() + m.height()) {
-                    return m;
-                }
+                if (cx >= m.x() && cx < m.x() + m.width() && cy >= m.y() && cy < m.y() + m.height()) return m;
             }
         } catch (Throwable ignored) {
         }
         long primary = McWindow.primaryDisplay();
         for (MonitorInfo m : monitors) {
-            if (m.handle() == primary) {
-                return m;
-            }
+            if (m.handle() == primary) return m;
         }
         return monitors.get(0);
     }
@@ -94,9 +82,7 @@ public final class WindowMonitors {
     public static MonitorInfo find(List<MonitorInfo> monitors, int index, String device, String name) {
         if (device != null && !device.isEmpty()) {
             for (MonitorInfo m : monitors) {
-                if (device.equals(m.device())) {
-                    return m;
-                }
+                if (device.equals(m.device())) return m;
             }
         }
         if (index >= 0 && index < monitors.size() && (name == null || name.isEmpty() || name.equals(monitors.get(index).name()))) {
@@ -104,9 +90,7 @@ public final class WindowMonitors {
         }
         if (name != null && !name.isEmpty()) {
             for (MonitorInfo m : monitors) {
-                if (name.equals(m.name())) {
-                    return m;
-                }
+                if (name.equals(m.name())) return m;
             }
         }
         return index >= 0 && index < monitors.size() ? monitors.get(index) : null;
@@ -117,9 +101,7 @@ public final class WindowMonitors {
         WindowLayoutConfig cfg = WindowLayoutConfig.getInstance();
         if (!cfg.isMonitorAuto()) {
             MonitorInfo m = find(monitors, cfg.getMonitorIndex(), cfg.getMonitorDevice(), cfg.getMonitorName());
-            if (m != null) {
-                return m;
-            }
+            if (m != null) return m;
         }
         return current(monitors);
     }

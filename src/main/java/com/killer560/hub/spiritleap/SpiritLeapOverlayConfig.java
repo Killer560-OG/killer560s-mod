@@ -47,9 +47,7 @@ public final class SpiritLeapOverlayConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     private SpiritLeapOverlayConfig() {
@@ -101,41 +99,23 @@ public final class SpiritLeapOverlayConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isUseClassColors() {
-        return useClassColors;
-    }
+    public boolean isUseClassColors() { return useClassColors; }
 
-    public void setUseClassColors(boolean useClassColors) {
-        this.useClassColors = useClassColors;
-    }
+    public void setUseClassColors(boolean useClassColors) { this.useClassColors = useClassColors; }
 
-    public boolean isShowHeads() {
-        return showHeads;
-    }
+    public boolean isShowHeads() { return showHeads; }
 
-    public void setShowHeads(boolean showHeads) {
-        this.showHeads = showHeads;
-    }
+    public void setShowHeads(boolean showHeads) { this.showHeads = showHeads; }
 
-    public LeapStyle getStyle() {
-        return style;
-    }
+    public LeapStyle getStyle() { return style; }
 
-    public void setStyle(LeapStyle style) {
-        this.style = style == null ? LeapStyle.BOXES : style;
-    }
+    public void setStyle(LeapStyle style) { this.style = style == null ? LeapStyle.BOXES : style; }
 
-    public float getScale() {
-        return scale;
-    }
+    public float getScale() { return scale; }
 
     public void setScale(float scale) {
         this.scale = Float.isFinite(scale) ? Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale)) : 1.0f;

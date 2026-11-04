@@ -44,9 +44,7 @@ public final class RelayAuth {
 
     /** Thrown for every handshake failure, so the caller has one short human-readable reason to show. */
     public static final class RelayAuthException extends RuntimeException {
-        public RelayAuthException(String message) {
-            super(message);
-        }
+        public RelayAuthException(String message) { super(message); }
     }
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
@@ -61,9 +59,7 @@ public final class RelayAuth {
     public static CompletableFuture<Token> authenticate(HttpClient http, String baseUrl) {
         final Minecraft client = Minecraft.getInstance();
         final User user = client == null ? null : client.getUser();
-        if (user == null) {
-            return CompletableFuture.failedFuture(new RelayAuthException("not signed in to Minecraft"));
-        }
+        if (user == null) return CompletableFuture.failedFuture(new RelayAuthException("not signed in to Minecraft"));
         final UUID uuid = user.getProfileId();
         final String name = user.getName();
         if (uuid == null || name == null || name.isBlank()) {
@@ -71,9 +67,7 @@ public final class RelayAuth {
         }
 
         final ProfileKeyPairManager keys = keyPairManager(client);
-        if (keys == null) {
-            return CompletableFuture.failedFuture(new RelayAuthException("Minecraft has no profile key manager"));
-        }
+        if (keys == null) return CompletableFuture.failedFuture(new RelayAuthException("Minecraft has no profile key manager"));
 
         CompletableFuture<ProfileKeyPair> keyPair = keys.prepareKeyPair().thenApply(optional -> {
             ProfileKeyPair pair = optional.orElse(null);
@@ -98,9 +92,7 @@ public final class RelayAuth {
                         throw new RelayAuthException("relay refused the challenge request (HTTP " + response.statusCode() + ")");
                     }
                     String value = string(response.body(), "challenge");
-                    if (value == null) {
-                        throw new RelayAuthException("relay sent no challenge");
-                    }
+                    if (value == null) throw new RelayAuthException("relay sent no challenge");
                     return value;
                 });
 
@@ -120,9 +112,7 @@ public final class RelayAuth {
                                 : "relay rejected the login (HTTP " + response.statusCode() + ")");
                     }
                     String token = string(response.body(), "token");
-                    if (token == null) {
-                        throw new RelayAuthException("relay sent no token");
-                    }
+                    if (token == null) throw new RelayAuthException("relay sent no token");
                     JsonObject obj = object(response.body());
                     long exp = obj != null && obj.has("exp") && obj.get("exp").isJsonPrimitive()
                             ? obj.get("exp").getAsLong()
@@ -177,9 +167,7 @@ public final class RelayAuth {
 
     private static String string(String body, String key) {
         JsonObject obj = object(body);
-        if (obj == null || !obj.has(key) || !obj.get(key).isJsonPrimitive()) {
-            return null;
-        }
+        if (obj == null || !obj.has(key) || !obj.get(key).isJsonPrimitive()) return null;
         try {
             return obj.get(key).getAsString();
         } catch (Exception e) {

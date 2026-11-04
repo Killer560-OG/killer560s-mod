@@ -154,9 +154,7 @@ public final class StorageOverlayCache {
 
     private static synchronized void writePending() {
         JsonObject obj = PENDING_WRITE.getAndSet(null);
-        if (obj == null) {
-            return;
-        }
+        if (obj == null) return;
         try {
             Files.createDirectories(CACHE_PATH.getParent());
             Files.writeString(CACHE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -166,9 +164,7 @@ public final class StorageOverlayCache {
 
     /** Bumped by every change to what {@link #knownKeysFor} / {@link #get} return, so a caller can keep what it built
      *  from them until this number moves. */
-    public int version() {
-        return version;
-    }
+    public int version() { return version; }
 
     /** Registers a storage as known to exist (a real icon on the "Storage" overview screen) without
      *  real contents yet - a no-op if we already have real contents for this key, or if it was
@@ -195,9 +191,7 @@ public final class StorageOverlayCache {
     /** Encodes and stores this storage's real contents, then saves to disk immediately. */
     public void put(String key, List<ItemStack> stacks) {
         RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) {
-            return;
-        }
+        if (registryAccess == null) return;
         HolderLookup.Provider provider = registryAccess;
         var ops = provider.createSerializationContext(NbtOps.INSTANCE);
         ListTag list = new ListTag();
@@ -228,13 +222,9 @@ public final class StorageOverlayCache {
     /** @return the real stacks for this key, or null if never captured. */
     public List<ItemStack> get(String key) {
         String blob = encoded.get(key);
-        if (blob == null) {
-            return null;
-        }
+        if (blob == null) return null;
         DecodedEntry cached = decodedCache.get(key);
-        if (cached != null && cached.blob().equals(blob)) {
-            return new ArrayList<>(cached.items());
-        }
+        if (cached != null && cached.blob().equals(blob)) return new ArrayList<>(cached.items());
         return decode(key, blob, true);
     }
 
@@ -242,21 +232,15 @@ public final class StorageOverlayCache {
      *  later {@link #put} makes a new list rather than changing this one. For per-frame readers (fps pass 2026-10-21). */
     public List<ItemStack> peek(String key) {
         String blob = encoded.get(key);
-        if (blob == null) {
-            return null;
-        }
+        if (blob == null) return null;
         DecodedEntry cached = decodedCache.get(key);
-        if (cached != null && cached.blob().equals(blob)) {
-            return cached.items();
-        }
+        if (cached != null && cached.blob().equals(blob)) return cached.items();
         return decode(key, blob, false);
     }
 
     private List<ItemStack> decode(String key, String blob, boolean copy) {
         RegistryAccess registryAccess = registryAccess();
-        if (registryAccess == null) {
-            return null;
-        }
+        if (registryAccess == null) return null;
         try {
             HolderLookup.Provider provider = registryAccess;
             var ops = provider.createSerializationContext(NbtOps.INSTANCE);
@@ -304,15 +288,11 @@ public final class StorageOverlayCache {
 
     /** Whether this key has real logged contents (as opposed to only being known-to-exist via the
      *  overview screen). */
-    public boolean hasContents(String key) {
-        return encoded.containsKey(key);
-    }
+    public boolean hasContents(String key) { return encoded.containsKey(key); }
 
     private static RegistryAccess registryAccess() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level != null) {
-            return client.level.registryAccess();
-        }
+        if (client.level != null) return client.level.registryAccess();
         return client.getConnection() != null ? client.getConnection().registryAccess() : null;
     }
 }

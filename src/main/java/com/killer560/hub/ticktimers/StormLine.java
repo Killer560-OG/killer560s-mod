@@ -136,9 +136,7 @@ public final class StormLine {
     }
 
     /** The line's full length, for the countdown color. */
-    static int max() {
-        return phase == Phase.LIGHTNING ? LIGHTNING_TICKS : phase == Phase.PURPLE ? PURPLE_TICKS : PAD_PERIOD;
-    }
+    static int max() { return phase == Phase.LIGHTNING ? LIGHTNING_TICKS : phase == Phase.PURPLE ? PURPLE_TICKS : PAD_PERIOD; }
 
     static String prefix() {
         return switch (phase) {

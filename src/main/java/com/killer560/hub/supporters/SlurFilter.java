@@ -39,25 +39,17 @@ public final class SlurFilter {
      *  formatting code then dropped ({@code NameColor.plain}). Without the second check "nig&rger" passed:
      *  the raw text normalizes to "nigrger", but {@code &r} is a reset code, so the visible text is the slur. */
     public static boolean isBlocked(String rawName) {
-        if (rawName == null || rawName.isEmpty()) {
-            return false;
-        }
-        if (hits(normalise(rawName))) {
-            return true;
-        }
+        if (rawName == null || rawName.isEmpty()) return false;
+        if (hits(normalise(rawName))) return true;
         String visible = com.killer560.hub.namechanger.NameColor.plain(SupportersFeature.colorize(rawName));
         return hits(normalise(visible));
     }
 
     private static boolean hits(String norm) {
-        if (norm.isEmpty()) {
-            return false;
-        }
+        if (norm.isEmpty()) return false;
         for (String word : WORDS) {
             boolean hit = word.length() <= 3 ? norm.equals(word) : norm.contains(word);
-            if (hit) {
-                return true;
-            }
+            if (hit) return true;
         }
         return false;
     }

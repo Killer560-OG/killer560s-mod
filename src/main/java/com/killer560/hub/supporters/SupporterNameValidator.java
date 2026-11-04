@@ -33,15 +33,9 @@ public final class SupporterNameValidator {
             }
             visible++;
         }
-        if (visible == 0) {
-            return "Name can't be empty - use Clear to remove it instead.";
-        }
-        if (visible > MAX_VISIBLE_CHARS) {
-            return "Too long (" + visible + "/" + MAX_VISIBLE_CHARS + " visible characters).";
-        }
-        if (SlurFilter.isBlocked(name)) {
-            return "That name isn't allowed.";
-        }
+        if (visible == 0) return "Name can't be empty - use Clear to remove it instead.";
+        if (visible > MAX_VISIBLE_CHARS) return "Too long (" + visible + "/" + MAX_VISIBLE_CHARS + " visible characters).";
+        if (SlurFilter.isBlocked(name)) return "That name isn't allowed.";
         return null;
     }
 }

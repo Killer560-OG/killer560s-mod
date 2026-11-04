@@ -12,7 +12,6 @@ import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
@@ -159,9 +158,7 @@ public final class TickTimersFeature {
     }
 
     private static void onChatMessage(Component message) {
-        if (!TickTimersConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!TickTimersConfig.getInstance().isEnabled()) return;
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to match the raw
         // un-stripped string - DungeonState's own BOSS_START_PATTERN fix already confirmed real Hypixel
         // boss/sidebar lines embed §-codes mid-word, which silently breaks an exact/regex match unless
@@ -275,10 +272,7 @@ public final class TickTimersFeature {
 
     /** Ticks from {@code now} to {@code end}, or -1 once past it or when nothing runs (Odin's -1 = off the HUD). */
     private static int remainingTo(long end, long now) {
-        if (end == Long.MIN_VALUE || now > end) {
-            return -1;
-        }
-        return (int) Math.min(Integer.MAX_VALUE, end - now);
+        return end == Long.MIN_VALUE || now > end ? -1 : (int) Math.min(Integer.MAX_VALUE, end - now);
     }
 
     private static void resetAll() {
@@ -310,16 +304,12 @@ public final class TickTimersFeature {
     }
 
     private static String value(int time, TickTimersConfig cfg) {
-        if (cfg.isDisplayInTicks()) {
-            return time + (cfg.isShowSymbol() ? "t" : "");
-        }
+        if (cfg.isDisplayInTicks()) return time + (cfg.isShowSymbol() ? "t" : "");
         // The seconds text for a tick count, remembered: the HUD asks for every active timer each frame and again for
         // width()/height(), and the count only moves once a server tick (2026-10-15: a String.format each time).
         boolean symbol = cfg.isShowSymbol();
         int slot = time & (VALUE_SLOTS - 1);
-        if (!Minecraft.getInstance().isSameThread()) {
-            return String.format(Locale.US, "%.1f%s", time / 20f, symbol ? "s" : "");
-        }
+        if (!Minecraft.getInstance().isSameThread()) return String.format(Locale.US, "%.1f%s", time / 20f, symbol ? "s" : "");
         if (VALUE_TEXT[slot] == null || VALUE_TIME[slot] != time || VALUE_SYMBOL[slot] != symbol) {
             VALUE_TEXT[slot] = String.format(Locale.US, "%.1f%s", time / 20f, symbol ? "s" : "");
             VALUE_TIME[slot] = time;
@@ -335,19 +325,13 @@ public final class TickTimersFeature {
 
     public static final class TickTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "tick_timers";
-        }
+        public String id() { return "tick_timers"; }
 
         @Override
-        public String displayName() {
-            return "Tick Timers";
-        }
+        public String displayName() { return "Tick Timers"; }
 
         @Override
-        public int defaultX() {
-            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS);
-        }
+        public int defaultX() { return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TICK_TIMERS); }
 
         @Override
         public int defaultY() {
@@ -391,9 +375,7 @@ public final class TickTimersFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(activeLines().size(), 12);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(activeLines().size(), 12); }
 
         private List<String> activeLines() {
             TickTimersConfig cfg = TickTimersConfig.getInstance();
@@ -430,9 +412,7 @@ public final class TickTimersFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!TickTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!TickTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) return;
             int lineY = y;
             List<String> shown = activeLines();
             int boxW = shown.isEmpty() ? 0 : com.killer560.hub.hud.HudText.width(shown);

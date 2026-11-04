@@ -39,18 +39,14 @@ public final class SimRoomState {
     }
 
     /** Every room back to no opinion - for a new floor or leaving the sim. */
-    public static void clear() {
-        STATES.clear();
-    }
+    public static void clear() { STATES.clear(); }
 
     /** This room's puzzle was failed: paint it red. */
     public static void markFailed(String roomName) {
         // Ice Fill and Ice Path have no failed state on Hypixel - a slip regenerates or the fish just stops -
         // so they are never painted red, whoever asks. killer560 (2026-10-02): "ice fill should never be red
         // on the map."
-        if ("Ice Fill".equalsIgnoreCase(roomName) || "Ice Path".equalsIgnoreCase(roomName)) {
-            return;
-        }
+        if ("Ice Fill".equalsIgnoreCase(roomName) || "Ice Path".equalsIgnoreCase(roomName)) return;
         if (roomName != null && !roomName.isBlank()) {
             STATES.put(roomName, STATE_FAILED);
         }
@@ -85,9 +81,7 @@ public final class SimRoomState {
      * @return true when this call is what cleared it
      */
     public static boolean markCleared(String roomName) {
-        if (roomName == null || roomName.isBlank() || STATES.containsKey(roomName)) {
-            return false;
-        }
+        if (roomName == null || roomName.isBlank() || STATES.containsKey(roomName)) return false;
         STATES.put(roomName, STATE_CLEARED);
         return true;
     }
@@ -105,17 +99,13 @@ public final class SimRoomState {
      *         opinion and the map should decide for itself
      */
     public static int stateFor(String roomName) {
-        if (roomName == null) {
-            return -1;
-        }
+        if (roomName == null) return -1;
         int state = STATES.getOrDefault(roomName, -1);
         // A SOLVED PUZZLE IS A GREEN CHECKMARK, as on Hypixel's map. killer560 (2026-10-15): "make ice fill on sim show
         // as complete once it reaches the end" - the tab line already read the puzzle's own isComplete, but nothing
         // ever painted a sim puzzle room past the white checkmark it gets on entry, whichever puzzle it was. Asked of
         // the puzzle itself (SimPuzzles.isRoomComplete) every time, so a reset or an Architect's First Draft puts it back.
-        if (state != STATE_FAILED && com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(roomName)) {
-            return STATE_GREEN;
-        }
+        if (state != STATE_FAILED && com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(roomName)) return STATE_GREEN;
         // A CLEARED ROOM WITH EVERY SECRET FOUND IS A GREEN CHECKMARK, as on Hypixel's map item, wherever he is when the
         // last one registers. killer560 (2026-10-16): "the map does not register secrets I get if I leave the room too
         // fast". The room's "x/y Secrets" action bar line (SimActionBar) is only sent for the room he stands in, every ten
@@ -123,10 +113,7 @@ public final class SimRoomState {
         // run were left short (Dip 0/2, Doors 1/5...). On Hypixel the map item's green check is what fills such a room in
         // (MapPainter.secretsText reads green as every secret found). The count is the SERVER's, per the secret's own
         // room (SimScore.foundInRoom, keyed by where the secret was, not where he is).
-        if (state == STATE_CLEARED && roomComplete(roomName)) {
-            return STATE_GREEN;
-        }
-        return state;
+        return state == STATE_CLEARED && roomComplete(roomName) ? STATE_GREEN : state;
     }
 
     /** Every secret of this room found this run, by the sim server's own per-room count. False for a room with none. */

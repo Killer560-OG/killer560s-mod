@@ -32,17 +32,11 @@ public final class StorageSearchConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
-        public SortMode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public SortMode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public SortMode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public SortMode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     /** Which kinds of place are shown in the result list at all. */
@@ -59,17 +53,11 @@ public final class StorageSearchConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
-        public SourceFilter next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public SourceFilter next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public SourceFilter previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public SourceFilter previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     public static final int MIN_CHEST_RADIUS = 2;
@@ -112,9 +100,7 @@ public final class StorageSearchConfig {
     /** The search box's background opacity, 0 to 100 percent (killer560, 2026-10-18); 100 is the box as it always was. */
     private int searchBoxOpacity = 100;
 
-    private StorageSearchConfig() {
-        binds.add(new StorageSearchBind(StorageSearchBind.MOD_CTRL, com.killer560.hub.util.Keys.F));
-    }
+    private StorageSearchConfig() { binds.add(new StorageSearchBind(StorageSearchBind.MOD_CTRL, com.killer560.hub.util.Keys.F)); }
 
     public static StorageSearchConfig getInstance() {
         if (instance == null) {
@@ -130,9 +116,7 @@ public final class StorageSearchConfig {
     }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     private static void load0() {
         StorageSearchConfig cfg = new StorageSearchConfig();
@@ -210,9 +194,7 @@ public final class StorageSearchConfig {
 
     private static <T extends Enum<T>> T parseEnum(String name, T[] values, T fallback) {
         for (T value : values) {
-            if (value.name().equals(name)) {
-                return value;
-            }
+            if (value.name().equals(name)) return value;
         }
         return fallback;
     }
@@ -247,26 +229,18 @@ public final class StorageSearchConfig {
     }
 
     /** The search box's background opacity, 0 to 100 percent. */
-    public int getSearchBoxOpacity() {
-        return searchBoxOpacity;
-    }
+    public int getSearchBoxOpacity() { return searchBoxOpacity; }
 
-    public void setSearchBoxOpacity(int percent) {
-        this.searchBoxOpacity = Math.max(0, Math.min(100, percent));
-    }
+    public void setSearchBoxOpacity(int percent) { this.searchBoxOpacity = Math.max(0, Math.min(100, percent)); }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     /** Live list - callers mutate it through {@link #addBind}/{@link #setBind}/{@link #removeBind} and then save. */
-    public List<StorageSearchBind> getBinds() {
-        return binds;
-    }
+    public List<StorageSearchBind> getBinds() { return binds; }
 
     public void addBind(StorageSearchBind bind) {
         if (bind != null && binds.size() < MAX_BINDS) {
@@ -286,99 +260,55 @@ public final class StorageSearchConfig {
         }
     }
 
-    public boolean isSearchLore() {
-        return searchLore;
-    }
+    public boolean isSearchLore() { return searchLore; }
 
-    public void setSearchLore(boolean searchLore) {
-        this.searchLore = searchLore;
-    }
+    public void setSearchLore(boolean searchLore) { this.searchLore = searchLore; }
 
-    public boolean isIncludeInventory() {
-        return includeInventory;
-    }
+    public boolean isIncludeInventory() { return includeInventory; }
 
-    public void setIncludeInventory(boolean includeInventory) {
-        this.includeInventory = includeInventory;
-    }
+    public void setIncludeInventory(boolean includeInventory) { this.includeInventory = includeInventory; }
 
-    public boolean isOpenOnClick() {
-        return openOnClick;
-    }
+    public boolean isOpenOnClick() { return openOnClick; }
 
-    public void setOpenOnClick(boolean openOnClick) {
-        this.openOnClick = openOnClick;
-    }
+    public void setOpenOnClick(boolean openOnClick) { this.openOnClick = openOnClick; }
 
-    public boolean isSearchChests() {
-        return searchChests;
-    }
+    public boolean isSearchChests() { return searchChests; }
 
-    public void setSearchChests(boolean searchChests) {
-        this.searchChests = searchChests;
-    }
+    public void setSearchChests(boolean searchChests) { this.searchChests = searchChests; }
 
-    public int getChestRadius() {
-        return chestRadius;
-    }
+    public int getChestRadius() { return chestRadius; }
 
     public void setChestRadius(int chestRadius) {
         this.chestRadius = Math.max(MIN_CHEST_RADIUS, Math.min(MAX_CHEST_RADIUS, chestRadius));
     }
 
-    public boolean isChestEsp() {
-        return chestEsp;
-    }
+    public boolean isChestEsp() { return chestEsp; }
 
-    public void setChestEsp(boolean chestEsp) {
-        this.chestEsp = chestEsp;
-    }
+    public void setChestEsp(boolean chestEsp) { this.chestEsp = chestEsp; }
 
-    public boolean isEspThroughWalls() {
-        return espThroughWalls;
-    }
+    public boolean isEspThroughWalls() { return espThroughWalls; }
 
-    public void setEspThroughWalls(boolean espThroughWalls) {
-        this.espThroughWalls = espThroughWalls;
-    }
+    public void setEspThroughWalls(boolean espThroughWalls) { this.espThroughWalls = espThroughWalls; }
 
-    public int getEspSeconds() {
-        return espSeconds;
-    }
+    public int getEspSeconds() { return espSeconds; }
 
     public void setEspSeconds(int espSeconds) {
         this.espSeconds = Math.max(MIN_ESP_SECONDS, Math.min(MAX_ESP_SECONDS, espSeconds));
     }
 
-    public boolean isSearchExtras() {
-        return searchExtras;
-    }
+    public boolean isSearchExtras() { return searchExtras; }
 
-    public void setSearchExtras(boolean searchExtras) {
-        this.searchExtras = searchExtras;
-    }
+    public void setSearchExtras(boolean searchExtras) { this.searchExtras = searchExtras; }
 
-    public boolean isFocusSingleStorage() {
-        return focusSingleStorage;
-    }
+    public boolean isFocusSingleStorage() { return focusSingleStorage; }
 
-    public void setFocusSingleStorage(boolean focusSingleStorage) {
-        this.focusSingleStorage = focusSingleStorage;
-    }
+    public void setFocusSingleStorage(boolean focusSingleStorage) { this.focusSingleStorage = focusSingleStorage; }
 
-    public SortMode getSortMode() {
-        return sortMode;
-    }
+    public SortMode getSortMode() { return sortMode; }
 
-    public void setSortMode(SortMode sortMode) {
-        this.sortMode = sortMode;
-    }
+    public void setSortMode(SortMode sortMode) { this.sortMode = sortMode; }
 
-    public SourceFilter getSourceFilter() {
-        return sourceFilter;
-    }
+    public SourceFilter getSourceFilter() { return sourceFilter; }
 
-    public void setSourceFilter(SourceFilter sourceFilter) {
-        this.sourceFilter = sourceFilter;
-    }
+    public void setSourceFilter(SourceFilter sourceFilter) { this.sourceFilter = sourceFilter; }
 }

@@ -107,20 +107,14 @@ public final class P3NavFeature {
     }
 
     private static void render(LevelRenderContext context) {
-        if (!SkyblockGate.allows()) {
-            return;
-        }
+        if (!SkyblockGate.allows()) return;
         P3NavConfig cfg = P3NavConfig.getInstance();
         boolean wantGate = cfg.isGateHighlightEnabled();
         boolean wantTerminals = cfg.isTerminalEspEnabled();
         boolean wantDevices = cfg.isDeviceEspEnabled();
-        if (!wantGate && !wantTerminals && !wantDevices) {
-            return;
-        }
+        if (!wantGate && !wantTerminals && !wantDevices) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !inP3()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !inP3()) return;
         int section = playerSection();
         if (wantGate) {
             renderGate(context, client, cfg, section);
@@ -143,9 +137,7 @@ public final class P3NavFeature {
     /** NoammAddons {@code LocationUtils.P3Section}: 1-4, or 0 when it can't be resolved. */
     private static int playerSection() {
         Floor7Tracker.Stage at = Floor7Tracker.getStageAt();
-        if (at.number >= 1 && at.number <= 4) {
-            return at.number;
-        }
+        if (at.number >= 1 && at.number <= 4) return at.number;
         Floor7Tracker.Stage tracked = Floor7Tracker.getStage();
         return tracked.number >= 1 && tracked.number <= 4 ? tracked.number : 0;
     }
@@ -156,9 +148,7 @@ public final class P3NavFeature {
             // Section 4 has no gate (the Core entrance opens instead), and neither does an unresolved section.
             return;
         }
-        if (cfg.getGateHideDestroyedRaw() && !gateStanding(client, gate)) {
-            return;
-        }
+        if (cfg.getGateHideDestroyedRaw() && !gateStanding(client, gate)) return;
         P3NavRenderer.draw(context, gate.box(), cfg.getGateColor(), cfg.getGateStyle(), cfg.getGateLineWidth(), false);
     }
 
@@ -171,31 +161,19 @@ public final class P3NavFeature {
     private static void renderStands(LevelRenderContext context, Minecraft client, P3NavConfig cfg, int section,
                                      boolean wantTerminals, boolean wantDevices) {
         boolean onlyCurrent = cfg.getTerminalCurrentSectionOnlyRaw();
-        if (onlyCurrent && section == 0) {
-            return;
-        }
+        if (onlyCurrent && section == 0) return;
         boolean throughWalls = cfg.isTerminalThroughWalls();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand stand)) {
-                continue;
-            }
+            if (!(entity instanceof ArmorStand stand)) continue;
             Component custom = stand.getCustomName();
-            if (custom == null) {
-                continue;
-            }
+            if (custom == null) continue;
             int kind = standKind(custom);
-            if (kind == KIND_NONE) {
-                continue;
-            }
+            if (kind == KIND_NONE) continue;
             boolean terminal = kind == KIND_TERMINAL;
             boolean device = kind == KIND_DEVICE;
-            if (terminal ? !wantTerminals : (!device || !wantDevices)) {
-                continue;
-            }
+            if (terminal ? !wantTerminals : (!device || !wantDevices)) continue;
             int standSection = sectionOf(stand, terminal);
-            if (standSection == 0 || (onlyCurrent && standSection != section)) {
-                continue;
-            }
+            if (standSection == 0 || (onlyCurrent && standSection != section)) continue;
             int color = terminal ? cfg.getTerminalColor() : cfg.getDeviceColor();
             P3NavRenderer.draw(context, boxOf(stand), color, cfg.getTerminalStyle(), cfg.getTerminalLineWidth(),
                     throughWalls);
@@ -219,9 +197,7 @@ public final class P3NavFeature {
             standKindsLanguage = language;
         }
         Byte known = STAND_KINDS.get(custom);
-        if (known != null) {
-            return known;
-        }
+        if (known != null) return known;
         String name = ChatFormatting.stripFormatting(custom.getString());
         byte kind = name == null ? KIND_NONE
                 : INACTIVE_TERMINAL.equals(name) ? KIND_TERMINAL
@@ -257,9 +233,7 @@ public final class P3NavFeature {
     private static int terminalSection(ArmorStand stand) {
         for (int i = 0; i < TERMINALS.size(); i++) {
             for (Vec3 pos : TERMINALS.get(i)) {
-                if (stand.distanceToSqr(pos) <= TERMINAL_MATCH_DIST_SQ) {
-                    return i + 1;
-                }
+                if (stand.distanceToSqr(pos) <= TERMINAL_MATCH_DIST_SQ) return i + 1;
             }
         }
         // Not in the table (a Hypixel layout tweak, or p3sim.net drifting a stand): fall back to the section box
@@ -302,9 +276,7 @@ public final class P3NavFeature {
 
     private static int sectionAt(Vec3 pos) {
         for (int i = 0; i < SECTION_BOXES.length; i++) {
-            if (SECTION_BOXES[i].contains(pos)) {
-                return i + 1;
-            }
+            if (SECTION_BOXES[i].contains(pos)) return i + 1;
         }
         return 0;
     }
@@ -312,9 +284,7 @@ public final class P3NavFeature {
     /** NoammAddons' {@code Entity.renderBoundingBox}; these stands never move, so no interpolation is needed. */
     private static AABB boxOf(ArmorStand stand) {
         AABB box = stand.getBoundingBox();
-        if (box.getXsize() > 0.05 && box.getYsize() > 0.05) {
-            return box;
-        }
+        if (box.getXsize() > 0.05 && box.getYsize() > 0.05) return box;
         Vec3 pos = stand.position();
         return new AABB(pos.x - MARKER_HALF_WIDTH, pos.y, pos.z - MARKER_HALF_WIDTH,
                 pos.x + MARKER_HALF_WIDTH, pos.y + MARKER_HEIGHT, pos.z + MARKER_HALF_WIDTH);

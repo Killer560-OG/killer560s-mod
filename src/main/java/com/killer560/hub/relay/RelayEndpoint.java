@@ -34,9 +34,7 @@ public final class RelayEndpoint {
 
     /** Trailing slashes dropped so "https://x/" and "https://x" are the same endpoint (and the same cached token). */
     public static String normalise(String baseUrl) {
-        if (baseUrl == null) {
-            return "";
-        }
+        if (baseUrl == null) return "";
         String trimmed = baseUrl.trim();
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
@@ -47,9 +45,7 @@ public final class RelayEndpoint {
     /** @return true only for a real http(s) URL that isn't still the not-yet-deployed placeholder. */
     public static boolean isUsable(String baseUrl) {
         String base = normalise(baseUrl);
-        if (base.isEmpty() || base.equalsIgnoreCase(PLACEHOLDER_BASE_URL)) {
-            return false;
-        }
+        if (base.isEmpty() || base.equalsIgnoreCase(PLACEHOLDER_BASE_URL)) return false;
         String lower = base.toLowerCase(Locale.ROOT);
         if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
             return false;
@@ -65,9 +61,7 @@ public final class RelayEndpoint {
         return URI.create(normalise(baseUrl) + "/challenge?uuid=" + enc(uuid));
     }
 
-    public static URI auth(String baseUrl) {
-        return URI.create(normalise(baseUrl) + "/auth");
-    }
+    public static URI auth(String baseUrl) { return URI.create(normalise(baseUrl) + "/auth"); }
 
     /** {@code https} -> {@code wss}, {@code http} -> {@code ws}; the Worker only speaks WebSocket on {@code /ws}. */
     public static URI websocket(String baseUrl, String room, String token) {
@@ -78,7 +72,5 @@ public final class RelayEndpoint {
         return URI.create(ws + "/ws?room=" + enc(room) + "&token=" + enc(token));
     }
 
-    private static String enc(String value) {
-        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
-    }
+    private static String enc(String value) { return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8); }
 }

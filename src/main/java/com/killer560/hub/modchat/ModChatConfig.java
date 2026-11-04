@@ -106,37 +106,23 @@ public final class ModChatConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     /** The address used to connect. There is deliberately no way to change it (killer560, 2026-09-20). */
-    public String getRelayUrl() {
-        return RelayEndpoint.DEFAULT_BASE_URL;
-    }
+    public String getRelayUrl() { return RelayEndpoint.DEFAULT_BASE_URL; }
 
     /** Talk only to your party, or only to everyone on your current Hypixel instance - see
      *  {@link RelayRoom.Mode}. There is deliberately no wider "everyone on the relay" choice. */
-    public RelayRoom.Mode getRoomMode() {
-        return roomMode;
-    }
+    public RelayRoom.Mode getRoomMode() { return roomMode; }
 
-    public void setRoomMode(RelayRoom.Mode roomMode) {
-        this.roomMode = roomMode;
-    }
+    public void setRoomMode(RelayRoom.Mode roomMode) { this.roomMode = roomMode; }
 
     /** Print received messages into the real chat window (default ON), so they can be read and scrolled back to;
      *  OFF shows each one only as a short overlay. */
-    public boolean isLogToChat() {
-        return logToChat;
-    }
+    public boolean isLogToChat() { return logToChat; }
 
-    public void setLogToChat(boolean logToChat) {
-        this.logToChat = logToChat;
-    }
+    public void setLogToChat(boolean logToChat) { this.logToChat = logToChat; }
 
 }

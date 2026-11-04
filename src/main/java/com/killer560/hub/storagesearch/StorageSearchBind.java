@@ -21,11 +21,6 @@ public record StorageSearchBind(int mods, int code) {
     public static final int MOD_SHIFT = 2;
     public static final int MOD_ALT = 4;
 
-    /** @return true when {@code key} is itself a modifier key, which can only be part of a combination. */
-    public static boolean isModifierKey(int key) {
-        return modBitFor(key) != 0;
-    }
-
     /** @return the {@code mods} bit this key contributes, or 0 when it is not a modifier key. */
     public static int modBitFor(int key) {
         return switch (key) {
@@ -36,18 +31,12 @@ public record StorageSearchBind(int mods, int code) {
         };
     }
 
-    public boolean isSet() {
-        return code != KeyUtil.NONE;
-    }
+    public boolean isSet() { return code != KeyUtil.NONE; }
 
     /** Polls the whole combination. Cheap - at most four {@code glfwGetKey} calls, and only for binds that are set. */
     public boolean isDown(Window window) {
-        if (window == null || !isSet()) {
-            return false;
-        }
-        if (heldMods(window) != mods) {
-            return false;
-        }
+        if (window == null || !isSet()) return false;
+        if (heldMods(window) != mods) return false;
         return KeyUtil.isBindDown(window, code);
     }
 
@@ -67,9 +56,7 @@ public record StorageSearchBind(int mods, int code) {
 
     /** "Ctrl + F", "Shift + Left Button", "Not Set". */
     public String display() {
-        if (!isSet()) {
-            return "Not Set";
-        }
+        if (!isSet()) return "Not Set";
         StringBuilder sb = new StringBuilder();
         if ((mods & MOD_CTRL) != 0) {
             sb.append("Ctrl + ");
@@ -84,26 +71,18 @@ public record StorageSearchBind(int mods, int code) {
     }
 
     /** Config form: {@code "<mods>:<code>"}. */
-    public String serialize() {
-        return mods + ":" + code;
-    }
+    public String serialize() { return mods + ":" + code; }
 
     /** @return the bind this string encodes, or null when it is unusable (so a hand-edited config can't break the
      *  feature - same spirit as {@link KeyUtil#sanitizeBind}). */
     public static StorageSearchBind parse(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         int colon = raw.indexOf(':');
-        if (colon <= 0) {
-            return null;
-        }
+        if (colon <= 0) return null;
         try {
             int mods = Integer.parseInt(raw.substring(0, colon).trim());
             int code = KeyUtil.sanitizeBind(Integer.parseInt(raw.substring(colon + 1).trim()));
-            if (code == KeyUtil.NONE) {
-                return null;
-            }
+            if (code == KeyUtil.NONE) return null;
             return new StorageSearchBind(mods & (MOD_CTRL | MOD_SHIFT | MOD_ALT), code);
         } catch (NumberFormatException e) {
             return null;

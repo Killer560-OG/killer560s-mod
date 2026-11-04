@@ -77,9 +77,7 @@ public final class ThemeBackgroundPlayer {
 
         int frameCount() {
             int[][] g = gifFrames;
-            if (g != null) {
-                return g.length;
-            }
+            if (g != null) return g.length;
             List<Path> v = videoFrames;
             return v == null ? 0 : v.size();
         }
@@ -98,9 +96,7 @@ public final class ThemeBackgroundPlayer {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level != null && current != null) {
@@ -127,13 +123,9 @@ public final class ThemeBackgroundPlayer {
             l = start(id);
             current = l;
         }
-        if (l.failed) {
-            return false;
-        }
+        if (l.failed) return false;
         int n = l.frameCount();
-        if (n == 0) {
-            return false;
-        }
+        if (n == 0) return false;
         int want = frameAt(l, n);
         int[] px = l.gifFrames != null ? l.gifFrames[want] : l.decoded.get(want);
         if (px != null && want != l.uploadedIndex) {
@@ -143,9 +135,7 @@ public final class ThemeBackgroundPlayer {
         if (l.videoFrames != null) {
             prefetch(l, want, n);
         }
-        if (l.texture == null) {
-            return false;
-        }
+        if (l.texture == null) return false;
         blitCover(g, l, w, h);
         draws++;
         return true;
@@ -159,9 +149,7 @@ public final class ThemeBackgroundPlayer {
             long t = l.gifTotalMs <= 0 ? 0 : ms % l.gifTotalMs;
             for (int i = 0; i < delays.length; i++) {
                 t -= delays[i];
-                if (t < 0) {
-                    return i;
-                }
+                if (t < 0) return i;
             }
             return delays.length - 1;
         }
@@ -224,9 +212,7 @@ public final class ThemeBackgroundPlayer {
         try (Stream<Path> s = Files.list(dir)) {
             frames = new ArrayList<>(s.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".jpg")).sorted().toList());
         }
-        if (frames.isEmpty()) {
-            throw new IOException("no frames in " + dir.getFileName());
-        }
+        if (frames.isEmpty()) throw new IOException("no frames in " + dir.getFileName());
         // The first frame now, so the size is known and the texture can be made as soon as it is drawn.
         int[] first = readFrame(l, frames.get(0));
         l.decoded.put(0, first);
@@ -238,9 +224,7 @@ public final class ThemeBackgroundPlayer {
     /** Reads one JPEG frame into texture order; the first one read sets the size, a frame of another size is refused. */
     private static int[] readFrame(Loaded l, Path file) throws IOException {
         BufferedImage img = ImageIO.read(file.toFile());
-        if (img == null) {
-            throw new IOException("unreadable frame " + file.getFileName());
-        }
+        if (img == null) throw new IOException("unreadable frame " + file.getFileName());
         int w = img.getWidth();
         int h = img.getHeight();
         if (l.width == 0) {
@@ -254,13 +238,9 @@ public final class ThemeBackgroundPlayer {
 
     /** Asks the decode thread for the frame after {@code want} (or {@code want} itself, if it is not ready). One at a time. */
     private static void prefetch(Loaded l, int want, int n) {
-        if (l.inFlight) {
-            return;
-        }
+        if (l.inFlight) return;
         int next = l.decoded.containsKey(want) ? (want + 1) % n : want;
-        if (l.decoded.containsKey(next)) {
-            return;
-        }
+        if (l.decoded.containsKey(next)) return;
         // Keep the shown frame, the one being fetched and nothing else: a long video is never held whole.
         l.decoded.keySet().removeIf(k -> k != want && k != l.uploadedIndex);
         l.inFlight = true;
@@ -299,9 +279,7 @@ public final class ThemeBackgroundPlayer {
             Minecraft.getInstance().getTextureManager().register(l.textureId, l.texture);
         } else {
             NativeImage image = l.texture.getPixels();
-            if (image == null || image.getWidth() * image.getHeight() != px.length) {
-                return;
-            }
+            if (image == null || image.getWidth() * image.getHeight() != px.length) return;
             MemoryUtil.memIntBuffer(image.getPointer(), px.length).put(px);
             l.texture.upload();
         }
@@ -349,7 +327,6 @@ public final class ThemeBackgroundPlayer {
         }
     }
 
-    // ---------------------------------------------------------------- testkit evidence
 
     /** The background loaded now, or null. */
     public static String loadedId() {
@@ -369,15 +346,9 @@ public final class ThemeBackgroundPlayer {
         return l == null ? -1 : l.uploadedIndex;
     }
 
-    public static int uploads() {
-        return uploads;
-    }
+    public static int uploads() { return uploads; }
 
-    public static int draws() {
-        return draws;
-    }
+    public static int draws() { return draws; }
 
-    public static String lastError() {
-        return lastError;
-    }
+    public static String lastError() { return lastError; }
 }

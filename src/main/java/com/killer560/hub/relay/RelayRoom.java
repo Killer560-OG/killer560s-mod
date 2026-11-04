@@ -44,13 +44,9 @@ public final class RelayRoom {
             this.label = label;
         }
 
-        public Mode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public Mode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public Mode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public Mode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     /**
@@ -58,18 +54,14 @@ public final class RelayRoom {
      *         fallback room (see the class doc). Reads {@link PartyTracker} / {@link HypixelLocation} only;
      *         call it from the client thread.
      */
-    public static String current(Mode mode) {
-        return mode == Mode.PARTY ? partyRoom() : HypixelLocation.lobbyRoom();
-    }
+    public static String current(Mode mode) { return mode == Mode.PARTY ? partyRoom() : HypixelLocation.lobbyRoom(); }
 
     /** {@code party:<hash>} for the current party, or {@code null} when you are alone / it isn't known yet. */
     private static String partyRoom() {
         Minecraft client = Minecraft.getInstance();
         String self = client == null || client.player == null ? null : client.player.getGameProfile().name();
         List<String> teammates = PartyTracker.teammates();
-        if (self == null || teammates.isEmpty()) {
-            return null;
-        }
+        if (self == null || teammates.isEmpty()) return null;
         // Sorted + lower-cased + de-duplicated so every member hashes byte-identical input regardless of the
         // order Hypixel listed them in or how anyone's client capitalized a name.
         TreeSet<String> names = new TreeSet<>();
@@ -79,9 +71,7 @@ public final class RelayRoom {
                 names.add(teammate.toLowerCase(Locale.ROOT));
             }
         }
-        if (names.size() < 2) {
-            return null;
-        }
+        if (names.size() < 2) return null;
         String hash = sha256Hex(String.join(",", names));
         return hash == null ? null : "party:" + hash.substring(0, HEX_LENGTH);
     }
@@ -104,15 +94,8 @@ public final class RelayRoom {
      *  called with a non-null room; the tab explains a null one itself (not in a party / instance not known
      *  yet / p3sim), since only it knows which mode is selected. */
     public static String describe(String room) {
-        if (room == null || room.isEmpty()) {
-            return "-";
-        }
-        if (room.startsWith("party:")) {
-            return "Party (" + (PartyTracker.teammates().size() + 1) + ")";
-        }
-        if (room.startsWith("lobby:")) {
-            return "Lobby";
-        }
-        return room;
+        if (room == null || room.isEmpty()) return "-";
+        if (room.startsWith("party:")) return "Party (" + (PartyTracker.teammates().size() + 1) + ")";
+        return room.startsWith("lobby:") ? "Lobby" : room;
     }
 }

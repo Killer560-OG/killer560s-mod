@@ -21,9 +21,7 @@ public abstract class MenuTextAndIconButtonMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/ActiveTextCollector;acceptScrolling(Lnet/minecraft/network/chat/Component;IIIII)V"),
             index = 0, require = 0)
     private Component killer560smod$themedTextAndIconLabel(Component message) {
-        if (!MenuWidgets.active()) {
-            return message;
-        }
+        if (!MenuWidgets.active()) return message;
         try {
             SpriteIconButton self = (SpriteIconButton) (Object) this;
             Component recolored = MainMenuTheme.recolorLabel(message, self.isActive(), self.isHoveredOrFocused());

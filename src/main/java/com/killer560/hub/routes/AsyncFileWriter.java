@@ -42,9 +42,7 @@ public final class AsyncFileWriter {
 
     private void drain() {
         String content = pending.getAndSet(null);
-        if (content == null) {
-            return;
-        }
+        if (content == null) return;
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, content, StandardCharsets.UTF_8);

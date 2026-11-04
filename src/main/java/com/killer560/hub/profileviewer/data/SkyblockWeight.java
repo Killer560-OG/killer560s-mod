@@ -39,30 +39,20 @@ public final class SkyblockWeight {
 
     /** One weight contributor (a skill, a slayer, catacombs, a class...). {@code detail} is tooltip text. */
     public record Part(String name, double weight, double overflow, List<String> detail) {
-        public double total() {
-            return weight + overflow;
-        }
+        public double total() { return weight + overflow; }
     }
 
     /** A category (skills / slayers / dungeons) with its summed weight and overflow. */
     public record Group(String name, double weight, double overflow, List<Part> parts) {
-        public double total() {
-            return weight + overflow;
-        }
+        public double total() { return weight + overflow; }
     }
 
     public record Result(String system, Group skills, Group slayers, Group dungeons, boolean skillsApi) {
-        public double weight() {
-            return skills.weight() + slayers.weight() + dungeons.weight();
-        }
+        public double weight() { return skills.weight() + slayers.weight() + dungeons.weight(); }
 
-        public double overflow() {
-            return skills.overflow() + slayers.overflow() + dungeons.overflow();
-        }
+        public double overflow() { return skills.overflow() + slayers.overflow() + dungeons.overflow(); }
 
-        public double total() {
-            return weight() + overflow();
-        }
+        public double total() { return weight() + overflow(); }
     }
 
     /**
@@ -78,7 +68,6 @@ public final class SkyblockWeight {
     public record Both(Result senither, Result lily) {
     }
 
-    // ------------------------------------------------------------------ profile adapter
 
     public static Both compute(SbProfile p) {
         Input in = inputOf(p);
@@ -113,26 +102,19 @@ public final class SkyblockWeight {
     }
 
     private static double get(Map<String, Double> m, String key) {
-        if (m == null) {
-            return 0;
-        }
+        if (m == null) return 0;
         Double v = m.get(key);
         return v == null || v.isNaN() ? 0 : Math.max(0, v);
     }
 
-    private static String fmt(double v) {
-        return String.format(Locale.US, "%,.2f", v);
-    }
+    private static String fmt(double v) { return String.format(Locale.US, "%,.2f", v); }
 
-    private static String xp(double v) {
-        return String.format(Locale.US, "%,d", (long) Math.floor(v));
-    }
+    private static String xp(double v) { return String.format(Locale.US, "%,d", (long) Math.floor(v)); }
 
     private static String cap(String id) {
         return id.isEmpty() ? id : Character.toUpperCase(id.charAt(0)) + id.substring(1).toLowerCase(Locale.ROOT);
     }
 
-    // =================================================================== Senither
 
     private static final double SEN_LEVEL_50_SKILL_XP = 55172425;
     private static final double SEN_LEVEL_60_SKILL_XP = 111672425;
@@ -246,9 +228,7 @@ public final class SkyblockWeight {
         int level = 0;
         for (double toRemove : SEN_SKILL_XP) {
             experience -= toRemove;
-            if (experience < 0) {
-                return Math.min(level + (1 - (experience * -1) / toRemove), maxLevel);
-            }
+            if (experience < 0) return Math.min(level + (1 - (experience * -1) / toRemove), maxLevel);
             level++;
         }
         return Math.min(level, maxLevel);
@@ -259,9 +239,7 @@ public final class SkyblockWeight {
         int level = 0;
         for (double toRemove : SEN_DUNGEON_XP) {
             experience -= toRemove;
-            if (experience < 0) {
-                return level + (1 - (experience * -1) / toRemove);
-            }
+            if (experience < 0) return level + (1 - (experience * -1) / toRemove);
             level++;
         }
         return Math.min(level, 50);
@@ -271,20 +249,15 @@ public final class SkyblockWeight {
     private static double[] senDungeonWeight(double percentageModifier, double experience) {
         double level = senDungeonLevel(experience);
         double base = Math.pow(level, 4.5) * percentageModifier;
-        if (experience <= SEN_LEVEL_50_DUNGEON_XP) {
-            return new double[]{base, 0, level};
-        }
+        if (experience <= SEN_LEVEL_50_DUNGEON_XP) return new double[]{base, 0, level};
         double remaining = experience - SEN_LEVEL_50_DUNGEON_XP;
         double splitter = (4 * SEN_LEVEL_50_DUNGEON_XP) / base;
         return new double[]{Math.floor(base), Math.pow(remaining / splitter, 0.968), level};
     }
 
     /** JavaScript Math.round (round half toward +infinity). */
-    private static double jsRound(double v) {
-        return Math.floor(v + 0.5);
-    }
+    private static double jsRound(double v) { return Math.floor(v + 0.5); }
 
-    // =================================================================== Lily
 
     /** lib/index.js: "Order of skills: enchanting, taming, alchemy, mining, farming, foraging, combat, fishing". */
     private static final List<String> LILY_SKILLS = List.of(
@@ -379,9 +352,7 @@ public final class SkyblockWeight {
         StringBuilder sb = new StringBuilder();
         for (int f = from; f <= 7; f++) {
             double v = map == null || map.get(f) == null ? 0 : map.get(f);
-            if (v <= 0) {
-                continue;
-            }
+            if (v <= 0) continue;
             if (sb.length() > 0) {
                 sb.append("  ");
             }
@@ -402,7 +373,6 @@ public final class SkyblockWeight {
         return 60;
     }
 
-    /** dungeonExpWeight.js getDungeonExpWeight. */
     static double lilyDungeonExpWeight(double cataXP) {
         int intLevel = -1;
         for (double t : LILY_DUNGEON_XP_TABLE) {
@@ -453,9 +423,7 @@ public final class SkyblockWeight {
         double score = 0;
         for (Map.Entry<Integer, Double> e : sorted(cataCompl).entrySet()) {
             int floor = e.getKey();
-            if (floor < 0 || floor > 7) {
-                continue;
-            }
+            if (floor < 0 || floor > 7) continue;
             double amount = e.getValue();
             double excess = 0;
             if (amount > 1000) {
@@ -486,9 +454,7 @@ public final class SkyblockWeight {
         double masterScore = 0;
         for (Map.Entry<Integer, Double> e : master.entrySet()) {
             int floor = e.getKey();
-            if (floor < 1 || floor > 7) {
-                continue;
-            }
+            if (floor < 1 || floor > 7) continue;
             double amount = e.getValue();
             double excess = 0;
             if (amount > 1000) {

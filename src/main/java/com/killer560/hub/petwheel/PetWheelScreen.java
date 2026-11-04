@@ -119,33 +119,19 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
                 cfg.getMode(), true, parent);
     }
 
-    public Screen editParent() {
-        return editParent;
-    }
+    public Screen editParent() { return editParent; }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     /** Edit mode always shows one more slot than there are real pets - see {@link #forEdit}'s doc. */
-    private int totalSlots() {
-        return editMode ? allPets.size() + 1 : allPets.size();
-    }
+    private int totalSlots() { return editMode ? allPets.size() + 1 : allPets.size(); }
 
     /** killer560, 2026-10-11: "remove the slices portion since you just add whatever pets you want and it auto
      *  updates where they go" - every pet on the wheel is one slice, so there is always exactly one page. */
-    private int sliceCount() {
-        return Math.max(1, totalSlots());
-    }
+    private int sliceCount() { return Math.max(1, totalSlots()); }
 
-    private int pageCount() {
-        return Math.max(1, (int) Math.ceil(totalSlots() / (double) sliceCount()));
-    }
-
-    private int firstGlobalIndexOnPage(int p) {
-        return Math.min(p * sliceCount(), totalSlots());
-    }
+    private int firstGlobalIndexOnPage(int p) { return Math.min(p * sliceCount(), totalSlots()); }
 
     private int slotsOnPage(int p) {
         int from = firstGlobalIndexOnPage(p);
@@ -167,9 +153,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     private record Layout(float centerX, float centerY, float radius, float innerRadius, int count) {
-        float sliceAngle() {
-            return count == 0 ? 0f : (float) (Math.PI * 2.0 / count);
-        }
+        float sliceAngle() { return count == 0 ? 0f : (float) (Math.PI * 2.0 / count); }
     }
 
     /** Radius grows past the plain {@code BASE_RADIUS * scale} baseline once the tile itself (driven by Icon
@@ -187,14 +171,10 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     /** Same sector math as NoammAddons' own pet wheel: no outer bound (direction, not distance, decides the
      *  slice - a radial menu shouldn't need pixel-perfect aim), only the dead-zone in the middle is excluded. */
     private Integer hoveredIndex(double mouseX, double mouseY, Layout layoutData) {
-        if (layoutData.count() == 0) {
-            return null;
-        }
+        if (layoutData.count() == 0) return null;
         double x = mouseX - layoutData.centerX();
         double y = mouseY - layoutData.centerY();
-        if (Math.hypot(x, y) < layoutData.innerRadius()) {
-            return null;
-        }
+        if (Math.hypot(x, y) < layoutData.innerRadius()) return null;
         double sliceAngle = layoutData.sliceAngle();
         int idx = Math.floorMod((int) Math.floor((Math.atan2(y, x) + Math.PI / 2.0 + sliceAngle / 2.0) / sliceAngle), layoutData.count());
         return idx;
@@ -266,9 +246,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      *  out to the rim. See the class doc for why {@code rotate} here is safe to use. */
     private void drawDividers(GuiGraphicsExtractor graphics, Layout layoutData) {
         int count = layoutData.count();
-        if (count < 2) {
-            return;
-        }
+        if (count < 2) return;
         float sliceAngle = layoutData.sliceAngle();
         int inner = Math.round(layoutData.innerRadius());
         int outer = Math.round(layoutData.radius());
@@ -363,28 +341,17 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return firstTile.clone();
-    }
+    public int[] themedPanelBounds() { return firstTile.clone(); }
 
     /** killer560: "add an option to hide their level and an option to hide the pets name" - each toggle is
      *  independent, so all four combinations (both shown, either alone, neither) are possible. */
     private String sliceLabel(PetEntry pet) {
-        if (hideName && hideLevel) {
-            return "";
-        }
-        if (hideName) {
-            return pet.level() >= 0 ? "[Lvl " + pet.level() + "]" : "";
-        }
-        if (hideLevel) {
-            return pet.name();
-        }
-        return pet.shortLabel();
+        if (hideName && hideLevel) return "";
+        if (hideName) return pet.level() >= 0 ? "[Lvl " + pet.level() + "]" : "";
+        return hideLevel ? pet.name() : pet.shortLabel();
     }
 
     /** Built once per pet per screen instance and cached - see the class doc's per-frame-cost note. Same
@@ -392,9 +359,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      *  textured head; falls back to a plain player head when the pet's skin wasn't captured yet. */
     private ItemStack iconFor(PetEntry pet) {
         return iconCache.computeIfAbsent(pet.uuid(), id -> {
-            if (pet.skinValue() == null) {
-                return new ItemStack(Items.PLAYER_HEAD);
-            }
+            if (pet.skinValue() == null) return new ItemStack(Items.PLAYER_HEAD);
             ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
             Multimap<String, Property> backing = HashMultimap.create();
             backing.put("textures", new Property("textures", pet.skinValue(), null));
@@ -421,9 +386,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     private void confirmSelectionAt(double mouseX, double mouseY) {
-        if (editMode) {
-            return;
-        }
+        if (editMode) return;
         List<PetEntry> visible = currentPagePets();
         Layout layoutData = layout(visible.size(), currentTile());
         Integer hovered = hoveredIndex(mouseX, mouseY, layoutData);
@@ -450,9 +413,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (super.mouseClicked(event, doubleClick)) {
-            return true;
-        }
+        if (super.mouseClicked(event, doubleClick)) return true;
         // A mouse button bound as a page key changes page before the click can select or swap a slice.
         PetWheelConfig cfg = PetWheelConfig.getInstance();
         if (matchesBind(cfg.getPrevPageKeyCode(), true, com.killer560.hub.compat.McInput.button(event)) && changePage(-1)) {
@@ -461,12 +422,8 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         if (matchesBind(cfg.getNextPageKeyCode(), true, com.killer560.hub.compat.McInput.button(event)) && changePage(1)) {
             return true;
         }
-        if (editMode) {
-            return editModeClick(event);
-        }
-        if (mode != PetWheelConfig.InteractionMode.PRESS_CLICK) {
-            return false;
-        }
+        if (editMode) return editModeClick(event);
+        if (mode != PetWheelConfig.InteractionMode.PRESS_CLICK) return false;
         List<PetEntry> visible = currentPagePets();
         Layout layoutData = layout(visible.size(), currentTile());
         Integer hovered = hoveredIndex(event.x(), event.y(), layoutData);
@@ -490,9 +447,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             }
             return true;
         }
-        if (com.killer560.hub.compat.McInput.button(event) != 0) {
-            return false;
-        }
+        if (com.killer560.hub.compat.McInput.button(event) != 0) return false;
         if (pendingSwapIndex == null) {
             if (hit >= 0 && petAt(hit) != null) {
                 pendingSwapIndex = hit;
@@ -541,13 +496,9 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
     /** True when this is a live hold-release wheel and {@code keyOrButton} is its bind's key (or mouse button). */
     private boolean isHoldReleaseBind(boolean mouse, int keyOrButton) {
-        if (editMode || mode != PetWheelConfig.InteractionMode.HOLD_RELEASE) {
-            return false;
-        }
+        if (editMode || mode != PetWheelConfig.InteractionMode.HOLD_RELEASE) return false;
         int bind = PetWheelConfig.getInstance().getKeyCode();
-        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) {
-            return false;
-        }
+        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) return false;
         return mouse ? KeyUtil.mouseButton(bind) == keyOrButton : bind == keyOrButton;
     }
 
@@ -599,9 +550,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      *  wheel opens on it next time. @return false when there is only one page. */
     boolean changePage(int dir) {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
-        if (cfg.getPageCount() <= 1) {
-            return false;
-        }
+        if (cfg.getPageCount() <= 1) return false;
         cfg.stepPage(dir);
         cfg.save();
         allPets = cfg.getWheelPets();
@@ -613,9 +562,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (scrollY != 0 && changePage(scrollY < 0 ? 1 : -1)) {
-            return true;
-        }
+        if (scrollY != 0 && changePage(scrollY < 0 ? 1 : -1)) return true;
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
@@ -628,20 +575,14 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         if (matchesBind(cfg.getNextPageKeyCode(), false, com.killer560.hub.compat.McInput.key(event)) && changePage(1)) {
             return true;
         }
-        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && changePage(1)) {
-            return true;
-        }
-        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT && changePage(-1)) {
-            return true;
-        }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && changePage(1)) return true;
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT && changePage(-1)) return true;
         return super.keyPressed(event);
     }
 
     /** True when {@code bind} (a key code, or a mouse code from {@link KeyUtil}) is the key or mouse button just pressed. */
     private static boolean matchesBind(int bind, boolean mouse, int keyOrButton) {
-        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) {
-            return false;
-        }
+        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) return false;
         return mouse ? KeyUtil.mouseButton(bind) == keyOrButton : bind == keyOrButton;
     }
 

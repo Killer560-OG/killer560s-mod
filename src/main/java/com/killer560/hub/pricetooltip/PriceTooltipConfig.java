@@ -151,140 +151,99 @@ public final class PriceTooltipConfig {
         PriceTooltipFeature.invalidate();
     }
 
-    private static int clampMinutes(int v) {
-        return Math.max(MIN_REFRESH_MINUTES, Math.min(MAX_REFRESH_MINUTES, v));
-    }
+    private static int clampMinutes(int v) { return Math.max(MIN_REFRESH_MINUTES, Math.min(MAX_REFRESH_MINUTES, v)); }
 
-    private static int clampDays(int v) {
-        return v <= 1 ? 1 : 3;
-    }
+    private static int clampDays(int v) { return v <= 1 ? 1 : 3; }
 
     /** The switch as saved, for the settings menu. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     /** On, and allowed here by Skyblock Only. */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     public void setEnabled(boolean v) {
         enabled = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isNpcPrice() {
-        return npcPrice;
-    }
+    public boolean isNpcPrice() { return npcPrice; }
 
     public void setNpcPrice(boolean v) {
         npcPrice = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isLowestBin() {
-        return lowestBin;
-    }
+    public boolean isLowestBin() { return lowestBin; }
 
     public void setLowestBin(boolean v) {
         lowestBin = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isAverageBin() {
-        return averageBin;
-    }
+    public boolean isAverageBin() { return averageBin; }
 
     public void setAverageBin(boolean v) {
         averageBin = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public int getAverageDays() {
-        return averageDays;
-    }
+    public int getAverageDays() { return averageDays; }
 
     public void setAverageDays(int v) {
         averageDays = clampDays(v);
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isBazaar() {
-        return bazaar;
-    }
+    public boolean isBazaar() { return bazaar; }
 
     public void setBazaar(boolean v) {
         bazaar = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isEstimatedValue() {
-        return estimatedValue;
-    }
+    public boolean isEstimatedValue() { return estimatedValue; }
 
     public void setEstimatedValue(boolean v) {
         estimatedValue = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isObtained() {
-        return obtained;
-    }
+    public boolean isObtained() { return obtained; }
 
     public void setObtained(boolean v) {
         obtained = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public boolean isMuseum() {
-        return museum;
-    }
+    public boolean isMuseum() { return museum; }
 
     public void setMuseum(boolean v) {
         museum = v;
         PriceTooltipFeature.invalidate();
     }
 
-    public When getStackPrice() {
-        return stackPrice;
-    }
-
-    public void setStackPrice(When v) {
-        stackPrice = v == null ? When.SHIFT : v;
-        PriceTooltipFeature.invalidate();
-    }
-
-    public When getBreakdown() {
-        return breakdown;
-    }
+    public When getBreakdown() { return breakdown; }
 
     public void setBreakdown(When v) {
         breakdown = v == null ? When.SHIFT : v;
         PriceTooltipFeature.invalidate();
     }
 
-    public ValueMode getValueMode() {
-        return valueMode;
-    }
+    public ValueMode getValueMode() { return valueMode; }
 
     public void setValueMode(ValueMode v) {
         valueMode = v == null ? ValueMode.NETWORTH : v;
         PriceTooltipFeature.invalidate();
     }
 
-    public NumberFormat getNumberFormat() {
-        return numberFormat;
-    }
+    public NumberFormat getNumberFormat() { return numberFormat; }
 
     public void setNumberFormat(NumberFormat v) {
         numberFormat = v == null ? NumberFormat.EXACT : v;
         PriceTooltipFeature.invalidate();
     }
 
-    public int getRefreshMinutes() {
-        return refreshMinutes;
-    }
+    public int getRefreshMinutes() { return refreshMinutes; }
 
     public void setRefreshMinutes(int v) {
         refreshMinutes = clampMinutes(v);

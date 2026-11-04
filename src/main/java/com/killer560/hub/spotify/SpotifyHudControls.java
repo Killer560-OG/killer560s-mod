@@ -78,17 +78,13 @@ public final class SpotifyHudControls {
         });
     }
 
-    private static boolean chatOpen() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof ChatScreen;
-    }
+    private static boolean chatOpen() { return McCompat.screen(Minecraft.getInstance()) instanceof ChatScreen; }
 
     /** The mouse in the HUD's own units, or null. */
     private static double[] mouseLocal(double guiX, double guiY) {
         int[] pos = HudElementRegistry.resolvePosition(SpotifyHud.INSTANCE);
         float scale = HudElementRegistry.resolveScale(SpotifyHud.INSTANCE);
-        if (scale <= 0) {
-            return null;
-        }
+        if (scale <= 0) return null;
         LOCAL[0] = (guiX - pos[0]) / scale;
         LOCAL[1] = (guiY - pos[1]) / scale;
         return LOCAL;
@@ -101,13 +97,9 @@ public final class SpotifyHudControls {
     }
 
     private static int cellAt(double lx, double ly) {
-        if (ly < panelH + GAP || ly >= panelH + GAP + ROW_H) {
-            return -1;
-        }
+        if (ly < panelH + GAP || ly >= panelH + GAP + ROW_H) return -1;
         for (int i = 0; i < X0.length; i++) {
-            if (lx >= X0[i] && lx < X1[i]) {
-                return i;
-            }
+            if (lx >= X0[i] && lx < X1[i]) return i;
         }
         return -1;
     }
@@ -184,9 +176,7 @@ public final class SpotifyHudControls {
         r.submit();
         lastPlayGlyph = paused ? "play" : "pause";
         for (int i = 0; i < X0.length; i++) {
-            if (i == PLAY_CELL) {
-                continue;
-            }
+            if (i == PLAY_CELL) continue;
             SpotifyControls.Action a = ACTIONS[i];
             String label = LABELS[i];
             if (a == null) {
@@ -222,9 +212,7 @@ public final class SpotifyHudControls {
             return false;   // the HUD is not on screen: the click is chat's
         }
         double[] m = mouseLocal(guiX, guiY);
-        if (m == null || !overPanelOrRow(m[0], m[1])) {
-            return false;
-        }
+        if (m == null || !overPanelOrRow(m[0], m[1])) return false;
         clicksTaken++;
         int cell = cellAt(m[0], m[1]);
         SpotifyControls.Action a = cell < 0 ? null : ACTIONS[cell];

@@ -76,7 +76,6 @@ public final class SimRoomCycle {
     private SimRoomCycle() {
     }
 
-    // ------------------------------------------------------------------------------------------- the set
 
     /**
      * The rooms a choice covers right now, in the picker's order: All Rooms' filter ({@link SimRoomFilters#CYCLE},
@@ -85,13 +84,9 @@ public final class SimRoomCycle {
      */
     public static List<String> roomsFor(Choice c) {
         List<String> out = new ArrayList<>();
-        if (!RoomDatabase.isReady()) {
-            return out;
-        }
+        if (!RoomDatabase.isReady()) return out;
         for (String name : RoomLibrary.names()) {
-            if (!SimRoomFilters.CYCLE.matches(name)) {
-                continue;
-            }
+            if (!SimRoomFilters.CYCLE.matches(name)) continue;
             boolean keep = switch (c) {
                 case ALL -> true;
                 case WITHOUT_ROUTES -> SimRoomRoutes.routeNodes(name) == 0;
@@ -105,27 +100,19 @@ public final class SimRoomCycle {
     }
 
     /** The chosen set, or null before one was picked. For the testkit. */
-    public static synchronized Choice choice() {
-        return choice;
-    }
+    public static synchronized Choice choice() { return choice; }
 
     /** The frozen list being stepped through, empty before a set was picked. For the testkit. */
-    public static synchronized List<String> currentRooms() {
-        return rooms == null ? List.of() : List.copyOf(rooms);
-    }
+    public static synchronized List<String> currentRooms() { return rooms == null ? List.of() : List.copyOf(rooms); }
 
     /** Index of the room loaded last within {@link #currentRooms}, -1 before one. For the testkit. */
-    public static synchronized int currentIndex() {
-        return index;
-    }
+    public static synchronized int currentIndex() { return index; }
 
     /**
      * Called by {@link SimBuilder#buildSingleRoom} for every single room it places: {@code fromCycle} true only for
      * this class's own loads. Any other load (the picker) ends the cycle.
      */
-    static synchronized void noteSingleRoomLoad(boolean fromCycle) {
-        cycling = fromCycle;
-    }
+    static synchronized void noteSingleRoomLoad(boolean fromCycle) { cycling = fromCycle; }
 
     /**
      * Whether All Rooms is running: the room standing was loaded by this cycle and is in its set. False on a room
@@ -135,19 +122,13 @@ public final class SimRoomCycle {
     public static boolean isActive() {
         List<String> list;
         synchronized (SimRoomCycle.class) {
-            if (!cycling || rooms == null) {
-                return false;
-            }
+            if (!cycling || rooms == null) return false;
             list = rooms;
         }
         String standing = SimRoomRoutes.currentSoloRoom();
-        if (standing == null) {
-            return false;
-        }
+        if (standing == null) return false;
         for (String r : list) {
-            if (r.equalsIgnoreCase(standing)) {
-                return true;
-            }
+            if (r.equalsIgnoreCase(standing)) return true;
         }
         return false;
     }
@@ -158,7 +139,6 @@ public final class SimRoomCycle {
                 ModChat.dim(" - Dungeon Sim > Route Practice"));
     }
 
-    // ------------------------------------------------------------------------------------------- actions
 
     /**
      * Picks a set and loads its first room. Works from the main menu (the world is opened) and from inside the sim.
@@ -296,7 +276,6 @@ public final class SimRoomCycle {
         SimBuilder.buildSingleRoom(client, name, true);
     }
 
-    // ------------------------------------------------------------------------------------------- keybinds
 
     /** Raw-polled keys like {@code AutoRoutesKeybinds}: never vanilla KeyMappings. Unbound by default. */
     private static final java.nio.file.Path KEYS_FILE = ModPaths.config("killer560smod-sim-roomcycle-keys.txt");
@@ -336,18 +315,14 @@ public final class SimRoomCycle {
     }
 
     private static void loadKeys() {
-        if (keysLoaded) {
-            return;
-        }
+        if (keysLoaded) return;
         keysLoaded = true;
         try {
             if (java.nio.file.Files.exists(KEYS_FILE)) {
                 for (String line : java.nio.file.Files.readAllLines(KEYS_FILE,
                         java.nio.charset.StandardCharsets.UTF_8)) {
                     String[] kv = line.trim().split("=", 2);
-                    if (kv.length != 2) {
-                        continue;
-                    }
+                    if (kv.length != 2) continue;
                     int code;
                     try {
                         code = KeyUtil.sanitizeBind(Integer.parseInt(kv[1].trim()));
@@ -395,7 +370,6 @@ public final class SimRoomCycle {
         backWasDown = back;
     }
 
-    // ------------------------------------------------------------------------------------------- registration
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, beside the other sim registrations. */
     public static void register() {

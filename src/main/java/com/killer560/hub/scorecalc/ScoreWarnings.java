@@ -69,9 +69,7 @@ public final class ScoreWarnings {
         portalScore = result.total();
         portalColor = portalColorFor(portalScore);
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
-            return;
-        }
+        if (mc.level == null || mc.player == null) return;
         net.minecraft.core.BlockPos at = mc.player.blockPosition();
         java.util.List<net.minecraft.core.BlockPos> found = new ArrayList<>();
         net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos();
@@ -91,9 +89,7 @@ public final class ScoreWarnings {
     static void renderPortal(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
         int color = portalColor;
         java.util.List<net.minecraft.core.BlockPos> blocks = portalBlocks;
-        if (color == 0 || blocks.isEmpty()) {
-            return;
-        }
+        if (color == 0 || blocks.isEmpty()) return;
         float[] k = com.killer560.hub.util.WorldRenderUtils.argbToFloats(color);
         // One flat pane per connected portal, not a box per block (killer560, 2026-11-03: "dont have those block things in
         // between ... it should be one static color throughout"): the inner faces of per-block boxes drew as lines.
@@ -136,24 +132,16 @@ public final class ScoreWarnings {
     }
 
     /** Testkit: the portal tint now (0 = none) and how many portal blocks it covers. */
-    public static int portalColor() {
-        return portalColor;
-    }
+    public static int portalColor() { return portalColor; }
 
     private static volatile int portalScore = -1;
 
     /** Testkit: the score the portal color was picked from. */
-    public static int portalScore() {
-        return portalScore;
-    }
+    public static int portalScore() { return portalScore; }
 
-    public static int portalBlockCount() {
-        return portalBlocks.size();
-    }
+    public static int portalBlockCount() { return portalBlocks.size(); }
 
-    public static int portalFrames() {
-        return portalFrames;
-    }
+    public static int portalFrames() { return portalFrames; }
 
     static void onWatcherDone(int runTicks) {
         if (watcherDoneTick < 0) {
@@ -265,12 +253,8 @@ public final class ScoreWarnings {
     }
 
     /** For the testkit: warnings shown since the client started. */
-    public static int warningsShown() {
-        return warningsShown;
-    }
+    public static int warningsShown() { return warningsShown; }
 
     /** For the testkit: the last warning's title and subtitle. */
-    public static String lastWarning() {
-        return lastWarning;
-    }
+    public static String lastWarning() { return lastWarning; }
 }

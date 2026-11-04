@@ -129,7 +129,6 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         visible = out;
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -146,17 +145,13 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
     }
 
     private RunRecord runAt(double mx, double my) {
-        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
     private int contentHeight() {
-        if (mode == Mode.KUUDRA) {
-            return 0;
-        }
+        if (mode == Mode.KUUDRA) return 0;
         return selected == null ? visible.size() * ROW_H : detailLines(selected).size() * 10 + mapHeight(selected);
     }
 
@@ -164,9 +159,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         return run.map() == null || run.map().isEmpty() ? 0 : RunRecord.MapSnapshot.GRID * MAP_CELL + 14;
     }
 
-    private int maxScroll() {
-        return Math.max(0, contentHeight() - listH);
-    }
+    private int maxScroll() { return Math.max(0, contentHeight() - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -177,7 +170,6 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -221,9 +213,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         int first = Math.max(0, scroll / ROW_H);
         for (int i = first; i < visible.size(); i++) {
             int rowY = listY + i * ROW_H - scroll;
-            if (rowY > listY + listH) {
-                break;
-            }
+            if (rowY > listY + listH) break;
             RunRecord run = visible.get(i);
             ScreenChrome.row(graphics, listX, rowY, listW - 6, ROW_H, run == hovered, false, (i) % 2 == 1);
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(RunSummaryFeature.listLine(run),
@@ -245,9 +235,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
             textWidth = Math.max(90, mapX - textX - 8);
         }
         for (String line : detailLines(run)) {
-            if (y > listY + listH) {
-                break;
-            }
+            if (y > listY + listH) break;
             // Once the text has scrolled past the map it gets the full width back.
             int width = y >= mapBottom ? listW - 16 : textWidth;
             if (!line.isEmpty()) {
@@ -276,21 +264,13 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public String themeId() {
-        return "run_log";
-    }
+    public String themeId() { return "run_log"; }
 }

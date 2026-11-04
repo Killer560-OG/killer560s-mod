@@ -46,18 +46,12 @@ public final class RouteCodec {
 
     /** {@code truncated}: the import hit {@link #MAX_POINTS_PER_ROUTE} / {@link #MAX_ROUTES} and dropped the rest. */
     public record Result(List<Imported> routes, String error, boolean truncated) {
-        static Result fail(String error) {
-            return new Result(List.of(), error, false);
-        }
+        static Result fail(String error) { return new Result(List.of(), error, false); }
     }
 
     public static Result parse(String clipboard) {
-        if (clipboard == null || clipboard.isBlank()) {
-            return Result.fail("Clipboard is empty.");
-        }
-        if (clipboard.length() > MAX_CLIPBOARD_CHARS) {
-            return Result.fail("Clipboard is too large to be a waypoint list.");
-        }
+        if (clipboard == null || clipboard.isBlank()) return Result.fail("Clipboard is empty.");
+        if (clipboard.length() > MAX_CLIPBOARD_CHARS) return Result.fail("Clipboard is too large to be a waypoint list.");
         String text = clipboard.trim();
         if (text.startsWith(SKYBLOCKER_PREFIX)) {
             return Result.fail("Skyblocker's share format isn't supported - export as Coleweight or Skytils.");
@@ -65,9 +59,7 @@ public final class RouteCodec {
         try {
             if (text.startsWith(SKYTILS_PREFIX)) {
                 int split = text.indexOf("):");
-                if (split < 0) {
-                    return Result.fail("Malformed Skytils waypoint data.");
-                }
+                if (split < 0) return Result.fail("Malformed Skytils waypoint data.");
                 text = gunzipBase64(text.substring(split + 2).trim());
             } else if (!text.startsWith("[") && !text.startsWith("{")) {
                 text = gunzipBase64(text);
@@ -89,9 +81,7 @@ public final class RouteCodec {
                             break;
                         }
                         JsonObject c = cat.getAsJsonObject();
-                        if (!c.has("waypoints")) {
-                            continue;
-                        }
+                        if (!c.has("waypoints")) continue;
                         Imported imported = fromArray(string(c, "name", "Imported Route"), c.getAsJsonArray("waypoints"), truncated);
                         if (!imported.points().isEmpty()) {
                             routes.add(imported);
@@ -110,9 +100,7 @@ public final class RouteCodec {
         }
     }
 
-    private static String clip(String s, int max) {
-        return s.length() > max ? s.substring(0, max) : s;
-    }
+    private static String clip(String s, int max) { return s.length() > max ? s.substring(0, max) : s; }
 
     private static Imported fromArray(String name, JsonArray array, boolean[] truncated) {
         record Entry(Route.Point point, Integer order) {
@@ -121,13 +109,9 @@ public final class RouteCodec {
         Integer color = null;
         boolean allOrdered = true;
         for (JsonElement el : array) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
+            if (!el.isJsonObject()) continue;
             JsonObject o = el.getAsJsonObject();
-            if (!o.has("x") || !o.has("y") || !o.has("z")) {
-                continue;
-            }
+            if (!o.has("x") || !o.has("y") || !o.has("z")) continue;
             String label = "";
             if (o.has("options") && o.get("options").isJsonObject()) {
                 label = string(o.getAsJsonObject("options"), "name", "");
@@ -184,9 +168,7 @@ public final class RouteCodec {
         return null;
     }
 
-    private static int channel(double v) {
-        return (int) Math.max(0, Math.min(255, Math.round(v)));
-    }
+    private static int channel(double v) { return (int) Math.max(0, Math.min(255, Math.round(v))); }
 
     /** ColeWeight / Soopy ordered-waypoint JSON - readable by ColeWeight, SkyHanni /sho and Skyblocker. */
     public static String toColeweight(Route route) {
@@ -217,9 +199,7 @@ public final class RouteCodec {
             // Review fix (2026-09-15): cap the inflated size so a hostile/garbage clipboard gzip can't OOM the
             // client on the render thread (the import button runs there).
             byte[] out = in.readNBytes(MAX_INFLATED_BYTES + 1);
-            if (out.length > MAX_INFLATED_BYTES) {
-                throw new IllegalArgumentException("Waypoint data too large");
-            }
+            if (out.length > MAX_INFLATED_BYTES) throw new IllegalArgumentException("Waypoint data too large");
             return new String(out, StandardCharsets.UTF_8);
         }
     }

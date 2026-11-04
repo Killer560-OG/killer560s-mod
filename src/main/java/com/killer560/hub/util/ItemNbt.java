@@ -30,9 +30,7 @@ public final class ItemNbt {
 
     /** The live CUSTOM_DATA tag of {@code stack} (read only), or null for an empty stack or one without custom data. */
     public static CompoundTag view(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         return data == null ? null : ((CustomDataTagAccessor) (Object) data).killer560smod$getTag();
     }

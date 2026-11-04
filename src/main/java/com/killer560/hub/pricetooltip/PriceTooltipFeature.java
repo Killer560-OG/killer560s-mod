@@ -52,9 +52,7 @@ public final class PriceTooltipFeature {
     }
 
     /** Settings or the museum changed: every cached tooltip is rebuilt on its next frame. */
-    public static void invalidate() {
-        SETTINGS_STAMP.incrementAndGet();
-    }
+    public static void invalidate() { SETTINGS_STAMP.incrementAndGet(); }
 
     /**
      * {@code lines} with this feature's lines appended, or null to leave the tooltip as it is (off, not a Skyblock
@@ -62,23 +60,15 @@ public final class PriceTooltipFeature {
      */
     public static List<Component> append(ItemStack stack, List<Component> lines) {
         try {
-            if (stack == null || stack.isEmpty() || lines == null || !PriceTooltipConfig.getInstance().isEnabled()) {
-                return null;
-            }
+            if (stack == null || stack.isEmpty() || lines == null || !PriceTooltipConfig.getInstance().isEnabled()) return null;
             CompoundTag tag = ItemNbt.view(stack);
-            if (tag == null || !tag.contains("id")) {
-                return null;
-            }
+            if (tag == null || !tag.contains("id")) return null;
             PriceData.touch();
             List<Component> mine = linesFor(stack, tag);
-            if (mine.isEmpty()) {
-                return null;
-            }
+            if (mine.isEmpty()) return null;
             // Idempotent: getTooltipFromContainerItem can reach getTooltipFromItem, so both hooks may see one list.
             int at = lines.size() - mine.size();
-            if (at >= 0 && lines.get(at) == mine.get(0)) {
-                return null;
-            }
+            if (at >= 0 && lines.get(at) == mine.get(0)) return null;
             List<Component> out = new ArrayList<>(lines.size() + mine.size());
             out.addAll(lines);
             out.addAll(mine);
@@ -134,9 +124,7 @@ public final class PriceTooltipFeature {
         PriceTooltipConfig cfg = PriceTooltipConfig.getInstance();
         List<Component> out = new ArrayList<>();
         String id = ItemKeys.id(tag);
-        if (id == null) {
-            return List.of();
-        }
+        if (id == null) return List.of();
         String key = ItemKeys.priceKey(tag, stack.getHoverName().getString());
         PriceData.ItemInfo info = PriceData.item(id);
         // A stack shows the whole price and the unit price on every line (owner 2026-11-03), Shift or not.
@@ -195,32 +183,22 @@ public final class PriceTooltipFeature {
         return Component.literal(mult > 1 ? s + " §8(" + mult + "x " + coins(unit) + " each)" : s);
     }
 
-    // ------------------------------------------------------------------ formatting
 
     private static final ThreadLocal<DecimalFormat> EXACT = ThreadLocal.withInitial(
             () -> new DecimalFormat("#,##0.0", DecimalFormatSymbols.getInstance(Locale.US)));
 
     /** "5,900,000.0" (Exact) or "5.9M" (Short). */
     public static String coins(double v) {
-        if (PriceTooltipConfig.getInstance().getNumberFormat() == PriceTooltipConfig.NumberFormat.SHORT) {
-            return shortCoins(v);
-        }
+        if (PriceTooltipConfig.getInstance().getNumberFormat() == PriceTooltipConfig.NumberFormat.SHORT) return shortCoins(v);
         return EXACT.get().format(v);
     }
 
     static String shortCoins(double v) {
         double a = Math.abs(v);
         String sign = v < 0 ? "-" : "";
-        if (a >= 1e9) {
-            return sign + trim(a / 1e9) + "B";
-        }
-        if (a >= 1e6) {
-            return sign + trim(a / 1e6) + "M";
-        }
-        if (a >= 1e3) {
-            return sign + trim(a / 1e3) + "k";
-        }
-        return sign + trim(a);
+        if (a >= 1e9) return sign + trim(a / 1e9) + "B";
+        if (a >= 1e6) return sign + trim(a / 1e6) + "M";
+        return a >= 1e3 ? sign + trim(a / 1e3) + "k" : sign + trim(a);
     }
 
     private static String trim(double v) {
@@ -259,9 +237,7 @@ public final class PriceTooltipFeature {
     private static String title(String upper) {
         StringBuilder sb = new StringBuilder();
         for (String w : upper.toLowerCase(Locale.ROOT).split("_")) {
-            if (w.isEmpty()) {
-                continue;
-            }
+            if (w.isEmpty()) continue;
             if (sb.length() > 0) {
                 sb.append(' ');
             }
@@ -272,9 +248,7 @@ public final class PriceTooltipFeature {
 
     private static boolean shiftDown() {
         Boolean o = shiftOverride;
-        if (o != null) {
-            return o;
-        }
+        if (o != null) return o;
         try {
             var window = Minecraft.getInstance().getWindow();
             return KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.LEFT_SHIFT) || KeyUtil.isKeyDown(window, com.killer560.hub.util.Keys.RIGHT_SHIFT);
@@ -284,7 +258,5 @@ public final class PriceTooltipFeature {
     }
 
     /** Testkit: pretend Shift is (true) or is not (false) held; null goes back to the keyboard. */
-    public static void setShiftForTest(Boolean down) {
-        shiftOverride = down;
-    }
+    public static void setShiftForTest(Boolean down) { shiftOverride = down; }
 }

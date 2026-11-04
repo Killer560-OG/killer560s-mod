@@ -48,9 +48,7 @@ public final class CommandTreeRefresh {
             turnedOn |= now && !last[i];
             last[i] = now;
         }
-        if (!turnedOn || mc.getConnection() == null || ClientCommandInternals.getActiveDispatcher() == null) {
-            return;
-        }
+        if (!turnedOn || mc.getConnection() == null || ClientCommandInternals.getActiveDispatcher() == null) return;
         @SuppressWarnings({"unchecked", "rawtypes"})
         CommandDispatcher<FabricClientCommandSource> target = (CommandDispatcher) mc.getConnection().getCommands();
         ClientCommandInternals.addCommands(target, (FabricClientCommandSource) mc.getConnection().getSuggestionsProvider());

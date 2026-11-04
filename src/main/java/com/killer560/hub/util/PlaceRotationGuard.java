@@ -79,9 +79,7 @@ public final class PlaceRotationGuard {
         }
         float yaw = self.getYRot();
         float turn = Math.abs(yaw - yRotLast);
-        if (turn <= MIN_TURN || Math.abs(turn - clickTurn) >= 10 * SAME) {
-            return Float.NaN;
-        }
+        if (turn <= MIN_TURN || Math.abs(turn - clickTurn) >= 10 * SAME) return Float.NaN;
         float nudged = yaw + (yaw >= yRotLast ? NUDGE : -NUDGE);
         self.setYRot(nudged);
         nudges++;
@@ -94,7 +92,5 @@ public final class PlaceRotationGuard {
     }
 
     /** Turns moved so far (only goes up) - read by the testkit. */
-    public static int nudges() {
-        return nudges;
-    }
+    public static int nudges() { return nudges; }
 }

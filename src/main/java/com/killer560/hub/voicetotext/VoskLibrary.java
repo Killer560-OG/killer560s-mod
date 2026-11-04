@@ -116,9 +116,7 @@ public final class VoskLibrary {
      *  changes) how far a download is. */
     public static synchronized VoskLibrary load(Path dir, String url, Consumer<String> onDownload,
                                                 java.util.function.IntConsumer onPercent) throws IOException {
-        if (loaded != null) {
-            return loaded;
-        }
+        if (loaded != null) return loaded;
         Files.createDirectories(dir);
         deleteLeftoverParts(dir);
         Path jar = dir.resolve(JAR_NAME);
@@ -228,7 +226,6 @@ public final class VoskLibrary {
         }
     }
 
-    // ------------------------------------------------------------------ the Vosk calls the feature makes
 
     /** {@code new org.vosk.Model(path)}. Close it with {@link AutoCloseable#close()}. */
     public AutoCloseable newModel(String path) throws Exception {
@@ -250,9 +247,7 @@ public final class VoskLibrary {
     }
 
     /** The loader Vosk was defined by - for checks, not for use. */
-    public ClassLoader classLoader() {
-        return loader;
-    }
+    public ClassLoader classLoader() { return loader; }
 
     private interface Call {
         Object run() throws ReflectiveOperationException;
@@ -264,12 +259,8 @@ public final class VoskLibrary {
             return call.run();
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
-            if (cause instanceof Exception ex) {
-                throw ex;
-            }
-            if (cause instanceof Error err) {
-                throw err;
-            }
+            if (cause instanceof Exception ex) throw ex;
+            if (cause instanceof Error err) throw err;
             throw e;
         }
     }

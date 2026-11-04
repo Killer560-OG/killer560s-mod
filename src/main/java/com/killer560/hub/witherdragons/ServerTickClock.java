@@ -44,9 +44,7 @@ public final class ServerTickClock {
 
     /** Idempotent - both Wither Dragons and Tick Timers call this from their own register(). */
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ServerTickClock", client -> {
             rollWindow();
@@ -60,20 +58,14 @@ public final class ServerTickClock {
         }));
     }
 
-    public static void subscribe(Runnable listener) {
-        LISTENERS.add(listener);
-    }
+    public static void subscribe(Runnable listener) { LISTENERS.add(listener); }
 
     /** See {@link #RAW_PING_LISTENERS}. */
-    public static void subscribeRawPing(Runnable listener) {
-        RAW_PING_LISTENERS.add(listener);
-    }
+    public static void subscribeRawPing(Runnable listener) { RAW_PING_LISTENERS.add(listener); }
 
     /** Called from the ping mixin on the client thread. */
     public static void onPing(int id) {
-        if (id == 0) {
-            return;
-        }
+        if (id == 0) return;
         pingsInWindow++;
         logId(id);
         for (Runnable listener : RAW_PING_LISTENERS) {
@@ -114,9 +106,7 @@ public final class ServerTickClock {
     }
 
     /** True while server pings are driving the clock (false = client-tick fallback). */
-    public static boolean isPingDriven() {
-        return pingDriven;
-    }
+    public static boolean isPingDriven() { return pingDriven; }
 
     /** Client thread only: closes the sample window once a second and picks the clock source for the next one. */
     private static void rollWindow() {

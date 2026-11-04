@@ -90,9 +90,7 @@ public final class IslandDetector {
             scoreboardArea = "";
             return;
         }
-        if (ticks++ % 5 != 0) {
-            return;
-        }
+        if (ticks++ % 5 != 0) return;
         islandName = readTabArea(client);
         scoreboardArea = currentArea(readScoreboardArea(client), actionBarArea, actionBarAreaAt,
                 System.currentTimeMillis());
@@ -110,18 +108,14 @@ public final class IslandDetector {
      * here" in the Upper Mines (mining-1103). Public for the testkit.
      */
     public static String currentArea(String sidebar, String actionBar, long actionBarAt, long now) {
-        if (actionBar != null && !actionBar.isEmpty() && now - actionBarAt <= ACTION_BAR_AREA_MS) {
-            return actionBar;
-        }
+        if (actionBar != null && !actionBar.isEmpty() && now - actionBarAt <= ACTION_BAR_AREA_MS) return actionBar;
         return sidebar == null ? "" : sidebar;
     }
 
     /** One action-bar line as it arrives ({@code PlayerStatsFeature.onActionBar}; packet path, never throws). */
     public static void noteActionBar(String raw) {
         try {
-            if (raw == null || raw.length() > 400) {
-                return;
-            }
+            if (raw == null || raw.length() > 400) return;
             String area = parseActionBarArea(raw);
             if (area != null) {
                 actionBarArea = area;
@@ -139,9 +133,7 @@ public final class IslandDetector {
     }
 
     /** The last action-bar area read (testkit). */
-    public static String actionBarArea() {
-        return actionBarArea;
-    }
+    public static String actionBarArea() { return actionBarArea; }
 
     /** Forgets the action-bar area (testkit, and a world change). */
     public static void clearActionBarArea() {
@@ -150,38 +142,26 @@ public final class IslandDetector {
     }
 
     /** Graph file name for the island the player is on, or null when unknown / no graph exists. */
-    public static String graphIsland() {
-        return graphIsland;
-    }
+    public static String graphIsland() { return graphIsland; }
 
     /** Human island name from the tab list ("Hub"), or "". */
-    public static String islandName() {
-        return islandName;
-    }
+    public static String islandName() { return islandName; }
 
     /** Current scoreboard area ("Village"), or "". */
-    public static String scoreboardArea() {
-        return scoreboardArea;
-    }
+    public static String scoreboardArea() { return scoreboardArea; }
 
     /** The island a fairy-soul count in Hypixel's menu belongs to - Glacite souls are counted under Dwarven Mines. */
-    public static String soulMenuGroup(String island) {
-        return "GLACITE_TUNNELS".equals(island) ? "DWARVEN_MINES" : island;
-    }
+    public static String soulMenuGroup(String island) { return "GLACITE_TUNNELS".equals(island) ? "DWARVEN_MINES" : island; }
 
     /** Graph files whose fairy souls Hypixel counts under {@code menuGroup}. */
     public static List<String> graphsForSoulGroup(String menuGroup) {
-        if ("DWARVEN_MINES".equals(menuGroup)) {
-            return List.of("DWARVEN_MINES", "GLACITE_TUNNELS");
-        }
+        if ("DWARVEN_MINES".equals(menuGroup)) return List.of("DWARVEN_MINES", "GLACITE_TUNNELS");
         return List.of(menuGroup);
     }
 
     /** Island name as shown in Hypixel's own menus -> graph/menu group name, or null. */
     public static String byDisplayName(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         return ISLANDS.get(name.trim().toLowerCase(Locale.ROOT));
     }
 
@@ -189,13 +169,9 @@ public final class IslandDetector {
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
             // Only an "Area:" or "Dungeon:" line can match: skip the trim and Matcher for the other ~80 (95-perf, 2026-10-15).
-            if (plain == null || !(plain.contains("Area:") || plain.contains("Dungeon:"))) {
-                continue;
-            }
+            if (plain == null || !(plain.contains("Area:") || plain.contains("Dungeon:"))) continue;
             Matcher m = TAB_AREA.matcher(plain.trim());
-            if (m.matches()) {
-                return m.group(1).trim();
-            }
+            if (m.matches()) return m.group(1).trim();
         }
         return "";
     }
@@ -203,9 +179,7 @@ public final class IslandDetector {
     private static String readScoreboardArea(Minecraft client) {
         for (String line : sidebarLines(client)) {
             Matcher m = SIDEBAR_AREA.matcher(line);
-            if (m.matches()) {
-                return m.group(1).trim();
-            }
+            if (m.matches()) return m.group(1).trim();
         }
         return "";
     }
@@ -213,14 +187,10 @@ public final class IslandDetector {
     /** Plain (color-stripped) sidebar lines, highest score first. */
     private static List<String> sidebarLines(Minecraft client) {
         List<String> out = new ArrayList<>();
-        if (client.level == null) {
-            return out;
-        }
+        if (client.level == null) return out;
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective objective = com.killer560.hub.scoreboard.ScoreboardData.sidebarObjective(client);
-        if (objective == null) {
-            return out;
-        }
+        if (objective == null) return out;
         List<PlayerScoreEntry> entries = new ArrayList<>();
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(objective)) {
             if (!entry.isHidden()) {

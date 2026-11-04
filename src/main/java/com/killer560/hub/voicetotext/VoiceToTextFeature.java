@@ -5,7 +5,6 @@ import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonParser;
 import com.killer560.hub.notify.ModOverlayMessage;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -18,10 +17,8 @@ import javax.sound.sampled.TargetDataLine;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -136,9 +133,7 @@ public final class VoiceToTextFeature {
             }
         }
         if (!pushToTalk) {
-            if (menuOpen) {
-                return;
-            }
+            if (menuOpen) return;
             if (state == State.RECORDING && !openMicSession) {
                 stopRecordingAndTranscribe(false); // switched from Push To Talk mid-recording
             }
@@ -185,9 +180,7 @@ public final class VoiceToTextFeature {
     }
 
     private static void onKeyPressed() {
-        if (state == State.RECORDING) {
-            return;
-        }
+        if (state == State.RECORDING) return;
         if (state == State.PREPARING_MODEL) {
             overlay("[Voice] Still preparing the speech model...", 1500);
             return;
@@ -219,9 +212,7 @@ public final class VoiceToTextFeature {
     /** Every status line this feature puts on the screen goes through here: with Show Status On HUD off only a failure
      *  (a red line) still shows, so a missing microphone or a failed set-up is never silent. */
     private static void overlay(String text, long durationMs) {
-        if (!VoiceToTextConfig.getInstance().isShowStatusHud() && !text.startsWith("§c")) {
-            return;
-        }
+        if (!VoiceToTextConfig.getInstance().isShowStatusHud() && !text.startsWith("§c")) return;
         ModOverlayMessage.show(text, durationMs);
     }
 
@@ -239,15 +230,11 @@ public final class VoiceToTextFeature {
     }
 
     private static void onKeyReleased() {
-        if (state != State.RECORDING) {
-            return;
-        }
+        if (state != State.RECORDING) return;
         stopRecordingAndTranscribe(false);
     }
 
-    // ------------------------------------------------------------------
     // Model preparation (background thread only)
-    // ------------------------------------------------------------------
 
     private static void prepareModelAndStartRecording() {
         try {
@@ -290,13 +277,9 @@ public final class VoiceToTextFeature {
     }
 
     /** {@code config/killer560/social/voicetotext/killer560smod-voice-model/}: the model folder and the engine jar. */
-    private static Path voiceDirectory() {
-        return ModPaths.config("killer560smod-voice-model");
-    }
+    private static Path voiceDirectory() { return ModPaths.config("killer560smod-voice-model"); }
 
-    private static Path modelDirectory() {
-        return voiceDirectory().resolve(MODEL_DIR_NAME);
-    }
+    private static Path modelDirectory() { return voiceDirectory().resolve(MODEL_DIR_NAME); }
 
     /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about
      *  50 MB zipped; these only ever fire on a hostile or broken response. */
@@ -362,9 +345,7 @@ public final class VoiceToTextFeature {
     }
 
     private static void deleteTree(Path root) throws IOException {
-        if (!Files.exists(root)) {
-            return;
-        }
+        if (!Files.exists(root)) return;
         try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
             for (Path p : (Iterable<Path>) walk.sorted(java.util.Comparator.reverseOrder())::iterator) {
                 Files.deleteIfExists(p);
@@ -372,9 +353,7 @@ public final class VoiceToTextFeature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Recording (main thread starts/stops a dedicated capture thread)
-    // ------------------------------------------------------------------
 
     private static final AudioFormat FORMAT = new AudioFormat(16000f, 16, 1, true, false);
 
@@ -402,9 +381,7 @@ public final class VoiceToTextFeature {
             for (javax.sound.sampled.Mixer.Info mi : AudioSystem.getMixerInfo()) {
                 if (mi.getName().equals(wanted)) {
                     javax.sound.sampled.Mixer mixer = AudioSystem.getMixer(mi);
-                    if (mixer.isLineSupported(info)) {
-                        return (TargetDataLine) mixer.getLine(info);
-                    }
+                    if (mixer.isLineSupported(info)) return (TargetDataLine) mixer.getLine(info);
                 }
             }
             overlay("§e[Voice] \"" + wanted + "\" isn't available - using the default microphone.", 3000);
@@ -438,9 +415,7 @@ public final class VoiceToTextFeature {
                 byte[] buffer = new byte[4096];
                 while (state == State.RECORDING && line == recordingLine && recordingLine.isOpen()) {
                     int read = recordingLine.read(buffer, 0, buffer.length);
-                    if (read <= 0) {
-                        continue;
-                    }
+                    if (read <= 0) continue;
                     if (segmenter == null) {
                         synchronized (capturedAudio) {
                             capturedAudio.write(buffer, 0, read);
@@ -498,13 +473,9 @@ public final class VoiceToTextFeature {
             "the", "a", "an", "huh", "uh", "um", "hm", "hmm", "mm", "mhm", "ah", "oh", "eh", "er");
 
     static boolean isNoiseOnly(String text) {
-        if (text == null || text.isBlank()) {
-            return true;
-        }
+        if (text == null || text.isBlank()) return true;
         for (String word : text.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+")) {
-            if (!NOISE_WORDS.contains(word)) {
-                return false;
-            }
+            if (!NOISE_WORDS.contains(word)) return false;
         }
         return true;
     }
@@ -557,25 +528,9 @@ public final class VoiceToTextFeature {
         return finished;
     }
 
-    public static long testUtterances() {
-        return utterances.get();
-    }
+    public static long testSent() { return sent.get(); }
 
-    public static long testSent() {
-        return sent.get();
-    }
-
-    public static long testIgnored() {
-        return ignored.get();
-    }
-
-    public static String testLastSent() {
-        return lastSent;
-    }
-
-    public static int testLastUtteranceBytes() {
-        return lastUtteranceBytes;
-    }
+    public static long testIgnored() { return ignored.get(); }
 
     /** @param restartIfOpenMic whether to start listening again once this utterance is transcribed and sent -
      *  true for Open Mic's own silence-triggered cut, false for a Push-to-Talk release or a shutdown (the

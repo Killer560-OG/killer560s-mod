@@ -21,9 +21,7 @@ import java.util.List;
 public final class TitleScreenLooksScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
 
     private static final int CHIP_H = 18;
@@ -127,12 +125,8 @@ public final class TitleScreenLooksScreen extends Screen implements com.killer56
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

@@ -39,9 +39,7 @@ final class CdpClient implements WebSocket.Listener {
     private volatile WebSocket socket;
     private volatile boolean open;
 
-    private CdpClient(Runnable onClosed) {
-        this.onClosed = onClosed;
-    }
+    private CdpClient(Runnable onClosed) { this.onClosed = onClosed; }
 
     /** Blocking GET of a DevTools HTTP endpoint (e.g. /json/list). */
     static String httpGet(int port, String path, long timeoutMs) throws Exception {
@@ -50,9 +48,7 @@ final class CdpClient implements WebSocket.Listener {
                 .GET()
                 .build();
         HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) {
-            throw new IllegalStateException("HTTP " + resp.statusCode() + " for " + path);
-        }
+        if (resp.statusCode() != 200) throw new IllegalStateException("HTTP " + resp.statusCode() + " for " + path);
         return resp.body();
     }
 
@@ -62,14 +58,10 @@ final class CdpClient implements WebSocket.Listener {
         String fallback = null;
         for (JsonElement el : targets) {
             JsonObject t = el.getAsJsonObject();
-            if (!t.has("type") || !"page".equals(t.get("type").getAsString()) || !t.has("webSocketDebuggerUrl")) {
-                continue;
-            }
+            if (!t.has("type") || !"page".equals(t.get("type").getAsString()) || !t.has("webSocketDebuggerUrl")) continue;
             String ws = t.get("webSocketDebuggerUrl").getAsString();
             String url = t.has("url") ? t.get("url").getAsString() : "";
-            if (url.contains("youtube.com")) {
-                return ws;
-            }
+            if (url.contains("youtube.com")) return ws;
             if (fallback == null) {
                 fallback = ws;
             }
@@ -94,16 +86,12 @@ final class CdpClient implements WebSocket.Listener {
         return client;
     }
 
-    boolean isOpen() {
-        return open;
-    }
+    boolean isOpen() { return open; }
 
     /** Sends a command; the future completes with the "result" object or exceptionally on error/timeout. */
     CompletableFuture<JsonObject> send(String method, JsonObject params) {
         WebSocket ws = socket;
-        if (!open || ws == null) {
-            return CompletableFuture.failedFuture(new IllegalStateException("CDP not connected"));
-        }
+        if (!open || ws == null) return CompletableFuture.failedFuture(new IllegalStateException("CDP not connected"));
         int id = nextId.getAndIncrement();
         JsonObject msg = new JsonObject();
         msg.addProperty("id", id);
@@ -131,9 +119,7 @@ final class CdpClient implements WebSocket.Listener {
         params.addProperty("returnByValue", true);
         params.addProperty("userGesture", true);
         JsonObject result = send("Runtime.evaluate", params).get(COMMAND_TIMEOUT_MS + 500, TimeUnit.MILLISECONDS);
-        if (result.has("exceptionDetails")) {
-            throw new IllegalStateException("JS exception: " + result.get("exceptionDetails"));
-        }
+        if (result.has("exceptionDetails")) throw new IllegalStateException("JS exception: " + result.get("exceptionDetails"));
         JsonObject r = result.has("result") ? result.getAsJsonObject("result") : null;
         return r != null && r.has("value") ? r.get("value") : null;
     }
@@ -188,9 +174,7 @@ final class CdpClient implements WebSocket.Listener {
     }
 
     @Override
-    public void onOpen(WebSocket webSocket) {
-        webSocket.request(1);
-    }
+    public void onOpen(WebSocket webSocket) { webSocket.request(1); }
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
@@ -224,9 +208,7 @@ final class CdpClient implements WebSocket.Listener {
     }
 
     @Override
-    public void onError(WebSocket webSocket, Throwable error) {
-        handleDrop();
-    }
+    public void onError(WebSocket webSocket, Throwable error) { handleDrop(); }
 
     private void handleDrop() {
         boolean wasOpen = open;

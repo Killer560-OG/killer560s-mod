@@ -123,45 +123,25 @@ public final class RemoteSongs {
 
     /** @return null when the packet was applied, otherwise why it was dropped. */
     static String accept(String from, String uuidText, JsonElement value, long now) {
-        if (from == null || !NAME.matcher(from).matches()) {
-            return "bad sender name";
-        }
+        if (from == null || !NAME.matcher(from).matches()) return "bad sender name";
         Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.player != null && from.equals(mc.player.getGameProfile().name())) {
-            return "own packet";
-        }
+        if (mc != null && mc.player != null && from.equals(mc.player.getGameProfile().name())) return "own packet";
         UUID uuid = parseUuid(uuidText);
-        if (uuid == null) {
-            return "no sender uuid";
-        }
-        if (ModUsers.variantOf(from) == null) {
-            return "not a mod user";
-        }
-        if (!SupportersFeature.isSupporter(uuid)) {
-            return "not a supporter";
-        }
-        if (value == null || !value.isJsonObject()) {
-            return "not an object";
-        }
-        if (value.toString().length() > MAX_VALUE_CHARS) {
-            return "too long";
-        }
+        if (uuid == null) return "no sender uuid";
+        if (ModUsers.variantOf(from) == null) return "not a mod user";
+        if (!SupportersFeature.isSupporter(uuid)) return "not a supporter";
+        if (value == null || !value.isJsonObject()) return "not an object";
+        if (value.toString().length() > MAX_VALUE_CHARS) return "too long";
         JsonObject obj = value.getAsJsonObject();
         String state = string(obj, "state");
         if ("off".equals(state)) {
             SONGS.remove(from);
             return null;
         }
-        if (!"play".equals(state)) {
-            return "unknown state";
-        }
+        if (!"play".equals(state)) return "unknown state";
         Long last = LAST_ACCEPT.get(from);
-        if (last != null && now - last < MIN_INTERVAL_MS) {
-            return "too fast";
-        }
-        if (!SONGS.containsKey(from) && SONGS.size() >= MAX_SENDERS) {
-            return "too many senders";
-        }
+        if (last != null && now - last < MIN_INTERVAL_MS) return "too fast";
+        if (!SONGS.containsKey(from) && SONGS.size() >= MAX_SENDERS) return "too many senders";
         if (LAST_ACCEPT.size() > MAX_SENDERS * 4) {
             LAST_ACCEPT.clear();
         }
@@ -193,20 +173,14 @@ public final class RemoteSongs {
 
     /** A sender's word offsets: exactly one per word, each 0..60 s and never earlier than the one before; else null. */
     private static int[] offsets(JsonElement e, int n) {
-        if (e == null || !e.isJsonArray() || e.getAsJsonArray().size() != n) {
-            return null;
-        }
+        if (e == null || !e.isJsonArray() || e.getAsJsonArray().size() != n) return null;
         int[] out = new int[n];
         int prev = 0;
         for (int i = 0; i < n; i++) {
             JsonElement x = e.getAsJsonArray().get(i);
-            if (!x.isJsonPrimitive() || !x.getAsJsonPrimitive().isNumber()) {
-                return null;
-            }
+            if (!x.isJsonPrimitive() || !x.getAsJsonPrimitive().isNumber()) return null;
             double d = x.getAsDouble();
-            if (!(d >= prev) || d > MAX_INTO_MS) {
-                return null;
-            }
+            if (!(d >= prev) || d > MAX_INTO_MS) return null;
             out[i] = (int) d;
             prev = out[i];
         }
@@ -215,9 +189,7 @@ public final class RemoteSongs {
 
     private static long number(JsonObject obj, String key) {
         JsonElement e = obj.get(key);
-        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) {
-            return 0;
-        }
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) return 0;
         double d = e.getAsDouble();
         return Double.isFinite(d) ? (long) d : 0;
     }
@@ -229,16 +201,12 @@ public final class RemoteSongs {
             return null;
         }
         Entry e = SONGS.get(name);
-        if (e == null || !e.uuid.equals(entityId)) {
-            return null;
-        }
+        if (e == null || !e.uuid.equals(entityId)) return null;
         if (System.currentTimeMillis() - e.atMs > EXPIRE_MS) {
             SONGS.remove(name, e);
             return null;
         }
-        if (ModUsers.variantOf(name) == null || !SupportersFeature.isSupporter(entityId)) {
-            return null;
-        }
+        if (ModUsers.variantOf(name) == null || !SupportersFeature.isSupporter(entityId)) return null;
         return e;
     }
 
@@ -249,9 +217,7 @@ public final class RemoteSongs {
      */
     public static Component tagFor(String name, UUID entityId) {
         Entry e = live(name, entityId);
-        if (e == null || e.title.isEmpty()) {
-            return null;
-        }
+        if (e == null || e.title.isEmpty()) return null;
         int style = SpotifyHudConfig.getInstance().getDisplayCensor().ordinal();
         if (e.tag == null || e.tagStyle != style) {
             e.tagStyle = style;
@@ -268,14 +234,10 @@ public final class RemoteSongs {
      */
     public static Component lyricFor(String name, UUID entityId) {
         Entry e = live(name, entityId);
-        if (e == null || e.words.isEmpty()) {
-            return null;
-        }
+        if (e == null || e.words.isEmpty()) return null;
         long t = e.intoMs + (System.currentTimeMillis() - e.atMs);
         int lastStart = e.wordMs == null ? 0 : e.wordMs[e.wordMs.length - 1];
-        if (t > lastStart + LINE_LINGER_MS) {
-            return null;
-        }
+        if (t > lastStart + LINE_LINGER_MS) return null;
         int lit = -1;
         if (e.wordMs != null) {
             for (int k = 0; k < e.wordMs.length && e.wordMs[k] <= t; k++) {
@@ -311,16 +273,11 @@ public final class RemoteSongs {
         LAST_ACCEPT.clear();
     }
 
-    public static int tracked() {
-        return SONGS.size();
-    }
+    public static int tracked() { return SONGS.size(); }
 
-    // ---- text ----------------------------------------------------------------------------------------------------
 
     /** "♪ Title - Artist" in gray italic, plain literal text, never a sender-chosen style or event. */
-    static Component buildTag(String artist, String title) {
-        return buildTag(artist, title, -1);
-    }
+    static Component buildTag(String artist, String title) { return buildTag(artist, title, -1); }
 
     /** The same line in {@code argb} instead of gray ({@code -1}: gray), still italic: Song In F5's custom text color. */
     static Component buildTag(String artist, String title, int argb) {
@@ -328,9 +285,7 @@ public final class RemoteSongs {
         if (line.codePointCount(0, line.length()) > DRAWN_MAX) {
             line = line.substring(0, line.offsetByCodePoints(0, DRAWN_MAX - 1)).stripTrailing() + "…";
         }
-        if (argb == -1) {
-            return Component.literal("♪ " + line).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
-        }
+        if (argb == -1) return Component.literal("♪ " + line).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
         final int rgb = argb & 0xFFFFFF;
         return Component.literal("♪ " + line).withStyle(s -> s.withColor(rgb).withItalic(true));
     }
@@ -342,9 +297,7 @@ public final class RemoteSongs {
      * Hangul and Braille offer dropped; any run of whitespace becomes one space; at most {@code max} code points.
      */
     static String clean(String s, int max) {
-        if (s == null || s.isEmpty()) {
-            return "";
-        }
+        if (s == null || s.isEmpty()) return "";
         StringBuilder b = new StringBuilder(Math.min(s.length(), max * 2));
         int n = 0;
         int marks = 0;
@@ -369,18 +322,14 @@ public final class RemoteSongs {
                 continue;
             }
             if (type == Character.NON_SPACING_MARK || type == Character.COMBINING_SPACING_MARK) {
-                if (b.isEmpty() || ++marks > 2) {
-                    continue;
-                }
+                if (b.isEmpty() || ++marks > 2) continue;
             } else {
                 marks = 0;
             }
             if (space && !b.isEmpty()) {
                 b.append(' ');
                 n++;
-                if (n >= max) {
-                    break;
-                }
+                if (n >= max) break;
             }
             space = false;
             b.appendCodePoint(cp);
@@ -391,16 +340,11 @@ public final class RemoteSongs {
 
     private static String string(JsonObject obj, String key) {
         JsonElement e = obj.get(key);
-        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) {
-            return "";
-        }
-        return e.getAsString();
+        return e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString() ? "" : e.getAsString();
     }
 
     static UUID parseUuid(String text) {
-        if (text == null || text.isEmpty() || text.length() > 36) {
-            return null;
-        }
+        if (text == null || text.isEmpty() || text.length() > 36) return null;
         try {
             if (UUID_DASHLESS.matcher(text).matches()) {
                 return new UUID(Long.parseUnsignedLong(text.substring(0, 16), 16),

@@ -63,7 +63,6 @@ public final class ChatNames {
             Pattern.compile("^" + R + N + " left the guild!$"),
             Pattern.compile("^" + R + N + " was kicked from the guild by " + R + N + "!$"),
             Pattern.compile("^" + R + N + " has invited you to join their guild, .{1,40}!.*$"),
-            // Trades.
             Pattern.compile("^" + R + N + " has sent you a trade request\\..*$"),
             Pattern.compile("^You have sent a trade request to " + R + N + "\\.$"),
             Pattern.compile("^Trade completed with " + R + N + "!$"));
@@ -79,19 +78,13 @@ public final class ChatNames {
     private ChatNames() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(ChatNames::onChat);
-    }
+    static void register() { ChatObserver.subscribe(ChatNames::onChat); }
 
     private static void onChat(Component message) {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isActive() || !cfg.isRandomizeOthers()) {
-            return;
-        }
+        if (!cfg.isActive() || !cfg.isRandomizeOthers()) return;
         List<String> names = namesIn(ChatObserver.strip(message));
-        if (names.isEmpty()) {
-            return;
-        }
+        if (names.isEmpty()) return;
         linesRead++;
         for (String n : names) {
             if (NameChangerFeature.noteChatName(n)) {
@@ -103,9 +96,7 @@ public final class ChatNames {
     /** The player names a chat line (plain text, no color codes) shows, in order; empty for any other line. */
     public static List<String> namesIn(String plain) {
         List<String> out = new ArrayList<>();
-        if (plain == null || plain.isEmpty() || plain.length() > 600) {
-            return out;
-        }
+        if (plain == null || plain.isEmpty() || plain.length() > 600) return out;
         String line = plain.strip();
         for (Pattern p : LINES) {
             Matcher m = p.matcher(line);
@@ -128,12 +119,8 @@ public final class ChatNames {
     }
 
     /** Chat lines that named a player (testkit evidence). */
-    public static int linesRead() {
-        return linesRead;
-    }
+    public static int linesRead() { return linesRead; }
 
     /** Names chat added to the Nickhider's seen players (testkit evidence). */
-    public static int namesAdded() {
-        return namesAdded;
-    }
+    public static int namesAdded() { return namesAdded; }
 }

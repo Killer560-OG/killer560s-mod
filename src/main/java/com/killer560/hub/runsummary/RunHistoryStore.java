@@ -4,21 +4,16 @@ import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,7 +41,6 @@ import java.util.concurrent.Executors;
 public final class RunHistoryStore {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-runsummary");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** Was {@code config/killer560/dungeons/runs/killer560smod-runs/history.json}; now the shared store (SharedRecords). */
     /** The shared file the history was loaded from (the account signed in then). */
@@ -68,9 +62,7 @@ public final class RunHistoryStore {
     }
 
     /** The shared file, for the testkit (it writes fixture histories here). */
-    public static Path pathForTest() {
-        return SharedRecords.pathOf(RecordCatalog.RUN_HISTORY);
-    }
+    public static Path pathForTest() { return SharedRecords.pathOf(RecordCatalog.RUN_HISTORY); }
 
     private static final int FILE_VERSION = 1;
     /** Hard ceiling regardless of the configured keep-count, so a hand-edited config can't grow the file forever. */
@@ -87,9 +79,7 @@ public final class RunHistoryStore {
 
     /** What a freshly finished run beat, if anything. */
     public record BestFlags(boolean time, boolean score) {
-        public boolean any() {
-            return time || score;
-        }
+        public boolean any() { return time || score; }
     }
 
     private RunHistoryStore() {
@@ -123,9 +113,7 @@ public final class RunHistoryStore {
         }
     }
 
-    private static int pbMin() {
-        return RunSummaryConfig.getInstance().getPbMinScore();
-    }
+    private static int pbMin() { return RunSummaryConfig.getInstance().getPbMinScore(); }
 
     /**
      * One-time self-repair (2026-10-15): clears the stored "*PB*" marks on any run that was never completed or scored
@@ -175,9 +163,7 @@ public final class RunHistoryStore {
      */
     public static synchronized BestFlags add(RunRecord record) {
         ensureLoaded();
-        if (record == null) {
-            return new BestFlags(false, false);
-        }
+        if (record == null) return new BestFlags(false, false);
         String key = floorKey(record);
         long previousBestTime = bestTimeMs(key);
         int previousBestScore = bestScore(key);
@@ -230,10 +216,7 @@ public final class RunHistoryStore {
 
     /** The floor a run is ranked against - Master and normal floors are separate bests. */
     public static String floorKey(RunRecord record) {
-        if (record == null || record.floor() == null || record.floor().isBlank()) {
-            return "Unknown";
-        }
-        return record.floor();
+        return record == null || record.floor() == null || record.floor().isBlank() ? "Unknown" : record.floor();
     }
 
     /** Fastest stored {@code totalMs} for a floor key, or -1 when nothing is stored for it. */
@@ -265,9 +248,7 @@ public final class RunHistoryStore {
         ensureLoaded();
         Map<String, long[]> out = new LinkedHashMap<>();
         for (RunRecord r : RUNS) {
-            if (!r.countsForPb(pbMin())) {
-                continue;
-            }
+            if (!r.countsForPb(pbMin())) continue;
             String key = floorKey(r);
             long[] entry = out.computeIfAbsent(key, k -> new long[]{-1L, -1L});
             if (r.totalMs() > 0 && (entry[0] < 0 || r.totalMs() < entry[0])) {

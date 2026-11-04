@@ -45,9 +45,7 @@ public abstract class TerminalQolInputMixin {
     private void killer560smod$melodyKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         // Escape is never intercepted, same rule TerminalAutoClickInputBlockMixin already follows - closing the
         // menu must never be trapped behind one of this mod's features.
-        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
-            return;
-        }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) return;
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
         if (TerminalQolFeature.handleMelodyKey(self, com.killer560.hub.compat.McInput.key(event))) {
             cir.setReturnValue(true);

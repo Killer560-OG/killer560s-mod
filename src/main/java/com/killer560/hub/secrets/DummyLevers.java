@@ -80,9 +80,7 @@ public final class DummyLevers {
      * Whether a world block is one of a dummy lever's positions in a room that is placed (sim) or identified with its
      * rotation (Hypixel). Client thread on Hypixel; any thread in the sim.
      */
-    public static boolean isDummy(BlockPos pos) {
-        return pos != null && current().world().contains(pos.asLong());
-    }
+    public static boolean isDummy(BlockPos pos) { return pos != null && current().world().contains(pos.asLong()); }
 
     /** Every dummy lever's world position, for tests and the log. */
     public static List<BlockPos> worldPositions() {
@@ -100,9 +98,7 @@ public final class DummyLevers {
         Snapshot s = snapshot;
         if (sim) {
             int version = com.killer560.hub.roomsim.SimRoomIndex.version();
-            if (s.sim() && s.simVersion() == version && s.shift() == shift) {
-                return s;
-            }
+            if (s.sim() && s.simVersion() == version && s.shift() == shift) return s;
             Set<Long> world = new HashSet<>();
             for (com.killer560.hub.roomsim.SimRoomIndex.Placed p : com.killer560.hub.roomsim.SimRoomIndex.placedView()) {
                 add(world, p.name(), p.clayX(), p.clayZ(), p.rotation(), shift);
@@ -113,9 +109,7 @@ public final class DummyLevers {
         }
         long now = System.currentTimeMillis();
         int generation = LiveMapFeature.resetGeneration();
-        if (!s.sim() && s.generation() == generation && now - s.atMs() < LIVE_REFRESH_MS) {
-            return s;
-        }
+        if (!s.sim() && s.generation() == generation && now - s.atMs() < LIVE_REFRESH_MS) return s;
         s = new Snapshot(fromLiveMap(0), false, -1, 0, generation, now);
         snapshot = s;
         return s;

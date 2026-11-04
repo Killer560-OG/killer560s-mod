@@ -214,17 +214,13 @@ public final class SimIcePathPuzzle {
 
     /** Registers the slide tick and the punch hook. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.START_CLIENT_TICK.register(
                 FeatureGuard.start("SimIcePathPuzzle.tick", SimIcePathPuzzle::tick));
         // Client side only, and FAIL either way: the punch must shove the silverfish and never damage it.
         AttackEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
-            if (!isOurFish(entity)) {
-                return InteractionResult.PASS;
-            }
+            if (!isOurFish(entity)) return InteractionResult.PASS;
             if (level.isClientSide()) {
                 onPunched(player.getYRot());
             }
@@ -256,25 +252,17 @@ public final class SimIcePathPuzzle {
     private static volatile boolean rewardOpened = false;
 
     /** Where the sim put the reward chest, or null before the solve. */
-    public static BlockPos rewardChestPos() {
-        return rewardChest;
-    }
+    public static BlockPos rewardChestPos() { return rewardChest; }
 
     /** True once the reward chest was opened (a use-on it reached the server). */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     private static void placeRewardChest(ServerLevel level) {
-        if (rewardChest != null) {
-            return;
-        }
+        if (rewardChest != null) return;
         for (int row = -2; row >= -6; row--) {
             BlockPos floor = iceOf(row, 8);
             BlockPos spot = wallOf(row, 8);
-            if (floor == null || spot == null) {
-                return;
-            }
+            if (floor == null || spot == null) return;
             if (!level.getBlockState(floor).isAir() && level.getBlockState(spot).isAir()) {
                 level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState());
                 rewardChest = spot.immutable();
@@ -299,13 +287,9 @@ public final class SimIcePathPuzzle {
      * see {@link #WALLS}. Same rules as a bound room.
      */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         clearPlaced(client);
         despawnFish(client);
         forget();
@@ -333,9 +317,7 @@ public final class SimIcePathPuzzle {
         // that matters, and it is the solver's own three columns.
         for (int i = -1; i <= BOARD_SIZE; i++) {
             for (int[] rc : new int[][]{{-1, i}, {BOARD_SIZE, i}, {i, -1}, {i, BOARD_SIZE}}) {
-                if (rc[0] == -1 && rc[1] >= EXIT_COL_MIN && rc[1] <= EXIT_COL_MAX) {
-                    continue;
-                }
+                if (rc[0] == -1 && rc[1] >= EXIT_COL_MIN && rc[1] <= EXIT_COL_MAX) continue;
                 stone.add(wallOf(rc[0], rc[1]));
             }
         }
@@ -388,17 +370,13 @@ public final class SimIcePathPuzzle {
         List<int[]> ring = new ArrayList<>();
         for (int i = 0; i < BOARD_SIZE; i++) {
             for (int[] rc : new int[][]{{-1, i}, {BOARD_SIZE, i}, {i, -1}, {i, BOARD_SIZE}}) {
-                if (rc[0] == -1 && rc[1] >= EXIT_COL_MIN && rc[1] <= EXIT_COL_MAX) {
-                    continue;
-                }
+                if (rc[0] == -1 && rc[1] >= EXIT_COL_MIN && rc[1] <= EXIT_COL_MAX) continue;
                 ring.add(new int[]{23 - rc[1], WALL_Y, 24 - rc[0]});
             }
         }
         SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, ring,
                 SimRoomPuzzles.is(Blocks.POLISHED_ANDESITE), new int[]{0}, ring.size() * 3 / 4);
-        if (anchor == null) {
-            return false;
-        }
+        if (anchor == null) return false;
         // forget(), never clearPlaced(): clearPlaced would queue air writes at the PREVIOUS arena's absolute
         // positions for the next server tick, and on a rebuild those land inside the floor just pasted.
         forget();
@@ -424,9 +402,7 @@ public final class SimIcePathPuzzle {
             for (int col = 0; col < BOARD_SIZE; col++) {
                 BlockPos at = wallOf(row, col);
                 boolean isWall = !level.getBlockState(at).isAir();
-                if (isWall == read[row][col]) {
-                    continue;
-                }
+                if (isWall == read[row][col]) continue;
                 level.setBlockAndUpdate(at, read[row][col]
                         ? Blocks.POLISHED_ANDESITE.defaultBlockState()
                         : Blocks.AIR.defaultBlockState());
@@ -457,9 +433,7 @@ public final class SimIcePathPuzzle {
     }
 
     /** True once the silverfish has reached the exit. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
@@ -516,13 +490,9 @@ public final class SimIcePathPuzzle {
     private static void clearPlaced(Minecraft client) {
         List<BlockPos> old = placedBlocks;
         placedBlocks = List.of();
-        if (old.isEmpty() || !SimState.canAct(client)) {
-            return;
-        }
+        if (old.isEmpty() || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (BlockPos pos : old) {
@@ -534,13 +504,9 @@ public final class SimIcePathPuzzle {
     private static void despawnFish(Minecraft client) {
         UUID id = fishId;
         fishId = null;
-        if (id == null) {
-            return;
-        }
+        if (id == null) return;
         MinecraftServer server = client == null ? null : client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             Entity entity = server.overworld().getEntity(id);
             if (entity != null) {
@@ -549,7 +515,6 @@ public final class SimIcePathPuzzle {
         });
     }
 
-    // ---------------------------------------------------------------- geometry
 
     /**
      * The world block of a room-relative coordinate, whichever way this puzzle is standing.
@@ -560,29 +525,19 @@ public final class SimIcePathPuzzle {
      */
     private static BlockPos rel(int rx, int ry, int rz) {
         SimRoomPuzzles.Anchor anchor = boundAnchor;
-        if (anchor != null) {
-            return anchor.world(rx, ry, rz);
-        }
+        if (anchor != null) return anchor.world(rx, ry, rz);
         BlockPos centre = standaloneCentre;
-        if (centre == null) {
-            return null;
-        }
+        if (centre == null) return null;
         return centre.offset(rx - CENTRE_X, ry - ICE_Y, rz - CENTRE_Z).immutable();
     }
 
     /** The ice a cell's silverfish stands on. {@code IcePathSolverFeature}'s own path coordinate. */
-    private static BlockPos iceOf(int row, int col) {
-        return rel(23 - col, ICE_Y, 24 - row);
-    }
+    private static BlockPos iceOf(int row, int col) { return rel(23 - col, ICE_Y, 24 - row); }
 
     /** The cell a maze wall would occupy. {@code IcePathSolverFeature}'s own board read. */
-    private static BlockPos wallOf(int row, int col) {
-        return rel(23 - col, WALL_Y, 24 - row);
-    }
+    private static BlockPos wallOf(int row, int col) { return rel(23 - col, WALL_Y, 24 - row); }
 
-    private static boolean inBounds(int row, int col) {
-        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
-    }
+    private static boolean inBounds(int row, int col) { return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE; }
 
     /**
      * Where a shove from {@code (row, col)} in direction {@code (dRow, dCol)} comes to rest.
@@ -609,9 +564,7 @@ public final class SimIcePathPuzzle {
      * instead of collecting, so the number this class logs is the number that solver would show him.
      */
     private static int shoveCount(boolean[][] b, int[] from) {
-        if (isExit(from)) {
-            return 0;
-        }
+        if (isExit(from)) return 0;
         Set<Integer> seen = new HashSet<>();
         ArrayDeque<int[]> queue = new ArrayDeque<>();
         queue.add(new int[]{from[0], from[1], 0});
@@ -620,12 +573,8 @@ public final class SimIcePathPuzzle {
             int[] at = queue.removeFirst();
             for (int[] d : DIRECTIONS) {
                 int[] to = slide(b, at[0], at[1], d[0], d[1]);
-                if (!seen.add(to[0] * BOARD_SIZE + to[1])) {
-                    continue;
-                }
-                if (isExit(to)) {
-                    return at[2] + 1;
-                }
+                if (!seen.add(to[0] * BOARD_SIZE + to[1])) continue;
+                if (isExit(to)) return at[2] + 1;
                 queue.add(new int[]{to[0], to[1], at[2] + 1});
             }
         }
@@ -643,9 +592,7 @@ public final class SimIcePathPuzzle {
      * @return {row, col}, or null when no cell on this board has a solution at all
      */
     private static int[] chooseStart(boolean[][] b) {
-        if (!b[SPAWN[0]][SPAWN[1]] && shoveCount(b, SPAWN) > 0) {
-            return new int[]{SPAWN[0], SPAWN[1]};
-        }
+        if (!b[SPAWN[0]][SPAWN[1]] && shoveCount(b, SPAWN) > 0) return new int[]{SPAWN[0], SPAWN[1]};
         LOGGER.warn("Sim ice path: the recorded start cell ({},{}) is {} on this board - falling back to the "
                         + "furthest solvable cell", SPAWN[0], SPAWN[1],
                 b[SPAWN[0]][SPAWN[1]] ? "a wall" : "unable to reach the exit");
@@ -663,9 +610,7 @@ public final class SimIcePathPuzzle {
         int bestShoves = 0;
         for (int row = 0; row < BOARD_SIZE; row++) {
             for (int col = 0; col < BOARD_SIZE; col++) {
-                if (b[row][col]) {
-                    continue;
-                }
+                if (b[row][col]) continue;
                 int shoves = shoveCount(b, new int[]{row, col});
                 if (shoves > bestShoves) {
                     bestShoves = shoves;
@@ -688,16 +633,12 @@ public final class SimIcePathPuzzle {
         double px = -Math.sin(rad);
         double pz = Math.cos(rad);
         BlockPos from = iceOf(8, 8);
-        if (from == null) {
-            return null;
-        }
+        if (from == null) return null;
         int[] best = null;
         double bestDot = 0;
         for (int[] d : DIRECTIONS) {
             BlockPos to = iceOf(8 + d[0], 8 + d[1]);
-            if (to == null) {
-                return null;
-            }
+            if (to == null) return null;
             double dot = (to.getX() - from.getX()) * px + (to.getZ() - from.getZ()) * pz;
             if (best == null || dot > bestDot) {
                 bestDot = dot;
@@ -717,20 +658,15 @@ public final class SimIcePathPuzzle {
     private static Float facingYaw(int[] d) {
         BlockPos from = iceOf(8, 8);
         BlockPos to = iceOf(8 + d[0], 8 + d[1]);
-        if (from == null || to == null) {
-            return null;
-        }
+        if (from == null || to == null) return null;
         return (float) Math.toDegrees(Math.atan2(-(to.getX() - from.getX()), to.getZ() - from.getZ()));
     }
 
-    // ---------------------------------------------------------------- the silverfish
 
     /** Spawns the silverfish on a cell. Server thread only. */
     private static void spawn(ServerLevel level, int[] at) {
         BlockPos ice = iceOf(at[0], at[1]);
-        if (ice == null) {
-            return;
-        }
+        if (ice == null) return;
         SimSilverfish fish = new SimSilverfish(McEntities.SILVERFISH, level);
         fish.setPersistenceRequired();
         // Stationary until something shoves it, and never hurt by the shove - see the class doc. Invulnerable
@@ -783,13 +719,9 @@ public final class SimIcePathPuzzle {
     /** A punch landed. Client thread; the shove itself is the server's. */
     private static void onPunched(float yaw) {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> shove(server.overworld(), yaw));
     }
 
@@ -797,13 +729,9 @@ public final class SimIcePathPuzzle {
     private static void shove(ServerLevel level, float yaw) {
         boolean[][] b = board;
         int[] at = cell;
-        if (b == null || at == null || targetCell != null || complete) {
-            return;
-        }
+        if (b == null || at == null || targetCell != null || complete) return;
         int[] d = directionFor(yaw);
-        if (d == null) {
-            return;
-        }
+        if (d == null) return;
         int[] to = slide(b, at[0], at[1], d[0], d[1]);
         if (to[0] == at[0] && to[1] == at[1]) {
             // Nothing moves and nothing is said in game - as on Hypixel - but the log says it.
@@ -823,13 +751,9 @@ public final class SimIcePathPuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client) || board == null || complete || client.player == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || board == null || complete || client.player == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         final double px = client.player.getX();
         final double py = client.player.getY();
         final double pz = client.player.getZ();
@@ -839,9 +763,7 @@ public final class SimIcePathPuzzle {
     /** One tick of the slide, or a look for an arrow while at rest. Server thread only. */
     private static void step(MinecraftServer server, double px, double py, double pz) {
         ServerLevel level = server.overworld();
-        if (board == null || complete) {
-            return;
-        }
+        if (board == null || complete) return;
         UUID id = fishId;
         Entity entity = id == null ? null : level.getEntity(id);
         if (!(entity instanceof Silverfish fish) || !fish.isAlive()) {
@@ -892,19 +814,13 @@ public final class SimIcePathPuzzle {
      */
     private static void respawnIfNear(ServerLevel level, double px, double py, double pz) {
         int[] at = cell != null ? cell : startCell;
-        if (at == null) {
-            return;
-        }
+        if (at == null) return;
         BlockPos ice = iceOf(at[0], at[1]);
-        if (ice == null) {
-            return;
-        }
+        if (ice == null) return;
         double dx = ice.getX() + 0.5 - px;
         double dy = ice.getY() + 1 - py;
         double dz = ice.getZ() + 0.5 - pz;
-        if (dx * dx + dy * dy + dz * dz > RESPAWN_RANGE * RESPAWN_RANGE) {
-            return;
-        }
+        if (dx * dx + dy * dy + dz * dz > RESPAWN_RANGE * RESPAWN_RANGE) return;
         if (respawnCooldown > 0) {
             respawnCooldown--;
             return;
@@ -948,9 +864,7 @@ public final class SimIcePathPuzzle {
     private static void clearStrays(ServerLevel level, Silverfish keep) {
         strayCheck = false;
         BlockPos centre = iceOf(BOARD_SIZE / 2, BOARD_SIZE / 2);
-        if (centre == null) {
-            return;
-        }
+        if (centre == null) return;
         net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(centre).inflate(BOARD_SIZE, 4, BOARD_SIZE);
         int removed = 0;
         for (SimSilverfish stray : level.getEntitiesOfClass(SimSilverfish.class, box, e -> !e.isRemoved())) {
@@ -981,9 +895,7 @@ public final class SimIcePathPuzzle {
     private static void pollForArrow(ServerLevel level, Silverfish fish) {
         List<AbstractArrow> arrows = level.getEntitiesOfClass(AbstractArrow.class,
                 fish.getBoundingBox().inflate(0.75), a -> !a.isRemoved());
-        if (arrows.isEmpty()) {
-            return;
-        }
+        if (arrows.isEmpty()) return;
         Float yaw = null;
         String from = null;
         for (AbstractArrow arrow : arrows) {
@@ -1040,8 +952,6 @@ public final class SimIcePathPuzzle {
         }
 
         @Override
-        public boolean isPushable() {
-            return false;
-        }
+        public boolean isPushable() { return false; }
     }
 }

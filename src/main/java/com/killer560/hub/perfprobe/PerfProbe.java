@@ -70,7 +70,6 @@ public final class PerfProbe {
         }
     }
 
-    // ---- wrapping -----------------------------------------------------------------------------------------------
 
     /** The listener itself, or a timing proxy for it when the probe is on and it is one of this mod's classes. */
     @SuppressWarnings("unchecked")
@@ -80,9 +79,7 @@ public final class PerfProbe {
             return listener;
         }
         String cn = listener.getClass().getName();
-        if (!cn.startsWith(MOD_PREFIX) || cn.startsWith(SELF_PREFIX)) {
-            return listener;
-        }
+        if (!cn.startsWith(MOD_PREFIX) || cn.startsWith(SELF_PREFIX)) return listener;
         try {
             String event = eventName(iface);
             Stat stat = stat(owner(cn) + " " + event, kindOf(event));
@@ -143,9 +140,7 @@ public final class PerfProbe {
     }
 
     public static void exitHud(Object element, String id) {
-        if (!onRenderThread()) {
-            return;
-        }
+        if (!onRenderThread()) return;
         Stat stat = HUD.get(element);
         if (stat == null) {
             stat = stat(owner(element.getClass().getName()) + " HUD[" + id + "]", "frame");
@@ -168,9 +163,7 @@ public final class PerfProbe {
     /** Ends {@link #enterScreen()}: key {@code screen.<SimpleName> extract}, kind frame. Self time is the screen's own
      *  draw (vanilla's and every mod mixin inside it) minus probed listeners nested inside. */
     public static void exitScreen(Object screen) {
-        if (!onRenderThread()) {
-            return;
-        }
+        if (!onRenderThread()) return;
         Class<?> c = screen.getClass();
         Stat stat = SCREENS.get(c);
         if (stat == null) {
@@ -180,14 +173,11 @@ public final class PerfProbe {
         exit(stat);
     }
 
-    // ---- timing -------------------------------------------------------------------------------------------------
 
     private static boolean onRenderThread() {
         Thread t = Thread.currentThread();
         Thread r = renderThread;
-        if (t == r) {
-            return true;
-        }
+        if (t == r) return true;
         if (r == null && "Render thread".equals(t.getName())) {
             renderThread = t;
             return true;
@@ -213,9 +203,7 @@ public final class PerfProbe {
             depth = 0;
             return;
         }
-        if (d >= MAX_DEPTH) {
-            return;
-        }
+        if (d >= MAX_DEPTH) return;
         long el = t1 - START_NS[d];
         long eb = b1 - START_B[d];
         long self = el - CHILD_NS[d];
@@ -252,9 +240,7 @@ public final class PerfProbe {
         }
     }
 
-    private static long allocated() {
-        return THREADS == null ? 0L : THREADS.getCurrentThreadAllocatedBytes();
-    }
+    private static long allocated() { return THREADS == null ? 0L : THREADS.getCurrentThreadAllocatedBytes(); }
 
     private static com.sun.management.ThreadMXBean threads() {
         try {
@@ -266,11 +252,8 @@ public final class PerfProbe {
         }
     }
 
-    private static Stat stat(String key, String kind) {
-        return STATS.computeIfAbsent(key, k -> new Stat(k, kind));
-    }
+    private static Stat stat(String key, String kind) { return STATS.computeIfAbsent(key, k -> new Stat(k, kind)); }
 
-    // ---- naming -------------------------------------------------------------------------------------------------
 
     /** {@code com.killer560.hub.trail.TrailFeature$$Lambda/0x..} -> {@code trail.TrailFeature}; an anonymous
      *  {@code Foo$1} -> {@code Foo}; a named nested class keeps its name. */
@@ -286,9 +269,7 @@ public final class PerfProbe {
         }
         while (true) {
             int d = s.lastIndexOf('$');
-            if (d < 0 || d == s.length() - 1 || !Character.isDigit(s.charAt(d + 1))) {
-                break;
-            }
+            if (d < 0 || d == s.length() - 1 || !Character.isDigit(s.charAt(d + 1))) break;
             s = s.substring(0, d);
         }
         return s.startsWith(MOD_PREFIX) ? s.substring(MOD_PREFIX.length()) : s;
@@ -301,9 +282,7 @@ public final class PerfProbe {
     }
 
     static String kindOf(String event) {
-        if (event.contains("Tick")) {
-            return "tick";
-        }
+        if (event.contains("Tick")) return "tick";
         if (event.contains("Render") || event.contains("Extract") || event.contains("Hud") || event.contains("Submit")) {
             return "frame";
         }
@@ -312,9 +291,7 @@ public final class PerfProbe {
 
     // ---- read-out for the testkit (reflection; plain types only) -------------------------------------------------
 
-    public static boolean enabled() {
-        return ENABLED;
-    }
+    public static boolean enabled() { return ENABLED; }
 
     /** One line per key: {@code key \t kind \t calls \t selfNs \t bytes \t maxNs}. Call on the render thread. */
     public static String snapshot() {
@@ -330,9 +307,7 @@ public final class PerfProbe {
                 bytes = s.bytes;
                 max = s.maxNs;
             }
-            if (calls == 0) {
-                continue;
-            }
+            if (calls == 0) continue;
             lines.add(s.key + "\t" + s.kind + "\t" + calls + "\t" + ns + "\t" + bytes + "\t" + max);
         }
         lines.sort(null);
@@ -352,9 +327,7 @@ public final class PerfProbe {
     }
 
     /** Number of keys registered so far: proof the wrapping ran. */
-    public static int keyCount() {
-        return STATS.size();
-    }
+    public static int keyCount() { return STATS.size(); }
 
     /**
      * The probe's own cost per call, from {@code n} calls of an empty listener through the same proxy path:
@@ -362,9 +335,7 @@ public final class PerfProbe {
      * self time carries on top of its own work, to subtract; "outer" is what the probe adds to the frame. Render thread.
      */
     public static String calibrate(int n) {
-        if (!ENABLED || !onRenderThread()) {
-            return "0\t0\t0";
-        }
+        if (!ENABLED || !onRenderThread()) return "0\t0\t0";
         Stat stat = new Stat("perfprobe.calibration", "event");
         Runnable empty = () -> { };
         Runnable wrapped = (Runnable) Proxy.newProxyInstance(Runnable.class.getClassLoader(),

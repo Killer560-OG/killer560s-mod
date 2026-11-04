@@ -49,12 +49,7 @@ public final class SupportersAutoShare {
     /** The relay refuses a scale outside 0.5-2.0 (its validateScale), but your own size slider goes down to 0.05 for
      *  your own model; a smaller size shares as 0.5, or the push would 400 on every retry and take your name, trail and
      *  mob down with it. */
-    public static double sharedScale(double scale) {
-        if (Double.isNaN(scale)) {
-            return 1.0;
-        }
-        return Math.max(0.5, Math.min(2.0, scale));
-    }
+    public static double sharedScale(double scale) { return Double.isNaN(scale) ? 1.0 : Math.max(0.5, Math.min(2.0, scale)); }
 
     /**
      * @param plainName   the Cosmetics tab's own display name, plain text (no {@code &}/{@code §} codes) -
@@ -78,9 +73,7 @@ public final class SupportersAutoShare {
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
                                    double scale, TrailSpec trail, String mob, Consumer<String> onError) {
-        if (!shareIfSupporter || !whitelisted) {
-            return;
-        }
+        if (!shareIfSupporter || !whitelisted) return;
         scale = sharedScale(scale);
 
         String rawName = plainName == null || plainName.isEmpty() ? ""
@@ -94,9 +87,7 @@ public final class SupportersAutoShare {
         final String sendMob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);
         String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation + "|" + trail
                 + "|" + sendMob;
-        if (key.equals(lastPushedKey)) {
-            return;
-        }
+        if (key.equals(lastPushedKey)) return;
         long now = System.currentTimeMillis();
         if (lastPushAtMs > 0 && now - lastPushAtMs < MIN_PUSH_GAP_MS) {
             return; // too soon - the next rebuild (another keystroke, or just time passing) retries this
@@ -132,13 +123,9 @@ public final class SupportersAutoShare {
      *  Player Cosmetics tab). Nothing is ever shared before that says yes. */
     private static volatile boolean linked = false;
 
-    public static boolean isLinked() {
-        return linked;
-    }
+    public static boolean isLinked() { return linked; }
 
-    public static void setLinked(boolean value) {
-        linked = value;
-    }
+    public static void setLinked(boolean value) { linked = value; }
 
     // ---- startup check (killer560, 2026-10-13: names and the trail share without opening Player Cosmetics) ----
 
@@ -158,17 +145,13 @@ public final class SupportersAutoShare {
      * pushes your name, size and trail at once.
      */
     public static void tickStartupCheck() {
-        if (startupDone || startupInFlight) {
-            return;
-        }
+        if (startupDone || startupInFlight) return;
         long now = System.currentTimeMillis();
         if (nextStartupCheckAtMs < 0) {
             nextStartupCheckAtMs = now + FIRST_CHECK_DELAY_MS;
             return;
         }
-        if (now < nextStartupCheckAtMs) {
-            return;
-        }
+        if (now < nextStartupCheckAtMs) return;
         startupInFlight = true;
         SupportersSelfService.fetchMe().whenComplete((result, error) ->
                 Minecraft.getInstance().execute(() -> onStartupMe(result)));
@@ -194,28 +177,20 @@ public final class SupportersAutoShare {
     }
 
     /** "waiting", "linked", "not linked" or "retry in N s after K failure(s): reason" - for the testkit. */
-    public static String startupCheckState() {
-        return startupState;
-    }
+    public static String startupCheckState() { return startupState; }
 
     /** Your Ribbon Trail as it is shared: only while Share Trail is on and your Ribbon Trail is on, else null (no trail
      *  field). The squares Trail is never shared (killer560, 2026-10-14). */
     public static TrailSpec trailToShare() {
-        if (!SupportersConfig.getInstance().isShareTrail() || !RibbonTrailConfig.getInstance().isEnabledRaw()) {
-            return null;
-        }
+        if (!SupportersConfig.getInstance().isShareTrail() || !RibbonTrailConfig.getInstance().isEnabledRaw()) return null;
         return TrailSpec.fromConfig(RibbonTrailConfig.getInstance());
     }
 
     /** Why your trail is not being shared right now, in one line, or null when it is (or would be once linked
      *  status arrives). For the Player Cosmetics tab, beside the Share Trail switch. */
     public static String trailShareBlocker() {
-        if (!linked) {
-            return "Only supporters can share a trail.";
-        }
-        if (!SupportersConfig.getInstance().isShareIfSupporter()) {
-            return "Turn on Share if Supporter to share your trail.";
-        }
+        if (!linked) return "Only supporters can share a trail.";
+        if (!SupportersConfig.getInstance().isShareIfSupporter()) return "Turn on Share if Supporter to share your trail.";
         return null;
     }
 

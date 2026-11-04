@@ -156,9 +156,7 @@ public final class ProfileManager {
      *  plain copy. */
     private static boolean copyWithSecretsStripped(Path source, Path target) {
         Set<String> secrets = SECRET_FIELDS.get(source.getFileName().toString());
-        if (secrets == null) {
-            return false;
-        }
+        if (secrets == null) return false;
         try {
             com.google.gson.JsonObject obj = com.google.gson.JsonParser
                     .parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -180,9 +178,7 @@ public final class ProfileManager {
      *  when the file has no secret fields or can't be merged, so the caller falls back to a plain copy. */
     private static boolean copyPreservingSecrets(Path source, Path live) {
         Set<String> secrets = SECRET_FIELDS.get(source.getFileName().toString());
-        if (secrets == null) {
-            return false;
-        }
+        if (secrets == null) return false;
         try {
             com.google.gson.JsonObject incoming = com.google.gson.JsonParser
                     .parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -219,15 +215,11 @@ public final class ProfileManager {
 
     /** Filesystem-safe folder name for a profile - anything outside letters/digits/space/underscore/
      *  hyphen becomes an underscore, matching the mod's other simple sanitizers (e.g. Posmsg names). */
-    private static String sanitize(String name) {
-        return name.trim().replaceAll("[^A-Za-z0-9 _-]", "_");
-    }
+    private static String sanitize(String name) { return name.trim().replaceAll("[^A-Za-z0-9 _-]", "_"); }
 
     public static List<String> listProfiles() {
         List<String> names = new ArrayList<>();
-        if (!Files.isDirectory(PROFILES_DIR)) {
-            return names;
-        }
+        if (!Files.isDirectory(PROFILES_DIR)) return names;
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(PROFILES_DIR)) {
             for (Path entry : stream) {
                 if (Files.isDirectory(entry)) {
@@ -244,9 +236,7 @@ public final class ProfileManager {
         try {
             if (Files.exists(ACTIVE_MARKER)) {
                 String name = Files.readString(ACTIVE_MARKER, StandardCharsets.UTF_8).trim();
-                if (!name.isEmpty()) {
-                    return name;
-                }
+                if (!name.isEmpty()) return name;
             }
         } catch (IOException ignored) {
         }
@@ -268,9 +258,7 @@ public final class ProfileManager {
     /** Snapshots every current setting file into a new (or overwritten) profile folder. */
     public static synchronized Result saveCurrentAsProfile(String rawName) {
         String name = sanitize(rawName);
-        if (name.isEmpty()) {
-            return new Result(false, "§cProfile name can't be empty.");
-        }
+        if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         try {
             Path dir = PROFILES_DIR.resolve(name);
             Files.createDirectories(dir);
@@ -294,13 +282,9 @@ public final class ProfileManager {
      *  reloads every in-memory config from the new files - see class doc. */
     public static synchronized Result applyProfile(String rawName) {
         String name = sanitize(rawName);
-        if (name.isEmpty()) {
-            return new Result(false, "§cProfile name can't be empty.");
-        }
+        if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         Path dir = PROFILES_DIR.resolve(name);
-        if (!Files.isDirectory(dir)) {
-            return new Result(false, "§cNo profile named \"" + name + "\".");
-        }
+        if (!Files.isDirectory(dir)) return new Result(false, "§cNo profile named \"" + name + "\".");
         // Anything changed since the last auto-save poll belongs to the profile being LEFT - write it there before
         // the live files are replaced, or switching away within two seconds of a change would lose it.
         syncActiveProfile();
@@ -309,9 +293,7 @@ public final class ProfileManager {
             java.util.Set<String> inProfile = new java.util.HashSet<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
                 for (Path file : stream) {
-                    if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) {
-                        continue;
-                    }
+                    if (!Files.isRegularFile(file) || !isProfileSettingFile(file.getFileName().toString())) continue;
                     inProfile.add(file.getFileName().toString());
                     // The name decides the folder, exactly as it does for the feature that reads the file.
                     // Its folder may not exist yet: a feature's folder is made by its first save (2026-10-26).
@@ -341,9 +323,7 @@ public final class ProfileManager {
             int reset = 0;
             for (Path live : liveConfigFiles()) {
                 String fileName = live.getFileName().toString();
-                if (inProfile.contains(fileName) || SECRET_FIELDS.containsKey(fileName)) {
-                    continue;
-                }
+                if (inProfile.contains(fileName) || SECRET_FIELDS.containsKey(fileName)) continue;
                 if (Files.deleteIfExists(live)) {
                     reset++;
                 }
@@ -725,7 +705,6 @@ public final class ProfileManager {
         return failed;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Blank profile
 
     /** Files a blank profile carries over from the live ones instead of resetting: his recorded routes, waypoints and
@@ -820,9 +799,7 @@ public final class ProfileManager {
             refreshDerivedState(false, false);
             deleteFolderQuietly(backup);
         }
-        if (!result.success()) {
-            return result;
-        }
+        if (!result.success()) return result;
         LOGGER.info("[Profiles] Blank profile \"{}\": {} switch(es) off", name, off);
         return new Result(true, "§a[Profiles] Created blank profile \"" + name
                 + "\" (every setting off). Load it to use it.");
@@ -834,16 +811,10 @@ public final class ProfileManager {
     public static synchronized Result renameProfile(String rawOld, String rawNew) {
         String oldName = sanitize(rawOld == null ? "" : rawOld);
         String newName = sanitize(rawNew == null ? "" : rawNew);
-        if (newName.isEmpty()) {
-            return new Result(false, "§cType a name for the profile first.");
-        }
+        if (newName.isEmpty()) return new Result(false, "§cType a name for the profile first.");
         Path from = PROFILES_DIR.resolve(oldName);
-        if (oldName.isEmpty() || !Files.isDirectory(from)) {
-            return new Result(false, "§cNo profile named \"" + oldName + "\".");
-        }
-        if (newName.equals(oldName)) {
-            return new Result(true, "§a[Profiles] \"" + oldName + "\" keeps its name.");
-        }
+        if (oldName.isEmpty() || !Files.isDirectory(from)) return new Result(false, "§cNo profile named \"" + oldName + "\".");
+        if (newName.equals(oldName)) return new Result(true, "§a[Profiles] \"" + oldName + "\" keeps its name.");
         Path to = PROFILES_DIR.resolve(newName);
         if (Files.exists(to) && !newName.equalsIgnoreCase(oldName)) {
             return new Result(false, "§cThere is already a profile named \"" + newName + "\".");
@@ -873,9 +844,7 @@ public final class ProfileManager {
             return new Result(false, "§cProfile name can't be empty.");
         }
         Path dir = PROFILES_DIR.resolve(name);
-        if (!Files.isDirectory(dir)) {
-            return new Result(false, "§cNo profile named \"" + name + "\".");
-        }
+        if (!Files.isDirectory(dir)) return new Result(false, "§cNo profile named \"" + name + "\".");
         try {
             ProfileData.deleteRecursive(dir);
             if (name.equals(getActiveProfile())) {
@@ -892,13 +861,9 @@ public final class ProfileManager {
      *  {@link #shareProfile} also opens that folder. */
     public static synchronized Result exportProfile(String rawName) {
         String name = sanitize(rawName);
-        if (name.isEmpty()) {
-            return new Result(false, "§cProfile name can't be empty.");
-        }
+        if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         Path dir = PROFILES_DIR.resolve(name);
-        if (!Files.isDirectory(dir)) {
-            return new Result(false, "§cNo profile named \"" + name + "\".");
-        }
+        if (!Files.isDirectory(dir)) return new Result(false, "§cNo profile named \"" + name + "\".");
         // The active profile gets the last two seconds of changes first, so the zip is what he sees now.
         if (name.equals(getActiveProfile())) {
             syncActiveProfile();
@@ -919,9 +884,7 @@ public final class ProfileManager {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
                 for (Path file : stream) {
                     String fileName = file.getFileName().toString();
-                    if (!Files.isRegularFile(file) || !isProfileSettingFile(fileName)) {
-                        continue;
-                    }
+                    if (!Files.isRegularFile(file) || !isProfileSettingFile(fileName)) continue;
                     zos.putNextEntry(new ZipEntry(fileName));
                     zos.write(exportBytes(file));
                     zos.closeEntry();
@@ -947,9 +910,7 @@ public final class ProfileManager {
     private static byte[] exportBytes(Path file) throws IOException {
         Set<String> secrets = SECRET_FIELDS.get(file.getFileName().toString());
         byte[] raw = Files.readAllBytes(file);
-        if (secrets == null) {
-            return raw;
-        }
+        if (secrets == null) return raw;
         try {
             com.google.gson.JsonObject obj = com.google.gson.JsonParser
                     .parseString(new String(raw, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -995,9 +956,7 @@ public final class ProfileManager {
      *  a friend drops the .zip they were sent into that folder and only types its name). */
     public static synchronized Result importProfile(String source, String rawNewName) {
         String name = sanitize(rawNewName);
-        if (name.isEmpty()) {
-            return new Result(false, "§cProfile name can't be empty.");
-        }
+        if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         Path zipPath = null;
         try {
             zipPath = Path.of(source);
@@ -1027,9 +986,7 @@ public final class ProfileManager {
             try (InputStream fis = Files.newInputStream(zipPath); ZipInputStream zis = new ZipInputStream(fis)) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
-                    if (entry.isDirectory()) {
-                        continue;
-                    }
+                    if (entry.isDirectory()) continue;
                     String path = entry.getName().replace('\\', '/');
                     String[] parts = path.split("/");
                     String fileName = parts[parts.length - 1];
@@ -1045,14 +1002,10 @@ public final class ProfileManager {
                         String rel = String.join("/", java.util.Arrays.copyOfRange(parts, dataAt + 1, parts.length));
                         String top = parts[dataAt + 1];
                         boolean topIsDir = parts.length - dataAt - 1 > 1;
-                        if (!ProfileData.isDataName(top, topIsDir) || !ProfileData.isCarriedRelative(rel)) {
-                            continue;
-                        }
+                        if (!ProfileData.isDataName(top, topIsDir) || !ProfileData.isCarriedRelative(rel)) continue;
                         Path dataRoot = dir.resolve(ProfileData.DATA_DIR);
                         Path target = dataRoot.resolve(rel).normalize();
-                        if (!target.startsWith(dataRoot)) {
-                            continue;
-                        }
+                        if (!target.startsWith(dataRoot)) continue;
                         Files.createDirectories(target.getParent());
                         // Streamed to the file: a big GIF is never held whole in memory (a heap error on a zip dropped in
                         // the import folder would be retried by every poll, for ever).
@@ -1065,9 +1018,7 @@ public final class ProfileManager {
                         data++;
                         continue;
                     }
-                    if (!fileName.equals(ProfileData.META_FILE) && !isProfileSettingFile(fileName)) {
-                        continue;
-                    }
+                    if (!fileName.equals(ProfileData.META_FILE) && !isProfileSettingFile(fileName)) continue;
                     byte[] bytes = readCapped(zis, Math.min(ProfileData.MAX_TOTAL_BYTES - total, MAX_SETTING_BYTES));
                     if (bytes == null) {
                         throw new IOException("a setting file in the zip is larger than " + (MAX_SETTING_BYTES >> 20)
@@ -1155,9 +1106,7 @@ public final class ProfileManager {
      *  its own place; the bytes come back untouched when they already hold the live values. */
     private static byte[] keepLiveImportLocked(String fileName, byte[] bytes) {
         Set<String> locked = IMPORT_LOCKED_FIELDS.get(fileName);
-        if (locked == null) {
-            return bytes;
-        }
+        if (locked == null) return bytes;
         com.google.gson.JsonObject current = null;
         Path live = ModPaths.config(fileName);
         if (Files.isRegularFile(live)) {
@@ -1180,9 +1129,7 @@ public final class ProfileManager {
         }
         for (String field : locked) {
             com.google.gson.JsonElement liveValue = current != null ? current.get(field) : null;
-            if (java.util.Objects.equals(incoming.get(field), liveValue)) {
-                continue;
-            }
+            if (java.util.Objects.equals(incoming.get(field), liveValue)) continue;
             changed = true;
             if (liveValue != null) {
                 // add() on a key already there keeps its place, so the file keeps its key order.
@@ -1230,9 +1177,7 @@ public final class ProfileManager {
         long read = 0;
         while ((n = in.read(buf)) > 0) {
             read += n;
-            if (read > limit) {
-                return null;
-            }
+            if (read > limit) return null;
             out.write(buf, 0, n);
         }
         return out.toByteArray();
@@ -1245,7 +1190,6 @@ public final class ProfileManager {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Import drop folder
 
     /** The drop folder, created if missing - what the Profiles tab's Import button opens. */
@@ -1267,9 +1211,7 @@ public final class ProfileManager {
      */
     public static synchronized List<String> importDroppedFiles() {
         List<String> messages = new ArrayList<>();
-        if (!Files.isDirectory(IMPORT_DIR)) {
-            return messages;
-        }
+        if (!Files.isDirectory(IMPORT_DIR)) return messages;
         List<Path> zips = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(IMPORT_DIR)) {
             for (Path p : stream) {
@@ -1308,7 +1250,6 @@ public final class ProfileManager {
         return messages;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Auto-save into the active profile
 
     /**
@@ -1331,9 +1272,7 @@ public final class ProfileManager {
 
     /** Starts the auto-save / import poll. Call once from client init. */
     public static synchronized void startBackgroundTasks() {
-        if (autoSaveExecutor != null) {
-            return;
-        }
+        if (autoSaveExecutor != null) return;
         autoSaveExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "killer560smod-profiles-autosave");
             t.setDaemon(true);

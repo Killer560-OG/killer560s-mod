@@ -69,32 +69,18 @@ public final class ModUserConfig {
     }
 
     /** This build's own variant name: "cheat" or "legit". */
-    public static String ownVariant() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit";
-    }
+    public static String ownVariant() { return BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit"; }
 
-    public boolean isSeeOthers() {
-        return seeOthers;
-    }
+    public boolean isSeeOthers() { return seeOthers; }
 
-    public void setSeeOthers(boolean seeOthers) {
-        this.seeOthers = seeOthers;
-    }
+    public void setSeeOthers(boolean seeOthers) { this.seeOthers = seeOthers; }
 
-    public boolean isShare() {
-        return share;
-    }
+    public boolean isShare() { return share; }
 
-    public void setShare(boolean share) {
-        this.share = share;
-    }
+    public void setShare(boolean share) { this.share = share; }
 
     /** The variant shown when sharing. Always legit on the legit build. */
-    public String getShareAs() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && "cheat".equals(shareAs) ? "cheat" : "legit";
-    }
+    public String getShareAs() { return BuildVariant.CHEAT_FEATURES_ENABLED && "cheat".equals(shareAs) ? "cheat" : "legit"; }
 
-    public void setShareAs(String shareAs) {
-        this.shareAs = "cheat".equals(shareAs) ? "cheat" : "legit";
-    }
+    public void setShareAs(String shareAs) { this.shareAs = "cheat".equals(shareAs) ? "cheat" : "legit"; }
 }

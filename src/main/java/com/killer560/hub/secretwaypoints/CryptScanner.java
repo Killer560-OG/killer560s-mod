@@ -92,24 +92,18 @@ public final class CryptScanner {
     private static final java.util.Map<BlockPos, String> SCAN_VERDICT = new java.util.HashMap<>();
 
     /** Logs {@code detail} for a candidate at {@code anchor} when its {@code verdict} differs from the last one logged. */
-    private static void note(BlockPos anchor, String verdict, String detail) {
-        note(anchor, "", verdict, detail);
-    }
+    private static void note(BlockPos anchor, String verdict, String detail) { note(anchor, "", verdict, detail); }
 
     /** As {@link #note(BlockPos, String, String)}, with {@code slot} keeping two rules on one anchor apart. */
     private static void note(BlockPos anchor, String slot, String verdict, String detail) {
-        if (anchor == null) {
-            return;
-        }
+        if (anchor == null) return;
         if (NOTED.size() > NOTED_CAP) {
             NOTED.clear();
         }
         if (slot.isEmpty()) {
             SCAN_VERDICT.put(anchor, verdict);
         }
-        if (verdict.equals(NOTED.put(slot + anchor.toShortString(), verdict))) {
-            return;
-        }
+        if (verdict.equals(NOTED.put(slot + anchor.toShortString(), verdict))) return;
         LOGGER.info("[CryptScan] {} at {}: {}", verdict, anchor.toShortString(), detail);
     }
 
@@ -137,17 +131,13 @@ public final class CryptScanner {
         }
         if (state.is(Blocks.GOLD_BLOCK)) {
             for (Direction dir : Direction.Plane.HORIZONTAL) {
-                if (level.getBlockState(at.relative(dir)).is(Blocks.SMOOTH_STONE_SLAB)) {
-                    return true;
-                }
+                if (level.getBlockState(at.relative(dir)).is(Blocks.SMOOTH_STONE_SLAB)) return true;
             }
             return false;
         }
         if (state.is(Blocks.SEA_LANTERN)) {
             for (Direction dir : Direction.Plane.HORIZONTAL) {
-                if (!level.getBlockState(at.relative(dir)).is(Blocks.POLISHED_ANDESITE)) {
-                    return false;
-                }
+                if (!level.getBlockState(at.relative(dir)).is(Blocks.POLISHED_ANDESITE)) return false;
             }
             return true;
         }
@@ -157,9 +147,7 @@ public final class CryptScanner {
     /** Whether a member block of a {@link Found} is still standing. */
     static boolean stillThere(Level level, Type type, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (type == Type.CRYPT) {
-            return state.is(Blocks.SMOOTH_STONE_SLAB);
-        }
+        if (type == Type.CRYPT) return state.is(Blocks.SMOOTH_STONE_SLAB);
         return state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.POLISHED_ANDESITE)
                 || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.SMOOTH_STONE_SLAB) || state.is(Blocks.OBSIDIAN);
     }
@@ -246,9 +234,7 @@ public final class CryptScanner {
             BlockPos here = queue.poll();
             run.add(here);
             checked.add(here);
-            if (run.size() > LID_MAX) {
-                return crowns;
-            }
+            if (run.size() > LID_MAX) return crowns;
             boolean open = level.getBlockState(here.above()).isAir();
             for (Direction dir : Direction.Plane.HORIZONTAL) {
                 BlockPos next = here.relative(dir).immutable();
@@ -265,9 +251,7 @@ public final class CryptScanner {
                 }
             }
         }
-        if (!rimmed) {
-            return crowns;
-        }
+        if (!rimmed) return crowns;
         crowns.addAll(run);
         // The slabs touching the run, and the rest of the ring on the same layer (its corners touch only slabs).
         ArrayDeque<BlockPos> walk = new ArrayDeque<>(touching);
@@ -312,9 +296,7 @@ public final class CryptScanner {
             BlockPos here = queue.poll();
             run.add(here);
             checked.add(here);
-            if (run.size() > LID_MAX) {
-                return crowns;
-            }
+            if (run.size() > LID_MAX) return crowns;
             if (!isLidSlab(level.getBlockState(here)) || !level.getBlockState(here.below()).is(Blocks.POLISHED_ANDESITE)) {
                 ok = false;
             }
@@ -333,9 +315,7 @@ public final class CryptScanner {
                 }
             }
         }
-        if (!ok || !head || run.size() < 2) {
-            return crowns;
-        }
+        if (!ok || !head || run.size() < 2) return crowns;
         crowns.addAll(run);
         // The tomb's body: the polished andesite on the layer under the slabs, joined to the run's footprint.
         int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
@@ -400,9 +380,7 @@ public final class CryptScanner {
             BlockPos here = queue.poll();
             run.add(here);
             checked.add(here);
-            if (run.size() > MAX_LID) {
-                return new ArrayList<>();
-            }
+            if (run.size() > MAX_LID) return new ArrayList<>();
             for (Direction dir : Direction.Plane.HORIZONTAL) {
                 BlockPos next = here.relative(dir).immutable();
                 if (level.getBlockState(next).is(Blocks.SMOOTH_STONE_SLAB) && seen.add(next)) {
@@ -410,9 +388,7 @@ public final class CryptScanner {
                 }
             }
         }
-        if (!lidShaped(level, run)) {
-            return new ArrayList<>();
-        }
+        if (!lidShaped(level, run)) return new ArrayList<>();
         int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
         for (BlockPos p : run) {
             x0 = Math.min(x0, p.getX());
@@ -466,9 +442,7 @@ public final class CryptScanner {
      */
     public static List<Found> scan(Level level, int[] bounds) {
         List<Found> out = new ArrayList<>();
-        if (level == null || bounds == null) {
-            return out;
-        }
+        if (level == null || bounds == null) return out;
         Set<BlockPos> slabs = new HashSet<>();
         Set<BlockPos> bottoms = new HashSet<>();
         List<BlockPos> crowns = new ArrayList<>();
@@ -479,9 +453,7 @@ public final class CryptScanner {
         SCAN_VERDICT.clear();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
-                if (!com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)) {
-                    continue;
-                }
+                if (!com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)) continue;
                 var chunk = level.getChunk(cx, cz);
                 int x0 = Math.max(bounds[0], cx << 4);
                 int x1 = Math.min(bounds[2], (cx << 4) + 15);
@@ -725,9 +697,7 @@ public final class CryptScanner {
                 for (int dz = -3; dz <= 3; dz++) {
                     for (int dy = -1; dy <= 3; dy++) {
                         BlockPos q = g.offset(dx, dy, dz);
-                        if (!runOf.containsKey(q)) {
-                            continue;
-                        }
+                        if (!runOf.containsKey(q)) continue;
                         int d = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
                         if (d < best) {
                             best = d;
@@ -772,13 +742,9 @@ public final class CryptScanner {
     private static boolean isStaircase(Level level, List<BlockPos> run) {
         for (BlockPos p : run) {
             BlockState state = level.getBlockState(p);
-            if (!state.hasProperty(SlabBlock.TYPE) || state.getValue(SlabBlock.TYPE) != SlabType.DOUBLE) {
-                continue;
-            }
+            if (!state.hasProperty(SlabBlock.TYPE) || state.getValue(SlabBlock.TYPE) != SlabType.DOUBLE) continue;
             for (Direction dir : HORIZONTAL) {
-                if (level.getBlockState(p.relative(dir).above()).is(Blocks.SMOOTH_STONE_SLAB)) {
-                    return true;
-                }
+                if (level.getBlockState(p.relative(dir).above()).is(Blocks.SMOOTH_STONE_SLAB)) return true;
             }
         }
         return false;
@@ -832,9 +798,7 @@ public final class CryptScanner {
                     under = under.below();
                 }
                 nearest = Math.min(nearest, drop);
-                if (nearest < LEDGE_DROP) {
-                    return false;
-                }
+                if (nearest < LEDGE_DROP) return false;
             }
         }
         return nearest != Integer.MAX_VALUE && nearest >= LEDGE_DROP;
@@ -858,9 +822,7 @@ public final class CryptScanner {
         for (BlockPos p : run) {
             for (Direction dir : HORIZONTAL) {
                 BlockPos side = p.relative(dir);
-                if (cells.contains(side) || !around.add(side)) {
-                    continue;
-                }
+                if (cells.contains(side) || !around.add(side)) continue;
                 if (level.getBlockState(side).isCollisionShapeFullBlock(level, side)
                         && level.getBlockState(side.above()).isAir()) {
                     flush++;
@@ -894,9 +856,7 @@ public final class CryptScanner {
                 int x = p.getX() + dir.getStepX();
                 int z = p.getZ() + dir.getStepZ();
                 long key = BlockPos.asLong(x, 0, z);
-                if (cells.contains(key) || !around.add(key)) {
-                    continue;
-                }
+                if (cells.contains(key) || !around.add(key)) continue;
                 BlockPos side = new BlockPos(x, y, z);
                 if (level.getBlockState(side).isCollisionShapeFullBlock(level, side)
                         && level.getBlockState(side.above()).isAir()) {
@@ -920,9 +880,7 @@ public final class CryptScanner {
      */
     private static boolean isBench(Level level, List<BlockPos> run) {
         int n = run.size();
-        if (n < 3 || n > 5) {
-            return false;
-        }
+        if (n < 3 || n > 5) return false;
         Set<Integer> xs = new HashSet<>();
         Set<Integer> zs = new HashSet<>();
         for (BlockPos p : run) {
@@ -933,9 +891,7 @@ public final class CryptScanner {
                 return false;
             }
         }
-        if (Math.min(xs.size(), zs.size()) != 1) {
-            return false;
-        }
+        if (Math.min(xs.size(), zs.size()) != 1) return false;
         Set<BlockPos> cells = new HashSet<>(run);
         for (BlockPos p : run) {
             for (Direction dir : HORIZONTAL) {
@@ -1020,9 +976,7 @@ public final class CryptScanner {
                 footprint.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
             }
             BlockState state = level.getBlockState(p);
-            if (state.isAir()) {
-                continue;
-            }
+            if (state.isAir()) continue;
             var shape = state.getShape(level, p);
             double t = shape.isEmpty() ? p.getY() + 1.0 : p.getY() + shape.max(Direction.Axis.Y);
             top = Math.max(top, t);
@@ -1046,16 +1000,12 @@ public final class CryptScanner {
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {
-        if (others.isEmpty()) {
-            return false;
-        }
+        if (others.isEmpty()) return false;
         for (BlockPos p : run) {
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
                     for (int dz = -1; dz <= 1; dz++) {
-                        if (others.contains(p.offset(dx, dy, dz))) {
-                            return true;
-                        }
+                        if (others.contains(p.offset(dx, dy, dz))) return true;
                     }
                 }
             }

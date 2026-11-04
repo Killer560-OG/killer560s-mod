@@ -38,20 +38,14 @@ final class NameTable {
         }
 
         boolean matches(char[] buf, int len) {
-            if (len != exact.length) {
-                return false;
-            }
+            if (len != exact.length) return false;
             if (caseSensitive) {
                 for (int i = 0; i < len; i++) {
-                    if (buf[i] != exact[i]) {
-                        return false;
-                    }
+                    if (buf[i] != exact[i]) return false;
                 }
             } else {
                 for (int i = 0; i < len; i++) {
-                    if (lower(buf[i]) != lower[i]) {
-                        return false;
-                    }
+                    if (lower(buf[i]) != lower[i]) return false;
                 }
             }
             return true;
@@ -89,18 +83,14 @@ final class NameTable {
         size = n;
     }
 
-    boolean isEmpty() {
-        return size == 0;
-    }
+    boolean isEmpty() { return size == 0; }
 
     /** @param hash {@link #step}-accumulated hash of the lowercased chars in {@code buf[0..len)}. */
     Entry lookup(char[] buf, int len, int hash) {
         int i = mix(hash) & mask;
         Entry e;
         while ((e = slots[i]) != null) {
-            if (e.hash == hash && e.matches(buf, len)) {
-                return e;
-            }
+            if (e.hash == hash && e.matches(buf, len)) return e;
             i = (i + 1) & mask;
         }
         return null;
@@ -111,24 +101,16 @@ final class NameTable {
     }
 
     static boolean isValidName(String s) {
-        if (s == null || s.length() < 1 || s.length() > MAX_LEN) {
-            return false;
-        }
+        if (s == null || s.length() < 1 || s.length() > MAX_LEN) return false;
         for (int i = 0; i < s.length(); i++) {
-            if (!isNameChar(s.charAt(i))) {
-                return false;
-            }
+            if (!isNameChar(s.charAt(i))) return false;
         }
         return true;
     }
 
-    static char lower(char c) {
-        return (c >= 'A' && c <= 'Z') ? (char) (c + 32) : c;
-    }
+    static char lower(char c) { return (c >= 'A' && c <= 'Z') ? (char) (c + 32) : c; }
 
-    static int step(int hash, char c) {
-        return hash * 31 + lower(c);
-    }
+    static int step(int hash, char c) { return hash * 31 + lower(c); }
 
     static int hashOf(char[] lowerChars, int len) {
         int h = 0;

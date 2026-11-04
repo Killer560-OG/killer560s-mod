@@ -26,9 +26,7 @@ public abstract class MenuModMenuListMixin {
             at = @At("HEAD"), cancellable = true, require = 0, remap = false)
     private void killer560smod$themedModSelection(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
                                                   int borderColor, int fillColor, CallbackInfo ci) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return;
         try {
             boolean focused = ((Object) this instanceof AbstractWidget widget) && widget.isFocused();
             MenuChrome.drawSelection(graphics, x, y - 2, width, height + 4, focused, false);

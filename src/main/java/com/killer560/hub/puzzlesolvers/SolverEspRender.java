@@ -114,16 +114,12 @@ public final class SolverEspRender {
     }
 
     private static void noteMode(SolverEspConfig.Solver solver, boolean off) {
-        if (solver == null) {
-            return;
-        }
+        if (solver == null) return;
         boolean through = !off && throughWalls(solver);
         SolverEspConfig.WaypointStyle style = off ? null : SolverEspConfig.getInstance().getWaypointStyle(solver);
         int code = off ? 0 : 1 + (through ? 1 : 0) + 2 * (style == null ? 0 : style.ordinal() + 1);
         int i = solver.ordinal();
-        if (lastMode[i] == code) {
-            return;
-        }
+        if (lastMode[i] == code) return;
         lastMode[i] = code;
         LOGGER.info("[SolverEsp] {} draws: {}", solver, off ? "highlight off - nothing drawn"
                 : (through ? "through walls" : "depth-tested") + ", waypoint style " + style);
@@ -131,9 +127,7 @@ public final class SolverEspRender {
 
     private static boolean throughWalls(SolverEspConfig.Solver solver) {
         // Livid's through-walls highlight is cheat-only (killer560, 2026-10-18): a legit build never draws it through blocks.
-        if (solver == SolverEspConfig.Solver.LIVID && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (solver == SolverEspConfig.Solver.LIVID && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         return SolverEspConfig.getInstance().isThroughWalls(solver);
     }
 
@@ -144,9 +138,7 @@ public final class SolverEspRender {
 
     public static void renderOutlineBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                         float b, float a, float thickness) {
-        if (off(solver)) {
-            return;
-        }
+        if (off(solver)) return;
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) ->
                 lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
     }
@@ -154,9 +146,7 @@ public final class SolverEspRender {
     /** A solver waypoint in the solver's Waypoint Style - an outline, or a translucent full block. */
     public static void renderWaypoint(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                       float b, float thickness) {
-        if (off(solver)) {
-            return;
-        }
+        if (off(solver)) return;
         if (SolverEspConfig.getInstance().getWaypointStyle(solver) == SolverEspConfig.WaypointStyle.FULL) {
             renderFilledBox(solver, context, box, r, g, b, 0.45f);
         } else {
@@ -166,21 +156,15 @@ public final class SolverEspRender {
 
     public static void renderFilledBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                        float b, float a) {
-        if (off(solver)) {
-            return;
-        }
+        if (off(solver)) return;
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.FILLED : Depth.FILLED, (pose, buffer) ->
                 filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
     }
 
     public static void renderLineStrip(SolverEspConfig.Solver solver, LevelRenderContext context, List<Vec3> points,
                                        float r, float g, float b, float a, float thickness) {
-        if (off(solver)) {
-            return;
-        }
-        if (points.size() < 2) {
-            return;
-        }
+        if (off(solver)) return;
+        if (points.size() < 2) return;
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists.
         final Vec3[] pts = points.toArray(new Vec3[0]);
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) -> {

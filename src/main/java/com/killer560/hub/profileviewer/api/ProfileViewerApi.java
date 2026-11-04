@@ -92,9 +92,7 @@ public final class ProfileViewerApi {
 
     /** A fetch failure whose message is safe to show on screen (never contains a key). */
     public static class ApiException extends RuntimeException {
-        public ApiException(String message) {
-            super(message, null, false, false);
-        }
+        public ApiException(String message) { super(message, null, false, false); }
     }
 
     /**
@@ -117,9 +115,7 @@ public final class ProfileViewerApi {
 
     /** When the backend's last 429 said it may be asked again; in the past (or 0) when there is no pause. Background
      *  callers that make many requests (the Party Finder stats) wait for it instead of collecting more 429s. */
-    public static long backendRetryAtMs() {
-        return backendRetryAtMs;
-    }
+    public static long backendRetryAtMs() { return backendRetryAtMs; }
 
     static long retryAfterMs(Optional<String> header) {
         long s = 10;
@@ -154,7 +150,6 @@ public final class ProfileViewerApi {
     private ProfileViewerApi() {
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static String userAgent() {
         String version = FabricLoader.getInstance().getModContainer("killer560smod")
@@ -178,19 +173,13 @@ public final class ProfileViewerApi {
 
     public static String messageFor(Throwable t) {
         t = unwrap(t);
-        if (t instanceof ApiException) {
-            return t.getMessage();
-        }
-        if (t instanceof java.net.http.HttpTimeoutException) {
-            return "Request timed out - check your connection.";
-        }
+        if (t instanceof ApiException) return t.getMessage();
+        if (t instanceof java.net.http.HttpTimeoutException) return "Request timed out - check your connection.";
         if (t instanceof java.net.ConnectException || t instanceof java.nio.channels.UnresolvedAddressException
                 || t instanceof java.net.UnknownHostException) {
             return "Couldn't reach the server - are you offline?";
         }
-        if (t instanceof java.io.IOException) {
-            return "Network error - are you offline?";
-        }
+        if (t instanceof java.io.IOException) return "Network error - are you offline?";
         return "Something went wrong (" + t.getClass().getSimpleName() + ").";
     }
 
@@ -215,34 +204,25 @@ public final class ProfileViewerApi {
         }
     }
 
-    // ------------------------------------------------------------------ names / skins
 
-    public static boolean isValidName(String name) {
-        return name != null && NAME.matcher(name).matches();
-    }
+    public static boolean isValidName(String name) { return name != null && NAME.matcher(name).matches(); }
 
     /** Mojang name -> UUID (api.minecraftservices.com, falling back to api.mojang.com). Accepts a raw
      *  UUID too. */
     public static CompletableFuture<ResolvedPlayer> resolve(String input) {
         String trimmed = input == null ? "" : input.trim();
         UUID direct = parseUuid(trimmed);
-        if (direct != null) {
-            return CompletableFuture.completedFuture(new ResolvedPlayer(direct, trimmed));
-        }
+        if (direct != null) return CompletableFuture.completedFuture(new ResolvedPlayer(direct, trimmed));
         if (!isValidName(trimmed)) {
             return CompletableFuture.failedFuture(new ApiException("\"" + trimmed + "\" isn't a valid Minecraft name."));
         }
         String key = trimmed.toLowerCase(Locale.ROOT);
         ResolvedPlayer cached = NAME_CACHE.get(key);
-        if (cached != null) {
-            return CompletableFuture.completedFuture(cached);
-        }
+        if (cached != null) return CompletableFuture.completedFuture(cached);
         return lookupName(ModNet.url("minecraftservices", "https://api.minecraftservices.com/minecraft/profile/lookup/name/") + trimmed)
                 .exceptionallyCompose(t -> {
                     Throwable cause = unwrap(t);
-                    if (cause instanceof ApiException) {
-                        return CompletableFuture.failedFuture(cause);
-                    }
+                    if (cause instanceof ApiException) return CompletableFuture.failedFuture(cause);
                     return lookupName(ModNet.url("mojang", "https://api.mojang.com/users/profiles/minecraft/") + trimmed);
                 })
                 .thenApply(p -> {
@@ -260,9 +240,7 @@ public final class ProfileViewerApi {
                     if (res.statusCode() == 404 || res.statusCode() == 204) {
                         throw new ApiException("No Minecraft account with that name.");
                     }
-                    if (res.statusCode() == 429) {
-                        throw new CompletionException(new java.io.IOException("mojang rate limited"));
-                    }
+                    if (res.statusCode() == 429) throw new CompletionException(new java.io.IOException("mojang rate limited"));
                     JsonObject obj = res.statusCode() == 200 ? parseObject(res.body()) : null;
                     UUID uuid = obj != null && obj.has("id") ? parseUuid(obj.get("id").getAsString()) : null;
                     if (uuid == null) {
@@ -274,13 +252,9 @@ public final class ProfileViewerApi {
     }
 
     public static UUID parseUuid(String s) {
-        if (s == null) {
-            return null;
-        }
+        if (s == null) return null;
         String hex = s.replace("-", "");
-        if (hex.length() != 32 || !hex.matches("[0-9a-fA-F]{32}")) {
-            return null;
-        }
+        if (hex.length() != 32 || !hex.matches("[0-9a-fA-F]{32}")) return null;
         try {
             return new UUID(Long.parseUnsignedLong(hex.substring(0, 16), 16), Long.parseUnsignedLong(hex.substring(16), 16));
         } catch (NumberFormatException e) {
@@ -288,9 +262,7 @@ public final class ProfileViewerApi {
         }
     }
 
-    public static String dashless(UUID uuid) {
-        return uuid.toString().replace("-", "");
-    }
+    public static String dashless(UUID uuid) { return uuid.toString().replace("-", ""); }
 
     /** Full profile (with the signed textures property) for the skin preview; null on failure. */
     public static CompletableFuture<GameProfile> fetchSkinProfile(UUID uuid) {
@@ -304,16 +276,11 @@ public final class ProfileViewerApi {
         }, EXECUTOR);
     }
 
-    // ------------------------------------------------------------------ profiles
 
     public static ProfilesResult getCached(UUID uuid) {
         Cached c = CACHE.get(uuid);
-        if (c == null) {
-            return null;
-        }
-        if (System.currentTimeMillis() - c.at() < CACHE_MS) {
-            return c.result();
-        }
+        if (c == null) return null;
+        if (System.currentTimeMillis() - c.at() < CACHE_MS) return c.result();
         // Expired: let go of the full profile JSON now rather than at the next put.
         CACHE.remove(uuid, c);
         return null;
@@ -322,15 +289,11 @@ public final class ProfileViewerApi {
     public static CompletableFuture<ProfilesResult> fetchProfiles(UUID uuid, boolean bypassCache) {
         if (!bypassCache) {
             ProfilesResult cached = getCached(uuid);
-            if (cached != null) {
-                return CompletableFuture.completedFuture(cached);
-            }
+            if (cached != null) return CompletableFuture.completedFuture(cached);
         }
         CompletableFuture<ProfilesResult> promise = new CompletableFuture<>();
         CompletableFuture<ProfilesResult> existing = IN_FLIGHT.putIfAbsent(uuid, promise);
-        if (existing != null) {
-            return existing;
-        }
+        if (existing != null) return existing;
         CompletableFuture<Raw> raw;
         try {
             raw = fetchWithFallback(uuid);
@@ -366,9 +329,7 @@ public final class ProfileViewerApi {
                     oldest = e.getKey();
                 }
             }
-            if (oldest == null) {
-                break;
-            }
+            if (oldest == null) break;
             CACHE.remove(oldest);
         }
         CACHE.put(uuid, entry);
@@ -388,7 +349,6 @@ public final class ProfileViewerApi {
         USER_KEY, BACKEND
     }
 
-    // ------------------------------------------------------------------ auxiliary endpoints
 
     /** Per-profile / per-player endpoints beyond the profile list. Same source fallback, same response
      *  shape from Hypixel and the SkyBlockPV backend (skyblock-pv's {@code CachedApis}). */
@@ -420,12 +380,8 @@ public final class ProfileViewerApi {
     public static AuxResult getCachedAux(AuxKind kind, String id) {
         String key = kind.name() + ":" + id;
         AuxResult r = AUX_CACHE.get(key);
-        if (r == null) {
-            return null;
-        }
-        if (System.currentTimeMillis() - r.fetchedAt() < CACHE_MS) {
-            return r;
-        }
+        if (r == null) return null;
+        if (System.currentTimeMillis() - r.fetchedAt() < CACHE_MS) return r;
         AUX_CACHE.remove(key, r);
         return null;
     }
@@ -439,15 +395,11 @@ public final class ProfileViewerApi {
         String key = kind.name() + ":" + id;
         if (!bypassCache) {
             AuxResult cached = getCachedAux(kind, id);
-            if (cached != null) {
-                return CompletableFuture.completedFuture(cached);
-            }
+            if (cached != null) return CompletableFuture.completedFuture(cached);
         }
         CompletableFuture<AuxResult> promise = new CompletableFuture<>();
         CompletableFuture<AuxResult> existing = AUX_IN_FLIGHT.putIfAbsent(key, promise);
-        if (existing != null) {
-            return existing;
-        }
+        if (existing != null) return existing;
         CompletableFuture<Raw> raw;
         try {
             raw = runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
@@ -508,16 +460,12 @@ public final class ProfileViewerApi {
         };
     }
 
-    private static long throttle(Throwable t) {
-        return unwrap(t) instanceof RateLimitedException r ? r.retryAfterMs : 0;
-    }
+    private static long throttle(Throwable t) { return unwrap(t) instanceof RateLimitedException r ? r.retryAfterMs : 0; }
 
     /** Every source failed: a {@link RateLimitedException} (the longest wait) when any of them was throttled, since
      *  asking again later can still succeed; a plain {@link ApiException} otherwise. */
     private static ApiException allFailed(List<Failure> errors) {
-        if (errors.isEmpty()) {
-            return new ApiException("No data source available.");
-        }
+        if (errors.isEmpty()) return new ApiException("No data source available.");
         StringBuilder msg = new StringBuilder();
         long wait = 0;
         for (Failure f : errors) {
@@ -532,9 +480,7 @@ public final class ProfileViewerApi {
 
     private static CompletableFuture<Raw> runAttempts(List<Attempt> order, int index, List<Failure> errors,
                                                       java.util.function.Function<Attempt, CompletableFuture<Raw>> run) {
-        if (index >= order.size()) {
-            return CompletableFuture.failedFuture(allFailed(errors));
-        }
+        if (index >= order.size()) return CompletableFuture.failedFuture(allFailed(errors));
         Attempt attempt = order.get(index);
         CompletableFuture<Raw> f;
         try {
@@ -561,15 +507,11 @@ public final class ProfileViewerApi {
 
     /** @param notFoundIsEmpty treat 404 as "no data" (garden/museum for a profile that never had one). */
     private static CompletableFuture<Raw> hypixelGet(String url, String key, String label, boolean notFoundIsEmpty) {
-        if (key == null || key.isEmpty()) {
-            return CompletableFuture.failedFuture(new ApiException("no key"));
-        }
+        if (key == null || key.isEmpty()) return CompletableFuture.failedFuture(new ApiException("no key"));
         HttpRequest req = request(url).header("API-Key", key).GET().build();
         return ModNet.sendAsync(HTTP_NO_REDIRECT, req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).thenApply(res -> {
             JsonObject body = parseObject(res.body());
-            if (notFoundIsEmpty && res.statusCode() == 404) {
-                return new Raw(null, label);
-            }
+            if (notFoundIsEmpty && res.statusCode() == 404) return new Raw(null, label);
             switch (res.statusCode()) {
                 case 200 -> {
                     if (body == null || (body.has("success") && !body.get("success").getAsBoolean())) {
@@ -652,9 +594,7 @@ public final class ProfileViewerApi {
             return CompletableFuture.completedFuture(token);
         }
         synchronized (ProfileViewerApi.class) {
-            if (tokenInFlight != null && !tokenInFlight.isDone()) {
-                return tokenInFlight;
-            }
+            if (tokenInFlight != null && !tokenInFlight.isDone()) return tokenInFlight;
             CompletableFuture<String> f = fetchBackendToken();
             tokenInFlight = f;
             return f;
@@ -684,9 +624,7 @@ public final class ProfileViewerApi {
                     .GET().build();
             return ModNet.sendAsync(HTTP, req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         }).thenApply(res -> {
-            if (res.statusCode() == 403) {
-                throw new ApiException("this account is blocked from the backend (403).");
-            }
+            if (res.statusCode() == 403) throw new ApiException("this account is blocked from the backend (403).");
             String body = res.body() == null ? "" : res.body().trim();
             if (res.statusCode() != 200 || body.isEmpty()) {
                 throw new ApiException("authentication failed (HTTP " + res.statusCode() + ").");

@@ -119,9 +119,7 @@ public final class CommissionHud {
     }
 
     static List<String> buildLines(List<MiningState.Commission> coms, boolean color) {
-        if (coms.isEmpty()) {
-            return List.of();
-        }
+        if (coms.isEmpty()) return List.of();
         List<String> out = new ArrayList<>();
         out.add("§6§lCommissions");
         for (MiningState.Commission c : coms) {
@@ -132,9 +130,7 @@ public final class CommissionHud {
     }
 
     private static String progressColor(String value) {
-        if (value.equals("DONE")) {
-            return "§a";
-        }
+        if (value.equals("DONE")) return "§a";
         try {
             double pct = Double.parseDouble(value.substring(0, value.length() - 1));
             return pct >= 75 ? "§e" : pct >= 25 ? "§6" : "§c";
@@ -147,9 +143,7 @@ public final class CommissionHud {
         List<Spot> out = new ArrayList<>();
         if (places) {
             for (MiningState.Commission c : coms) {
-                if (c.done()) {
-                    continue;
-                }
+                if (c.done()) continue;
                 for (Spot area : AREAS) {
                     if (c.name().startsWith(area.label() + " ")) {
                         boolean ti = c.name().endsWith("Titanium");
@@ -171,18 +165,13 @@ public final class CommissionHud {
         return List.copyOf(out);
     }
 
-    // ---- world labels
 
     static void render(LevelRenderContext context) {
         List<Spot> snap = waypoints;
-        if (snap.isEmpty() || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (snap.isEmpty() || !MiningState.dwarvenMines()) return;
         Minecraft client = Minecraft.getInstance();
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null || client.player == null) {
-            return;
-        }
+        if (poseStack == null || client.player == null) return;
         Vec3 cam = McRender.cameraPos(context);
         Font font = client.font;
         for (Spot s : snap) {
@@ -216,11 +205,8 @@ public final class CommissionHud {
         return Component.literal(name).append(Component.literal(" (" + meters + "m)").withStyle(ChatFormatting.GRAY));
     }
 
-    // ---- testkit hooks
 
-    public static List<String> lines() {
-        return hudLines;
-    }
+    public static List<String> lines() { return hudLines; }
 
     /** "label@x,y,z" per waypoint now shown. */
     public static List<String> waypointNames() {
@@ -231,14 +217,10 @@ public final class CommissionHud {
         return out;
     }
 
-    public static int labelFrames() {
-        return labelFrames;
-    }
+    public static int labelFrames() { return labelFrames; }
 
     /** The last waypoint label drawn, or null (testkit). */
-    public static Component lastLabel() {
-        return lastLabel;
-    }
+    public static Component lastLabel() { return lastLabel; }
 
     /** The movable HUD element. */
     public static final class Element implements HudElement {
@@ -248,31 +230,21 @@ public final class CommissionHud {
 
         private List<String> shown() {
             List<String> l = hudLines;
-            if (l.isEmpty() && HudVisibility.editorOpen()) {
-                return SAMPLE;
-            }
+            if (l.isEmpty() && HudVisibility.editorOpen()) return SAMPLE;
             return l;
         }
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Commission HUD";
-        }
+        public String displayName() { return "Commission HUD"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 120;
-        }
+        public int defaultY() { return 120; }
 
         @Override
         public int width() {
@@ -285,20 +257,14 @@ public final class CommissionHud {
         }
 
         @Override
-        public int height() {
-            return HudText.height(Math.max(1, shown().size()), 10);
-        }
+        public int height() { return HudText.height(Math.max(1, shown().size()), 10); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isCommissionHudRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isCommissionHudRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MiningQolConfig.getInstance().isCommissionHud() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!MiningQolConfig.getInstance().isCommissionHud() || HudVisibility.hidesHud()) return;
             List<String> real = hudLines;
             Font font = Minecraft.getInstance().font;
             int lineY = y;

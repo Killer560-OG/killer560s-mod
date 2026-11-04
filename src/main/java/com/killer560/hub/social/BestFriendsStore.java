@@ -4,21 +4,15 @@ import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,7 +42,6 @@ import java.util.concurrent.Executors;
 public final class BestFriendsStore {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bestfriends");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     /** The shared file the records were loaded from (the account signed in then). */
     private static SharedFile file;
@@ -143,14 +136,10 @@ public final class BestFriendsStore {
     }
 
     private static Record fromJson(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return null;
-        }
+        if (element == null || !element.isJsonObject()) return null;
         JsonObject obj = element.getAsJsonObject();
         String uuidStr = ConfigJson.getString(obj, "uuid", null);
-        if (uuidStr == null) {
-            return null;
-        }
+        if (uuidStr == null) return null;
         UUID uuid;
         try {
             uuid = UUID.fromString(uuidStr);
@@ -227,9 +216,7 @@ public final class BestFriendsStore {
     /** Writes now only if something changed since the last save - called on the periodic flush timer and
      *  on disconnect. Safe to call often; a no-op write costs nothing but a boolean check. */
     public static synchronized void saveIfDirty() {
-        if (!dirty) {
-            return;
-        }
+        if (!dirty) return;
         dirty = false;
         saveAsync();
     }
@@ -248,9 +235,7 @@ public final class BestFriendsStore {
         write(target(), snapshotJson());
     }
 
-    private static SharedFile target() {
-        return file != null ? file : SharedRecords.file(RecordCatalog.BEST_FRIENDS);
-    }
+    private static SharedFile target() { return file != null ? file : SharedRecords.file(RecordCatalog.BEST_FRIENDS); }
 
     private static JsonObject snapshotJson() {
         ensureLoaded();
@@ -265,7 +250,5 @@ public final class BestFriendsStore {
     }
 
     /** Merged onto the shared file: time partied in another instance meanwhile is added, not overwritten. */
-    private static void write(SharedFile target, JsonObject json) {
-        SharedRecords.save(target, json);
-    }
+    private static void write(SharedFile target, JsonObject json) { SharedRecords.save(target, json); }
 }

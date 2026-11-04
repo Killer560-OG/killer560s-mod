@@ -88,17 +88,13 @@ public final class RightClick {
     private static volatile int lastUseOnSequence = -1;
 
     /** The prediction sequence of the last block click that left this client (the server acks it, util/ChestWindows). */
-    public static int lastUseOnSequence() {
-        return lastUseOnSequence;
-    }
+    public static int lastUseOnSequence() { return lastUseOnSequence; }
 
     private static volatile int lastUseSequence = -1;
 
     /** The prediction sequence of the last use (right click in the air) that left this client; the server acks it after
      *  handling it, in the tick it handled it ({@code ChestWindows#acked}). */
-    public static int lastUseSequence() {
-        return lastUseSequence;
-    }
+    public static int lastUseSequence() { return lastUseSequence; }
     private static String clickItem;
     private static Level level;
 
@@ -114,7 +110,6 @@ public final class RightClick {
     private RightClick() {
     }
 
-    // ------------------------------------------------------------------------------------------- fed by the send tap
 
     /** A movement packet is leaving: what the server will know of his position and look. */
     public static void onMove(LocalPlayer player, ServerboundMovePlayerPacket p) {
@@ -159,18 +154,14 @@ public final class RightClick {
     /** Item uses and item-in-hand block clicks that have left this client, ever (only goes up) - whoever sent them. A
      *  feature counts its own and reads the rest as another feature's (ClearExecutor: another feature's warp landing is
      *  not a server correction of the map's trip). */
-    public static int usesSent() {
-        return usesSent;
-    }
+    public static int usesSent() { return usesSent; }
 
     private static int usesSent;
 
     /** Bare item-use packets ({@code use_item}) that have left this client, ever (only goes up) - not block clicks. A
      *  sender compares it with its own count from the start of the tick: GrimAC's BadPacketsJ flags a second use in one
      *  tick whose look differs from the first's, since only one look reaches the server per tick. */
-    public static int itemUsesSent() {
-        return itemUsesSent;
-    }
+    public static int itemUsesSent() { return itemUsesSent; }
 
     private static int itemUsesSent;
 
@@ -234,7 +225,6 @@ public final class RightClick {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- asked by senders
 
     /**
      * True when a use sent now at {@code yaw}/{@code pitch} would be taken as the second half of an earlier block click:
@@ -255,13 +245,9 @@ public final class RightClick {
      * sent once he has landed, so the hop waits for the landing.
      */
     public static boolean mustTurnFirst(LocalPlayer player, Vec3 serverFeet, float yaw, float pitch, String who) {
-        if (!unpaired || player == null) {
-            return false;
-        }
+        if (!unpaired || player == null) return false;
         checkLevel(player);
-        if (!unpaired) {
-            return false;
-        }
+        if (!unpaired) return false;
         Vec3 feet = serverFeet != null ? serverFeet : sentFeet(player);
         if (sameLook(player, yaw, pitch)) {
             if (serverFeet == null || player.position().distanceTo(serverFeet) <= 0.5
@@ -302,17 +288,13 @@ public final class RightClick {
      * @return true when a block half was sent
      */
     public static boolean beforeUse(Minecraft client, LocalPlayer player, float yaw, float pitch, String who) {
-        if (!unpaired || player == null || client.level == null || client.gameMode == null) {
-            return false;
-        }
+        if (!unpaired || player == null || client.level == null || client.gameMode == null) return false;
         checkLevel(player);
         if (!unpaired || !sameLook(player, yaw, pitch)) {
             return false; // not told yet: mustTurnFirst said its ray meets nothing, so the use goes as one in the air
         }
         BlockHitResult srv = serverRay(player, sentYaw, sentPitch);
-        if (srv == null) {
-            return false;
-        }
+        if (srv == null) return false;
         return sendBlockHalf(client, player, yaw, pitch, who, srv);
     }
 
@@ -324,13 +306,9 @@ public final class RightClick {
      * @return true when a block half was sent
      */
     public static boolean beforePlainUse(Minecraft client, LocalPlayer player, String who) {
-        if (!unpaired || player == null || client.level == null || client.gameMode == null) {
-            return false;
-        }
+        if (!unpaired || player == null || client.level == null || client.gameMode == null) return false;
         checkLevel(player);
-        if (!unpaired) {
-            return false;
-        }
+        if (!unpaired) return false;
         return sendBlockHalf(client, player, player.getYRot(), player.getXRot(), who,
                 serverRay(player, sentYaw, sentPitch));
     }
@@ -358,9 +336,7 @@ public final class RightClick {
                     hit.getBlockPos().toShortString());
             return false;
         }
-        if (!(client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
-            return false;
-        }
+        if (!(client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) return false;
         invoker.killer560smod$invokeEnsureHasSentCarriedItem();
         BlockHitResult click = hit;
         invoker.killer560smod$invokeStartPrediction(client.level,
@@ -390,22 +366,16 @@ public final class RightClick {
      * this client cannot see is never sent (killer560, 2026-10-15), so the warp would be taken as the click's second half.
      */
     public static boolean unpairable(Minecraft client, LocalPlayer player, Vec3 serverFeet, float yaw, float pitch) {
-        if (!unpaired || player == null || client.level == null) {
-            return false;
-        }
+        if (!unpaired || player == null || client.level == null) return false;
         checkLevel(player);
-        if (!unpaired) {
-            return false;
-        }
+        if (!unpaired) return false;
         Vec3 feet = serverFeet != null ? serverFeet : sentFeet(player);
         boolean traced = sameLook(player, yaw, pitch) || serverRay(player, feet, sentYaw, sentPitch) != null;
         if (!traced || serverRay(player, feet, yaw, pitch) == null) {
             return false; // goes as a right click in the air (or with the heard look's verdict): nothing to pair
         }
         BlockHitResult hit = clientPick(client, player, yaw, pitch);
-        if (hit == null) {
-            return true;
-        }
+        if (hit == null) return true;
         return !player.getLastSentInput().shift() && opens(client.level.getBlockState(hit.getBlockPos()).getBlock());
     }
 
@@ -420,9 +390,7 @@ public final class RightClick {
      */
     public static float[] reaimIfUnpairable(Minecraft client, LocalPlayer player, Vec3 serverFeet, Vec3 eye, BlockPos target,
                                             double dist, float yaw, float pitch, String who) {
-        if (target == null || eye == null || !unpairable(client, player, serverFeet, yaw, pitch)) {
-            return null;
-        }
+        if (target == null || eye == null || !unpairable(client, player, serverFeet, yaw, pitch)) return null;
         float[] best = null;
         double bestCost = Double.MAX_VALUE;
         boolean bestFirm = false;
@@ -430,19 +398,13 @@ public final class RightClick {
             Vec3 point = new Vec3(target.getX() + o[0], target.getY() + o[1], target.getZ() + o[2]);
             com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r =
                     com.killer560.hub.livemap.autoclear.TeleportUtils.getDirection(eye, point);
-            if (r == null) {
-                continue;
-            }
+            if (r == null) continue;
             com.killer560.hub.livemap.autoclear.TeleportUtils.RaycastResult land =
                     com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherPos(eye, r.yaw(), r.pitch(), dist);
-            if (land == null || !land.succeeded() || !target.equals(land.pos())) {
-                continue;
-            }
+            if (land == null || !land.succeeded() || !target.equals(land.pos())) continue;
             float ny = yaw + Mth.wrapDegrees(r.yaw() - yaw);
             float np = Mth.clamp(r.pitch(), -90f, 90f);
-            if (unpairable(client, player, serverFeet, ny, np)) {
-                continue;
-            }
+            if (unpairable(client, player, serverFeet, ny, np)) continue;
             // A look that lands only for its exact float values can go into the neighboring block once the server reads
             // the running yaw a few bits off (path-wrongblock-1015, his 22:47:07 sim run: re-aimed at -149, 261, -188,
             // the server's cast went into -149, 262, -189). Any look that still lands within the planner's margin wins.
@@ -501,14 +463,10 @@ public final class RightClick {
     private static int reaims;
 
     /** Warps re-aimed by {@link #reaimIfUnpairable} - read by the testkit. */
-    public static int reaims() {
-        return reaims;
-    }
+    public static int reaims() { return reaims; }
 
     /** Whether the server's last-heard look is {@code yaw}/{@code pitch} (any wrapping, within 0.05 degrees). */
-    public static boolean heard(LocalPlayer player, float yaw, float pitch) {
-        return sameLook(player, yaw, pitch);
-    }
+    public static boolean heard(LocalPlayer player, float yaw, float pitch) { return sameLook(player, yaw, pitch); }
 
     /**
      * Pairs the stored block click with a harmless use BEFORE the real one goes, for the case {@link #reaimIfUnpairable}
@@ -529,9 +487,7 @@ public final class RightClick {
             return false;
         }
         checkLevel(player);
-        if (!unpaired || player.getMainHandItem().isEmpty()) {
-            return false;
-        }
+        if (!unpaired || player.getMainHandItem().isEmpty()) return false;
         BlockHitResult srv = serverRay(player, sentYaw, sentPitch);
         if (srv == null || clientPick(client, player, sentYaw, sentPitch) != null) {
             return false; // nothing to pair it with, or a vanilla right click here would click a block first
@@ -561,25 +517,17 @@ public final class RightClick {
     private static int storedClicksSpent;
 
     /** Stored block clicks {@link #spendStoredClick} paired with a harmless use - read by the testkit. */
-    public static int storedClicksSpent() {
-        return storedClicksSpent;
-    }
+    public static int storedClicksSpent() { return storedClicksSpent; }
 
     /** The look the server last heard in a movement packet (the running yaw as sent, never wrapped), or null. */
-    public static float[] heardLook() {
-        return sentKnown ? new float[]{sentYaw, sentPitch} : null;
-    }
+    public static float[] heardLook() { return sentKnown ? new float[]{sentYaw, sentPitch} : null; }
 
     /** Whether a block click may still be waiting for its second half on the server. */
-    public static boolean unpaired() {
-        return unpaired;
-    }
+    public static boolean unpaired() { return unpaired; }
 
     /** Uses this class judged the server would take as an earlier block click's second half (ever; only goes up). A
      *  sender compares it before and after its own use: when it went up, that use is expected to do nothing. */
-    public static int barePairedUses() {
-        return barePairedUses;
-    }
+    public static int barePairedUses() { return barePairedUses; }
 
     /**
      * How long a sender waits for the landing of a use {@link #barePairedUses} judged eaten before it sends the use
@@ -601,9 +549,7 @@ public final class RightClick {
         return Math.max(3, (int) Math.ceil(ping * 1.5 / 50.0) + 2);
     }
 
-    public static int blockHalvesSent() {
-        return blockHalvesSent;
-    }
+    public static int blockHalvesSent() { return blockHalvesSent; }
 
     public static void reset() {
         unpaired = false;
@@ -612,7 +558,6 @@ public final class RightClick {
         sentKnown = false;
     }
 
-    // ------------------------------------------------------------------------------------------- the model
 
     private static void checkLevel(LocalPlayer player) {
         Level now = player == null ? null : player.level();
@@ -624,9 +569,7 @@ public final class RightClick {
 
     /** Whether {@code yaw}/{@code pitch} (any wrapping) is the look the server last heard. */
     private static boolean sameLook(LocalPlayer player, float yaw, float pitch) {
-        if (!sentKnown) {
-            return false;
-        }
+        if (!sentKnown) return false;
         // The look only: where he stands the server traces from its own copy of him (serverRay), whatever the client
         // has done since - a landing still settling 0.05 down must not hold a use that has its look told.
         return Math.abs(Mth.wrapDegrees(yaw - sentYaw)) <= SAME_LOOK_DEGREES
@@ -640,19 +583,13 @@ public final class RightClick {
     }
 
     /** Where the last movement packet (or teleport answer) put him for the server; his position when none is known. */
-    public static Vec3 heardFeet(LocalPlayer player) {
-        return sentFeet(player);
-    }
+    public static Vec3 heardFeet(LocalPlayer player) { return sentFeet(player); }
 
-    private static Vec3 sentFeet(LocalPlayer player) {
-        return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position();
-    }
+    private static Vec3 sentFeet(LocalPlayer player) { return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position(); }
 
     private static BlockHitResult serverRay(LocalPlayer player, Vec3 feet, float yaw, float pitch) {
         Level lvl = player.level();
-        if (lvl == null) {
-            return null;
-        }
+        if (lvl == null) return null;
         double x = feet.x;
         double y = feet.y;
         double z = feet.z;
@@ -691,18 +628,14 @@ public final class RightClick {
     }
 
     private static String sentLook() {
-        if (!sentKnown) {
-            return "(none yet)";
-        }
+        if (!sentKnown) return "(none yet)";
         return String.format(Locale.US, "%.2f/%.2f from (%.2f, %.2f, %.2f)", Mth.wrapDegrees(sentYaw), sentPitch, sentX,
                 sentY, sentZ);
     }
 
     private static String itemId(LocalPlayer player, InteractionHand hand) {
         var stack = player.getItemInHand(hand);
-        if (stack.isEmpty()) {
-            return "an empty hand";
-        }
+        if (stack.isEmpty()) return "an empty hand";
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack);
         return id != null ? id : stack.getItem().toString();
     }

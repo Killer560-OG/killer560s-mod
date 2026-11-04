@@ -119,9 +119,7 @@ final class AmberForgeScene {
                 double x = r3 * w + Math.sin(t * (0.3 + r1 * 0.4) + i * 1.3) * (6 + r2 * 10) + rise * 0.12;
                 double life = Math.min(1.0, rise / travel * 7.0) * (1.0 - rise / travel);
                 int a = (int) (200 * life * (0.7 + 0.3 * Math.sin(t * (2.0 + r3 * 2.5) + i * 1.7)));
-                if (a <= 4) {
-                    continue;
-                }
+                if (a <= 4) continue;
                 int px = (int) x;
                 int py = (int) y;
                 int size = r2 > 0.85 ? 2 : 1;
@@ -166,7 +164,5 @@ final class AmberForgeScene {
         }
     }
 
-    private static double hash(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    private static double hash(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 }

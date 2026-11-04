@@ -71,9 +71,7 @@ public final class ScoreboardListEditor {
     }
 
     /** The selected entry of {@code section}'s list (one of its enum's constants), or null. */
-    public static Enum<?> selected(Section section) {
-        return STATES.get(section).selected;
-    }
+    public static Enum<?> selected(Section section) { return STATES.get(section).selected; }
 
     /** Closes every dropdown and clears every selection (tests, and a fresh menu open does not need it). */
     public static void resetSession() {
@@ -138,9 +136,7 @@ public final class ScoreboardListEditor {
                     rebuild.run();
                 }).bounds(x + half + GAP, y, width - half - GAP, 18).build());
         y += ROW;
-        if (!st.addOpen) {
-            return y;
-        }
+        if (!st.addOpen) return y;
         if (picks.isEmpty()) {
             out.add(new StringWidget(x, y, width, 12, Component.literal("§7Every " + section.one.toLowerCase()
                     + " is already on the board."), Minecraft.getInstance().font));
@@ -187,19 +183,13 @@ public final class ScoreboardListEditor {
         int rows = Math.max(3, Math.min(maxRows, order.size()));
         DragListWidget.Model model = new DragListWidget.Model() {
             @Override
-            public int size() {
-                return order.size();
-            }
+            public int size() { return order.size(); }
 
             @Override
-            public String label(int index) {
-                return label.apply(order.get(index));
-            }
+            public String label(int index) { return label.apply(order.get(index)); }
 
             @Override
-            public boolean selected(int index) {
-                return order.get(index) == st.selected;
-            }
+            public boolean selected(int index) { return order.get(index) == st.selected; }
 
             @Override
             public void click(int index) {

@@ -86,7 +86,6 @@ public final class SimPrince {
      * blocks, so a Superboom aimed at any of them finds it.
      */
     private static final net.minecraft.world.level.block.Block LID = Blocks.SMOOTH_STONE;
-    private static final int LID_MAX = 16;
 
     /**
      * The FOURTH signature: an obsidian top on a bottom smooth stone slab rim.
@@ -112,20 +111,6 @@ public final class SimPrince {
      * gold-alone trap again; the slab beside it is what makes it a tomb.
      */
     private static final net.minecraft.world.level.block.Block OBSIDIAN = Blocks.OBSIDIAN;
-
-    /**
-     * The FIFTH signature: a sarcophagus - a line of bottom smooth stone slabs every one of which lies on polished
-     * andesite, with a player head beside it ({@code CryptScanner.sarcophagusPrince}).
-     *
-     * <p>killer560, 2026-10-18: "this is a prince in sarcophogous". Sarcophagus has one crypt (room database) and one
-     * tomb: a 5x3 of polished andesite at capture y 70 (x 14..18, z 15..17) on stone brick stair legs and a polished
-     * andesite core at y 69, five bottom smooth stone slabs along its top at y 71 (z 16) and two player heads beside them.
-     * Until now the plain crypt rule opened the slab line and the row of andesite under it and left the rest of the tomb
-     * standing. As a prince its blocks are the slabs and the andesite top layer, so {@link #tombOf} takes the heads with
-     * the top, and {@link #extrasOf}'s layer under the footprint is the stair legs and the core: the whole sarcophagus goes,
-     * the room's floor at y 68 stays. Census: the only slab run on polished andesite with a head beside it in 135 captures.
-     */
-    private static final String SARCOPHAGUS = "sarcophagus";
 
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
@@ -157,24 +142,16 @@ public final class SimPrince {
     }
 
     /** Where the first prince on this floor is, or null when the floor has none. */
-    public static BlockPos position() {
-        return PRINCES.isEmpty() ? null : PRINCES.get(0);
-    }
+    public static BlockPos position() { return PRINCES.isEmpty() ? null : PRINCES.get(0); }
 
     /** Where every prince on this floor is (one block of each), for the build log and for tests. */
-    public static List<BlockPos> positions() {
-        return new ArrayList<>(PRINCES);
-    }
+    public static List<BlockPos> positions() { return new ArrayList<>(PRINCES); }
 
     /** How many princes this floor has. Usually none, occasionally one. */
-    public static int count() {
-        return PRINCES.size();
-    }
+    public static int count() { return PRINCES.size(); }
 
     /** How many blocks all of this floor's princes are made of, for the build log and for tests. */
-    public static int size() {
-        return BLOCKS.size();
-    }
+    public static int size() { return BLOCKS.size(); }
 
     /** Whether a block is part of a prince that has not been blown yet. */
     public static boolean isPrince(BlockPos pos) {
@@ -183,17 +160,13 @@ public final class SimPrince {
     }
 
     /** Whether a block is part of any prince, blown or not - so its slabs are never also counted as a crypt. */
-    public static boolean isPart(BlockPos pos) {
-        return BLOCKS.containsKey(pos);
-    }
+    public static boolean isPart(BlockPos pos) { return BLOCKS.containsKey(pos); }
 
     /** Every block of the prince containing {@code pos}, or nothing when it is not a prince block. */
     public static List<BlockPos> blocksOf(BlockPos pos) {
         Integer which = BLOCKS.get(pos);
         List<BlockPos> out = new ArrayList<>();
-        if (which == null) {
-            return out;
-        }
+        if (which == null) return out;
         for (Map.Entry<BlockPos, Integer> e : BLOCKS.entrySet()) {
             if (e.getValue().equals(which)) {
                 out.add(e.getKey());
@@ -217,9 +190,7 @@ public final class SimPrince {
     public static List<BlockPos> extrasOf(ServerLevel level, BlockPos pos) {
         List<BlockPos> blocks = blocksOf(pos);
         Set<BlockPos> out = new java.util.LinkedHashSet<>();
-        if (blocks.isEmpty()) {
-            return new ArrayList<>(out);
-        }
+        if (blocks.isEmpty()) return new ArrayList<>(out);
         Set<BlockPos> own = new HashSet<>(blocks);
         int minY = Integer.MAX_VALUE;
         for (BlockPos b : blocks) {
@@ -273,9 +244,7 @@ public final class SimPrince {
     public static List<BlockPos> tombOf(ServerLevel level, BlockPos pos) {
         List<BlockPos> blocks = blocksOf(pos);
         Set<BlockPos> out = new java.util.LinkedHashSet<>(blocks);
-        if (blocks.isEmpty()) {
-            return new ArrayList<>(out);
-        }
+        if (blocks.isEmpty()) return new ArrayList<>(out);
         int bx0 = Integer.MAX_VALUE, bx1 = Integer.MIN_VALUE, bz0 = Integer.MAX_VALUE, bz1 = Integer.MIN_VALUE;
         int by0 = Integer.MAX_VALUE, by1 = Integer.MIN_VALUE;
         for (BlockPos b : blocks) {
@@ -421,17 +390,13 @@ public final class SimPrince {
      * @return true exactly once per run, for the first prince blown; false for every one after it
      */
     public static boolean takeScore() {
-        if (scored) {
-            return false;
-        }
+        if (scored) return false;
         scored = true;
         return true;
     }
 
     /** Whether the run has already taken its prince point. For tests. */
-    public static boolean hasScored() {
-        return scored;
-    }
+    public static boolean hasScored() { return scored; }
 
     /**
      * Finds the golden crypts in a floor that has already been pasted.
@@ -460,9 +425,7 @@ public final class SimPrince {
         int z1 = Math.max(min.getZ(), max.getZ()) + RoomLibrary.TILE;
         for (int cx = x0 >> 4; cx <= (x1 >> 4); cx++) {
             for (int cz = z0 >> 4; cz <= (z1 >> 4); cz++) {
-                if (!level.hasChunk(cx, cz)) {
-                    continue;
-                }
+                if (!level.hasChunk(cx, cz)) continue;
                 var chunk = level.getChunk(cx, cz);
                 var sections = chunk.getSections();
                 for (int i = 0; i < sections.length; i++) {
@@ -473,47 +436,13 @@ public final class SimPrince {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
-                    if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) {
-                        continue;
-                    }
+                    if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) continue;
                     for (int lx = 0; lx < 16; lx++) {
                         for (int lz = 0; lz < 16; lz++) {
                             for (int ly = 0; ly < 16; ly++) {
                                 var state = section.getBlockState(lx, ly, lz);
                                 BlockPos at = new BlockPos((cx << 4) + lx, baseY + ly, (cz << 4) + lz);
-                                if (state.is(CROWN)) {
-                                    if (onAPlinth(level, at)) {
-                                        crowns.add(at);
-                                    }
-                                } else if (state.is(LID)) {
-                                    if (lidChecked.add(at)) {
-                                        ringedLid(level, at, lidChecked, crowns);
-                                    }
-                                } else if (state.is(OBSIDIAN)) {
-                                    if (lidChecked.add(at)) {
-                                        obsidianTop(level, at, lidChecked, crowns);
-                                    }
-                                } else if (state.is(PLINTH)) {
-                                    if (lidChecked.add(at)) {
-                                        sarcophagus(level, at, lidChecked, crowns);
-                                    }
-                                    if (brazierChecked.add(at)) {
-                                        braziers(level, at, brazierChecked, crowns);
-                                    }
-                                } else if (state.is(LANTERN) && walledIn(level, at)) {
-                                    // The lantern AND its ring, so a superboom aimed at any face of the
-                                    // structure finds a prince block - he is looking at andesite, not at the
-                                    // lantern buried inside it.
-                                    crowns.add(at);
-                                    for (int dx = -1; dx <= 1; dx++) {
-                                        for (int dz = -1; dz <= 1; dz++) {
-                                            BlockPos ring = at.offset(dx, 0, dz);
-                                            if (level.getBlockState(ring).is(LANTERN_WALL)) {
-                                                crowns.add(ring);
-                                            }
-                                        }
-                                    }
-                                }
+                                collectCrown(level, state, at, lidChecked, brazierChecked, crowns);
                             }
                         }
                     }
@@ -577,41 +506,10 @@ public final class SimPrince {
             for (int dy = -NEAR_SCAN; dy <= NEAR_SCAN; dy++) {
                 for (int dz = -NEAR_SCAN; dz <= NEAR_SCAN; dz++) {
                     at.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
-                    if (BLOCKS.containsKey(at) || !level.isLoaded(at)) {
-                        continue;
-                    }
+                    if (BLOCKS.containsKey(at) || !level.isLoaded(at)) continue;
                     var state = level.getBlockState(at);
                     BlockPos p = at.immutable();
-                    if (state.is(CROWN)) {
-                        if (onAPlinth(level, p)) {
-                            crowns.add(p);
-                        }
-                    } else if (state.is(LID)) {
-                        if (lidChecked.add(p)) {
-                            ringedLid(level, p, lidChecked, crowns);
-                        }
-                    } else if (state.is(OBSIDIAN)) {
-                        if (lidChecked.add(p)) {
-                            obsidianTop(level, p, lidChecked, crowns);
-                        }
-                    } else if (state.is(PLINTH)) {
-                        if (lidChecked.add(p)) {
-                            sarcophagus(level, p, lidChecked, crowns);
-                        }
-                        if (brazierChecked.add(p)) {
-                            braziers(level, p, brazierChecked, crowns);
-                        }
-                    } else if (state.is(LANTERN) && walledIn(level, p)) {
-                        crowns.add(p);
-                        for (int rx = -1; rx <= 1; rx++) {
-                            for (int rz = -1; rz <= 1; rz++) {
-                                BlockPos ring = p.offset(rx, 0, rz);
-                                if (level.getBlockState(ring).is(LANTERN_WALL)) {
-                                    crowns.add(ring);
-                                }
-                            }
-                        }
-                    }
+                    collectCrown(level, state, p, lidChecked, brazierChecked, crowns);
                 }
             }
         }
@@ -623,6 +521,44 @@ public final class SimPrince {
                     center.toShortString());
         }
         return found;
+    }
+
+    /** One block of the prince scan: whatever part of a prince structure {@code state} is, its crown blocks join {@code crowns}. */
+    private static void collectCrown(ServerLevel level, net.minecraft.world.level.block.state.BlockState state, BlockPos at,
+                                     Set<BlockPos> lidChecked, Set<BlockPos> brazierChecked, List<BlockPos> crowns) {
+        if (state.is(CROWN)) {
+            if (onAPlinth(level, at)) {
+                crowns.add(at);
+            }
+        } else if (state.is(LID)) {
+            if (lidChecked.add(at)) {
+                ringedLid(level, at, lidChecked, crowns);
+            }
+        } else if (state.is(OBSIDIAN)) {
+            if (lidChecked.add(at)) {
+                obsidianTop(level, at, lidChecked, crowns);
+            }
+        } else if (state.is(PLINTH)) {
+            if (lidChecked.add(at)) {
+                sarcophagus(level, at, lidChecked, crowns);
+            }
+            if (brazierChecked.add(at)) {
+                braziers(level, at, brazierChecked, crowns);
+            }
+        } else if (state.is(LANTERN) && walledIn(level, at)) {
+            // The lantern AND its ring, so a superboom aimed at any face of the
+            // structure finds a prince block - he is looking at andesite, not at the
+            // lantern buried inside it.
+            crowns.add(at);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    BlockPos ring = at.offset(dx, 0, dz);
+                    if (level.getBlockState(ring).is(LANTERN_WALL)) {
+                        crowns.add(ring);
+                    }
+                }
+            }
+        }
     }
 
     /** The {@link #LID} rule, asked of {@code CryptScanner} so the sim and Secret Waypoints' prince waypoints cannot

@@ -117,42 +117,28 @@ public final class PriceData {
     // ------------------------------------------------------------------ reads (any thread, cheap)
 
     /** Bumped whenever any map is swapped, so cached tooltip lines know to rebuild. */
-    public static long generation() {
-        return GENERATION.get();
-    }
+    public static long generation() { return GENERATION.get(); }
 
-    public static ItemInfo item(String id) {
-        return id == null ? null : items.get(id);
-    }
+    public static ItemInfo item(String id) { return id == null ? null : items.get(id); }
 
-    public static Double bazaarBuy(String id) {
-        return id == null ? null : bazaarBuy.get(id);
-    }
+    public static Double bazaarBuy(String id) { return id == null ? null : bazaarBuy.get(id); }
 
-    public static Double bazaarSell(String id) {
-        return id == null ? null : bazaarSell.get(id);
-    }
+    public static Double bazaarSell(String id) { return id == null ? null : bazaarSell.get(id); }
 
     public static boolean isBazaarProduct(String id) {
         return id != null && (bazaarBuy.containsKey(id) || bazaarSell.containsKey(id));
     }
 
-    public static Double lowestBin(String key) {
-        return key == null ? null : lowestBin.get(key);
-    }
+    public static Double lowestBin(String key) { return key == null ? null : lowestBin.get(key); }
 
-    public static Double average(String key, int days) {
-        return key == null ? null : (days <= 1 ? average1 : average3).get(key);
-    }
+    public static Double average(String key, int days) { return key == null ? null : (days <= 1 ? average1 : average3).get(key); }
 
     /**
      * What one unit of {@code id} costs to buy for Est. Item Value: the Bazaar's instant-buy price, else its
      * instant-sell price, else the lowest BIN, else the average. 0 when nothing knows it.
      */
     public static double unitPrice(String id) {
-        if (id == null || id.isEmpty()) {
-            return 0;
-        }
+        if (id == null || id.isEmpty()) return 0;
         Double v = bazaarBuy.get(id);
         if (v == null || v <= 0) {
             v = bazaarSell.get(id);
@@ -166,27 +152,16 @@ public final class PriceData {
         return v == null || v <= 0 ? 0 : v;
     }
 
-    public static int bazaarCount() {
-        return bazaarBuy.size();
-    }
+    public static int bazaarCount() { return bazaarBuy.size(); }
 
-    public static int lowestBinCount() {
-        return lowestBin.size();
-    }
+    public static int lowestBinCount() { return lowestBin.size(); }
 
-    public static long pricesFetchedAt() {
-        return pricesFetchedAt;
-    }
+    public static long pricesFetchedAt() { return pricesFetchedAt; }
 
-    public static boolean isRefreshing() {
-        return refreshing.get();
-    }
+    public static boolean isRefreshing() { return refreshing.get(); }
 
-    public static String lastError() {
-        return lastError;
-    }
+    public static String lastError() { return lastError; }
 
-    // ------------------------------------------------------------------ scheduling
 
     /**
      * Called by every tooltip that wants a price: notes the use and, the first time, loads the disk cache and starts
@@ -217,9 +192,7 @@ public final class PriceData {
             PriceTooltipConfig cfg = PriceTooltipConfig.getInstance();
             long now = System.currentTimeMillis();
             boolean tooltipWants = cfg.isEnabledRaw() && now - lastUseAt <= IDLE_AFTER_MS;
-            if (!tooltipWants && now - lastOtherUseAt > IDLE_AFTER_MS) {
-                return;
-            }
+            if (!tooltipWants && now - lastOtherUseAt > IDLE_AFTER_MS) return;
             boolean pricesDue = now - pricesFetchedAt >= cfg.getRefreshMinutes() * 60_000L;
             boolean itemsDue = now - itemsFetchedAt >= ITEMS_TTL_MS;
             if ((pricesDue || itemsDue) && now - lastAttemptAt >= RETRY_MS) {
@@ -241,9 +214,7 @@ public final class PriceData {
      * the testkit calls it from its test thread against its fakes. Never call it on the render thread.
      */
     public static boolean refreshNow(boolean includeItems) {
-        if (!refreshing.compareAndSet(false, true)) {
-            return false;
-        }
+        if (!refreshing.compareAndSet(false, true)) return false;
         lastAttemptAt = System.currentTimeMillis();
         boolean any = false;
         List<String> errors = new ArrayList<>();
@@ -261,13 +232,9 @@ public final class PriceData {
                 Map<String, Double> buy = new HashMap<>();
                 Map<String, Double> sell = new HashMap<>();
                 for (Map.Entry<String, JsonElement> e : bz.getAsJsonObject("products").entrySet()) {
-                    if (!e.getValue().isJsonObject()) {
-                        continue;
-                    }
+                    if (!e.getValue().isJsonObject()) continue;
                     JsonElement qsEl = e.getValue().getAsJsonObject().get("quick_status");
-                    if (qsEl == null || !qsEl.isJsonObject()) {
-                        continue;
-                    }
+                    if (qsEl == null || !qsEl.isJsonObject()) continue;
                     JsonObject qs = qsEl.getAsJsonObject();
                     buy.put(e.getKey(), num(qs.get("buyPrice")));
                     sell.put(e.getKey(), num(qs.get("sellPrice")));
@@ -316,13 +283,10 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ parsing
 
     private static Map<String, ItemInfo> fetchItems(List<String> errors) {
         JsonObject root = getJson(ModNet.url("hypixel", ITEMS_URL), errors, "items");
-        if (root == null || !root.has("items") || !root.get("items").isJsonArray()) {
-            return null;
-        }
+        if (root == null || !root.has("items") || !root.get("items").isJsonArray()) return null;
         return parseItems(root.getAsJsonArray("items"));
     }
 
@@ -330,14 +294,10 @@ public final class PriceData {
     static Map<String, ItemInfo> parseItems(JsonArray array) {
         Map<String, ItemInfo> out = new HashMap<>();
         for (JsonElement el : array) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
+            if (!el.isJsonObject()) continue;
             JsonObject it = el.getAsJsonObject();
             String id = str(it, "id");
-            if (id == null) {
-                continue;
-            }
+            if (id == null) continue;
             Double npc = it.has("npc_sell_price") ? num(it.get("npc_sell_price")) : null;
             String museumCat = null;
             List<String> sets = List.of();
@@ -367,23 +327,17 @@ public final class PriceData {
                 }
                 slots = List.copyOf(list);
             }
-            if (npc == null && museumCat == null && upgrades.isEmpty() && slots.isEmpty()) {
-                continue;
-            }
+            if (npc == null && museumCat == null && upgrades.isEmpty() && slots.isEmpty()) continue;
             out.put(id, new ItemInfo(npc, museumCat, sets, upgrades, slots));
         }
         return Collections.unmodifiableMap(out);
     }
 
     private static List<Cost> costs(JsonElement el) {
-        if (el == null || !el.isJsonArray()) {
-            return List.of();
-        }
+        if (el == null || !el.isJsonArray()) return List.of();
         List<Cost> out = new ArrayList<>();
         for (JsonElement c : el.getAsJsonArray()) {
-            if (!c.isJsonObject()) {
-                continue;
-            }
+            if (!c.isJsonObject()) continue;
             JsonObject o = c.getAsJsonObject();
             String type = str(o, "type");
             int amount = o.has("amount") ? (int) num(o.get("amount")) : 1;
@@ -406,9 +360,7 @@ public final class PriceData {
 
     /** NEU ids (Coflnet) to the hysky form for the keys that differ: {@code GOLDEN_DRAGON;4} -> {@code LVL_1_LEGENDARY_GOLDEN_DRAGON}. */
     static Map<String, Double> fromNeu(Map<String, Double> neu) {
-        if (neu.isEmpty()) {
-            return neu;
-        }
+        if (neu.isEmpty()) return neu;
         String[] tiers = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};
         Map<String, Double> out = new HashMap<>();
         for (Map.Entry<String, Double> e : neu.entrySet()) {
@@ -431,9 +383,7 @@ public final class PriceData {
     }
 
     private static Map<String, Double> flatMap(JsonObject json) {
-        if (json == null) {
-            return Map.of();
-        }
+        if (json == null) return Map.of();
         Map<String, Double> out = new HashMap<>();
         for (Map.Entry<String, JsonElement> e : json.entrySet()) {
             JsonElement v = e.getValue();
@@ -484,7 +434,6 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ disk cache
 
     private static void saveDiskCache(boolean includeItems) {
         try {
@@ -604,7 +553,6 @@ public final class PriceData {
         }
     }
 
-    // ------------------------------------------------------------------ testkit
 
     /** Testkit: forget every price and fact (memory only), so a case starts from nothing. */
     public static void clearForTest() {
@@ -621,7 +569,5 @@ public final class PriceData {
     }
 
     /** Testkit: start the loop with no disk cache read, so a case's fakes are the only source. */
-    public static void markStartedForTest() {
-        started.set(true);
-    }
+    public static void markStartedForTest() { started.set(true); }
 }

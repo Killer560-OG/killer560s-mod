@@ -36,9 +36,7 @@ public final class StreamerMode {
             this.label = label;
         }
 
-        public Option next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public Option next() { return values()[(ordinal() + 1) % values().length]; }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -59,9 +57,7 @@ public final class StreamerMode {
     }
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         try {
             readFile();
         } finally {
@@ -85,9 +81,7 @@ public final class StreamerMode {
     }
 
     private static void readFile() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) return;
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             active = ConfigJson.getBool(obj, "active", false);
@@ -110,22 +104,16 @@ public final class StreamerMode {
 
     /** Streamer mode is on (cheat build only). */
     public static boolean active() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         ensureLoaded();
         return active;
     }
 
     /** Automated actions are refused: on, with the Disable cheats option. */
-    public static boolean disablesCheats() {
-        return active() && option == Option.DISABLE_CHEATS;
-    }
+    public static boolean disablesCheats() { return active() && option == Option.DISABLE_CHEATS; }
 
     /** The cheat parts of the GUI are hidden: on, with either option. */
-    public static boolean hidesCheatUi() {
-        return active();
-    }
+    public static boolean hidesCheatUi() { return active(); }
 
     public static Option option() {
         ensureLoaded();
@@ -140,9 +128,7 @@ public final class StreamerMode {
 
     /** Flips streamer mode; returns the new state. */
     public static boolean toggle() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         ensureLoaded();
         active = !active;
         save();

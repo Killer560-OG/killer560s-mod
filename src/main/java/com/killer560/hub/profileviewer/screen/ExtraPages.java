@@ -123,23 +123,16 @@ final class ExtraPages {
         }
     }
 
-    // ------------------------------------------------------------------ shared helpers
 
-    private Font f() {
-        return s.font();
-    }
+    private Font f() { return s.font(); }
 
-    private void title(GuiGraphicsExtractor g, String str, int x, int y) {
-        tx(g, str, x, y, ACCENT);
-    }
+    private void title(GuiGraphicsExtractor g, String str, int x, int y) { tx(g, str, x, y, ACCENT); }
 
     private void rightText(GuiGraphicsExtractor g, String str, int right, int y, int color) {
         tx(g, str, right - f().width(str), y, color);
     }
 
-    private static Component line(String str, int color) {
-        return Component.literal(str).withStyle(style(color));
-    }
+    private static Component line(String str, int color) { return Component.literal(str).withStyle(style(color)); }
 
     private void tip(List<Component> lines) {
         if (!s.dropdownOpen) {
@@ -147,9 +140,7 @@ final class ExtraPages {
         }
     }
 
-    private boolean hover(int mx, int my, int x, int y, int w, int h) {
-        return inside(mx, my, x, y, w, h) && !s.dropdownOpen;
-    }
+    private boolean hover(int mx, int my, int x, int y, int w, int h) { return inside(mx, my, x, y, w, h) && !s.dropdownOpen; }
 
     private void center(GuiGraphicsExtractor g, String str, int x, int w, int color) {
         s.centeredIn(g, str, x, w, s.contentY + s.contentH / 2 - 4, color);
@@ -220,9 +211,7 @@ final class ExtraPages {
 
     /** "< title n/count >" pager; returns the wrapped index. */
     private int pager(GuiGraphicsExtractor g, String label, int x, int y, int w, int count, int mx, int my) {
-        if (count <= 0) {
-            return 0;
-        }
+        if (count <= 0) return 0;
         int before = s.subPage;
         s.subPage = Math.floorMod(s.subPage, count);
         if (before != s.subPage && count > 1) {
@@ -252,9 +241,7 @@ final class ExtraPages {
     }
 
     private void scrollbar(GuiGraphicsExtractor g, int x, int y, int h, int totalRows, int visibleRows) {
-        if (totalRows <= visibleRows) {
-            return;
-        }
+        if (totalRows <= visibleRows) return;
         int thumbH = Math.max(8, h * visibleRows / totalRows);
         int thumbY = y + (h - thumbH) * s.pageScroll / Math.max(1, totalRows - visibleRows);
         com.killer560.hub.gui.ScreenChrome.scrollbar(g, x - 1, y, 4, h, thumbY, thumbH, false);
@@ -277,9 +264,7 @@ final class ExtraPages {
         return d > 0 ? d + "d " + h + "h" : h > 0 ? h + "h " + m + "m" : m + "m " + (seconds % 60) + "s";
     }
 
-    private static String pct(double v) {
-        return String.format(Locale.ROOT, "%.1f%%", v * 100);
-    }
+    private static String pct(double v) { return String.format(Locale.ROOT, "%.1f%%", v * 100); }
 
     /** Level from a "level n starts at table[n-1]" threshold table (HOTM / HOTF / garden). */
     private static LevelTables.Level thresholdLevel(long[] table, long xp) {
@@ -296,7 +281,6 @@ final class ExtraPages {
         return n;
     }
 
-    // ------------------------------------------------------------------ collections
 
     // The Collections page's category names and maxed counts, worked out once per (profile extras, category list)
     // instead of walking every collection item each frame.
@@ -333,9 +317,7 @@ final class ExtraPages {
 
     private void drawCollections(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         if (ex.collections == null) {
             center(g, "Collections API is disabled.", s.contentX, s.contentW, DIM);
             return;
@@ -376,9 +358,7 @@ final class ExtraPages {
         int colW = (rw - 20) / 2;
         for (int i = scroll * 2; i < cat.items().size(); i++) {
             int row = i / 2 - scroll;
-            if (row >= visible) {
-                break;
-            }
+            if (row >= visible) break;
             ExtraTables.CollectionItem it = cat.items().get(i);
             int x = rx + 6 + (i % 2) * (colW + 6);
             int y = top + row * rowH;
@@ -415,7 +395,6 @@ final class ExtraPages {
         scrollbar(g, rx + rw - 5, top, visible * rowH, rows, visible);
     }
 
-    // ------------------------------------------------------------------ mining
 
     private static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
             "ruby_crystal", "jasper_crystal", "opal_crystal", "aquamarine_crystal", "citrine_crystal", "peridot_crystal", "onyx_crystal"};
@@ -427,9 +406,7 @@ final class ExtraPages {
 
     private void drawMining(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
         // killer560: rename "Mountain" to "HOTM" - matches the perk tree's own name (Heart of the Mountain).
@@ -493,9 +470,7 @@ final class ExtraPages {
             tx(g, "Empty", x, y, DIM);
         }
         for (ProfileExtras.ForgeSlot slot : m.forge()) {
-            if (y > s.contentY + s.contentH - 10) {
-                break;
-            }
+            if (y > s.contentY + s.contentH - 10) break;
             String label = "Slot " + slot.slot();
             tx(g, label, x, y, DIM);
             String item = f().plainSubstrByWidth(SbProfile.titleCase(slot.id()), w - f().width(label) - 6);
@@ -650,13 +625,10 @@ final class ExtraPages {
         perkList(g, "Perks", fo.nodes(), cx, s.contentY + 5, rx + rw - 6 - cx, mx, my);
     }
 
-    // ------------------------------------------------------------------ bestiary
 
     private void drawBestiary(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         if (ex.bestiaryKills == null) {
             center(g, "No bestiary data on this profile.", s.contentX, s.contentW, DIM);
             return;
@@ -710,9 +682,7 @@ final class ExtraPages {
         int startX = rx + (rw - cols * cell) / 2;
         for (int i = scroll * cols; i < cat.families().size(); i++) {
             int row = i / cols - scroll;
-            if (row >= visible) {
-                break;
-            }
+            if (row >= visible) break;
             ExtraTables.BestiaryFamily fam = cat.families().get(i);
             int ix = startX + (i % cols) * cell;
             int iy = top + row * cell;
@@ -802,20 +772,15 @@ final class ExtraPages {
 
     private ItemStack familyIcon(ExtraTables.BestiaryFamily fam) {
         return familyIcons.computeIfAbsent(fam, f -> {
-            if (f.texture() != null) {
-                return LegacyItems.skull(f.texture(), null);
-            }
+            if (f.texture() != null) return LegacyItems.skull(f.texture(), null);
             return ItemIcons.forItem(f.icon());
         });
     }
 
-    // ------------------------------------------------------------------ crimson isle
 
     private void drawCrimson(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         ProfileExtras.Crimson c = ex.crimson;
         if (!c.present()) {
             center(g, "No Crimson Isle data on this profile.", s.contentX, s.contentW, DIM);
@@ -945,7 +910,6 @@ final class ExtraPages {
         };
     }
 
-    // ------------------------------------------------------------------ museum
 
     // The Museum page's category list, button labels and per-category item lists, built once per (museum view,
     // tables) rather than every frame.
@@ -1027,9 +991,7 @@ final class ExtraPages {
         for (int i = 0; i < catIds.size(); i++) {
             String label = museumCatLabels[i];
             final int idx = i;
-            if (y + 16 > s.contentY + s.contentH) {
-                break;
-            }
+            if (y + 16 > s.contentY + s.contentH) break;
             s.button(g, x - 2, y, w + 4, 15, label, mx, my, i == s.subView, () -> {
                 s.subView = idx;
                 s.pageScroll = 0;
@@ -1073,21 +1035,15 @@ final class ExtraPages {
         int startX = rx + (rw - cols * 18) / 2;
         for (int i = scroll * cols; i < stacks.size(); i++) {
             int row = i / cols - scroll;
-            if (row >= visible) {
-                break;
-            }
+            if (row >= visible) break;
             s.slot(g, startX + (i % cols) * 18, top + row * 18, stacks.get(i), mx, my, false);
         }
         scrollbar(g, rx + rw - 5, top, visible * 18, rows, visible);
     }
 
     private static int countDonated(MuseumView view, ExtraTables.MuseumTables tables, String cat) {
-        if (cat.equals("special")) {
-            return view.special().size();
-        }
-        if (tables == null) {
-            return view.items().size();
-        }
+        if (cat.equals("special")) return view.special().size();
+        if (tables == null) return view.items().size();
         int n = 0;
         for (String id : tables.categories().getOrDefault(cat, List.of())) {
             if (view.items().containsKey(id)) {
@@ -1122,9 +1078,7 @@ final class ExtraPages {
             if (obj != null) {
                 for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
                     JsonObject entry = SbProfile.asObj(e.getValue());
-                    if (entry == null) {
-                        continue;
-                    }
+                    if (entry == null) continue;
                     List<ItemStack> stacks = new ArrayList<>();
                     for (ItemStack st : LegacyItems.decodeInventory(entry.get("items"))) {
                         if (!st.isEmpty()) {
@@ -1161,13 +1115,10 @@ final class ExtraPages {
         }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
     }
 
-    // ------------------------------------------------------------------ rift
 
     private void drawRift(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         ProfileExtras.Rift r = ex.rift;
         if (!r.present()) {
             center(g, "This profile hasn't visited the Rift.", s.contentX, s.contentW, DIM);
@@ -1293,7 +1244,6 @@ final class ExtraPages {
         return y;
     }
 
-    // ------------------------------------------------------------------ farming / garden
 
     private static final Map<String, String> CROP_NAMES = Map.of("INK_SACK:3", "Cocoa Beans", "CARROT_ITEM", "Carrot",
             "POTATO_ITEM", "Potato", "MUSHROOM_COLLECTION", "Mushroom", "NETHER_STALK", "Nether Wart", "DOUBLE_PLANT", "Sunflower",
@@ -1302,9 +1252,7 @@ final class ExtraPages {
 
     private void drawFarming(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         ProfileExtras.Farming fa = ex.farming;
         JsonObject gardenTables = ExtraTables.section("garden");
         CompletableFuture<ProfileViewerApi.AuxResult> gf = aux(ProfileViewerApi.AuxKind.GARDEN, p.profileId);
@@ -1397,9 +1345,7 @@ final class ExtraPages {
         int row = 0;
         for (Map.Entry<String, JsonElement> e : milestonesObj.entrySet()) {
             String crop = e.getKey();
-            if (ty + rowH > s.contentY + s.contentH) {
-                break;
-            }
+            if (ty + rowH > s.contentY + s.contentH) break;
             if (row++ % 2 == 0) {
                 g.fill(rx + 2, ty - 2, rx + rw - 2, ty + rowH - 2, STRIPE);
             }
@@ -1459,7 +1405,6 @@ final class ExtraPages {
         };
     }
 
-    // ------------------------------------------------------------------ networth
 
     /** A networth estimate for {@code p}: the result, or null with {@code failed} saying whether it is still coming. */
     record NetworthState(Networth.Result result, boolean failed) {
@@ -1476,17 +1421,11 @@ final class ExtraPages {
         // The Basic Info page asks every frame. A finished estimate only changes when Bazaar prices arrive for one
         // calculated without them, so hand it back as is until then.
         NetworthState settled = networthSettled.get(p);
-        if (settled != null && !Networth.stale(settled.result())) {
-            return settled;
-        }
+        if (settled != null && !Networth.stale(settled.result())) return settled;
         CompletableFuture<ProfileExtras> ef = p.extras();
-        if (!ef.isDone()) {
-            return NW_PENDING;
-        }
+        if (!ef.isDone()) return NW_PENDING;
         ProfileExtras ex = ef.isCompletedExceptionally() ? null : ef.getNow(null);
-        if (ex == null) {
-            return NW_FAILED;
-        }
+        if (ex == null) return NW_FAILED;
         CompletableFuture<Map<String, Double>> bins = ExtraTables.lowestBins();
         CompletableFuture<SbProfile.Inventories> inv = p.inventoryApi ? p.inventories() : null;
         CompletableFuture<ProfileViewerApi.AuxResult> museum = aux(ProfileViewerApi.AuxKind.MUSEUM, p.profileId);
@@ -1499,9 +1438,7 @@ final class ExtraPages {
                 museumSettled = museumView.isDone();
             }
         }
-        if (!bins.isDone() || (inv != null && !inv.isDone()) || !museumSettled) {
-            return NW_PENDING;
-        }
+        if (!bins.isDone() || (inv != null && !inv.isDone()) || !museumSettled) return NW_PENDING;
         MuseumView mv = museumView == null ? null : ExtraTables.now(museumView);
         boolean withMuseum = mv != null;
         CompletableFuture<Networth.Result> nf = networth.get(p);
@@ -1517,9 +1454,7 @@ final class ExtraPages {
             networthHasMuseum.put(p, withMuseum);
         }
         Networth.Result r = ExtraTables.now(nf);
-        if (r == null) {
-            return nf.isDone() ? NW_FAILED : NW_PENDING;
-        }
+        if (r == null) return nf.isDone() ? NW_FAILED : NW_PENDING;
         NetworthState ready = new NetworthState(r, false);
         networthSettled.put(p, ready);
         return ready;
@@ -1598,13 +1533,10 @@ final class ExtraPages {
         scrollbar(g, rx + rw - 5, top, visible * rowH, cats.size(), visible);
     }
 
-    // ------------------------------------------------------------------ misc
 
     private void drawMisc(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
-        if (ex == null) {
-            return;
-        }
+        if (ex == null) return;
         ProfileExtras.Misc m = ex.misc;
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
@@ -1629,13 +1561,9 @@ final class ExtraPages {
     /** The map's "total" entry, or the largest entry when the profile has no "total". Walks the values only in
      *  the second case - see the note at the call site about getOrDefault evaluating its default eagerly. */
     private static long maxOrTotal(Map<String, Long> counts) {
-        if (counts == null || counts.isEmpty()) {
-            return 0L;
-        }
+        if (counts == null || counts.isEmpty()) return 0L;
         Long total = counts.get("total");
-        if (total != null) {
-            return total;
-        }
+        if (total != null) return total;
         long best = 0L;
         for (Long v : counts.values()) {
             if (v != null && v > best) {
@@ -1706,9 +1634,7 @@ final class ExtraPages {
             tx(g, "None", ex0, ey, DIM);
         }
         for (String key : List.of("created", "completed", "bids", "won", "gold_spent", "gold_earned", "highest_bid")) {
-            if (ey > s.contentY + s.contentH - 11) {
-                break;
-            }
+            if (ey > s.contentY + s.contentH - 11) break;
             Long v = m.auctions().get(key);
             if (v != null) {
                 boolean coins = key.startsWith("gold") || key.equals("highest_bid");
@@ -1739,9 +1665,7 @@ final class ExtraPages {
         int colW = (rw - 24) / 2;
         for (int i = scroll * 2; i < list.size(); i++) {
             int row = i / 2 - scroll;
-            if (row >= visible) {
-                break;
-            }
+            if (row >= visible) break;
             Map.Entry<String, Long> e = list.get(i);
             int x = rx + 6 + (i % 2) * (colW + 8);
             int y = top + row * rowH;
@@ -1764,13 +1688,9 @@ final class ExtraPages {
 
     /** Hypixel network rank prefix from {@code /v2/player} (same precedence Hypixel uses). */
     private static Component rank(JsonObject player) {
-        if (player == null) {
-            return LegacyText.parse("§7None");
-        }
+        if (player == null) return LegacyText.parse("§7None");
         String prefix = str(player, "prefix");
-        if (prefix != null && !prefix.isBlank()) {
-            return LegacyText.parse(prefix);
-        }
+        if (prefix != null && !prefix.isBlank()) return LegacyText.parse(prefix);
         String special = str(player, "rank");
         if (special != null && !special.equals("NORMAL")) {
             String s = switch (special) {
@@ -1808,9 +1728,7 @@ final class ExtraPages {
     }
 
     private static String colorCode(String name, String def) {
-        if (name == null) {
-            return def;
-        }
+        if (name == null) return def;
         net.minecraft.ChatFormatting fmt = com.killer560.hub.util.ChatColors.byName(name.toLowerCase(Locale.ROOT));
         return fmt == null || !com.killer560.hub.util.ChatColors.isColor(fmt) ? def : "§" + com.killer560.hub.util.ChatColors.code(fmt);
     }

@@ -78,9 +78,7 @@ public final class PerTickServerClock {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ServerTickClock.register();
         ServerTickClock.subscribeRawPing(PerTickServerClock::onPing);
@@ -113,11 +111,6 @@ public final class PerTickServerClock {
 
     private static Boolean forcedHypixel;
 
-    /** Testkit (logic suite): act as if connected to hypixel.net (true), not (false), or by the address (null). */
-    public static synchronized void hypixelForTest(Boolean on) {
-        forcedHypixel = on;
-        hypixel = on != null && on;
-    }
     private static boolean hypixel;
 
     private static synchronized void untrust() {
@@ -238,9 +231,7 @@ public final class PerTickServerClock {
      * listener (client ticks whenever the server sent under 15 pings a second) belongs here (2026-11-03: "all timers
      * seem to go off sometimes" when the server lags). Call {@link #register()} first.
      */
-    public static void subscribe(Runnable listener) {
-        LISTENERS.add(listener);
-    }
+    public static void subscribe(Runnable listener) { LISTENERS.add(listener); }
 
     private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -308,9 +299,7 @@ public final class PerTickServerClock {
     }
 
     /** The clock now (server ticks while trusted, client ticks otherwise). */
-    public static long now() {
-        return clock;
-    }
+    public static long now() { return clock; }
 
     /** The counters at once, for {@link #stallTicksSince} and {@link #deficitTicksSince}: {pings while trusted, client
      *  ticks while trusted, stall ticks counted}. */
@@ -338,15 +327,11 @@ public final class PerTickServerClock {
     }
 
     /** Every non-zero ping seen since launch, trusted or not (Tick Timers' proc log compares it with the clock). */
-    public static long rawPings() {
-        return rawPings;
-    }
+    public static long rawPings() { return rawPings; }
 
     private static volatile long rawPings;
 
-    public static boolean trusted() {
-        return trusted;
-    }
+    public static boolean trusted() { return trusted; }
 
     /** Testkit (logic suite, no server): drive the clock by hand - a server ping, a client tick, a fresh world. */
     public static void pingForTest() {
@@ -377,12 +362,8 @@ public final class PerTickServerClock {
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
 
     /** Testkit: times the trust changed. */
-    public static int trustChanges() {
-        return trustChanges;
-    }
+    public static int trustChanges() { return trustChanges; }
 
     /** Testkit: pings in the last full window. */
-    public static int lastWindowPings() {
-        return lastWindowPings;
-    }
+    public static int lastWindowPings() { return lastWindowPings; }
 }

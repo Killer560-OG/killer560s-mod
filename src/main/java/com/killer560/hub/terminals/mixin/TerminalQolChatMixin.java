@@ -38,9 +38,7 @@ public abstract class TerminalQolChatMixin {
     @Inject(method = "addMessage", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideTerminalCompletionChat(Component message, MessageSignature signature,
                                                           GuiMessageSource source, GuiMessageTag tag, CallbackInfo ci) {
-        if (!TerminalQolFeature.shouldHideCompletionChat(message)) {
-            return;
-        }
+        if (!TerminalQolFeature.shouldHideCompletionChat(message)) return;
         ChatObserver.onChatComponentAdd(message);
         ci.cancel();
     }

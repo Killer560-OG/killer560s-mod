@@ -25,29 +25,17 @@ public final class ModChat {
     private ModChat() {
     }
 
-    public static MutableComponent prefix(String feature) {
-        return colored("[" + feature + "] ", ORANGE);
-    }
+    public static MutableComponent prefix(String feature) { return colored("[" + feature + "] ", ORANGE); }
 
-    public static MutableComponent text(String s) {
-        return colored(s, TEXT);
-    }
+    public static MutableComponent text(String s) { return colored(s, TEXT); }
 
-    public static MutableComponent value(String s) {
-        return colored(s, LIGHT_ORANGE);
-    }
+    public static MutableComponent value(String s) { return colored(s, LIGHT_ORANGE); }
 
-    public static MutableComponent dim(String s) {
-        return colored(s, DIM);
-    }
+    public static MutableComponent dim(String s) { return colored(s, DIM); }
 
-    public static MutableComponent good(String s) {
-        return colored(s, GOOD);
-    }
+    public static MutableComponent good(String s) { return colored(s, GOOD); }
 
-    public static MutableComponent bad(String s) {
-        return colored(s, BAD);
-    }
+    public static MutableComponent bad(String s) { return colored(s, BAD); }
 
     public static MutableComponent colored(String s, int rgb) {
         return Component.literal(s).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
@@ -99,7 +87,5 @@ public final class ModChat {
      * killer560 (2026-10-16), "only have a message for started auto clear or stopped auto clear type things". The
      * text stays word for word what the chat line said, so logs and testkit scenarios still find it.
      */
-    public static void log(String feature, Component... parts) {
-        QUIET.info(line(feature, parts).getString());
-    }
+    public static void log(String feature, Component... parts) { QUIET.info(line(feature, parts).getString()); }
 }

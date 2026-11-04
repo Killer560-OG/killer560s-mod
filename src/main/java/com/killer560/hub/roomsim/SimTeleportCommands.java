@@ -93,7 +93,6 @@ public final class SimTeleportCommands {
         });
     }
 
-    // ---------------------------------------------------------------- completion
 
     /**
      * The distinct rooms on the floor he is standing in, in paste order.
@@ -151,7 +150,6 @@ public final class SimTeleportCommands {
         return builder.buildFuture();
     }
 
-    // ---------------------------------------------------------------- /goto
 
     /**
      * Puts him in the named room on the current floor.
@@ -171,9 +169,7 @@ public final class SimTeleportCommands {
             return 1;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return 1;
-        }
+        if (server == null) return 1;
         List<SimRoomIndex.Placed> placed = SimRoomIndex.placed();
         if (placed.isEmpty()) {
             ModChat.send("Sim", ModChat.dim("No floor is loaded yet - nothing to go to."));
@@ -186,9 +182,7 @@ public final class SimTeleportCommands {
             return 1;
         }
         var player = client.player;
-        if (player == null) {
-            return 1;
-        }
+        if (player == null) return 1;
         var uuid = player.getUUID();
         RoomLibrary.Room room = RoomLibrary.get(target.name());
         String name = target.name();
@@ -220,38 +214,25 @@ public final class SimTeleportCommands {
      */
     private static SimRoomIndex.Placed resolve(List<SimRoomIndex.Placed> placed, String wanted) {
         String want = wanted == null ? "" : wanted.trim().toLowerCase(Locale.ROOT);
-        if (want.isEmpty()) {
-            return null;
-        }
+        if (want.isEmpty()) return null;
         for (SimRoomIndex.Placed p : placed) {
-            if (p.name() != null && p.name().toLowerCase(Locale.ROOT).equals(want)) {
-                return p;
-            }
+            if (p.name() != null && p.name().toLowerCase(Locale.ROOT).equals(want)) return p;
         }
         SimRoomIndex.Placed prefix = unique(placed, want, true);
-        if (prefix != null) {
-            return prefix;
-        }
-        return unique(placed, want, false);
+        return prefix != null ? prefix : unique(placed, want, false);
     }
 
     /** The one placed room whose name prefixes/contains {@code want}, or null when none or several do. */
     private static SimRoomIndex.Placed unique(List<SimRoomIndex.Placed> placed, String want, boolean asPrefix) {
         SimRoomIndex.Placed hit = null;
         for (SimRoomIndex.Placed p : placed) {
-            if (p.name() == null) {
-                continue;
-            }
+            if (p.name() == null) continue;
             String lower = p.name().toLowerCase(Locale.ROOT);
             boolean matches = asPrefix ? lower.startsWith(want) : lower.contains(want);
-            if (!matches) {
-                continue;
-            }
+            if (!matches) continue;
             // Two PLACEMENTS of the same template are not an ambiguity - either will do, and refusing there
             // would make a duplicated room unreachable by name.
-            if (hit != null && !hit.name().equalsIgnoreCase(p.name())) {
-                return null;
-            }
+            if (hit != null && !hit.name().equalsIgnoreCase(p.name())) return null;
             if (hit == null) {
                 hit = p;
             }
@@ -259,7 +240,6 @@ public final class SimTeleportCommands {
         return hit;
     }
 
-    // ---------------------------------------------------------------- /c
 
     /**
      * Moves him {@code blocks} along the direction he is looking. Negative goes backward.
@@ -277,9 +257,7 @@ public final class SimTeleportCommands {
             return 1;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return 1;
-        }
+        if (server == null) return 1;
         Vec3 look = client.player.getLookAngle();
         Vec3 from = client.player.position();
         double x = from.x + look.x * blocks;
@@ -296,9 +274,7 @@ public final class SimTeleportCommands {
         // useless for lining a jump up.
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             // Cast rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2, and a
             // ServerPlayer's level is always a ServerLevel.
             ServerLevel level = (ServerLevel) sp.level();

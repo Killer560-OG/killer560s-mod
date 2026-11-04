@@ -23,9 +23,7 @@ public abstract class ZpewUseItemMixin {
 
     @Inject(method = "useItem", at = @At("RETURN"))
     private void killer560smod$zpewExtraWarps(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         try {
             ZeroPingEtherwarp.flushExtraWarps();
         } catch (Throwable t) {

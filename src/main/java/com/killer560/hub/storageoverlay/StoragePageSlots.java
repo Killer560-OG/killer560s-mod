@@ -48,27 +48,15 @@ public final class StoragePageSlots {
 
     public static Kind classify(ItemStack stack) {
         try {
-            if (stack == null || stack.isEmpty()) {
-                return Kind.NONE;
-            }
+            if (stack == null || stack.isEmpty()) return Kind.NONE;
             String name = cap(CheatUtils.plainName(stack).strip());
-            if (name.isEmpty()) {
-                return Kind.NONE;
-            }
-            if (EMPTY_NAME.matcher(name).matches()) {
-                return Kind.EMPTY_BACKPACK;
-            }
-            if (LOCKED_NAME.matcher(name).matches()) {
-                return Kind.LOCKED;
-            }
+            if (name.isEmpty()) return Kind.NONE;
+            if (EMPTY_NAME.matcher(name).matches()) return Kind.EMPTY_BACKPACK;
+            if (LOCKED_NAME.matcher(name).matches()) return Kind.LOCKED;
             // The lore is wrapped over two lines in the menu; joined it is one sentence.
             String lore = joinedLore(stack);
-            if (EMPTY_LORE.matcher(lore).matches()) {
-                return Kind.EMPTY_BACKPACK;
-            }
-            if (LOCKED_LORE.matcher(lore).matches()) {
-                return Kind.LOCKED;
-            }
+            if (EMPTY_LORE.matcher(lore).matches()) return Kind.EMPTY_BACKPACK;
+            if (LOCKED_LORE.matcher(lore).matches()) return Kind.LOCKED;
             return Kind.PAGE;
         } catch (RuntimeException e) {
             // Never on the render path. An icon that cannot be read is not clicked.
@@ -81,31 +69,21 @@ public final class StoragePageSlots {
         StringBuilder sb = new StringBuilder();
         for (String line : lines) {
             String t = line.strip();
-            if (t.isEmpty()) {
-                continue;
-            }
+            if (t.isEmpty()) continue;
             if (sb.length() > 0) {
                 sb.append(' ');
             }
             sb.append(t);
-            if (sb.length() > MAX_TEXT) {
-                break;
-            }
+            if (sb.length() > MAX_TEXT) break;
         }
         return cap(sb.toString());
     }
 
-    private static String cap(String s) {
-        return s.length() > MAX_TEXT ? s.substring(0, MAX_TEXT) : s;
-    }
+    private static String cap(String s) { return s.length() > MAX_TEXT ? s.substring(0, MAX_TEXT) : s; }
 
     /** Overview slot of Ender Chest page {@code page} (1-9): slots 9-17. */
-    public static int enderChestSlot(int page) {
-        return 8 + page;
-    }
+    public static int enderChestSlot(int page) { return 8 + page; }
 
     /** Overview slot of backpack {@code n} (1-18): slots 27-44. */
-    public static int backpackSlot(int n) {
-        return 26 + n;
-    }
+    public static int backpackSlot(int n) { return 26 + n; }
 }

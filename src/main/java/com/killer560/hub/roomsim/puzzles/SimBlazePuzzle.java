@@ -121,9 +121,7 @@ public final class SimBlazePuzzle {
     }
 
     /** How tall the chain is for a spacing, in blocks of clearance needed above the origin. */
-    private static int chainHeight(int spacing) {
-        return (HEALTHS.length - 1) * spacing + 2;
-    }
+    private static int chainHeight(int spacing) { return (HEALTHS.length - 1) * spacing + 2; }
 
     /** The spacing the current arena was built with. */
     private static volatile int spacing = SPACINGS[0];
@@ -207,9 +205,7 @@ public final class SimBlazePuzzle {
     /** Takes a blaze's label away - called the tick its blaze is found dead, so the solver stops counting it. */
     private static void dropLabel(ServerLevel level, UUID blazeId) {
         UUID tagId = LABEL_STANDS.remove(blazeId);
-        if (tagId == null) {
-            return;
-        }
+        if (tagId == null) return;
         Entity tag = level.getEntity(tagId);
         if (tag != null) {
             tag.discard();
@@ -263,9 +259,7 @@ public final class SimBlazePuzzle {
     /** Registers the progress-polling tick hook. Reports back rather than wiring itself into a screen/menu -
      *  see the class handoff note for where this still needs to be called from. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimBlazePuzzle.tick", SimBlazePuzzle::tick));
     }
@@ -279,9 +273,7 @@ public final class SimBlazePuzzle {
      * says it spawned five. Rather than assert on an instrument that reads zero whatever is there, the test
      * asks the puzzle - and the puzzle only counts a blaze the level actually accepted.
      */
-    public static int spawnedCount() {
-        return spawnedIds == null ? 0 : spawnedIds.size();
-    }
+    public static int spawnedCount() { return spawnedIds == null ? 0 : spawnedIds.size(); }
 
     public static void build(Minecraft client, BlockPos origin) {
         // A standalone arena, not a bind to a captured room, and always the Lower Blaze half of the rule -
@@ -293,13 +285,9 @@ public final class SimBlazePuzzle {
 
     /** Spawns a fresh arena at {@code origin} in whichever kill order the current arena is drilling. */
     private static void rebuild(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         despawnCurrent(client);
         storedOrigin = origin;
         final boolean higher = lowestFirst;
@@ -468,9 +456,7 @@ public final class SimBlazePuzzle {
                 ordered.add(byPlacement[idx]);
             }
         }
-        if (ordered.isEmpty()) {
-            return false;
-        }
+        if (ordered.isEmpty()) return false;
         spawnedIds = List.copyOf(ordered);
         nextRequired = 0;
         complete = false;
@@ -492,9 +478,7 @@ public final class SimBlazePuzzle {
 
     /** {@link #KILL_ORDER_INDICES}, reversed for the Higher Blaze half of the real rule. */
     private static int[] killOrder(boolean higher) {
-        if (!higher) {
-            return KILL_ORDER_INDICES;
-        }
+        if (!higher) return KILL_ORDER_INDICES;
         int[] out = new int[KILL_ORDER_INDICES.length];
         for (int i = 0; i < out.length; i++) {
             out[i] = KILL_ORDER_INDICES[out.length - 1 - i];
@@ -503,19 +487,13 @@ public final class SimBlazePuzzle {
     }
 
     /** True once every blaze has died in the required order. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** The room the current arena is bound in ("Higher Blaze" / "Lower Blaze"), or null for none or a standalone one. */
-    public static String boundRoom() {
-        return boundRoom;
-    }
+    public static String boundRoom() { return boundRoom; }
 
     /** Blazes killed in order so far in the current chain, for tests and logs. */
-    public static int killedInOrder() {
-        return nextRequired;
-    }
+    public static int killedInOrder() { return nextRequired; }
 
     /** Despawns whatever is left of the current arena and clears progress. Takes no arguments - grabs the
      *  client singleton the same way {@code SimAbilities}'s item-use handler does, since the three-method
@@ -549,18 +527,14 @@ public final class SimBlazePuzzle {
 
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         despawnCurrent(client);
         boundOrigin = null;
     }
 
     private static void despawnCurrent(Minecraft client) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<UUID> ids = spawnedIds;
         spawnedIds = List.of();
         nextRequired = 0;
@@ -570,9 +544,7 @@ public final class SimBlazePuzzle {
         // is in the map by then" would take the new labels with the old.
         List<UUID> tags = List.copyOf(LABEL_STANDS.values());
         LABEL_STANDS.clear();
-        if (ids.isEmpty() && tags.isEmpty()) {
-            return;
-        }
+        if (ids.isEmpty() && tags.isEmpty()) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (UUID id : ids) {
@@ -593,17 +565,11 @@ public final class SimBlazePuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<UUID> ids = spawnedIds;
-        if (ids.isEmpty() || complete) {
-            return;
-        }
+        if (ids.isEmpty() || complete) return;
         server.execute(() -> checkProgress(client, server, ids));
     }
 
@@ -617,9 +583,7 @@ public final class SimBlazePuzzle {
         // with the same list. The first may already have failed and rebuilt the chain; the second, still holding
         // the old ids (and SEEN_DEAD still naming the out-of-order blaze), would report the same wrong kill again
         // and rebuild a second time, despawning the chain the first one just made.
-        if (ids != spawnedIds) {
-            return;
-        }
+        if (ids != spawnedIds) return;
         ServerLevel level = server.overworld();
         if (putBackMissing(level, ids)) {
             return; // the chain's ids changed; the next tick reads the new list
@@ -656,9 +620,7 @@ public final class SimBlazePuzzle {
      * not alive, for its 20 death ticks before it is removed, and this is asked every tick, so it is always seen.
      */
     private static boolean isDead(ServerLevel level, UUID id) {
-        if (SEEN_DEAD.contains(id)) {
-            return true;
-        }
+        if (SEEN_DEAD.contains(id)) return true;
         // Dying, not merely gone: a discarded entity is also "not alive", and the put-back below relies on a
         // blaze that vanished without dying never being counted as a kill.
         if (level.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity living && living.isDeadOrDying()) {
@@ -722,9 +684,7 @@ public final class SimBlazePuzzle {
                 continue;
             }
             int missing = MISSING.merge(id, 1, Integer::sum);
-            if (missing < MISSING_TICKS) {
-                continue;
-            }
+            if (missing < MISSING_TICKS) continue;
             SimBlazeEntity blaze = new SimBlazeEntity(McEntities.BLAZE, level);
             blaze.getAttribute(Attributes.MAX_HEALTH).setBaseValue(health);
             blaze.setHealth(health);
@@ -752,9 +712,7 @@ public final class SimBlazePuzzle {
                             + "reloaded blaze is not the sim's) - put back at {}", (int) (float) health, boundRoom,
                     BlockPos.containing(at).toShortString());
         }
-        if (next == null) {
-            return false;
-        }
+        if (next == null) return false;
         if (spawnedIds == ids) {
             spawnedIds = List.copyOf(next);
         }

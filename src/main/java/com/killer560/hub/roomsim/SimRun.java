@@ -58,9 +58,7 @@ public final class SimRun {
      * after the floor is published and he has been put in the entrance. A single room never starts a run.
      */
     public static void autoStart(Minecraft client) {
-        if (!SimState.canAct(client) || !SimState.isGeneratedFloor()) {
-            return;
-        }
+        if (!SimState.canAct(client) || !SimState.isGeneratedFloor()) return;
         // A floor with mobs: its wither doors and key rooms, before the countdown (SimMobFloor).
         SimMobFloor.onFloorReady(client);
         begin(client, SimBuilder.entranceDoor());
@@ -103,34 +101,22 @@ public final class SimRun {
         entranceDoor = null;
     }
 
-    public static boolean isRunning() {
-        return running;
-    }
+    public static boolean isRunning() { return running; }
 
     /** Whether a run has started on this floor - true from GO until the next map is built. */
-    public static boolean hasStarted() {
-        return everStarted;
-    }
+    public static boolean hasStarted() { return everStarted; }
 
     /** Ticks left on the countdown, 0 once the door has opened. Also what the HUD reads. */
-    public static int countdownTicks() {
-        return ticksLeft;
-    }
+    public static int countdownTicks() { return ticksLeft; }
 
     /** True between {@link #begin} and the end of the run - the countdown is only ticked while armed. */
-    public static boolean isArmed() {
-        return armed;
-    }
+    public static boolean isArmed() { return armed; }
 
     /** Milliseconds since the door opened, or 0 when no run is under way. */
-    public static long elapsedMs() {
-        return running ? System.currentTimeMillis() - startedAtMs : 0L;
-    }
+    public static long elapsedMs() { return running ? System.currentTimeMillis() - startedAtMs : 0L; }
 
     private static void tick(Minecraft client) {
-        if (!armed || !SimState.canAct(client)) {
-            return;
-        }
+        if (!armed || !SimState.canAct(client)) return;
         if (ticksLeft > 0) {
             ticksLeft--;
             int second = (ticksLeft + TICKS_PER_SECOND - 1) / TICKS_PER_SECOND;

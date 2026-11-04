@@ -110,23 +110,14 @@ public final class SimRunHistory {
         return out;
     }
 
-    private static long when(RunRecord r) {
-        return r.endedAtMs() > 0 ? r.endedAtMs() : r.startedAtMs();
-    }
+    private static long when(RunRecord r) { return r.endedAtMs() > 0 ? r.endedAtMs() : r.startedAtMs(); }
 
     /** "E" first, then F1..F7, then M1..M7, anything else last. */
     private static String floorOrder(RunRecord r) {
         String f = r.floor() == null ? "" : r.floor().toUpperCase(Locale.ROOT);
-        if (f.equals("E")) {
-            return "0";
-        }
-        if (f.startsWith("F")) {
-            return "1" + f;
-        }
-        if (f.startsWith("M")) {
-            return "2" + f;
-        }
-        return "9" + f;
+        if (f.equals("E")) return "0";
+        if (f.startsWith("F")) return "1" + f;
+        return f.startsWith("M") ? "2" + f : "9" + f;
     }
 
     /** The old label list (one line per run, newest first). Kept for anything that still picks by label. */
@@ -147,9 +138,7 @@ public final class SimRunHistory {
     }
 
     /** Rebuilds a listed run in the sim, by its {@link #savedRuns} label. */
-    public static synchronized void load(Minecraft client, String label) {
-        load(client, BY_LABEL.get(label));
-    }
+    public static synchronized void load(Minecraft client, String label) { load(client, BY_LABEL.get(label)); }
 
     /** Rebuilds a run in the sim. */
     public static void load(Minecraft client, RunRecord run) {
@@ -169,9 +158,7 @@ public final class SimRunHistory {
      * The sim map code a run rebuilds as, or null. Public for the testkit, which decodes it to check every room's
      * rotation before the floor is built.
      */
-    public static String mapCodeFor(RunRecord run) {
-        return run == null || run.map() == null ? null : toMapCode(run.map());
-    }
+    public static String mapCodeFor(RunRecord run) { return run == null || run.map() == null ? null : toMapCode(run.map()); }
 
     /**
      * Turns a run's map snapshot into a sim map code.
@@ -192,13 +179,9 @@ public final class SimRunHistory {
         for (int cell = 0; cell < cells; cell++) {
             int roomId = map.roomAt(cell);
             cellDoor[cell] = Math.min(DungeonLayout.DOOR_ENTRANCE, Math.max(0, map.doorAt(cell)));
-            if (roomId < 0) {
-                continue;
-            }
+            if (roomId < 0) continue;
             RunRecord.MapRoom room = map.room(roomId);
-            if (room == null || room.name() == null || room.name().isBlank()) {
-                continue;
-            }
+            if (room == null || room.name() == null || room.name().isBlank()) continue;
             Integer idx = idToIndex.get(roomId);
             if (idx == null) {
                 nameTable.add(room.name());
@@ -208,9 +191,7 @@ public final class SimRunHistory {
             cellRoom[cell] = idx;
             cellRotation[cell] = roomId < paste.length ? paste[roomId] : 0;
         }
-        if (nameTable.isEmpty()) {
-            return null;
-        }
+        if (nameTable.isEmpty()) return null;
         return MapCode.encodeDecoded(new MapCode.Decoded(
                 nameTable.toArray(new String[0]), cellRoom, cellDoor, cellRotation));
     }
@@ -242,9 +223,7 @@ public final class SimRunHistory {
         if (room != null && entry.rotation() >= 0) {
             recorded = Math.floorMod(entry.rotation() - RoomCaptureRotation.of(room), 360);
         }
-        if (room == null || !room.usable()) {
-            return Math.max(0, recorded);
-        }
+        if (room == null || !room.usable()) return Math.max(0, recorded);
         // The room's tiles, in tile coordinates.
         Set<Long> tiles = new HashSet<>();
         int minX = Integer.MAX_VALUE;
@@ -254,18 +233,14 @@ public final class SimRunHistory {
         for (int cell = 0; cell < grid * grid; cell++) {
             int gx = cell % grid;
             int gz = cell / grid;
-            if (map.roomAt(cell) != id || gx % 2 != 0 || gz % 2 != 0) {
-                continue;
-            }
+            if (map.roomAt(cell) != id || gx % 2 != 0 || gz % 2 != 0) continue;
             tiles.add(key(gx / 2, gz / 2));
             minX = Math.min(minX, gx / 2);
             minZ = Math.min(minZ, gz / 2);
             maxX = Math.max(maxX, gx / 2);
             maxZ = Math.max(maxZ, gz / 2);
         }
-        if (tiles.isEmpty()) {
-            return Math.max(0, recorded);
-        }
+        if (tiles.isEmpty()) return Math.max(0, recorded);
         int spanX = maxX - minX + 1;
         int spanZ = maxZ - minZ + 1;
         // The run's doors around this room: a door cell next to one of its tiles that is not inside it.
@@ -276,9 +251,7 @@ public final class SimRunHistory {
             for (int side = 0; side < 4; side++) {
                 int cx = tx * 2 + RoomDoors.DX[side];
                 int cz = tz * 2 + RoomDoors.DZ[side];
-                if (cx < 0 || cz < 0 || cx >= grid || cz >= grid) {
-                    continue;
-                }
+                if (cx < 0 || cz < 0 || cx >= grid || cz >= grid) continue;
                 int c = cz * grid + cx;
                 if (map.roomAt(c) != id && map.doorAt(c) != 0) {
                     mapDoors.add(c);
@@ -318,9 +291,7 @@ public final class SimRunHistory {
                 best = rot;
             }
         }
-        if (recorded >= 0 && (best < 0 || recordedMissed <= bestMissed)) {
-            return recorded;
-        }
+        if (recorded >= 0 && (best < 0 || recordedMissed <= bestMissed)) return recorded;
         if (recorded >= 0) {
             LOGGER.warn("Sim replay: {} was recorded at rotation {} (paste {}), which leaves {} of its {} door(s) "
                             + "against a wall in this capture; using paste {} ({} missed) instead",
@@ -330,7 +301,5 @@ public final class SimRunHistory {
         return Math.max(0, best);
     }
 
-    private static long key(int x, int z) {
-        return ((long) x << 16) | (z & 0xFFFF);
-    }
+    private static long key(int x, int z) { return ((long) x << 16) | (z & 0xFFFF); }
 }

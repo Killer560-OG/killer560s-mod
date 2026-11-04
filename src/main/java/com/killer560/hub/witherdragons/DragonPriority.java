@@ -79,7 +79,5 @@ final class DragonPriority {
         return new Result(dragons.get(0), reason);
     }
 
-    static String formatPower(double p) {
-        return p == Math.floor(p) ? String.valueOf((int) p) : String.valueOf(p);
-    }
+    static String formatPower(double p) { return p == Math.floor(p) ? String.valueOf((int) p) : String.valueOf(p); }
 }

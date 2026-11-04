@@ -61,15 +61,11 @@ public final class GraphRepository {
     private GraphRepository() {
     }
 
-    public static Path dataDir() {
-        return ModPaths.config("killer560smod-pathfinding").resolve("graphs");
-    }
+    public static Path dataDir() { return ModPaths.config("killer560smod-pathfinding").resolve("graphs"); }
 
     /** The graph for this island if it is already loaded, else null (a background load is started). */
     public static IslandGraph get(String island) {
-        if (island == null || !KNOWN_ISLANDS.contains(island)) {
-            return null;
-        }
+        if (island == null || !KNOWN_ISLANDS.contains(island)) return null;
         IslandGraph graph = LOADED.get(island);
         if (graph == null) {
             ensureLoading(island, false);
@@ -77,29 +73,17 @@ public final class GraphRepository {
         return graph;
     }
 
-    public static boolean isLoaded(String island) {
-        return island != null && LOADED.containsKey(island);
-    }
+    public static boolean isLoaded(String island) { return island != null && LOADED.containsKey(island); }
 
-    public static String lastError(String island) {
-        return LAST_ERROR.get(island);
-    }
+    public static String lastError(String island) { return LAST_ERROR.get(island); }
 
     /** Safe to call every tick: no-ops once loaded, at most one load per island in flight, backs off on failure. */
     public static void ensureLoading(String island, boolean force) {
-        if (island == null || !KNOWN_ISLANDS.contains(island)) {
-            return;
-        }
-        if (!force && LOADED.containsKey(island)) {
-            return;
-        }
+        if (island == null || !KNOWN_ISLANDS.contains(island)) return;
+        if (!force && LOADED.containsKey(island)) return;
         Long next = NEXT_ATTEMPT.get(island);
-        if (!force && next != null && System.currentTimeMillis() < next) {
-            return;
-        }
-        if (!LOADING.add(island)) {
-            return;
-        }
+        if (!force && next != null && System.currentTimeMillis() < next) return;
+        if (!LOADING.add(island)) return;
         Thread thread = new Thread(() -> {
             try {
                 load(island, force);

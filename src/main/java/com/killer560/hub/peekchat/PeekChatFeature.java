@@ -44,12 +44,8 @@ public final class PeekChatFeature {
 
     /** The key closed the screen: its press reached the screen before this tick's poll, so without this the same press
      *  would read as a fresh edge with no screen open and reopen it at once. Wait for a release first. */
-    static void closedByKey() {
-        wasDown = true;
-    }
+    static void closedByKey() { wasDown = true; }
 
     /** Opens the read-only chat now (the key's action; also the testkit's). */
-    public static void open(Minecraft client) {
-        McCompat.setScreen(client, new PeekChatScreen());
-    }
+    public static void open(Minecraft client) { McCompat.setScreen(client, new PeekChatScreen()); }
 }

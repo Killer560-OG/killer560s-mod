@@ -139,9 +139,7 @@ public final class SimSecretItems {
     }
 
     /** Secret bats that have not appeared yet, for tests. */
-    public static List<BlockPos> pendingBats() {
-        return List.copyOf(PENDING_BATS);
-    }
+    public static List<BlockPos> pendingBats() { return List.copyOf(PENDING_BATS); }
 
     /**
      * Secret chests waiting for him to come near, with the block each becomes.
@@ -163,9 +161,7 @@ public final class SimSecretItems {
      * (killer560, 2026-10-18: "they should have the 10 block rule always"): {@code DEV_TOOLS} is a compile-time constant
      * that is false in a release, so there javac folds this to {@code true} and the test switch below cannot matter.
      */
-    public static boolean chestsAppearNear() {
-        return !com.killer560.hub.BuildVariant.DEV_TOOLS || chestsAppearNear;
-    }
+    public static boolean chestsAppearNear() { return !com.killer560.hub.BuildVariant.DEV_TOOLS || chestsAppearNear; }
 
     /**
      * For the testkit only, by reflection: {@code false} puts every secret chest in at the build, for a scenario about
@@ -186,9 +182,7 @@ public final class SimSecretItems {
     }
 
     /** Whether a secret chest is waiting at {@code at} to appear. */
-    public static boolean isPendingChest(BlockPos at) {
-        return at != null && PENDING_CHESTS.containsKey(at);
-    }
+    public static boolean isPendingChest(BlockPos at) { return at != null && PENDING_CHESTS.containsKey(at); }
 
     /**
      * The mimic picked a chest that has not appeared yet: it will appear as a TRAPPED chest, facing the way it would
@@ -196,9 +190,7 @@ public final class SimSecretItems {
      */
     public static boolean trapPendingChest(BlockPos at) {
         net.minecraft.world.level.block.state.BlockState s = at == null ? null : PENDING_CHESTS.get(at);
-        if (s == null) {
-            return false;
-        }
+        if (s == null) return false;
         var trapped = net.minecraft.world.level.block.Blocks.TRAPPED_CHEST.defaultBlockState();
         if (s.hasProperty(net.minecraft.world.level.block.ChestBlock.FACING)) {
             trapped = trapped.setValue(net.minecraft.world.level.block.ChestBlock.FACING,
@@ -210,9 +202,7 @@ public final class SimSecretItems {
 
     /** Spawns each secret chest he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingChests(ServerLevel level, double px, double py, double pz) {
-        if (PENDING_CHESTS.isEmpty()) {
-            return;
-        }
+        if (PENDING_CHESTS.isEmpty()) return;
         List<BlockPos> ready = null;
         for (BlockPos at : PENDING_CHESTS.keySet()) {
             double dx = at.getX() + 0.5 - px;
@@ -229,9 +219,7 @@ public final class SimSecretItems {
                 CHEST_IN_RANGE.remove(at);
             }
         }
-        if (ready == null) {
-            return;
-        }
+        if (ready == null) return;
         for (BlockPos at : ready) {
             var state = PENDING_CHESTS.remove(at);
             CHEST_IN_RANGE.remove(at);
@@ -267,9 +255,7 @@ public final class SimSecretItems {
     }
 
     /** How many item secrets are still waiting to be found, for anything that wants to report progress. */
-    public static int remaining() {
-        return PENDING.size() + LIVE.size();
-    }
+    public static int remaining() { return PENDING.size() + LIVE.size(); }
 
     /**
      * How many have not appeared yet, separately from how many are lying around uncollected.
@@ -278,14 +264,10 @@ public final class SimSecretItems {
      * spawned and was never picked up - and those are different bugs. Scenario 81 could not tell them apart
      * until this existed.
      */
-    public static int pendingCount() {
-        return PENDING.size();
-    }
+    public static int pendingCount() { return PENDING.size(); }
 
     /** How many drops are on the floor waiting to be collected. */
-    public static int liveCount() {
-        return LIVE.size();
-    }
+    public static int liveCount() { return LIVE.size(); }
 
     /**
      * Where the item secrets that have not appeared yet are.
@@ -294,15 +276,11 @@ public final class SimSecretItems {
      * A test cannot guess these - they come from the room database through two rotations - and a test that
      * asserted on a position it made up would prove nothing about the real ones.
      */
-    public static List<BlockPos> pendingPositions() {
-        return List.copyOf(PENDING.keySet());
-    }
+    public static List<BlockPos> pendingPositions() { return List.copyOf(PENDING.keySet()); }
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive()) {
-                return;
-            }
+            if (!SimState.isActive()) return;
             try {
                 ServerLevel level = server.overworld();
                 // Not players().get(0): a placed miniboss is a ServerPlayer and so is in this list too
@@ -377,9 +355,7 @@ public final class SimSecretItems {
                 entry.setValue(0);
             }
         }
-        if (ready == null) {
-            return;
-        }
+        if (ready == null) return;
         for (BlockPos at : ready) {
             PENDING.remove(at);
             spawn(level, at);
@@ -393,9 +369,7 @@ public final class SimSecretItems {
      * reads) are all vanilla's. Server thread, sim world only.
      */
     private static void magneticPickup(ServerLevel level, net.minecraft.server.level.ServerPlayer player) {
-        if (player.isSpectator() || !player.isAlive()) {
-            return;
-        }
+        if (player.isSpectator() || !player.isAlive()) return;
         var box = player.getBoundingBox().inflate(PICKUP_X, PICKUP_Y, PICKUP_Z);
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, box, e -> e.isAlive())) {
             item.playerTouch(player);
@@ -408,9 +382,7 @@ public final class SimSecretItems {
      * {@code playerTouch} (pickup delay, full inventory) as {@link #magneticPickup}.
      */
     public static void pickupOnLanding(net.minecraft.server.level.ServerPlayer player) {
-        if (!SimState.isActive() || player == null || SimMiniboss.isPlaced(player)) {
-            return;
-        }
+        if (!SimState.isActive() || player == null || SimMiniboss.isPlaced(player)) return;
         try {
             magneticPickup((ServerLevel) player.level(), player);
         } catch (RuntimeException e) {
@@ -420,9 +392,7 @@ public final class SimSecretItems {
 
     /** Spawns each secret bat he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingBats(ServerLevel level, double px, double py, double pz) {
-        if (PENDING_BATS.isEmpty()) {
-            return;
-        }
+        if (PENDING_BATS.isEmpty()) return;
         List<BlockPos> ready = new ArrayList<>();
         for (BlockPos at : PENDING_BATS) {
             double dx = at.getX() + 0.5 - px;
@@ -521,9 +491,7 @@ public final class SimSecretItems {
      */
     private static void reportWhyNotCollected(ServerLevel level, net.minecraft.world.entity.Entity drop,
                                               BlockPos anchor) {
-        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || ++reportTicks % REPORT_EVERY_TICKS != 0) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || ++reportTicks % REPORT_EVERY_TICKS != 0) return;
         var players = level.players();
         if (players.isEmpty()) {
             LOGGER.info("[SimSecretItems] drop at {} is waiting - no player on the server",
@@ -610,17 +578,11 @@ public final class SimSecretItems {
     }
 
     private static boolean isCollectedSecret(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return false;
-        }
+        if (data == null) return false;
         CompoundTag tag = data.copyTag();
-        if (!tag.contains(SECRET_MARK)) {
-            return false;
-        }
+        if (!tag.contains(SECRET_MARK)) return false;
         return !SimItems.ARCHITECT_DRAFT_ID.equals(tag.getStringOr("id", ""));
     }
 }

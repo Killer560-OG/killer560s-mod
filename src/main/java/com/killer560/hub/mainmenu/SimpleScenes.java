@@ -56,9 +56,7 @@ public final class SimpleScenes {
 
     /** The Simple flavor a background draws, or null when it is not a Simple scene. */
     public static Flavour flavour(MainMenuThemeConfig.Scene scene) {
-        if (scene == null) {
-            return null;
-        }
+        if (scene == null) return null;
         return switch (scene) {
             case SIMPLE_EMBERS -> Flavour.EMBERS;
             case SIMPLE_BUBBLES -> Flavour.BUBBLES;
@@ -95,9 +93,7 @@ public final class SimpleScenes {
     private static int n;
 
     private static void add(double x, double y, double radius, int kind, int rgb, double alpha) {
-        if (n >= MAX || alpha < 0.004 || radius <= 0) {
-            return;
-        }
+        if (n >= MAX || alpha < 0.004 || radius <= 0) return;
         px[n] = x;
         py[n] = y;
         pr[n] = radius;
@@ -151,9 +147,7 @@ public final class SimpleScenes {
     }
 
     private static int count(int w, int h, double perArea, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
+        if (density <= 0f) return 0;
         return Math.max(Math.round(min * density), Math.min(Math.round(max * density),
                 (int) Math.round(w * h / perArea * density)));
     }
@@ -185,9 +179,7 @@ public final class SimpleScenes {
         double bloom = 0.5 + 0.5 * Math.sin(t * 0.21 + 1.3);
         glow(2, hot, 0.13 * bloom, w * (0.5 + 0.28 * Math.sin(t * 0.05 + 2.0)), h, w * 0.27, h * 0.24);
 
-        if (density <= 0f) {
-            return;
-        }
+        if (density <= 0f) return;
         int nFar = Math.max(10, Math.min(56, (int) Math.round(w * h / 7000.0 * density)));
         int nMid = Math.max(6, Math.min(32, (int) Math.round(w * h / 11000.0 * density)));
         int nNear = Math.max(3, Math.min(14, (int) Math.round(w * h / 26000.0 * density)));
@@ -233,9 +225,7 @@ public final class SimpleScenes {
         glow(2, MenuStyle.mix(accent, WHITE, 0.2f), 0.12 * bloom, w * (0.5 + 0.3 * Math.sin(t * 0.045 + 1.0)), h * 0.95,
                 w * 0.26, h * 0.22);
 
-        if (density <= 0f) {
-            return;
-        }
+        if (density <= 0f) return;
         // tiny motes drifting in the water, the far depth
         int mote = MenuStyle.mix(accent, text, 0.35f);
         int nMote = Math.max(12, Math.min(60, (int) Math.round(w * h / 6500.0 * density)));
@@ -294,9 +284,7 @@ public final class SimpleScenes {
         glow(2, MenuStyle.mix(accent, text, 0.5f), 0.08 * (0.8 + 0.2 * Math.sin(t * 0.13 + 2)),
                 w * 0.77 - Math.sin(t * 0.04) * w * 0.04, h * 0.42, w * 0.26, h * 0.22);
 
-        if (density <= 0f) {
-            return;
-        }
+        if (density <= 0f) return;
         // far: a fine field of stars drifting slowly left and twinkling
         int nStar = Math.max(30, Math.min(240, (int) Math.round(w * h / 2200.0 * density)));
         for (int i = 0; i < nStar; i++) {
@@ -370,9 +358,7 @@ public final class SimpleScenes {
         double bloom = 0.5 + 0.5 * Math.sin(t * 0.2 + 2.1);
         glow(2, glowCol, 0.11 * bloom, w * (0.5 + 0.3 * Math.sin(t * 0.05 + 2.0)), h * 0.96, w * 0.27, h * 0.23);
 
-        if (density <= 0f) {
-            return;
-        }
+        if (density <= 0f) return;
         // far: spores drifting down from under the title
         int spore = MenuStyle.mix(accent, text, 0.5f);
         int nSpore = Math.max(8, Math.min(40, (int) Math.round(w * h / 9000.0 * density)));
@@ -415,16 +401,13 @@ public final class SimpleScenes {
         }
     }
 
-    // ---------------------------------------------------------------- drawing
 
     /**
      * Draws {@code f} through the scene shaders. Returns false (having drawn nothing) when they are unavailable; the
      * caller then draws {@link #drawRects}.
      */
     static boolean drawShaded(GuiGraphicsExtractor g, int w, int h, double t, MainMenuLook look, Flavour f) {
-        if (!SceneShaders.available() || SceneShaders.simpleBg == null || SceneShaders.simpleMote == null) {
-            return false;
-        }
+        if (!SceneShaders.available() || SceneShaders.simpleBg == null || SceneShaders.simpleMote == null) return false;
         int s = Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
         double sw = w * (double) s;
         double sh = h * (double) s;
@@ -459,9 +442,7 @@ public final class SimpleScenes {
         p[49] = Math.max(1, w / 6) * (float) s;
         p[50] = (light ? 0x28 : 0x70) / 255f;
         int slot = SceneShaders.upload();
-        if (slot < 0) {
-            return false;
-        }
+        if (slot < 0) return false;
         new SceneShaders.Quads(SceneShaders.simpleBg, g)
                 .add(0, 0, w, h, 0, 0, (float) sw, (float) sh, 0xFF000000 | (slot << 16))
                 .submit(g);
@@ -487,9 +468,7 @@ public final class SimpleScenes {
      *  core-radius units, the slot in u and the kind in v (16 apart). */
     private static void mote(SceneShaders.Quads q, double x, double y, double radius, int kind, int s, float slotU, int argb) {
         double rp = radius * s;
-        if (rp < 0.25 || (argb >>> 24) == 0) {
-            return;
-        }
+        if (rp < 0.25 || (argb >>> 24) == 0) return;
         double reach = kind == GLOW ? 7.0 : kind == HALO ? 3.6 : kind == BUBBLE ? 1.1 : 1.0;
         double e = Math.min(7.5, reach + 1.5 / rp);
         double half = radius * e;
@@ -503,9 +482,7 @@ public final class SimpleScenes {
         plan(f, w, h, t, look);
         r.gradient(0, 0, w, h, baseTop, baseBottom);
         for (int i = 0; i < 2; i++) {
-            if (washA[i] <= 0) {
-                continue;
-            }
+            if (washA[i] <= 0) continue;
             int full = MenuStyle.alpha(washCol[i], (int) Math.round(washA[i] * 255));
             int none = MenuStyle.alpha(washCol[i], 0);
             int y0 = (int) Math.round(Math.min(washY0[i], washY1[i]));

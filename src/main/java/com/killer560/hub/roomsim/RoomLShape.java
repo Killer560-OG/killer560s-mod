@@ -35,22 +35,16 @@ public final class RoomLShape {
     }
 
     /** Tiles across a captured size - {@code RoomLibrary.footprint}'s inverse, as everywhere else. */
-    static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * For an L room (2x2 capture, database shape "L"), its missing quarter as {@code {tx, tz}} in the CAPTURE's
      * tiles (paste rotation 0); null for any other room, or while the room database is not loaded.
      */
     public static int[] missingTile(RoomLibrary.Room room) {
-        if (room == null || tiles(room.sizeX) != 2 || tiles(room.sizeZ) != 2) {
-            return null;
-        }
+        if (room == null || tiles(room.sizeX) != 2 || tiles(room.sizeZ) != 2) return null;
         RoomEntry entry = RoomDatabase.lookupByName(room.name);
-        if (entry == null || entry.shape == null || !"L".equalsIgnoreCase(entry.shape.trim())) {
-            return null;
-        }
+        if (entry == null || entry.shape == null || !"L".equalsIgnoreCase(entry.shape.trim())) return null;
         int[] own = new int[4];      // 1 = this room's core, -1 = another room's, 0 = unknown
         java.util.List<String> foreign = new java.util.ArrayList<>();
         for (int t = 0; t < 4; t++) {
@@ -73,14 +67,10 @@ public final class RoomLShape {
             }
         }
         int foreignTile = only(own, -1);
-        if (foreignTile >= 0) {
-            return new int[]{foreignTile / 2, foreignTile % 2};
-        }
+        if (foreignTile >= 0) return new int[]{foreignTile / 2, foreignTile % 2};
         if (count(own, 1) == 3) {
             int t = only(own, 0);
-            if (t >= 0) {
-                return new int[]{t / 2, t % 2};
-            }
+            if (t >= 0) return new int[]{t / 2, t % 2};
         }
         int empty = -1;
         int empties = 0;
@@ -113,9 +103,7 @@ public final class RoomLShape {
                 best = t;
             }
         }
-        if (empties == 1) {
-            return new int[]{empty / 2, empty % 2};
-        }
+        if (empties == 1) return new int[]{empty / 2, empty % 2};
         LOGGER.warn("Sim: L room {} - no tile names itself missing (cores {} {} {} {}, foreign {}); using the emptiest,"
                         + " tile {},{} ({} blocks in y66..99)", room.name, own[0], own[1], own[2], own[3], foreign,
                 best / 2, best % 2, bestSolid);
@@ -129,9 +117,7 @@ public final class RoomLShape {
      */
     public static int[] missingTilePasted(RoomLibrary.Room room, int rotation) {
         int[] m = missingTile(room);
-        if (m == null) {
-            return null;
-        }
+        if (m == null) return null;
         // A 2x2 box turned about its own middle: the same mapping rotateLocal applies to blocks, on tiles.
         return switch (Math.floorMod(rotation, 360)) {
             case 90 -> new int[]{1 - m[1], m[0]};
@@ -145,9 +131,7 @@ public final class RoomLShape {
         int at = -1;
         for (int i = 0; i < v.length; i++) {
             if (v[i] == want) {
-                if (at >= 0) {
-                    return -1;
-                }
+                if (at >= 0) return -1;
                 at = i;
             }
         }

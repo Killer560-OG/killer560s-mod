@@ -151,29 +151,17 @@ public final class SecretsConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && masterEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setMasterEnabled(boolean masterEnabled) {
-        this.masterEnabled = masterEnabled;
-    }
+    public void setMasterEnabled(boolean masterEnabled) { this.masterEnabled = masterEnabled; }
 
-    public boolean isLeversEnabled() {
-        return leversEnabled;
-    }
+    public boolean isLeversEnabled() { return leversEnabled; }
 
-    public void setLeversEnabled(boolean leversEnabled) {
-        this.leversEnabled = leversEnabled;
-    }
+    public void setLeversEnabled(boolean leversEnabled) { this.leversEnabled = leversEnabled; }
 
-    public boolean isButtonsEnabled() {
-        return buttonsEnabled;
-    }
+    public boolean isButtonsEnabled() { return buttonsEnabled; }
 
-    public void setButtonsEnabled(boolean buttonsEnabled) {
-        this.buttonsEnabled = buttonsEnabled;
-    }
+    public void setButtonsEnabled(boolean buttonsEnabled) { this.buttonsEnabled = buttonsEnabled; }
 
-    private static int clampPct(int v) {
-        return Math.max(0, Math.min(100, v));
-    }
+    private static int clampPct(int v) { return Math.max(0, Math.min(100, v)); }
 
     private static Shape shape(JsonObject obj, String key, Shape def) {
         try {
@@ -217,43 +205,19 @@ public final class SecretsConfig {
     public int getEssenceLengthPct() { return essenceLengthPct; }
     public void setEssenceLengthPct(int v) { essenceLengthPct = clampPct(v); }
 
-    public boolean isButtonsFullBox() {
-        return buttonsFullBox;
-    }
+    public boolean isChestsEnabled() { return chestsEnabled; }
 
-    public void setButtonsFullBox(boolean buttonsFullBox) {
-        this.buttonsFullBox = buttonsFullBox;
-    }
+    public void setChestsEnabled(boolean chestsEnabled) { this.chestsEnabled = chestsEnabled; }
 
-    public boolean isChestsEnabled() {
-        return chestsEnabled;
-    }
+    public boolean isEssenceEnabled() { return essenceEnabled; }
 
-    public void setChestsEnabled(boolean chestsEnabled) {
-        this.chestsEnabled = chestsEnabled;
-    }
+    public void setEssenceEnabled(boolean essenceEnabled) { this.essenceEnabled = essenceEnabled; }
 
-    public boolean isEssenceEnabled() {
-        return essenceEnabled;
-    }
+    public boolean isDungeonsOnly() { return dungeonsOnly; }
 
-    public void setEssenceEnabled(boolean essenceEnabled) {
-        this.essenceEnabled = essenceEnabled;
-    }
+    public void setDungeonsOnly(boolean dungeonsOnly) { this.dungeonsOnly = dungeonsOnly; }
 
-    public boolean isDungeonsOnly() {
-        return dungeonsOnly;
-    }
+    public boolean isBossOnly() { return bossOnly; }
 
-    public void setDungeonsOnly(boolean dungeonsOnly) {
-        this.dungeonsOnly = dungeonsOnly;
-    }
-
-    public boolean isBossOnly() {
-        return bossOnly;
-    }
-
-    public void setBossOnly(boolean bossOnly) {
-        this.bossOnly = bossOnly;
-    }
+    public void setBossOnly(boolean bossOnly) { this.bossOnly = bossOnly; }
 }

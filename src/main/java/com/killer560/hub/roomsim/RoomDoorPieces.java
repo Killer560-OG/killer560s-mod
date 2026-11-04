@@ -69,14 +69,10 @@ public final class RoomDoorPieces {
     }
 
     /** How many doorways the pastes turned to their world side's piece since the last call, and starts again. */
-    public static int takeSwapped() {
-        return SWAPPED.getAndSet(0);
-    }
+    public static int takeSwapped() { return SWAPPED.getAndSet(0); }
 
     /** Packs a capture position for {@link #overrides}' map. */
-    static long key(int x, int y, int z) {
-        return ((long) y << 32) | ((long) (x & 0xFFFF) << 16) | (z & 0xFFFF);
-    }
+    static long key(int x, int y, int z) { return ((long) y << 32) | ((long) (x & 0xFFFF) << 16) | (z & 0xFFFF); }
 
     /**
      * The capture-frame blocks to paste instead of the capture's, for {@code room} pasted at {@code rotation}: the
@@ -86,9 +82,7 @@ public final class RoomDoorPieces {
     static Map<Long, BlockState> overrides(RoomLibrary.Room room, int rotation) {
         Map<Long, BlockState> out = new HashMap<>();
         int turns = Math.floorMod(rotation / 90, 4);
-        if (room == null || turns == 0) {
-            return out;
-        }
+        if (room == null || turns == 0) return out;
         RoomDoors.Mask mask = RoomDoors.measure(room);
         int swapped = 0;
         for (int packed : mask.edges()) {
@@ -99,9 +93,7 @@ public final class RoomDoorPieces {
             }
             boolean capturedFill = westOrNorth(side);
             boolean worldFill = westOrNorth((side + turns) % 4);
-            if (capturedFill == worldFill) {
-                continue;
-            }
+            if (capturedFill == worldFill) continue;
             if (!matches(room, side, index, capturedFill)) {
                 continue;   // the room's own doorway, not the connector: left as captured
             }
@@ -122,9 +114,7 @@ public final class RoomDoorPieces {
     }
 
     /** True for the sides whose doorways carry the fill on Hypixel: north (0) and west (3). */
-    static boolean westOrNorth(int side) {
-        return side == RoomDoors.NORTH || side == RoomDoors.WEST;
-    }
+    static boolean westOrNorth(int side) { return side == RoomDoors.NORTH || side == RoomDoors.WEST; }
 
     /** Whether the box over this doorway holds exactly the standard filling for its captured side. */
     private static boolean matches(RoomLibrary.Room room, int side, int index, boolean fill) {
@@ -137,14 +127,10 @@ public final class RoomDoorPieces {
                         return false;
                     }
                     short idx = room.at(p[0], p[1], p[2]);
-                    if (idx < 0) {
-                        return false;
-                    }
+                    if (idx < 0) return false;
                     BlockState have = RoomPlacer.resolve(room.palette.get(idx));
                     BlockState want = piece(side, k, u, y, fill);
-                    if (have == null || (want.isAir() ? !have.isAir() : !want.equals(have))) {
-                        return false;
-                    }
+                    if (have == null || (want.isAir() ? !have.isAir() : !want.equals(have))) return false;
                 }
             }
         }
@@ -160,9 +146,7 @@ public final class RoomDoorPieces {
             // By id, not Blocks.CYAN_TERRACOTTA: color blocks are named differently on 26.2 (see McBlocks).
             return k == 0 ? RoomPlacer.resolve("minecraft:cyan_terracotta") : Blocks.AIR.defaultBlockState();
         }
-        if (k == 0) {
-            return Blocks.STONE.defaultBlockState();
-        }
+        if (k == 0) return Blocks.STONE.defaultBlockState();
         return fill(side, u, y);
     }
 

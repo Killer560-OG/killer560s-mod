@@ -75,18 +75,12 @@ public final class AbilityReadyAlert {
     private AbilityReadyAlert() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(AbilityReadyAlert::onChat);
-    }
+    static void register() { ChatObserver.subscribe(AbilityReadyAlert::onChat); }
 
     static void onChat(Component message) {
-        if (!MiningQolConfig.getInstance().isAbilityAlert()) {
-            return;
-        }
+        if (!MiningQolConfig.getInstance().isAbilityAlert()) return;
         String raw = ChatObserver.strip(message);
-        if (raw == null || raw.length() > 80) {
-            return;
-        }
+        if (raw == null || raw.length() > 80) return;
         handle(raw, System.currentTimeMillis());
     }
 
@@ -169,13 +163,9 @@ public final class AbilityReadyAlert {
     static void applyTab(List<String> lines, long now) {
         for (String line : lines) {
             Matcher m = TAB.matcher(line);
-            if (!m.matches()) {
-                continue;
-            }
+            if (!m.matches()) continue;
             String name = m.group(1).trim();
-            if (line.equals(LAST_TAB.get(name))) {
-                continue;
-            }
+            if (line.equals(LAST_TAB.get(name))) continue;
             LAST_TAB.put(name, line);
             if (m.group(3) == null) {
                 READY_AT.remove(name);
@@ -195,9 +185,7 @@ public final class AbilityReadyAlert {
     private static String currentTab(String name) {
         List<String> lines = testTab != null ? testTab : MiningState.pickaxeAbilityLines();
         for (String line : lines) {
-            if (line.startsWith(name + ": ")) {
-                return line;
-            }
+            if (line.startsWith(name + ": ")) return line;
         }
         return null;
     }
@@ -211,23 +199,14 @@ public final class AbilityReadyAlert {
         timerLines = List.of();
     }
 
-    // ---- testkit hooks
 
-    public static String popup() {
-        return System.currentTimeMillis() < popupUntil ? popupText : null;
-    }
+    public static String popup() { return System.currentTimeMillis() < popupUntil ? popupText : null; }
 
-    public static int popupsShown() {
-        return popupsShown;
-    }
+    public static int popupsShown() { return popupsShown; }
 
-    public static int popupFrames() {
-        return popupFrames;
-    }
+    public static int popupFrames() { return popupFrames; }
 
-    public static List<String> timer() {
-        return timerLines;
-    }
+    public static List<String> timer() { return timerLines; }
 
     /** Testkit: feeds tab lines at a given wall-clock time and returns the timer lines at {@code readAt}. */
     public static List<String> timerAtForTest(List<String> tab, long now, long readAt) {
@@ -250,9 +229,7 @@ public final class AbilityReadyAlert {
         LEARNED.clear();
     }
 
-    public static Long learnedMs(String name) {
-        return LEARNED.get(name);
-    }
+    public static Long learnedMs(String name) { return LEARNED.get(name); }
 
     /** The big "X READY" popup, centered by default; movable in the HUD editor. */
     public static final class Popup implements HudElement {
@@ -261,21 +238,14 @@ public final class AbilityReadyAlert {
 
         private String shown() {
             String p = popup();
-            if (p == null && HudVisibility.editorOpen()) {
-                return "§a§lPickobulus READY";
-            }
-            return p;
+            return p == null && HudVisibility.editorOpen() ? "§a§lPickobulus READY" : p;
         }
 
         @Override
-        public String id() {
-            return POPUP_ID;
-        }
+        public String id() { return POPUP_ID; }
 
         @Override
-        public String displayName() {
-            return "Ability Ready Popup";
-        }
+        public String displayName() { return "Ability Ready Popup"; }
 
         @Override
         public int defaultX() {
@@ -296,24 +266,16 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public int height() {
-            return (int) (10 * SCALE);
-        }
+        public int height() { return (int) (10 * SCALE); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isAbilityAlertRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isAbilityAlertRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MiningQolConfig.getInstance().isAbilityAlert() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!MiningQolConfig.getInstance().isAbilityAlert() || HudVisibility.hidesHud()) return;
             String s = shown();
-            if (s == null) {
-                return;
-            }
+            if (s == null) return;
             var pose = graphics.pose();
             pose.pushMatrix();
             pose.translate(x, y);
@@ -332,31 +294,21 @@ public final class AbilityReadyAlert {
 
         private List<String> shown() {
             List<String> l = timerLines;
-            if (l.isEmpty() && HudVisibility.editorOpen()) {
-                return List.of("§6Pickobulus: §e34s");
-            }
+            if (l.isEmpty() && HudVisibility.editorOpen()) return List.of("§6Pickobulus: §e34s");
             return l;
         }
 
         @Override
-        public String id() {
-            return TIMER_ID;
-        }
+        public String id() { return TIMER_ID; }
 
         @Override
-        public String displayName() {
-            return "Ability Timer";
-        }
+        public String displayName() { return "Ability Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 200;
-        }
+        public int defaultY() { return 200; }
 
         @Override
         public int width() {
@@ -369,9 +321,7 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public int height() {
-            return HudText.height(Math.max(1, shown().size()), 10);
-        }
+        public int height() { return HudText.height(Math.max(1, shown().size()), 10); }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -382,9 +332,7 @@ public final class AbilityReadyAlert {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             MiningQolConfig cfg = MiningQolConfig.getInstance();
-            if (!cfg.isAbilityAlert() || !cfg.isAbilityTimer() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isAbilityAlert() || !cfg.isAbilityTimer() || HudVisibility.hidesHud()) return;
             Font font = Minecraft.getInstance().font;
             int lineY = y;
             for (String s : shown()) {

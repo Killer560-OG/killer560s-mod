@@ -59,69 +59,41 @@ public final class TrailConfig {
 
     /** Same "Skyblock Only" gating every other feature's master toggle goes through - see
      *  {@link SkyblockGate}. */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     /** The raw saved toggle, ignoring {@link SkyblockGate} - lets the tab's checkbox reflect what's
      *  actually saved instead of flipping off just because Skyblock Only is hiding it right now (same
      *  pattern as {@code AbilityCooldownConfig#isEnabledRaw}). */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean v) {
         enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public int getLength() {
-        return length;
-    }
+    public int getLength() { return length; }
 
-    public void setLength(int v) {
-        length = Math.max(MIN_LENGTH, Math.min(MAX_LENGTH, v));
-    }
+    public void setLength(int v) { length = Math.max(MIN_LENGTH, Math.min(MAX_LENGTH, v)); }
 
-    public float getSquareSize() {
-        return squareSize;
-    }
+    public float getSquareSize() { return squareSize; }
 
-    public void setSquareSize(float v) {
-        squareSize = Math.max(MIN_SQUARE_SIZE, Math.min(MAX_SQUARE_SIZE, v));
-    }
+    public void setSquareSize(float v) { squareSize = Math.max(MIN_SQUARE_SIZE, Math.min(MAX_SQUARE_SIZE, v)); }
 
-    public int getOpacityPercent() {
-        return opacityPercent;
-    }
+    public int getOpacityPercent() { return opacityPercent; }
 
-    public void setOpacityPercent(int v) {
-        opacityPercent = Math.max(MIN_OPACITY_PERCENT, Math.min(MAX_OPACITY_PERCENT, v));
-    }
+    public void setOpacityPercent(int v) { opacityPercent = Math.max(MIN_OPACITY_PERCENT, Math.min(MAX_OPACITY_PERCENT, v)); }
 
-    public boolean isFadeOut() {
-        return fadeOut;
-    }
+    public boolean isFadeOut() { return fadeOut; }
 
-    public void setFadeOut(boolean v) {
-        fadeOut = v;
-    }
+    public void setFadeOut(boolean v) { fadeOut = v; }
 
-    public boolean isShowInFirstPerson() {
-        return showInFirstPerson;
-    }
+    public boolean isShowInFirstPerson() { return showInFirstPerson; }
 
-    public void setShowInFirstPerson(boolean v) {
-        showInFirstPerson = v;
-    }
+    public void setShowInFirstPerson(boolean v) { showInFirstPerson = v; }
 
     /** What the squares do across a teleport (an etherwarp, an AOTV): a gap, a line of squares or an arc of them. */
-    public TeleportMode getTeleportMode() {
-        return teleportMode;
-    }
+    public TeleportMode getTeleportMode() { return teleportMode; }
 
-    public void setTeleportMode(TeleportMode v) {
-        teleportMode = v == null ? TeleportMode.CONNECT : v;
-    }
+    public void setTeleportMode(TeleportMode v) { teleportMode = v == null ? TeleportMode.CONNECT : v; }
 
     /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {

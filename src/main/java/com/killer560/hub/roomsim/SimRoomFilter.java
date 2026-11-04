@@ -109,7 +109,6 @@ public final class SimRoomFilter {
         this.file = file;
     }
 
-    // ------------------------------------------------------------------------------------------- storage
 
     private synchronized Data data() {
         if (data == null) {
@@ -157,31 +156,18 @@ public final class SimRoomFilter {
         save();
     }
 
-    // ------------------------------------------------------------------------------------------- rows
 
-    public synchronized boolean hasSize(String size) {
-        return data().sizes.contains(size);
-    }
+    public synchronized boolean hasSize(String size) { return data().sizes.contains(size); }
 
-    public synchronized void toggleSize(String size) {
-        toggle(data().sizes, size);
-    }
+    public synchronized void toggleSize(String size) { toggle(data().sizes, size); }
 
-    public synchronized boolean hasKind(String kind) {
-        return data().kinds.contains(kind.toUpperCase(Locale.ROOT));
-    }
+    public synchronized boolean hasKind(String kind) { return data().kinds.contains(kind.toUpperCase(Locale.ROOT)); }
 
-    public synchronized void toggleKind(String kind) {
-        toggle(data().kinds, kind.toUpperCase(Locale.ROOT));
-    }
+    public synchronized void toggleKind(String kind) { toggle(data().kinds, kind.toUpperCase(Locale.ROOT)); }
 
-    public synchronized boolean hasPuzzle(String name) {
-        return data().puzzles.contains(name.toLowerCase(Locale.ROOT));
-    }
+    public synchronized boolean hasPuzzle(String name) { return data().puzzles.contains(name.toLowerCase(Locale.ROOT)); }
 
-    public synchronized void togglePuzzle(String name) {
-        toggle(data().puzzles, name.toLowerCase(Locale.ROOT));
-    }
+    public synchronized void togglePuzzle(String name) { toggle(data().puzzles, name.toLowerCase(Locale.ROOT)); }
 
     /** Whether the Puzzles row can change anything: puzzles are in play under the current Kind row. */
     public synchronized boolean puzzlesInPlay() {
@@ -189,27 +175,21 @@ public final class SimRoomFilter {
         return kinds.contains("PUZZLE") || (kinds.isEmpty() && use != Use.CYCLE);
     }
 
-    public synchronized Rare rare() {
-        return parse(Rare.class, data().rare, Rare.ANY);
-    }
+    public synchronized Rare rare() { return parse(Rare.class, data().rare, Rare.ANY); }
 
     public synchronized void setRare(Rare r) {
         data().rare = (r == null ? Rare.ANY : r).name();
         save();
     }
 
-    public synchronized Count secrets() {
-        return parse(Count.class, data().secrets, Count.ANY);
-    }
+    public synchronized Count secrets() { return parse(Count.class, data().secrets, Count.ANY); }
 
     public synchronized void setSecrets(Count c) {
         data().secrets = (c == null ? Count.ANY : c).name();
         save();
     }
 
-    public synchronized Count crypts() {
-        return parse(Count.class, data().crypts, Count.ANY);
-    }
+    public synchronized Count crypts() { return parse(Count.class, data().crypts, Count.ANY); }
 
     public synchronized void setCrypts(Count c) {
         data().crypts = (c == null ? Count.ANY : c).name();
@@ -254,9 +234,7 @@ public final class SimRoomFilter {
         return n;
     }
 
-    public boolean isDefault() {
-        return activeCount() == 0;
-    }
+    public boolean isDefault() { return activeCount() == 0; }
 
     private void toggle(Set<String> set, String key) {
         if (!set.remove(key)) {
@@ -268,15 +246,12 @@ public final class SimRoomFilter {
     private static <E extends Enum<E>> E parse(Class<E> type, String raw, E fallback) {
         if (raw != null) {
             for (E e : type.getEnumConstants()) {
-                if (e.name().equalsIgnoreCase(raw)) {
-                    return e;
-                }
+                if (e.name().equalsIgnoreCase(raw)) return e;
             }
         }
         return fallback;
     }
 
-    // ------------------------------------------------------------------------------------------- the test
 
     /** Whether a room passes these filters, read for this filter's {@link Use}. */
     public synchronized boolean matches(String name) {
@@ -287,41 +262,26 @@ public final class SimRoomFilter {
         String kind = kindKey(name);
         boolean puzzle = "PUZZLE".equals(kind);
         if (!d.kinds.isEmpty()) {
-            if (!d.kinds.contains(kind)) {
-                return false;
-            }
+            if (!d.kinds.contains(kind)) return false;
         } else if (use == Use.CYCLE && CYCLE_DEFAULT_OUT.contains(kind)) {
             return false;
         }
-        if (puzzle && !d.puzzles.isEmpty() && !d.puzzles.contains(name.toLowerCase(Locale.ROOT))) {
-            return false;
-        }
-        if (puzzle && use == Use.DESIGNER) {
-            return true;
-        }
-        if (!d.sizes.isEmpty() && !d.sizes.contains(shapeKey(name))) {
-            return false;
-        }
+        if (puzzle && !d.puzzles.isEmpty() && !d.puzzles.contains(name.toLowerCase(Locale.ROOT))) return false;
+        if (puzzle && use == Use.DESIGNER) return true;
+        if (!d.sizes.isEmpty() && !d.sizes.contains(shapeKey(name))) return false;
         Rare r = rare();
-        if (r != Rare.ANY && isRare(name) != (r == Rare.YES)) {
-            return false;
-        }
+        if (r != Rare.ANY && isRare(name) != (r == Rare.YES)) return false;
         int secrets = secretsOf(name);
         Count s = secrets();
         if (s == Count.ANY) {
-            if (use == Use.CYCLE && d.kinds.isEmpty() && secrets <= 0) {
-                return false;
-            }
+            if (use == Use.CYCLE && d.kinds.isEmpty() && secrets <= 0) return false;
         } else if (!s.test(secrets)) {
             return false;
         }
-        if (!crypts().test(cryptsOf(name))) {
-            return false;
-        }
+        if (!crypts().test(cryptsOf(name))) return false;
         return SimRoomRoutes.matches(name, routes());
     }
 
-    // ------------------------------------------------------------------------------------------- room facts
 
     /** The database's type upper case, with the two trap rooms read as TRAP like the generator does. */
     public static String typeKey(String name) {
@@ -336,9 +296,7 @@ public final class SimRoomFilter {
     }
 
     /** The Rare room row: the database's RARE type. */
-    public static boolean isRare(String name) {
-        return "RARE".equals(typeKey(name));
-    }
+    public static boolean isRare(String name) { return "RARE".equals(typeKey(name)); }
 
     /**
      * The room's shape as the database writes it, or one worked out from the capture's footprint when the database
@@ -346,19 +304,12 @@ public final class SimRoomFilter {
      */
     public static String shapeKey(String name) {
         String shape = SimFloorGen.shapeOf(name);
-        if (shape != null && SIZES.contains(shape)) {
-            return shape;
-        }
+        if (shape != null && SIZES.contains(shape)) return shape;
         RoomLibrary.Room r = RoomLibrary.get(name);
-        if (r == null) {
-            return "1x1";
-        }
+        if (r == null) return "1x1";
         int a = Math.max(1, (r.sizeX - 1) / (RoomLibrary.TILE + 1));
         int b = Math.max(1, (r.sizeZ - 1) / (RoomLibrary.TILE + 1));
-        if (a == 2 && b == 2) {
-            return "2x2";
-        }
-        return "1x" + Math.min(4, Math.max(a, b));
+        return a == 2 && b == 2 ? "2x2" : "1x" + Math.min(4, Math.max(a, b));
     }
 
     public static int secretsOf(String name) {

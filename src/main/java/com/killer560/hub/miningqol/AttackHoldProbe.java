@@ -144,25 +144,19 @@ public final class AttackHoldProbe {
         net.minecraft.client.multiplayer.ServerData server = client.getCurrentServer();
         boolean hypixel = forceHypixelForTest || server != null && server.ip != null
                 && server.ip.toLowerCase(java.util.Locale.ROOT).contains("hypixel.net");
-        if (!hypixel) {
-            return false;
-        }
+        if (!hypixel) return false;
         if (directionDrops++ == 0) {
             LOGGER.info("[AttackHold] not sending CHANGE_DESTROY_DIRECTION on Hypixel (it reset his digs)");
         }
         return true;
     }
 
-    public static int directionDrops() {
-        return directionDrops;
-    }
+    public static int directionDrops() { return directionDrops; }
 
     /** A packet this client is sending (MiningSendTapMixin, any thread that sends). */
     public static void onSend(Packet<?> packet) {
         Minecraft client = Minecraft.getInstance();
-        if (packet == null || client.player == null || !MiningState.onMiningIsland()) {
-            return;
-        }
+        if (packet == null || client.player == null || !MiningState.onMiningIsland()) return;
         if (packet instanceof ServerboundMovePlayerPacket || packet instanceof ServerboundKeepAlivePacket
                 || packet instanceof ServerboundPongPacket || packet instanceof ServerboundClientTickEndPacket
                 || packet instanceof ServerboundChunkBatchReceivedPacket) {
@@ -180,9 +174,7 @@ public final class AttackHoldProbe {
 
     static String summary(Minecraft client, Packet<?> packet) {
         String type = packet.type().id().getPath();
-        if (packet instanceof ServerboundUseItemPacket p) {
-            return type + " hand=" + McPackets.useItemHand(p);
-        }
+        if (packet instanceof ServerboundUseItemPacket p) return type + " hand=" + McPackets.useItemHand(p);
         if (packet instanceof ServerboundUseItemOnPacket p) {
             var hit = McPackets.useItemOnHitResult(p);
             return type + " hand=" + McPackets.useItemOnHand(p) + " at " + hit.getBlockPos().toShortString() + " "
@@ -201,29 +193,17 @@ public final class AttackHoldProbe {
             return type + " container " + p.containerId() + " slot " + p.slotNum() + " button " + p.buttonNum() + " "
                     + p.containerInput();
         }
-        if (packet instanceof ServerboundContainerClosePacket p) {
-            return type + " container " + p.getContainerId();
-        }
-        if (packet instanceof ServerboundSetCarriedItemPacket p) {
-            return type + " slot " + p.getSlot();
-        }
-        if (packet instanceof ServerboundChatCommandPacket p) {
-            return type + " /" + commandName(p.command());
-        }
-        if (packet instanceof ServerboundChatCommandSignedPacket p) {
-            return type + " /" + commandName(p.command());
-        }
-        if (packet instanceof ServerboundChatPacket) {
-            return type + " (text not recorded)";
-        }
+        if (packet instanceof ServerboundContainerClosePacket p) return type + " container " + p.getContainerId();
+        if (packet instanceof ServerboundSetCarriedItemPacket p) return type + " slot " + p.getSlot();
+        if (packet instanceof ServerboundChatCommandPacket p) return type + " /" + commandName(p.command());
+        if (packet instanceof ServerboundChatCommandSignedPacket p) return type + " /" + commandName(p.command());
+        if (packet instanceof ServerboundChatPacket) return type + " (text not recorded)";
         return type;
     }
 
     /** The command's name only: arguments can hold anything he typed. */
     static String commandName(String command) {
-        if (command == null) {
-            return "";
-        }
+        if (command == null) return "";
         String c = command.strip();
         int sp = c.indexOf(' ');
         String name = sp < 0 ? c : c.substring(0, sp);
@@ -231,26 +211,18 @@ public final class AttackHoldProbe {
     }
 
     private static String entityName(Minecraft client, int id) {
-        if (client.level == null) {
-            return "?";
-        }
+        if (client.level == null) return "?";
         Entity e = client.level.getEntity(id);
-        if (e == null) {
-            return "(not loaded)";
-        }
+        if (e == null) return "(not loaded)";
         String n = net.minecraft.ChatFormatting.stripFormatting(e.getName().getString());
         return e.getType().toShortString() + " \"" + (n == null ? "" : clip(n, 40)) + "\"";
     }
 
     /** A chat or title line the server sent (title hooks: MiningTitleTapMixin). */
     public static void heard(String kind, Component text) {
-        if (text == null || !MiningState.onMiningIsland()) {
-            return;
-        }
+        if (text == null || !MiningState.onMiningIsland()) return;
         String plain = net.minecraft.ChatFormatting.stripFormatting(text.getString());
-        if (plain == null || plain.isBlank()) {
-            return;
-        }
+        if (plain == null || plain.isBlank()) return;
         synchronized (HEARD) {
             HEARD[heardHead] = kind + ": " + clip(plain.strip(), 120);
             HEARD_MS[heardHead] = System.currentTimeMillis();
@@ -259,16 +231,12 @@ public final class AttackHoldProbe {
         }
     }
 
-    private static String clip(String s, int n) {
-        return s.length() > n ? s.substring(0, n) + "..." : s;
-    }
+    private static String clip(String s, int n) { return s.length() > n ? s.substring(0, n) + "..." : s; }
 
     /** The dump: the opened container, then the sent and heard rings oldest first. */
     private static void dump(Screen screen) {
         long now = System.currentTimeMillis();
-        if (now - lastDumpMs < DUMP_GAP_MS) {
-            return;
-        }
+        if (now - lastDumpMs < DUMP_GAP_MS) return;
         lastDumpMs = now;
         dumps++;
         String title = net.minecraft.ChatFormatting.stripFormatting(screen.getTitle().getString());
@@ -299,18 +267,14 @@ public final class AttackHoldProbe {
 
     private static void onScreen(Minecraft client, Screen screen) {
         // The physical button: Gui.setScreen has already released the key mapping by the time a screen initializes.
-        if (!watching(client) || !MouseButtons.isDown(0) || screen instanceof ChatScreen || !gap(true)) {
-            return;
-        }
+        if (!watching(client) || !MouseButtons.isDown(0) || screen instanceof ChatScreen || !gap(true)) return;
         screenLines++;
         StringBuilder trace = new StringBuilder();
         StackTraceElement[] st = Thread.currentThread().getStackTrace();
         int shown = 0;
         for (int i = 2; i < st.length && shown < 14; i++) {
             String c = st[i].getClassName();
-            if (c.startsWith("java.") || c.contains("AttackHoldProbe") || c.contains("fabricmc.fabric.impl")) {
-                continue;
-            }
+            if (c.startsWith("java.") || c.contains("AttackHoldProbe") || c.contains("fabricmc.fabric.impl")) continue;
             trace.append(" <- ").append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(st[i].getMethodName());
             shown++;
         }
@@ -354,9 +318,7 @@ public final class AttackHoldProbe {
 
     /** The server's crack stage for a block (ObsidianDigPacketMixin, render thread); kept for the stuck block only. */
     public static void onServerStage(net.minecraft.core.BlockPos pos, int progress) {
-        if (pos == null || stallPos == null || !pos.equals(stallPos)) {
-            return;
-        }
+        if (pos == null || stallPos == null || !pos.equals(stallPos)) return;
         stageCount++;
         stageLast = progress;
         stageMax = Math.max(stageMax, progress);
@@ -401,9 +363,7 @@ public final class AttackHoldProbe {
         // Owner 2026-11-03: the stalls last "1/4 of a second to half a second", then he lets go and presses again. So: held
         // STALL_MS on the same block with no crack-stage update from the server for it in the last STALL_MS.
         boolean noProgress = stageCount == 0 || now - stageLastMs >= STALL_MS;
-        if (stallLogged || now - stallSinceMs < STALL_MS || !noProgress || now - lastDumpMs < DUMP_GAP_MS) {
-            return;
-        }
+        if (stallLogged || now - stallSinceMs < STALL_MS || !noProgress || now - lastDumpMs < DUMP_GAP_MS) return;
         stallLogged = true;
         stallLines++;
         lastDumpMs = now;
@@ -440,17 +400,13 @@ public final class AttackHoldProbe {
         LOGGER.info(b.toString());
     }
 
-    public static int stallLines() {
-        return stallLines;
-    }
+    public static int stallLines() { return stallLines; }
 
     /** One line of each kind a second at most. */
     private static boolean gap(boolean screenLine) {
         long now = System.currentTimeMillis();
         long last = screenLine ? lastScreenLogMs : lastReleaseLogMs;
-        if (now - last < MIN_GAP_MS) {
-            return false;
-        }
+        if (now - last < MIN_GAP_MS) return false;
         if (screenLine) {
             lastScreenLogMs = now;
         } else {
@@ -459,18 +415,11 @@ public final class AttackHoldProbe {
         return true;
     }
 
-    // ---- testkit hooks
-    public static int screenLines() {
-        return screenLines;
-    }
+    public static int screenLines() { return screenLines; }
 
-    public static int releaseLines() {
-        return releaseLines;
-    }
+    public static int releaseLines() { return releaseLines; }
 
-    public static int dumps() {
-        return dumps;
-    }
+    public static int dumps() { return dumps; }
 
     /** The sent ring, oldest first (testkit: what the dump lists). */
     public static java.util.List<String> sentForTest() {

@@ -57,9 +57,7 @@ public final class ItemIcons {
     }
 
     public static ItemStack forId(String id) {
-        if (id == null || id.isEmpty()) {
-            return new ItemStack(Items.PAPER);
-        }
+        if (id == null || id.isEmpty()) return new ItemStack(Items.PAPER);
         if (CACHE.size() > 2048) {
             CACHE.clear();
         }
@@ -112,13 +110,9 @@ public final class ItemIcons {
     }
 
     private static Item lookup(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         Identifier id = Identifier.tryParse(name.contains(":") ? name : "minecraft:" + name);
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         Optional<Item> item = BuiltInRegistries.ITEM.getOptional(id);
         return item.isPresent() && item.get() != Items.AIR ? item.get() : null;
     }

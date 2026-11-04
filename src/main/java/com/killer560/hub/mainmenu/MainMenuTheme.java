@@ -55,16 +55,10 @@ public final class MainMenuTheme {
      *  while "Themed Menus" is on - every other open screen except container screens (chests, inventories,
      *  terminals keep vanilla/feature visuals). Applies in and out of a world. */
     public static boolean activeOnMenus() {
-        if (!active()) {
-            return false;
-        }
+        if (!active()) return false;
         Screen screen = McCompat.screen(Minecraft.getInstance());
-        if (screen == null) {
-            return false;
-        }
-        if (screen instanceof TitleScreen) {
-            return true;
-        }
+        if (screen == null) return false;
+        if (screen instanceof TitleScreen) return true;
         // Chat (and InBedChatScreen's Leave Bed button / mod-added chat widgets) stays vanilla, like the HUD.
         return MainMenuThemeConfig.getInstance().isOtherMenus() && !(screen instanceof AbstractContainerScreen<?>)
                 && !(screen instanceof ChatScreen);
@@ -72,9 +66,7 @@ public final class MainMenuTheme {
 
     /** Background scope: {@link #activeOnMenus()} and no world loaded, so in-game menus keep the blurred
      *  world behind them and only out-of-world menus swap the panorama for the themed background. */
-    public static boolean activeOnMenuBackground() {
-        return activeOnMenus() && Minecraft.getInstance().level == null;
-    }
+    public static boolean activeOnMenuBackground() { return activeOnMenus() && Minecraft.getInstance().level == null; }
 
     public static void fail(String where, Throwable t) {
         if (!failed) {
@@ -83,12 +75,9 @@ public final class MainMenuTheme {
         }
     }
 
-    // ---------------------------------------------------------------- color helpers
 
     /** rgb (0xRRGGBB) with an explicit 0..255 alpha. */
-    public static int argb(int rgb, int alpha) {
-        return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0xFFFFFF);
-    }
+    public static int argb(int rgb, int alpha) { return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0xFFFFFF); }
 
     /** Multiplies an ARGB color's own alpha by {@code factor} (0..1). */
     public static int fade(int argb, float factor) {
@@ -96,7 +85,6 @@ public final class MainMenuTheme {
         return argb(argb, Math.round(a * Math.max(0f, Math.min(1f, factor))));
     }
 
-    // ---------------------------------------------------------------- buttons
 
     public static void drawButtonBox(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                      boolean active, boolean highlighted, float alpha) {
@@ -125,14 +113,10 @@ public final class MainMenuTheme {
      * language and accessibility icons are light and keep the ordinary face.
      */
     public static boolean iconWell(net.minecraft.client.gui.components.AbstractButton button) {
-        if (!(button instanceof net.minecraft.client.gui.components.SpriteIconButton.CenteredIcon)) {
-            return false;
-        }
+        if (!(button instanceof net.minecraft.client.gui.components.SpriteIconButton.CenteredIcon)) return false;
         net.minecraft.client.gui.components.WidgetSprites sprites =
                 ((com.killer560.hub.mainmenu.mixin.SpriteIconButtonSpriteAccessor) button).killer560smod$getSprite();
-        if (sprites == null || sprites.enabled() == null) {
-            return false;
-        }
+        if (sprites == null || sprites.enabled() == null) return false;
         String path = sprites.enabled().getPath();
         return path.startsWith("pause_menu/") || path.equals("friends/friends");
     }
@@ -141,18 +125,14 @@ public final class MainMenuTheme {
      *  component (another mod's colored label, vanilla's gray inactive message) still win because
      *  children only inherit the parent color when they don't set their own. */
     public static Component recolorLabel(Component message, boolean active, boolean highlighted) {
-        if (message == null) {
-            return null;
-        }
+        if (message == null) return null;
         int rgb = MainMenuChrome.labelColour(active, highlighted);
         // The same wrapper for the same message and color (fps pass 2026-10-19): this runs per button per frame on
         // every themed screen, the pause menu over the world included, and a fresh Component each frame also threw
         // away its cached visual order, so every label went through Bidi again every frame. A widget's message is
         // replaced (setMessage), never edited, so its identity is the key. Render thread only.
         Label cached = LABELS.get(message);
-        if (cached != null && cached.rgb == rgb) {
-            return cached.out;
-        }
+        if (cached != null && cached.rgb == rgb) return cached.out;
         if (LABELS.size() > LABEL_LIMIT) {
             LABELS.clear();
         }
@@ -167,7 +147,6 @@ public final class MainMenuTheme {
     private static final int LABEL_LIMIT = 512;
     private static final java.util.Map<Component, Label> LABELS = new java.util.IdentityHashMap<>();
 
-    // ---------------------------------------------------------------- footer
 
     public static String modTag() {
         String tag = modTag;
@@ -184,7 +163,6 @@ public final class MainMenuTheme {
         return tag;
     }
 
-    // ---------------------------------------------------------------- background
 
     /** The main menu's animated background in its own theme (see {@link MainMenuLook}, {@link MainMenuScenes}): Amber's
      *  embers, Ocean's waterfall, Dark's starfield, Light's soft light, Custom's aurora, or the Custom style's pick.

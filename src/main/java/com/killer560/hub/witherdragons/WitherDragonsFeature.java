@@ -16,7 +16,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -102,11 +101,8 @@ public final class WitherDragonsFeature {
         return cfg.isEnabled() || cfg.isRelicsEnabled() || (split.isEnabled() && split.isP5DragonLines());
     }
 
-    private static boolean messagesOn() {
-        return WitherDragonsConfig.getInstance().isEnabled();
-    }
+    private static boolean messagesOn() { return WitherDragonsConfig.getInstance().isEnabled(); }
 
-    // ------------------------------------------------------------------ ticks / world change
 
     private static void onClientTick() {
         Minecraft client = Minecraft.getInstance();
@@ -125,9 +121,7 @@ public final class WitherDragonsFeature {
         if (!DRAGON_ENTITIES.isEmpty()) {
             DRAGON_ENTITIES.values().removeIf(e -> e.isRemoved());
         }
-        if (client.level == null || !trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (client.level == null || !trackingActive() || !P5State.inP5()) return;
         pollStatues(client.level);
     }
 
@@ -135,9 +129,7 @@ public final class WitherDragonsFeature {
      *  solid -&gt; air transition, which covers both single-block and section block-update packets. */
     private static void pollStatues(ClientLevel level) {
         for (WitherDragon d : WitherDragon.values()) {
-            if (!level.isLoaded(d.statuePos)) {
-                continue;
-            }
+            if (!level.isLoaded(d.statuePos)) continue;
             boolean solid = !level.getBlockState(d.statuePos).isAir();
             if (d.statueWasSolid && !solid) {
                 setDead(d, false);
@@ -168,9 +160,7 @@ public final class WitherDragonsFeature {
         // before the 100-tick countdown runs out. The ENTITY is the fact, so an entity in the dragon's box makes it
         // alive from any state but ALIVE, unless it is a dragon already seen dying (re-added on a chunk reload).
         boolean entitySpawn = uuid != null && !DEAD_DRAGON_UUIDS.contains(uuid);
-        if (d.state == WitherDragon.State.ALIVE || (d.state != WitherDragon.State.SPAWNING && !entitySpawn)) {
-            return;
-        }
+        if (d.state == WitherDragon.State.ALIVE || (d.state != WitherDragon.State.SPAWNING && !entitySpawn)) return;
         d.timeToSpawn = 0;
         d.state = WitherDragon.State.ALIVE;
         d.timesSpawned++;
@@ -196,15 +186,11 @@ public final class WitherDragonsFeature {
         if (wasPriority) {
             priorityDragon = null;
         }
-        if (!wasAlive) {
-            return;
-        }
+        if (!wasAlive) return;
         long nowMs = System.currentTimeMillis();
         P5Splits.dragonKilled(d.name(), nowMs);
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-        if (!messagesOn() || !realTime) {
-            return;
-        }
+        if (!messagesOn() || !realTime) return;
         List<String> stats = new ArrayList<>();
         if (cfg.isSendTime()) {
             stats.add("§7alive for §6" + String.format(Locale.US, "%.2f", (PerTickServerClock.now() - d.spawnedTick) / 20f) + "s");
@@ -228,9 +214,7 @@ public final class WitherDragonsFeature {
                 || McPackets.particleX(p) % 1 != 0.0 || McPackets.particleZ(p) % 1 != 0.0) {
             return;
         }
-        if (!trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (!trackingActive() || !P5State.inP5()) return;
         int spawned = 0;
         List<WitherDragon> dragons = new ArrayList<>();
         for (WitherDragon d : WitherDragon.values()) {
@@ -239,9 +223,7 @@ public final class WitherDragonsFeature {
                 dragons.add(d);
                 continue;
             }
-            if (!d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) {
-                continue;
-            }
+            if (!d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) continue;
             d.state = WitherDragon.State.SPAWNING;
             d.timeToSpawn = 100;
             dragons.add(d);
@@ -254,9 +236,7 @@ public final class WitherDragonsFeature {
             DragonPriority.Result result = DragonPriority.findPriority(dragons);
             priorityDragon = result.dragon();
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            if (!messagesOn()) {
-                return;
-            }
+            if (!messagesOn()) return;
             String list = joinColored(dragons);
             if (cfg.isDragonTitle()) {
                 alert(priorityDragon, dragons.size() > 1 && cfg.isDragonPriority()
@@ -271,9 +251,7 @@ public final class WitherDragonsFeature {
 
     /** Odin {@code DragonCheck.dragonSpawn} (EntityEvent.Add). */
     static void onAddEntity(Entity entity) {
-        if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) return;
         DRAGON_ENTITIES.put(dragon.getUUID(), dragon);
         for (WitherDragon d : WitherDragon.values()) {
             if (d.box.contains(dragon.position())) {
@@ -285,9 +263,7 @@ public final class WitherDragonsFeature {
 
     /** Odin {@code DragonCheck.dragonUpdate} (synched data id 9 = health), read after vanilla applied it. */
     static void onEntityData(Entity entity) {
-        if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) return;
         DRAGON_ENTITIES.put(dragon.getUUID(), dragon);
         float health = dragon.getHealth();
         for (WitherDragon d : WitherDragon.values()) {
@@ -305,9 +281,7 @@ public final class WitherDragonsFeature {
      *  check (packed ice REQUIRED); Odin's current {@code DragonCheck.dragonSprayed} returns early ON packed ice,
      *  which looks inverted, so NoammAddons' direction is used. Message wording is Odin's. */
     static void onEquipment(ClientboundSetEquipmentPacket packet, ClientLevel level) {
-        if (level == null || !trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (level == null || !trackingActive() || !P5State.inP5()) return;
         boolean ice = false;
         for (var pair : packet.getSlots()) {
             ItemStack stack = pair.getSecond();
@@ -316,17 +290,11 @@ public final class WitherDragonsFeature {
                 break;
             }
         }
-        if (!ice || !(level.getEntity(packet.getEntity()) instanceof ArmorStand stand)) {
-            return;
-        }
+        if (!ice || !(level.getEntity(packet.getEntity()) instanceof ArmorStand stand)) return;
         for (WitherDragon d : WitherDragon.values()) {
-            if (d.sprayed || d.state != WitherDragon.State.ALIVE || d.entityUUID == null) {
-                continue;
-            }
+            if (d.sprayed || d.state != WitherDragon.State.ALIVE || d.entityUUID == null) continue;
             EnderDragon entity = DRAGON_ENTITIES.get(d.entityUUID);
-            if (entity == null || entity.isRemoved() || stand.distanceTo(entity) > 8) {
-                continue;
-            }
+            if (entity == null || entity.isRemoved() || stand.distanceTo(entity) > 8) continue;
             d.sprayed = true;
             long ticks = PerTickServerClock.now() - d.spawnedTick;
             if (messagesOn() && WitherDragonsConfig.getInstance().isSendSpray()) {
@@ -338,25 +306,18 @@ public final class WitherDragonsFeature {
     /** NoammAddons {@code DragonCheck.trackArrows}: arrow-hit sounds while the priority dragon is inside its
      *  skip-kill window. */
     static void onSound(ClientboundSoundPacket packet) {
-        if (!trackingActive() || priorityDragon == null || packet.getSound().value() != SoundEvents.ARROW_HIT_PLAYER) {
-            return;
-        }
+        if (!trackingActive() || priorityDragon == null || packet.getSound().value() != SoundEvents.ARROW_HIT_PLAYER) return;
         WitherDragon d = priorityDragon;
         if (d.state == WitherDragon.State.ALIVE && PerTickServerClock.now() - d.spawnedTick <= d.skipKillTicks) {
             d.arrowsHit++;
         }
     }
 
-    // ------------------------------------------------------------------ chat
 
     private static void onChat(Component message) {
-        if (!trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        if (!trackingActive() || !P5State.inP5()) return;
         String plain = com.killer560.hub.util.ChatObserver.strip(message);
-        if (plain == null || !WITHER_KING_REGEX.matcher(plain).matches()) {
-            return;
-        }
+        if (plain == null || !WITHER_KING_REGEX.matcher(plain).matches()) return;
         WitherDragon target = lastDragonDeath;
         if (target == null) {
             for (WitherDragon d : WitherDragon.values()) {
@@ -366,9 +327,7 @@ public final class WitherDragonsFeature {
                 }
             }
         }
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         if (messagesOn() && WitherDragonsConfig.getInstance().isSendConfirmation()) {
             send(Component.literal(target.colored() + " §fdragon counts."));
         }
@@ -378,11 +337,8 @@ public final class WitherDragonsFeature {
         lastDragonDeath = null;
     }
 
-    // ------------------------------------------------------------------ output helpers
 
-    private static void send(Component message) {
-        ModChat.send("Wither Dragons", message);
-    }
+    private static void send(Component message) { ModChat.send("Wither Dragons", message); }
 
     /** Odin {@code alert(..., playSound = true)}: title 0/20/5 ticks + NOTE_BLOCK_PLING. */
     private static void alert(WitherDragon d, String subtitle) {
@@ -414,9 +370,7 @@ public final class WitherDragonsFeature {
         int style = cfg.getTimerStyle().ordinal() * 2 + (cfg.isTimerSymbol() ? 1 : 0);
         int slot = ticks & (MEMO_SLOTS - 1);
         String known = TIMER_TEXT[slot];
-        if (known != null && TIMER_TICKS[slot] == ticks && TIMER_STYLE[slot] == style) {
-            return known;
-        }
+        if (known != null && TIMER_TICKS[slot] == ticks && TIMER_STYLE[slot] == style) return known;
         String text = formatTimerUncached(ticks, cfg);
         TIMER_TEXT[slot] = text;
         TIMER_TICKS[slot] = ticks;
@@ -447,9 +401,7 @@ public final class WitherDragonsFeature {
         int bits = Float.floatToRawIntBits(health);
         int slot = (bits ^ (bits >>> 16)) & (MEMO_SLOTS - 1);
         String known = HEALTH_TEXT[slot];
-        if (known != null && HEALTH_BITS[slot] == bits) {
-            return known;
-        }
+        if (known != null && HEALTH_BITS[slot] == bits) return known;
         String text = formatHealthUncached(health);
         HEALTH_TEXT[slot] = text;
         HEALTH_BITS[slot] = bits;
@@ -471,24 +423,18 @@ public final class WitherDragonsFeature {
         return color + value;
     }
 
-    public static WitherDragon priorityDragon() {
-        return priorityDragon;
-    }
+    public static WitherDragon priorityDragon() { return priorityDragon; }
 
     // ------------------------------------------------------------------ world render (Odin RenderEvent.Extract)
 
     private static void onWorldRender(LevelRenderContext context) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.player == null || client.level == null || !P5State.inP5()) {
-            return;
-        }
+        if (!cfg.isEnabled() || client.player == null || client.level == null || !P5State.inP5()) return;
         if (cfg.isDragonHealth()) {
             float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
             for (EnderDragon e : DRAGON_ENTITIES.values()) {
-                if (e.isRemoved()) {
-                    continue;
-                }
+                if (e.isRemoved()) continue;
                 float hp = e.getHealth();
                 if (hp > 0f) {
                     Vec3 pos = e.getPosition(partial);
@@ -552,20 +498,15 @@ public final class WitherDragonsFeature {
         poseStack.popPose();
     }
 
-    // ------------------------------------------------------------------ HUD
 
     /** Dragon spawn timers list (Odin "Dragon Timer HUD", extended to every spawning dragon; the priority one
      *  is marked with "»"). */
     public static final class DragonTimersHudElement implements HudElement {
         @Override
-        public String id() {
-            return "wither_dragon_timers";
-        }
+        public String id() { return "wither_dragon_timers"; }
 
         @Override
-        public String displayName() {
-            return "Wither Dragon Timers";
-        }
+        public String displayName() { return "Wither Dragon Timers"; }
 
         @Override
         public int defaultX() {
@@ -575,9 +516,7 @@ public final class WitherDragonsFeature {
         }
 
         @Override
-        public int defaultY() {
-            return 240;
-        }
+        public int defaultY() { return 240; }
 
         @Override
         public int width() {
@@ -593,9 +532,7 @@ public final class WitherDragonsFeature {
 
         private static List<String> lines() {
             Minecraft client = Minecraft.getInstance();
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                return List.of("§8» §5Purple: §a4500ms", "§cRed: §a4500ms");
-            }
+            if (McCompat.screen(client) instanceof HudEditorScreen) return List.of("§8» §5Purple: §a4500ms", "§cRed: §a4500ms");
             if (!WitherDragonsConfig.getInstance().isEnabled() || !WitherDragonsConfig.getInstance().isDragonTimer() || !P5State.inP5()) {
                 return List.of();
             }
@@ -609,9 +546,7 @@ public final class WitherDragonsFeature {
             for (int i = 0; same && i < dragons.length; i++) {
                 same = cachedTicks[i] == dragons[i].timeToSpawn;
             }
-            if (same && client.isSameThread()) {
-                return cachedLines;
-            }
+            if (same && client.isSameThread()) return cachedLines;
             int[] ticks = new int[dragons.length];
             for (int i = 0; i < dragons.length; i++) {
                 WitherDragon d = dragons[i];
@@ -646,9 +581,7 @@ public final class WitherDragonsFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
-            if (!WitherDragonsConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!WitherDragonsConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) return;
             int lineY = y;
             for (String line : lines()) {
                 graphics.text(client.font, line, x, lineY, 0xFFFFFFFF, true);

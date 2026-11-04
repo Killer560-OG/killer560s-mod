@@ -5,7 +5,6 @@ import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.fabric.api.event.Event;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -120,9 +119,7 @@ public final class MainMenuTitleLayout {
 
     /** Call once from the client entrypoint. */
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         // Amber's Aurora shader pipeline must be in RenderPipelines' static list before the first resource reload.
         AmberAuroraScene.register();
@@ -140,11 +137,8 @@ public final class MainMenuTitleLayout {
      *  {@link MainMenuTheme#active()}: if a later error flips the theme off while this screen is open, the Realms
      *  button is still physically gone until the next init (which resets {@link #appliedTo}), so its
      *  notification icons must stay hidden too instead of reappearing next to Swap Accounts. */
-    public static boolean isAppliedTo(Screen screen) {
-        return screen != null && appliedTo.get() == screen;
-    }
+    public static boolean isAppliedTo(Screen screen) { return screen != null && appliedTo.get() == screen; }
 
-    // ---------------------------------------------------------------- swap accounts button
 
     /** Marker subclass so the layout can find our button without matching on its label. A plain vanilla
      *  Button, so MainMenuButtonMixin themes it exactly like Singleplayer/Multiplayer. */
@@ -172,9 +166,7 @@ public final class MainMenuTitleLayout {
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
-    static int ruleY(Screen screen) {
-        return isAppliedTo(screen) ? ruleY : 0;
-    }
+    static int ruleY(Screen screen) { return isAppliedTo(screen) ? ruleY : 0; }
 
     /** Themed-mode Swap Accounts button. Starts at the old top-left bounds with the old long label, so if the
      *  layout never runs (listener missing, or it failed) the button is still where users know it. */
@@ -191,19 +183,14 @@ public final class MainMenuTitleLayout {
         }
     }
 
-    private static String fallbackLabel() {
-        return "Swap Accounts - Playing as " + playerName();
-    }
+    private static String fallbackLabel() { return "Swap Accounts - Playing as " + playerName(); }
 
-    // ---------------------------------------------------------------- layout
 
     private static void apply(Screen screen) {
         appliedTo = new WeakReference<>(null);
         MainMenuChrome.clearCard();
         playingAsY = -1;
-        if (!MainMenuTheme.active()) {
-            return;
-        }
+        if (!MainMenuTheme.active()) return;
         SwapAccountsButton swap = null;
         try {
             List<AbstractWidget> widgets = Screens.getWidgets(screen);
@@ -226,9 +213,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim || w instanceof ModSettingsButton) {
-                    continue;
-                }
+                if (w == sim || w instanceof ModSettingsButton) continue;
                 String key = translationKey(w);
                 if (KEY_REALMS.equals(key)) {
                     realms = w;
@@ -273,9 +258,7 @@ public final class MainMenuTitleLayout {
                     column.add(w);
                 }
             }
-            if (column.isEmpty()) {
-                return;
-            }
+            if (column.isEmpty()) return;
             column.sort(Comparator.comparingInt(AbstractWidget::getY));
 
             // Directly under Multiplayer. Placed by INDEX in the sorted column rather than by a y value, so the
@@ -438,9 +421,7 @@ public final class MainMenuTitleLayout {
     }
 
     private static void removeWidget(Screen screen, List<AbstractWidget> widgets, AbstractWidget w) {
-        if (w == null) {
-            return;
-        }
+        if (w == null) return;
         GuiEventListener focused = screen.getFocused();
         widgets.remove(w);
         if (focused == w) {
@@ -461,14 +442,10 @@ public final class MainMenuTitleLayout {
         }
         playingAsY = chipY;
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
-            if (!MainMenuTheme.active() || !swap.visible) {
-                return;
-            }
+            if (!MainMenuTheme.active() || !swap.visible) return;
             try {
                 float alpha = swap.getAlpha();
-                if (alpha <= 0.02f) {
-                    return;
-                }
+                if (alpha <= 0.02f) return;
                 MainMenuChrome.drawPlayingAs(graphics, cx, chipY, name, alpha);
             } catch (Throwable t) {
                 MainMenuTheme.fail("playing-as line", t);
@@ -479,17 +456,12 @@ public final class MainMenuTitleLayout {
     /** Where the chip was put (testkit). */
     private static volatile int playingAsY = -1;
 
-    public static int playingAsY() {
-        return playingAsY;
-    }
+    public static int playingAsY() { return playingAsY; }
 
-    // ---------------------------------------------------------------- identification
 
     private static String translationKey(AbstractWidget w) {
         Component message = w.getMessage();
-        if (message == null) {
-            return null;
-        }
+        if (message == null) return null;
         ComponentContents contents = message.getContents();
         return contents instanceof TranslatableContents tc ? tc.getKey() : null;
     }

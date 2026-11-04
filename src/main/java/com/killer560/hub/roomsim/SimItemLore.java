@@ -207,13 +207,9 @@ public final class SimItemLore {
      * @return true when a tooltip was applied
      */
     public static boolean apply(ItemStack stack, String skyblockId) {
-        if (stack == null || skyblockId == null) {
-            return false;
-        }
+        if (stack == null || skyblockId == null) return false;
         String[] text = LORE.get(skyblockId.toUpperCase(Locale.ROOT));
-        if (text == null || text.length < 2) {
-            return false;
-        }
+        if (text == null || text.length < 2) return false;
         stack.set(DataComponents.CUSTOM_NAME, LegacyText.parse(text[0]));
         List<Component> lines = new ArrayList<>(text.length - 1);
         for (int i = 1; i < text.length; i++) {
@@ -224,7 +220,6 @@ public final class SimItemLore {
         return true;
     }
 
-    // ------------------------------------------------------------------ stale tooltips in a reused save
 
     private static int refreshCounter;
 
@@ -244,9 +239,7 @@ public final class SimItemLore {
      */
     public static void register() {
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (++refreshCounter % 20 != 0 || !SimState.isActive()) {
-                return;
-            }
+            if (++refreshCounter % 20 != 0 || !SimState.isActive()) return;
             for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 for (ItemStack stack : sp.getInventory().getNonEquipmentItems()) {
                     refreshIfStale(stack);
@@ -257,17 +250,11 @@ public final class SimItemLore {
 
     /** @return true when the stack's tooltip was out of date and has been rewritten. Server thread. */
     static boolean refreshIfStale(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack);
-        if (id == null) {
-            return false;
-        }
+        if (id == null) return false;
         String[] text = LORE.get(id.toUpperCase(Locale.ROOT));
-        if (text == null || text.length < 2) {
-            return false;
-        }
+        if (text == null || text.length < 2) return false;
         ItemLore lore = stack.get(DataComponents.LORE);
         List<Component> have = lore == null ? List.of() : lore.lines();
         boolean stale = have.size() != text.length - 1;
@@ -275,17 +262,11 @@ public final class SimItemLore {
         for (int i = 0; !stale && i < have.size(); i++) {
             String got = have.get(i).getString();
             String want = LegacyText.strip(text[i + 1]);
-            if (got.equals(want)) {
-                continue;
-            }
-            if (got.startsWith("Charges: ") && want.startsWith("Charges: ")) {
-                continue;
-            }
+            if (got.equals(want)) continue;
+            if (got.startsWith("Charges: ") && want.startsWith("Charges: ")) continue;
             stale = true;
         }
-        if (!stale) {
-            return false;
-        }
+        if (!stale) return false;
         for (Component line : have) {
             if (line.getString().startsWith("Charges: ")) {
                 keptCharges = line.getString();

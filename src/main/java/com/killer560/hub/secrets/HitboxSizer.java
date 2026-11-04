@@ -53,9 +53,7 @@ public final class HitboxSizer {
         int idx = attachedIndex(mount, facing);
         Cache c = cacheFor(wPct, hPct, lPct);
         VoxelShape cached = c.shapes[idx];
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         double w = lerp(baseW, wPct), h = lerp(baseH, hPct), l = lerp(baseL, lPct);
         double w0 = 0.5 - w / 2, w1 = 0.5 + w / 2, h0 = 0.5 - h / 2, h1 = 0.5 + h / 2;
         boolean ew = facing.getAxis() == Direction.Axis.X;
@@ -81,9 +79,7 @@ public final class HitboxSizer {
         int idx = 8 + (facing != null && facing.getAxis() == Direction.Axis.X ? 1 : 0) + 2 * joined;
         Cache c = cacheFor(wPct, hPct, lPct);
         VoxelShape cached = c.shapes[idx];
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         double w = lerp(baseW, wPct), h = lerp(baseH, hPct), l = lerp(baseL, lPct);
         boolean ew = facing != null && facing.getAxis() == Direction.Axis.X;
         double xs = ew ? l : w, zs = ew ? w : l;
@@ -126,11 +122,7 @@ public final class HitboxSizer {
         };
     }
 
-    private static double lerp(double base, int pct) {
-        return base + (1.0 - base) * (clamp(pct) / 100.0);
-    }
+    private static double lerp(double base, int pct) { return base + (1.0 - base) * (clamp(pct) / 100.0); }
 
-    private static int clamp(int v) {
-        return Math.max(0, Math.min(100, v));
-    }
+    private static int clamp(int v) { return Math.max(0, Math.min(100, v)); }
 }

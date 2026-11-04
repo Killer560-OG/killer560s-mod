@@ -25,16 +25,12 @@ public final class EspDepthTestHook {
         family = fam;
     }
 
-    public static void register() {
-        LevelRenderEvents.COLLECT_SUBMITS.register(EspDepthTestHook::draw);
-    }
+    public static void register() { LevelRenderEvents.COLLECT_SUBMITS.register(EspDepthTestHook::draw); }
 
     private static void draw(LevelRenderContext ctx) {
         String f = family;
         AABB b = box;
-        if (f == null || b == null) {
-            return;
-        }
+        if (f == null || b == null) return;
         float[] rgba = {0f, 1f, 0f, 0.5f};
         switch (f) {
             case "thru-fill" -> WorldRenderUtils.renderFilledBoxes(ctx, new AABB[]{b}, rgba, 1, 1f, true);

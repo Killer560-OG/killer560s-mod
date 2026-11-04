@@ -33,9 +33,7 @@ public final class ProfileTracker {
     }
 
     public static void register() {
-        if (subscribed) {
-            return;
-        }
+        if (subscribed) return;
         subscribed = true;
         ChatObserver.subscribe(ProfileTracker::onChat);
     }
@@ -58,19 +56,13 @@ public final class ProfileTracker {
 
     /** Call once per client tick; the tab-list read happens twice a second. */
     public static void tick(Minecraft client) {
-        if (client.getConnection() == null) {
-            return;
-        }
-        if (ticks++ % 10 != 0 || !profileName.isEmpty()) {
-            return;
-        }
+        if (client.getConnection() == null) return;
+        if (ticks++ % 10 != 0 || !profileName.isEmpty()) return;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
             // Only a line containing "Profile:" can match; testing for it first spares ~80 trims and Matchers per scan
             // in any world without that line, where this scans every 10 ticks forever (95-perf-features, 2026-10-15).
-            if (plain == null || !plain.contains("Profile:")) {
-                continue;
-            }
+            if (plain == null || !plain.contains("Profile:")) continue;
             Matcher m = TAB_PROFILE.matcher(plain.trim());
             if (m.matches()) {
                 setName(m.group(1));
@@ -81,9 +73,7 @@ public final class ProfileTracker {
 
     private static void setName(String name) {
         String clean = name.trim();
-        if (clean.isEmpty() || clean.equalsIgnoreCase(profileName)) {
-            return;
-        }
+        if (clean.isEmpty() || clean.equalsIgnoreCase(profileName)) return;
         String previousKey = key();
         profileName = clean;
         FairySoulStore.onProfileChanged(previousKey, key(), profileName, profileId);
@@ -94,9 +84,7 @@ public final class ProfileTracker {
         profileName = "";
     }
 
-    public static String profileName() {
-        return profileName;
-    }
+    public static String profileName() { return profileName; }
 
     /** Storage key: "&lt;account uuid&gt;/&lt;profile name&gt;", or ".../?" until the profile is known. */
     public static String key() {
@@ -120,7 +108,5 @@ public final class ProfileTracker {
 
     private static volatile KeyMemo keyMemo;
 
-    public static String displayName() {
-        return profileName.isEmpty() ? "unknown profile" : profileName;
-    }
+    public static String displayName() { return profileName.isEmpty() ? "unknown profile" : profileName; }
 }

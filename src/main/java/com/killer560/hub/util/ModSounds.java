@@ -41,9 +41,7 @@ public final class ModSounds {
     public static void playCorrectionAlarm() {
         CorrectionAlarmConfig cfg = CorrectionAlarmConfig.getInstance();
         float volume = cfg.getVolume();
-        if (!cfg.isEnabled() || volume <= 0f) {
-            return;
-        }
+        if (!cfg.isEnabled() || volume <= 0f) return;
         synchronized (ModSounds.class) {
             long now = System.currentTimeMillis();
             if (lastAlarmMs != 0L && now - lastAlarmMs < ALARM_MIN_GAP_MS) {
@@ -64,12 +62,8 @@ public final class ModSounds {
     }
 
     /** How many times the alarm actually started (the testkit reads this; the test client is muted). */
-    public static int correctionAlarmsPlayed() {
-        return alarmsPlayed;
-    }
+    public static int correctionAlarmsPlayed() { return alarmsPlayed; }
 
     /** Alarms skipped by the 3 s rate limit. */
-    public static int correctionAlarmsSuppressed() {
-        return alarmsSuppressed;
-    }
+    public static int correctionAlarmsSuppressed() { return alarmsSuppressed; }
 }

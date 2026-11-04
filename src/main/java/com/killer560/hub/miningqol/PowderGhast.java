@@ -85,13 +85,9 @@ public final class PowderGhast {
     static void onChat(Component message) {
         try {
             MiningQolConfig cfg = MiningQolConfig.getInstance();
-            if (!cfg.isPowderGhast() || !MiningState.dwarvenMines()) {
-                return;
-            }
+            if (!cfg.isPowderGhast() || !MiningState.dwarvenMines()) return;
             String raw = ChatObserver.strip(message);
-            if (raw == null || raw.length() > 120) {
-                return;
-            }
+            if (raw == null || raw.length() > 120) return;
             handle(raw.trim(), com.killer560.hub.util.PerTickServerClock.now());
         } catch (RuntimeException e) {
             com.killer560.hub.util.ModLog.get("killer560smod-miningqol").error("[PowderGhast] chat failed", e);
@@ -129,9 +125,7 @@ public final class PowderGhast {
     }
 
     private static void sendParty() {
-        if (partySent || !MiningQolConfig.getInstance().isPowderGhastParty()) {
-            return;
-        }
+        if (partySent || !MiningQolConfig.getInstance().isPowderGhastParty()) return;
         partySent = true;
         partyCallouts++;
         com.killer560.hub.util.OutgoingChat.command(place == null ? "pc Powder Ghast spawned!"
@@ -191,15 +185,11 @@ public final class PowderGhast {
         double best = Double.MAX_VALUE;
         boolean event = deadline != 0L;
         for (Entity e : client.level.entitiesForRendering()) {
-            if (e == client.player) {
-                continue;
-            }
+            if (e == client.player) continue;
             if (e.hasCustomName() && NAME.matcher(ChatObserver.stripCodes(e.getCustomName().getString())).find()) {
                 LivingEntity mob = e instanceof ArmorStand stand ? ghastUnder(client, stand)
                         : e instanceof LivingEntity l ? l : null;
-                if (mob != null && mob.isAlive() && !(mob instanceof Player)) {
-                    return mob;
-                }
+                if (mob != null && mob.isAlive() && !(mob instanceof Player)) return mob;
             }
             if (event && e instanceof Ghast g && g.isAlive()) {
                 double d = g.distanceToSqr(client.player);
@@ -215,9 +205,7 @@ public final class PowderGhast {
     /** The mob under a name-tag stand: the entity with the id before it, else the nearest ghast below. */
     private static LivingEntity ghastUnder(Minecraft client, ArmorStand stand) {
         Entity prev = client.level.getEntity(stand.getId() - 1);
-        if (prev instanceof Ghast g && g.isAlive()) {
-            return g;
-        }
+        if (prev instanceof Ghast g && g.isAlive()) return g;
         AABB below = stand.getBoundingBox().inflate(3.0, 0, 3.0).expandTowards(0, -6.0, 0);
         LivingEntity bestE = null;
         double bestD = Double.MAX_VALUE;
@@ -260,13 +248,9 @@ public final class PowderGhast {
         int id = targetId;
         Minecraft client = Minecraft.getInstance();
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (id < 0 || client.level == null || client.player == null || !cfg.isPowderGhast()) {
-            return;
-        }
+        if (id < 0 || client.level == null || client.player == null || !cfg.isPowderGhast()) return;
         Entity e = client.level.getEntity(id);
-        if (e == null || e.isRemoved()) {
-            return;
-        }
+        if (e == null || e.isRemoved()) return;
         float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         AABB box = e.getBoundingBox().move(Mth.lerp(pt, e.xo, e.getX()) - e.getX(),
                 Mth.lerp(pt, e.yo, e.getY()) - e.getY(), Mth.lerp(pt, e.zo, e.getZ()) - e.getZ());
@@ -292,49 +276,28 @@ public final class PowderGhast {
             long left = Math.max(0L, (d - com.killer560.hub.util.PerTickServerClock.now() + 19L) / 20L);
             return "§d§lPowder Ghast§7: §e" + left + "s" + where;
         }
-        if (targetId >= 0) {
-            return "§d§lPowder Ghast alive" + where;
-        }
+        if (targetId >= 0) return "§d§lPowder Ghast alive" + where;
         return null;
     }
 
-    // ---- testkit hooks
 
-    public static int alerts() {
-        return alerts;
-    }
+    public static int alerts() { return alerts; }
 
-    public static int partyCallouts() {
-        return partyCallouts;
-    }
+    public static int partyCallouts() { return partyCallouts; }
 
-    public static int boxFrames() {
-        return boxFrames;
-    }
+    public static int boxFrames() { return boxFrames; }
 
-    public static int tracerFrames() {
-        return tracerFrames;
-    }
+    public static int tracerFrames() { return tracerFrames; }
 
-    public static int kills() {
-        return kills;
-    }
+    public static int kills() { return kills; }
 
-    public static int targetId() {
-        return targetId;
-    }
+    public static int targetId() { return targetId; }
 
-    public static boolean visibleNow() {
-        return visible;
-    }
+    public static boolean visibleNow() { return visible; }
 
-    public static boolean throughWallsNow() {
-        return throughWalls;
-    }
+    public static boolean throughWallsNow() { return throughWalls; }
 
-    public static String placeNow() {
-        return place;
-    }
+    public static String placeNow() { return place; }
 
     /** Seconds until the despawn, or -1 with no event running. */
     public static long secondsLeft() {
@@ -342,9 +305,7 @@ public final class PowderGhast {
         return d == 0L ? -1L : Math.max(0L, (d - com.killer560.hub.util.PerTickServerClock.now()) / 20L);
     }
 
-    public static String hudLineNow() {
-        return hudLine();
-    }
+    public static String hudLineNow() { return hudLine(); }
 
     /** Pretends the minute is up now (testkit). */
     public static void expireNow() {
@@ -360,31 +321,20 @@ public final class PowderGhast {
 
         private String shown() {
             String s = hudLine();
-            if (s == null && HudVisibility.editorOpen()) {
-                return SAMPLE;
-            }
-            return s;
+            return s == null && HudVisibility.editorOpen() ? SAMPLE : s;
         }
 
         @Override
-        public String id() {
-            return TIMER_ID;
-        }
+        public String id() { return TIMER_ID; }
 
         @Override
-        public String displayName() {
-            return "Powder Ghast Timer";
-        }
+        public String displayName() { return "Powder Ghast Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 220;
-        }
+        public int defaultY() { return 220; }
 
         @Override
         public int width() {
@@ -393,9 +343,7 @@ public final class PowderGhast {
         }
 
         @Override
-        public int height() {
-            return 10;
-        }
+        public int height() { return 10; }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -406,13 +354,9 @@ public final class PowderGhast {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             MiningQolConfig cfg = MiningQolConfig.getInstance();
-            if (!cfg.isPowderGhast() || !cfg.isPowderGhastTimer() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isPowderGhast() || !cfg.isPowderGhastTimer() || HudVisibility.hidesHud()) return;
             String s = shown();
-            if (s == null) {
-                return;
-            }
+            if (s == null) return;
             graphics.text(Minecraft.getInstance().font, s, x, y, 0xFFFFFFFF, true);
             if (hudLine() != null) {
                 HudSeen.markDrawn(TIMER_ID);

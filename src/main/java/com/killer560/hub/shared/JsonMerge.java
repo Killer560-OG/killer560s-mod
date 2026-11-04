@@ -73,9 +73,7 @@ public final class JsonMerge {
     /** The merge of the three roots; any of them may be null (no file, nothing loaded yet). Never returns null. */
     public static JsonObject merge(JsonObject disk, JsonObject base, JsonObject mine, Policy policy) {
         JsonObject custom = policy.custom(disk, base, mine);
-        if (custom != null) {
-            return custom;
-        }
+        if (custom != null) return custom;
         JsonElement out = merge("", disk, base, mine, policy);
         JsonObject root = out != null && out.isJsonObject() ? out.getAsJsonObject() : new JsonObject();
         policy.finish(root);
@@ -98,17 +96,11 @@ public final class JsonMerge {
         }
         if (m.isJsonArray() && (d == null || d.isJsonArray()) && (b == null || b.isJsonArray())) {
             Function<JsonElement, String> key = p.arrayKey(path);
-            if (key != null) {
-                return mergeArrays(path, arr(d), arr(b), m.getAsJsonArray(), key, p);
-            }
+            if (key != null) return mergeArrays(path, arr(d), arr(b), m.getAsJsonArray(), key, p);
         }
-        if (isNumber(m) && (d == null || isNumber(d)) && (b == null || isNumber(b))) {
-            return mergeNumbers(p.number(path), d, b, m);
-        }
+        if (isNumber(m) && (d == null || isNumber(d)) && (b == null || isNumber(b))) return mergeNumbers(p.number(path), d, b, m);
         // A STATE value (string, boolean, an un-keyed array, a type change).
-        if (b == null || !m.equals(b)) {
-            return m.deepCopy();
-        }
+        if (b == null || !m.equals(b)) return m.deepCopy();
         return d == null ? null : d.deepCopy(); // unchanged here; the disk's (null = removed elsewhere)
     }
 
@@ -156,23 +148,17 @@ public final class JsonMerge {
     private static JsonElement mergeNumbers(NumberMode mode, JsonElement d, JsonElement b, JsonElement m) {
         switch (mode) {
             case COUNTER: {
-                if (integral(d) && integral(b) && integral(m)) {
-                    return new JsonPrimitive(lng(d) + lng(m) - lng(b));
-                }
+                if (integral(d) && integral(b) && integral(m)) return new JsonPrimitive(lng(d) + lng(m) - lng(b));
                 return new JsonPrimitive(dbl(d) + dbl(m) - dbl(b));
             }
             case MAX:
                 return d == null || dbl(m) >= dbl(d) ? m.deepCopy() : d.deepCopy();
             case MIN:
                 // 0 is "not set" in these files (BestFriends' firstPartiedAtMs), never a real earliest time.
-                if (d == null || dbl(d) == 0) {
-                    return m.deepCopy();
-                }
+                if (d == null || dbl(d) == 0) return m.deepCopy();
                 return dbl(m) != 0 && dbl(m) <= dbl(d) ? m.deepCopy() : d.deepCopy();
             default:
-                if (b == null || !m.equals(b)) {
-                    return m.deepCopy();
-                }
+                if (b == null || !m.equals(b)) return m.deepCopy();
                 return d == null ? null : d.deepCopy();
         }
     }
@@ -180,9 +166,7 @@ public final class JsonMerge {
     /** Elements by key, first one kept when a key repeats (a file that already held a duplicate loses it here). */
     private static Map<String, JsonElement> index(JsonArray a, Function<JsonElement, String> key) {
         Map<String, JsonElement> out = new LinkedHashMap<>();
-        if (a == null) {
-            return out;
-        }
+        if (a == null) return out;
         int i = 0;
         for (JsonElement e : a) {
             String k;
@@ -197,43 +181,26 @@ public final class JsonMerge {
         return out;
     }
 
-    private static String join(String path, String k) {
-        return path.isEmpty() ? k : path + SEP + k;
-    }
+    private static String join(String path, String k) { return path.isEmpty() ? k : path + SEP + k; }
 
-    private static JsonElement nul(JsonElement e) {
-        return e == null || e instanceof JsonNull ? null : e;
-    }
+    private static JsonElement nul(JsonElement e) { return e == null || e instanceof JsonNull ? null : e; }
 
-    private static JsonObject obj(JsonElement e) {
-        return e == null ? null : e.getAsJsonObject();
-    }
+    private static JsonObject obj(JsonElement e) { return e == null ? null : e.getAsJsonObject(); }
 
-    private static JsonArray arr(JsonElement e) {
-        return e == null ? null : e.getAsJsonArray();
-    }
+    private static JsonArray arr(JsonElement e) { return e == null ? null : e.getAsJsonArray(); }
 
-    private static boolean isNumber(JsonElement e) {
-        return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber();
-    }
+    private static boolean isNumber(JsonElement e) { return e.isJsonPrimitive() && e.getAsJsonPrimitive().isNumber(); }
 
     private static boolean integral(JsonElement e) {
-        if (e == null) {
-            return true;
-        }
+        if (e == null) return true;
         String s = e.getAsJsonPrimitive().getAsString();
         return s.indexOf('.') < 0 && s.indexOf('e') < 0 && s.indexOf('E') < 0;
     }
 
-    private static long lng(JsonElement e) {
-        return e == null ? 0L : e.getAsLong();
-    }
+    private static long lng(JsonElement e) { return e == null ? 0L : e.getAsLong(); }
 
-    private static double dbl(JsonElement e) {
-        return e == null ? 0.0 : e.getAsDouble();
-    }
+    private static double dbl(JsonElement e) { return e == null ? 0.0 : e.getAsDouble(); }
 
-    // ---- helpers for policies ----
 
     /** A key made of the named fields of an object element, joined with '|'. */
     public static Function<JsonElement, String> fields(String... names) {
@@ -252,13 +219,9 @@ public final class JsonMerge {
     public static boolean matches(String path, String pattern) {
         String[] a = path.split(SEP, -1);
         String[] b = pattern.split("\\.", -1);
-        if (a.length != b.length) {
-            return false;
-        }
+        if (a.length != b.length) return false;
         for (int i = 0; i < a.length; i++) {
-            if (!b[i].equals("*") && !Objects.equals(a[i], b[i])) {
-                return false;
-            }
+            if (!b[i].equals("*") && !Objects.equals(a[i], b[i])) return false;
         }
         return true;
     }

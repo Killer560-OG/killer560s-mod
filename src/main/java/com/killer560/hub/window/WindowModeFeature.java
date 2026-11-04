@@ -3,7 +3,6 @@ package com.killer560.hub.window;
 import com.killer560.hub.windowlayout.WindowMonitors;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.VideoMode;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -58,14 +57,10 @@ public final class WindowModeFeature {
      *  the wrong way. Before the first tick has applied the startup state this does nothing - that tick
      *  reads the freshly loaded config itself. */
     public static void applyConfigAfterReload(boolean wasEnabled) {
-        if (!appliedStartupState) {
-            return;
-        }
+        if (!appliedStartupState) return;
         Minecraft client = Minecraft.getInstance();
         boolean nowEnabled = WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
-        if (nowEnabled == wasEnabled) {
-            return;
-        }
+        if (nowEnabled == wasEnabled) return;
         if (nowEnabled) {
             enable(client, false);
         } else {
@@ -111,9 +106,7 @@ public final class WindowModeFeature {
         }
 
         Monitor monitor = window.findBestMonitor();
-        if (monitor == null) {
-            return;
-        }
+        if (monitor == null) return;
         VideoMode mode = McCompat.currentMode(monitor);
         int[] rect = borderlessRect(McCompat.monitorX(monitor), McCompat.monitorY(monitor), mode.getWidth(), mode.getHeight());
 
@@ -157,9 +150,7 @@ public final class WindowModeFeature {
     /** Whether a {@code w x h} window is (nearly) the whole monitor it is on - 95% or more both ways. */
     private static boolean coversMonitor(Window window, int w, int h) {
         Monitor monitor = window.findBestMonitor();
-        if (monitor == null) {
-            return false;
-        }
+        if (monitor == null) return false;
         VideoMode mode = McCompat.currentMode(monitor);
         return w >= mode.getWidth() * 0.95 && h >= mode.getHeight() * 0.95;
     }
@@ -169,9 +160,7 @@ public final class WindowModeFeature {
      *  monitor is sitting so the sliver lands on empty desktop rather than over a neighboring screen.
      *  @return {x, y, width, height} */
     private static int[] borderlessRect(int mx, int my, int mw, int mh) {
-        if (OVERHANG <= 0) {
-            return new int[]{mx, my, mw, mh};
-        }
+        if (OVERHANG <= 0) return new int[]{mx, my, mw, mh};
         int o = OVERHANG;
         // bottom, right, top, left - first side with nothing next to it wins; bottom is the fallback.
         int[][] candidates = {
@@ -187,9 +176,7 @@ public final class WindowModeFeature {
             monitors = List.of();
         }
         for (int[] c : candidates) {
-            if (!occupied(monitors, mx, my, mw, mh, c[4], c[5], c[6], c[7])) {
-                return new int[]{c[0], c[1], c[2], c[3]};
-            }
+            if (!occupied(monitors, mx, my, mw, mh, c[4], c[5], c[6], c[7])) return new int[]{c[0], c[1], c[2], c[3]};
         }
         int[] fallback = candidates[0];
         return new int[]{fallback[0], fallback[1], fallback[2], fallback[3]};
@@ -199,12 +186,8 @@ public final class WindowModeFeature {
     private static boolean occupied(List<WindowMonitors.MonitorInfo> monitors, int mx, int my, int mw, int mh,
                                     int sx, int sy, int sw, int sh) {
         for (WindowMonitors.MonitorInfo m : monitors) {
-            if (m.x() == mx && m.y() == my && m.width() == mw && m.height() == mh) {
-                continue;
-            }
-            if (sx < m.x() + m.width() && m.x() < sx + sw && sy < m.y() + m.height() && m.y() < sy + sh) {
-                return true;
-            }
+            if (m.x() == mx && m.y() == my && m.width() == mw && m.height() == mh) continue;
+            if (sx < m.x() + m.width() && m.x() < sx + sw && sy < m.y() + m.height() && m.y() < sy + sh) return true;
         }
         return false;
     }

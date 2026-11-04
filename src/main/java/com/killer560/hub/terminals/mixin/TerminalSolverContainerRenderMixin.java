@@ -21,9 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractContainerScreen.class)
 public abstract class TerminalSolverContainerRenderMixin extends Screen {
 
-    protected TerminalSolverContainerRenderMixin(Component title) {
-        super(title);
-    }
+    protected TerminalSolverContainerRenderMixin(Component title) { super(title); }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$drawTerminalHighlights(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {

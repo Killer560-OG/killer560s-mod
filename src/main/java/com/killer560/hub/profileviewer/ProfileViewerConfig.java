@@ -105,19 +105,13 @@ public final class ProfileViewerConfig {
                 if (recent != null) {
                     for (JsonElement el : recent) {
                         // One malformed entry (bad/missing uuid) is skipped on its own.
-                        if (el == null || !el.isJsonObject()) {
-                            continue;
-                        }
+                        if (el == null || !el.isJsonObject()) continue;
                         JsonObject o = el.getAsJsonObject();
                         UUID uuid = parseUuidQuiet(ConfigJson.getString(o, "uuid", ""));
-                        if (uuid == null) {
-                            continue;
-                        }
+                        if (uuid == null) continue;
                         cfg.recentViews.add(new RecentView(uuid, ConfigJson.getString(o, "name", ""),
                                 ConfigJson.getLong(o, "viewedAt", 0)));
-                        if (cfg.recentViews.size() >= MAX_RECENT_VIEWS) {
-                            break;
-                        }
+                        if (cfg.recentViews.size() >= MAX_RECENT_VIEWS) break;
                     }
                 }
             } catch (Exception ignored) {
@@ -155,13 +149,9 @@ public final class ProfileViewerConfig {
     /** Dashed or dashless hex only - kept local (rather than calling into {@code ProfileViewerApi}) so
      *  loading this config never triggers that class's HTTP client / executor to spin up. */
     private static UUID parseUuidQuiet(String s) {
-        if (s == null) {
-            return null;
-        }
+        if (s == null) return null;
         String hex = s.replace("-", "");
-        if (hex.length() != 32 || !hex.matches("[0-9a-fA-F]{32}")) {
-            return null;
-        }
+        if (hex.length() != 32 || !hex.matches("[0-9a-fA-F]{32}")) return null;
         try {
             return new UUID(Long.parseUnsignedLong(hex.substring(0, 16), 16), Long.parseUnsignedLong(hex.substring(16), 16));
         } catch (NumberFormatException e) {
@@ -172,9 +162,7 @@ public final class ProfileViewerConfig {
     /** Keeps only characters that can appear in a Hypixel key (UUID-ish) so a pasted newline/space
      *  can't break the request header. */
     public static String sanitizeKey(String raw) {
-        if (raw == null) {
-            return "";
-        }
+        if (raw == null) return "";
         StringBuilder sb = new StringBuilder(raw.length());
         for (int i = 0; i < raw.length(); i++) {
             char c = raw.charAt(i);
@@ -185,73 +173,43 @@ public final class ProfileViewerConfig {
         return sb.length() > 64 ? sb.substring(0, 64) : sb.toString();
     }
 
-    public synchronized String getApiKey() {
-        return apiKey;
-    }
+    public synchronized String getApiKey() { return apiKey; }
 
-    public synchronized void setApiKey(String apiKey) {
-        this.apiKey = sanitizeKey(apiKey);
-    }
+    public synchronized void setApiKey(String apiKey) { this.apiKey = sanitizeKey(apiKey); }
 
-    public synchronized Source getSource() {
-        return source;
-    }
+    public synchronized Source getSource() { return source; }
 
-    public synchronized void setSource(Source source) {
-        this.source = source == null ? Source.AUTO : source;
-    }
+    public synchronized void setSource(Source source) { this.source = source == null ? Source.AUTO : source; }
 
-    public synchronized int getOpenKeyCode() {
-        return openKeyCode;
-    }
+    public synchronized int getOpenKeyCode() { return openKeyCode; }
 
-    public synchronized void setOpenKeyCode(int openKeyCode) {
-        this.openKeyCode = openKeyCode;
-    }
+    public synchronized void setOpenKeyCode(int openKeyCode) { this.openKeyCode = openKeyCode; }
 
-    public synchronized boolean isRememberLastPage() {
-        return rememberLastPage;
-    }
+    public synchronized boolean isRememberLastPage() { return rememberLastPage; }
 
-    public synchronized void setRememberLastPage(boolean rememberLastPage) {
-        this.rememberLastPage = rememberLastPage;
-    }
+    public synchronized void setRememberLastPage(boolean rememberLastPage) { this.rememberLastPage = rememberLastPage; }
 
-    public synchronized int getLastPage() {
-        return lastPage;
-    }
+    public synchronized int getLastPage() { return lastPage; }
 
-    public synchronized void setLastPage(int lastPage) {
-        this.lastPage = lastPage;
-    }
+    public synchronized void setLastPage(int lastPage) { this.lastPage = lastPage; }
 
-    public synchronized boolean isShowSkin() {
-        return showSkin;
-    }
+    public synchronized boolean isShowSkin() { return showSkin; }
 
-    public synchronized void setShowSkin(boolean showSkin) {
-        this.showSkin = showSkin;
-    }
+    public synchronized void setShowSkin(boolean showSkin) { this.showSkin = showSkin; }
 
-    public synchronized boolean isNonCosmeticNetworth() {
-        return nonCosmeticNetworth;
-    }
+    public synchronized boolean isNonCosmeticNetworth() { return nonCosmeticNetworth; }
 
     public synchronized void setNonCosmeticNetworth(boolean nonCosmeticNetworth) {
         this.nonCosmeticNetworth = nonCosmeticNetworth;
     }
 
-    public synchronized List<RecentView> getRecentViews() {
-        return List.copyOf(recentViews);
-    }
+    public synchronized List<RecentView> getRecentViews() { return List.copyOf(recentViews); }
 
     /** Bumps {@code uuid} to the front of the recent-views list (removing any older entry for the same
      *  uuid first) and saves. {@code name} is just the latest-known IGN for display before a live lookup
      *  can refresh it - the uuid is what identifies "who" was viewed. */
     public synchronized void recordRecentView(UUID uuid, String name) {
-        if (uuid == null) {
-            return;
-        }
+        if (uuid == null) return;
         recentViews.removeIf(v -> v.uuid().equals(uuid));
         recentViews.add(0, new RecentView(uuid, name == null ? "" : name, System.currentTimeMillis()));
         while (recentViews.size() > MAX_RECENT_VIEWS) {

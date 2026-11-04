@@ -24,9 +24,7 @@ public enum ScoreboardEvent {
 
     VOTING("Voting", true, ScoreboardPattern.YEAR_VOTES, ScoreboardPattern.VOTES, ScoreboardPattern.WAITING_FOR_VOTE) {
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Hub");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Hub"); }
     },
     SERVER_CLOSE("Server Closing", true, ScoreboardPattern.SERVER_CLOSING) {
         @Override
@@ -52,16 +50,12 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Catacombs");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Catacombs"); }
     },
     KUUDRA("Kuudra", true, ScoreboardPattern.AUTO_CLOSING, ScoreboardPattern.STARTING_IN, ScoreboardPattern.TIME_ELAPSED,
             ScoreboardPattern.INSTANCE_SHUTDOWN, ScoreboardPattern.WAVE, ScoreboardPattern.TOKENS, ScoreboardPattern.SUBMERGES) {
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Kuudra");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Kuudra"); }
     },
     DOJO("Dojo", true, ScoreboardPattern.DOJO_CHALLENGE, ScoreboardPattern.DOJO_DIFFICULTY, ScoreboardPattern.DOJO_POINTS,
             ScoreboardPattern.DOJO_TIME) {
@@ -72,9 +66,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Crimson Isle");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Crimson Isle"); }
     },
     DARK_AUCTION("Dark Auction", true, ScoreboardPattern.STARTING_IN, ScoreboardPattern.TIME_LEFT,
             ScoreboardPattern.DARK_AUCTION_CURRENT_ITEM) {
@@ -93,15 +85,11 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Dark Auction");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Dark Auction"); }
     },
     JACOB_CONTEST("Jacob's Contest", true, ScoreboardPattern.JACOBS_CONTEST) {
         @Override
-        List<String> texts() {
-            return headerSection(ScoreboardPattern.JACOBS_CONTEST, 3);
-        }
+        List<String> texts() { return headerSection(ScoreboardPattern.JACOBS_CONTEST, 3); }
     },
     JACOB_MEDALS("Jacob's Medals", true, ScoreboardPattern.MEDALS),
     GALATEA("Galatea", true, ScoreboardPattern.WHISPERS, ScoreboardPattern.HOTF, ScoreboardPattern.AGATHAS_CONTEST,
@@ -131,9 +119,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("The Farming Islands");
-        }
+        boolean showIsland() { return inIslandOrUnknown("The Farming Islands"); }
     },
     GARDEN("Garden", true, ScoreboardPattern.LOCKED, ScoreboardPattern.PASTING, ScoreboardPattern.CLEAN_UP) {
         @Override
@@ -146,9 +132,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Garden");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Garden"); }
     },
     FLIGHT_DURATION("Flight Duration", true, ScoreboardPattern.FLIGHT_DURATION) {
         @Override
@@ -158,9 +142,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Private Island", "Garden");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Private Island", "Garden"); }
     },
     NEW_YEAR("New Year", true, ScoreboardPattern.NEW_YEAR),
     WINTER("Winter", true, ScoreboardPattern.WINTER_EVENT_START, ScoreboardPattern.WINTER_NEXT_WAVE,
@@ -178,17 +160,13 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Jerry's Workshop");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Jerry's Workshop"); }
     },
     SPOOKY("Spooky Festival", true, ScoreboardPattern.SPOOKY) {
         @Override
         List<String> texts() {
             String time = firstMatches(ScoreboardPattern.SPOOKY, sidebar());
-            if (time == null) {
-                return List.of();
-            }
+            if (time == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(time);
             out.add("§7Your Candy: ");
@@ -214,9 +192,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Spider's Den");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Spider's Den"); }
     },
     MINING_EVENTS("Mining Events", true, ScoreboardPattern.WIND_COMPASS, ScoreboardPattern.WIND_COMPASS_ARROW,
             ScoreboardPattern.NEARBY_PLAYERS, ScoreboardPattern.MINING_EVENT, ScoreboardPattern.MINING_EVENT_ZONE,
@@ -258,15 +234,11 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Dwarven Mines", "Crystal Hollows", "Mineshaft");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Dwarven Mines", "Crystal Hollows", "Mineshaft"); }
     },
     DAMAGE("Dragon Damage", true, ScoreboardPattern.BOSS_HP, ScoreboardPattern.BOSS_DAMAGE) {
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("The End");
-        }
+        boolean showIsland() { return inIslandOrUnknown("The End"); }
     },
     MAGMA_BOSS("Magma Boss", true, ScoreboardPattern.MAGMA_BOSS, ScoreboardPattern.DAMAGE_SOAKED,
             ScoreboardPattern.KILL_MAGMAS, ScoreboardPattern.KILL_MAGMAS_BAR, ScoreboardPattern.REFORMING,
@@ -278,9 +250,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Crimson Isle");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Crimson Isle"); }
     },
     CARNIVAL("Carnival", true, ScoreboardPattern.CARNIVAL, ScoreboardPattern.CARNIVAL_TOKENS,
             ScoreboardPattern.CARNIVAL_TASKS, ScoreboardPattern.TIME_LEFT, ScoreboardPattern.CARNIVAL_CATCH_STREAK,
@@ -289,9 +259,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String header = firstMatches(ScoreboardPattern.CARNIVAL, sidebar());
-            if (header == null) {
-                return List.of();
-            }
+            if (header == null) return List.of();
             List<String> out = new ArrayList<>();
             out.add(header);
             out.addAll(allMatches(patterns.subList(1, patterns.size()), sidebar()));
@@ -299,23 +267,17 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Hub");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Hub"); }
     },
     RIFT("Rift", true, ScoreboardPattern.EFFIGIES, ScoreboardPattern.RIFT_HOT_DOG_TITLE, ScoreboardPattern.TIME_LEFT,
             ScoreboardPattern.RIFT_HOT_DOG_EATEN, ScoreboardPattern.RIFT_AVEIKX, ScoreboardPattern.RIFT_HAY_EATEN,
             ScoreboardPattern.CLUES, ScoreboardPattern.BARRY_PROTESTORS_QUESTLINE, ScoreboardPattern.BARRY_PROTESTORS_HANDLED,
             ScoreboardPattern.TIME_SLICED, ScoreboardPattern.BIG_DAMAGE, ScoreboardPattern.RIFT_DIMENSION) {
         @Override
-        List<String> texts() {
-            return allMatches(patterns.subList(0, patterns.size() - 1), sidebar());
-        }
+        List<String> texts() { return allMatches(patterns.subList(0, patterns.size() - 1), sidebar()); }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("The Rift");
-        }
+        boolean showIsland() { return inIslandOrUnknown("The Rift"); }
     },
     ESSENCE("Essence", true, ScoreboardPattern.ESSENCE) {
         @Override
@@ -330,9 +292,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String name = tabEventName();
-            if (name == null || blocked.contains(name.replaceAll("§.", ""))) {
-                return List.of();
-            }
+            if (name == null || blocked.contains(name.replaceAll("§.", ""))) return List.of();
             String time = tabEventTime(ScoreboardPattern.TAB_EVENT_TIME_ENDS);
             return time == null ? List.of() : List.of(name, " Ends in: §e" + time);
         }
@@ -345,9 +305,7 @@ public enum ScoreboardEvent {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Private Island");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Private Island"); }
     },
     QUEUE("Queue", false, ScoreboardPattern.QUEUE, ScoreboardPattern.QUEUE_TIER, ScoreboardPattern.QUEUE_POSITION,
             ScoreboardPattern.QUEUE_WAITING_FOR_LEADER),
@@ -362,9 +320,7 @@ public enum ScoreboardEvent {
         @Override
         List<String> texts() {
             String name = tabEventName();
-            if (name == null) {
-                return List.of();
-            }
+            if (name == null) return List.of();
             String time = tabEventTime(ScoreboardPattern.TAB_EVENT_TIME_STARTS);
             return time == null ? List.of() : List.of(name, " Starts in: §e" + time);
         }
@@ -381,25 +337,15 @@ public enum ScoreboardEvent {
     }
 
     /** Default: every sidebar line matching any of this event's patterns, in sidebar order. */
-    List<String> texts() {
-        return allMatches(patterns, sidebar());
-    }
+    List<String> texts() { return allMatches(patterns, sidebar()); }
 
-    List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-        return ScoreboardLine.of(texts());
-    }
+    List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return ScoreboardLine.of(texts()); }
 
-    boolean showIsland() {
-        return true;
-    }
+    boolean showIsland() { return true; }
 
-    boolean showWhen() {
-        return true;
-    }
+    boolean showWhen() { return true; }
 
-    boolean visible(CustomScoreboardConfig cfg) {
-        return showIsland() && (!cfg.isHideIrrelevantLines() || showWhen());
-    }
+    boolean visible(CustomScoreboardConfig cfg) { return showIsland() && (!cfg.isHideIrrelevantLines() || showWhen()); }
 
     static void addIfPresent(List<String> out, String line) {
         if (line != null) {
@@ -410,9 +356,7 @@ public enum ScoreboardEvent {
     /** Header line + up to {@code after} following lines, minus the footer (SkyHanni {@code sublistAfter}). */
     static List<String> headerSection(Pattern header, int after) {
         String line = firstMatches(header, sidebar());
-        if (line == null) {
-            return List.of();
-        }
+        if (line == null) return List.of();
         List<String> out = new ArrayList<>();
         out.add(line);
         for (String next : sublistAfter(sidebar(), line, after)) {
@@ -426,14 +370,10 @@ public enum ScoreboardEvent {
     /** Formatted event name from the tab list's "Event: X" widget header, or null. */
     static String tabEventName() {
         List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_EVENT);
-        if (widget.isEmpty()) {
-            return null;
-        }
+        if (widget.isEmpty()) return null;
         String formatted = ScoreboardData.tabFormatted().get(widget.get(0));
         int idx = formatted.indexOf("Event:");
-        if (idx < 0) {
-            return null;
-        }
+        if (idx < 0) return null;
         String name = formatted.substring(idx + "Event:".length()).trim();
         while (name.startsWith("§r")) {
             name = name.substring(2).trim();
@@ -445,9 +385,7 @@ public enum ScoreboardEvent {
         List<Integer> widget = ScoreboardData.tabWidget(ScoreboardPattern.TAB_EVENT);
         for (int i : widget) {
             Matcher m = pattern.matcher(ScoreboardData.tabPlain().get(i));
-            if (m.matches()) {
-                return m.group("time");
-            }
+            if (m.matches()) return m.group("time");
         }
         return null;
     }

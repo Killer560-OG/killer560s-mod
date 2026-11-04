@@ -53,9 +53,7 @@ public final class RebootFeature {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
                 ClientCommands.literal("reboot")
@@ -69,13 +67,10 @@ public final class RebootFeature {
                         }))));
     }
 
-    // ---- detection ---------------------------------------------------------------------------------------------------
 
     /** What /reboot found: the launcher to run and the instance id, or why it cannot reboot. */
     public record Detection(String launcher, String launcherName, String instanceId, String reason) {
-        public boolean ok() {
-            return reason == null;
-        }
+        public boolean ok() { return reason == null; }
     }
 
     /**
@@ -103,9 +98,7 @@ public final class RebootFeature {
             return new Detection(null, null, null, "this game was not started by Prism Launcher (it was started by "
                     + exe + ")");
         }
-        if (gameDir == null) {
-            return new Detection(null, launcherName, null, "the game folder is unknown");
-        }
+        if (gameDir == null) return new Detection(null, launcherName, null, "the game folder is unknown");
         Path dir = gameDir.toAbsolutePath().normalize();
         Path leaf = dir.getFileName();
         Path instance = dir.getParent();
@@ -116,9 +109,7 @@ public final class RebootFeature {
                     + " instance's minecraft folder");
         }
         String id = instance.getFileName().toString();
-        if (id.isBlank()) {
-            return new Detection(null, launcherName, null, "the instance folder has no name");
-        }
+        if (id.isBlank()) return new Detection(null, launcherName, null, "the instance folder has no name");
         return new Detection(parentCommand, launcherName, id, null);
     }
 
@@ -137,11 +128,8 @@ public final class RebootFeature {
         return detect(parent, FabricLoader.getInstance().getGameDir());
     }
 
-    public static String lastMessage() {
-        return lastMessage;
-    }
+    public static String lastMessage() { return lastMessage; }
 
-    // ---- the command and the button -----------------------------------------------------------------------------
 
     /** /reboot. Not a Prism game: says so. In a server: asks for confirmation. Otherwise reboots now. */
     public static void request() {
@@ -183,9 +171,7 @@ public final class RebootFeature {
         reboot(d);
     }
 
-    private static boolean needsConfirm(Minecraft client) {
-        return client.player != null && !client.hasSingleplayerServer();
-    }
+    private static boolean needsConfirm(Minecraft client) { return client.player != null && !client.hasSingleplayerServer(); }
 
     private static void reboot(Detection d) {
         Minecraft client = Minecraft.getInstance();
@@ -205,9 +191,7 @@ public final class RebootFeature {
     }
 
     /** The relauncher's folder: its class file, reboot.log and the launcher's output. */
-    public static Path workDir() {
-        return ModPaths.config("killer560smod-reboot");
-    }
+    public static Path workDir() { return ModPaths.config("killer560smod-reboot"); }
 
     /**
      * Starts {@link RebootHelper} waiting on {@code gamePid}; it then runs {@code launcher [prefix...] --launch

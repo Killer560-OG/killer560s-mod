@@ -28,20 +28,12 @@ public record NowPlaying(Kind kind, String artist, String title, Long positionMs
         PAUSED,
     }
 
-    public static NowPlaying track(String artist, String title) {
-        return new NowPlaying(Kind.TRACK, artist, title, null);
-    }
+    public static NowPlaying track(String artist, String title) { return new NowPlaying(Kind.TRACK, artist, title, null); }
 
-    public static NowPlaying ad() {
-        return new NowPlaying(Kind.AD, "", "", null);
-    }
+    public static NowPlaying ad() { return new NowPlaying(Kind.AD, "", "", null); }
 
-    public static NowPlaying paused() {
-        return new NowPlaying(Kind.PAUSED, "", "", null);
-    }
+    public static NowPlaying paused() { return new NowPlaying(Kind.PAUSED, "", "", null); }
 
     /** The key a track change is detected on. Artist and title together, because titles repeat. */
-    public String key() {
-        return kind + "|||" + artist + "|||" + title;
-    }
+    public String key() { return kind + "|||" + artist + "|||" + title; }
 }

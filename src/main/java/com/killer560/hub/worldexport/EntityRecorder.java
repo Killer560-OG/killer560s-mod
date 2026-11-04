@@ -41,9 +41,7 @@ public final class EntityRecorder {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level != lastLevel) {
@@ -56,28 +54,18 @@ public final class EntityRecorder {
         });
     }
 
-    public static boolean isRecording() {
-        return recording;
-    }
+    public static boolean isRecording() { return recording; }
 
-    public static void setRecording(boolean on) {
-        recording = on;
-    }
+    public static void setRecording(boolean on) { recording = on; }
 
-    public static int count() {
-        return SEEN.size();
-    }
+    public static int count() { return SEEN.size(); }
 
-    public static void clear() {
-        SEEN.clear();
-    }
+    public static void clear() { SEEN.clear(); }
 
     private static void scan(ClientLevel level) {
         Minecraft mc = Minecraft.getInstance();
         for (Entity e : level.entitiesForRendering()) {
-            if (e == mc.player || e.isRemoved()) {
-                continue;
-            }
+            if (e == mc.player || e.isRemoved()) continue;
             if (e instanceof ArmorStand || e instanceof Player) {
                 SEEN.put(e.getUUID(), describe(level, e));
             }

@@ -53,9 +53,7 @@ public final class PingTracker {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PingTracker", PingTracker::tick));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
@@ -63,18 +61,12 @@ public final class PingTracker {
     }
 
     /** Pings are sent while any registered supplier answers true. */
-    public static void addDemand(BooleanSupplier wanted) {
-        DEMAND.add(wanted);
-    }
+    public static void addDemand(BooleanSupplier wanted) { DEMAND.add(wanted); }
 
     private static void tick(Minecraft client) {
         ClientPacketListener connection = client.getConnection();
-        if (connection == null || client.player == null) {
-            return;
-        }
-        if (++tickCounter < INTERVAL_TICKS) {
-            return;
-        }
+        if (connection == null || client.player == null) return;
+        if (++tickCounter < INTERVAL_TICKS) return;
         tickCounter = 0;
         boolean wanted = false;
         for (BooleanSupplier s : DEMAND) {
@@ -83,9 +75,7 @@ public final class PingTracker {
                 break;
             }
         }
-        if (!wanted) {
-            return;
-        }
+        if (!wanted) return;
         long now = Util.getMillis();
         lastSentLagMark = PerTickServerClock.mark();
         lastSentTime = now;
@@ -96,9 +86,7 @@ public final class PingTracker {
     /** From {@code PingPongMixin}, on the Netty thread. Vanilla's own F3 pongs are real round trips too. */
     public static void onPong(long sentTime) {
         long rtt = Util.getMillis() - sentTime;
-        if (rtt < 0 || rtt > MAX_SAMPLE_MS) {
-            return;
-        }
+        if (rtt < 0 || rtt > MAX_SAMPLE_MS) return;
         // A pong for our own request: take out what the server stalled meanwhile (vanilla's F3 pongs carry no mark).
         long stall = sentTime == lastSentTime ? PerTickServerClock.stallTicksSince(lastSentLagMark) * 50L : 0L;
         synchronized (samples) {
@@ -125,9 +113,7 @@ public final class PingTracker {
     /** Average of the last few measured round trips, or -1 before the first pong. */
     public static int measuredMs() {
         synchronized (samples) {
-            if (sampleCount == 0) {
-                return -1;
-            }
+            if (sampleCount == 0) return -1;
             long sum = 0;
             for (int i = 0; i < sampleCount; i++) {
                 sum += samples[i];
@@ -196,23 +182,15 @@ public final class PingTracker {
     /** The local player's own tab-list latency, or -1 when unknown. */
     public static int tabListMs() {
         Minecraft client = Minecraft.getInstance();
-        if (client.getConnection() == null || client.player == null) {
-            return -1;
-        }
+        if (client.getConnection() == null || client.player == null) return -1;
         PlayerInfo info = client.getConnection().getPlayerInfo(client.player.getUUID());
         return info == null ? -1 : info.getLatency();
     }
 
     /** Read by the testkit. */
-    public static long lastSampleMs() {
-        return lastSampleMs;
-    }
+    public static long lastSampleMs() { return lastSampleMs; }
 
-    public static int pongsReceived() {
-        return pongsReceived;
-    }
+    public static int pongsReceived() { return pongsReceived; }
 
-    public static int pingsSent() {
-        return pingsSent;
-    }
+    public static int pingsSent() { return pingsSent; }
 }

@@ -39,9 +39,7 @@ final class StorageSearchDiskWriter {
     private static synchronized void flush() {
         for (Path path : PENDING.keySet()) {
             Supplier<String> json = PENDING.remove(path);
-            if (json == null) {
-                continue;
-            }
+            if (json == null) continue;
             try {
                 Files.createDirectories(path.getParent());
                 Files.writeString(path, json.get(), StandardCharsets.UTF_8);

@@ -1,7 +1,6 @@
 package com.killer560.hub.modusers;
 
 import com.killer560.hub.util.ModLog;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
@@ -41,18 +40,14 @@ public final class ModUserTabTag {
 
     /** {@code shown} with the mod user diamond in front, or {@code null} to leave the row alone. */
     public static Component apply(PlayerInfo info, Component shown) {
-        if (info == null || shown == null || info.getProfile() == null) {
-            return null;
-        }
+        if (info == null || shown == null || info.getProfile() == null) return null;
         String variant;
         try {
             variant = variantFor(info);
         } catch (RuntimeException e) {
             return null; // a cosmetic must never break the tab list
         }
-        if (variant == null) {
-            return null;
-        }
+        if (variant == null) return null;
         if (!loggedOnce) {
             loggedOnce = true;
             LOGGER.info("Mod User Tag: tab list hook ran, tagged a row as {}", variant);
@@ -66,9 +61,7 @@ public final class ModUserTabTag {
         String own = client.player != null ? client.player.getGameProfile().name() : null;
         boolean showOwn = cfg.isShare();
         boolean seeOthers = cfg.isSeeOthers();
-        if (!showOwn && !seeOthers) {
-            return null;
-        }
+        if (!showOwn && !seeOthers) return null;
         String shareAs = cfg.getShareAs();
         int version = ModUsers.version();
         Component source = info.getTabListDisplayName();
@@ -103,9 +96,7 @@ public final class ModUserTabTag {
             }
             if (j - i >= 3 && j - i <= 16) {
                 String v = lookup(plain.substring(i, j), own, showOwn, seeOthers, shareAs);
-                if (v != null) {
-                    return v;
-                }
+                if (v != null) return v;
             }
             i = j;
         }
@@ -113,12 +104,8 @@ public final class ModUserTabTag {
     }
 
     private static String lookup(String name, String own, boolean showOwn, boolean seeOthers, String shareAs) {
-        if (name == null) {
-            return null;
-        }
-        if (name.equals(own)) {
-            return showOwn ? shareAs : null;
-        }
+        if (name == null) return null;
+        if (name.equals(own)) return showOwn ? shareAs : null;
         return seeOthers ? ModUsers.variantOf(name) : null;
     }
 

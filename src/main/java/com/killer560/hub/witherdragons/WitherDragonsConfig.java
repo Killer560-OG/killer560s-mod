@@ -28,13 +28,9 @@ public final class WitherDragonsConfig {
             this.label = label;
         }
 
-        public TimerStyle next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public TimerStyle next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public TimerStyle previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public TimerStyle previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     public enum TitleMode {
@@ -45,13 +41,9 @@ public final class WitherDragonsConfig {
             this.label = label;
         }
 
-        public TitleMode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public TitleMode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public TitleMode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public TitleMode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     public enum NameStyle {
@@ -62,13 +54,9 @@ public final class WitherDragonsConfig {
             this.label = label;
         }
 
-        public NameStyle next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public NameStyle next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public NameStyle previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public NameStyle previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     /** Odin "Purple Solo Debuff": the class that solo-debuffs purple; the other one helps Berserk/Mage. */
@@ -80,13 +68,9 @@ public final class WitherDragonsConfig {
             this.label = label;
         }
 
-        public SoloDebuff next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public SoloDebuff next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public SoloDebuff previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public SoloDebuff previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     public enum ClassOverride {
@@ -104,13 +88,9 @@ public final class WitherDragonsConfig {
             this.clazz = clazz;
         }
 
-        public ClassOverride next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public ClassOverride next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public ClassOverride previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public ClassOverride previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -173,19 +153,13 @@ public final class WitherDragonsConfig {
     }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isRelicsEnabledRaw() {
-        return relicsEnabled;
-    }
+    public boolean isRelicsEnabledRaw() { return relicsEnabled; }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isRelicHighlightRaw() {
-        return relicHighlight;
-    }
+    public boolean isRelicHighlightRaw() { return relicHighlight; }
 
     private static void load0() {
         WitherDragonsConfig cfg = new WitherDragonsConfig();
@@ -270,29 +244,22 @@ public final class WitherDragonsConfig {
         }
     }
 
-    private static float clampPower(float v) {
-        return Math.max(0f, Math.min(32f, Math.round(v * 2f) / 2f));
-    }
+    private static float clampPower(float v) { return Math.max(0f, Math.min(32f, Math.round(v * 2f) / 2f)); }
 
     // ---- masters (Skyblock Only gate) ----
 
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     public void setEnabled(boolean v) {
         enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isRelicsEnabled() {
-        return relicsEnabled && SkyblockGate.allows();
-    }
+    public boolean isRelicsEnabled() { return relicsEnabled && SkyblockGate.allows(); }
 
     public void setRelicsEnabled(boolean v) {
         relicsEnabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    // ---- dragons ----
 
     public boolean isDragonTimer() { return dragonTimer; }
     public void setDragonTimer(boolean v) { dragonTimer = v; }
@@ -339,7 +306,6 @@ public final class WitherDragonsConfig {
     public ClassOverride getClassOverride() { return classOverride; }
     public void setClassOverride(ClassOverride v) { classOverride = v == null ? ClassOverride.AUTO : v; }
 
-    // ---- relics ----
 
     public boolean isRelicSpawnTimer() { return relicSpawnTimer; }
     public void setRelicSpawnTimer(boolean v) { relicSpawnTimer = v; }

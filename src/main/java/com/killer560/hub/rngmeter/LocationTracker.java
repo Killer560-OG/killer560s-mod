@@ -27,16 +27,12 @@ public final class LocationTracker {
     /** Returns a category index (0-5, matching {@link RngItemData#CATEGORY_NAMES}) or -1 if unknown. */
     public static int detectCategory() {
         String sidebar = readSidebarText();
-        if (sidebar.isEmpty()) {
-            return -1;
-        }
+        if (sidebar.isEmpty()) return -1;
         // Real bug found and fixed (2026-09-09, round 23) - same fix as DungeonState#computeCurrentFloor:
         // Hypixel embeds literal color codes MID-WORD (e.g. "The Catac§combs"), which broke every one of
         // these plain substring checks even after the round-22 fix made real text readable at all.
         String plain = ChatFormatting.stripFormatting(sidebar);
-        if (plain == null) {
-            return -1;
-        }
+        if (plain == null) return -1;
         String lower = plain.toLowerCase(Locale.US);
 
         if (lower.contains("master mode")) {
@@ -69,16 +65,12 @@ public final class LocationTracker {
     // the same way, confirmed against SkyHanni's own real, working ScoreboardCompatKt.getPlayerNames.
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return "";
-        }
+        if (client.level == null) return "";
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (sidebar == null) {
             for (DisplaySlot slot : DisplaySlot.values()) {
-                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) {
-                    continue;
-                }
+                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) continue;
                 Objective candidate = scoreboard.getDisplayObjective(slot);
                 if (candidate != null) {
                     sidebar = candidate;
@@ -86,9 +78,7 @@ public final class LocationTracker {
                 }
             }
         }
-        if (sidebar == null) {
-            return "";
-        }
+        if (sidebar == null) return "";
         StringBuilder sb = new StringBuilder();
         sb.append(sidebar.getDisplayName().getString()).append('\n');
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
@@ -99,9 +89,7 @@ public final class LocationTracker {
 
     private static String realLineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
         PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
-        if (team == null) {
-            return entry.display() != null ? entry.display().getString() : entry.owner();
-        }
+        if (team == null) return entry.display() != null ? entry.display().getString() : entry.owner();
         StringBuilder line = new StringBuilder();
         Component prefix = team.getPlayerPrefix();
         if (prefix != null) {

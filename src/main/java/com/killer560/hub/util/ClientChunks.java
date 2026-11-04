@@ -27,12 +27,8 @@ public final class ClientChunks {
 
     /** Whether chunk ({@code cx}, {@code cz}) has real blocks to read (chunk coordinates). */
     public static boolean isLoaded(Level level, int cx, int cz) {
-        if (level == null) {
-            return false;
-        }
-        if (level instanceof ClientLevel client) {
-            return client.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false) != null;
-        }
+        if (level == null) return false;
+        if (level instanceof ClientLevel client) return client.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false) != null;
         return level.hasChunk(cx, cz);
     }
 
@@ -41,22 +37,16 @@ public final class ClientChunks {
      * Chunk Cache routes past its store), so a chunk only the cache still holds is not live. For code that must not
      * read a snapshot that may be stale (the room capture).
      */
-    public static boolean isLive(Level level, int cx, int cz) {
-        return level != null && level.getChunkSource().hasChunk(cx, cz);
-    }
+    public static boolean isLive(Level level, int cx, int cz) { return level != null && level.getChunkSource().hasChunk(cx, cz); }
 
     /** {@link #isLoaded(Level, int, int)} for the chunk holding block column ({@code x}, {@code z}). */
-    public static boolean isLoadedAt(Level level, int x, int z) {
-        return isLoaded(level, x >> 4, z >> 4);
-    }
+    public static boolean isLoadedAt(Level level, int x, int z) { return isLoaded(level, x >> 4, z >> 4); }
 
     /** Whether every chunk under the block box {@code [minX..maxX] x [minZ..maxZ]} has real blocks to read. */
     public static boolean allLoaded(Level level, int minX, int minZ, int maxX, int maxZ) {
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
-                if (!isLoaded(level, cx, cz)) {
-                    return false;
-                }
+                if (!isLoaded(level, cx, cz)) return false;
             }
         }
         return true;

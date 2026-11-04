@@ -96,9 +96,7 @@ public final class StorageOverlayFeature {
     private StorageOverlayFeature() {
     }
 
-    public static void setSearchOpener(Runnable opener) {
-        searchOpener = opener;
-    }
+    public static void setSearchOpener(Runnable opener) { searchOpener = opener; }
 
     /**
      * Points the grid at one cached slot and scrolls to it - killer560 (2026-09-21): "when it opens my storage
@@ -111,9 +109,7 @@ public final class StorageOverlayFeature {
      * outline itself, which is what this does.
      */
     public static void highlightItem(String key, int contentIndex, long durationMs) {
-        if (key == null || contentIndex < 0) {
-            return;
-        }
+        if (key == null || contentIndex < 0) return;
         highlightKey = key;
         highlightIndex = contentIndex;
         highlightUntil = System.currentTimeMillis() + durationMs;
@@ -121,13 +117,7 @@ public final class StorageOverlayFeature {
     }
 
     /** Narrows the grid to one storage (null clears it). */
-    public static void setFocus(String key) {
-        focusKey = key;
-    }
-
-    public static String getFocus() {
-        return focusKey;
-    }
+    public static void setFocus(String key) { focusKey = key; }
 
     public static void register() {
         // Every real slot of a storage page or the overview is hidden under the overlay: blank overlay space must not
@@ -136,14 +126,10 @@ public final class StorageOverlayFeature {
                 && s instanceof AbstractContainerScreen<?> && shouldHideVanilla(s.getTitle()));
         HudElementRegistry.register(new HudElement() {
             @Override
-            public String id() {
-                return ELEMENT_ID;
-            }
+            public String id() { return ELEMENT_ID; }
 
             @Override
-            public String displayName() {
-                return "Storage Overlay";
-            }
+            public String displayName() { return "Storage Overlay"; }
 
             // Real mistake found and fixed (2026-09-08): every earlier attempt here was moving the
             // WRONG element. killer560's actual, original request was "make the menu start at the top
@@ -175,9 +161,7 @@ public final class StorageOverlayFeature {
             }
 
             @Override
-            public int defaultY() {
-                return 20;
-            }
+            public int defaultY() { return 20; }
 
             // Third time (2026-10-07, "my storage overlay isn't centered again"): his HUD config held a SAVED
             // storage_overlay position {x: 0, y: 20}, written by the HUD editor at 20:26 that day. A saved position
@@ -194,9 +178,7 @@ public final class StorageOverlayFeature {
             public int[] layoutPosition() {
                 Minecraft client = Minecraft.getInstance();
                 var window = client == null ? null : client.getWindow();
-                if (window == null) {
-                    return null;
-                }
+                if (window == null) return null;
                 int screenWidth = window.getGuiScaledWidth();
                 int screenHeight = window.getGuiScaledHeight();
                 float drawScale = hudEditorScale();
@@ -271,12 +253,8 @@ public final class StorageOverlayFeature {
             renamingKey = null;
             renamingBox = null;
             renamingScreen = null;
-            if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
-                return;
-            }
-            if (!(containerScreen.getMenu() instanceof ChestMenu menu)) {
-                return;
-            }
+            if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) return;
+            if (!(containerScreen.getMenu() instanceof ChestMenu menu)) return;
             String title = containerScreen.getTitle().getString();
             if (title.equals(OVERVIEW_TITLE)) {
                 scanOverview(menu);
@@ -301,9 +279,7 @@ public final class StorageOverlayFeature {
                 return;
             }
             String key = storageKeyForTitle(title);
-            if (key == null) {
-                return;
-            }
+            if (key == null) return;
             captureIfChanged(menu, key);
             // Review fix (2026-09-15): the per-frame re-capture in onContainerScreenRender only runs while
             // the overlay is ENABLED, so with it off the only capture was this one at init - before Hypixel's
@@ -339,9 +315,7 @@ public final class StorageOverlayFeature {
                 break;
             }
         }
-        if (!synced) {
-            return;
-        }
+        if (!synced) return;
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
         // Real slots 0-8 (row 1 of the container) are Hypixel's own menu chrome - a "Go Back" barrier,
         // a sort/convert arrow, and decorative navigation glass panes, never real storage contents.
@@ -354,17 +328,11 @@ public final class StorageOverlayFeature {
         // copying ~45 stacks first only to find nothing changed was most of it (fps passes 2026-10-19 and 2026-10-21).
         // The copies are made only when the page really is stored.
         List<ItemStack> cached = cache.peek(key);
-        if (cached != null && matchesSlots(cached, menu, 9, containerSlotCount - 9)) {
-            return;
-        }
+        if (cached != null && matchesSlots(cached, menu, 9, containerSlotCount - 9)) return;
         List<ItemStack> contents = new ArrayList<>();
         for (Slot slot : menu.slots) {
-            if (slot.index < 9) {
-                continue;
-            }
-            if (slot.index >= containerSlotCount) {
-                break;
-            }
+            if (slot.index < 9) continue;
+            if (slot.index >= containerSlotCount) break;
             ItemStack stack = slot.getItem();
             contents.add(stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
         }
@@ -412,9 +380,7 @@ public final class StorageOverlayFeature {
         // Runs every tick while the Wardrobe is open: compare in place, copy only when a set icon really changed.
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
         List<ItemStack> cached = cache.peek(key);
-        if (cached != null && matchesSlots(cached, menu, WARDROBE_SET_SLOT_START, WARDROBE_SET_SLOT_COUNT)) {
-            return;
-        }
+        if (cached != null && matchesSlots(cached, menu, WARDROBE_SET_SLOT_START, WARDROBE_SET_SLOT_COUNT)) return;
         List<ItemStack> contents = new ArrayList<>(WARDROBE_SET_SLOT_COUNT);
         for (int i = 0; i < WARDROBE_SET_SLOT_COUNT; i++) {
             ItemStack stack = menu.slots.get(WARDROBE_SET_SLOT_START + i).getItem();
@@ -426,13 +392,9 @@ public final class StorageOverlayFeature {
     /** Whether {@code cached} holds, in order, exactly the {@code count} live stacks of {@code menu}'s slots starting at
      *  {@code first} (by emptiness, count and item). */
     private static boolean matchesSlots(List<ItemStack> cached, ChestMenu menu, int first, int count) {
-        if (count < 0 || cached.size() != count || menu.slots.size() < first + count) {
-            return false;
-        }
+        if (count < 0 || cached.size() != count || menu.slots.size() < first + count) return false;
         for (int i = 0; i < count; i++) {
-            if (!sameStack(cached.get(i), menu.slots.get(first + i).getItem())) {
-                return false;
-            }
+            if (!sameStack(cached.get(i), menu.slots.get(first + i).getItem())) return false;
         }
         return true;
     }
@@ -440,10 +402,7 @@ public final class StorageOverlayFeature {
     private static boolean sameStack(ItemStack sa, ItemStack sb) {
         boolean emptyA = sa == null || sa.isEmpty();
         boolean emptyB = sb == null || sb.isEmpty();
-        if (emptyA || emptyB) {
-            return emptyA == emptyB;
-        }
-        return sa.getCount() == sb.getCount() && sa.getItem().equals(sb.getItem());
+        return emptyA || emptyB ? emptyA == emptyB : sa.getCount() == sb.getCount() && sa.getItem().equals(sb.getItem());
     }
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
@@ -474,9 +433,7 @@ public final class StorageOverlayFeature {
                 break;
             }
         }
-        if (!synced) {
-            return;
-        }
+        if (!synced) return;
         if (menu != overviewMenu) {
             overviewMenu = menu;
             java.util.Arrays.fill(overviewStacks, null);
@@ -487,18 +444,12 @@ public final class StorageOverlayFeature {
             // the stack in that slot is a different object from the last frame's - the server replaces a stack, it does
             // not edit one.
             int index = slot.index;
-            if (index < 9 || index >= 45 || (index >= 18 && index < 27)) {
-                continue;
-            }
+            if (index < 9 || index >= 45 || (index >= 18 && index < 27)) continue;
             ItemStack seen = slot.getItem();
-            if (overviewStacks[index] == seen) {
-                continue;
-            }
+            if (overviewStacks[index] == seen) continue;
             overviewStacks[index] = seen;
             String key = overviewSlotToKey(index);
-            if (key == null) {
-                continue;
-            }
+            if (key == null) continue;
             // Anchored name/lore patterns shared with Scan All (StoragePageSlots) - the old contains("locked") /
             // contains("empty") also matched a real backpack whose name merely contained either word.
             boolean owned = StoragePageSlots.classify(slot.getItem()) == StoragePageSlots.Kind.PAGE;
@@ -514,12 +465,8 @@ public final class StorageOverlayFeature {
     private static final ItemStack[] overviewStacks = new ItemStack[45];
 
     private static String overviewSlotToKey(int slotIndex) {
-        if (slotIndex >= 9 && slotIndex < 18) {
-            return storageKey("enderchest_" + (slotIndex - 8));
-        }
-        if (slotIndex >= 27 && slotIndex < 45) {
-            return storageKey("backpack_" + (slotIndex - 26));
-        }
+        if (slotIndex >= 9 && slotIndex < 18) return storageKey("enderchest_" + (slotIndex - 8));
+        if (slotIndex >= 27 && slotIndex < 45) return storageKey("backpack_" + (slotIndex - 26));
         return null;
     }
 
@@ -528,13 +475,9 @@ public final class StorageOverlayFeature {
      *  for both "should I draw?" and "should a click here even be considered for opening a page?". */
     public static String storageKeyForTitle(String title) {
         Matcher chest = ENDER_CHEST_TITLE.matcher(title);
-        if (chest.matches()) {
-            return storageKey("enderchest_" + chest.group(1));
-        }
+        if (chest.matches()) return storageKey("enderchest_" + chest.group(1));
         Matcher backpack = BACKPACK_TITLE.matcher(title);
-        if (backpack.matches()) {
-            return storageKey("backpack_" + backpack.group(1));
-        }
+        if (backpack.matches()) return storageKey("backpack_" + backpack.group(1));
         return null;
     }
 
@@ -548,9 +491,7 @@ public final class StorageOverlayFeature {
         // read for the profile name, ~90 times a frame. The key is never null for a matching title, so the answer is
         // the title match alone, and it only changes when the title does (FPS sweep, 2026-10-07).
         HideMemo memo = hideMemo;
-        if (memo != null && memo.title.equals(title)) {
-            return memo.hide;
-        }
+        if (memo != null && memo.title.equals(title)) return memo.hide;
         boolean hide = ENDER_CHEST_TITLE.matcher(title).matches() || BACKPACK_TITLE.matcher(title).matches()
                 || title.equals(OVERVIEW_TITLE);
         hideMemo = new HideMemo(title, hide, null);
@@ -561,9 +502,7 @@ public final class StorageOverlayFeature {
      *  string for every slot of every frame. */
     public static boolean shouldHideVanilla(Component title) {
         HideMemo memo = hideMemo;
-        if (memo != null && memo.component == title && title != null) {
-            return memo.hide;
-        }
+        if (memo != null && memo.component == title && title != null) return memo.hide;
         String text = title == null ? "" : title.getString();
         boolean hide = shouldHideVanilla(text);
         hideMemo = new HideMemo(text, hide, title);
@@ -582,15 +521,11 @@ public final class StorageOverlayFeature {
     public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
                                                 int mouseX, int mouseY) {
         try {
-            if (!StorageOverlayConfig.getInstance().isEnabled()) {
-                return;
-            }
+            if (!StorageOverlayConfig.getInstance().isEnabled()) return;
             // Every container screen runs this every frame. Not a storage page and not the overview is the same
             // question shouldHideVanilla answers, memoized on the title object; the title's text and two regexes per
             // frame were spent only to find that out (mixin FPS pass, 2026-10-15).
-            if (!shouldHideVanilla(screen.getTitle())) {
-                return;
-            }
+            if (!shouldHideVanilla(screen.getTitle())) return;
             String title = screen.getTitle().getString();
             String activeKey = storageKeyForTitle(title);
             // Per killer560's report (2026-09-08): the grid should already show while browsing the
@@ -598,9 +533,7 @@ public final class StorageOverlayFeature {
             // actually visible there), not only once a specific numbered page is open. activeKey stays
             // null on the overview itself - nothing is "the active page" while just browsing it.
             boolean isOverview = title.equals(OVERVIEW_TITLE);
-            if (activeKey == null && !isOverview) {
-                return;
-            }
+            if (activeKey == null && !isOverview) return;
             // Per killer560's "same exact style as the rest of the overlay... move the inventory
             // portion all the way to the bottom" request (2026-09-08): the real inventory can't
             // actually be moved (Slot.x/y are final), so instead it's hidden (StorageOverlaySlotMixin)
@@ -627,9 +560,7 @@ public final class StorageOverlayFeature {
                 captureIfChanged(activeMenu, activeKey);
             }
             HudElement element = HudElementRegistry.byId(ELEMENT_ID);
-            if (element == null) {
-                return;
-            }
+            if (element == null) return;
             // The real grid, over a real storage menu; the element's render() only draws a label for the HUD
             // editor. Open a storage, then the editor within HudSeen.GRACE_MS, and it becomes draggable.
             HudSeen.markDrawn(ELEMENT_ID);
@@ -835,14 +766,10 @@ public final class StorageOverlayFeature {
      *  first frame after {@link #highlightItem}. Runs after the layout pass (which is what knows where that panel
      *  ended up) and before the normal clamp. */
     private static void applyPendingScroll(List<PanelLayout> layout, int viewportHeightLocal) {
-        if (pendingScrollKey == null) {
-            return;
-        }
+        if (pendingScrollKey == null) return;
         var font = Minecraft.getInstance().font;
         for (PanelLayout p : layout) {
-            if (!p.key().equals(pendingScrollKey)) {
-                continue;
-            }
+            if (!p.key().equals(pendingScrollKey)) continue;
             int labelHeight = font.lineHeight + 4;
             int rowIndex = p.contents() == null || highlightIndex < 0 ? 0 : highlightIndex / 9;
             int rowY = p.y() + labelHeight + rowIndex * SLOT_SIZE;
@@ -861,9 +788,7 @@ public final class StorageOverlayFeature {
         lastBackButton = null;
         lastSearchButton = null;
         lastScanButton = null;
-        if (lastPos == null) {
-            return;
-        }
+        if (lastPos == null) return;
         String scanLabel = scanButtonLabel();
         // Wide enough for the Scan All button's progress ("Stop 12/27"), all three the same width.
         int w = Math.max(58, Minecraft.getInstance().font.width(scanLabel) + 10);
@@ -907,9 +832,7 @@ public final class StorageOverlayFeature {
     /** "Scan All", or while a scan runs "Stop" and its progress: pages done / pages planned ("..." until the Storage
      *  menu has been read). */
     public static String scanButtonLabel() {
-        if (!com.killer560.hub.storagesearch.StorageScanAll.isRunning()) {
-            return "Scan All";
-        }
+        if (!com.killer560.hub.storagesearch.StorageScanAll.isRunning()) return "Scan All";
         int total = com.killer560.hub.storagesearch.StorageScanAll.pagesTotal();
         return total < 0 ? "Stop ..." : "Stop " + com.killer560.hub.storagesearch.StorageScanAll.pagesDone() + "/" + total;
     }
@@ -968,15 +891,11 @@ public final class StorageOverlayFeature {
      *  (2026-09-08) - only intercepts the scroll wheel when the cursor is actually over the grid's
      *  current viewport, so scrolling elsewhere on the screen is unaffected. */
     public static boolean handleScroll(double mouseX, double mouseY, double scrollDeltaY) {
-        if (lastPos == null || lastViewportHeightPx <= 0) {
-            return false;
-        }
+        if (lastPos == null || lastViewportHeightPx <= 0) return false;
         // The rename EditBox's screen position is fixed at whatever it was when double-clicked (see
         // startRename) - scrolling the grid underneath it would visually detach it from its label, so
         // scrolling is simply blocked for the duration of a rename instead.
-        if (renamingKey != null) {
-            return false;
-        }
+        if (renamingKey != null) return false;
         if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
                 || mouseY < lastPos[1] || mouseY > lastPos[1] + lastViewportHeightPx) {
             return false;
@@ -994,15 +913,9 @@ public final class StorageOverlayFeature {
      *  silently vanish from the grid. */
     private static int[] storageOrderKey(String key, String prefix) {
         String local = key.substring(prefix.length() + 1);
-        if (local.startsWith("enderchest_")) {
-            return new int[]{0, parseIntSafe(local.substring("enderchest_".length()))};
-        }
-        if (local.startsWith("backpack_")) {
-            return new int[]{1, parseIntSafe(local.substring("backpack_".length()))};
-        }
-        if (local.startsWith("wardrobe_")) {
-            return new int[]{2, parseIntSafe(local.substring("wardrobe_".length()))};
-        }
+        if (local.startsWith("enderchest_")) return new int[]{0, parseIntSafe(local.substring("enderchest_".length()))};
+        if (local.startsWith("backpack_")) return new int[]{1, parseIntSafe(local.substring("backpack_".length()))};
+        if (local.startsWith("wardrobe_")) return new int[]{2, parseIntSafe(local.substring("wardrobe_".length()))};
         return new int[]{3, 0};
     }
 
@@ -1037,9 +950,7 @@ public final class StorageOverlayFeature {
      *  2026-11-02). */
     public static List<int[]> drawnRects(net.minecraft.client.gui.screens.Screen screen) {
         List<int[]> out = new ArrayList<>();
-        if (screen == null || screen != lastDrawnScreen) {
-            return out;
-        }
+        if (screen == null || screen != lastDrawnScreen) return out;
         if (lastPos != null && lastViewportWidthPx > 0 && lastViewportHeightPx > 0) {
             // background margin 4 on every side, the scroll bar 3..7 right of the grid
             out.add(new int[]{lastPos[0] - 4, lastPos[1] - 4, lastPos[0] + lastViewportWidthPx + 8,
@@ -1059,9 +970,7 @@ public final class StorageOverlayFeature {
 
     /** The relocated "Inventory" panel's LOCAL (pre-scale) height - always 4 rows (36 slots), styled
      *  identically to every other panel in the grid. */
-    private static int inventoryPanelHeight() {
-        return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6;
-    }
+    private static int inventoryPanelHeight() { return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6; }
 
     /** The relocated "Inventory" panel's real on-screen top Y, AFTER scale - per killer560's "move the
      *  inventory portion all the way to the bottom" request (2026-09-08), pinned to the bottom of the
@@ -1144,9 +1053,7 @@ public final class StorageOverlayFeature {
             ItemStack hoveredStack = null;
             for (int i = 0; i < count; i++) {
                 ItemStack stack = slots.get(base + i).getItem();
-                if (stack == null || stack.isEmpty()) {
-                    continue;
-                }
+                if (stack == null || stack.isEmpty()) continue;
                 int slotX = (i % 9) * SLOT_SIZE + 2 + 1;
                 int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
                 com.killer560.hub.gui.ItemCell.draw(graphics, font, stack, slotX, slotY, 16); // with its rarity box
@@ -1174,25 +1081,19 @@ public final class StorageOverlayFeature {
      *  drag across). */
     public static boolean handleInventoryClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY,
                                                 int button, boolean shiftDown) {
-        if (lastInventoryBounds == null || lastInventoryOrigin == null) {
-            return false;
-        }
+        if (lastInventoryBounds == null || lastInventoryOrigin == null) return false;
         double localX = (mouseX - lastInventoryOrigin[0]) / lastInventoryScale;
         double localY = (mouseY - lastInventoryOrigin[1]) / lastInventoryScale;
         int x = lastInventoryBounds[0];
         int y = lastInventoryBounds[1];
         int w = lastInventoryBounds[2];
         int h = lastInventoryBounds[3];
-        if (localX < x || localX >= x + w || localY < y || localY >= y + h) {
-            return false;
-        }
+        if (localX < x || localX >= x + w || localY < y || localY >= y + h) return false;
         int col = (int) ((localX - x) / SLOT_SIZE);
         int row = (int) ((localY - y) / SLOT_SIZE);
         List<Slot> slots = screen.getMenu().slots;
         int realIndex = lastInventorySlotBase + row * 9 + col;
-        if (realIndex < lastInventorySlotBase || realIndex >= slots.size()) {
-            return false;
-        }
+        if (realIndex < lastInventorySlotBase || realIndex >= slots.size()) return false;
         Slot slot = slots.get(realIndex);
         ContainerInput clickType = shiftDown ? ContainerInput.QUICK_MOVE : ContainerInput.PICKUP;
         ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
@@ -1240,9 +1141,7 @@ public final class StorageOverlayFeature {
     private static void startRename(AbstractContainerScreen<?> screen, String key) {
         commitRename();
         int[] label = lastLabelBounds.get(key);
-        if (label == null || lastPos == null) {
-            return;
-        }
+        if (label == null || lastPos == null) return;
         // Real screen coordinates: mirrors the exact translate(lastPos) -> scale(lastScale) ->
         // translate(0,-scrollOffset) transform renderGrid draws under, so the box lands exactly over
         // the label it represents (see onContainerScreenRender). Font size inside the box is NOT scaled
@@ -1269,9 +1168,7 @@ public final class StorageOverlayFeature {
      *  from the screen - a no-op if nothing's being renamed. Called whenever the rename should end:
      *  Enter is pressed (see the mixin), or a click lands outside the box. */
     public static void commitRename() {
-        if (renamingKey == null) {
-            return;
-        }
+        if (renamingKey == null) return;
         String value = renamingBox != null ? renamingBox.getValue().trim() : "";
         String prefix = accountProfilePrefix();
         String defaultLabel = defaultLabelFor(renamingKey, prefix);
@@ -1286,9 +1183,7 @@ public final class StorageOverlayFeature {
         renamingScreen = null;
     }
 
-    public static boolean isRenamePending() {
-        return renamingKey != null;
-    }
+    public static boolean isRenamePending() { return renamingKey != null; }
 
     /** Manually forward a key press to the active rename box - real bug found and fixed (2026-09-08),
      *  per killer560's report that typing a movement key (e.g. "w") while renaming also made him walk.
@@ -1308,9 +1203,7 @@ public final class StorageOverlayFeature {
      *  active rename box - the mixin uses this to let a click there reach vanilla untouched (real
      *  cursor placement/selection) instead of being treated as a grid click. */
     public static boolean isRenameClickInsideBox(double mouseX, double mouseY) {
-        if (renamingBox == null) {
-            return false;
-        }
+        if (renamingBox == null) return false;
         return mouseX >= renamingBox.getX() && mouseX < renamingBox.getX() + renamingBox.getWidth()
                 && mouseY >= renamingBox.getY() && mouseY < renamingBox.getY() + renamingBox.getHeight();
     }
@@ -1319,9 +1212,7 @@ public final class StorageOverlayFeature {
      *  panel's label strip (not its item area) the click landed on, per killer560's request
      *  (2026-09-08). Any panel can be renamed this way, active or not. */
     public static boolean handleDoubleClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
-        if (lastPos == null || lastLabelBounds.isEmpty()) {
-            return false;
-        }
+        if (lastPos == null || lastLabelBounds.isEmpty()) return false;
         if (mouseX < lastPos[0] || mouseX > lastPos[0] + lastViewportWidthPx
                 || mouseY < lastPos[1] || mouseY > lastPos[1] + lastViewportHeightPx) {
             return false;
@@ -1374,9 +1265,7 @@ public final class StorageOverlayFeature {
         return scale > 0f ? scale : StorageOverlayConfig.getInstance().getScale();
     }
 
-    private static int columnsWidthLocal(int columns) {
-        return PANEL_WIDTH * columns + PADDING * (columns - 1);
-    }
+    private static int columnsWidthLocal(int columns) { return PANEL_WIDTH * columns + PADDING * (columns - 1); }
 
     /**
      * killer560's configured column count, reduced until the grid actually fits the screen it is drawn
@@ -1395,9 +1284,7 @@ public final class StorageOverlayFeature {
         int columns = StorageOverlayConfig.getInstance().getColumns();
         Minecraft client = Minecraft.getInstance();
         var window = client == null ? null : client.getWindow();
-        if (window == null) {
-            return columns;
-        }
+        if (window == null) return columns;
         float scale = totalScale();
         int screenWidth = window.getGuiScaledWidth();
         while (columns > StorageOverlayConfig.MIN_COLUMNS
@@ -1412,9 +1299,7 @@ public final class StorageOverlayFeature {
      *  (2026-09-08), shared by {@code width()}, the viewport calculation, and {@link #layoutPanels} so
      *  all three always agree (and, since 2026-09-30, so all three drop the same column when the
      *  configured count does not fit - see {@link #effectiveColumns()}). */
-    private static int gridWidthLocal() {
-        return columnsWidthLocal(effectiveColumns());
-    }
+    private static int gridWidthLocal() { return columnsWidthLocal(effectiveColumns()); }
 
     /** Lays out every known storage into the grid (column count from
      *  {@link StorageOverlayConfig#getColumns()}), top to bottom - pure layout math, no drawing, so it
@@ -1476,18 +1361,14 @@ public final class StorageOverlayFeature {
         ItemStack hoveredStack = null;
 
         for (PanelLayout p : layout) {
-            if (p.y() + p.height() < viewTop || p.y() > viewBottom) {
-                continue;
-            }
+            if (p.y() + p.height() < viewTop || p.y() > viewBottom) continue;
             String key = p.key();
             // The real EditBox occupies this exact screen area while it's being renamed - skip drawing
             // this panel entirely rather than risk painting over the box's text, regardless of which
             // of the two actually renders on top this frame (see the viewport-background skip above
             // for the same reasoning). Its own click/label bounds are deliberately not re-registered
             // either, since nothing should treat this panel as clickable while it's mid-rename.
-            if (key.equals(renamingKey)) {
-                continue;
-            }
+            if (key.equals(renamingKey)) continue;
             List<ItemStack> contents = p.contents();
             boolean active = key.equals(activeKey);
             int panelX = p.x();
@@ -1533,9 +1414,7 @@ public final class StorageOverlayFeature {
             drawSlotCells(graphics, panelX + 2, gridY, rows, theme);
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
-                if (stack == null || stack.isEmpty()) {
-                    continue;
-                }
+                if (stack == null || stack.isEmpty()) continue;
                 // +1/+1: drawSlotCells' grid lines sit exactly on each cell's boundary, so the cell's
                 // actual 16x16 interior (matching vanilla's own slot inset) starts one pixel in from
                 // its top-left corner - drawing flush with the cell origin (the old behavior) put the
@@ -1616,12 +1495,8 @@ public final class StorageOverlayFeature {
                                        String activeKey, int button, boolean shiftDown) {
         // The left-hand buttons live OUTSIDE the grid's viewport, so they have to be tested before the viewport
         // rejection below (and before the empty-grid guard - Search is still useful with nothing cached).
-        if (handleSideButtonClick(mouseX, mouseY)) {
-            return true;
-        }
-        if (lastPos == null || lastPanelBounds.isEmpty()) {
-            return false;
-        }
+        if (handleSideButtonClick(mouseX, mouseY)) return true;
+        if (lastPos == null || lastPanelBounds.isEmpty()) return false;
         // Real bug found and fixed (2026-09-08), per killer560's report that he could no longer reach
         // his own real inventory: once the grid could grow taller than its own visible/scrolled
         // viewport, a click below the (now-clipped) grid could still math out to a panel's LOCAL
@@ -1639,9 +1514,7 @@ public final class StorageOverlayFeature {
             if (localX < bounds[0] || localX > bounds[0] + bounds[2] || localY < bounds[1] || localY > bounds[1] + bounds[3]) {
                 continue;
             }
-            if (key.equals(activeKey)) {
-                return handleActivePanelClick(screen, bounds, localX, localY, button, shiftDown);
-            }
+            if (key.equals(activeKey)) return handleActivePanelClick(screen, bounds, localX, localY, button, shiftDown);
             sendOpenCommand(key);
             return true;
         }
@@ -1659,9 +1532,7 @@ public final class StorageOverlayFeature {
         int row = (int) ((localY - bounds[1]) / SLOT_SIZE);
         List<Slot> slots = screen.getMenu().slots;
         int realIndex = 9 + row * 9 + col;
-        if (col < 0 || col >= 9 || realIndex < 9 || realIndex >= slots.size()) {
-            return false;
-        }
+        if (col < 0 || col >= 9 || realIndex < 9 || realIndex >= slots.size()) return false;
         Slot slot = slots.get(realIndex);
         ContainerInput clickType = shiftDown ? ContainerInput.QUICK_MOVE : ContainerInput.PICKUP;
         ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
@@ -1670,9 +1541,7 @@ public final class StorageOverlayFeature {
 
     private static void sendOpenCommand(String key) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.player.connection == null) {
-            return;
-        }
+        if (client.player == null || client.player.connection == null) return;
         String prefix = accountProfilePrefix();
         String local = key.substring(prefix.length() + 1);
         if (local.startsWith("enderchest_")) {
@@ -1699,24 +1568,15 @@ public final class StorageOverlayFeature {
      *  default into a rename field. */
     public static String defaultLabelFor(String key, String prefix) {
         String local = key.substring(prefix.length() + 1);
-        if (local.startsWith("enderchest_")) {
-            return "Ender Chest #" + local.substring("enderchest_".length());
-        }
-        if (local.startsWith("backpack_")) {
-            return "Backpack #" + local.substring("backpack_".length());
-        }
-        if (local.startsWith("wardrobe_")) {
-            return "Wardrobe #" + local.substring("wardrobe_".length());
-        }
-        return local;
+        if (local.startsWith("enderchest_")) return "Ender Chest #" + local.substring("enderchest_".length());
+        if (local.startsWith("backpack_")) return "Backpack #" + local.substring("backpack_".length());
+        return local.startsWith("wardrobe_") ? "Wardrobe #" + local.substring("wardrobe_".length()) : local;
     }
 
     /** Composite cache key: account UUID + SkyBlock profile + this storage's own local id - see the
      *  class doc on {@link StorageOverlayCache} for why embedding both directly in the key is what
      *  actually guarantees no cross-account/cross-profile leakage. */
-    private static String storageKey(String localId) {
-        return accountProfilePrefix() + "|" + localId;
-    }
+    private static String storageKey(String localId) { return accountProfilePrefix() + "|" + localId; }
 
     /** The account+profile portion of {@link #storageKey} alone, for listing/renaming just the
      *  current account/profile's own storages in the settings tab. */
@@ -1724,9 +1584,7 @@ public final class StorageOverlayFeature {
         Minecraft client = Minecraft.getInstance();
         java.util.UUID id = client.getUser() != null ? client.getUser().getProfileId() : null;
         String profile = currentProfileName();
-        if (!client.isSameThread()) {
-            return (id != null ? id.toString() : "unknown-account") + "|" + profile;
-        }
+        if (!client.isSameThread()) return (id != null ? id.toString() : "unknown-account") + "|" + profile;
         // Built again only when the account or the profile name changes (the name String is the memoized one below,
         // so identity is exact).
         if (profile != prefixProfile || !java.util.Objects.equals(id, prefixId) || prefixValue == null) {
@@ -1739,9 +1597,7 @@ public final class StorageOverlayFeature {
 
     private static String currentProfileName() {
         String sidebar = readSidebarText();
-        if (Minecraft.getInstance().isSameThread() && sidebar == profileFor) {
-            return profileValue;
-        }
+        if (Minecraft.getInstance().isSameThread() && sidebar == profileFor) return profileValue;
         Matcher m = PROFILE_LINE.matcher(sidebar);
         String profile = m.find() ? m.group(1) : "unknown-profile";
         if (Minecraft.getInstance().isSameThread()) {
@@ -1767,14 +1623,10 @@ public final class StorageOverlayFeature {
 
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return "";
-        }
+        if (client.level == null) return "";
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
-        if (sidebar == null) {
-            return "";
-        }
+        if (sidebar == null) return "";
         java.util.Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(sidebar);
         boolean memo = client.isSameThread();
         net.minecraft.network.chat.Component title = sidebar.getDisplayName();
@@ -1792,9 +1644,7 @@ public final class StorageOverlayFeature {
                     }
                 }
             }
-            if (same) {
-                return sidebarText;
-            }
+            if (same) return sidebarText;
         }
         StringBuilder sb = new StringBuilder();
         sb.append(title.getString()).append('\n');

@@ -41,27 +41,19 @@ public enum KingRelic {
         this.placedZ = placedZ;
     }
 
-    public String colored() {
-        return "§" + colorCode + colourName;
-    }
+    public String colored() { return "§" + colorCode + colourName; }
 
     /** "Corrupted Red Relic" (NoammAddons formalName). */
-    public String itemName() {
-        return "Corrupted " + colourName + " Relic";
-    }
+    public String itemName() { return "Corrupted " + colourName + " Relic"; }
 
     /** By Skyblock id first (Odin), then by item name color (NoammAddons) - e.g. on p3sim, where items may
      *  not carry Hypixel's custom data. */
     public static KingRelic fromStack(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         String id = skyblockId(stack);
         if (id != null) {
             for (KingRelic r : values()) {
-                if (r.id.equals(id)) {
-                    return r;
-                }
+                if (r.id.equals(id)) return r;
             }
         }
         String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
@@ -81,23 +73,17 @@ public enum KingRelic {
     public static KingRelic fromName(String name) {
         String trimmed = name.trim();
         for (KingRelic r : values()) {
-            if (r.itemName().equalsIgnoreCase(trimmed)) {
-                return r;
-            }
+            if (r.itemName().equalsIgnoreCase(trimmed)) return r;
         }
         return null;
     }
 
     public static KingRelic fromColour(String colour) {
         for (KingRelic r : values()) {
-            if (r.colourName.equalsIgnoreCase(colour.trim())) {
-                return r;
-            }
+            if (r.colourName.equalsIgnoreCase(colour.trim())) return r;
         }
         return null;
     }
 
-    String key() {
-        return name().toLowerCase(Locale.ROOT);
-    }
+    String key() { return name().toLowerCase(Locale.ROOT); }
 }

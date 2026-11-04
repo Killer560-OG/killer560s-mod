@@ -11,7 +11,6 @@ import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.dvd.DvdFeature;
 import com.killer560.hub.etherwarp.EtherwarpFeature;
 import com.killer560.hub.etherwarp.EtherwarpHudElement;
-import com.killer560.hub.experiments.ExperimentsConfig;
 import com.killer560.hub.experiments.ExperimentsFeature;
 import com.killer560.hub.gifplayer.GifPlayerFeature;
 import com.killer560.hub.gui.ModScreen;
@@ -47,7 +46,6 @@ import com.killer560.hub.translate.TranslateConfig;
 import com.killer560.hub.voicetotext.VoiceToTextFeature;
 import com.killer560.hub.translate.TranslateLanguages;
 import com.killer560.hub.window.WindowModeFeature;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -547,9 +545,7 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("waypoint")
                                 .then(ClientCommands.literal("add")
                                         .executes(context -> {
-                                            if (blockedBySkyblockOnly()) {
-                                                return 0;
-                                            }
+                                            if (blockedBySkyblockOnly()) return 0;
                                             // killer560, 2026-09-27: "Do not pop up the hud when they are
                                             // added." addAtFeet still logs and returns a status string (see
                                             // its own doc) - it just isn't shown here any more.
@@ -558,9 +554,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                         })
                                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                                 .executes(context -> {
-                                                    if (blockedBySkyblockOnly()) {
-                                                        return 0;
-                                                    }
+                                                    if (blockedBySkyblockOnly()) return 0;
                                                     EtherwarpFeature.addAtFeet(
                                                             StringArgumentType.getString(context, "name"));
                                                     return 1;
@@ -636,9 +630,7 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("send")
                                 .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                         .executes(context -> {
-                                            if (blockedBySkyblockOnly()) {
-                                                return 0;
-                                            }
+                                            if (blockedBySkyblockOnly()) return 0;
                                             String name = StringArgumentType.getString(context, "name");
                                             PosmsgEntry entry = PosmsgConfig.getInstance().byName(name);
                                             if (entry == null) {
@@ -654,9 +646,7 @@ public class Killer560ModClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("termism")
                         .executes(context -> {
-                            if (blockedBySkyblockOnly()) {
-                                return 0;
-                            }
+                            if (blockedBySkyblockOnly()) return 0;
                             Minecraft client = Minecraft.getInstance();
                             client.execute(() -> client.setScreenAndShow(new TermismMenuScreen(McCompat.screen(client))));
                             return 1;
@@ -703,18 +693,14 @@ public class Killer560ModClient implements ClientModInitializer {
 
             dispatcher.register(ClientCommands.literal("cringe")
                     .executes(context -> {
-                        if (blockedBySkyblockOnly()) {
-                            return 0;
-                        }
+                        if (blockedBySkyblockOnly()) return 0;
                         CringeFeature.sendRandom();
                         return 1;
                     })
                     .then(ClientCommands.argument("channel", StringArgumentType.word())
                             .suggests(cringeChannelSuggestions)
                             .executes(context -> {
-                                if (blockedBySkyblockOnly()) {
-                                    return 0;
-                                }
+                                if (blockedBySkyblockOnly()) return 0;
                                 String typed = StringArgumentType.getString(context, "channel");
                                 String channel = CringeFeature.resolveChannel(typed);
                                 if (channel == null) {
@@ -732,9 +718,7 @@ public class Killer560ModClient implements ClientModInitializer {
      *  numbers and joins everything before them back into the message text, rather than using
      *  separate Brigadier arguments (which can't express "greedy string, but not the last 4 words"). */
     private static int posmsgAdd(CommandContext<FabricClientCommandSource> context) {
-        if (blockedBySkyblockOnly()) {
-            return 0;
-        }
+        if (blockedBySkyblockOnly()) return 0;
         String rest = StringArgumentType.getString(context, "rest").trim();
         String[] tokens = rest.split("\\s+");
         if (tokens.length < 5) {
@@ -773,9 +757,7 @@ public class Killer560ModClient implements ClientModInitializer {
     /** Skyblock Only: feature commands (cringe, posmsg, mod chat, etherwarp add, termism) do nothing outside
      *  Skyblock / p3sim while the toggle is on. Settings/profile/menu commands are never blocked. */
     private static boolean blockedBySkyblockOnly() {
-        if (com.killer560.hub.util.SkyblockGate.allows()) {
-            return false;
-        }
+        if (com.killer560.hub.util.SkyblockGate.allows()) return false;
         ModOverlayMessage.show("§c[Skyblock Only] Mods are paused outside Skyblock / p3sim.", 3000);
         return true;
     }

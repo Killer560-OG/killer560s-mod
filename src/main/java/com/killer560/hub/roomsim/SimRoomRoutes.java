@@ -41,7 +41,6 @@ public final class SimRoomRoutes {
     private SimRoomRoutes() {
     }
 
-    // ------------------------------------------------------------------------------------------- questions
 
     /**
      * Whether a room belongs in the routes view at all: a non-puzzle, non-Blood, non-Entrance, non-Fairy room with
@@ -49,9 +48,7 @@ public final class SimRoomRoutes {
      */
     public static boolean isEligible(String roomName) {
         RoomEntry entry = RoomDatabase.lookupByName(roomName);
-        if (entry == null || entry.secrets <= 0) {
-            return false;
-        }
+        if (entry == null || entry.secrets <= 0) return false;
         String type = entry.type == null ? "" : entry.type.toUpperCase(Locale.ROOT);
         return switch (type) {
             case "PUZZLE", "BLOOD", "ENTRANCE", "FAIRY" -> false;
@@ -77,9 +74,7 @@ public final class SimRoomRoutes {
      * The room loaded on its own right now, or null when what is loaded is a generated floor or nothing yet.
      */
     public static String currentSoloRoom() {
-        if (SimState.isGeneratedFloor()) {
-            return null;
-        }
+        if (SimState.isGeneratedFloor()) return null;
         List<SimRoomIndex.Placed> placed = SimRoomIndex.placed();
         return placed.size() == 1 ? placed.get(0).name() : null;
     }

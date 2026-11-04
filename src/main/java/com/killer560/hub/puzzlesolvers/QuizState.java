@@ -77,9 +77,7 @@ public final class QuizState {
 
     private static void onMessage(Component message) {
         String msg = ChatObserver.strip(message);
-        if (msg == null || !msg.startsWith(PREFIX)) {
-            return;
-        }
+        if (msg == null || !msg.startsWith(PREFIX)) return;
         msg = msg.trim();
         long now = PerTickServerClock.now();
         if (msg.equals(INTRO)) {
@@ -93,9 +91,7 @@ public final class QuizState {
             reset("a wrong answer");
         } else {
             Matcher m = ANSWERED.matcher(msg);
-            if (!m.matches()) {
-                return;
-            }
+            if (!m.matches()) return;
             int n = m.group(2) == null ? 3 : Integer.parseInt(m.group(2));
             lastLineAt = now;
             answeredAt = now;
@@ -134,47 +130,31 @@ public final class QuizState {
     }
 
     /** Oruo has begun (his first line was seen), this world. */
-    public static boolean started() {
-        return question > 0;
-    }
+    public static boolean started() { return question > 0; }
 
     /** Every question answered. */
-    public static boolean done() {
-        return question >= 4;
-    }
+    public static boolean done() { return question >= 4; }
 
     /** Started and not done. */
-    public static boolean inProgress() {
-        return question > 0 && question < 4;
-    }
+    public static boolean inProgress() { return question > 0 && question < 4; }
 
     /** 1-3: the question asked or about to be (after an answer, the one answered until the next line); 0/4 outside. */
-    public static int question() {
-        return question;
-    }
+    public static int question() { return question; }
 
     /** The question the next answer is for: the one asked, or after an answer the one coming (1-3; 0/4 outside). */
-    public static int nextQuestion() {
-        return inProgress() && answered ? question + 1 : question;
-    }
+    public static int nextQuestion() { return inProgress() && answered ? question + 1 : question; }
 
     /** Questions answered so far (0-3). */
     public static int answeredCount() {
-        if (question >= 4) {
-            return 3;
-        }
+        if (question >= 4) return 3;
         return question <= 0 ? 0 : question - 1 + (answered ? 1 : 0);
     }
 
     /** The current question waits for its cooldown or is open: not yet answered, its lock line seen. */
-    public static boolean awaitingAnswer() {
-        return inProgress() && !answered && answerAt >= 0;
-    }
+    public static boolean awaitingAnswer() { return inProgress() && !answered && answerAt >= 0; }
 
     /** The current question can be answered now. */
-    public static boolean answerable() {
-        return awaitingAnswer() && PerTickServerClock.now() >= answerAt;
-    }
+    public static boolean answerable() { return awaitingAnswer() && PerTickServerClock.now() >= answerAt; }
 
     /**
      * Server ticks until the current question can be answered: 0 when it can now; for a question just answered, until
@@ -182,9 +162,7 @@ public final class QuizState {
      * Quiz is in progress.
      */
     public static long ticksUntilAnswerable() {
-        if (!inProgress()) {
-            return -1;
-        }
+        if (!inProgress()) return -1;
         if (answered) {
             // Oruo's next lock line is not here yet: the soonest the next question can open is his usual line gap plus the
             // lock, counted from the answer - so a planner deciding again a few seconds later sees the time go down.
@@ -197,23 +175,15 @@ public final class QuizState {
     public static final int NEXT_LINE_TICKS = 40;
 
     /** {@link ServerTickClock#now()} the current question opens at (-1 when none waits). */
-    public static long answerAtTick() {
-        return answerAt;
-    }
+    public static long answerAtTick() { return answerAt; }
 
     /** {@link ServerTickClock#now()} of the last line that moved the state, for the testkit. */
-    public static long lastLineTick() {
-        return lastLineAt;
-    }
+    public static long lastLineTick() { return lastLineAt; }
 
     /** One line for HUDs and logs: "Quiz 2/3: 3.4s" or "Quiz 2/3: answer now". */
     public static String describe() {
-        if (!inProgress()) {
-            return done() ? "Quiz done" : "Quiz not started";
-        }
-        if (answered) {
-            return "Quiz " + question + "/3 answered, next soon";
-        }
+        if (!inProgress()) return done() ? "Quiz done" : "Quiz not started";
+        if (answered) return "Quiz " + question + "/3 answered, next soon";
         long t = ticksUntilAnswerable();
         return t <= 0 ? "Quiz " + question + "/3: answer now"
                 : String.format(java.util.Locale.US, "Quiz %d/3: %.1fs", question, t / 20.0);

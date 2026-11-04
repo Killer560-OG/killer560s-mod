@@ -64,27 +64,15 @@ public final class PeekChatConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isHoldToPeek() {
-        return holdToPeek;
-    }
+    public boolean isHoldToPeek() { return holdToPeek; }
 
-    public void setHoldToPeek(boolean holdToPeek) {
-        this.holdToPeek = holdToPeek;
-    }
+    public void setHoldToPeek(boolean holdToPeek) { this.holdToPeek = holdToPeek; }
 
-    public int getKeyCode() {
-        return keyCode;
-    }
+    public int getKeyCode() { return keyCode; }
 
-    public void setKeyCode(int keyCode) {
-        this.keyCode = KeyUtil.sanitizeBind(keyCode);
-    }
+    public void setKeyCode(int keyCode) { this.keyCode = KeyUtil.sanitizeBind(keyCode); }
 }

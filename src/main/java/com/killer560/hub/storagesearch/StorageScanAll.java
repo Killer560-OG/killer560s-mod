@@ -56,9 +56,7 @@ public final class StorageScanAll {
     /** The last run's actions (command, next-page click, close) as "ms action", for the testkit's interval check. */
     private static final List<String> actionLog = new ArrayList<>();
 
-    public static List<String> actionLog() {
-        return List.copyOf(actionLog);
-    }
+    public static List<String> actionLog() { return List.copyOf(actionLog); }
 
     private static void noteAction(String what) {
         if (actionLog.size() < 400) {
@@ -90,22 +88,14 @@ public final class StorageScanAll {
     /** True once the plan exists (the Storage menu was read, or its fallback taken). */
     private static boolean planned;
 
-    public static List<String> plannedPages() {
-        return List.copyOf(plannedPages);
-    }
+    public static List<String> plannedPages() { return List.copyOf(plannedPages); }
 
-    public static int skippedLocked() {
-        return skippedLocked;
-    }
+    public static int skippedLocked() { return skippedLocked; }
 
-    public static int skippedEmpty() {
-        return skippedEmpty;
-    }
+    public static int skippedEmpty() { return skippedEmpty; }
 
     /** True when the last plan came from reading the Storage menu, false when it fell back to the overlay's cache. */
-    public static boolean planFromMenu() {
-        return planFromMenu;
-    }
+    public static boolean planFromMenu() { return planFromMenu; }
 
     private StorageScanAll() {
     }
@@ -116,29 +106,19 @@ public final class StorageScanAll {
                 why -> stop("you pressed " + why));
     }
 
-    public static boolean isRunning() {
-        return current != null || !queue.isEmpty();
-    }
+    public static boolean isRunning() { return current != null || !queue.isEmpty(); }
 
     /** Pages finished in the running (or last) scan's plan. */
-    public static int pagesDone() {
-        return pagesDone;
-    }
+    public static int pagesDone() { return pagesDone; }
 
     /** Pages in the running (or last) scan's plan, or -1 while the Storage menu has not been read yet. */
-    public static int pagesTotal() {
-        return planned ? plannedPages.size() : -1;
-    }
+    public static int pagesTotal() { return planned ? plannedPages.size() : -1; }
 
     /** True when the running (or last) scan was the Storage Overlay's: storage pages only. */
-    public static boolean isStorageOnly() {
-        return storageOnly;
-    }
+    public static boolean isStorageOnly() { return storageOnly; }
 
     /** Storage Search's Scan All: every storage page, then the wardrobe and pets pages. */
-    public static void start() {
-        start(false);
-    }
+    public static void start() { start(false); }
 
     /**
      * Starts a scan. {@code storageOnlyScan} is the Storage Overlay's "Scan All" button (killer560, 2026-10-07: "For
@@ -147,9 +127,7 @@ public final class StorageScanAll {
      */
     public static void start(boolean storageOnlyScan) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         if (!registered) {
             registered = true;
             // START: it opens and clicks through storage pages. See ActionGate's class doc.
@@ -183,18 +161,14 @@ public final class StorageScanAll {
     }
 
     public static void stop(String why) {
-        if (!isRunning()) {
-            return;
-        }
+        if (!isRunning()) return;
         queue.clear();
         current = null;
         ModChat.send(StorageSearchFeature.CHAT_PREFIX, ModChat.bad("Scan All stopped"), ModChat.dim(" - " + why));
     }
 
     private static void tick(Minecraft client) {
-        if (!isRunning()) {
-            return;
-        }
+        if (!isRunning()) return;
         if (client.player == null || client.level == null) {
             queue.clear();
             current = null;
@@ -387,9 +361,7 @@ public final class StorageScanAll {
     }
 
     private static Slot findNextPage(Minecraft client) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return null;
-        }
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) return null;
         List<Slot> slots = screen.getMenu().slots;
         int top = Math.max(0, slots.size() - 36);
         for (int i = 0; i < top; i++) {

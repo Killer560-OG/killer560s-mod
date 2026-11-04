@@ -32,9 +32,7 @@ public final class DigAim {
     /** True when a dig on {@code pos} sent now passes GrimAC RotationBreak on the look the server last heard. */
     public static boolean heardLookStrikes(LocalPlayer player, BlockPos pos) {
         float[] look = RightClick.heardLook();
-        if (look == null || player == null) {
-            return false;
-        }
+        if (look == null || player == null) return false;
         return strikes(RightClick.heardFeet(player), player.getEyeHeight(), look[0], look[1], pos);
     }
 

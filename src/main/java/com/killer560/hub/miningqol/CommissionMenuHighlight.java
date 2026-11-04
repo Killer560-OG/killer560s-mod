@@ -47,16 +47,12 @@ public final class CommissionMenuHighlight {
         return false;
     }
 
-    public static boolean isMenu(AbstractContainerScreen<?> screen) {
-        return TITLE.equals(screen.getTitle().getString());
-    }
+    public static boolean isMenu(AbstractContainerScreen<?> screen) { return TITLE.equals(screen.getTitle().getString()); }
 
     /** Whether {@code slot} of {@code screen} is drawn green now. */
     public static boolean highlighted(AbstractContainerScreen<?> screen, Slot slot) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (!cfg.isCommissionMenuHighlight() || !cfg.isCommissionHud() || !isMenu(screen)) {
-            return false;
-        }
+        if (!cfg.isCommissionMenuHighlight() || !cfg.isCommissionHud() || !isMenu(screen)) return false;
         int top = screen.getMenu().slots.size() - 36;
         if (slot.index < 0 || slot.index >= top || slot.container instanceof net.minecraft.world.entity.player.Inventory) {
             return false;
@@ -75,9 +71,7 @@ public final class CommissionMenuHighlight {
     }
 
     public static void drawSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
-        if (!highlighted(screen, slot)) {
-            return;
-        }
+        if (!highlighted(screen, slot)) return;
         drawGreen(graphics, slot.x, slot.y, FILL, BORDER);
         drawn++;
     }
@@ -94,9 +88,7 @@ public final class CommissionMenuHighlight {
     private static long drawn;
 
     /** Testkit: slot draws so far. */
-    public static long drawnCount() {
-        return drawn;
-    }
+    public static long drawnCount() { return drawn; }
 
     /** Testkit: the menu slots of {@code screen} drawn green now. */
     public static List<Integer> highlightedSlots(AbstractContainerScreen<?> screen) {

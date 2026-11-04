@@ -86,20 +86,13 @@ public final class HeldBreakResume {
     }
 
     private static boolean buttonDown(Minecraft client) {
-        if (!MouseButtons.isDown(0)) {
-            return false;
-        }
+        if (!MouseButtons.isDown(0)) return false;
         return trustTrackedForTest || McInput.isStoredButtonDown(client.getWindow(), 0);
     }
 
-    // ---- testkit hooks
 
-    public static int resumes() {
-        return resumes;
-    }
+    public static int resumes() { return resumes; }
 
     /** The testkit's button events reach MouseButtons but not the platform's button state: trust the events alone. */
-    public static void trustTrackedButtonForTest(boolean on) {
-        trustTrackedForTest = on;
-    }
+    public static void trustTrackedButtonForTest(boolean on) { trustTrackedForTest = on; }
 }

@@ -110,9 +110,7 @@ public final class BloodRushSplits {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRushSplits", BloodRushSplits::tick));
     }
 
-    private static Stamp stamp() {
-        return new Stamp(System.currentTimeMillis(), SplitLagClock.accumulatedLagMs());
-    }
+    private static Stamp stamp() { return new Stamp(System.currentTimeMillis(), SplitLagClock.accumulatedLagMs()); }
 
     static void reset() {
         rooms.clear();
@@ -124,24 +122,17 @@ public final class BloodRushSplits {
     }
 
     /** From Mort's line to the Blood door. */
-    public static boolean isActive() {
-        return started && !done;
-    }
+    public static boolean isActive() { return started && !done; }
 
-    // ---- events ------------------------------------------------------------------------------------------------------
 
     static void onLine(String raw, Stamp at) {
-        if (raw == null) {
-            return;
-        }
+        if (raw == null) return;
         String msg = raw.trim();
         if ("Starting in 1 second.".equals(msg)) {
             reset();
             return;
         }
-        if (done) {
-            return;
-        }
+        if (done) return;
         if (!started) {
             if (MORT.matcher(msg).matches()) {
                 reset();
@@ -151,9 +142,7 @@ public final class BloodRushSplits {
             return;
         }
         Room r = current;
-        if (r == null || !DungeonKeys.mayBeKeyOrDoorLine(msg)) {
-            return;
-        }
+        if (r == null || !DungeonKeys.mayBeKeyOrDoorLine(msg)) return;
         var key = KEY_PICKED.matcher(msg);
         if (key.matches()) {
             if (r.keyPicked == null) {
@@ -189,9 +178,7 @@ public final class BloodRushSplits {
      */
     static void onDoorDown(Stamp at, Side earlier, Side later) {
         Room r = current;
-        if (r == null || r.doorDown != null || rooms.isEmpty() || at.ms() < r.start.ms() - 250L) {
-            return;
-        }
+        if (r == null || r.doorDown != null || rooms.isEmpty() || at.ms() < r.start.ms() - 250L) return;
         r.doorDown = at;
         Room previous = rooms.get(rooms.size() - 1);
         if (later != null && UNNAMED.equals(r.name)) {
@@ -213,9 +200,7 @@ public final class BloodRushSplits {
     /** A key's stand appeared {@code distance} blocks away, in map room {@code room} (null when unknown). */
     static void onKeySpawned(Stamp at, double distance, Side room) {
         Room r = current;
-        if (r == null || r.keyDrop != null) {
-            return;
-        }
+        if (r == null || r.keyDrop != null) return;
         r.keyDrop = at;
         r.keySeenAt = distance;
         if (room != null && room.name() != null) {
@@ -225,7 +210,6 @@ public final class BloodRushSplits {
         }
     }
 
-    // ---- the world, each tick ------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -241,18 +225,12 @@ public final class BloodRushSplits {
         int[] dist = null;
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
             int type = layout.doorType(idx);
-            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) {
-                continue;
-            }
+            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) continue;
             boolean locked = layout.isLocked(idx);
             Boolean before = doorLocked.put(idx, locked);
-            if (before == null || !before || locked) {
-                continue;
-            }
+            if (before == null || !before || locked) continue;
             int[] sides = sides(layout, idx);
-            if (sides == null) {
-                continue;
-            }
+            if (sides == null) continue;
             if (dist == null) {
                 dist = distanceFromEntrance(layout);
             }
@@ -300,17 +278,13 @@ public final class BloodRushSplits {
                 break;
             }
         }
-        if (entrance < 0) {
-            return dist;
-        }
+        if (entrance < 0) return dist;
         List<List<Integer>> adj = new ArrayList<>();
         for (int r = 0; r < n; r++) {
             adj.add(new ArrayList<>());
         }
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-            if (!layout.isDoor(idx)) {
-                continue;
-            }
+            if (!layout.isDoor(idx)) continue;
             int[] s = sides(layout, idx);
             if (s != null && s[0] < n && s[1] < n) {
                 adj.get(s[0]).add(s[1]);
@@ -337,13 +311,10 @@ public final class BloodRushSplits {
         return new Side(layout.name(room), room, e != null && "FAIRY".equalsIgnoreCase(e.type));
     }
 
-    // ---- times -------------------------------------------------------------------------------------------------------
 
     /** {real ms, lagless ms} from {@code a} to {@code b}, or null when either is missing. */
     private static long[] span(Stamp a, Stamp b) {
-        if (a == null || b == null) {
-            return null;
-        }
+        if (a == null || b == null) return null;
         long t = Math.max(0L, b.ms() - a.ms());
         return new long[]{t, Math.max(0L, t - Math.max(0L, b.lagMs() - a.lagMs()))};
     }
@@ -354,17 +325,11 @@ public final class BloodRushSplits {
         return span(from, r.keyPicked != null ? r.keyPicked : live);
     }
 
-    private static long[] pickupSpan(Room r, Stamp live) {
-        return span(r.keyDrop, r.keyPicked != null ? r.keyPicked : live);
-    }
+    private static long[] pickupSpan(Room r, Stamp live) { return span(r.keyDrop, r.keyPicked != null ? r.keyPicked : live); }
 
-    private static long[] doorSpan(Room r, Stamp live) {
-        return span(r.keyPicked, r.doorOpened != null ? r.doorOpened : live);
-    }
+    private static long[] doorSpan(Room r, Stamp live) { return span(r.keyPicked, r.doorOpened != null ? r.doorOpened : live); }
 
-    private static long[] totalSpan(Room r, Stamp live) {
-        return span(r.start, r.doorOpened != null ? r.doorOpened : live);
-    }
+    private static long[] totalSpan(Room r, Stamp live) { return span(r.start, r.doorOpened != null ? r.doorOpened : live); }
 
     private static List<Room> all() {
         List<Room> out = new ArrayList<>(rooms);
@@ -375,27 +340,19 @@ public final class BloodRushSplits {
     }
 
     private static String time(long[] s, boolean lagless) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         String real = SplitTimersFeature.formatTime(s[0]);
         return lagless ? real + " §7(" + SplitTimersFeature.formatTime(s[1]) + ")" : real;
     }
 
-    private static boolean lagless() {
-        return SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy();
-    }
+    private static boolean lagless() { return SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy(); }
 
-    private static String name(Room r) {
-        return (r.toFairy ? "§d" : "§5") + r.name;
-    }
+    private static String name(Room r) { return (r.toFairy ? "§d" : "§5") + r.name; }
 
     /** The rows the HUD draws now ({@link BloodRushSplitsConfig#getStyle}). Empty before Mort's line. */
     static List<String> rows(Stamp now, BloodRushSplitsConfig.Style style) {
         List<String> out = new ArrayList<>();
-        if (!started) {
-            return out;
-        }
+        if (!started) return out;
         boolean lagless = lagless();
         out.add("§4Blood Rush" + (done ? "" : " §7(" + all().size() + ")"));
         for (Room r : all()) {
@@ -480,12 +437,9 @@ public final class BloodRushSplits {
         client.player.sendSystemMessage(line.append(ModChat.text(".")));
     }
 
-    // ---- test hooks --------------------------------------------------------------------------------------------------
 
     /** Test hook: one chat line at {@code ms} with the lag clock at {@code lagMs}. */
-    public static void lineForTest(String raw, long ms, long lagMs) {
-        onLine(raw, new Stamp(ms, lagMs));
-    }
+    public static void lineForTest(String raw, long ms, long lagMs) { onLine(raw, new Stamp(ms, lagMs)); }
 
     /** Test hook: the door into the current room down, between the named rooms. */
     public static void doorDownForTest(String earlier, boolean earlierFairy, String later, long ms) {
@@ -505,34 +459,23 @@ public final class BloodRushSplits {
     }
 
     /** Test hook: forget the run. */
-    public static void resetForTest() {
-        reset();
-    }
+    public static void resetForTest() { reset(); }
 
-    // ---- HUD ---------------------------------------------------------------------------------------------------------
 
     public static final class Hud implements HudElement {
         private static final int ROW_HEIGHT = 9;
 
         @Override
-        public String id() {
-            return "blood_rush_splits";
-        }
+        public String id() { return "blood_rush_splits"; }
 
         @Override
-        public String displayName() {
-            return "Blood Rush Splits";
-        }
+        public String displayName() { return "Blood Rush Splits"; }
 
         @Override
-        public int defaultX() {
-            return 180;
-        }
+        public int defaultX() { return 180; }
 
         @Override
-        public int defaultY() {
-            return 240;
-        }
+        public int defaultY() { return 240; }
 
         private static boolean editor() {
             return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance())
@@ -557,20 +500,14 @@ public final class BloodRushSplits {
         }
 
         @Override
-        public int height() {
-            return Math.max(ROW_HEIGHT, lines().size() * ROW_HEIGHT);
-        }
+        public int height() { return Math.max(ROW_HEIGHT, lines().size() * ROW_HEIGHT); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return BloodRushSplitsConfig.getInstance().isActive();
-        }
+        public boolean isEnabledInSettings() { return BloodRushSplitsConfig.getInstance().isActive(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!isEnabledInSettings() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!isEnabledInSettings() || HudVisibility.hidesHud()) return;
             List<String> lines = lines();
             int dy = 0;
             for (String s : lines) {

@@ -33,9 +33,7 @@ public final class TabOrder {
     /** The listed players in tab order; empty with no connection. */
     public static List<PlayerInfo> listed(Minecraft client) {
         ClientPacketListener connection = client == null ? null : client.getConnection();
-        if (connection == null) {
-            return new ArrayList<>();
-        }
+        if (connection == null) return new ArrayList<>();
         List<PlayerInfo> out = new ArrayList<>(connection.getListedOnlinePlayers());
         out.sort(COMPARATOR);
         return out;

@@ -96,9 +96,7 @@ public final class CommissionMobs {
     public static List<String> mobsFor(List<MiningState.Commission> coms) {
         Set<String> out = new LinkedHashSet<>();
         for (MiningState.Commission c : coms) {
-            if (c.done()) {
-                continue;
-            }
+            if (c.done()) continue;
             List<String> known = MOBS.get(c.name());
             if (known != null) {
                 out.addAll(known);
@@ -110,11 +108,6 @@ public final class CommissionMobs {
             }
         }
         return List.copyOf(out);
-    }
-
-    /** Whether a plain (codes stripped) name tag names one of {@code mobs}: the name as whole words, after "[LvN]". */
-    public static boolean tagMatches(String plain, List<String> mobs) {
-        return compile(mobs).matcher(plain).find();
     }
 
     private static Pattern compile(List<String> mobs) {
@@ -135,9 +128,7 @@ public final class CommissionMobs {
             clear();
             return;
         }
-        if (ticks++ % REFRESH_TICKS != 0) {
-            return;
-        }
+        if (ticks++ % REFRESH_TICKS != 0) return;
         List<String> mobs = mobsFor(MiningState.commissions());
         wanted = mobs;
         if (mobs.isEmpty()) {
@@ -159,18 +150,12 @@ public final class CommissionMobs {
         }
         // Identify: every loaded name tag (no range), remembered by the mob's id.
         for (Entity e : client.level.entitiesForRendering()) {
-            if (e == client.player || !e.hasCustomName()) {
-                continue;
-            }
+            if (e == client.player || !e.hasCustomName()) continue;
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(e.getCustomName().getString());
             java.util.regex.Matcher m = pattern.matcher(plain);
-            if (!m.find()) {
-                continue;
-            }
+            if (!m.find()) continue;
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
-            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) {
-                continue;
-            }
+            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) continue;
             String name = matchedName(plain, mobs);
             if (KNOWN.size() < MAX_KNOWN || KNOWN.containsKey(mob.getId())) {
                 KNOWN.put(mob.getId(), name);
@@ -228,13 +213,9 @@ public final class CommissionMobs {
     }
 
     /** Glow mixin hook (cheatutils WitherGlowEntityMixin): the ARGB outline color, or null when not glowing. */
-    public static Integer glowColor(Entity entity) {
-        return shouldGlow(entity) ? glowArgb : null;
-    }
+    public static Integer glowColor(Entity entity) { return shouldGlow(entity) ? glowArgb : null; }
 
-    private static boolean isRealPlayer(LivingEntity e) {
-        return e instanceof Player p && p.getUUID().version() != 2;
-    }
+    private static boolean isRealPlayer(LivingEntity e) { return e instanceof Player p && p.getUUID().version() != 2; }
 
     /** The mob a name-tag stand rides above: the entity with the id before it, else the nearest living one under it. */
     private static LivingEntity mobUnder(Minecraft client, ArmorStand stand) {
@@ -303,9 +284,7 @@ public final class CommissionMobs {
         int n = 0;
         for (int id : ids) {
             Entity e = client.level.getEntity(id);
-            if (e == null || e.isRemoved()) {
-                continue;
-            }
+            if (e == null || e.isRemoved()) continue;
             double dx = Mth.lerp(pt, e.xo, e.getX()) - e.getX();
             double dy = Mth.lerp(pt, e.yo, e.getY()) - e.getY();
             double dz = Mth.lerp(pt, e.zo, e.getZ()) - e.getZ();
@@ -316,9 +295,7 @@ public final class CommissionMobs {
             rgba[n * 4 + 3] = k[3] <= 0f ? 1f : k[3];
             n++;
         }
-        if (n == 0) {
-            return;
-        }
+        if (n == 0) return;
         if (st.fill) {
             // A see-through fill: the outline-only alpha would hide the mob.
             WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, n, st.outline ? 0.3f : 0.45f, throughWalls);
@@ -329,7 +306,6 @@ public final class CommissionMobs {
         frames++;
     }
 
-    // ---- testkit hooks
 
     /** Entity ids boxed now. */
     public static List<Integer> targetIds() {
@@ -340,28 +316,15 @@ public final class CommissionMobs {
         return out;
     }
 
-    /** The mob names the open commissions want now (empty while the option is off). */
-    public static List<String> wantedMobs() {
-        return wanted;
-    }
+    public static int frames() { return frames; }
 
-    public static int frames() {
-        return frames;
-    }
-
-    public static boolean throughWallsNow() {
-        return throughWalls;
-    }
+    public static boolean throughWallsNow() { return throughWalls; }
 
     /** The style drawn now (testkit). */
-    public static String styleNow() {
-        return style.name();
-    }
+    public static String styleNow() { return style.name(); }
 
     /** How many identified mobs are remembered now (testkit). */
-    public static int knownCount() {
-        return KNOWN.size();
-    }
+    public static int knownCount() { return KNOWN.size(); }
 
     /** Glowing ids now (testkit). */
     public static List<Integer> glowIdsNow() {

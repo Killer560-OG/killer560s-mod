@@ -104,26 +104,20 @@ public final class BestFriendsTracker {
 
     /** Stored time plus the running segment, if this player is partied right now - what the menu shows. */
     public static long liveTotalMs(BestFriendsStore.Record record) {
-        if (record == null) {
-            return 0L;
-        }
+        if (record == null) return 0L;
         Long start = SESSION_START.get(record.uuid);
         long running = start == null ? 0L : Math.max(0L, (System.nanoTime() - start) / 1_000_000L);
         return record.totalPartyMs + running;
     }
 
     /** True while time is accruing for this player. */
-    public static boolean isAccruing(UUID id) {
-        return id != null && SESSION_START.containsKey(id);
-    }
+    public static boolean isAccruing(UUID id) { return id != null && SESSION_START.containsKey(id); }
 
     private static void tick(Minecraft client) {
         if (pendingDisconnect) {
             onDisconnect();
         }
-        if (++pollCounter < POLL_INTERVAL_TICKS) {
-            return;
-        }
+        if (++pollCounter < POLL_INTERVAL_TICKS) return;
         pollCounter = 0;
 
         if (client.player == null || !BestFriendsConfig.getInstance().isEnabled()) {
@@ -171,9 +165,7 @@ public final class BestFriendsTracker {
             SESSION_START.putIfAbsent(id, nowNs);
         }
         SESSION_START.keySet().removeIf(id -> {
-            if (current.contains(id)) {
-                return false;
-            }
+            if (current.contains(id)) return false;
             flushOne(id, nowNs, nowMs);
             SESSION_NAMES.remove(id);
             return true;
@@ -184,13 +176,9 @@ public final class BestFriendsTracker {
      *  much, so the sub-millisecond rest stays in the segment instead of being dropped. */
     private static void flushOne(UUID id, long nowNs, long nowMs) {
         Long start = SESSION_START.get(id);
-        if (start == null) {
-            return;
-        }
+        if (start == null) return;
         long elapsedMs = Math.max(0L, (nowNs - start) / 1_000_000L);
-        if (elapsedMs <= 0L) {
-            return;
-        }
+        if (elapsedMs <= 0L) return;
         BestFriendsStore.Record record = BestFriendsStore.getOrCreate(id, SESSION_NAMES.get(id));
         record.totalPartyMs += elapsedMs;
         record.lastPartiedAtMs = nowMs;
@@ -237,9 +225,7 @@ public final class BestFriendsTracker {
         // party in the hub would be credited with a run it never played.
         wasInDungeon = false;
         lastFloorWhileInDungeon = null;
-        if (SESSION_START.isEmpty()) {
-            return;
-        }
+        if (SESSION_START.isEmpty()) return;
         long at = pendingDisconnectNs != 0L ? Math.min(pendingDisconnectNs, System.nanoTime()) : System.nanoTime();
         flushAll(at, System.currentTimeMillis());
         SESSION_START.clear();

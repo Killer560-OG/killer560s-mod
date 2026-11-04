@@ -106,14 +106,10 @@ public final class IceFillSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
@@ -123,29 +119,17 @@ public final class IceFillSolverConfig {
     /** Odin's "hard" path set - a real, different (usually shorter/riskier) valid route than the default
      *  "easy" set. Both are real, confirmed-valid solve paths - this is a style preference, not a
      *  correctness difference. */
-    public boolean isOptimizedPath() {
-        return optimizedPath;
-    }
+    public boolean isOptimizedPath() { return optimizedPath; }
 
-    public void setOptimizedPath(boolean optimizedPath) {
-        this.optimizedPath = optimizedPath;
-    }
+    public void setOptimizedPath(boolean optimizedPath) { this.optimizedPath = optimizedPath; }
 
-    public int getLineColorArgb() {
-        return lineColorArgb;
-    }
+    public int getLineColorArgb() { return lineColorArgb; }
 
-    public void setLineColorArgb(int argb) {
-        this.lineColorArgb = argb;
-    }
+    public void setLineColorArgb(int argb) { this.lineColorArgb = argb; }
 
-    public boolean isEtherwarpProtection() {
-        return etherwarpProtection;
-    }
+    public boolean isEtherwarpProtection() { return etherwarpProtection; }
 
-    public void setEtherwarpProtection(boolean etherwarpProtection) {
-        this.etherwarpProtection = etherwarpProtection;
-    }
+    public void setEtherwarpProtection(boolean etherwarpProtection) { this.etherwarpProtection = etherwarpProtection; }
 
     /** A preset as an opaque ARGB color. */
     static int argbOf(LineColor c) {

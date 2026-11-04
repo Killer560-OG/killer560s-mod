@@ -134,13 +134,9 @@ public final class TooltipScrollFeature {
      *  and is a real scroll event reaching it at all". */
     private static volatile boolean scrollHookSeen;
 
-    public static boolean renderHookSeen() {
-        return renderHookSeen;
-    }
+    public static boolean renderHookSeen() { return renderHookSeen; }
 
-    public static boolean scrollHookSeen() {
-        return scrollHookSeen;
-    }
+    public static boolean scrollHookSeen() { return scrollHookSeen; }
 
     private TooltipScrollFeature() {
     }
@@ -156,7 +152,6 @@ public final class TooltipScrollFeature {
         }));
     }
 
-    // ---------------------------------------------------------------- hover tracking
 
     /** Called every frame from the container-screen mixin with whatever stack is under the cursor (null when
      *  nothing is). Changing item resets the scroll - killer560: "scroll resets when you hover a different
@@ -167,9 +162,7 @@ public final class TooltipScrollFeature {
     private static WeakReference<Object> lastScreen = new WeakReference<>(null);
 
     public static void onScreen(Object screen) {
-        if (lastScreen.get() == screen) {
-            return;
-        }
+        if (lastScreen.get() == screen) return;
         lastScreen = new WeakReference<>(screen);
         offset = 0;
         maxOffset = 0;
@@ -180,9 +173,7 @@ public final class TooltipScrollFeature {
 
     public static void setHovered(ItemStack stack) {
         ItemStack previous = hovered.get();
-        if (previous == stack) {
-            return;
-        }
+        if (previous == stack) return;
         hovered = new WeakReference<>(stack);
         offset = 0;
         maxOffset = 0;
@@ -190,7 +181,6 @@ public final class TooltipScrollFeature {
         nudgeOffset = 0;
     }
 
-    // ---------------------------------------------------------------- the wheel
 
     /** @return true if the scroll was consumed, in which case the container screen must not also act on it. */
     public static boolean onMouseScrolled(double scrollY) {
@@ -209,9 +199,7 @@ public final class TooltipScrollFeature {
         // Not enabled or nothing hovered: hand the wheel straight back so it keeps doing whatever it
         // normally does (hotbar slot, another mod's scrollable list, bundles). Unlike before 2026-09-27 this
         // no longer bails out just because the tooltip fits - see the nudge branch below.
-        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) {
-            return false;
-        }
+        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) return false;
 
         if (scrollable) {
             // Wheel up shows earlier lines, matching every other scroll surface in the game.
@@ -252,13 +240,9 @@ public final class TooltipScrollFeature {
     public static int horizontalOffset() {
         // Only while the feature is on and a container slot is hovered: nudgeX otherwise lingered after closing the
         // inventory (or turning the feature off) and shifted every later tooltip, widgets on other screens included.
-        if (nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled()) {
-            return 0;
-        }
-        return nudgeX;
+        return nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled() ? 0 : nudgeX;
     }
 
-    // ---------------------------------------------------------------- rendering
 
     /**
      * How many pixels {@link com.killer560.hub.tooltipscroll.mixin.TooltipScrollGraphicsMixin} should
@@ -341,7 +325,5 @@ public final class TooltipScrollFeature {
         return sum;
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
 }

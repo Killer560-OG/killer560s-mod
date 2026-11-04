@@ -69,25 +69,17 @@ public final class BoulderSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isShowAllClicks() {
-        return showAllClicks;
-    }
+    public boolean isShowAllClicks() { return showAllClicks; }
 
-    public void setShowAllClicks(boolean showAllClicks) {
-        this.showAllClicks = showAllClicks;
-    }
+    public void setShowAllClicks(boolean showAllClicks) { this.showAllClicks = showAllClicks; }
 }

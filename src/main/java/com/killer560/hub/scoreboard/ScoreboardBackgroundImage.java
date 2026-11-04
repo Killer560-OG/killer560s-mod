@@ -60,9 +60,7 @@ public final class ScoreboardBackgroundImage {
             release();
             return;
         }
-        if (modified == loadedModified && registered) {
-            return;
-        }
+        if (modified == loadedModified && registered) return;
         loadedModified = modified;
         try (InputStream in = Files.newInputStream(FILE)) {
             NativeImage image = NativeImage.read(in);
@@ -92,7 +90,5 @@ public final class ScoreboardBackgroundImage {
         height = 0;
     }
 
-    static boolean fileExists() {
-        return Files.isRegularFile(FILE);
-    }
+    static boolean fileExists() { return Files.isRegularFile(FILE); }
 }

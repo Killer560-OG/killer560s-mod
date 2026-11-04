@@ -42,17 +42,13 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     public static final String THEME_ID = "termism";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     private static final int CELL_SIZE = 18;
     private static final int PANEL_PADDING = 8;
@@ -334,24 +330,12 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     private ItemStack melodyItemFor(int col, int row) {
         boolean inBand = row >= 1 && row <= melodyBandRows;
-        if (col == melodyMagentaColumn && !inBand) {
-            return new ItemStack(McItems.MAGENTA_STAINED_GLASS_PANE);
-        }
-        if (col == melodyLimeColumn && row == melodyCurrentRow) {
-            return new ItemStack(McItems.LIME_STAINED_GLASS_PANE);
-        }
-        if (col >= 1 && col < 6 && row == melodyCurrentRow) {
-            return new ItemStack(McItems.RED_STAINED_GLASS_PANE);
-        }
-        if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow) {
-            return new ItemStack(McItems.LIME_TERRACOTTA);
-        }
-        if (col == MELODY_BUTTON_COLUMN && inBand) {
-            return new ItemStack(McItems.RED_TERRACOTTA);
-        }
-        if (col >= 1 && col < 6 && inBand) {
-            return new ItemStack(McItems.WHITE_STAINED_GLASS_PANE);
-        }
+        if (col == melodyMagentaColumn && !inBand) return new ItemStack(McItems.MAGENTA_STAINED_GLASS_PANE);
+        if (col == melodyLimeColumn && row == melodyCurrentRow) return new ItemStack(McItems.LIME_STAINED_GLASS_PANE);
+        if (col >= 1 && col < 6 && row == melodyCurrentRow) return new ItemStack(McItems.RED_STAINED_GLASS_PANE);
+        if (col == MELODY_BUTTON_COLUMN && row == melodyCurrentRow) return new ItemStack(McItems.LIME_TERRACOTTA);
+        if (col == MELODY_BUTTON_COLUMN && inBand) return new ItemStack(McItems.RED_TERRACOTTA);
+        if (col >= 1 && col < 6 && inBand) return new ItemStack(McItems.WHITE_STAINED_GLASS_PANE);
         return ItemStack.EMPTY;
     }
 
@@ -359,13 +343,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  ticks" (~500ms) cadence - called every render frame (see #extractRenderState) but only actually
      *  moves/rebuilds once the interval has actually elapsed. */
     private void updateMelodyAnimation() {
-        if (solved) {
-            return;
-        }
+        if (solved) return;
         long now = System.currentTimeMillis();
-        if (now - melodyLastMoveAtMs < MELODY_MOVE_INTERVAL_MS) {
-            return;
-        }
+        if (now - melodyLastMoveAtMs < MELODY_MOVE_INTERVAL_MS) return;
         melodyLastMoveAtMs = now;
         melodyLimeColumn += melodyLimeDirection;
         if (melodyLimeColumn == 1 || melodyLimeColumn == 5) {
@@ -393,9 +373,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     /** Cell index to a chest-style slot, nine to a row (Melody's board already is nine wide). */
-    private int chestSlot(int cell) {
-        return cell / columns * 9 + cell % columns;
-    }
+    private int chestSlot(int cell) { return cell / columns * 9 + cell % columns; }
 
     /** Chest-style slot back to this board's cell index, or -1 off the board. */
     private int cellIndex(int chestSlot) {
@@ -408,9 +386,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private boolean locateSlot(int chestSlot, float[] out) {
         int col = chestSlot % 9;
         int row = chestSlot / 9;
-        if (chestSlot < 0 || col >= columns || row >= rows) {
-            return false;
-        }
+        if (chestSlot < 0 || col >= columns || row >= rows) return false;
         float scale = scale();
         // This screen is laid out on Auto Scale's canvas (AutoScaleScreenMixin): its coordinates times the screen's
         // factor are GUI units, which is what the cursor works in.
@@ -430,9 +406,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
                 && TerminalSolverFeature.isAutoTypeEnabled(type, cfg);
         boolean streamSafe = auto && cfg.isAutoStreamSafe();
         com.killer560.hub.terminals.PracticeCursor.setShowing(streamSafe);
-        if (!auto) {
-            return;
-        }
+        if (!auto) return;
         long now = System.currentTimeMillis();
         // A real terminal waits its opening settle before the first click, the hand already on its way.
         boolean settling = now - startedAtMs < (long) cfg.getFirstClickDelayMs();
@@ -441,23 +415,15 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             return;
         }
         Map<Integer, TerminalSolverFeature.SlotHighlight> highlights = highlights();
-        if (highlights.isEmpty()) {
-            return;
-        }
+        if (highlights.isEmpty()) return;
         if (streamSafe) {
             tickHumanAutoClick(settling);
             return;
         }
-        if (now < nextAutoClickAllowedAtMs) {
-            return;
-        }
+        if (now < nextAutoClickAllowedAtMs) return;
         TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, highlights);
-        if (target == null) {
-            return;
-        }
-        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX) {
-            return;
-        }
+        if (target == null) return;
+        if (target.slot() == lastAutoClickedSlot && type != TerminalType.RUBIX) return;
         nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
         lastAutoClickedSlot = target.slot();
         handleCellClick(target.slot(), target.button() == 0);
@@ -468,28 +434,18 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  need to re-derive it by scanning cell items the way {@code TerminalSolverFeature}'s real-terminal
      *  version has to (this screen isn't a real container, just a plain local simulation). */
     private void tickMelodyAutoClick(long now, boolean settling) {
-        if (!settling && fireDueMelodyBurst(now)) {
-            return;
-        }
+        if (!settling && fireDueMelodyBurst(now)) return;
         int button = melodyCurrentRow * columns + MELODY_BUTTON_COLUMN;
         if (melodyBurst.isEmpty()) {
             // Stream Safe's hand rests on the row being played, due or not (the real terminal's aimQuick).
             com.killer560.hub.terminals.PracticeCursor.aimQuick(slotLocator, button);
         }
-        if (settling || melodyLimeColumn != melodyMagentaColumn) {
-            return;
-        }
+        if (settling || melodyLimeColumn != melodyMagentaColumn) return;
         for (long[] queued : melodyBurst) {
-            if (queued[1] == melodyCurrentRow) {
-                return;
-            }
+            if (queued[1] == melodyCurrentRow) return;
         }
-        if (melodyCurrentRow == lastMelodyAutoClickedRow && now - lastMelodyAutoClickAtMs < 250) {
-            return;
-        }
-        if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) {
-            return;
-        }
+        if (melodyCurrentRow == lastMelodyAutoClickedRow && now - lastMelodyAutoClickAtMs < 250) return;
+        if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) return;
         int matchedRow = melodyCurrentRow;
         int column = melodyMagentaColumn - 1;
         clickMelodyButton(matchedRow, now);
@@ -538,9 +494,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             }
             int button = row * columns + MELODY_BUTTON_COLUMN;
             com.killer560.hub.terminals.PracticeCursor.aimQuick(slotLocator, button);
-            if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) {
-                return false;
-            }
+            if (!com.killer560.hub.terminals.PracticeCursor.ready(button)) return false;
             if (melodyLimeColumn != melodyMagentaColumn) {
                 melodyBurst.clear();
                 probeBurstsDropped++;
@@ -566,26 +520,16 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  among the highlights, the hand goes there, and the click goes out when it has arrived and pressed. */
     private void tickHumanAutoClick(boolean settling) {
         Map<Integer, TerminalSolverFeature.SlotHighlight> chest = cachedChestHighlights;
-        if (chest == null || chest.isEmpty()) {
-            return;
-        }
+        if (chest == null || chest.isEmpty()) return;
         int slot = com.killer560.hub.terminals.PracticeCursor.next(type, chest);
-        if (slot < 0) {
-            return;
-        }
+        if (slot < 0) return;
         com.killer560.hub.terminals.PracticeCursor.aim(slotLocator, slot);
-        if (settling) {
-            return;
-        }
+        if (settling) return;
         TerminalSolverFeature.SlotHighlight highlight = chest.get(slot);
         int cell = cellIndex(slot);
-        if (highlight == null || cell < 0) {
-            return;
-        }
+        if (highlight == null || cell < 0) return;
         TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
-        if (target == null || !com.killer560.hub.terminals.PracticeCursor.ready(slot)) {
-            return;
-        }
+        if (target == null || !com.killer560.hub.terminals.PracticeCursor.ready(slot)) return;
         boolean more = com.killer560.hub.terminals.PracticeCursor.needsMoreClicks(type, highlight);
         com.killer560.hub.terminals.PracticeCursor.expectRepeat(more);
         handleCellClick(cell, target.button() == 0);
@@ -753,13 +697,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     private void handleCellClick(int index, boolean leftClick) {
-        if (index < 0 || index >= cells.size()) {
-            return;
-        }
+        if (index < 0 || index >= cells.size()) return;
         ItemStack stack = cells.get(index);
-        if (stack.isEmpty()) {
-            return;
-        }
+        if (stack.isEmpty()) return;
         cachedHighlights = null;
         switch (type) {
             case PANES -> {
@@ -844,13 +784,9 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     // Per killer560's round-12 request: Custom GUI OFF -> practice looks close to plain vanilla (fixed
     // 1x scale, neutral panel); Custom GUI ON -> "fully replace it with my solver's scaling and hud and
     // whatnot" (the real Highlight Scale setting and the orange theme, same as round 11).
-    private static boolean customGuiOn() {
-        return TerminalSolverConfig.getInstance().isCustomGuiEnabled();
-    }
+    private static boolean customGuiOn() { return TerminalSolverConfig.getInstance().isCustomGuiEnabled(); }
 
-    private static float scale() {
-        return customGuiOn() ? TerminalSolverConfig.getInstance().getScale() : 1.0f;
-    }
+    private static float scale() { return customGuiOn() ? TerminalSolverConfig.getInstance().getScale() : 1.0f; }
 
     private void updateLayoutMetrics() {
         rows = Math.max(1, (int) Math.ceil(cells.size() / (double) columns));
@@ -922,9 +858,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private void renderRawPuzzle(GuiGraphicsExtractor graphics) {
         for (int i = 0; i < cells.size(); i++) {
             ItemStack stack = cells.get(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
+            if (stack.isEmpty()) continue;
             int col = i % columns;
             int row = i / columns;
             int x0 = col * CELL_SIZE;
@@ -951,9 +885,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private void renderMelodyOverlay(GuiGraphicsExtractor graphics) {
         for (int i = 0; i < cells.size(); i++) {
             ItemStack stack = cells.get(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
+            if (stack.isEmpty()) continue;
             int col = i % columns;
             int row = i / columns;
             int x0 = col * CELL_SIZE;
@@ -981,9 +913,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         Map<Integer, TerminalSolverFeature.SlotHighlight> highlights = highlights();
         for (Map.Entry<Integer, TerminalSolverFeature.SlotHighlight> entry : highlights.entrySet()) {
             int index = entry.getKey();
-            if (index < 0 || index >= cells.size()) {
-                continue;
-            }
+            if (index < 0 || index >= cells.size()) continue;
             TerminalSolverFeature.SlotHighlight highlight = entry.getValue();
             int col = index % columns;
             int row = index / columns;
@@ -1066,9 +996,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     private static ColorAlias selectAliasFor(DyeColor color) {
         for (ColorAlias alias : SELECT_POOL) {
-            if (alias.color() == color) {
-                return alias;
-            }
+            if (alias.color() == color) return alias;
         }
         return null;
     }
@@ -1093,12 +1021,8 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

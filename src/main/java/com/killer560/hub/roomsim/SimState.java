@@ -22,9 +22,7 @@ public final class SimState {
     }
 
     /** True only inside a sim world the mod itself opened. */
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
     /**
      * Whether sim behavior may act right now.
@@ -49,9 +47,7 @@ public final class SimState {
      * anything whose job is to create one, and to anything running from the main menu. The only question here
      * is whether he is attached to somebody else's server, and if he is the answer is no.
      */
-    public static boolean canOpen(Minecraft client) {
-        return client != null && client.getCurrentServer() == null;
-    }
+    public static boolean canOpen(Minecraft client) { return client != null && client.getCurrentServer() == null; }
 
     public static void enter(String code) {
         active = true;
@@ -70,9 +66,7 @@ public final class SimState {
      * the trap-room ability rule, the sidebar's "Room:" line, the tab list - answered from the old floor: he
      * stood in Atlas and was told "No abilities in a trap room", stood in Museum and the sidebar said Atlas.
      */
-    public static void replaceMapCode(String code) {
-        mapCode = code == null ? "" : code;
-    }
+    public static void replaceMapCode(String code) { mapCode = code == null ? "" : code; }
 
     public static void leave() {
         generatedFloor = false;
@@ -97,21 +91,13 @@ public final class SimState {
      */
     private static boolean generatedFloor;
 
-    public static boolean isGeneratedFloor() {
-        return generatedFloor;
-    }
+    public static boolean isGeneratedFloor() { return generatedFloor; }
 
-    public static void setGeneratedFloor(boolean value) {
-        generatedFloor = value;
-    }
+    public static void setGeneratedFloor(boolean value) { generatedFloor = value; }
 
-    public static String floorLabel() {
-        return floorLabel;
-    }
+    public static String floorLabel() { return floorLabel; }
 
-    public static void setFloorLabel(String label) {
-        floorLabel = label == null || label.isBlank() ? "F7" : label;
-    }
+    public static void setFloorLabel(String label) { floorLabel = label == null || label.isBlank() ? "F7" : label; }
 
     /**
      * The room the player is standing in, worked out from the sim's OWN map code.
@@ -124,9 +110,7 @@ public final class SimState {
      */
     public static String currentRoomName() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return null;
-        }
+        if (client == null || client.player == null) return null;
         return roomNameAt(client.player.getBlockX(), client.player.getBlockZ());
     }
 
@@ -139,20 +123,14 @@ public final class SimState {
      */
     public static String roomNameAt(int blockX, int blockZ) {
         String code = mapCode();
-        if (code == null || code.isBlank()) {
-            return null;
-        }
+        if (code == null || code.isBlank()) return null;
         MapCode.Decoded decoded = decodedMap(code);
-        if (decoded == null) {
-            return null;
-        }
+        if (decoded == null) return null;
         // The grid's own origin and spacing, read from DungeonLayout rather than from LiveMapFeature's
         // package-private constants - one public accessor beats widening two fields.
         var origin = com.killer560.hub.livemap.DungeonLayout.cellCenter(0);
         int step = com.killer560.hub.livemap.DungeonLayout.cellCenter(1).getX() - origin.getX();
-        if (step == 0) {
-            return null;
-        }
+        if (step == 0) return null;
         // By TILE, not by nearest cell. Rooms sit on even cells two steps apart and a tile reaches a whole step
         // either side of its center; rounding to the nearest cell put the outer half of every 1x1 room's tile in
         // the odd connector cell beside it, which no 1x1 room covers - so anywhere within about eight blocks of a
@@ -161,19 +139,13 @@ public final class SimState {
         int gx = 2 * Math.floorDiv(blockX - origin.getX() + step, 2 * step);
         int gz = 2 * Math.floorDiv(blockZ - origin.getZ() + step, 2 * step);
         int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
-        if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) {
-            return null;
-        }
+        if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) return null;
         int id = decoded.cellRoom()[gz * grid + gx];
-        if (id < 0 || id >= decoded.nameTable().length) {
-            return null;
-        }
+        if (id < 0 || id >= decoded.nameTable().length) return null;
         return decoded.nameTable()[id];
     }
 
-    public static String mapCode() {
-        return mapCode;
-    }
+    public static String mapCode() { return mapCode; }
 
     /** One map code and what it decodes to (null for a code that does not decode). Immutable, swapped whole. */
     private record DecodedCode(String code, MapCode.Decoded decoded) {
@@ -191,9 +163,7 @@ public final class SimState {
      */
     private static MapCode.Decoded decodedMap(String code) {
         DecodedCode c = lastDecoded;
-        if (c != null && (c.code() == code || c.code().equals(code))) {
-            return c.decoded();
-        }
+        if (c != null && (c.code() == code || c.code().equals(code))) return c.decoded();
         MapCode.Decoded d = MapCode.decode(code);
         lastDecoded = new DecodedCode(code, d);
         return d;

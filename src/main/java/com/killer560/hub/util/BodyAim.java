@@ -27,9 +27,7 @@ public final class BodyAim {
      *  movement packet of the action's own tick has reported the rotation the action used. */
     private int ticksSinceTurn;
 
-    public BodyAim(Runnable onWrite) {
-        this.onWrite = onWrite;
-    }
+    public BodyAim(Runnable onWrite) { this.onWrite = onWrite; }
 
     /**
      * Turns the BODY to {@code yaw}/{@code pitch} - a yaw already expressed on the running (unwrapped) yaw, pitch kept
@@ -56,9 +54,7 @@ public final class BodyAim {
      * releases the camera.
      */
     public void tick(LocalPlayer player, boolean acting) {
-        if (!held) {
-            return;
-        }
+        if (!held) return;
         if (player == null) {
             held = false;
             ViewFreeze.release();
@@ -82,7 +78,5 @@ public final class BodyAim {
         onWrite.run();
     }
 
-    public boolean isHeld() {
-        return held;
-    }
+    public boolean isHeld() { return held; }
 }

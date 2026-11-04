@@ -21,9 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractContainerScreen.class)
 public abstract class StorageOverlayContainerMixin extends Screen {
 
-    protected StorageOverlayContainerMixin(Component title) {
-        super(title);
-    }
+    protected StorageOverlayContainerMixin(Component title) { super(title); }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$renderStorageOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
@@ -48,9 +46,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
         // click handling (cursor placement, text selection) runs normally further down this same
         // method - only a click OUTSIDE it commits the rename first (and then still gets to act, e.g.
         // opening a different page, in the same click).
-        if (StorageOverlayFeature.isRenameClickInsideBox(event.x(), event.y())) {
-            return;
-        }
+        if (StorageOverlayFeature.isRenameClickInsideBox(event.x(), event.y())) return;
         StorageOverlayFeature.commitRename();
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
         if (doubleClick && StorageOverlayFeature.handleDoubleClick(self, event.x(), event.y())) {
@@ -91,9 +87,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
      *  handling just because nothing downstream claimed it. */
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void killer560smod$renameKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (!StorageOverlayFeature.isRenamePending()) {
-            return;
-        }
+        if (!StorageOverlayFeature.isRenamePending()) return;
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
             StorageOverlayFeature.commitRename();
         } else {
@@ -130,9 +124,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockDragOnHiddenSlots(MouseButtonEvent event, double dragX, double dragY,
                                                         CallbackInfoReturnable<Boolean> cir) {
-        if (StorageOverlayFeature.isRenamePending()) {
-            return;
-        }
+        if (StorageOverlayFeature.isRenamePending()) return;
         if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle())) {
             cir.setReturnValue(true);
         }
@@ -142,9 +134,7 @@ public abstract class StorageOverlayContainerMixin extends Screen {
      *  press-hold-drag-release gesture. */
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockReleaseOnHiddenSlots(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (StorageOverlayFeature.isRenamePending()) {
-            return;
-        }
+        if (StorageOverlayFeature.isRenamePending()) return;
         if (com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().isEnabled() && StorageOverlayFeature.shouldHideVanilla(this.getTitle())) {
             cir.setReturnValue(true);
         }

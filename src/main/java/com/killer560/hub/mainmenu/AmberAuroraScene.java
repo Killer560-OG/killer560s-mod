@@ -71,9 +71,7 @@ final class AmberAuroraScene {
 
     /** Registers the pipeline at client init, so it is in RenderPipelines' static list before the shaders precompile. */
     static void register() {
-        if (pipeline != null || failed) {
-            return;
-        }
+        if (pipeline != null || failed) return;
         if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             failed = true;
             return;
@@ -98,9 +96,7 @@ final class AmberAuroraScene {
     }
 
     /** The scene clock as the shader reads it: a 24-bit fraction of the loop in the color's rgb, alpha full. */
-    static int timeColour(double t) {
-        return timeColour(t, LOOP);
-    }
+    static int timeColour(double t) { return timeColour(t, LOOP); }
 
     /** The same for a shader whose loop is {@code loop} seconds (Ocean's falls). */
     static int timeColour(double t, double loop) {
@@ -136,12 +132,8 @@ final class AmberAuroraScene {
     }
 
     /** The embers, into the frame's batch. */
-    static void drawOverlays(GuiRects r, int w, int h, double t, float density) {
-        OVERLAYS.drawOverlays(r, w, h, t, density);
-    }
+    static void drawOverlays(GuiRects r, int w, int h, double t, float density) { OVERLAYS.drawOverlays(r, w, h, t, density); }
 
     /** Whether the shader is in use (testkit 1695). */
-    public static boolean shaderActive() {
-        return pipeline != null && !failed;
-    }
+    public static boolean shaderActive() { return pipeline != null && !failed; }
 }

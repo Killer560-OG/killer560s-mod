@@ -3,15 +3,10 @@ package com.killer560.hub.rngmeter;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,17 +49,13 @@ public final class RngItemLog {
 
     /** Merges newly-scanned items into a group's accumulated set (overwriting stale values for names already known) and persists to disk. */
     public static synchronized void merge(String group, Map<String, Long> items) {
-        if (items.isEmpty()) {
-            return;
-        }
+        if (items.isEmpty()) return;
         Map<String, Long> groupMap = LOG.computeIfAbsent(group, k -> new ConcurrentHashMap<>());
         groupMap.putAll(items);
         save();
     }
 
-    public static Map<String, Long> get(String group) {
-        return LOG.getOrDefault(group, Map.of());
-    }
+    public static Map<String, Long> get(String group) { return LOG.getOrDefault(group, Map.of()); }
 
     /**
      * Writes happen on one background thread: merge() runs on the render thread (a menu commit or a rescan that found

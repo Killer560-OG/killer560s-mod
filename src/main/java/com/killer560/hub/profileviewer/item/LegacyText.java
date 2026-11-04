@@ -21,9 +21,7 @@ public final class LegacyText {
 
     public static Component parse(String text) {
         MutableComponent out = Component.empty().withStyle(BASE);
-        if (text == null || text.isEmpty()) {
-            return out;
-        }
+        if (text == null || text.isEmpty()) return out;
         Style style = BASE.withColor(ChatFormatting.WHITE);
         StringBuilder buf = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
@@ -31,9 +29,7 @@ public final class LegacyText {
             if (c == '§' && i + 1 < text.length()) {
                 ChatFormatting fmt = ChatFormatting.getByCode(Character.toLowerCase(text.charAt(i + 1)));
                 i++;
-                if (fmt == null) {
-                    continue;
-                }
+                if (fmt == null) continue;
                 if (buf.length() > 0) {
                     out.append(Component.literal(buf.toString()).withStyle(style));
                     buf.setLength(0);
@@ -55,7 +51,5 @@ public final class LegacyText {
         return out;
     }
 
-    public static String strip(String text) {
-        return text == null ? "" : text.replaceAll("§.", "");
-    }
+    public static String strip(String text) { return text == null ? "" : text.replaceAll("§.", ""); }
 }

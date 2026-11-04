@@ -40,17 +40,11 @@ public final class PlayerNameDisplay {
     /** @return the Component to paint instead of {@code id}'s real name (nametag/tab list), or {@code null}
      *  to leave it alone. */
     public static Component displayNameFor(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        if (SupportersFeature.isSelfOverridden(id)) {
-            return null;
-        }
+        if (id == null) return null;
+        if (SupportersFeature.isSelfOverridden(id)) return null;
         // Asked every frame for every nametag and tab row (testkit 975): the IGN lookup only when a mapping could apply.
         String mapped = NameChangerFeature.mappingsOn() ? NameChangerFeature.mappingDisplayFor(PlayerNames.nameFor(id)) : null;
-        if (mapped != null) {
-            return cached(mapped, false);
-        }
+        if (mapped != null) return cached(mapped, false);
         return SupportersFeature.displayNameFor(id);
     }
 
@@ -88,25 +82,16 @@ public final class PlayerNameDisplay {
      */
     public static float modelScaleFor(UUID id, boolean localPlayer) {
         SupportersConfig cfg = SupportersConfig.getInstance();
-        if (localPlayer) {
-            return cfg.getOwnScale();
-        }
-        if (id != null && id.version() == 2) {
-            return 1.0f;
-        }
-        return SupportersFeature.scaleFor(id) * cfg.getOthersScale();
+        if (localPlayer) return cfg.getOwnScale();
+        return id != null && id.version() == 2 ? 1.0f : SupportersFeature.scaleFor(id) * cfg.getOthersScale();
     }
 
     /** @return the text to paint instead of {@code candidateIgn} at a chat line's sender position, or
      *  {@code null} to leave the line alone - same precedence as {@link #displayNameFor}. */
     public static String findChatSender(String candidateIgn) {
-        if (candidateIgn == null || candidateIgn.isEmpty()) {
-            return null;
-        }
+        if (candidateIgn == null || candidateIgn.isEmpty()) return null;
         String mapped = NameChangerFeature.mappingDisplayFor(candidateIgn);
-        if (mapped != null) {
-            return mapped;
-        }
+        if (mapped != null) return mapped;
         SupportersFeature.ChatMatch match = SupportersFeature.findChatSender(candidateIgn);
         return match == null ? null : match.displayText();
     }

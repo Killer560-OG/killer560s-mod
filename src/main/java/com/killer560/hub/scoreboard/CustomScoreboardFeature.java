@@ -125,9 +125,7 @@ public final class CustomScoreboardFeature {
     }
 
     /** Custom Scoreboard is on and you're on Skyblock / p3sim. */
-    public static boolean isActive() {
-        return CustomScoreboardConfig.getInstance().isEnabled() && SkyblockGate.isOnSkyblock();
-    }
+    public static boolean isActive() { return CustomScoreboardConfig.getInstance().isEnabled() && SkyblockGate.isOnSkyblock(); }
 
     /** The off-Skyblock minimal board is switched on and allowed ("Skyblock Only" off). */
     private static boolean minimalActive() {
@@ -147,11 +145,8 @@ public final class CustomScoreboardFeature {
     }
 
     /** Sidebar lines no pattern recognized this update, unmodified. */
-    static List<String> unknownLines() {
-        return unknown;
-    }
+    static List<String> unknownLines() { return unknown; }
 
-    // ---- update ----
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -162,9 +157,7 @@ public final class CustomScoreboardFeature {
         if (!cfg.isEnabled()) {
             clearBoard();
         }
-        if (++tickCounter < 5) {
-            return;
-        }
+        if (++tickCounter < 5) return;
         tickCounter = 0;
         boolean onSkyblock = SkyblockGate.isOnSkyblock();
         if (!cfg.isEnabled()) {
@@ -226,18 +219,14 @@ public final class CustomScoreboardFeature {
      */
     private static void publish(List<ScoreboardLine> lines, int titleRows, boolean minimal) {
         currentIsMinimal = minimal;
-        if (titleRows == currentTitleRows && lines.equals(current)) {
-            return;
-        }
+        if (titleRows == currentTitleRows && lines.equals(current)) return;
         current = Collections.unmodifiableList(lines);
         currentTitleRows = titleRows;
     }
 
     /** How many leading lines of {@code lines} are the title's own line objects (after edge trimming). */
     private static int leadingTitleRows(List<ScoreboardLine> lines, List<ScoreboardLine> title) {
-        if (title == null || title.isEmpty()) {
-            return 0;
-        }
+        if (title == null || title.isEmpty()) return 0;
         int n = 0;
         while (n < lines.size() && n < title.size() && lines.get(n) == title.get(n)) {
             n++;
@@ -283,13 +272,9 @@ public final class CustomScoreboardFeature {
             lines.addAll(ScoreboardLine.of(ScoreboardData.sidebar()));
         } else {
             for (ScoreboardEntry entry : cfg.entries().active()) {
-                if (!entry.visible(cfg)) {
-                    continue;
-                }
+                if (!entry.visible(cfg)) continue;
                 List<ScoreboardLine> elementLines = entry.lines(cfg);
-                if (elementLines.isEmpty()) {
-                    continue;
-                }
+                if (elementLines.isEmpty()) continue;
                 if (cfg.isHideConsecutiveEmptyLines() && elementLines.get(0).isBlank()
                         && !lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
                     continue;
@@ -339,17 +324,13 @@ public final class CustomScoreboardFeature {
      * off by default. Normal play never prints it.
      */
     private static void warnUnknownLines(CustomScoreboardConfig cfg) {
-        if (unknown.isEmpty() || !ScoreboardData.islandKnown()) {
-            return;
-        }
+        if (unknown.isEmpty() || !ScoreboardData.islandKnown()) return;
         for (String line : unknown) {
             if (loggedUnknown.size() < UNKNOWN_LOG_LIMIT && loggedUnknown.add(shape(line))) {
                 LOGGER.info("[CustomScoreboard] Unknown scoreboard line: \"{}\"", line);
             }
         }
-        if (!cfg.isUnknownLinesWarning()) {
-            return;
-        }
+        if (!cfg.isUnknownLinesWarning()) return;
         long now = System.currentTimeMillis();
         if (warnedUnknown.size() >= UNKNOWN_WARNING_SESSION_LIMIT || now - lastUnknownWarningMs < UNKNOWN_WARNING_COOLDOWN_MS) {
             return;
@@ -366,9 +347,7 @@ public final class CustomScoreboardFeature {
 
     /** An unknown line's identity for "seen it already": its digits folded to one '#', so "Wave 3: 0:12" and
      *  "Wave 3: 0:13" are the same line. */
-    static String shape(String line) {
-        return line == null ? "" : line.replaceAll("\\d+", "#");
-    }
+    static String shape(String line) { return line == null ? "" : line.replaceAll("\\d+", "#"); }
 
     /** The sidebar line as the patterns are matched against it: no invisible format characters (zero-width joiners and
      *  the like, which a server can put in to keep lines unique) and no surrounding blanks. */
@@ -420,9 +399,7 @@ public final class CustomScoreboardFeature {
         List<String> sidebar = ScoreboardData.sidebar();
         // A pure function of the sidebar, which reads the same on most rebuilds: skip the ~100 patterns per line (twice)
         // when it has not changed.
-        if (unknownFor != null && unknownFor.equals(sidebar)) {
-            return unknownResult;
-        }
+        if (unknownFor != null && unknownFor.equals(sidebar)) return unknownResult;
         List<String> result = scanUnknownLines(sidebar);
         unknownFor = sidebar;
         unknownResult = result;
@@ -436,9 +413,7 @@ public final class CustomScoreboardFeature {
         List<String> out = new ArrayList<>();
         for (String raw : sidebar) {
             String line = ScoreboardData.removeResets(raw);
-            if (line.isBlank() || line.trim().length() <= 3) {
-                continue;
-            }
+            if (line.isBlank() || line.trim().length() <= 3) continue;
             String norm = normalise(line);
             boolean known = false;
             for (Pattern pattern : allPatterns()) {
@@ -451,9 +426,7 @@ public final class CustomScoreboardFeature {
                 out.add(line);
             }
         }
-        if (out.isEmpty()) {
-            return out;
-        }
+        if (out.isEmpty()) return out;
 
         String objectiveLine = firstMatches(ScoreboardPattern.OBJECTIVE, sidebar);
         if (objectiveLine == null) {
@@ -488,7 +461,6 @@ public final class CustomScoreboardFeature {
         }
     }
 
-    // ---- rendering ----
 
     /**
      * The board (or, with Custom Scoreboard off, vanilla's sidebar) drawn by the Bazaar screen right after its backdrop
@@ -498,9 +470,7 @@ public final class CustomScoreboardFeature {
     public static int[] drawOverBazaar(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         int[] box = drawInGame(graphics, true);
-        if (box != null) {
-            return box;
-        }
+        if (box != null) return box;
         if (isActive() || minimalActive() || client.player == null || client.level == null || McCompat.hudHidden(client)
                 || !SkyblockGate.allows() || shouldHideVanilla()) {
             return null;
@@ -512,9 +482,7 @@ public final class CustomScoreboardFeature {
     private static int[] vanillaSidebarOverBazaar(Minecraft client, GuiGraphicsExtractor graphics) {
         net.minecraft.world.scores.Objective objective = ScoreboardData.sidebarObjective(client);
         Object hud = client.gui.hud;
-        if (objective == null || !(hud instanceof VanillaSidebar sidebar)) {
-            return null;
-        }
+        if (objective == null || !(hud instanceof VanillaSidebar sidebar)) return null;
         List<String> lines = ScoreboardData.sidebarNow(client);
         Font font = client.font;
         int w = font.width(ScoreboardData.objectiveTitle());
@@ -543,9 +511,7 @@ public final class CustomScoreboardFeature {
     private static long vanillaOverBazaarFrames = 0L;
 
     /** Frames the Bazaar screen drew vanilla's sidebar (testkit). */
-    public static long vanillaOverBazaarFrames() {
-        return vanillaOverBazaarFrames;
-    }
+    public static long vanillaOverBazaarFrames() { return vanillaOverBazaarFrames; }
 
     private static int[] drawInGame(GuiGraphicsExtractor graphics, boolean bazaar) {
         Minecraft client = Minecraft.getInstance();
@@ -555,21 +521,13 @@ public final class CustomScoreboardFeature {
             return null;
         }
         List<ScoreboardLine> lines = current;
-        if (lines.isEmpty()) {
-            return null;
-        }
+        if (lines.isEmpty()) return null;
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
-        if (cfg.isHideWhenTab() && client.options.keyPlayerList.isDown()) {
-            return null;
-        }
+        if (cfg.isHideWhenTab() && client.options.keyPlayerList.isDown()) return null;
         boolean chatOpen = McCompat.screen(client) instanceof ChatScreen;
-        if (cfg.isHideWhenChat() && chatOpen) {
-            return null;
-        }
+        if (cfg.isHideWhenChat() && chatOpen) return null;
         // Chat is not a menu: with it open the board stays up, unless "Hide With Chat Open" is on.
-        if (!bazaar && cfg.isHideInMenus() && McCompat.screen(client) != null && !chatOpen) {
-            return null;
-        }
+        if (!bazaar && cfg.isHideInMenus() && McCompat.screen(client) != null && !chatOpen) return null;
         Font font = client.font;
         int[] pos;
         float scale;
@@ -624,9 +582,7 @@ public final class CustomScoreboardFeature {
     /** How many frames drew the real board in game (testkit). */
     private static long drawnFrames = 0L;
 
-    public static long drawnFrames() {
-        return drawnFrames;
-    }
+    public static long drawnFrames() { return drawnFrames; }
 
     /** The board's lines as text, top to bottom (what the in-game board draws). */
     public static List<String> currentTexts() {
@@ -638,18 +594,12 @@ public final class CustomScoreboardFeature {
     }
 
     private static ScoreboardLine lineAt(Layout layout, double mouseX, double mouseY) {
-        if (layout == null || layout.scale <= 0) {
-            return null;
-        }
+        if (layout == null || layout.scale <= 0) return null;
         double lx = (mouseX - layout.x) / layout.scale - layout.contentX;
         double ly = (mouseY - layout.y) / layout.scale - layout.contentY;
-        if (lx < 0 || lx > layout.contentW || ly < 0) {
-            return null;
-        }
+        if (lx < 0 || lx > layout.contentW || ly < 0) return null;
         int index = (int) (ly / layout.lineStep);
-        if (index >= layout.lines.size() || ly - index * layout.lineStep > layout.lineHeight) {
-            return null;
-        }
+        if (index >= layout.lines.size() || ly - index * layout.lineStep > layout.lineHeight) return null;
         ScoreboardLine line = layout.lines.get(index);
         return line.isBlank() ? null : line;
     }
@@ -661,9 +611,7 @@ public final class CustomScoreboardFeature {
     private static void drawHoverTooltip(Minecraft client, GuiGraphicsExtractor graphics, Layout layout) {
         double[] mouse = mouseGui(client);
         ScoreboardLine line = lineAt(layout, mouse[0], mouse[1]);
-        if (line == null || line.hover() == null || line.hover().isEmpty()) {
-            return;
-        }
+        if (line == null || line.hover() == null || line.hover().isEmpty()) return;
         List<Component> tooltip = new ArrayList<>(line.hover().size());
         for (String s : line.hover()) {
             tooltip.add(Component.literal(s));
@@ -676,13 +624,9 @@ public final class CustomScoreboardFeature {
     private static boolean onChatClick(double mouseX, double mouseY) {
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isLineActions() || client.player == null) {
-            return false;
-        }
+        if (!cfg.isLineActions() || client.player == null) return false;
         ScoreboardLine line = lineAt(lastLayout, mouseX, mouseY);
-        if (line == null || line.command() == null) {
-            return false;
-        }
+        if (line == null || line.command() == null) return false;
         client.player.connection.sendCommand(line.command());
         return true;
     }
@@ -758,9 +702,7 @@ public final class CustomScoreboardFeature {
     private static int[] resolveAnchored() {
         Minecraft client = Minecraft.getInstance();
         com.mojang.blaze3d.platform.Window window = client == null ? null : client.getWindow();
-        if (window == null) {
-            return null;
-        }
+        if (window == null) return null;
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         int sw = window.getGuiScaledWidth();
         int sh = window.getGuiScaledHeight();
@@ -785,9 +727,7 @@ public final class CustomScoreboardFeature {
         return posResult;
     }
 
-    private static int borderSize(CustomScoreboardConfig cfg) {
-        return cfg.isBorderEnabled() ? cfg.getBorderThickness() : 0;
-    }
+    private static int borderSize(CustomScoreboardConfig cfg) { return cfg.isBorderEnabled() ? cfg.getBorderThickness() : 0; }
 
     private static int lineWidth(Font font, ScoreboardLine line, long now) {
         int w = font.width(line.text());
@@ -811,9 +751,7 @@ public final class CustomScoreboardFeature {
 
     private static int contentWidth(Font font, List<ScoreboardLine> lines) {
         long now = System.currentTimeMillis();
-        if (lines == widthLines && font == widthFont && (!widthTimed || now == widthAtMs)) {
-            return widthValue;
-        }
+        if (lines == widthLines && font == widthFont && (!widthTimed || now == widthAtMs)) return widthValue;
         int w = 0;
         boolean timed = false;
         int[] each = new int[lines.size()];
@@ -838,9 +776,7 @@ public final class CustomScoreboardFeature {
      *  {@link #contentWidth} for the same list). */
     private static int lineWidthAt(Font font, List<ScoreboardLine> lines, int index, ScoreboardLine line, long now) {
         int[] each = widthEach;
-        if (lines == widthLines && font == widthFont && !widthTimed && each != null && index < each.length) {
-            return each[index];
-        }
+        if (lines == widthLines && font == widthFont && !widthTimed && each != null && index < each.length) return each[index];
         return lineWidth(font, line, now);
     }
 
@@ -862,9 +798,7 @@ public final class CustomScoreboardFeature {
      * left-anchored: the left wall is the whole-pixel x itself.
      */
     static float anchorShift(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg, float scale) {
-        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) {
-            return 0f;
-        }
+        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) return 0f;
         int boxW = boxWidth(font, lines, cfg);
         return Math.round(Math.max(20, boxW) * scale) - boxW * scale; // Element#width is max(20, boxWidth)
     }
@@ -876,17 +810,13 @@ public final class CustomScoreboardFeature {
      * left, and on the right anchor the text's right end moved with every width change (581 -> 615, testkit 1668).
      */
     static int blockOffset(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
-        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) {
-            return 0;
-        }
+        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) return 0;
         return Math.max(0, innerWidth(font, lines, cfg) - contentWidth(font, lines));
     }
 
     /** Distance from the board's top-left corner to its first line's text: border plus padding (what
      *  {@link #drawBoard} adds). The visual editor maps its drawn rows back to entries with it. */
-    static int textInset(CustomScoreboardConfig cfg) {
-        return borderSize(cfg) + cfg.getPadding();
-    }
+    static int textInset(CustomScoreboardConfig cfg) { return borderSize(cfg) + cfg.getPadding(); }
 
     static int boxWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
         return innerWidth(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg));
@@ -951,9 +881,7 @@ public final class CustomScoreboardFeature {
         int lineStep = font.lineHeight + cfg.getLineSpacing();
         for (int i = 0; i < lines.size(); i++) {
             ScoreboardLine line = lines.get(i);
-            if (line.isBlank()) {
-                continue;
-            }
+            if (line.isBlank()) continue;
             // Only a centered or right-aligned line needs its own width (a font measure per line per frame otherwise).
             int lx = switch (line.align()) {
                 case LEFT -> textX;
@@ -971,27 +899,19 @@ public final class CustomScoreboardFeature {
     }
 
     /** {@link #inset} for {@link ScoreboardBlur}. */
-    static int roundedInset(int row, int h, int r) {
-        return inset(row, h, r);
-    }
+    static int roundedInset(int row, int h, int r) { return inset(row, h, r); }
 
     /** Horizontal inset of row {@code row} (0-based) of a {@code h}-tall rounded rectangle with corner radius {@code r}. */
     private static int inset(int row, int h, int r) {
-        if (r <= 0) {
-            return 0;
-        }
+        if (r <= 0) return 0;
         int fromEdge = row < r ? row : (row >= h - r ? h - 1 - row : -1);
-        if (fromEdge < 0) {
-            return 0;
-        }
+        if (fromEdge < 0) return 0;
         double dy = r - fromEdge - 0.5;
         return (int) Math.round(r - Math.sqrt(Math.max(0, (double) r * r - dy * dy)));
     }
 
     static void fillRounded(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
-        if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0 || (color >>> 24) == 0) return;
         if (r <= 0) {
             g.fill(x, y, x + w, y + h, color);
             return;
@@ -1010,9 +930,7 @@ public final class CustomScoreboardFeature {
     /** The background image stretched over a rounded rectangle: texture size = box size, so each row is an exact
      *  slice of the image. */
     private static void blitRounded(GuiGraphicsExtractor g, Identifier texture, int x, int y, int w, int h, int r, int color) {
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         if (r <= 0 || h <= 2 * r) {
             g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 0f, 0f, w, h, w, h, w, h, color);
             return;
@@ -1045,10 +963,7 @@ public final class CustomScoreboardFeature {
             return menuPalette().accent() | (cfg.getBorderColor() & 0xFF000000);
         }
         float t = h <= 1 ? 0f : row / (float) (h - 1);
-        if (!cfg.isBorderGradient()) {
-            return cfg.getBorderColor();
-        }
-        return lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
+        return !cfg.isBorderGradient() ? cfg.getBorderColor() : lerpArgb(cfg.getBorderColor(), cfg.getBorderColorBottom(), t);
     }
 
     private static int lerpArgb(int a, int b, float t) {
@@ -1060,9 +975,7 @@ public final class CustomScoreboardFeature {
 
     static void drawRoundedBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
                                   CustomScoreboardConfig cfg, long now, float alphaMul) {
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         if (cfg.isChromaBorder()) {
             drawChromaBorder(g, x, y, w, h, r, t, cfg, alphaMul);
             return;
@@ -1134,9 +1047,7 @@ public final class CustomScoreboardFeature {
     private static void drawChromaBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int t,
                                          CustomScoreboardConfig cfg, float alphaMul) {
         int alpha = Math.round((cfg.getBorderColor() >>> 24) * alphaMul);
-        if (alpha <= 0) {
-            return;
-        }
+        if (alpha <= 0) return;
         int a24 = Math.min(255, alpha) << 24;
         float speed = cfg.getChromaSpeed() / 5f;
         long now = ChromaWave.now();
@@ -1182,10 +1093,7 @@ public final class CustomScoreboardFeature {
      *  one-span top/bottom band row - the same split {@link #drawRoundedBorder} makes. */
     private static int chromaInnerEdge(int row, int t, int innerW, int innerH, int innerR, int outer) {
         int innerRow = row - t;
-        if (innerRow < 0 || innerRow >= innerH || innerW <= 0) {
-            return -1;
-        }
-        return Math.max(outer, t + inset(innerRow, innerH, innerR));
+        return innerRow < 0 || innerRow >= innerH || innerW <= 0 ? -1 : Math.max(outer, t + inset(innerRow, innerH, innerR));
     }
 
     /** Rows {@code fromRow..toRow-1} of a border run from {@link #drawRoundedBorder}. */
@@ -1234,13 +1142,9 @@ public final class CustomScoreboardFeature {
     private static int previewTitleRows;
 
     /** Re-reads {@code background.png} on the next frame. */
-    public static void reloadBackgroundImage() {
-        ScoreboardBackgroundImage.reload();
-    }
+    public static void reloadBackgroundImage() { ScoreboardBackgroundImage.reload(); }
 
-    public static boolean backgroundImageExists() {
-        return ScoreboardBackgroundImage.fileExists();
-    }
+    public static boolean backgroundImageExists() { return ScoreboardBackgroundImage.fileExists(); }
 
     /** HUD-editor entry: movable and scalable. Its scale lives in {@code HudConfig}; its position is the edge anchor in
      *  {@link CustomScoreboardConfig} (2026-10-15), served by {@link #layoutPosition()} and kept wholly on screen. */
@@ -1252,36 +1156,24 @@ public final class CustomScoreboardFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Custom Scoreboard";
-        }
+        public String displayName() { return "Custom Scoreboard"; }
 
         /** Only read when an old save is converted ({@link #convertOldPosition}); the board's own default is the right
          *  edge, vertically centered ({@link CustomScoreboardConfig#resetAnchor}). */
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 80;
-        }
+        public int defaultY() { return 80; }
 
         @Override
-        public int[] layoutPosition() {
-            return resolveAnchored();
-        }
+        public int[] layoutPosition() { return resolveAnchored(); }
 
         @Override
-        public boolean keepOnScreen() {
-            return true;
-        }
+        public boolean keepOnScreen() { return true; }
 
         @Override
         public boolean storeEditorPosition(int x, int y, int w, int h, int screenW, int screenH) {
@@ -1311,9 +1203,7 @@ public final class CustomScoreboardFeature {
             CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
             // Editor preview only - in game this element is drawn by CustomScoreboardFeature's own HUD layer.
-            if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof HudEditorScreen)) {
-                return;
-            }
+            if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof HudEditorScreen)) return;
             List<ScoreboardLine> lines = previewLines();
             // The editor draws this at its whole-pixel box position and the element's scale, like the in-game layer:
             // the same sub-pixel shift (in this element's own units) keeps the anchored wall where the game has it.

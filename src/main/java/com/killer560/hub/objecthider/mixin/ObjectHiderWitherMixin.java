@@ -22,9 +22,7 @@ public abstract class ObjectHiderWitherMixin {
             require = 0)
     private void killer560smod$objectHider$witherParticle(Level level, ParticleOptions particle, double x, double y, double z,
                                                          double dx, double dy, double dz) {
-        if (level.isClientSide() && ObjectHiderFeature.hidesWitherParticles((WitherBoss) (Object) this)) {
-            return;
-        }
+        if (level.isClientSide() && ObjectHiderFeature.hidesWitherParticles((WitherBoss) (Object) this)) return;
         level.addParticle(particle, x, y, z, dx, dy, dz);
     }
 }

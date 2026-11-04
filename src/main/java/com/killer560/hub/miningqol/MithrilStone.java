@@ -56,12 +56,8 @@ public final class MithrilStone {
      */
     public static BlockState replace(BlockState state, int x, int y, int z) {
         BlockState red = MiningHighlights.carpetReplace(state, x, y, z);
-        if (red != null) {
-            return red;
-        }
-        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) {
-            return null;
-        }
+        if (red != null) return red;
+        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) return null;
         swapped.incrementAndGet();
         if (recordForTest) {
             SWAPPED_AT.add(BlockPosKey.of(x, y, z));
@@ -74,26 +70,18 @@ public final class MithrilStone {
         return s;
     }
 
-    public static boolean isMithril(BlockState state) {
-        return state != null && MITHRIL.contains(state.getBlock());
-    }
+    public static boolean isMithril(BlockState state) { return state != null && MITHRIL.contains(state.getBlock()); }
 
     /** Config saved or loaded: re-decide on the next tick. */
-    static void settingsChanged() {
-        dirtyRequested = true;
-    }
+    static void settingsChanged() { dirtyRequested = true; }
 
     /** Whether a mithril block at x, y, z is drawn as stone now (its own area, else the player's). Any thread. */
     public static boolean stoneAt(int x, int y, int z) {
-        if (!enabled) {
-            return false;
-        }
+        if (!enabled) return false;
         String a = MinesAreaMap.areaAt(x, y, z);
         // A block the map can place is judged by its own area. One it cannot place (no map yet) takes the player's area; with
         // a map loaded an unplaceable block is not wanted: standing in an area never makes the blocks around it that area's.
-        if (a == null) {
-            return MinesAreaMap.loaded() ? true : active;
-        }
+        if (a == null) return MinesAreaMap.loaded() ? true : active;
         return !wanted.at(a, null);
     }
 
@@ -120,9 +108,7 @@ public final class MithrilStone {
     /** Marks every section within render distance for a rebuild (on the client thread). */
     private static void remesh(Minecraft client) {
         ClientLevel level = client.level;
-        if (level == null || client.player == null) {
-            return;
-        }
+        if (level == null || client.player == null) return;
         int r = client.options.getEffectiveRenderDistance() + 1;
         int cx = client.player.blockPosition().getX() >> 4;
         int cz = client.player.blockPosition().getZ() >> 4;
@@ -131,28 +117,16 @@ public final class MithrilStone {
     }
 
     /** Whether a block of unknown area would be stone now (the player's area decides; the old whole-view answer). */
-    public static boolean isActive() {
-        return enabled && active;
-    }
+    public static boolean isActive() { return enabled && active; }
 
     /** Whether any mithril may be drawn as stone (setting, island, commissions, no anywhere commission). */
-    public static boolean isEnabled() {
-        return enabled;
-    }
+    public static boolean isEnabled() { return enabled; }
 
     /** The area the map gives the block at x, y, z, or null (testkit). */
-    public static String areaOf(int x, int y, int z) {
-        return MinesAreaMap.areaAt(x, y, z);
-    }
+    public static String areaOf(int x, int y, int z) { return MinesAreaMap.areaAt(x, y, z); }
 
     /** How many block draws were swapped to stone since start (testkit: the mixin acted). */
-    public static long swappedCount() {
-        return swapped.get();
-    }
-
-    public static int remeshCount() {
-        return remeshes;
-    }
+    public static long swappedCount() { return swapped.get(); }
 
     /** Testkit: record each position the mesher swaps (off by default; on clears the record). */
     public static void recordSwapsForTest(boolean on) {
@@ -161,23 +135,12 @@ public final class MithrilStone {
     }
 
     /** Testkit: whether the mesher drew the block at x, y, z as stone since recording started. */
-    public static boolean swappedAt(int x, int y, int z) {
-        return SWAPPED_AT.contains(BlockPosKey.of(x, y, z));
-    }
+    public static boolean swappedAt(int x, int y, int z) { return SWAPPED_AT.contains(BlockPosKey.of(x, y, z)); }
 
     /** Testkit: re-mesh the view now. */
-    public static void remeshForTest() {
-        remesh(Minecraft.getInstance());
-    }
-
-    /** Testkit: forget the record (call before a remesh to read only its draws). */
-    public static void clearSwapRecordForTest() {
-        SWAPPED_AT.clear();
-    }
+    public static void remeshForTest() { remesh(Minecraft.getInstance()); }
 
     private static final class BlockPosKey {
-        static long of(int x, int y, int z) {
-            return net.minecraft.core.BlockPos.asLong(x, y, z);
-        }
+        static long of(int x, int y, int z) { return net.minecraft.core.BlockPos.asLong(x, y, z); }
     }
 }

@@ -37,9 +37,7 @@ public abstract class MainMenuButtonMixin {
 
     @Inject(method = "extractDefaultSprite(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedButtonBox(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return;
         try {
             AbstractButton self = (AbstractButton) (Object) this;
             MainMenuTheme.drawButtonBox(graphics, self.getX(), self.getY(), self.getWidth(), self.getHeight(),
@@ -54,9 +52,7 @@ public abstract class MainMenuButtonMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/AbstractButton;extractScrollingStringOverContents(Lnet/minecraft/client/gui/ActiveTextCollector;Lnet/minecraft/network/chat/Component;I)V"),
             index = 1, require = 0)
     private Component killer560smod$themedButtonLabel(Component message) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return message;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return message;
         try {
             AbstractButton self = (AbstractButton) (Object) this;
             Component recolored = MainMenuTheme.recolorLabel(message, self.isActive(), self.isHoveredOrFocused());

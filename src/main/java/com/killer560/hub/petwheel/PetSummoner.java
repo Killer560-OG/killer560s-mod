@@ -112,25 +112,17 @@ public final class PetSummoner {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PetSummoner.tick", PetSummoner::tick));
     }
 
-    public static boolean isBusy() {
-        return stage != Stage.IDLE;
-    }
+    public static boolean isBusy() { return stage != Stage.IDLE; }
 
     /** Read every input tick by {@code PetWheelInputMixin}: true while a summon is in flight. */
-    public static boolean suppressesMovement() {
-        return stage != Stage.IDLE;
-    }
+    public static boolean suppressesMovement() { return stage != Stage.IDLE; }
 
     /** Starts a summon. Refused (false, no side effects) while one is already running or another Hypixel
      *  container is already open - callers must not retry on false. */
     public static boolean request(PetEntry wanted) {
-        if (wanted == null || stage != Stage.IDLE) {
-            return false;
-        }
+        if (wanted == null || stage != Stage.IDLE) return false;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) {
-            return false;
-        }
+        if (client.player == null || client.level == null) return false;
         if (ActionGate.containerScreenOpen(client) || client.player.containerMenu != client.player.inventoryMenu) {
             LOGGER.info("[PetWheel] Summon of {} refused - a container is already open.", wanted.shortLabel());
             return false;
@@ -158,19 +150,13 @@ public final class PetSummoner {
      * @return true to cancel {@code setScreen} (the menu stays open headless and {@link #tick} drives it)
      */
     public static boolean interceptPetsScreen(Minecraft client, Screen screen) {
-        if (!hideRequested || (stage != Stage.AWAIT_PETS && stage != Stage.CLICK_PET)) {
-            return false;
-        }
+        if (!hideRequested || (stage != Stage.AWAIT_PETS && stage != Stage.CLICK_PET)) return false;
         // Something else on screen (chat, pause): replacing it would close it, so show the menu normally there.
-        if (McCompat.screen(client) != null || !(screen instanceof AbstractContainerScreen<?> container)) {
-            return false;
-        }
+        if (McCompat.screen(client) != null || !(screen instanceof AbstractContainerScreen<?> container)) return false;
         LocalPlayer player = client.player;
         String title = screen.getTitle().getString();
         // fromPacket assigns containerMenu right before setScreen - this proves it is the open-screen packet path.
-        if (player == null || player.containerMenu != container.getMenu() || !PETS_TITLE.matcher(title).matches()) {
-            return false;
-        }
+        if (player == null || player.containerMenu != container.getMenu() || !PETS_TITLE.matcher(title).matches()) return false;
         hiddenMenu = container.getMenu();
         hiddenTitle = title;
         return true;
@@ -184,9 +170,7 @@ public final class PetSummoner {
             }
             return;
         }
-        if (stage == Stage.IDLE) {
-            return;
-        }
+        if (stage == Stage.IDLE) return;
         LocalPlayer player = client.player;
         if (player == null || client.gameMode == null) {
             finish(client, "no player");
@@ -230,9 +214,7 @@ public final class PetSummoner {
         }
         if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) {
             String title = screen.getTitle().getString();
-            if (PETS_TITLE.matcher(title).matches()) {
-                return new PetsMenu(screen.getMenu(), title, screen);
-            }
+            if (PETS_TITLE.matcher(title).matches()) return new PetsMenu(screen.getMenu(), title, screen);
         }
         return null;
     }
@@ -263,9 +245,7 @@ public final class PetSummoner {
 
     private static void awaitPets(Minecraft client, long now) {
         PetsMenu pm = currentPetsMenu(client);
-        if (pm == null || filledSlots(pm.menu()) == 0) {
-            return;
-        }
+        if (pm == null || filledSlots(pm.menu()) == 0) return;
         LOGGER.info("[PetWheel] {}: Pets menu loaded {}ms after /pets ({}).",
                 target.shortLabel(), now - cmdSentMs, pm.screen() == null ? "hidden" : "shown");
         stage = Stage.CLICK_PET;
@@ -297,17 +277,13 @@ public final class PetSummoner {
 
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = slots.get(i).getItem();
-            if (stack.isEmpty() || !target.uuid().equals(ItemProtect.itemUuid(stack))) {
-                continue;
-            }
+            if (stack.isEmpty() || !target.uuid().equals(ItemProtect.itemUuid(stack))) continue;
             if (alreadyOut(stack)) {
                 ModChat.send(CHAT, ModChat.text(target.name() + " is already summoned."));
                 finish(client, "already summoned");
                 return;
             }
-            if (!gate(pm)) {
-                return;
-            }
+            if (!gate(pm)) return;
             client.gameMode.handleContainerInput(menu.containerId, slots.get(i).index, 0, ContainerInput.PICKUP, player);
             LOGGER.info("[PetWheel] {}: clicked on page {} {}ms after it loaded; {}ms total from the pick.",
                     target.shortLabel(), current, now - phaseStartedMs, now - startedMs);
@@ -325,16 +301,12 @@ public final class PetSummoner {
             settleTicks = 0;
             return;
         }
-        if (++settleTicks < NOT_FOUND_SETTLE_TICKS) {
-            return;
-        }
+        if (++settleTicks < NOT_FOUND_SETTLE_TICKS) return;
 
         if (current < total && pagesTried < MAX_PET_PAGES) {
             for (int i = 0; i < containerSlots; i++) {
                 if (slots.get(i).getItem().getHoverName().getString().contains("Next Page")) {
-                    if (!gate(pm)) {
-                        return;
-                    }
+                    if (!gate(pm)) return;
                     pagesTried++;
                     pagedFrom = menu;
                     pagedFromSignature = signature(menu);
@@ -358,9 +330,7 @@ public final class PetSummoner {
 
     /** A headless page never reaches {@link PetsMenuScanner} (it reads the screen), so record its pets here. */
     private static void recordSeen(AbstractContainerMenu menu) {
-        if (hiddenMenu != menu) {
-            return;
-        }
+        if (hiddenMenu != menu) return;
         List<Slot> slots = menu.slots;
         int containerSlots = Math.max(0, slots.size() - PLAYER_INVENTORY_SLOTS);
         PetWheelConfig cfg = PetWheelConfig.getInstance();
@@ -378,13 +348,9 @@ public final class PetSummoner {
 
     private static boolean alreadyOut(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return false;
-        }
+        if (lore == null) return false;
         for (var line : lore.lines()) {
-            if (line.getString().contains("Click to despawn")) {
-                return true;
-            }
+            if (line.getString().contains("Click to despawn")) return true;
         }
         return false;
     }

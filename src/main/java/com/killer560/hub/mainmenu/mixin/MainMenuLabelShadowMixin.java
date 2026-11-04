@@ -20,9 +20,7 @@ public abstract class MainMenuLabelShadowMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/state/gui/GuiTextRenderState;<init>(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;Lorg/joml/Matrix3x2fc;IIIIZZLnet/minecraft/client/gui/navigation/ScreenRectangle;)V"),
             index = 7, require = 0)
     private boolean killer560smod$noShadowOnLightMainMenu(boolean dropShadow) {
-        if (!dropShadow) {
-            return false;
-        }
+        if (!dropShadow) return false;
         try {
             // Every themed vanilla menu on a light theme (2026-10-15); the mod's own screens draw their text themselves.
             net.minecraft.client.gui.screens.Screen screen =

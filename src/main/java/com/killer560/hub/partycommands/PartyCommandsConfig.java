@@ -62,17 +62,11 @@ public final class PartyCommandsConfig {
         }
 
         /** Button text, e.g. "Party (pc)". */
-        public String label() {
-            return label + " (" + prefix + ")";
-        }
+        public String label() { return label + " (" + prefix + ")"; }
 
-        public String prefix() {
-            return prefix;
-        }
+        public String prefix() { return prefix; }
 
-        String key() {
-            return "channel." + name().toLowerCase(Locale.US);
-        }
+        String key() { return "channel." + name().toLowerCase(Locale.US); }
     }
 
     /** What a command does to the world - decides the teammate gate in {@link PartyCommandsFeature}. */
@@ -127,30 +121,18 @@ public final class PartyCommandsConfig {
             this.triggers = triggers;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
-        public Kind kind() {
-            return kind;
-        }
+        public Kind kind() { return kind; }
 
-        public boolean defaultOn() {
-            return defaultOn;
-        }
+        public boolean defaultOn() { return defaultOn; }
 
-        public String[] triggers() {
-            return triggers.clone();
-        }
+        public String[] triggers() { return triggers.clone(); }
 
         /** The canonical "!word" shown in {@code !help} replies. */
-        public String canonical() {
-            return triggers[0];
-        }
+        public String canonical() { return triggers[0]; }
 
-        String key() {
-            return "cmd." + name().toLowerCase(Locale.US);
-        }
+        String key() { return "cmd." + name().toLowerCase(Locale.US); }
     }
 
     /** The old "destructive" set, which also needed "Allow Destructive Commands" - read only by the migration. */
@@ -246,9 +228,7 @@ public final class PartyCommandsConfig {
     }
 
     private static JsonObject read(Path path) {
-        if (!Files.exists(path)) {
-            return null;
-        }
+        if (!Files.exists(path)) return null;
         try {
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
@@ -275,22 +255,14 @@ public final class PartyCommandsConfig {
     }
 
     /** Gated like every other feature getter - off entirely outside Skyblock/p3sim while "Skyblock Only" is on. */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     /** The real saved value, for the settings screen (which must show what is actually turned on). */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isChannelOn(Channel channel) {
-        return channel != null && Boolean.TRUE.equals(channels.get(channel));
-    }
+    public boolean isChannelOn(Channel channel) { return channel != null && Boolean.TRUE.equals(channels.get(channel)); }
 
     public void setChannelOn(Channel channel, boolean value) {
         if (channel != null) {
@@ -298,9 +270,7 @@ public final class PartyCommandsConfig {
         }
     }
 
-    public boolean isOn(Command command) {
-        return command != null && Boolean.TRUE.equals(commands.get(command));
-    }
+    public boolean isOn(Command command) { return command != null && Boolean.TRUE.equals(commands.get(command)); }
 
     public void setOn(Command command, boolean value) {
         if (command != null) {
@@ -309,21 +279,13 @@ public final class PartyCommandsConfig {
     }
 
     /** Whether the command may run right now: feature on and its own toggle on. */
-    public boolean allows(Command command) {
-        return isEnabled() && isOn(command);
-    }
+    public boolean allows(Command command) { return isEnabled() && isOn(command); }
 
     /** How long after a command arrives its reply or action is sent (default 200 ms). Hypixel answers "You are
      *  sending commands too fast" to a command sent in the same instant as the chat line that asked for it. */
-    public int getReplyDelayMs() {
-        return replyDelayMs;
-    }
+    public int getReplyDelayMs() { return replyDelayMs; }
 
-    public void setReplyDelayMs(int replyDelayMs) {
-        this.replyDelayMs = clampDelay(replyDelayMs);
-    }
+    public void setReplyDelayMs(int replyDelayMs) { this.replyDelayMs = clampDelay(replyDelayMs); }
 
-    private static int clampDelay(int ms) {
-        return Math.max(0, Math.min(MAX_REPLY_DELAY_MS, ms));
-    }
+    private static int clampDelay(int ms) { return Math.max(0, Math.min(MAX_REPLY_DELAY_MS, ms)); }
 }

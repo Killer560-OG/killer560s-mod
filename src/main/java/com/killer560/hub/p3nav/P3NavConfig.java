@@ -44,7 +44,6 @@ public final class P3NavConfig {
 
     private static P3NavConfig instance;
 
-    // ---- Gate Highlight ----
     private boolean gateHighlight = false;
     private int gateColor = DEFAULT_GATE_COLOR;
     private Style gateStyle = Style.FILLED_OUTLINE;
@@ -53,7 +52,6 @@ public final class P3NavConfig {
      *  draw the box for the section you're in, even after the gate is gone. */
     private boolean gateHideDestroyed = true;
 
-    // ---- Terminal / Device ESP ----
     private boolean terminalEsp = false;
     private int terminalColor = DEFAULT_TERMINAL_COLOR;
     private Style terminalStyle = Style.FILLED;
@@ -142,14 +140,9 @@ public final class P3NavConfig {
         }
     }
 
-    private static boolean cheat() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
-    }
+    private static boolean cheat() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED; }
 
-    // ---- Gate Highlight ----
-    public boolean isGateHighlightEnabled() {
-        return gateHighlight && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isGateHighlightEnabled() { return gateHighlight && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public boolean getGateHighlightRaw() { return gateHighlight; }
     public void setGateHighlight(boolean v) { gateHighlight = v; com.killer560.hub.util.FeatureBits.changed(); }
@@ -158,9 +151,7 @@ public final class P3NavConfig {
     public void setGateColor(int v) { gateColor = v; }
 
     public Style getGateStyle() { return gateStyle; }
-    public void cycleGateStyle() {
-        cycleGateStyle(1);
-    }
+    public void cycleGateStyle() { cycleGateStyle(1); }
 
     public void cycleGateStyle(int dir) {
         Style[] all = Style.values();
@@ -173,10 +164,7 @@ public final class P3NavConfig {
     public boolean getGateHideDestroyedRaw() { return gateHideDestroyed; }
     public void setGateHideDestroyed(boolean v) { gateHideDestroyed = v; }
 
-    // ---- Terminal / Device ESP ----
-    public boolean isTerminalEspEnabled() {
-        return terminalEsp && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isTerminalEspEnabled() { return terminalEsp && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public boolean getTerminalEspRaw() { return terminalEsp; }
     public void setTerminalEsp(boolean v) { terminalEsp = v; com.killer560.hub.util.FeatureBits.changed(); }
@@ -185,9 +173,7 @@ public final class P3NavConfig {
     public void setTerminalColor(int v) { terminalColor = v; }
 
     public Style getTerminalStyle() { return terminalStyle; }
-    public void cycleTerminalStyle() {
-        cycleTerminalStyle(1);
-    }
+    public void cycleTerminalStyle() { cycleTerminalStyle(1); }
 
     public void cycleTerminalStyle(int dir) {
         Style[] all = Style.values();
@@ -200,9 +186,7 @@ public final class P3NavConfig {
     public boolean getTerminalCurrentSectionOnlyRaw() { return terminalCurrentSectionOnly; }
     public void setTerminalCurrentSectionOnly(boolean v) { terminalCurrentSectionOnly = v; }
 
-    public boolean isDeviceEspEnabled() {
-        return deviceEsp && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isDeviceEspEnabled() { return deviceEsp && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public boolean getDeviceEspRaw() { return deviceEsp; }
     public void setDeviceEsp(boolean v) { deviceEsp = v; com.killer560.hub.util.FeatureBits.changed(); }

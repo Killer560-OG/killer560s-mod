@@ -69,9 +69,7 @@ public final class WaypointRoutesConfig {
         AsyncFileWriter.flush(); // a save queued just before (profile apply) must reach the disk first
         WaypointRoutesConfig cfg = new WaypointRoutesConfig();
         instance = cfg;
-        if (!Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!Files.exists(CONFIG_PATH)) return;
         JsonObject obj;
         try {
             obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
@@ -132,107 +130,59 @@ public final class WaypointRoutesConfig {
         }
     }
 
-    private static boolean getBool(JsonObject obj, String key, boolean def) {
-        return ConfigJson.getBool(obj, key, def);
-    }
+    private static boolean getBool(JsonObject obj, String key, boolean def) { return ConfigJson.getBool(obj, key, def); }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public int getKeyCode(int which) {
-        return keyCodes[which];
-    }
+    public int getKeyCode(int which) { return keyCodes[which]; }
 
-    public void setKeyCode(int which, int code) {
-        keyCodes[which] = code;
-    }
+    public void setKeyCode(int which, int code) { keyCodes[which] = code; }
 
-    public boolean isLineToNext() {
-        return lineToNext;
-    }
+    public boolean isLineToNext() { return lineToNext; }
 
-    public void setLineToNext(boolean lineToNext) {
-        this.lineToNext = lineToNext;
-    }
+    public void setLineToNext(boolean lineToNext) { this.lineToNext = lineToNext; }
 
-    public boolean isRouteLines() {
-        return routeLines;
-    }
+    public boolean isRouteLines() { return routeLines; }
 
-    public void setRouteLines(boolean routeLines) {
-        this.routeLines = routeLines;
-    }
+    public void setRouteLines(boolean routeLines) { this.routeLines = routeLines; }
 
-    public boolean isShowNumbers() {
-        return showNumbers;
-    }
+    public boolean isShowNumbers() { return showNumbers; }
 
-    public void setShowNumbers(boolean showNumbers) {
-        this.showNumbers = showNumbers;
-    }
+    public void setShowNumbers(boolean showNumbers) { this.showNumbers = showNumbers; }
 
-    public boolean isShowDistance() {
-        return showDistance;
-    }
+    public boolean isShowDistance() { return showDistance; }
 
-    public void setShowDistance(boolean showDistance) {
-        this.showDistance = showDistance;
-    }
+    public void setShowDistance(boolean showDistance) { this.showDistance = showDistance; }
 
-    public boolean isStartAtNearest() {
-        return startAtNearest;
-    }
+    public boolean isStartAtNearest() { return startAtNearest; }
 
-    public void setStartAtNearest(boolean startAtNearest) {
-        this.startAtNearest = startAtNearest;
-    }
+    public void setStartAtNearest(boolean startAtNearest) { this.startAtNearest = startAtNearest; }
 
-    public float getTextScale() {
-        return textScale;
-    }
+    public float getTextScale() { return textScale; }
 
-    public void setTextScale(float textScale) {
-        this.textScale = Math.max(0.5f, Math.min(3.0f, textScale));
-    }
+    public void setTextScale(float textScale) { this.textScale = Math.max(0.5f, Math.min(3.0f, textScale)); }
 
-    public float getLineThickness() {
-        return lineThickness;
-    }
+    public float getLineThickness() { return lineThickness; }
 
-    public void setLineThickness(float lineThickness) {
-        this.lineThickness = Math.max(1.0f, Math.min(6.0f, lineThickness));
-    }
+    public void setLineThickness(float lineThickness) { this.lineThickness = Math.max(1.0f, Math.min(6.0f, lineThickness)); }
 
-    public int getTargetColor() {
-        return targetColor;
-    }
+    public int getTargetColor() { return targetColor; }
 
-    public void setTargetColor(int targetColor) {
-        this.targetColor = targetColor;
-    }
+    public void setTargetColor(int targetColor) { this.targetColor = targetColor; }
 
-    public String getSelectedRouteId() {
-        return selectedRouteId;
-    }
+    public String getSelectedRouteId() { return selectedRouteId; }
 
-    public void setSelectedRouteId(String selectedRouteId) {
-        this.selectedRouteId = selectedRouteId;
-    }
+    public void setSelectedRouteId(String selectedRouteId) { this.selectedRouteId = selectedRouteId; }
 
-    public String getActiveRouteId(String areaKey) {
-        return activeByArea.get(areaKey);
-    }
+    public String getActiveRouteId(String areaKey) { return activeByArea.get(areaKey); }
 
     public void setActiveRouteId(String areaKey, String routeId) {
         if (routeId == null) {
@@ -250,7 +200,4 @@ public final class WaypointRoutesConfig {
         }
     }
 
-    public Map<String, String> getActiveByArea() {
-        return activeByArea;
-    }
 }

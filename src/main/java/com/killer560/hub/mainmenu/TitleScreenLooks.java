@@ -56,14 +56,10 @@ public final class TitleScreenLooks {
             this(group, name, theme, amber, green, gradient, variant, note, false);
         }
 
-        public boolean vanilla() {
-            return theme == null;
-        }
+        public boolean vanilla() { return theme == null; }
 
         /** "Amber · Embers", "Vanilla". */
-        public String label() {
-            return name.isEmpty() ? group : group + " · " + name;
-        }
+        public String label() { return name.isEmpty() ? group : group + " · " + name; }
     }
 
     private static final List<Look> LOOKS;
@@ -154,24 +150,16 @@ public final class TitleScreenLooks {
         }
     }
 
-    public static List<Look> looks() {
-        return LOOKS;
-    }
+    public static List<Look> looks() { return LOOKS; }
 
     /** The picked look, or null when none is (the saved look shows). */
-    public static Look current() {
-        return enabled() ? current : null;
-    }
+    public static Look current() { return enabled() ? current : null; }
 
     /** The index of the look on screen in {@link #looks()}: the picked one, else the one the saved settings give. */
     public static int currentIndex() {
         Look c = current();
-        if (c != null) {
-            return LOOKS.indexOf(c);
-        }
-        if (!MainMenuThemeConfig.getInstance().isEnabled()) {
-            return 0;
-        }
+        if (c != null) return LOOKS.indexOf(c);
+        if (!MainMenuThemeConfig.getInstance().isEnabled()) return 0;
         MenuTheme theme = MainMenuLook.current().theme();
         boolean simpleNow = MainMenuLook.current().scene().simple();
         for (int i = 0; i < LOOKS.size(); i++) {
@@ -189,15 +177,11 @@ public final class TitleScreenLooks {
     }
 
     /** Bumped on every pick, so {@link MainMenuLook#current()} re-resolves. */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /** Shows {@code look} live. Writes no setting. */
     public static void apply(Look look) {
-        if (!enabled() || look == null) {
-            return;
-        }
+        if (!enabled() || look == null) return;
         boolean wasVanilla = !MainMenuTheme.active();
         current = look;
         MainMenuScenes.setAmberScene(look.amber());
@@ -221,9 +205,7 @@ public final class TitleScreenLooks {
 
     /** Back to the saved look (nothing picked). */
     public static void clear() {
-        if (current == null) {
-            return;
-        }
+        if (current == null) return;
         current = null;
         MainMenuScenes.setAmberScene(null);
         MainMenuScenes.setDarkScene(null);
@@ -237,13 +219,10 @@ public final class TitleScreenLooks {
     /** The picked look's five colors for the mod's own screens (so Mod Settings shows Green's gradients), or null. */
     public static int[] menuColours() {
         Look c = current();
-        if (c == null || c.vanilla()) {
-            return null;
-        }
+        if (c == null || c.vanilla()) return null;
         return MainMenuLook.coloursOf(c.theme(), MenuConfig.getInstance());
     }
 
-    // ---------------------------------------------------------------- the title screen's buttons
 
     /** The Multiplayer slot's replacement: a plain vanilla Button, so it is themed like the rest of the column. */
     public static final class LooksButton extends Button.Plain {
@@ -277,17 +256,13 @@ public final class TitleScreenLooks {
         }
 
         /** Steps through values (the testkit's 806 rule: every cycling control says so). */
-        public boolean isCycling() {
-            return true;
-        }
+        public boolean isCycling() { return true; }
     }
 
     private static java.lang.ref.WeakReference<CornerButton> corner = new java.lang.ref.WeakReference<>(null);
 
     /** The corner switcher on the open title screen, or null (testkit 1574). */
-    public static CornerButton cornerButton() {
-        return corner.get();
-    }
+    public static CornerButton cornerButton() { return corner.get(); }
 
     /** "Look: Amber · Embers" for the corner button. */
     public static String cornerLabel() {
@@ -300,9 +275,7 @@ public final class TitleScreenLooks {
      * the same slot (the layout then treats it as Multiplayer) and puts the cycling button in the top right corner.
      */
     static void install(Screen screen) {
-        if (!enabled() || !(screen instanceof TitleScreen)) {
-            return;
-        }
+        if (!enabled() || !(screen instanceof TitleScreen)) return;
         try {
             List<AbstractWidget> widgets = Screens.getWidgets(screen);
             for (int i = 0; i < widgets.size(); i++) {

@@ -47,16 +47,12 @@ public final class QuizSolverFeature {
     private static String roomLogKey = "none";
 
     private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) {
-            return;
-        }
+        if (key.equals(roomLogKey)) return;
         roomLogKey = key;
         LOGGER.info("[QuizSolver] {}", detail);
     }
 
-    private static String letterOf(int index) {
-        return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?";
-    }
+    private static String letterOf(int index) { return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?"; }
 
     private QuizSolverFeature() {
     }
@@ -133,9 +129,7 @@ public final class QuizSolverFeature {
         if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(roomLogKey)) {
             logRoomState("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
         }
-        if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) {
-            return;
-        }
+        if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
             logRoomState("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
@@ -158,9 +152,7 @@ public final class QuizSolverFeature {
     }
 
     private static void onMessage(Component message) {
-        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            return;
-        }
+        if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) return;
         String msg = ChatObserver.strip(message);
 
         // Oruo's three lock lines open a new question (NoammAddons QuizSolver.kt clears the options on each): nothing
@@ -251,13 +243,9 @@ public final class QuizSolverFeature {
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!QuizSolverConfig.getInstance().isEnabled() || triviaAnswers == null) {
-            return;
-        }
+        if (!QuizSolverConfig.getInstance().isEnabled() || triviaAnswers == null) return;
         for (TriviaOption option : options) {
-            if (!option.correct || option.blockPos == null) {
-                continue;
-            }
+            if (!option.correct || option.blockPos == null) continue;
             // THE BLOCK ITSELF, not the one under it.
             //
             // Decoding Quiz.json settles what these three coordinates actually name. At the capture's
@@ -272,13 +260,9 @@ public final class QuizSolverFeature {
 
     /** The correct answer's block, once the question's answers are known and the answer holograms were found. */
     public static BlockPos getCorrectAnswerPos() {
-        if (triviaAnswers == null) {
-            return null;
-        }
+        if (triviaAnswers == null) return null;
         for (TriviaOption o : options) {
-            if (o.correct && o.blockPos != null) {
-                return o.blockPos;
-            }
+            if (o.correct && o.blockPos != null) return o.blockPos;
         }
         return null;
     }
@@ -297,14 +281,10 @@ public final class QuizSolverFeature {
      */
     public static BlockPos getCorrectAnswerButton(net.minecraft.world.level.Level level) {
         BlockPos pillar = getCorrectAnswerPos();
-        if (pillar == null || level == null) {
-            return pillar;
-        }
+        if (pillar == null || level == null) return pillar;
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
             BlockPos side = pillar.relative(d);
-            if (level.getBlockState(side).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock) {
-                return side;
-            }
+            if (level.getBlockState(side).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock) return side;
         }
         return pillar;
     }
@@ -313,9 +293,7 @@ public final class QuizSolverFeature {
      *  {@code eye} (a pillar has four; the one on the side he stands is the one in reach). */
     public static BlockPos getCorrectAnswerButton(net.minecraft.world.level.Level level, net.minecraft.world.phys.Vec3 eye) {
         BlockPos pillar = getCorrectAnswerPos();
-        if (pillar == null || level == null || eye == null) {
-            return getCorrectAnswerButton(level);
-        }
+        if (pillar == null || level == null || eye == null) return getCorrectAnswerButton(level);
         BlockPos b = buttonOf(level, pillar, eye);
         return b != null ? b : pillar;
     }
@@ -339,9 +317,7 @@ public final class QuizSolverFeature {
 
     /** The three answer pillars (ⓐ, ⓑ, ⓒ) while he is in the Quiz room and they are worked out, else null. */
     public static List<BlockPos> answerPillars() {
-        if (options[0].blockPos == null || options[1].blockPos == null || options[2].blockPos == null) {
-            return null;
-        }
+        if (options[0].blockPos == null || options[1].blockPos == null || options[2].blockPos == null) return null;
         return List.of(options[0].blockPos, options[1].blockPos, options[2].blockPos);
     }
 
@@ -363,7 +339,6 @@ public final class QuizSolverFeature {
         warnedThisQuestion = false;
     }
 
-    // ---------------------------------------------------------------- Block Wrong Answers
 
     private static boolean warnedThisQuestion = false;
     private static int blockedClicks = 0;
@@ -376,16 +351,12 @@ public final class QuizSolverFeature {
      */
     public static boolean shouldBlockClick(BlockPos pos, boolean sneaking) {
         QuizSolverConfig cfg = QuizSolverConfig.getInstance();
-        if (pos == null || !cfg.isBlockWrongAnswers() || !cfg.isEnabled() || triviaAnswers == null) {
-            return false;
-        }
+        if (pos == null || !cfg.isBlockWrongAnswers() || !cfg.isEnabled() || triviaAnswers == null) return false;
         int correct = -1;
         int clicked = -1;
         for (int i = 0; i < options.length; i++) {
             BlockPos pillar = options[i].blockPos;
-            if (pillar == null) {
-                return false;
-            }
+            if (pillar == null) return false;
             if (options[i].correct) {
                 correct = i;
             }
@@ -393,9 +364,7 @@ public final class QuizSolverFeature {
                 clicked = i;
             }
         }
-        if (correct < 0 || clicked < 0 || clicked == correct) {
-            return false;
-        }
+        if (correct < 0 || clicked < 0 || clicked == correct) return false;
         if (sneaking && cfg.isSneakOverride()) {
             LOGGER.info("[QuizSolver] wrong answer {} let through at {} - sneaking overrides Block Wrong Answers",
                     letterOf(clicked), pos.toShortString());
@@ -418,30 +387,19 @@ public final class QuizSolverFeature {
     private static int wrongAnswers = 0;
 
     /** For the testkit: how many wrong-answer lines have cleared the highlight. */
-    public static int wrongAnswers() {
-        return wrongAnswers;
-    }
+    public static int wrongAnswers() { return wrongAnswers; }
 
     /** For the testkit: how many clicks Block Wrong Answers has dropped. */
-    public static int blockedClicks() {
-        return blockedClicks;
-    }
+    public static int blockedClicks() { return blockedClicks; }
 
-    // ---------------------------------------------------------------- Quiz Timer HUD
 
     /** The text the Quiz Timer shows now, or null when there is nothing to time (no Quiz in progress). */
     public static String timerText() {
-        if (!QuizState.inProgress()) {
-            return null;
-        }
+        if (!QuizState.inProgress()) return null;
         int q = QuizState.nextQuestion();
-        if (QuizState.answerable()) {
-            return "\u00a7aQuiz " + q + "/3: answer now";
-        }
+        if (QuizState.answerable()) return "\u00a7aQuiz " + q + "/3: answer now";
         long t = QuizState.ticksUntilAnswerable();
-        if (t < 0) {
-            return null;
-        }
+        if (t < 0) return null;
         return String.format(java.util.Locale.US, "\u00a7eQuiz %d/3: \u00a7f%.1fs", q, t / 20.0);
     }
 
@@ -456,24 +414,16 @@ public final class QuizSolverFeature {
         }
 
         @Override
-        public String id() {
-            return "quiz_timer";
-        }
+        public String id() { return "quiz_timer"; }
 
         @Override
-        public String displayName() {
-            return "Quiz Timer";
-        }
+        public String displayName() { return "Quiz Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 180;
-        }
+        public int defaultY() { return 180; }
 
         @Override
         public int width() {
@@ -482,9 +432,7 @@ public final class QuizSolverFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.ROW;
-        }
+        public int height() { return com.killer560.hub.hud.HudText.ROW; }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -495,13 +443,9 @@ public final class QuizSolverFeature {
         @Override
         public void render(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int x, int y) {
             QuizSolverConfig cfg = QuizSolverConfig.getInstance();
-            if (!cfg.isEnabled() || !cfg.isShowTimer() || com.killer560.hub.hud.HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isEnabled() || !cfg.isShowTimer() || com.killer560.hub.hud.HudVisibility.hidesHud()) return;
             String text = shown();
-            if (text == null) {
-                return;
-            }
+            if (text == null) return;
             timerDraws++;
             lastTimerText = text;
             com.killer560.hub.hud.HudSeen.markDrawn(id());
@@ -513,14 +457,10 @@ public final class QuizSolverFeature {
     private static String lastTimerText = null;
 
     /** For the testkit: how many frames the Quiz Timer has drawn. */
-    public static int timerDraws() {
-        return timerDraws;
-    }
+    public static int timerDraws() { return timerDraws; }
 
     /** For the testkit: the text the Quiz Timer last drew. */
-    public static String lastTimerText() {
-        return lastTimerText;
-    }
+    public static String lastTimerText() { return lastTimerText; }
 
     private static void reset() {
         for (TriviaOption option : options) {

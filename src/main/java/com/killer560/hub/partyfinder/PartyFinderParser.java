@@ -60,9 +60,7 @@ public final class PartyFinderParser {
 
     /** @return the party shown by a Party Finder head, or null for anything else. */
     public static Party parse(int slot, ItemStack stack, DungeonClass currentRole) {
-        if (stack == null || stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) return null;
         // The SERVER's lore for this slot when we have it, the live stack only as a fallback.
         //
         // Devonian's Party Finder Overview rewrites this lore in place every tick, so the live stack holds its
@@ -116,9 +114,7 @@ public final class PartyFinderParser {
                 members.add(new Member(m.group(1), role, parseInt(m.group(3))));
             }
         }
-        if (!found) {
-            return null;
-        }
+        if (!found) return null;
         if (currentRole != null && present.contains(currentRole)) {
             blockers.add(Status.DUPE_CLASS);
         }
@@ -133,9 +129,7 @@ public final class PartyFinderParser {
 
     /** "Currently Selected: Mage" on the Catacombs Gate class item, or null. */
     public static DungeonClass selectedClass(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         DungeonClass result = null;
         for (String line : loreStrings(stack)) {
             Matcher m = CURRENTLY_SELECTED.matcher(line);
@@ -148,9 +142,7 @@ public final class PartyFinderParser {
 
     public static List<String> loreStrings(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return List.of();
-        }
+        if (lore == null) return List.of();
         List<String> out = new ArrayList<>(lore.lines().size());
         lore.lines().forEach(c -> out.add(c.getString()));
         return out;

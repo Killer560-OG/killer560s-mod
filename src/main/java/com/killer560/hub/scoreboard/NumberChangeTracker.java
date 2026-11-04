@@ -31,9 +31,7 @@ final class NumberChangeTracker {
     /** Records {@code raw} for {@code key} and returns {@code line} with its popup attached while one is active. */
     static ScoreboardLine track(CustomScoreboardConfig cfg, ScoreboardLine line, String key, String raw, String color) {
         Double value = raw == null ? null : ScoreboardLine.parse(raw);
-        if (value == null) {
-            return line;
-        }
+        if (value == null) return line;
         long now = System.currentTimeMillis();
         State state = STATES.get(key);
         if (state == null || now - state.lastSeenMs > FORGET_MS) {
@@ -55,9 +53,7 @@ final class NumberChangeTracker {
             state.pending = now < state.untilMs ? state.pending + delta : delta;
             state.untilMs = now + SHOW_MS;
         }
-        if (now >= state.untilMs || Math.abs(state.pending) < 1e-9) {
-            return line;
-        }
+        if (now >= state.untilMs || Math.abs(state.pending) < 1e-9) return line;
         String amount = ScoreboardLine.formatNumber(state.pending);
         String popup = " §7(" + color + (state.pending > 0 ? "+" : "") + amount + "§7)";
         return line.withPopup(popup, state.untilMs);
@@ -66,13 +62,8 @@ final class NumberChangeTracker {
     /** Text alpha (0-255) for a popup expiring at {@code untilMs}. */
     static int alpha(long untilMs, long nowMs) {
         long left = untilMs - nowMs;
-        if (left >= FADE_MS) {
-            return 255;
-        }
-        return Math.max(16, (int) (255 * Math.max(0, left) / FADE_MS));
+        return left >= FADE_MS ? 255 : Math.max(16, (int) (255 * Math.max(0, left) / FADE_MS));
     }
 
-    static void clear() {
-        STATES.clear();
-    }
+    static void clear() { STATES.clear(); }
 }

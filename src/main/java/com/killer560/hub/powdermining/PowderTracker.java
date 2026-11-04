@@ -56,9 +56,7 @@ public final class PowderTracker {
 
     /** One loot block, its rewards by name. */
     static void onChest(Map<String, Long> rewards) {
-        if (!PowderMiningConfig.getInstance().isPowderTracker()) {
-            return;
-        }
+        if (!PowderMiningConfig.getInstance().isPowderTracker()) return;
         activity();
         chests++;
         for (Map.Entry<String, Long> e : rewards.entrySet()) {
@@ -84,20 +82,12 @@ public final class PowderTracker {
     }
 
     static String compact(long n) {
-        if (n >= 1_000_000L) {
-            return String.format(Locale.US, "%.2fM", n / 1_000_000.0);
-        }
-        if (n >= 10_000L) {
-            return String.format(Locale.US, "%.1fk", n / 1000.0);
-        }
-        return String.format(Locale.US, "%,d", n);
+        if (n >= 1_000_000L) return String.format(Locale.US, "%.2fM", n / 1_000_000.0);
+        return n >= 10_000L ? String.format(Locale.US, "%.1fk", n / 1000.0) : String.format(Locale.US, "%,d", n);
     }
 
     private static String perHour(long n) {
-        if (activeMs < 30_000L) {
-            return "";
-        }
-        return " §7(" + compact(Math.round(n * 3_600_000.0 / activeMs)) + "/h)";
+        return activeMs < 30_000L ? "" : " §7(" + compact(Math.round(n * 3_600_000.0 / activeMs)) + "/h)";
     }
 
     private static String uptime() {
@@ -130,50 +120,31 @@ public final class PowderTracker {
         return out;
     }
 
-    // ---- testkit hooks
 
-    public static int chests() {
-        return chests;
-    }
+    public static int chests() { return chests; }
 
-    public static long gemstone() {
-        return gemstone;
-    }
+    public static long gemstone() { return gemstone; }
 
-    public static long mithril() {
-        return mithril;
-    }
+    public static long mithril() { return mithril; }
 
-    public static long item(String name) {
-        return ITEMS.getOrDefault(name, 0L);
-    }
+    public static long item(String name) { return ITEMS.getOrDefault(name, 0L); }
 
-    public static long activeMs() {
-        return activeMs;
-    }
+    public static long activeMs() { return activeMs; }
 
     /** The movable tracker. */
     public static final class Hud implements HudElement {
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Powder Tracker";
-        }
+        public String displayName() { return "Powder Tracker"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 100;
-        }
+        public int defaultY() { return 100; }
 
         @Override
         public int width() {
@@ -185,24 +156,16 @@ public final class PowderTracker {
         }
 
         @Override
-        public int height() {
-            return lines().size() * 10;
-        }
+        public int height() { return lines().size() * 10; }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return PowderMiningConfig.getInstance().isPowderTrackerRaw();
-        }
+        public boolean isEnabledInSettings() { return PowderMiningConfig.getInstance().isPowderTrackerRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!PowderMiningConfig.getInstance().isPowderTracker() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!PowderMiningConfig.getInstance().isPowderTracker() || HudVisibility.hidesHud()) return;
             // Shown on the mining islands (and in the HUD editor); hidden elsewhere.
-            if (!com.killer560.hub.miningqol.MiningState.onMiningIsland() && !HudVisibility.editorOpen()) {
-                return;
-            }
+            if (!com.killer560.hub.miningqol.MiningState.onMiningIsland() && !HudVisibility.editorOpen()) return;
             int yy = y;
             for (String s : lines()) {
                 graphics.text(Minecraft.getInstance().font, s, x, yy, 0xFFFFFFFF, true);

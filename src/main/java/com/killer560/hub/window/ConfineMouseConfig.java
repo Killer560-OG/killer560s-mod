@@ -72,21 +72,11 @@ public final class ConfineMouseConfig {
         return enabled != null ? enabled : WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
     }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
     /** Only In Dungeons (killer560, 2026-11-01): confine only while in a Catacombs run. */
-    public boolean isOnlyInDungeons() {
-        return onlyInDungeons;
-    }
+    public boolean isOnlyInDungeons() { return onlyInDungeons; }
 
-    public void setOnlyInDungeons(boolean v) {
-        onlyInDungeons = v;
-    }
+    public void setOnlyInDungeons(boolean v) { onlyInDungeons = v; }
 
-    /** Whether he has set it himself (so the default no longer follows the window mode). */
-    public boolean isExplicitlySet() {
-        return enabled != null;
-    }
 }

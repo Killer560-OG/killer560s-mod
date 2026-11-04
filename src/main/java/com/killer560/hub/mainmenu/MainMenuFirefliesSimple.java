@@ -60,9 +60,7 @@ final class MainMenuFirefliesSimple {
             double y = fall - 15.0;
             double x = r3 * w + Math.sin(t * (0.5 + r1 * 0.6) + i * 1.9) * (14.0 + r2 * 20.0);
             int a = (int) (0xA0 * Math.min(1.0, fall / 30.0) * Math.min(1.0, (travel - fall) / 30.0));
-            if (a <= 6) {
-                continue;
-            }
+            if (a <= 6) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             boolean wide = Math.sin(t * (1.1 + r3) + i) > 0;
@@ -81,9 +79,7 @@ final class MainMenuFirefliesSimple {
             double y = (0.25 + r2 * 0.7) * h + Math.cos(t * (0.15 + r3 * 0.25) + i * 1.1) * (10 + r1 * 18);
             double pulse = Math.max(0.0, Math.sin(t * (0.7 + r3 * 1.1) + i * 3.7));
             int a = (int) (255 * pulse * pulse);
-            if (a <= 8) {
-                continue;
-            }
+            if (a <= 8) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             r.fill(px - 2, py - 2, px + 3, py + 3, MenuStyle.alpha(accent, a / 8));

@@ -81,31 +81,17 @@ public final class TooltipScrollConfig {
         }
     }
 
-    private static int clampLines(int v) {
-        return Math.max(MIN_LINES_PER_SCROLL, Math.min(MAX_LINES_PER_SCROLL, v));
-    }
+    private static int clampLines(int v) { return Math.max(MIN_LINES_PER_SCROLL, Math.min(MAX_LINES_PER_SCROLL, v)); }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getLinesPerScroll() {
-        return linesPerScroll;
-    }
+    public int getLinesPerScroll() { return linesPerScroll; }
 
-    public void setLinesPerScroll(int linesPerScroll) {
-        this.linesPerScroll = clampLines(linesPerScroll);
-    }
+    public void setLinesPerScroll(int linesPerScroll) { this.linesPerScroll = clampLines(linesPerScroll); }
 
-    public boolean isInvert() {
-        return invert;
-    }
+    public boolean isInvert() { return invert; }
 
-    public void setInvert(boolean invert) {
-        this.invert = invert;
-    }
+    public void setInvert(boolean invert) { this.invert = invert; }
 }

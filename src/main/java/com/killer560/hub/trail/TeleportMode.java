@@ -26,24 +26,16 @@ public enum TeleportMode {
         this.label = label;
     }
 
-    public String label() {
-        return label;
-    }
+    public String label() { return label; }
 
     /** True when a step of {@code distance} blocks counts as a teleport. */
-    public static boolean isTeleport(double distance) {
-        return distance > MIN_JUMP;
-    }
+    public static boolean isTeleport(double distance) { return distance > MIN_JUMP; }
 
     /** How high the Arc rises at its middle for a jump of {@code distance} blocks. */
-    public static double arcHeight(double distance) {
-        return Math.min(6.0, distance * 0.2);
-    }
+    public static double arcHeight(double distance) { return Math.min(6.0, distance * 0.2); }
 
     /** The extra height at {@code t} (0 at the start, 1 at the end) along a jump of {@code distance} blocks: 0 unless Arc. */
-    public double lift(double t, double distance) {
-        return this == ARC ? arcHeight(distance) * 4.0 * t * (1.0 - t) : 0.0;
-    }
+    public double lift(double t, double distance) { return this == ARC ? arcHeight(distance) * 4.0 * t * (1.0 - t) : 0.0; }
 
     /** Steps used to bridge {@code distance} blocks at about {@code spacing} blocks apiece, between 1 and the cap. */
     public static int bridgeSteps(double distance, double spacing) {

@@ -105,9 +105,7 @@ final class OceanFallsScene {
 
     /** Registers the pipeline at client init, so it is in RenderPipelines' static list before the shaders precompile. */
     static void register() {
-        if (pipeline != null || failed) {
-            return;
-        }
+        if (pipeline != null || failed) return;
         if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             failed = true;
             return;
@@ -133,9 +131,7 @@ final class OceanFallsScene {
     }
 
     /** Whether the shader is in use (testkit 1690). */
-    public static boolean shaderActive() {
-        return pipeline != null && !failed;
-    }
+    public static boolean shaderActive() { return pipeline != null && !failed; }
 
     /** The picture through the shader (or still), before the frame's batch. */
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
@@ -163,11 +159,8 @@ final class OceanFallsScene {
         stillFrames++;
     }
 
-    static void drawOverlays(GuiRects r, int w, int h, double t, float density) {
-        SCENE.drawOverlays(r, w, h, t, density);
-    }
+    static void drawOverlays(GuiRects r, int w, int h, double t, float density) { SCENE.drawOverlays(r, w, h, t, density); }
 
-    // ---- shapes --------------------------------------------------------------------------------------------------------
 
     /**
      * A soft falling streak from {@code yTail} (clear) to {@code yHead} (brightest) centered on x, {@code w} wide: a faint
@@ -177,9 +170,7 @@ final class OceanFallsScene {
      */
     static void fall(GuiRects r, double x, double yTail, double yHead, double w, int rgb, int head, double a) {
         double len = yHead - yTail;
-        if (len < 0.75 || a < 0.01) {
-            return;
-        }
+        if (len < 0.75 || a < 0.01) return;
         Matrix3x2fStack pose = r.graphics().pose();
         int none = Px.alpha(rgb, 0);
         pose.pushMatrix();
@@ -214,9 +205,7 @@ final class OceanFallsScene {
      * eighth of a column; down, ry/64 - so it is a cheaper {@link Px#softGlow} for the many puffs of mist and halos.
      */
     static void puff(GuiRects r, double cx, double cy, double rx, double ry, int rgb, double a, double perRx, double[] knots) {
-        if (rx < 1 || ry < 1 || a <= 0.003) {
-            return;
-        }
+        if (rx < 1 || ry < 1 || a <= 0.003) return;
         double span = knots[knots.length - 1];
         double cw = rx / perRx;
         int n = (int) Math.ceil(rx * span * 2 / cw);
@@ -227,9 +216,7 @@ final class OceanFallsScene {
         for (int i = 0; i < n; i++) {
             double u = ((i + 0.5) * cw - n * cw / 2.0) / rx;
             double ax = a * Math.exp(-u * u * 1.6);
-            if (ax * 255 < 0.6) {
-                continue;
-            }
+            if (ax * 255 < 0.6) continue;
             int prevY = (int) Math.round(knots[0] * 64);
             double prevA = 0;
             for (int k = 1; k < knots.length; k++) {
@@ -249,9 +236,7 @@ final class OceanFallsScene {
 
     /** A tiny glowing point at a sub-pixel place, in five rectangles: a core, a soft plus round it and a faint halo. */
     static void dot(GuiRects r, double cx, double cy, double rad, int rgb, int alpha) {
-        if (alpha <= 2) {
-            return;
-        }
+        if (alpha <= 2) return;
         Matrix3x2fStack pose = r.graphics().pose();
         pose.pushMatrix();
         pose.translate((float) cx, (float) cy);
@@ -267,9 +252,7 @@ final class OceanFallsScene {
     /** An elliptical ring (rx, ry) of {@code thick} px at a sub-pixel center, one pose for all of it (quarter-pixel
      *  units); its far half (the top, on the water) is fainter. */
     static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
-        if (alpha <= 2 || rx < 1) {
-            return;
-        }
+        if (alpha <= 2 || rx < 1) return;
         int steps = (int) Math.max(20, rx * 1.4);
         Matrix3x2fStack pose = r.graphics().pose();
         pose.pushMatrix();
@@ -288,23 +271,15 @@ final class OceanFallsScene {
         pose.popMatrix();
     }
 
-    static double ease(double v) {
-        return PictureScene.ease(v);
-    }
+    static double ease(double v) { return PictureScene.ease(v); }
 
-    static double hash(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    static double hash(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 
-    static double lerp(double a, double b, double t) {
-        return a + (b - a) * t;
-    }
+    static double lerp(double a, double b, double t) { return a + (b - a) * t; }
 
     /** Linear interpolation through (x, y) pairs sorted by x, clamped at the ends. */
     static double through(double[] pts, double x) {
-        if (x <= pts[0]) {
-            return pts[1];
-        }
+        if (x <= pts[0]) return pts[1];
         for (int i = 2; i < pts.length; i += 2) {
             if (x <= pts[i]) {
                 double f = (x - pts[i - 2]) / (pts[i] - pts[i - 2]);
@@ -314,7 +289,6 @@ final class OceanFallsScene {
         return pts[pts.length - 1];
     }
 
-    // ---- overlays ------------------------------------------------------------------------------------------------------
 
     /** Glows breathing between two strengths, each on its own slow eased clock. Seven numbers each (see SCENE). */
     record Pulse(double[] g, int rgb) implements PictureScene.Overlay {
@@ -386,9 +360,7 @@ final class OceanFallsScene {
                 double yh = (t * speed[i] + phase[i]) % travel[i] - len[i];
                 double yt = yh - len[i];
                 double s = stop[i];
-                if (yt >= s || yh <= 0) {
-                    continue;
-                }
+                if (yt >= s || yh <= 0) continue;
                 // fading away over its last stretch into the mist (or onto the cliff)
                 double fade = 1 - 0.9 * PictureScene.ease((yh - (s - 90)) / (90 + len[i] * 0.6));
                 double head = Math.min(yh, s);
@@ -426,9 +398,7 @@ final class OceanFallsScene {
                     double yh = y0 + ((t * sp * h + hash(i, salt + 3) * cyc) % cyc);
                     double yt = Math.max(y0, yh - l);
                     double head = Math.min(yh, y1);
-                    if (head - yt < 1) {
-                        continue;
-                    }
+                    if (head - yt < 1) continue;
                     double sx = x0 + 1.5 + hash(i, salt + 4) * (x1 - x0 - 3);
                     double a = (0.35 + 0.4 * hash(i, salt + 5)) * (1 - 0.7 * PictureScene.ease((yh - (y1 - 10)) / (l + 10)));
                     fall(r, sx, yt, head, 1.1 + hash(i, salt + 6) * 1.1, TEAL, HEAD, a);
@@ -480,9 +450,7 @@ final class OceanFallsScene {
         private static final double HORIZON = 926;
 
         /** Not on the rocks at the lower left. */
-        private static double shoreX(double y) {
-            return y > 1000 ? 912 : y > 948 ? 832 : 690;
-        }
+        private static double shoreX(double y) { return y > 1000 ? 912 : y > 948 ? 832 : 690; }
 
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
@@ -509,9 +477,7 @@ final class OceanFallsScene {
                 double l = 4 + 22 * persp + hash(shot * 61 + i, salt + 7) * 10;
                 double a = Math.pow(Math.sin(Math.PI * ph), 2) * (0.35 + 0.4 * hash(i, salt + 8));
                 int ca = (int) Math.round(255 * a);
-                if (ca < 4) {
-                    continue;
-                }
+                if (ca < 4) continue;
                 double th = persp > 0.45 ? 1.6 : 1.0;
                 pose.pushMatrix();
                 pose.translate((float) x, (float) y);
@@ -526,9 +492,7 @@ final class OceanFallsScene {
                 double cyc = t / period + hash(i, salt + 21);
                 int shot = (int) Math.floor(cyc);
                 double f = (cyc - shot) * period / 1.6;           // a ring lives 1.6 s of its period
-                if (f >= 1) {
-                    continue;
-                }
+                if (f >= 1) continue;
                 double y = HORIZON + 6 + Math.pow(hash(shot * 37 + i, salt + 22), 1.3) * 140;
                 double x = 720 + hash(shot * 37 + i, salt + 23) * 1150;
                 if (x < shoreX(y) + 20) {
@@ -557,9 +521,7 @@ final class OceanFallsScene {
                 dot(r, at[i] + 0.5, at[i + 1] + 0.5, 0.9 + 0.6 * tw, HEAD, a);
                 puff(r, at[i] + 0.5, at[i + 1] + 0.5, 4 + 3 * tw, 4 + 3 * tw, TEAL, 0.10 * tw, 1.6, SMALL);
             }
-            if (density <= 0) {
-                return;
-            }
+            if (density <= 0) return;
             for (int i = 0; i < motes; i++) {
                 double period = 7 + hash(i, salt + 2) * 7;
                 double cyc = t / period + hash(i, salt + 3);

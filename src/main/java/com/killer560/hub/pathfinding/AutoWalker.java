@@ -112,7 +112,6 @@ public final class AutoWalker {
     /** Whether this session holds the camera (Auto Walk on). */
     private static boolean viewHeld;
 
-    // ---- the way back onto the route
     private static List<Vec3> rescuePath;
     private static int rescueIndex;
     private static String rescueWhy = "";
@@ -138,7 +137,6 @@ public final class AutoWalker {
     private AutoWalker() {
     }
 
-    // ------------------------------------------------------------------ session
 
     /** Starts watching for player input / damage; call before {@link #setWalking}. */
     public static void startSession() {
@@ -183,9 +181,7 @@ public final class AutoWalker {
 
     /** The body back under the view he is looking at, then the camera let go: nothing on screen moves. */
     private static void releaseView() {
-        if (!viewHeld) {
-            return;
-        }
+        if (!viewHeld) return;
         viewHeld = false;
         LocalPlayer player = Minecraft.getInstance().player;
         float viewYaw = ViewFreeze.viewYaw();
@@ -202,72 +198,44 @@ public final class AutoWalker {
         ViewFreeze.release();
     }
 
-    public static boolean isSessionActive() {
-        return sessionActive;
-    }
+    public static boolean isSessionActive() { return sessionActive; }
 
     /** True while this session holds the free camera. */
-    public static boolean holdsView() {
-        return sessionActive && viewHeld;
-    }
+    public static boolean holdsView() { return sessionActive && viewHeld; }
 
-    public static String stopReason() {
-        return stopReason;
-    }
+    public static String stopReason() { return stopReason; }
 
     /** Driving the player right now (the mixin asks this). */
     public static boolean isDriving() {
         return sessionActive && walking && !noCarrot && !respawning && PathfindingConfig.getInstance().isAutoWalk();
     }
 
-    public static boolean wantForward() {
-        return wantForward;
-    }
+    public static boolean wantForward() { return wantForward; }
 
-    public static boolean wantBack() {
-        return wantBack;
-    }
+    public static boolean wantBack() { return wantBack; }
 
-    public static boolean wantLeft() {
-        return wantLeft;
-    }
+    public static boolean wantLeft() { return wantLeft; }
 
-    public static boolean wantRight() {
-        return wantRight;
-    }
+    public static boolean wantRight() { return wantRight; }
 
-    public static boolean wantJump() {
-        return wantJump;
-    }
+    public static boolean wantJump() { return wantJump; }
 
-    public static boolean wantSprint() {
-        return wantSprint;
-    }
+    public static boolean wantSprint() { return wantSprint; }
 
     /** Sneak (crouch) this tick: under a 1.5-high ceiling, or to stop on a narrow spot without stepping off it. */
-    public static boolean wantSneak() {
-        return wantSneak;
-    }
+    public static boolean wantSneak() { return wantSneak; }
 
     /** Testkit: ticks the walker held sneak. */
-    public static int crouchTicks() {
-        return crouchTicks;
-    }
+    public static int crouchTicks() { return crouchTicks; }
 
     /** Testkit: controlled jumps (a jump with height to spare, steered in the air onto its cell). */
-    public static int controlledJumps() {
-        return controlledJumps;
-    }
+    public static int controlledJumps() { return controlledJumps; }
 
     /** Testkit: plans made again because his jump changed (Jump Boost on or off). */
-    public static int jumpReplans() {
-        return jumpReplans;
-    }
+    public static int jumpReplans() { return jumpReplans; }
 
     public static void setWalking(boolean value) {
-        if (walking == value) {
-            return;
-        }
+        if (walking == value) return;
         walking = value;
         noCarrot = false;
         if (!value) {
@@ -279,9 +247,7 @@ public final class AutoWalker {
     }
 
     /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
-    public static void rebaseCamera() {
-        WalkCamera.rebase();
-    }
+    public static void rebaseCamera() { WalkCamera.rebase(); }
 
     public static void clearStuck() {
         stuck = false;
@@ -309,13 +275,9 @@ public final class AutoWalker {
         }
     }
 
-    public static void onMixinApplied() {
-        mixinApplied = true;
-    }
+    public static void onMixinApplied() { mixinApplied = true; }
 
-    public static boolean mixinApplied() {
-        return mixinApplied;
-    }
+    public static boolean mixinApplied() { return mixinApplied; }
 
     /** From {@code PathMotionPacketMixin}: the server set the local player's velocity. Netty-safe (main thread). */
     public static void onServerMotion(Vec3 motion) {
@@ -351,9 +313,7 @@ public final class AutoWalker {
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-pathfinding");
 
     /** From {@code PathMotionPacketMixin}, main thread: the server says he died. */
-    public static void onServerDeath() {
-        onDeath("death packet");
-    }
+    public static void onServerDeath() { onDeath("death packet"); }
 
     /** Hypixel's death chat line (see {@link #HYPIXEL_DEATH}). */
     private static void onChat(net.minecraft.network.chat.Component message) {
@@ -386,9 +346,7 @@ public final class AutoWalker {
      * neither a correction nor a staff check; then the path is planned again from the respawn point.
      */
     private static void onDeath(String how) {
-        if (!sessionActive) {
-            return;
-        }
+        if (!sessionActive) return;
         long now = System.currentTimeMillis();
         if (respawning && now - diedAtMs < 2_000L) {
             return; // the packet and the chat line of one death
@@ -407,9 +365,7 @@ public final class AutoWalker {
     }
 
     /** Dead and waiting, or inside the grace after the respawn (the world-change hook and the testkit ask). */
-    public static boolean inDeathGrace() {
-        return sessionActive && (respawning || System.currentTimeMillis() < graceUntilMs);
-    }
+    public static boolean inDeathGrace() { return sessionActive && (respawning || System.currentTimeMillis() < graceUntilMs); }
 
     /** The respawn is done: a fresh start for the path, the camera and the stuck clock. */
     private static void resumeAfterRespawn(LocalPlayer player, String why) {
@@ -436,7 +392,6 @@ public final class AutoWalker {
         stop("failsafe: " + reason);
     }
 
-    // ------------------------------------------------------------------ ticking
 
     /** Per render frame: the body's turn (see {@link WalkCamera}). */
     public static void frame() {
@@ -799,9 +754,7 @@ public final class AutoWalker {
         double bz = c.z - b.z;
         double la = Math.sqrt(ax * ax + az * az);
         double lb = Math.sqrt(bx * bx + bz * bz);
-        if (la < 0.3 || lb < 0.3) {
-            return 0;
-        }
+        if (la < 0.3 || lb < 0.3) return 0;
         double cos = (ax * bx + az * bz) / (la * lb);
         return Math.toDegrees(Math.acos(Mth.clamp(cos, -1.0, 1.0)));
     }
@@ -830,23 +783,16 @@ public final class AutoWalker {
         wantSprint = bestSprint;
     }
 
-    // ------------------------------------------------------------------ the way back onto the route
 
     /** Why he is off the route right now, or null. */
     private static String offRouteReason(Level level, LocalPlayer player, Vec3 pos, Vec3 carrot, double jumpH) {
-        if (rescueCooldown > 0) {
-            return null;
-        }
-        if (player.isInLava()) {
-            return "in lava";
-        }
+        if (rescueCooldown > 0) return null;
+        if (player.isInLava()) return "in lava";
         Vec3 here = NavigationManager.pointAhead(pos, 0.0);
         if (player.isInWater()) {
             Vec3 ahead = NavigationManager.pointAhead(pos, 2.0);
             boolean routeSwims = ahead != null && LocalPlanner.water(level, BlockPos.containing(ahead.x, ahead.y - 0.5, ahead.z));
-            if (!routeSwims) {
-                return "in water";
-            }
+            if (!routeSwims) return "in water";
         }
         if (here != null && player.onGround() && here.y - 0.5 - pos.y > FALLEN_BELOW
                 && Math.hypot(here.x - pos.x, here.z - pos.z) < 12.0) {
@@ -865,9 +811,7 @@ public final class AutoWalker {
         } else if (anyWalkable) {
             blockedTicks = 0;
         }
-        if (stuck) {
-            return "stuck";
-        }
+        if (stuck) return "stuck";
         return null;
     }
 
@@ -905,9 +849,7 @@ public final class AutoWalker {
     }
 
     /** The route's feet cells around {@code start} and the soul (an escape's landing must reach one of them). */
-    static List<BlockPos> routeGoals(Level level, Vec3 pos, BlockPos start) {
-        return rescueGoals(level, pos, start, false);
-    }
+    static List<BlockPos> routeGoals(Level level, Vec3 pos, BlockPos start) { return rescueGoals(level, pos, start, false); }
 
     /**
      * Where a way back may end: route points (feet cells he can stand in, not water or lava) and the soul. Blocked or
@@ -944,9 +886,7 @@ public final class AutoWalker {
                     }
                 }
             }
-            if (aheadOnly && Math.hypot(p.x - pos.x, p.z - pos.z) < 2.5) {
-                continue;
-            }
+            if (aheadOnly && Math.hypot(p.x - pos.x, p.z - pos.z) < 2.5) continue;
             addGoal(level, start, BlockPos.containing(p.x, p.y - 0.5 + 0.01, p.z), goals);
         }
         NavigationManager.Target target = NavigationManager.target();
@@ -961,9 +901,7 @@ public final class AutoWalker {
                 || Math.abs(g.getY() - start.getY()) > LocalPlanner.HEIGHT) {
             return;
         }
-        if (g.distManhattan(start) <= 1 || LocalPlanner.water(level, g) || LocalPlanner.lava(level, g)) {
-            return;
-        }
+        if (g.distManhattan(start) <= 1 || LocalPlanner.water(level, g) || LocalPlanner.lava(level, g)) return;
         // A graph point can sit a block off the real floor: take the cell on, just above or just below it.
         for (int dy : new int[]{0, 1, -1}) {
             BlockPos c = g.above(dy);
@@ -1171,9 +1109,7 @@ public final class AutoWalker {
      */
     private static boolean tightCell(Level level, Vec3 point) {
         BlockPos c = BlockPos.containing(point.x, point.y + 0.01, point.z);
-        if (LocalPlanner.crouchCell(level, c)) {
-            return true;
-        }
+        if (LocalPlanner.crouchCell(level, c)) return true;
         int walls = 0;
         for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
             BlockPos n = c.offset(d[0], 0, d[1]);
@@ -1193,23 +1129,15 @@ public final class AutoWalker {
      */
     private static boolean shouldSneak(Level level, LocalPlayer player, Vec3 pos, List<Vec3> pts, Vec3 target,
                                        double horizontal, boolean last) {
-        if (player.isInWater() || player.isInLava() || player.onClimbable()) {
-            return false;
-        }
+        if (player.isInWater() || player.isInLava() || player.onClimbable()) return false;
         BlockPos here = BlockPos.containing(pos.x, pos.y + 0.01, pos.z);
-        if (LocalPlanner.crouchCell(level, here)) {
-            return true;
-        }
+        if (LocalPlanner.crouchCell(level, here)) return true;
         BlockPos targetCell = BlockPos.containing(target.x, target.y + 0.01, target.z);
-        if (LocalPlanner.crouchCell(level, targetCell) && horizontal < 1.6) {
-            return true;
-        }
+        if (LocalPlanner.crouchCell(level, targetCell) && horizontal < 1.6) return true;
         if (rescueIndex + 1 < pts.size()) {
             Vec3 next = pts.get(rescueIndex + 1);
             BlockPos nextCell = BlockPos.containing(next.x, next.y + 0.01, next.z);
-            if (LocalPlanner.crouchCell(level, nextCell) && Math.hypot(next.x - pos.x, next.z - pos.z) < 1.6) {
-                return true;
-            }
+            if (LocalPlanner.crouchCell(level, nextCell) && Math.hypot(next.x - pos.x, next.z - pos.z) < 1.6) return true;
         }
         if (last && approaching && player.onGround() && horizontal < 1.2 && target.y > pos.y - 0.5 && target.y < pos.y + 0.5) {
             for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
@@ -1262,9 +1190,7 @@ public final class AutoWalker {
         return true;
     }
 
-    static boolean isApproaching() {
-        return sessionActive && approaching && rescuePath != null;
-    }
+    static boolean isApproaching() { return sessionActive && approaching && rescuePath != null; }
 
     static void cancelApproach() {
         if (approaching) {
@@ -1280,13 +1206,9 @@ public final class AutoWalker {
         fail(why);
     }
 
-    public static int approachesPlanned() {
-        return approachesPlanned;
-    }
+    public static int approachesPlanned() { return approachesPlanned; }
 
-    public static int approachesDone() {
-        return approachesDone;
-    }
+    public static int approachesDone() { return approachesDone; }
 
     /**
      * On a ladder, keep his 0.6-wide box inside the ladder's own column: 0.2 off its center his head catches the block
@@ -1301,9 +1223,7 @@ public final class AutoWalker {
      * center with his head caught at y 187.2 on every run.)
      */
     private static void centerOnLadder(LocalPlayer player, Vec3 pos) {
-        if (!player.onClimbable()) {
-            return;
-        }
+        if (!player.onClimbable()) return;
         double ox = pos.x - (Math.floor(pos.x) + 0.5);
         double oz = pos.z - (Math.floor(pos.z) + 0.5);
         double yawRad = Math.toRadians(player.getYRot());
@@ -1355,9 +1275,7 @@ public final class AutoWalker {
     /** Testkit probe (1102-fairy-arrival): sprints ended by a no-key tick before a soul's stop. */
     static int sprintEndsBeforeStop;
 
-    public static int sprintEndsBeforeStop() {
-        return sprintEndsBeforeStop;
-    }
+    public static int sprintEndsBeforeStop() { return sprintEndsBeforeStop; }
 
     /**
      * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach, the
@@ -1368,9 +1286,7 @@ public final class AutoWalker {
      * W off the ladder's column into it, and the route turning toward the next point at the top strafed him in.
      */
     private static void keepLadderOutOfWater(Level level, LocalPlayer player) {
-        if (level == null || !player.onClimbable()) {
-            return;
-        }
+        if (level == null || !player.onClimbable()) return;
         Vec3 pos = player.position();
         Vec3 v = player.getDeltaMovement();
         double yawRad = Math.toRadians(player.getYRot());
@@ -1392,14 +1308,10 @@ public final class AutoWalker {
                         face = sign > 0 ? c : c + 1;
                     }
                 }
-                if (Double.isNaN(face)) {
-                    continue;
-                }
+                if (Double.isNaN(face)) continue;
                 double rest = p + vel * 10.0;
                 double gap = sign > 0 ? face - (rest + 0.3) : (rest - 0.3) - face;
-                if (gap >= 0.12) {
-                    continue;
-                }
+                if (gap >= 0.12) continue;
                 any = true;
                 for (int i = 0; i < 4; i++) {
                     double toward = sign * (axis == 0 ? kx[i] : kz[i]);
@@ -1411,9 +1323,7 @@ public final class AutoWalker {
                 }
             }
         }
-        if (!any) {
-            return;
-        }
+        if (!any) return;
         for (int i = 0; i < 4; i++) {
             if (away[i] && !away[i ^ 1]) {
                 keys[i] = true;
@@ -1433,9 +1343,7 @@ public final class AutoWalker {
             for (double dy = -0.6; dy <= 2.9; dy += 0.7) {
                 BlockPos b = axis == 0 ? BlockPos.containing(c + 0.5, y + dy, other + o)
                         : BlockPos.containing(other + o, y + dy, c + 0.5);
-                if (level.getBlockState(b).getFluidState().is(FluidTags.WATER)) {
-                    return true;
-                }
+                if (level.getBlockState(b).getFluidState().is(FluidTags.WATER)) return true;
             }
         }
         return false;
@@ -1453,13 +1361,9 @@ public final class AutoWalker {
     }
 
     /** No way back on foot: the runner escapes with a tool it is allowed, or skips the soul. */
-    public static boolean needsEscape() {
-        return sessionActive && needsEscape;
-    }
+    public static boolean needsEscape() { return sessionActive && needsEscape; }
 
-    public static String escapeWhy() {
-        return escapeWhy;
-    }
+    public static String escapeWhy() { return escapeWhy; }
 
     /** The runner's warp landed: its teleport packet is the warp's, not a correction to report. */
     static void acceptServerMoves() {
@@ -1481,9 +1385,7 @@ public final class AutoWalker {
         NavigationManager.recalculate(true);
     }
 
-    public static boolean isRescuing() {
-        return rescuePath != null;
-    }
+    public static boolean isRescuing() { return rescuePath != null; }
 
     /** The target yaw expressed next to the running yaw, so the camera never turns the long way. */
     private static float yaw(float target, LocalPlayer player) {
@@ -1495,9 +1397,7 @@ public final class AutoWalker {
         Vec3 last = null;
         for (double ahead : CARROT_TRIES) {
             Vec3 c = NavigationManager.pointAhead(pos, ahead);
-            if (c == null) {
-                return null;
-            }
+            if (c == null) return null;
             last = c;
             // Path points sit half a block above the feet; walkable() compares feet heights.
             if (WalkTerrain.walkable(level, pos, new Vec3(c.x, c.y - 0.5, c.z), jumpH)) {
@@ -1529,13 +1429,9 @@ public final class AutoWalker {
     private static boolean nearJumpPad(Vec3 pos) {
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (graph == null) {
-            return false;
-        }
+        if (graph == null) return false;
         for (IslandGraph.Node node : graph.withTag("jump_pad")) {
-            if (node.distSq(pos.x, pos.y, pos.z) < 6.0 * 6.0) {
-                return true;
-            }
+            if (node.distSq(pos.x, pos.y, pos.z) < 6.0 * 6.0) return true;
         }
         return false;
     }
@@ -1562,9 +1458,7 @@ public final class AutoWalker {
     /** Aims at a point without walking (clicking a soul). */
     public static void lookAt(Vec3 point) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
+        if (player == null) return;
         Vec3 eye = player.getEyePosition();
         double dx = point.x - eye.x;
         double dy = point.y - eye.y;
@@ -1576,9 +1470,7 @@ public final class AutoWalker {
     }
 
     /** How far the camera still has to turn to the current aim target, in degrees. */
-    public static float aimError() {
-        return WalkCamera.error();
-    }
+    public static float aimError() { return WalkCamera.error(); }
 
     private static void clearKeys() {
         wantForward = false;
@@ -1591,9 +1483,7 @@ public final class AutoWalker {
     }
 
     private static void releaseFallbackKey() {
-        if (!fallbackKeyHeld) {
-            return;
-        }
+        if (!fallbackKeyHeld) return;
         fallbackKeyHeld = false;
         Minecraft client = Minecraft.getInstance();
         client.options.keyUp.setDown(false);
@@ -1614,52 +1504,27 @@ public final class AutoWalker {
                 : String.format(Locale.US, "no jump boost - jumps %.2f blocks", h);
     }
 
-    // ---- testkit read-outs
-    public static int jumpsPressed() {
-        return jumpsPressed;
-    }
+    public static int jumpsPressed() { return jumpsPressed; }
 
-    public static int sidesteps() {
-        return sidesteps;
-    }
+    public static int sidesteps() { return sidesteps; }
 
-    public static int climbTicks() {
-        return climbTicks;
-    }
+    public static int climbTicks() { return climbTicks; }
 
-    public static int damageHits() {
-        return damageHits;
-    }
+    public static int damageHits() { return damageHits; }
 
-    public static int deaths() {
-        return deaths;
-    }
+    public static int deaths() { return deaths; }
 
-    public static int knockbacks() {
-        return knockbacks;
-    }
+    public static int knockbacks() { return knockbacks; }
 
-    public static boolean isRespawning() {
-        return respawning;
-    }
+    public static boolean isRespawning() { return respawning; }
 
-    public static int failsafes() {
-        return failsafes;
-    }
+    public static int failsafes() { return failsafes; }
 
-    public static String lastFailsafe() {
-        return lastFailsafe;
-    }
+    public static String lastFailsafe() { return lastFailsafe; }
 
-    public static int rescuesPlanned() {
-        return rescuesPlanned;
-    }
+    public static int rescuesPlanned() { return rescuesPlanned; }
 
-    public static int rescuesDone() {
-        return rescuesDone;
-    }
+    public static int rescuesDone() { return rescuesDone; }
 
-    public static String lastRescue() {
-        return lastRescue;
-    }
+    public static String lastRescue() { return lastRescue; }
 }

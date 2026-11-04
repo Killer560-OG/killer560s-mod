@@ -45,13 +45,9 @@ public final class SupportersTabText {
             return null; // a plain profile-name row: the UUID path covers it
         }
         Map<String, String> idx = index();
-        if (idx.isEmpty()) {
-            return null;
-        }
+        if (idx.isEmpty()) return null;
         Row row = ROWS.get(info);
-        if (row != null && row.source() == source && row.index() == idx) {
-            return row.result();
-        }
+        if (row != null && row.source() == source && row.index() == idx) return row.result();
         Component result;
         try {
             result = compute(shown, idx);
@@ -99,9 +95,7 @@ public final class SupportersTabText {
             }
             i = j;
         }
-        if (spans.isEmpty()) {
-            return null;
-        }
+        if (spans.isEmpty()) return null;
         int[] starts = new int[spans.size()];
         int[] ends = new int[spans.size()];
         for (int k = 0; k < starts.length; k++) {

@@ -39,9 +39,7 @@ public final class NameRank {
         public static Preset fromWire(String s) {
             if (s != null) {
                 for (Preset p : values()) {
-                    if (p.name().equalsIgnoreCase(s)) {
-                        return p;
-                    }
+                    if (p.name().equalsIgnoreCase(s)) return p;
                 }
             }
             return DEFAULT;
@@ -58,9 +56,7 @@ public final class NameRank {
 
     /** What a custom rank's text may hold: no brackets (they are added) and no color/format markers. */
     public static String cleanText(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length() && sb.length() < MAX_TEXT; i++) {
             char c = s.charAt(i);
@@ -77,12 +73,8 @@ public final class NameRank {
      */
     public static String build(NameChangerConfig cfg) {
         Preset p = cfg.getOwnRank();
-        if (p == Preset.DEFAULT) {
-            return null;
-        }
-        if (p == Preset.NONE) {
-            return "";
-        }
+        if (p == Preset.DEFAULT) return null;
+        if (p == Preset.NONE) return "";
         String text = p.text;
         int pluses = p.pluses;
         if (p == Preset.CUSTOM) {
@@ -112,7 +104,5 @@ public final class NameRank {
     }
 
     /** Whether {@code c} can be part of a Hypixel rank's own text ({@code MVP}, {@code YOUTUBE}, {@code +}). */
-    static boolean isRankChar(int c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '+';
-    }
+    static boolean isRankChar(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '+'; }
 }

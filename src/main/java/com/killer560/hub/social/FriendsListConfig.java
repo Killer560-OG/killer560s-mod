@@ -129,14 +129,10 @@ public final class FriendsListConfig {
     }
 
     private static Friend fromJson(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return null;
-        }
+        if (element == null || !element.isJsonObject()) return null;
         JsonObject obj = element.getAsJsonObject();
         String name = ConfigJson.getString(obj, "name", null);
-        if (name == null || name.isBlank()) {
-            return null;
-        }
+        if (name == null || name.isBlank()) return null;
         Friend f = new Friend(name);
         f.note = ConfigJson.getString(obj, "note", "");
         f.firstSeenAtMs = ConfigJson.getLong(obj, "firstSeenAtMs", 0L);
@@ -171,25 +167,15 @@ public final class FriendsListConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isEverSynced() {
-        return everSynced;
-    }
+    public boolean isEverSynced() { return everSynced; }
 
-    public long getLastSyncedAtMs() {
-        return lastSyncedAtMs;
-    }
+    public long getLastSyncedAtMs() { return lastSyncedAtMs; }
 
-    public boolean isLastSyncTruncated() {
-        return lastSyncTruncated;
-    }
+    public boolean isLastSyncTruncated() { return lastSyncTruncated; }
 
     /** Read-only snapshot in Hypixel's own last-seen listing order. */
     public List<Friend> friends() {
@@ -204,9 +190,7 @@ public final class FriendsListConfig {
     /** The screen reads the list every frame; the copy is rebuilt only when a sync replaces the list. */
     private List<Friend> snapshot;
 
-    public Friend byName(String name) {
-        return name == null ? null : friends.get(name.toLowerCase(Locale.US));
-    }
+    public Friend byName(String name) { return name == null ? null : friends.get(name.toLowerCase(Locale.US)); }
 
     public void setNote(String name, String note) {
         Friend f = byName(name);
@@ -233,9 +217,7 @@ public final class FriendsListConfig {
         List<Friend> out = new ArrayList<>(namesInOrder.size());
         long now = System.currentTimeMillis();
         for (String name : namesInOrder) {
-            if (name == null || name.isBlank()) {
-                continue;
-            }
+            if (name == null || name.isBlank()) continue;
             String key = name.toLowerCase(Locale.US);
             Friend f = friends.get(key);
             if (f == null) {

@@ -120,9 +120,7 @@ public final class SimRedstoneKey {
             }
         }
         List<int[]> out = new ArrayList<>();
-        if (redstone.isEmpty()) {
-            return out;
-        }
+        if (redstone.isEmpty()) return out;
         Set<BlockPos> all = new java.util.HashSet<>();
         int roof = Integer.MIN_VALUE;
         for (int y = room.minY; y <= room.maxY; y++) {
@@ -160,9 +158,7 @@ public final class SimRedstoneKey {
             for (BlockPos p : group) {
                 atRoof |= p.getY() == roof;
             }
-            if (group.size() < 2 || atRoof || group.contains(nodePos)) {
-                continue;
-            }
+            if (group.size() < 2 || atRoof || group.contains(nodePos)) continue;
             for (BlockPos p : group) {
                 out.add(new int[]{p.getX(), p.getY(), p.getZ()});
             }
@@ -247,19 +243,13 @@ public final class SimRedstoneKey {
     public static int armFloor(ServerLevel level) {
         NODE_ROOM.clear();
         NODE_OPENS.clear();
-        if (level == null) {
-            return 0;
-        }
+        if (level == null) return 0;
         int armed = 0;
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
             for (Node rule : NODES) {
-                if (!rule.room().equalsIgnoreCase(placed.name())) {
-                    continue;
-                }
+                if (!rule.room().equalsIgnoreCase(placed.name())) continue;
                 RoomLibrary.Room room = RoomLibrary.get(placed.name());
-                if (room == null) {
-                    continue;
-                }
+                if (room == null) continue;
                 SimRoomPuzzles.Placement p = new SimRoomPuzzles.Placement(room,
                         placed.gridX(), placed.gridZ(), placed.pasteRotation(), placed.rotation());
                 BlockPos node = SimRoomPuzzles.capturedPos(p, rule.node()[0], rule.node()[1], rule.node()[2]);
@@ -368,27 +358,17 @@ public final class SimRedstoneKey {
     }
 
     /** For tests (server thread): {@code room}'s key found by somebody else - a teammate's pickup. */
-    public static void foundForTest(String room) {
-        FOUND.add(room);
-    }
+    public static void foundForTest(String room) { FOUND.add(room); }
 
     /** For tests: armed nodes on this floor. */
-    public static int armedCount() {
-        return NODE_ROOM.size();
-    }
+    public static int armedCount() { return NODE_ROOM.size(); }
 
     /** For tests: key heads still lying in the world. */
-    public static int keysLying() {
-        return KEYS.size();
-    }
+    public static int keysLying() { return KEYS.size(); }
 
     /** For tests: keys placed on a node this floor. */
-    public static int placedCount() {
-        return placedCount;
-    }
+    public static int placedCount() { return placedCount; }
 
     /** For tests: whether a room's key has been found and not placed. */
-    public static boolean keyFound(String room) {
-        return room != null && FOUND.stream().anyMatch(room::equalsIgnoreCase);
-    }
+    public static boolean keyFound(String room) { return room != null && FOUND.stream().anyMatch(room::equalsIgnoreCase); }
 }

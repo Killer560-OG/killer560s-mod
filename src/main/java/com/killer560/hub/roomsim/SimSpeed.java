@@ -50,41 +50,23 @@ public final class SimSpeed {
     }
 
     /** A profile load replaced the file: read it again on next use. */
-    public static synchronized void forgetSaved() {
-        savedSpeed = -1;
-    }
+    public static synchronized void forgetSaved() { savedSpeed = -1; }
 
     /** The remembered speed, or the default when none has been set. */
     public static synchronized int saved() {
         if (savedSpeed < 0) {
-            savedSpeed = DEFAULT_SPEED;
-            try {
-                if (java.nio.file.Files.exists(FILE)) {
-                    savedSpeed = Integer.parseInt(java.nio.file.Files
-                            .readString(FILE, java.nio.charset.StandardCharsets.UTF_8).trim());
-                }
-            } catch (Exception ignored) {
-                // Unreadable means unknown, and the default is a safe unknown.
-            }
+            savedSpeed = SimIntFile.read(FILE, DEFAULT_SPEED);
         }
         return savedSpeed;
     }
 
     private static synchronized void remember(int hypixelSpeed) {
         savedSpeed = hypixelSpeed;
-        try {
-            java.nio.file.Files.createDirectories(FILE.getParent());
-            java.nio.file.Files.writeString(FILE, String.valueOf(hypixelSpeed),
-                    java.nio.charset.StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // Losing the preference is not worth failing the command he just ran.
-        }
+        SimIntFile.write(FILE, hypixelSpeed);
     }
 
     /** Re-applies the remembered speed. Called when a sim world opens. */
-    public static void applySaved(Minecraft client) {
-        set(client, saved());
-    }
+    public static void applySaved(Minecraft client) { set(client, saved()); }
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
@@ -106,9 +88,7 @@ public final class SimSpeed {
     }
 
     private static void show(Minecraft client) {
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         double attr = client.player.getAttributeValue(Attributes.MOVEMENT_SPEED);
         ModChat.send("Sim", ModChat.text("Speed is "),
                 ModChat.value(String.valueOf(Math.round(attr * 1000))),
@@ -121,16 +101,12 @@ public final class SimSpeed {
             return;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         var uuid = client.player.getUUID();
         double value = hypixelSpeed / 1000.0;
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             var attr = sp.getAttribute(Attributes.MOVEMENT_SPEED);
             if (attr != null) {
                 attr.setBaseValue(value);

@@ -46,20 +46,13 @@ public final class SimSlider extends ThemedSliderButton {
 
     /** Where the handle sits for a given value. {@link #RANDOM} is the far right. Guards against min == top. */
     private static double fraction(int value, int min, int top) {
-        if (top <= min) {
-            return 0.0;
-        }
-        if (value == RANDOM) {
-            return 1.0;
-        }
-        return (double) (Math.max(min, Math.min(top, value)) - min) / (top - min);
+        if (top <= min) return 0.0;
+        return value == RANDOM ? 1.0 : (double) (Math.max(min, Math.min(top, value)) - min) / (top - min);
     }
 
     /** @return the chosen number, or {@link #RANDOM} when the handle is at the far right */
     /** The top value, which can move (the designer's Puzzles slider follows Rooms to blood and the floor). */
-    public int max() {
-        return max;
-    }
+    public int max() { return max; }
 
     /**
      * Moves the top to {@code newMax}: a value above it comes down to it (and is reported, so the caller's copy follows);

@@ -68,11 +68,7 @@ public final class MacroStopConfig {
     }
 
     /** The bind, or {@link KeyUtil#NONE} when unset. */
-    public int getEmergencyCancelKeyCode() {
-        return emergencyCancelKeyCode;
-    }
+    public int getEmergencyCancelKeyCode() { return emergencyCancelKeyCode; }
 
-    public void setEmergencyCancelKeyCode(int code) {
-        emergencyCancelKeyCode = KeyUtil.sanitizeBind(code);
-    }
+    public void setEmergencyCancelKeyCode(int code) { emergencyCancelKeyCode = KeyUtil.sanitizeBind(code); }
 }

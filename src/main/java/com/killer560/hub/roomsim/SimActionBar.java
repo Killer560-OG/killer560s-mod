@@ -23,27 +23,17 @@ public final class SimActionBar {
     private SimActionBar() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimActionBar::serverTick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimActionBar::serverTick); }
 
     private static void serverTick(MinecraftServer server) {
-        if (++tick % EVERY_TICKS != 0) {
-            return;
-        }
+        if (++tick % EVERY_TICKS != 0) return;
         for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            if (!SimAbilities.simServer(sp)) {
-                return;
-            }
+            if (!SimAbilities.simServer(sp)) return;
             String room = SimScore.roomAt(sp.blockPosition());
-            if (room == null) {
-                continue;
-            }
+            if (room == null) continue;
             com.killer560.hub.roomdatabase.RoomEntry entry =
                     com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
-            if (entry == null || entry.secrets <= 0) {
-                continue;
-            }
+            if (entry == null || entry.secrets <= 0) continue;
             int found = SimScore.foundInRoom(room);
             sp.sendSystemMessage(Component.literal("§7" + found + "/" + entry.secrets + " Secrets"), true);
         }

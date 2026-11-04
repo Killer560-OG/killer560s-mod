@@ -190,7 +190,6 @@ public final class ActionGate {
         MASK_SWAP_ROD(Kind.WORLD),
         /** Auto Door Opener. */
         DOOR_OPENER(Kind.WORLD),
-        /** Secret Aura. */
         SECRET_AURA(Kind.WORLD),
         /** Secret Triggerbot. */
         SECRET_TRIGGER(Kind.WORLD),
@@ -209,7 +208,6 @@ public final class ActionGate {
         CROESUS_NPC(Kind.WORLD),
         /** Auto Quiz / Weirdos / experiment solvers clicking in their GUI. */
         EXPERIMENTS(Kind.SCREEN),
-        /** Chocolate Factory. */
         CHOCOLATE_FACTORY(Kind.SCREEN),
         /** Auto GFS (a {@code /gfs} command, not a click). */
         AUTO_GFS(Kind.COMMAND),
@@ -300,9 +298,7 @@ public final class ActionGate {
             this.freshEachTick = freshEachTick;
         }
 
-        public Kind kind() {
-            return kind;
-        }
+        public Kind kind() { return kind; }
     }
 
     private static final int COUNT = Actor.values().length;
@@ -351,7 +347,6 @@ public final class ActionGate {
     private ActionGate() {
     }
 
-    // ---- settings ----
 
     /**
      * True while a CONTAINER screen is open - the only kind of screen a world action must stand down for.
@@ -376,26 +371,16 @@ public final class ActionGate {
     // IS twenty a second, so the ceiling he asked for falls out of the rule itself and needs no timer. The
     // jitter that used to sit on top bought a little irregularity and cost about six actions a second, which
     // is what made Breaker Aura feel slower than the clients he compares it against.
-    public static boolean isEnabled() {
-        return true;
-    }
-
-    public static int getMinSpacingTicks() {
-        return minSpacingTicks;
-    }
+    public static boolean isEnabled() { return true; }
 
     /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
-    public static long currentTick() {
-        return tick;
-    }
+    public static long currentTick() { return tick; }
 
     /**
      * A millisecond delay setting as whole client ticks, for a trigger bot timed on the tick: rounded UP to the next
      * 50 ms, so 0 ms is no wait, 1-50 ms one tick, 51-100 ms two, 300 ms six. Never shorter than the setting asks.
      */
-    public static int delayTicks(long ms) {
-        return ms <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, (ms + 49L) / 50L);
-    }
+    public static int delayTicks(long ms) { return ms <= 0L ? 0 : (int) Math.min(Integer.MAX_VALUE, (ms + 49L) / 50L); }
 
     /**
      * The spacing floor, plus its own 0-1 tick of jitter.
@@ -408,9 +393,7 @@ public final class ActionGate {
      * own delay still applies on top, and the gate only ever delays.
      */
     private static long rollSpacing() {
-        if (minSpacingTicks <= 0) {
-            return 0L;
-        }
+        if (minSpacingTicks <= 0) return 0L;
         // Jitter is 0-20ms, not 0-50ms. A full tick of jitter on top of a one-tick floor averages 75ms,
         // which silently caps every automation at ~13 clicks/second - and killer560 had just asked Arrow
         // Align for 15-17 cps (59-67ms), a rate the gate would then have made unreachable while looking
@@ -419,7 +402,6 @@ public final class ActionGate {
         return (minSpacingTicks * 50L + ThreadLocalRandom.current().nextLong(0L, 21L)) * 1_000_000L;
     }
 
-    // ---- per-tick observation ----
 
     /** Registered on {@code START_CLIENT_TICK} so it runs before every feature's {@code END_CLIENT_TICK} logic. */
     public static void onClientTick(Minecraft client) {
@@ -471,11 +453,6 @@ public final class ActionGate {
         }
     }
 
-    /** Forces a stand-down window on every actor, e.g. around a swap the caller knows the server hasn't seen yet. */
-    public static void settleFor(int ticks) {
-        settle(Math.max(0, ticks));
-    }
-
     /**
      * Declares that {@code actor} has just moved the player itself (an Ice Fill / Reposition warp), so the
      * position jump the next tick observes is its own doing and not a leap it has to stand down for.
@@ -485,9 +462,7 @@ public final class ActionGate {
      * setting says. The waiver is narrow on purpose - one actor, a handful of ticks - so a real leap in the
      * middle of a puzzle still settles every other actor, and still settles this one once the window lapses.
      */
-    public static void expectSelfTeleport(Actor actor) {
-        expectSelfTeleport(actor, 3);
-    }
+    public static void expectSelfTeleport(Actor actor) { expectSelfTeleport(actor, 3); }
 
     /**
      * {@link #expectSelfTeleport(Actor)} for {@code ticks} ticks from now. Auto Water calls it again on the LANDING with
@@ -499,12 +474,9 @@ public final class ActionGate {
         selfTeleportUntilTick = tick + Math.max(0, ticks);
     }
 
-    // ---- the gate ----
 
     /** For {@link Kind#WORLD}, {@link Kind#COMMAND} and {@link Kind#HOTBAR} actors. */
-    public static boolean tryAct(Actor actor) {
-        return tryAct(actor, null);
-    }
+    public static boolean tryAct(Actor actor) { return tryAct(actor, null); }
 
     /**
      * Ask for this tick's single automated interaction.
@@ -515,9 +487,7 @@ public final class ActionGate {
      * @return true exactly once per client tick, mod-wide. Callers must not act when this is false; they should
      * simply try again next tick.
      */
-    public static boolean tryAct(Actor actor, Screen ownScreen) {
-        return tryActInternal(actor, ownScreen, null);
-    }
+    public static boolean tryAct(Actor actor, Screen ownScreen) { return tryActInternal(actor, ownScreen, null); }
 
     /**
      * {@link #tryAct(Actor, Screen)} for a {@link Kind#SCREEN} actor driving a container whose screen it
@@ -528,10 +498,7 @@ public final class ActionGate {
      * cross-class spacing, settles, priority) is identical.
      */
     public static boolean tryActHeadless(Actor actor, AbstractContainerMenu ownMenu) {
-        if (ownMenu == null) {
-            return deny(actor, "no headless menu");
-        }
-        return tryActInternal(actor, null, ownMenu);
+        return ownMenu == null ? deny(actor, "no headless menu") : tryActInternal(actor, null, ownMenu);
     }
 
     /**
@@ -550,9 +517,7 @@ public final class ActionGate {
      * frame; anything the mod decides to do on its own goes through {@link #tryAct}.
      */
     public static void noteCommand(Actor actor) {
-        if (actor.kind != Kind.COMMAND) {
-            throw new IllegalArgumentException(actor + " is not a command actor");
-        }
+        if (actor.kind != Kind.COMMAND) throw new IllegalArgumentException(actor + " is not a command actor");
         if (armed && claimedTick != tick) {
             claimedTick = tick;
             claimant = actor;
@@ -569,9 +534,7 @@ public final class ActionGate {
 
     private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
         // Streamer mode, Disable cheats option (killer560, 2026-10-19): no automated action goes out at all.
-        if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) {
-            return false;
-        }
+        if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) return false;
         // The Emergency Cancel Key's hold (macrostop/MacroStop, killer560 2026-11-01): nothing automatic acts until he
         // releases it. His own binds (Slot Binds, Pet Wheel, Loadout Keybinds) are his input, not automation.
         if (com.killer560.hub.macrostop.MacroStop.emergencyHeld() && !playerBind(actor)) {
@@ -579,9 +542,7 @@ public final class ActionGate {
         }
         WANTED_THIS_TICK[actor.ordinal()] = true;
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null || client.level == null) {
-            return false;
-        }
+        if (client == null || client.player == null || client.level == null) return false;
         Screen screen = McCompat.screen(client);
         switch (actor.kind) {
             case WORLD -> {
@@ -593,9 +554,7 @@ public final class ActionGate {
                 // id 0, so that state is server-visible as well. A purely client-side screen - this mod's
                 // menu, the HUD editor, chat, the pause menu, Termism - is invisible to the server, so acting
                 // with one open looks exactly like ordinary play on the wire and blocking it bought nothing.
-                if (screen instanceof AbstractContainerScreen<?>) {
-                    return deny(actor, "a container screen is open");
-                }
+                if (screen instanceof AbstractContainerScreen<?>) return deny(actor, "a container screen is open");
                 // A headless container (Fast Leap's hidden leap menu, Pet Wheel's hidden /pets) is open on the
                 // server just the same, with no screen to show it - so it blocks world actions too.
                 if (client.player.containerMenu != client.player.inventoryMenu) {
@@ -618,20 +577,14 @@ public final class ActionGate {
                     }
                     break;
                 }
-                if (ownScreen == null || screen != ownScreen) {
-                    return deny(actor, "its own screen is not the focused one");
-                }
-                if (!(screen instanceof AbstractContainerScreen<?>)) {
-                    return deny(actor, "focused screen is not a container");
-                }
+                if (ownScreen == null || screen != ownScreen) return deny(actor, "its own screen is not the focused one");
+                if (!(screen instanceof AbstractContainerScreen<?>)) return deny(actor, "focused screen is not a container");
                 if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastWorldActor)) {
                     return deny(actor, "a world aura just clicked");
                 }
             }
             case HOTBAR -> {
-                if (screen instanceof AbstractContainerScreen<?>) {
-                    return deny(actor, "a container screen is open");
-                }
+                if (screen instanceof AbstractContainerScreen<?>) return deny(actor, "a container screen is open");
                 if (client.player.containerMenu != client.player.inventoryMenu) {
                     return deny(actor, "a headless container is open");
                 }
@@ -640,9 +593,7 @@ public final class ActionGate {
                 // No screen rules - a command is legal with a menu open - but it still takes the tick's slot.
             }
         }
-        if (armed && tick < settleUntilTick) {
-            return deny(actor, "settling after a world transition");
-        }
+        if (armed && tick < settleUntilTick) return deny(actor, "settling after a world transition");
         // A fresh-each-tick WORLD actor waives the screen settle: the WORLD rule above already refuses while any container
         // is open, client-side or headless, and once none is, the server has it closed too - it closed it (a Spirit Leap's
         // menu closes as he is teleported), or the client's close packet went out before anything this tick sends. The
@@ -654,16 +605,10 @@ public final class ActionGate {
                 && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
-        if (armed && claimedTick == tick) {
-            return deny(actor, "this tick is already taken by " + claimant);
-        }
+        if (armed && claimedTick == tick) return deny(actor, "this tick is already taken by " + claimant);
         long now = System.nanoTime();
-        if (now - lastActionNanos < spacingNanos) {
-            return deny(actor, "min spacing");
-        }
-        if (armed && shouldYield(actor)) {
-            return deny(actor, "yielding one tick to a higher-priority action");
-        }
+        if (now - lastActionNanos < spacingNanos) return deny(actor, "min spacing");
+        if (armed && shouldYield(actor)) return deny(actor, "yielding one tick to a higher-priority action");
         claimedTick = tick;
         claimant = actor;
         lastActionNanos = now;
@@ -679,9 +624,7 @@ public final class ActionGate {
         return true;
     }
 
-    private static boolean sameFlow(Actor a, Actor b) {
-        return b != null && a.flow != null && a.flow.equals(b.flow);
-    }
+    private static boolean sameFlow(Actor a, Actor b) { return b != null && a.flow != null && a.flow.equals(b.flow); }
 
     /**
      * Deterministic tie-break. If anything strictly higher priority asked on the previous tick, this actor waits so
@@ -690,9 +633,7 @@ public final class ActionGate {
      */
     private static boolean shouldYield(Actor actor) {
         int self = actor.ordinal();
-        if (YIELD_STREAK[self] >= MAX_YIELD_TICKS) {
-            return false;
-        }
+        if (YIELD_STREAK[self] >= MAX_YIELD_TICKS) return false;
         for (int i = 0; i < self; i++) {
             if (WANTED_LAST_TICK[i]) {
                 YIELD_STREAK[self]++;

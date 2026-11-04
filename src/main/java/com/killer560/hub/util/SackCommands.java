@@ -69,9 +69,7 @@ public final class SackCommands {
      * @return whether it was sent
      */
     public static boolean send(Minecraft client, String args) {
-        if (client.player == null || !available(client) || awaiting()) {
-            return false;
-        }
+        if (client.player == null || !available(client) || awaiting()) return false;
         client.player.connection.sendCommand("gfs " + args);
         sentAtMs = System.currentTimeMillis();
         awaiting = true;
@@ -79,14 +77,10 @@ public final class SackCommands {
     }
 
     /** The sender saw its answer (the items arrived, or Hypixel said the sack is empty). */
-    public static void answered() {
-        awaiting = false;
-    }
+    public static void answered() { awaiting = false; }
 
     static void onChat(String plain, boolean unknownKey) {
-        if (plain == null || !awaiting || !(unknownKey || UNKNOWN_COMMAND.matcher(plain).matches())) {
-            return;
-        }
+        if (plain == null || !awaiting || !(unknownKey || UNKNOWN_COMMAND.matcher(plain).matches())) return;
         awaiting = false;
         if (!dead) {
             dead = true;
@@ -107,13 +101,9 @@ public final class SackCommands {
 
     private static boolean isHypixel(Minecraft client) {
         ServerData server = client.getCurrentServer();
-        if (server == null || server.ip == null) {
-            return false;
-        }
+        if (server == null || server.ip == null) return false;
         String ip = server.ip.toLowerCase(Locale.ROOT);
-        if (ip.contains("hypixel.net")) {
-            return true;
-        }
+        if (ip.contains("hypixel.net")) return true;
         // Dev and testkit builds only: a local server stands in for Hypixel (same rule as CheatUtils.isOnDungeonServer).
         return com.killer560.hub.BuildVariant.DEV_TOOLS
                 && (ip.startsWith("localhost") || ip.startsWith("127.0.0.1") || ip.startsWith("[::1]"));

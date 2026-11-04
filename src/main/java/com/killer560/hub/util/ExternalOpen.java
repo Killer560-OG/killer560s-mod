@@ -24,9 +24,7 @@ public final class ExternalOpen {
     }
 
     /** True when the harness asked for no OS opens. Read on every call. */
-    public static boolean suppressed() {
-        return Boolean.getBoolean(NO_EXTERNAL_OPEN_PROPERTY);
-    }
+    public static boolean suppressed() { return Boolean.getBoolean(NO_EXTERNAL_OPEN_PROPERTY); }
 
     /** {@code McWindow.openUri(uri)}, or a log line under the test property. */
     public static void uri(String uri) {
@@ -60,7 +58,5 @@ public final class ExternalOpen {
     }
 
     /** {@link #suppress(String)} for a command line. */
-    public static boolean suppress(List<String> command) {
-        return suppress(String.join(" ", command));
-    }
+    public static boolean suppress(List<String> command) { return suppress(String.join(" ", command)); }
 }

@@ -42,9 +42,7 @@ final class SupportersCache {
     }
 
     static Loaded load() {
-        if (!Files.exists(CONFIG_PATH)) {
-            return new Loaded(-1, List.of());
-        }
+        if (!Files.exists(CONFIG_PATH)) return new Loaded(-1, List.of());
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             int version = ConfigJson.getInt(obj, "version", -1);
@@ -53,9 +51,7 @@ final class SupportersCache {
             if (arr != null) {
                 for (JsonElement el : arr) {
                     try {
-                        if (el == null || !el.isJsonObject()) {
-                            continue;
-                        }
+                        if (el == null || !el.isJsonObject()) continue;
                         JsonObject o = el.getAsJsonObject();
                         UUID uuid = UUID.fromString(ConfigJson.getString(o, "uuid", ""));
                         String name = ConfigJson.getString(o, "name", "");

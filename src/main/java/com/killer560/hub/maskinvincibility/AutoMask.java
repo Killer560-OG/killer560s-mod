@@ -59,9 +59,7 @@ public final class AutoMask {
     /** From {@link MaskInvincibilityFeature#register()}, after {@link MaskSwapper#register()}: the swapper has counted
      *  this START tick already, so a press's first step goes out exactly Swap Step Delay ticks after the press tick. */
     static void register() {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoMask", AutoMask::tick));
     }
 
@@ -71,36 +69,24 @@ public final class AutoMask {
                 ? PHOENIX_FIRST : MASK_FIRST;
     }
 
-    public static String lastDecision() {
-        return lastDecision;
-    }
+    public static String lastDecision() { return lastDecision; }
 
-    public static long decisionSeq() {
-        return decisionSeq;
-    }
+    public static long decisionSeq() { return decisionSeq; }
 
     /** Null when Dungeons Only / Boss Only allow acting here, otherwise the setting that refuses. */
     public static String gateRefusal() {
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
-        if (cfg.isAutoMaskBossOnly() && !(inDungeon && LiveMapFeature.isInBoss())) {
-            return "Boss Only";
-        }
-        if (cfg.isAutoMaskDungeonsOnly() && !inDungeon) {
-            return "Dungeons Only";
-        }
+        if (cfg.isAutoMaskBossOnly() && !(inDungeon && LiveMapFeature.isInBoss())) return "Boss Only";
+        if (cfg.isAutoMaskDungeonsOnly() && !inDungeon) return "Dungeons Only";
         return null;
     }
 
     /** Full Auto: Mask Invincibility saw the worn mask (or Phoenix) proc. */
     static void onProc(String label) {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
-        if (!cfg.isAutoSwapEnabled() || cfg.getAutoMaskMode() != MaskInvincibilityConfig.AutoMaskMode.FULL_AUTO) {
-            return;
-        }
+        if (!cfg.isAutoSwapEnabled() || cfg.getAutoMaskMode() != MaskInvincibilityConfig.AutoMaskMode.FULL_AUTO) return;
         String gate = gateRefusal();
         if (gate != null) {
             decide("blocked: " + gate + " (" + label + " proc)");

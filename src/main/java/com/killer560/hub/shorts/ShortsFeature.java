@@ -7,7 +7,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ModChat;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -66,7 +65,6 @@ public final class ShortsFeature {
 
     private static final Object LOCK = new Object();
 
-    // ---- shared between the background thread and the client thread ----
     private static final AtomicInteger generation = new AtomicInteger();
     private static final AtomicBoolean shutdownDone = new AtomicBoolean();
     private static final AtomicBoolean measureScheduled = new AtomicBoolean();
@@ -79,7 +77,6 @@ public final class ShortsFeature {
     /** Window-rect pixels to crop off the browser window: left, top, right, bottom. */
     private static volatile int[] insets = {0, 0, 0, 0};
 
-    // ---- client thread only ----
     private static long attachedHwnd;
     private static boolean shown;
     private static int[] lastWindowRect;
@@ -111,9 +108,7 @@ public final class ShortsFeature {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdownNow("JVM shutdown"), "killer560smod-shorts-exit"));
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Support / status
-    // ------------------------------------------------------------------------------------------------
 
     /** Windows 64-bit with JNA's user32/gdi32 loadable. Cached after the first call. */
     public static synchronized boolean isSupported() {
@@ -141,13 +136,7 @@ public final class ShortsFeature {
         return supported;
     }
 
-    public static String getUnsupportedReason() {
-        return unsupportedReason;
-    }
-
-    public static boolean isLaunching() {
-        return launching;
-    }
+    public static String getUnsupportedReason() { return unsupportedReason; }
 
     public static boolean isRunning() {
         ProcessHandle ph = browserProcess;
@@ -156,9 +145,7 @@ public final class ShortsFeature {
 
     /** One-line status for the settings tab. */
     public static String statusText() {
-        if (launching) {
-            return "Launching...";
-        }
+        if (launching) return "Launching...";
         if (browserHwnd != 0) {
             CdpClient c = cdp;
             return c != null && c.isOpen() ? "Running" : "Running (controls disconnected)";
@@ -166,9 +153,7 @@ public final class ShortsFeature {
         return isRunning() ? "Running (window not attached - try Relaunch)" : "Not running";
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Launch / close
-    // ------------------------------------------------------------------------------------------------
 
     /** Launches (or relaunches) the Shorts browser. Client thread. */
     public static void launch() {
@@ -217,9 +202,7 @@ public final class ShortsFeature {
             devToolsPort = -1;
             browserHwnd = 0;
         }
-        if (c == null && ph == null && h == 0) {
-            return;
-        }
+        if (c == null && ph == null && h == 0) return;
         LOGGER.info("[Shorts] Closing browser ({}).", reason);
         if (announce) {
             ModChat.send(CHAT, ModChat.text("Browser closed."));
@@ -228,9 +211,7 @@ public final class ShortsFeature {
     }
 
     private static void shutdownNow(String reason) {
-        if (!shutdownDone.compareAndSet(false, true)) {
-            return;
-        }
+        if (!shutdownDone.compareAndSet(false, true)) return;
         CdpClient c;
         ProcessHandle ph;
         int port;
@@ -245,9 +226,7 @@ public final class ShortsFeature {
             devToolsPort = -1;
             browserHwnd = 0;
         }
-        if (c == null && ph == null) {
-            return;
-        }
+        if (c == null && ph == null) return;
         LOGGER.info("[Shorts] Closing browser on exit ({}).", reason);
         try {
             shutdownBrowser(c, ph, port, 800, 1200);
@@ -267,9 +246,7 @@ public final class ShortsFeature {
         if (pageClient != null) {
             pageClient.close();
         }
-        if (ph == null) {
-            return;
-        }
+        if (ph == null) return;
         if (asked) {
             try {
                 ph.onExit().get(exitWaitMs, TimeUnit.MILLISECONDS);
@@ -290,9 +267,7 @@ public final class ShortsFeature {
     private static boolean requestBrowserClose(int port, String expectedBrowserPath, long waitMs) {
         try {
             String ws = CdpClient.findBrowserWebSocketUrl(port, 700);
-            if (ws == null || (expectedBrowserPath != null && !ws.endsWith(expectedBrowserPath))) {
-                return false;
-            }
+            if (ws == null || (expectedBrowserPath != null && !ws.endsWith(expectedBrowserPath))) return false;
             CdpClient bc = CdpClient.connect(ws, () -> {
             });
             try {
@@ -319,18 +294,14 @@ public final class ShortsFeature {
             Path profile = BrowserLauncher.profileDir();
             Files.createDirectories(profile);
             closeStaleInstance(profile);
-            if (gen != generation.get()) {
-                return;
-            }
+            if (gen != generation.get()) return;
             BrowserLauncher.markProfileExitedCleanly(profile, LOGGER);
             BrowserLauncher.deleteDevToolsPortFile(profile);
 
             ShortsConfig launchCfg = ShortsConfig.getInstance();
             List<String> cmd = BrowserLauncher.buildCommand(exe, profile, geom[0], geom[1], geom[2], geom[3],
                     launchCfg.getTheme(), launchCfg.getZoomPercent(), resolveUrl(launchCfg));
-            if (ExternalOpen.suppress(cmd)) {
-                return;
-            }
+            if (ExternalOpen.suppress(cmd)) return;
             LOGGER.info("[Shorts] Launching browser: {}", String.join(" ", cmd));
             process = new ProcessBuilder(cmd)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -349,17 +320,11 @@ public final class ShortsFeature {
             int port = -1;
             while (System.currentTimeMillis() - startedAt < 20000 && gen == generation.get()) {
                 port = BrowserLauncher.readDevToolsPort(profile);
-                if (port > 0) {
-                    break;
-                }
-                if (!process.isAlive() && System.currentTimeMillis() - startedAt > 4000) {
-                    break;
-                }
+                if (port > 0) break;
+                if (!process.isAlive() && System.currentTimeMillis() - startedAt > 4000) break;
                 Thread.sleep(100);
             }
-            if (aborted(gen, process)) {
-                return;
-            }
+            if (aborted(gen, process)) return;
             if (port > 0) {
                 devToolsPort = port;
                 connectCdp(gen, port, 10000);
@@ -367,15 +332,11 @@ public final class ShortsFeature {
                 LOGGER.warn("[Shorts] No DevTools port after launch (process alive: {}) - playback keybinds won't work.",
                         process.isAlive());
             }
-            if (aborted(gen, process)) {
-                return;
-            }
+            if (aborted(gen, process)) return;
 
             // 2) The browser's top-level window.
             long hwnd = findBrowserWindow(gen, process, 15000);
-            if (aborted(gen, process)) {
-                return;
-            }
+            if (aborted(gen, process)) return;
             if (hwnd == 0) {
                 LOGGER.warn("[Shorts] Browser window not found within 15s (process alive: {}).", process.isAlive());
                 chatLater(ModChat.bad("The browser started but its window wasn't found - try Relaunch. "
@@ -384,9 +345,7 @@ public final class ShortsFeature {
             }
             int pid = Win32.processId(hwnd);
             synchronized (LOCK) {
-                if (gen != generation.get()) {
-                    return;
-                }
+                if (gen != generation.get()) return;
                 if (pid != process.pid()) {
                     ProcessHandle.of(pid).ifPresent(h -> browserProcess = h);
                     LOGGER.info("[Shorts] Window belongs to pid {} (launched pid {}), tracking that process.", pid, process.pid());
@@ -418,9 +377,7 @@ public final class ShortsFeature {
     }
 
     private static boolean aborted(int gen, Process process) {
-        if (gen == generation.get()) {
-            return false;
-        }
+        if (gen == generation.get()) return false;
         if (process != null && process.isAlive() && browserProcess == null) {
             process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
             process.destroyForcibly();
@@ -433,12 +390,8 @@ public final class ShortsFeature {
     private static void closeStaleInstance(Path profile) throws InterruptedException {
         int port = BrowserLauncher.readDevToolsPort(profile);
         String path = BrowserLauncher.readDevToolsBrowserPath(profile);
-        if (port <= 0 || path == null) {
-            return;
-        }
-        if (!requestBrowserClose(port, path, 1500)) {
-            return;
-        }
+        if (port <= 0 || path == null) return;
+        if (!requestBrowserClose(port, path, 1500)) return;
         LOGGER.info("[Shorts] Closed a leftover Shorts browser from a previous session (port {}).", port);
         long deadline = System.currentTimeMillis() + 5000;
         while (System.currentTimeMillis() < deadline) {
@@ -508,9 +461,7 @@ public final class ShortsFeature {
 
     private static void onCdpClosed(CdpClient client) {
         synchronized (LOCK) {
-            if (client == null || cdp != client) {
-                return;
-            }
+            if (client == null || cdp != client) return;
             cdp = null;
         }
         LOGGER.info("[Shorts] CDP disconnected.");
@@ -546,19 +497,13 @@ public final class ShortsFeature {
             long unique = 0;
             int count = 0;
             for (long h : windows) {
-                if (!pids.contains((long) Win32.processId(h)) || Win32.title(h).isEmpty()) {
-                    continue;
-                }
+                if (!pids.contains((long) Win32.processId(h)) || Win32.title(h).isEmpty()) continue;
                 int[] r = Win32.windowRect(h);
-                if (r == null || r[2] < 100 || r[3] < 100) {
-                    continue;
-                }
+                if (r == null || r[2] < 100 || r[3] < 100) continue;
                 unique = h;
                 count++;
             }
-            if (count == 1) {
-                return unique;
-            }
+            if (count == 1) return unique;
 
             CdpClient c = cdp;
             if (c != null && c.isOpen()) {
@@ -577,9 +522,7 @@ public final class ShortsFeature {
                     }
                 }
                 for (long h : windows) {
-                    if (Win32.title(h).contains(nonce)) {
-                        return h;
-                    }
+                    if (Win32.title(h).contains(nonce)) return h;
                 }
             }
             Thread.sleep(250);
@@ -587,9 +530,7 @@ public final class ShortsFeature {
         return 0;
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Client tick: attach, place, show/hide, keybinds
-    // ------------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         ShortsConfig cfg = ShortsConfig.getInstance();
@@ -612,9 +553,7 @@ public final class ShortsFeature {
             }
             return;
         }
-        if (!isSupported()) {
-            return;
-        }
+        if (!isSupported()) return;
         if (!cfg.isEnabled()) {
             closeBrowser("feature disabled", false);
             return;
@@ -632,9 +571,7 @@ public final class ShortsFeature {
                     return;
                 }
             }
-            if (attachedHwnd == 0 && !attach(client, h)) {
-                return;
-            }
+            if (attachedHwnd == 0 && !attach(client, h)) return;
             updatePlacement(client, cfg, u, h);
         } catch (Throwable t) {
             LOGGER.error("[Shorts] Window management failed - closing the browser.", t);
@@ -644,10 +581,7 @@ public final class ShortsFeature {
 
     private static long currentMcHwnd(Minecraft client) {
         try {
-            if (client.getWindow() == null) {
-                return 0;
-            }
-            return com.killer560.hub.compat.McWindow.win32Handle(client.getWindow());
+            return client.getWindow() == null ? 0 : com.killer560.hub.compat.McWindow.win32Handle(client.getWindow());
         } catch (Throwable t) {
             return 0;
         }
@@ -655,9 +589,7 @@ public final class ShortsFeature {
 
     private static boolean attach(Minecraft client, long h) {
         long mc = currentMcHwnd(client);
-        if (mc == 0) {
-            return false;
-        }
+        if (mc == 0) return false;
         mcHwnd = mc;
         Win32.User32 u = Win32.user32();
         u.ShowWindow(h, Win32.SW_HIDE);
@@ -700,9 +632,7 @@ public final class ShortsFeature {
      *  does nothing on Windows 10 (no DWMWA_BORDER_COLOR support) or if dwmapi failed to load. */
     private static void removeDwmBorder(long h) {
         Win32.Dwmapi dwm = Win32.dwmapi();
-        if (dwm == null) {
-            return;
-        }
+        if (dwm == null) return;
         try {
             dwm.DwmSetWindowAttribute(h, Win32.DWMWA_BORDER_COLOR, new int[]{Win32.DWMWA_COLOR_NONE}, 4);
         } catch (Throwable ignored) {
@@ -796,21 +726,15 @@ public final class ShortsFeature {
 
     private static boolean isMcOrBrowserForeground(Win32.User32 u, long mc, long h) {
         long fg = u.GetForegroundWindow();
-        if (fg == 0) {
-            return false;
-        }
-        if (fg == mc || fg == h) {
-            return true;
-        }
+        if (fg == 0) return false;
+        if (fg == mc || fg == h) return true;
         ProcessHandle ph = browserProcess;
         return ph != null && Win32.processId(fg) == ph.pid();
     }
 
     private static void applyOpacity(ShortsConfig cfg, Win32.User32 u, long h) {
         int op = cfg.getOpacity();
-        if (op == appliedOpacity) {
-            return;
-        }
+        if (op == appliedOpacity) return;
         long ex = u.GetWindowLongPtrW(h, Win32.GWL_EXSTYLE);
         if (op >= 100) {
             if ((ex & Win32.WS_EX_LAYERED) != 0) {
@@ -830,9 +754,7 @@ public final class ShortsFeature {
         long style = u.GetWindowLongPtrW(h, Win32.GWL_STYLE);
         boolean styleDrift = (style & Win32.FRAME_STYLES) != 0;
         boolean ownerDrift = u.GetWindow(h, Win32.GW_OWNER) != mc;
-        if (!styleDrift && !ownerDrift) {
-            return;
-        }
+        if (!styleDrift && !ownerDrift) return;
         if (styleDrift) {
             u.SetWindowLongPtrW(h, Win32.GWL_STYLE, style & ~Win32.FRAME_STYLES);
         }
@@ -957,10 +879,8 @@ public final class ShortsFeature {
         return new int[]{mcRect[0] + Math.round(dvdX), mcRect[1] + Math.round(dvdY), w, h};
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Edit Window (2026-09-21 expansion, killer560 item 8.8: "its own edit window (drag to resize,
     // scroll to zoom, drag to move)")
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * Drag-to-move and drag-to-resize are genuinely deliverable: this just gives the already-real Chrome
@@ -1024,13 +944,9 @@ public final class ShortsFeature {
         }
     }
 
-    public static boolean isEditMode() {
-        return editMode;
-    }
+    public static boolean isEditMode() { return editMode; }
 
-    // ------------------------------------------------------------------------------------------------
     // Title-bar crop measurement (background)
-    // ------------------------------------------------------------------------------------------------
 
     private static void scheduleInsetMeasure(long delayMs) {
         if (measureScheduled.compareAndSet(false, true)) {
@@ -1044,9 +960,7 @@ public final class ShortsFeature {
     private static void measureInsets() {
         try {
             int[] a = measureOnce();
-            if (a == null) {
-                return;
-            }
+            if (a == null) return;
             Thread.sleep(250);
             int[] b = measureOnce();
             if (b == null || !Arrays.equals(a, b)) {
@@ -1065,21 +979,15 @@ public final class ShortsFeature {
     private static int[] measureOnce() throws Exception {
         CdpClient c = cdp;
         long h = browserHwnd;
-        if (c == null || !c.isOpen() || h == 0) {
-            return null;
-        }
+        if (c == null || !c.isOpen() || h == 0) return null;
         JsonElement v = c.evaluate("JSON.stringify([window.innerWidth,window.innerHeight,window.devicePixelRatio])");
-        if (v == null || !v.isJsonPrimitive()) {
-            return null;
-        }
+        if (v == null || !v.isJsonPrimitive()) return null;
         JsonArray arr = JsonParser.parseString(v.getAsString()).getAsJsonArray();
         double dpr = arr.get(2).getAsDouble();
         int contentW = (int) Math.round(arr.get(0).getAsDouble() * dpr);
         int contentH = (int) Math.round(arr.get(1).getAsDouble() * dpr);
         int[] wr = Win32.windowRect(h);
-        if (wr == null || contentW <= 0 || contentH <= 0) {
-            return null;
-        }
+        if (wr == null || contentW <= 0 || contentH <= 0) return null;
         int side = Math.max(0, (wr[2] - contentW) / 2);
         int right = Math.max(0, wr[2] - contentW - side);
         int bottom = Math.min(side, Math.max(0, wr[3] - contentH));
@@ -1090,9 +998,7 @@ public final class ShortsFeature {
         return new int[]{side, top, right, bottom};
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Playback commands
-    // ------------------------------------------------------------------------------------------------
 
     private interface CdpAction {
         String run(CdpClient client) throws Exception;
@@ -1201,29 +1107,23 @@ public final class ShortsFeature {
                 + "apply();return 'installed'})()";
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Site selection (2026-09-21 expansion, killer560 item 8.8: "TikTok, Reels, any site... normal
     // videos, Twitch")
-    // ------------------------------------------------------------------------------------------------
 
     /** @return the app-mode launch URL for the currently configured site, falling back to YouTube Shorts
      *  if CUSTOM has no usable URL typed in yet. */
     private static String resolveUrl(ShortsConfig cfg) {
         if (cfg.getSite() == ShortsConfig.Site.CUSTOM) {
             String u = BrowserLauncher.normalizeUrl(cfg.getCustomUrl());
-            if (u != null) {
-                return u;
-            }
+            if (u != null) return u;
             LOGGER.warn("[Shorts] Custom URL is blank - falling back to YouTube Shorts.");
         }
         return cfg.getSite() == ShortsConfig.Site.CUSTOM ? ShortsConfig.Site.YOUTUBE_SHORTS.defaultUrl : cfg.getSite().defaultUrl;
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Sign-in (2026-09-20, killer560: "please implement the login through my mod by having me click a button
     // that says sign in to youtube shorts or sign into tictoc or reels once you finish implementing those" -
     // 2026-09-21: TikTok/Reels/Twitch/custom all now exist, so this follows whatever site is selected)
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * Opens a real, decorated sign-in/site page in an ordinary browser window on the Shorts profile, for
@@ -1257,9 +1157,7 @@ public final class ShortsFeature {
                 Path profile = BrowserLauncher.profileDir();
                 Files.createDirectories(profile);
                 List<String> cmd = BrowserLauncher.buildSignInCommand(exe, profile, url);
-                if (ExternalOpen.suppress(cmd)) {
-                    return;
-                }
+                if (ExternalOpen.suppress(cmd)) return;
                 new ProcessBuilder(cmd)
                         .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                         .redirectError(ProcessBuilder.Redirect.DISCARD)
@@ -1310,9 +1208,7 @@ public final class ShortsFeature {
      * different and unverified without a live run - see the tab's tooltip and the staging notes.
      */
     private static boolean commentsOpenGuardBlocks(CdpClient c) {
-        if (!ShortsConfig.getInstance().isCommentsScrollGuard()) {
-            return false;
-        }
+        if (!ShortsConfig.getInstance().isCommentsScrollGuard()) return false;
         try {
             return "true".equals(str(c.evaluate(COMMENTS_OPEN_JS)));
         } catch (Exception e) {
@@ -1320,10 +1216,8 @@ public final class ShortsFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Auto Scroll (killer560, 2026-11-01, to-do Doc "VIDEO BROWSER": "Add an auto scroll option where if it is something
     // like yt shorts itll scroll once the vid ends")
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * In the page: counts each end of the playing video in {@code window.__k560Ended}. A Short never fires {@code ended}
@@ -1349,16 +1243,12 @@ public final class ShortsFeature {
     /** Auto Scroll's Next presses, for the testkit. */
     private static final AtomicInteger autoScrolls = new AtomicInteger();
 
-    public static int autoScrolls() {
-        return autoScrolls.get();
-    }
+    public static int autoScrolls() { return autoScrolls.get(); }
 
     /** Client thread: asks the page (on the browser thread) whether its video ended since the last look. */
     private static void pollEnded() {
         CdpClient c = cdp;
-        if (c == null || !c.isOpen() || launching || !endedPolling.compareAndSet(false, true)) {
-            return;
-        }
+        if (c == null || !c.isOpen() || launching || !endedPolling.compareAndSet(false, true)) return;
         EXEC.execute(() -> {
             try {
                 String r = str(c.evaluate("String(window.__k560Ended===undefined?-1:window.__k560Ended)"));
@@ -1378,20 +1268,14 @@ public final class ShortsFeature {
         });
     }
 
-    public static void next() {
-        command("next", ShortsFeature::nextAction);
-    }
+    public static void next() { command("next", ShortsFeature::nextAction); }
 
     /** Next's own work on the browser thread: the feed's down button, else (comments closed) a real ArrowDown. */
     private static String nextAction(CdpClient c) throws Exception {
         String r = str(c.evaluate("(()=>{const b=document.querySelector('#navigation-button-down button');"
                 + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
-        if ("button".equals(r)) {
-            return "clicked next button";
-        }
-        if (commentsOpenGuardBlocks(c)) {
-            return "skipped (comments panel open)";
-        }
+        if ("button".equals(r)) return "clicked next button";
+        if (commentsOpenGuardBlocks(c)) return "skipped (comments panel open)";
         c.pressKey("ArrowDown", "ArrowDown", 40, null);
         return "ArrowDown key";
     }
@@ -1400,12 +1284,8 @@ public final class ShortsFeature {
         command("previous", c -> {
             String r = str(c.evaluate("(()=>{const b=document.querySelector('#navigation-button-up button');"
                     + "if(b&&!b.disabled){b.click();return 'button'}return 'none'})()"));
-            if ("button".equals(r)) {
-                return "clicked previous button";
-            }
-            if (commentsOpenGuardBlocks(c)) {
-                return "skipped (comments panel open)";
-            }
+            if ("button".equals(r)) return "clicked previous button";
+            if (commentsOpenGuardBlocks(c)) return "skipped (comments panel open)";
             c.pressKey("ArrowUp", "ArrowUp", 38, null);
             return "ArrowUp key";
         });
@@ -1440,9 +1320,7 @@ public final class ShortsFeature {
 
     /** Applies the saved volume (debounced - safe to call on every slider drag step). Client thread. */
     public static void applyVolume() {
-        if (!isRunning() || cdp == null) {
-            return;
-        }
+        if (!isRunning() || cdp == null) return;
         if (volumePending.compareAndSet(false, true)) {
             EXEC.schedule(() -> {
                 volumePending.set(false);
@@ -1458,9 +1336,7 @@ public final class ShortsFeature {
 
     /** Applies the saved dark/light theme to the running browser (debounced like the volume). Client thread. */
     public static void applyTheme() {
-        if (!isRunning() || cdp == null) {
-            return;
-        }
+        if (!isRunning() || cdp == null) return;
         if (themePending.compareAndSet(false, true)) {
             EXEC.schedule(() -> {
                 themePending.set(false);
@@ -1574,9 +1450,7 @@ public final class ShortsFeature {
                 + "return go()})()";
     }
 
-    private static String jsString(String s) {
-        return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'";
-    }
+    private static String jsString(String s) { return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"; }
 
     /** Client thread entry point for user-triggered commands. */
     private static void command(String name, CdpAction action) {
@@ -1623,17 +1497,11 @@ public final class ShortsFeature {
         }
     }
 
-    private static String str(JsonElement e) {
-        return e != null && e.isJsonPrimitive() ? e.getAsString() : null;
-    }
+    private static String str(JsonElement e) { return e != null && e.isJsonPrimitive() ? e.getAsString() : null; }
 
-    private static void chatLater(Component... parts) {
-        Minecraft.getInstance().execute(() -> ModChat.send(CHAT, parts));
-    }
+    private static void chatLater(Component... parts) { Minecraft.getInstance().execute(() -> ModChat.send(CHAT, parts)); }
 
-    // ------------------------------------------------------------------------------------------------
     // Keybinds
-    // ------------------------------------------------------------------------------------------------
 
     private static void pollKeys(Minecraft client, ShortsConfig cfg) {
         int[] keys = {cfg.getToggleKey(), cfg.getNextKey(), cfg.getPreviousKey(), cfg.getPlayPauseKey(), cfg.getMuteKey()};

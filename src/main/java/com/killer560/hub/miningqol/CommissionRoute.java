@@ -8,7 +8,6 @@ import com.killer560.hub.util.BoxBatch;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -46,8 +45,6 @@ public final class CommissionRoute {
     public static final double ETHERWARP_RANGE = 57.0;
     /** Aspect of the End's Instant Transmission, before Transmission Tuners (hypixelskyblock wiki: 8 blocks). */
     public static final double AOTE_RANGE = 8.0;
-    private static final int MAX_HOPS = 64;
-    private static final int MIN_TICKS_BETWEEN = 5;
 
     private static volatile Vec3[] points = new Vec3[0];
     private static volatile List<BlockPos> hopBlocks = List.of();
@@ -172,9 +169,7 @@ public final class CommissionRoute {
     }
 
     private static boolean offPath(Cur c, Vec3 pos) {
-        if (c.pts.isEmpty()) {
-            return false;
-        }
+        if (c.pts.isEmpty()) return false;
         Vec3 a = c.anchor;
         double best = Double.MAX_VALUE;
         for (Vec3 q : c.pts) {
@@ -187,13 +182,9 @@ public final class CommissionRoute {
     /** The area of the first open commission that names one, or null. */
     public static String targetArea(List<MiningState.Commission> coms) {
         for (MiningState.Commission c : coms) {
-            if (c.done()) {
-                continue;
-            }
+            if (c.done()) continue;
             for (String a : MiningState.COMMISSION_AREAS) {
-                if (c.name().startsWith(a + " ")) {
-                    return a;
-                }
+                if (c.name().startsWith(a + " ")) return a;
             }
         }
         return null;
@@ -304,9 +295,7 @@ public final class CommissionRoute {
         return out.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static Vec3 feetOf(IslandGraph.Node n) {
-        return new Vec3(n.x + 0.5, n.y, n.z + 0.5);
-    }
+    private static Vec3 feetOf(IslandGraph.Node n) { return new Vec3(n.x + 0.5, n.y, n.z + 0.5); }
 
     /** Per-search state, arrays indexed by node (the last index is the player's own spot). */
     private static final class Search {
@@ -330,9 +319,7 @@ public final class CommissionRoute {
         }
 
         void relax(int u, int v, double w, boolean warp, BlockPos hop, Vec3 stand) {
-            if (v < 0 || v >= dist.length || done[v]) {
-                return;
-            }
+            if (v < 0 || v >= dist.length || done[v]) return;
             double nd = dist[u] + w;
             if (nd < dist[v]) {
                 dist[v] = nd;
@@ -386,9 +373,7 @@ public final class CommissionRoute {
         while (!s.pq.isEmpty()) {
             double[] e = s.pq.poll();
             int u = (int) e[1];
-            if (s.done[u]) {
-                continue;
-            }
+            if (s.done[u]) continue;
             s.done[u] = true;
             if (u != me && isGoal[u]) {
                 reached = u;
@@ -404,38 +389,28 @@ public final class CommissionRoute {
                     s.relax(u, out[j], w[j], false, null, null);
                 }
             }
-            if (mode == MiningQolConfig.CommissionRouteMode.WALK) {
-                continue;
-            }
+            if (mode == MiningQolConfig.CommissionRouteMode.WALK) continue;
             // Warp edges: candidates that get closer to the goal, best first.
             double range = ether ? ETHERWARP_RANGE : AOTE_RANGE + 2.0;
             double minGain = ether ? 8.0 : 1.5;
             List<Integer> cand = new ArrayList<>();
             for (int j = 0; j < n; j++) {
-                if (j == u || s.done[j]) {
-                    continue;
-                }
+                if (j == u || s.done[j]) continue;
                 double d = feetOf(g.nodes[j]).distanceTo(stand);
-                if (d > range || d < (ether ? 6.0 : 2.0) || h[j] > h[u] - minGain) {
-                    continue;
-                }
+                if (d > range || d < (ether ? 6.0 : 2.0) || h[j] > h[u] - minGain) continue;
                 cand.add(j);
             }
             cand.sort((x, y) -> Double.compare(h[x], h[y]));
             int limit = u == me ? 40 : (ether ? 10 : 40);
             int tried = 0;
             for (int j : cand) {
-                if (tried >= limit || tests >= MAX_RAYCAST_TESTS) {
-                    break;
-                }
+                if (tried >= limit || tests >= MAX_RAYCAST_TESTS) break;
                 tried++;
                 tests++;
                 Vec3 f = feetOf(g.nodes[j]);
                 if (ether) {
                     BlockPos ground = groundUnder(new Vec3(f.x, f.y + 0.5, f.z));
-                    if (ground == null) {
-                        continue;
-                    }
+                    if (ground == null) continue;
                     Vec3 eye = stand.add(0, TeleportUtils.SNEAK_EYE, 0);
                     if (Vec3.atCenterOf(ground).distanceTo(eye) > ETHERWARP_RANGE
                             || TeleportUtils.getEtherwarpDirection(eye, ground, ETHERWARP_RANGE, false) == null) {
@@ -450,9 +425,7 @@ public final class CommissionRoute {
                     TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, f.add(0, 1.62, 0));
                     TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
                     Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
-                    if (land == null) {
-                        continue;
-                    }
+                    if (land == null) continue;
                     int k = -1;
                     double kd = 2.0;
                     for (int m = 0; m < n; m++) {
@@ -468,9 +441,7 @@ public final class CommissionRoute {
                 }
             }
         }
-        if (reached < 0) {
-            return null;
-        }
+        if (reached < 0) return null;
         List<Integer> rev = new ArrayList<>();
         for (int c = reached; c != -1; c = s.prev[c]) {
             rev.add(c);
@@ -499,9 +470,7 @@ public final class CommissionRoute {
         int fy = (int) Math.floor(p.y);
         for (int dy = 1; dy <= 3; dy++) {
             BlockPos b = new BlockPos(x, fy - dy, z);
-            if (TeleportUtils.etherwarpable(b)) {
-                return b;
-            }
+            if (TeleportUtils.etherwarpable(b)) return b;
         }
         return null;
     }
@@ -512,9 +481,7 @@ public final class CommissionRoute {
         BlockPos q = p;
         for (int i = 0; i < 4 && mc.level != null; i++) {
             BlockPos below = q.below();
-            if (!mc.level.getBlockState(below).getCollisionShape(mc.level, below).isEmpty()) {
-                break;
-            }
+            if (!mc.level.getBlockState(below).getCollisionShape(mc.level, below).isEmpty()) break;
             q = below;
         }
         return new Vec3(q.getX() + 0.5, q.getY(), q.getZ() + 0.5);
@@ -523,9 +490,7 @@ public final class CommissionRoute {
     static void render(LevelRenderContext context) {
         Vec3[] pts = points;
         Minecraft client = Minecraft.getInstance();
-        if (pts.length == 0 || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (pts.length == 0 || client.player == null || !MiningState.dwarvenMines()) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         float[] k = WorldRenderUtils.argbToFloats(cfg.getCommissionRouteColor());
         Vec3 me = WorldRenderUtils.tracerOrigin(context);
@@ -558,16 +523,13 @@ public final class CommissionRoute {
         frames++;
     }
 
-    // ---- testkit hooks
 
     /** Graph node ids (SkyHanni's keys) along the current path, in order. */
     public static List<Integer> pathNodeIds() {
         IslandGraph g = MinesAreaMap.graph();
         int[] n = pathNodes;
         List<Integer> out = new ArrayList<>();
-        if (g == null) {
-            return out;
-        }
+        if (g == null) return out;
         for (int i : n) {
             if (i >= 0 && i < g.nodes.length) {
                 out.add(g.nodes[i].id);
@@ -585,9 +547,7 @@ public final class CommissionRoute {
         return out;
     }
 
-    public static int pointCount() {
-        return points.length;
-    }
+    public static int pointCount() { return points.length; }
 
     /** Hop blocks (etherwarp targets, or AOTE landing feet blocks) as "x,y,z". */
     public static List<String> hops() {
@@ -598,18 +558,7 @@ public final class CommissionRoute {
         return out;
     }
 
-    /** The ore nodes the route is going to (graph node indexes), empty when it falls back to the area's nodes (testkit). */
-    public static List<Integer> oreGoalIds() {
-        List<Integer> out = new ArrayList<>();
-        for (int n : OreNodes.goals()) {
-            out.add(n);
-        }
-        return out;
-    }
-
-    public static String currentTargetArea() {
-        return targetArea;
-    }
+    public static String currentTargetArea() { return targetArea; }
 
     /** Where the last drawn line started: the crosshair end of the camera's look (testkit). */
     public static double[] lastOrigin() {
@@ -617,25 +566,10 @@ public final class CommissionRoute {
         return o == null ? null : new double[]{o.x, o.y, o.z};
     }
 
-    /** The blocks of the landing patches now drawn, as "x,y,z" (testkit). */
-    public static List<String> patchBlockList() {
-        List<String> out = new ArrayList<>();
-        for (BlockPos p : patchBlocks) {
-            out.add(p.getX() + "," + p.getY() + "," + p.getZ());
-        }
-        return out;
-    }
-
     /** How many patch boxes the last frame drew (testkit). */
-    public static int patches() {
-        return patches;
-    }
+    public static int patches() { return patches; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    public static int computes() {
-        return computes;
-    }
+    public static int computes() { return computes; }
 }

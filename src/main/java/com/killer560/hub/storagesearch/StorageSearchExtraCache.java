@@ -84,9 +84,7 @@ public final class StorageSearchExtraCache {
             return;
         }
         String blob = StorageSearchNbtCodec.encode(contents);
-        if (blob == null) {
-            return;
-        }
+        if (blob == null) return;
         pages.put(key, new Page(blob, System.currentTimeMillis()));
         save();
     }
@@ -119,7 +117,5 @@ public final class StorageSearchExtraCache {
         }
     }
 
-    public int size() {
-        return pages.size();
-    }
+    public int size() { return pages.size(); }
 }

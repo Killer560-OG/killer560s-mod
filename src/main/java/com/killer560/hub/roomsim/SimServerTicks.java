@@ -19,15 +19,11 @@ public final class SimServerTicks {
     private SimServerTicks() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimServerTicks::serverTick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimServerTicks::serverTick); }
 
     private static void serverTick(MinecraftServer server) {
         for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            if (!SimAbilities.simServer(sp)) {
-                continue;
-            }
+            if (!SimAbilities.simServer(sp)) continue;
             int id = nextId++;
             if (nextId == 0) {
                 nextId = 1;

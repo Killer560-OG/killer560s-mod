@@ -124,9 +124,7 @@ public final class MacroStop {
 
     /** From {@code MacroStopKeyMixin}: a fresh key press (action 1). @return true to cancel it. */
     public static boolean onKey(KeyEvent event, int code) {
-        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) {
-            return false;
-        }
+        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) return false;
         Options o = Minecraft.getInstance().options;
         boolean movement = o.keyUp.matches(event) || o.keyDown.matches(event) || o.keyLeft.matches(event)
                 || o.keyRight.matches(event) || o.keyJump.matches(event);
@@ -137,32 +135,22 @@ public final class MacroStop {
     /** From {@code MacroStopMouseMixin}: a fresh mouse button press. Only the Emergency Cancel Key can be one. */
     public static boolean onMouseButton(int button) {
         int code = KeyUtil.codeForMouseButton(button);
-        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) {
-            return false;
-        }
+        if (!isCancelKey(code) && (MACROS.isEmpty() || !anyRunning())) return false;
         return onPress(code, KeyUtil.bindDisplayName(code), false, false);
     }
 
     /** Something to do the moment an emergency hold starts (it runs on the render thread, from the key press). */
-    public static void onEmergency(Runnable action) {
-        ON_EMERGENCY.add(action);
-    }
+    public static void onEmergency(Runnable action) { ON_EMERGENCY.add(action); }
 
     /** True while the Emergency Cancel Key's hold is on: automation acting by itself must not act. */
-    public static boolean emergencyHeld() {
-        return emergencyHold;
-    }
+    public static boolean emergencyHeld() { return emergencyHold; }
 
     /** Emergency Cancel Key presses that started a hold (testkit). */
-    public static int emergencies() {
-        return emergencies;
-    }
+    public static int emergencies() { return emergencies; }
 
     /** Ends the hold (testkit, and the release rules). */
     public static void release(String why) {
-        if (!emergencyHold) {
-            return;
-        }
+        if (!emergencyHold) return;
         emergencyHold = false;
         com.killer560.hub.util.ModLog.get("killer560smod-macrostop").info("[MacroStop] emergency hold released: {}", why);
         com.killer560.hub.util.ModChat.send("Emergency Cancel", com.killer560.hub.util.ModChat.text("Automation released ("
@@ -193,9 +181,7 @@ public final class MacroStop {
 
     private static boolean anyRunning() {
         for (Macro m : MACROS) {
-            if (running(m)) {
-                return true;
-            }
+            if (running(m)) return true;
         }
         return false;
     }
@@ -227,9 +213,7 @@ public final class MacroStop {
         boolean cancel = false;
         List<String> stopped = new java.util.ArrayList<>();
         for (Macro m : MACROS) {
-            if (!running(m)) {
-                continue;
-            }
+            if (!running(m)) continue;
             boolean stop = emergency || (m.kind() != Kind.EMERGENCY && escape)
                     || (m.kind() == Kind.MOVEMENT && worldKey);
             if (stop) {
@@ -258,16 +242,10 @@ public final class MacroStop {
     }
 
     /** "Auto E-Table: Escape" - the last macro this stopped and why (testkit). */
-    public static String lastStop() {
-        return lastStop;
-    }
+    public static String lastStop() { return lastStop; }
 
-    public static int stops() {
-        return stops;
-    }
+    public static int stops() { return stops; }
 
     /** The names of the registered macros (testkit). */
-    public static List<String> registered() {
-        return MACROS.stream().map(m -> m.kind() + " " + m.name()).toList();
-    }
+    public static List<String> registered() { return MACROS.stream().map(m -> m.kind() + " " + m.name()).toList(); }
 }

@@ -85,9 +85,7 @@ public final class ThemeExtrasConfig {
                 if (obj.has("themes") && obj.get("themes").isJsonObject()) {
                     for (Map.Entry<String, JsonElement> e : obj.getAsJsonObject("themes").entrySet()) {
                         MenuTheme t = parseTheme(e.getKey());
-                        if (t == null || !e.getValue().isJsonObject()) {
-                            continue;
-                        }
+                        if (t == null || !e.getValue().isJsonObject()) continue;
                         JsonObject o = e.getValue().getAsJsonObject();
                         Entry entry = cfg.themes.get(t);
                         entry.music = clean(ConfigJson.getString(o, "music", entry.music), MUSIC_THEME);
@@ -123,42 +121,29 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    public static Path path() {
-        return CONFIG_PATH;
-    }
+    public static Path path() { return CONFIG_PATH; }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /** An exact theme name, or null (unlike {@link MenuTheme#parse}, an unknown key is not Amber's). */
     private static MenuTheme parseTheme(String s) {
         for (MenuTheme t : MenuTheme.values()) {
-            if (t.name().equalsIgnoreCase(s)) {
-                return t;
-            }
+            if (t.name().equalsIgnoreCase(s)) return t;
         }
         return null;
     }
 
-    private static String clean(String s, String fallback) {
-        return s == null || s.isBlank() ? fallback : s.trim();
-    }
+    private static String clean(String s, String fallback) { return s == null || s.isBlank() ? fallback : s.trim(); }
 
     private static int clampVolume(int v) {
         int c = Math.max(MIN_VOLUME, Math.min(MAX_VOLUME, v));
         return Math.round(c / (float) VOLUME_STEP) * VOLUME_STEP;
     }
 
-    private Entry entry(MenuTheme theme) {
-        return themes.get(theme == null ? MenuTheme.AMBER : theme);
-    }
+    private Entry entry(MenuTheme theme) { return themes.get(theme == null ? MenuTheme.AMBER : theme); }
 
-    // ---------------------------------------------------------------- music
 
-    public boolean isMusicOn() {
-        return musicOn;
-    }
+    public boolean isMusicOn() { return musicOn; }
 
     public void setMusicOn(boolean on) {
         if (on != musicOn) {
@@ -167,9 +152,7 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    public int getMusicVolume() {
-        return musicVolume;
-    }
+    public int getMusicVolume() { return musicVolume; }
 
     public void setMusicVolume(int percent) {
         int next = clampVolume(percent);
@@ -179,9 +162,7 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    public String getMusic(MenuTheme theme) {
-        return entry(theme).music;
-    }
+    public String getMusic(MenuTheme theme) { return entry(theme).music; }
 
     public void setMusic(MenuTheme theme, String id) {
         String next = clean(id, MUSIC_THEME);
@@ -192,11 +173,8 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    // ---------------------------------------------------------------- font
 
-    public String getFont(MenuTheme theme) {
-        return entry(theme).font;
-    }
+    public String getFont(MenuTheme theme) { return entry(theme).font; }
 
     public void setFont(MenuTheme theme, String id) {
         String next = clean(id, FONT_KEEP);
@@ -207,11 +185,8 @@ public final class ThemeExtrasConfig {
         }
     }
 
-    // ---------------------------------------------------------------- main menu background
 
-    public String getBackground(MenuTheme theme) {
-        return entry(theme).background;
-    }
+    public String getBackground(MenuTheme theme) { return entry(theme).background; }
 
     public void setBackground(MenuTheme theme, String id) {
         String next = clean(id, ThemeBackgrounds.NONE);

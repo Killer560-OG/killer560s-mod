@@ -3,11 +3,9 @@ package com.killer560.hub.windowlayout;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.TitleScreen;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -232,9 +230,7 @@ public final class WindowLayoutFeature {
     }
 
     /** Full Monitor should end up borderless-fullscreen unless the user turned that behavior off. */
-    private static boolean wantsBorderlessFullMonitor() {
-        return WindowLayoutConfig.getInstance().isFullMonitorBorderless();
-    }
+    private static boolean wantsBorderlessFullMonitor() { return WindowLayoutConfig.getInstance().isFullMonitorBorderless(); }
 
     /** Content-area {x, y, w, h} (what GLFW positions/sizes) so the window's VISIBLE outer frame covers
      *  {@code cell}: the GLFW frame includes Windows' invisible resize borders, so those are pushed outside the

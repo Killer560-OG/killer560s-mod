@@ -25,9 +25,7 @@ public abstract class SupportersTabListMixin {
     @Inject(method = "getNameForDisplay(Lnet/minecraft/client/multiplayer/PlayerInfo;)"
             + "Lnet/minecraft/network/chat/Component;", at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$supportersTabName(PlayerInfo info, CallbackInfoReturnable<Component> cir) {
-        if (info == null || info.getProfile() == null) {
-            return;
-        }
+        if (info == null || info.getProfile() == null) return;
         Component replaced = PlayerNameDisplay.displayNameFor(info.getProfile().id());
         if (replaced == null) {
             // Hypixel's fake rows carry the player's name as TEXT under a fake profile (SupportersTabText).

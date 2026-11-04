@@ -78,20 +78,14 @@ public final class WrongArmorAlert {
 
     /** True for a pickaxe, drill or gauntlet: a Skyblock mining tool (its id, or the "Breaking Power" lore every one has). */
     public static boolean isMiningTool(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         String id = ItemIdentity.skyblockId(stack);
         if (id != null) {
             String u = id.toUpperCase(Locale.ROOT);
-            if (u.contains("PICKAXE") || u.contains("DRILL") || u.contains("GAUNTLET") || u.contains("PICKONIMBUS")) {
-                return true;
-            }
+            if (u.contains("PICKAXE") || u.contains("DRILL") || u.contains("GAUNTLET") || u.contains("PICKONIMBUS")) return true;
         }
         for (String line : com.killer560.hub.cheatutils.CheatUtils.lore(stack)) {
-            if (line.startsWith("Breaking Power ")) {
-                return true;
-            }
+            if (line.startsWith("Breaking Power ")) return true;
         }
         return false;
     }
@@ -103,9 +97,7 @@ public final class WrongArmorAlert {
     private static int soundCount = 0;
 
     /** Alarm beeps played since start (testkit). */
-    public static int soundCount() {
-        return soundCount;
-    }
+    public static int soundCount() { return soundCount; }
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
@@ -158,13 +150,9 @@ public final class WrongArmorAlert {
     static String wrongPiece(Player player) {
         for (EquipmentSlot slot : SLOTS) {
             ItemStack s = player.getItemBySlot(slot);
-            if (s.isEmpty()) {
-                return slot.name() + ": empty";
-            }
+            if (s.isEmpty()) return slot.name() + ": empty";
             String id = ItemIdentity.skyblockId(s);
-            if (!isMiningArmor(id)) {
-                return slot.name() + ": " + id;
-            }
+            if (!isMiningArmor(id)) return slot.name() + ": " + id;
         }
         return null;
     }
@@ -175,23 +163,14 @@ public final class WrongArmorAlert {
         showing = false;
     }
 
-    // ---- testkit hooks ------------------------------------------------------------------------------------------------
 
-    public static boolean showing() {
-        return showing;
-    }
+    public static boolean showing() { return showing; }
 
-    public static int shownCount() {
-        return shownCount;
-    }
+    public static int shownCount() { return shownCount; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    public static String lastReason() {
-        return lastReason;
-    }
+    public static String lastReason() { return lastReason; }
 
     /** The movable "Wrong Armor!" line. */
     public static final class Popup implements HudElement {
@@ -199,14 +178,10 @@ public final class WrongArmorAlert {
         private static final float SCALE = 2.0f;
 
         @Override
-        public String id() {
-            return ID;
-        }
+        public String id() { return ID; }
 
         @Override
-        public String displayName() {
-            return "Wrong Armor Alert";
-        }
+        public String displayName() { return "Wrong Armor Alert"; }
 
         @Override
         public int defaultX() {
@@ -241,21 +216,15 @@ public final class WrongArmorAlert {
         }
 
         @Override
-        public int height() {
-            return (int) (10 * SCALE);
-        }
+        public int height() { return (int) (10 * SCALE); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isWrongArmorRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isWrongArmorRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             boolean editor = HudVisibility.editorOpen();
-            if (!editor && (!showing || !MiningQolConfig.getInstance().isWrongArmor() || HudVisibility.hidesHud())) {
-                return;
-            }
+            if (!editor && (!showing || !MiningQolConfig.getInstance().isWrongArmor() || HudVisibility.hidesHud())) return;
             var pose = graphics.pose();
             pose.pushMatrix();
             pose.translate(x, y);

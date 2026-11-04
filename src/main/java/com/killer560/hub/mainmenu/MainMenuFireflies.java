@@ -167,9 +167,7 @@ final class MainMenuFireflies {
     }
 
     private static void addTrunk(int layer, float x, float tw, float top, float bottom) {
-        if (trunks >= MAX_TRUNKS) {
-            return;
-        }
+        if (trunks >= MAX_TRUNKS) return;
         trunkLayer[trunks] = layer;
         trunkX[trunks] = x;
         trunkW[trunks] = tw;
@@ -179,9 +177,7 @@ final class MainMenuFireflies {
     }
 
     private static void addLobe(int layer, float x, float y, float rx, float ry) {
-        if (lobes >= MAX_LOBES) {
-            return;
-        }
+        if (lobes >= MAX_LOBES) return;
         lobeLayer[lobes] = layer;
         lobeX[lobes] = x;
         lobeY[lobes] = y;
@@ -191,11 +187,8 @@ final class MainMenuFireflies {
         lobes++;
     }
 
-    private static double h(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    private static double h(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 
-    // ---- drawing --------------------------------------------------------------------------------------------------
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, int text, float density) {
         if (w != builtW || h != builtH) {
@@ -221,7 +214,6 @@ final class MainMenuFireflies {
         // Light from above through the canopy.
         MainMenuScenes.glow(r, w / 2, -10, w * 0.55, h * 0.30, mint, 0x1C, 5);
 
-        // ---- far layer, half lost in fog
         drawTrunks(r, FAR, farDx, farTrunk, 0, s);
         drawLobes(r, FAR, farDx, farLeaf, t, 0.6f * s);
         r.gradient(0, (int) (h * 0.72), w, (int) (h * 0.84), MenuStyle.alpha(fog, 0), MenuStyle.alpha(fog, 0xC0));
@@ -252,14 +244,12 @@ final class MainMenuFireflies {
         // ---- fireflies behind the mid trees (dim, small)
         fireflies(r, w, h, t, accent, mint, text, density, 0);
 
-        // ---- mid layer
         drawTrunks(r, MID, midDx, midTrunk, MenuStyle.alpha(mint, 0x14), s);
         drawLobes(r, MID, midDx, midLeaf, t, 1.0f * s);
         // The forest floor: a mossy band the undergrowth stands out against.
         int floor = MenuStyle.mix(panel, accent, 0.16f);
         r.gradient(0, (int) (h * 0.86), w, h, MenuStyle.alpha(floor, 0xB0), MenuStyle.alpha(MenuStyle.mix(floor, BLACK, 0.3f), 0xFF));
 
-        // ---- mist along the ground
         for (int k = 0; k < 3; k++) {
             double md = Math.sin(t * (0.05 + k * 0.02) + k * 2.0) * w * 0.15;
             int cy = h - (int) (14 * s) - k * Math.max(12, h / 10);
@@ -267,7 +257,6 @@ final class MainMenuFireflies {
             MainMenuScenes.glow(r, (int) (w / 2 + md), cy, w * 0.7, h * 0.07, mint, a, 3);
         }
 
-        // ---- fireflies between the mid and near layers
         fireflies(r, w, h, t, accent, mint, text, density, 1);
 
         // ---- near layer: framing trunks, canopy overhead, undergrowth
@@ -277,16 +266,13 @@ final class MainMenuFireflies {
         drawFerns(r, h, t, nearDx, MenuStyle.mix(panel, accent, 0.22f), MenuStyle.mix(panel, accent, 0.50f), s);
         drawTufts(r, h, t, nearDx, MenuStyle.mix(panel, accent, 0.40f));
 
-        // ---- falling leaves and the bright near fireflies
         leaves(r, w, h, t, accent, density);
         fireflies(r, w, h, t, accent, mint, text, density, 2);
     }
 
     private static void drawTrunks(GuiRects r, int layer, int dx, int colour, int rimColour, float s) {
         for (int i = 0; i < trunks; i++) {
-            if (trunkLayer[i] != layer) {
-                continue;
-            }
+            if (trunkLayer[i] != layer) continue;
             int x = Math.round(trunkX[i]) + dx;
             int tw = Math.max(1, Math.round(trunkW[i]));
             int top = Math.round(trunkTop[i]);
@@ -308,9 +294,7 @@ final class MainMenuFireflies {
     /** Lobes as five horizontal bands following an ellipse, swaying {@code sway} at most. */
     private static void drawLobes(GuiRects r, int layer, int dx, int colour, double t, float sway) {
         for (int i = 0; i < lobes; i++) {
-            if (lobeLayer[i] != layer) {
-                continue;
-            }
+            if (lobeLayer[i] != layer) continue;
             double sw = Math.sin(t * 0.45 + lobePhase[i]) * sway;
             int cx = (int) Math.round(lobeX[i] + dx + sw);
             float ry = lobeRy[i];
@@ -376,9 +360,7 @@ final class MainMenuFireflies {
             double y = fall - 15.0;
             double x = r3 * w + Math.sin(t * (0.5 + r1 * 0.6) + i * 1.9) * (14.0 + r2 * 20.0);
             int a = (int) (0xB0 * Math.min(1.0, fall / 30.0) * Math.min(1.0, (travel - fall) / 30.0));
-            if (a <= 6) {
-                continue;
-            }
+            if (a <= 6) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             boolean wide = Math.sin(t * (1.1 + r3) + i) > 0;
@@ -392,9 +374,7 @@ final class MainMenuFireflies {
         for (int i = 0; i < flies; i++) {
             double r0 = MainMenuScenes.hash(i, 90);
             int g = r0 < 0.4 ? 0 : r0 < 0.8 ? 1 : 2;
-            if (g != group) {
-                continue;
-            }
+            if (g != group) continue;
             double r1 = MainMenuScenes.hash(i, 91);
             double r2 = MainMenuScenes.hash(i, 92);
             double r3 = MainMenuScenes.hash(i, 93);
@@ -403,9 +383,7 @@ final class MainMenuFireflies {
             double pulse = Math.max(0.0, Math.sin(t * (0.7 + r3 * 1.1) + i * 3.7));
             double depth = group == 0 ? 0.45 : group == 1 ? 0.75 : 1.0;
             int a = (int) (255 * pulse * pulse * depth);
-            if (a <= 8) {
-                continue;
-            }
+            if (a <= 8) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             if (group > 0) {
@@ -417,9 +395,7 @@ final class MainMenuFireflies {
     }
 
     static int scaled(double perArea, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
+        if (density <= 0f) return 0;
         int n = (int) Math.round(perArea * density);
         return Math.max(Math.round(min * density), Math.min(Math.round(max * density), n));
     }

@@ -96,73 +96,39 @@ public final class RunSummaryConfig {
         }
     }
 
-    private static int clampPbMin(int value) {
-        return value >= PB_MIN_SPLUS ? PB_MIN_SPLUS : PB_MIN_S;
-    }
+    private static int clampPbMin(int value) { return value >= PB_MIN_SPLUS ? PB_MIN_SPLUS : PB_MIN_S; }
 
-    private static int clampRuns(int value) {
-        return Math.max(MIN_RUNS, Math.min(MAX_RUNS, value));
-    }
+    private static int clampRuns(int value) { return Math.max(MIN_RUNS, Math.min(MAX_RUNS, value)); }
 
     /** Gated: off everywhere that isn't Skyblock/p3sim while "Skyblock Only" is on. */
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
     /** The raw saved value, for the settings GUI and for anything that must ignore the gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isChatSummary() {
-        return chatSummary;
-    }
+    public boolean isChatSummary() { return chatSummary; }
 
-    public void setChatSummary(boolean chatSummary) {
-        this.chatSummary = chatSummary;
-    }
+    public void setChatSummary(boolean chatSummary) { this.chatSummary = chatSummary; }
 
-    public boolean isAvoidDuplicateChat() {
-        return avoidDuplicateChat;
-    }
+    public boolean isAvoidDuplicateChat() { return avoidDuplicateChat; }
 
-    public void setAvoidDuplicateChat(boolean avoidDuplicateChat) {
-        this.avoidDuplicateChat = avoidDuplicateChat;
-    }
+    public void setAvoidDuplicateChat(boolean avoidDuplicateChat) { this.avoidDuplicateChat = avoidDuplicateChat; }
 
-    public boolean isAnnouncePersonalBests() {
-        return announcePersonalBests;
-    }
+    public boolean isAnnouncePersonalBests() { return announcePersonalBests; }
 
-    public void setAnnouncePersonalBests(boolean announcePersonalBests) {
-        this.announcePersonalBests = announcePersonalBests;
-    }
+    public void setAnnouncePersonalBests(boolean announcePersonalBests) { this.announcePersonalBests = announcePersonalBests; }
 
-    public boolean isRecordDeviceTimes() {
-        return recordDeviceTimes;
-    }
+    public boolean isRecordDeviceTimes() { return recordDeviceTimes; }
 
-    public void setRecordDeviceTimes(boolean recordDeviceTimes) {
-        this.recordDeviceTimes = recordDeviceTimes;
-    }
+    public void setRecordDeviceTimes(boolean recordDeviceTimes) { this.recordDeviceTimes = recordDeviceTimes; }
 
-    public int getPbMinScore() {
-        return pbMinScore;
-    }
+    public int getPbMinScore() { return pbMinScore; }
 
-    public void setPbMinScore(int pbMinScore) {
-        this.pbMinScore = clampPbMin(pbMinScore);
-    }
+    public void setPbMinScore(int pbMinScore) { this.pbMinScore = clampPbMin(pbMinScore); }
 
-    public int getMaxRuns() {
-        return maxRuns;
-    }
+    public int getMaxRuns() { return maxRuns; }
 
-    public void setMaxRuns(int maxRuns) {
-        this.maxRuns = clampRuns(maxRuns);
-    }
+    public void setMaxRuns(int maxRuns) { this.maxRuns = clampRuns(maxRuns); }
 }

@@ -54,14 +54,10 @@ public final class PosmsgRenderer {
     static void render(LevelRenderContext context) {
         Minecraft client = Minecraft.getInstance();
         Player player = client.player;
-        if (client.level == null || player == null || !SkyblockGate.allows() || !PosmsgFeature.active()) {
-            return;
-        }
+        if (client.level == null || player == null || !SkyblockGate.allows() || !PosmsgFeature.active()) return;
         PosmsgConfig cfg = PosmsgConfig.getInstance();
         for (PosmsgEntry e : cfg.entries()) {
-            if (!e.enabled || !e.configured || !e.showRadius) {
-                continue;
-            }
+            if (!e.enabled || !e.configured || !e.showRadius) continue;
             float[] c = WorldRenderUtils.argbToFloats(e.color());
             double distSq = player.position().distanceToSqr(e.x, e.y, e.z);
             // Solid once you're inside it, translucent from outside - the same "you are in it now"
@@ -103,9 +99,7 @@ public final class PosmsgRenderer {
     private static void renderLabel(LevelRenderContext context, double x, double y, double z,
                                     String text, int color, float textScale) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null || text == null || text.isBlank()) {
-            return;
-        }
+        if (poseStack == null || text == null || text.isBlank()) return;
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));

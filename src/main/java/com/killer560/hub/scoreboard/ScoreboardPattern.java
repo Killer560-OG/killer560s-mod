@@ -19,14 +19,11 @@ public final class ScoreboardPattern {
     private ScoreboardPattern() {
     }
 
-    private static Pattern p(String regex) {
-        return Pattern.compile(regex);
-    }
+    private static Pattern p(String regex) { return Pattern.compile(regex); }
 
     private static final String HEALTH_ICON = "❤";
     private static final String MINING_FORTUNE_ICON = "☘";
 
-    // ---- main ----
     public static final Pattern MOTES = p("(?:§.)*Motes: (?:§.)*(?<motes>[\\d,]+).*");
     public static final Pattern COPPER = p("(?:§.)*Copper: (?:§.)*(?<copper>[\\d,]+).*");
     public static final Pattern SOWDUST = p("\\s?(?:§.)*Sowdust: (?:§.)*(?<sowdust>[\\d,]+)");
@@ -43,14 +40,12 @@ public final class ScoreboardPattern {
     public static final Pattern NORTH_STARS = p("North Stars: §d(?<northstars>[\\w,]+).*");
     public static final Pattern PROFILE_TYPE = p("\\s*(?:§7♲ §7Ironman|§a☀ §aStranded|§.Ⓑ §.Bingo).*");
 
-    // ---- multi use ----
     public static final Pattern AUTO_CLOSING = p("(?:§.)*Auto-closing in: §c(?:\\d+:)?\\d+");
     public static final Pattern STARTING_IN = p("(?:§.)*Starting in: §.(?:\\d+:)?\\d+");
     public static final Pattern TIME_ELAPSED = p("(?:§.)*Time Elapsed: (?:§.)*(?<time>(?:\\w+[ydhms] ?)+)");
     public static final Pattern INSTANCE_SHUTDOWN = p("(?:§.)*Instance Shutdown In: (?:§.)*(?<time>(?:\\w+[ydhms] ?)+)");
     public static final Pattern TIME_LEFT = p("(?:§.)*Time Left: (?:§.)*[\\w:,.\\s]+");
 
-    // ---- dungeon ----
     public static final Pattern M7_DRAGONS = p("§cNo Alive Dragons|§8- (?:§.)+[\\w\\s]+Dragon§a [\\w,.]+(?:§." + HEALTH_ICON + "?)?");
     // Looser than SkyHanni's "Keys: §.■ §.[✗✓] §.■ §a.x" (2026-10-07): his dungeon board draws the blood-key mark as an
     // "x", and a wither-key count past 9 is two digits; any color codes may sit between the parts.
@@ -63,12 +58,10 @@ public final class ScoreboardPattern {
     public static final Pattern TEAMMATES = p("(?:§.)*(?<classAbbv>\\[\\w]) (?:§.)*(?<username>\\w{2,16}) (?:(?:§.)*(?<classLevel>\\[Lvl?(?<level>[\\w,.]+)?]?)|(?:§(?<color>.))*(?<health>[\\w,.]+)(?:§.)*.?)");
     public static final Pattern FLOOR3_GUARDIANS = p("§. - §.(?:Healthy|Reinforced|Laser|Chaos)§a [\\w,.]*(?:§c" + HEALTH_ICON + ")?");
 
-    // ---- kuudra ----
     public static final Pattern WAVE = p("(?:§.)*Wave: (?:§.)*\\d+(?:§.)*(?: §.- §.\\d+:\\d+)?");
     public static final Pattern TOKENS = p("(?:§.)*Tokens: §.(?<tokens>[\\w,]+)");
     public static final Pattern SUBMERGES = p("(?:§.)*Submerges In: (?:§.)*[\\w\\s?]+");
 
-    // ---- farming ----
     public static final Pattern MEDALS = p("§[6fc]§l(?:GOLD|SILVER|BRONZE) §fmedals: §[6fc][\\d.,]+");
     public static final Pattern LOCKED = p("\\s*§cLocked.*");
     public static final Pattern CLEAN_UP = p("\\s*(?:§.)*Cleanup(?:§.)*: (?:§.)*.*");
@@ -78,7 +71,6 @@ public final class ScoreboardPattern {
     public static final Pattern JACOBS_CONTEST = p("§eJacob's Contest");
     public static final Pattern PLOT = p("\\s*§aPlot §7-.*");
 
-    // ---- mining ----
     public static final Pattern POWDER = p("(?:§.)*᠅ §.(?<type>Gemstone|Mithril|Glacite)(?: Powder)?(?:§.)*:? (?:§.)*(?<amount>[\\d,.]*)");
     public static final Pattern WIND_COMPASS = p("§9Wind Compass");
     public static final Pattern WIND_COMPASS_ARROW = p("\\s*(?:§.|[⋖⋗≈])+\\s*(?:§.|[⋖⋗≈])*\\s*");
@@ -98,7 +90,6 @@ public final class ScoreboardPattern {
     public static final Pattern FORTUNATE_FREEZING_BONUS = p("Event Bonus: §6\\+\\d+" + MINING_FORTUNE_ICON);
     public static final Pattern FOSSIL_DUST = p("Fossil Dust: (?:§f)*[\\d.,]+.*");
 
-    // ---- combat ----
     public static final Pattern MAGMA_CHAMBER = p("Magma Chamber");
     public static final Pattern MAGMA_BOSS = p("§7Boss: §[c6e]\\d+%");
     public static final Pattern DAMAGE_SOAKED = p("§7Damage Soaked:");
@@ -111,7 +102,6 @@ public final class ScoreboardPattern {
     public static final Pattern BOSS_DAMAGE = p("Your Damage: §c[\\d,.]+");
     public static final Pattern SLAYER_QUEST = p("Slayer Quest");
 
-    // ---- misc ----
     public static final Pattern ESSENCE = p("\\s*.*Essence: §.(?<essence>-?\\d+(?::?,\\d{3})*(?:\\.\\d+)?)");
     public static final Pattern REDSTONE = p("\\s*(?:§.)*⚡ §cRedstone: (?:§.)*\\d+%");
     public static final Pattern VISITING = p("\\s*§a✌ §7\\(§.\\d+(?:§.)?/\\d+(?:§.)?\\)");
@@ -130,7 +120,6 @@ public final class ScoreboardPattern {
     public static final Pattern WTF_ARE_THOSE_LINES = p("§eMine \\d+ .*|§eKill 100 Automatons|§eFind a Jungle Key|§eFind the \\d+ Missing Pieces?|§eTalk to the Goblin King|§eBring items to Moby| Glowing Mushroom §8x\\d");
     public static final Pattern DARK_AUCTION_CURRENT_ITEM = p("Current Item:");
 
-    // ---- events ----
     public static final Pattern TRAVELING_ZOO = p("§aTraveling Zoo§f \\d*:\\d+");
     public static final Pattern NEW_YEAR = p("§dNew Year Event!§f \\d*:?\\d+");
     public static final Pattern SPOOKY = p("§6Spooky Festival§f \\d*:?\\d+");
@@ -141,7 +130,6 @@ public final class ScoreboardPattern {
     public static final Pattern WINTER_TOTAL_DMG = p("(?:§.)*Your Total Damage: §.[\\d+,.]+.*$");
     public static final Pattern WINTER_CUBE_DMG = p("(?:§.)*Your Cube Damage: §.[\\d+,.]+$");
 
-    // ---- rift ----
     public static final Pattern RIFT_DIMENSION = p("\\s*(?:§f)?Rift Dimension");
     public static final Pattern RIFT_HOT_DOG_TITLE = p("§6Hot Dog Contest");
     public static final Pattern RIFT_HOT_DOG_EATEN = p("Eaten: §.\\d+/\\d+");
@@ -153,7 +141,6 @@ public final class ScoreboardPattern {
     public static final Pattern TIME_SLICED = p("§c§lTIME SLICED!");
     public static final Pattern BIG_DAMAGE = p("\\s*Big damage in: §d[\\w\\s]+");
 
-    // ---- carnival ----
     public static final Pattern CARNIVAL = p("§eCarnival§f \\d+(?::\\d+)*");
     public static final Pattern CARNIVAL_TASKS = p("§.§l(?:Catch a Fish|Fruit Digging|Zombie Shootout)");
     public static final Pattern CARNIVAL_TOKENS = p("(?:§f)*Carnival Tokens: §e[\\d,]+");
@@ -163,13 +150,11 @@ public final class ScoreboardPattern {
     public static final Pattern CARNIVAL_ACCURACY = p("(?:§f)?Accuracy: §.\\d+(?:\\.\\d+)?%");
     public static final Pattern CARNIVAL_KILLS = p("(?:§f)?Kills: §.\\d+");
 
-    // ---- galatea ----
     public static final Pattern WHISPERS = p("(?:§f)?Whispers: §[36][\\w,.]+.*");
     public static final Pattern HOTF = p("\\s*§aHOTF§f: §a[\\w,.]+.*");
     public static final Pattern AGATHAS_CONTEST = p("§eAgatha's Contest §a.*");
     public static final Pattern MIRIAS_CONTEST = p("§eMiria's Contest §a.*");
 
-    // ---- safari ----
     public static final Pattern CAPTURED_MOBS = p("Captured Mobs: §e(?<capturedMobs>\\d+)");
 
     /** Half-updated scoreboard lines SkyHanni swallows instead of reporting as unknown. */
@@ -179,7 +164,6 @@ public final class ScoreboardPattern {
             p("\\s*Starting in: §a0 §c[\\d:]+"),
             p("(?:§.)*᠅ §.(?<type>Gemstone|Mithril|Glacite)(?: Powder)?.*"));
 
-    // ---- borrowed from other SkyHanni APIs ----
     /** PurseApi.coinsPattern */
     public static final Pattern COINS = p("(?:§.)*(?:Piggy|Purse): §6(?<coins>[\\d,.]+)(?: ?(?:§.)*\\([+-](?<earned>[\\d,.]+)\\)?|.*)?$");
     /** BitsApi.bitsScoreboardPattern */

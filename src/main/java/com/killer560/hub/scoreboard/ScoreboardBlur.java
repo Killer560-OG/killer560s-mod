@@ -59,9 +59,7 @@ public final class ScoreboardBlur {
 
     /** Registers the pipeline at client init so it's in {@code RenderPipelines}' static list before precompiling. */
     static void register() {
-        if (pipeline != null || failed) {
-            return;
-        }
+        if (pipeline != null || failed) return;
         if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             failed = true;
             LOGGER.info("[CustomScoreboard] VulkanMod detected, background blur disabled.");
@@ -79,9 +77,7 @@ public final class ScoreboardBlur {
         }
     }
 
-    public static boolean available() {
-        return pipeline != null && !failed;
-    }
+    public static boolean available() { return pipeline != null && !failed; }
 
     private static void fail(String what, Throwable e) {
         if (!failed) {
@@ -95,9 +91,7 @@ public final class ScoreboardBlur {
      * GUI scale into framebuffer pixels.
      */
     static void submit(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int strength) {
-        if (!available() || w <= 0 || h <= 0) {
-            return;
-        }
+        if (!available() || w <= 0 || h <= 0) return;
         if (needsCopy) {
             // The previous frame's request was never consumed: the GuiRenderer hook isn't running.
             if (++missedCopies >= 3) {
@@ -156,13 +150,9 @@ public final class ScoreboardBlur {
 
     /** Called at the head of {@code GuiRenderer#draw}, before its render passes open. */
     public static void copyIfNeeded() {
-        if (!needsCopy) {
-            return;
-        }
+        if (!needsCopy) return;
         needsCopy = false;
-        if (failed || target == null) {
-            return;
-        }
+        if (failed || target == null) return;
         try {
             RenderTarget main = McRender.mainRenderTarget(Minecraft.getInstance());
             if (main.width != target.width || main.height != target.height

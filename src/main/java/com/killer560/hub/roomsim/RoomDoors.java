@@ -107,23 +107,15 @@ public final class RoomDoors {
     public record Mask(int tilesX, int tilesZ, Set<Integer> edges) {
 
         /** Whether this room has a doorway on {@code side} at tile {@code index} along it. */
-        public boolean has(int side, int index) {
-            return edges.contains(edge(side, index));
-        }
+        public boolean has(int side, int index) { return edges.contains(edge(side, index)); }
     }
 
     /** Packs a side and an index along it into one key. */
-    public static int edge(int side, int index) {
-        return side * MAX_TILES + index;
-    }
+    public static int edge(int side, int index) { return side * MAX_TILES + index; }
 
-    public static int sideOf(int packed) {
-        return packed / MAX_TILES;
-    }
+    public static int sideOf(int packed) { return packed / MAX_TILES; }
 
-    public static int indexOf(int packed) {
-        return packed % MAX_TILES;
-    }
+    public static int indexOf(int packed) { return packed % MAX_TILES; }
 
     /**
      * The doorways of a captured room, measured once and remembered.
@@ -131,17 +123,11 @@ public final class RoomDoors {
      * @return the mask, or null when the room is unknown or not in the current capture format
      */
     public static Mask of(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         Mask cached = CACHE.get(name);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         RoomLibrary.Room room = RoomLibrary.get(name);
-        if (room == null || !room.usable()) {
-            return null;
-        }
+        if (room == null || !room.usable()) return null;
         Mask fresh = detect(room);
         if (fresh.edges().isEmpty()) {
             // ONE door, on one side, which the layout's rotation is free to point anywhere.
@@ -181,9 +167,7 @@ public final class RoomDoors {
      */
     public static Mask carvable(String name) {
         Map<Integer, Integer> cost = carveCost(name);
-        if (cost == null) {
-            return null;
-        }
+        if (cost == null) return null;
         RoomLibrary.Room room = RoomLibrary.get(name);
         return new Mask(Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1)),
                 Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1)), cost.keySet());
@@ -199,17 +183,11 @@ public final class RoomDoors {
      * (testkit 1446, 2026-10-15). Null when the room is unknown.
      */
     public static Map<Integer, Integer> carveCost(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         Map<Integer, Integer> cached = CARVABLE.get(name);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         RoomLibrary.Room room = RoomLibrary.get(name);
-        if (room == null || !room.usable()) {
-            return null;
-        }
+        if (room == null || !room.usable()) return null;
         int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
         int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
         int m = room.margin;
@@ -235,9 +213,7 @@ public final class RoomDoors {
      */
     public static int carveCost(String name, int degrees, int tilesX, int tilesZ, int side, int index) {
         Map<Integer, Integer> cost = carveCost(name);
-        if (cost == null) {
-            return -1;
-        }
+        if (cost == null) return -1;
         Mask back = rotate(new Mask(tilesX, tilesZ, Set.of(edge(side, index))), 360 - ((degrees % 360) + 360) % 360);
         Integer c = cost.get(back.edges().iterator().next());
         return c == null ? -1 : c;
@@ -245,9 +221,7 @@ public final class RoomDoors {
 
     private static void costAt(Map<Integer, Integer> cost, int packed, RoomLibrary.Room room, int wallX, int wallZ,
                                int alongX, int alongZ, int inX, int inZ) {
-        if (!standBehind(room, wallX, wallZ, alongX, alongZ, inX, inZ)) {
-            return;
-        }
+        if (!standBehind(room, wallX, wallZ, alongX, alongZ, inX, inZ)) return;
         int solid = 0;
         for (int in = 1; in <= 2; in++) {
             for (int w = -1; w <= 1; w++) {
@@ -287,22 +261,16 @@ public final class RoomDoors {
                     }
                 }
             }
-            if (ok) {
-                return true;
-            }
+            if (ok) return true;
         }
         return false;
     }
 
     /** Air, or something a player walks through. A never-read block is NOT open here (unlike isDoorway). */
     private static boolean isOpen(RoomLibrary.Room room, int x, int y, int z) {
-        if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ || y < room.minY || y > room.maxY) {
-            return false;
-        }
+        if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ || y < room.minY || y > room.maxY) return false;
         short idx = room.blockAt(room.index(x, y, z));
-        if (idx < 0 || idx >= room.palette.size()) {
-            return false;
-        }
+        if (idx < 0 || idx >= room.palette.size()) return false;
         String state = room.palette.get(idx);
         int bracket = state.indexOf('[');
         String id = bracket < 0 ? state : state.substring(0, bracket);
@@ -386,9 +354,7 @@ public final class RoomDoors {
      * after that, which is the same arithmetic {@link RoomPlacer} pastes with.
      */
     /** {@link #of}'s measurement for a room that is not (yet) in the library. No cache. */
-    static Mask measure(RoomLibrary.Room room) {
-        return detect(room);
-    }
+    static Mask measure(RoomLibrary.Room room) { return detect(room); }
 
     private static Mask detect(RoomLibrary.Room room) {
         int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
@@ -445,9 +411,7 @@ public final class RoomDoors {
                 }
             }
         }
-        if (hits < DOOR_MIN_MATCH) {
-            return false;
-        }
+        if (hits < DOOR_MIN_MATCH) return false;
         int frame = 0;
         for (int y = DOOR_FLOOR_Y; y < DOOR_FLOOR_Y + DOOR_HEIGHT; y++) {
             if (!open.test(-(DOOR_WIDTH / 2) - 1, y)) {
@@ -479,9 +443,7 @@ public final class RoomDoors {
             return true;
         }
         short idx = room.blockAt(room.index(x, y, z));
-        if (idx < 0 || idx >= room.palette.size()) {
-            return true;
-        }
+        if (idx < 0 || idx >= room.palette.size()) return true;
         String state = room.palette.get(idx);
         int bracket = state.indexOf('[');
         return DOORWAY_BLOCKS.contains(bracket < 0 ? state : state.substring(0, bracket));

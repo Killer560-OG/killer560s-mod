@@ -8,9 +8,7 @@ import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.proxy.config.ProxyType;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import com.killer560.hub.compat.McCompat;
@@ -46,9 +44,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
     /** The framed panel around the form, laid out in init(). */
     private int panelX, panelY, panelW, panelH;
 
-    public ProxyConfigScreen(Screen parent) {
-        this(parent, ProxyConfig.getInstance());
-    }
+    public ProxyConfigScreen(Screen parent) { this(parent, ProxyConfig.getInstance()); }
 
     /** @param target the per-instance proxy ({@link ProxyConfig#getInstance()}) or the shared universal one. */
     public ProxyConfigScreen(Screen parent, ProxyConfig target) {
@@ -197,14 +193,10 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "accounts";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
@@ -230,9 +222,7 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    private static String footerLine() {
-        return "Do NOT use free proxies.";
-    }
+    private static String footerLine() { return "Do NOT use free proxies."; }
 
     /** What Apply reaches: every instance while the Universal switch is on, this one while it is off. */
     private String universalLine() {
@@ -242,12 +232,8 @@ public class ProxyConfigScreen extends Screen implements MenuThemedScreen {
 
     /** Lines under the buttons: the warning and the Universal note (the note is left out only when editing the shared
      *  file directly). */
-    private int footerLines() {
-        return this.target.isUniversal() ? 1 : 2;
-    }
+    private int footerLines() { return this.target.isUniversal() ? 1 : 2; }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, this.parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, this.parent); }
 }

@@ -55,7 +55,5 @@ public final class ExceptWords<T> implements ArgumentType<T> {
     }
 
     @Override
-    public Collection<String> getExamples() {
-        return inner.getExamples().isEmpty() ? List.of() : inner.getExamples();
-    }
+    public Collection<String> getExamples() { return inner.getExamples().isEmpty() ? List.of() : inner.getExamples(); }
 }

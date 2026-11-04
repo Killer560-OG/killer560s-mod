@@ -55,11 +55,7 @@ public final class SessionRecorderConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 }

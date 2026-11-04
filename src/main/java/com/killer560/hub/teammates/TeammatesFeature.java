@@ -88,26 +88,18 @@ public final class TeammatesFeature {
         for (Player player : client.level.players()) {
             boolean self = player == client.player;
             if (self) {
-                if (!cfg.isHighlightSelf()) {
-                    continue;
-                }
+                if (!cfg.isHighlightSelf()) continue;
             } else if (!isTeammate(player, party)) {
                 continue;
             }
             String name = player.getGameProfile().name();
-            if (cfg.isSkipDead() && PartyTracker.isDead(name)) {
-                continue;
-            }
+            if (cfg.isSkipDead() && PartyTracker.isDead(name)) continue;
             if (ObjectHiderFeature.shouldHideEntity(player)) {
                 // Clean End (and only Clean End) can hide a real teammate - don't leave an empty box behind.
                 continue;
             }
-            if (player.isRemoved() || (!self && player.distanceToSqr(client.player) > rangeSq)) {
-                continue;
-            }
-            if (!self && !throughWalls && !hasLineOfSight(client, eye, player)) {
-                continue;
-            }
+            if (player.isRemoved() || (!self && player.distanceToSqr(client.player) > rangeSq)) continue;
+            if (!self && !throughWalls && !hasLineOfSight(client, eye, player)) continue;
             DungeonClass clazz = PartyTracker.classOf(name);
             if (found == null) {
                 found = new LinkedHashMap<>(); // never mutated after it is published below
@@ -119,20 +111,14 @@ public final class TeammatesFeature {
 
     /** A real (v4-UUID, i.e. not a Hypixel NPC) player the party tracker lists. */
     private static boolean isTeammate(Player player, List<String> party) {
-        if (player.getUUID().version() != 4) {
-            return false;
-        }
+        if (player.getUUID().version() != 4) return false;
         String name = player.getGameProfile().name();
         for (String member : party) {
-            if (member.equalsIgnoreCase(name)) {
-                return true;
-            }
+            if (member.equalsIgnoreCase(name)) return true;
         }
         // Inside a dungeon the tab list is authoritative and always carries a class; a player the class parse knows
         // is a teammate even if the party-chat list hasn't caught up (rejoin, leader transfer).
-        if (PartyTracker.classOf(name) != null) {
-            return true;
-        }
+        if (PartyTracker.classOf(name) != null) return true;
         // Nothing known at all (p3sim.net's tab list has no class entries and there is no party) - in a real
         // dungeon the only other real players present are your party, so fall back to "every real player".
         return party.isEmpty();
@@ -149,9 +135,7 @@ public final class TeammatesFeature {
         Map<Integer, Integer> current = targets;
         TeammatesConfig cfg = TeammatesConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (current.isEmpty() || client.level == null || client.player == null || !cfg.isEnabled()) {
-            return;
-        }
+        if (current.isEmpty() || client.level == null || client.player == null || !cfg.isEnabled()) return;
         boolean throughWalls = cfg.isThroughWalls();
         boolean filled = cfg.getStyle() == TeammatesConfig.Style.FILLED;
         float lineWidth = cfg.getLineWidth();
@@ -164,9 +148,7 @@ public final class TeammatesFeature {
         int labels = 0;
         for (Map.Entry<Integer, Integer> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
-            if (!(entity instanceof Player player) || player.isRemoved()) {
-                continue;
-            }
+            if (!(entity instanceof Player player) || player.isRemoved()) continue;
             int color = target.getValue();
             double lx = net.minecraft.util.Mth.lerp(partialTick, player.xo, player.getX());
             double ly = net.minecraft.util.Mth.lerp(partialTick, player.yo, player.getY());
@@ -223,12 +205,8 @@ public final class TeammatesFeature {
     private static String labelText(TeammatesConfig cfg, int id, String name, double distance) {
         boolean showName = cfg.isShowName();
         boolean showDistance = cfg.isShowDistance();
-        if (!showName && !showDistance) {
-            return null;
-        }
-        if (!showDistance) {
-            return name;
-        }
+        if (!showName && !showDistance) return null;
+        if (!showDistance) return name;
         // Math.round is String.format("%.0f")'s HALF_UP for a distance (never negative), without the Formatter.
         long metres = Math.round(distance);
         int mode = showName ? 1 : 0;
@@ -249,9 +227,7 @@ public final class TeammatesFeature {
     private static void renderLabel(LevelRenderContext context, double x, double y, double z,
                                     String text, int color) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null) {
-            return;
-        }
+        if (poseStack == null) return;
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));

@@ -194,9 +194,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private void refresh() {
         List<FriendsListConfig.Friend> all = FriendsListConfig.getInstance().friends();
         // Called every frame: the filtered copy is rebuilt only when the list or the search text changed.
-        if (all == filteredFrom && searchQuery.equals(filteredQuery) && areaFilter.equals(filteredArea)) {
-            return;
-        }
+        if (all == filteredFrom && searchQuery.equals(filteredQuery) && areaFilter.equals(filteredArea)) return;
         filteredFrom = all;
         filteredQuery = searchQuery;
         filteredArea = areaFilter;
@@ -207,12 +205,8 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     /** What a friend is doing when they are online, else null: an offline friend (or a stale line) has no area. */
     static String areaOf(FriendsListConfig.Friend f) {
-        if (f == null || f.activity == null || f.activity.isBlank() || "Offline".equalsIgnoreCase(f.activity.trim())) {
-            return null;
-        }
-        if (Boolean.FALSE.equals(f.onlineHint)) {
-            return null;
-        }
+        if (f == null || f.activity == null || f.activity.isBlank() || "Offline".equalsIgnoreCase(f.activity.trim())) return null;
+        if (Boolean.FALSE.equals(f.onlineHint)) return null;
         return f.activity.trim();
     }
 
@@ -230,9 +224,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     /** Only the friends in {@code area}; everyone for "All". */
     static List<FriendsListConfig.Friend> inArea(List<FriendsListConfig.Friend> list, String area) {
-        if (area == null || ALL_AREAS.equals(area)) {
-            return list;
-        }
+        if (area == null || ALL_AREAS.equals(area)) return list;
         List<FriendsListConfig.Friend> out = new java.util.ArrayList<>();
         for (FriendsListConfig.Friend f : list) {
             if (area.equals(areaOf(f))) {
@@ -243,9 +235,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The command a row's /pv button sends (without the slash), or null for a name that is not a valid username. */
-    static String pvCommand(String name) {
-        return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null;
-    }
+    static String pvCommand(String name) { return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null; }
 
     private void profileView(FriendsListConfig.Friend f) {
         String cmd = f == null ? null : pvCommand(f.name);
@@ -264,9 +254,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     /** The friends whose name contains {@code query} (case-insensitive); everyone for a blank query. */
     static List<FriendsListConfig.Friend> filter(List<FriendsListConfig.Friend> all, String query) {
         String q = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        if (q.isEmpty()) {
-            return all;
-        }
+        if (q.isEmpty()) return all;
         List<FriendsListConfig.Friend> out = new java.util.ArrayList<>();
         for (FriendsListConfig.Friend f : all) {
             if (f.name != null && f.name.toLowerCase(java.util.Locale.ROOT).contains(q)) {
@@ -301,9 +289,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
      *  local-only list this never needs its own UUID lookup before it can act. */
     private void addByName() {
         String name = addBox == null ? "" : addBox.getValue().trim();
-        if (name.isEmpty()) {
-            return;
-        }
+        if (name.isEmpty()) return;
         addBox.setValue("");
         if (FriendsListSync.requestAdd(name)) {
             statusMessage = "Sent /f add " + name + " - syncing shortly...";
@@ -316,9 +302,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     /** Sends the real {@code /party invite <name>} (rate-limited in {@link FriendsListSync}). */
     private void invite(FriendsListConfig.Friend f) {
-        if (f == null) {
-            return;
-        }
+        if (f == null) return;
         String refused = FriendsListSync.requestPartyInvite(f.name);
         if (refused == null) {
             statusMessage = "Sent /party invite " + f.name;
@@ -329,16 +313,11 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
-    private int trackX() {
-        return listX + listW - SCROLLBAR_W;
-    }
+    private int trackX() { return listX + listW - SCROLLBAR_W; }
 
     /** Right edge of a row's content: the scrollbar's column is always kept clear. */
-    private int rowRight() {
-        return trackX() - 2;
-    }
+    private int rowRight() { return trackX() - 2; }
 
     private int thumbHeight() {
         int contentH = Math.max(1, visible.size() * ROW_H);
@@ -357,9 +336,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     /** Moves the thumb so its grab point sits at {@code my}. */
     private void dragScrollTo(double my) {
         int travel = listH - thumbHeight();
-        if (travel <= 0) {
-            return;
-        }
+        if (travel <= 0) return;
         double frac = (my - dragGrabY - listY) / travel;
         scroll = (int) Math.round(Math.max(0, Math.min(1, frac)) * maxScroll());
     }
@@ -380,9 +357,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (DropdownWidget.clickOpen(event)) {
-            return true;
-        }
+        if (DropdownWidget.clickOpen(event)) return true;
         if (selected == null && com.killer560.hub.compat.McInput.button(event) == 0 && overTrack(event.x(), event.y())) {
             int ty = thumbY();
             int th = thumbHeight();
@@ -431,22 +406,16 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     private FriendsListConfig.Friend rowAt(double mx, double my) {
-        if (mx < listX || mx >= rowRight() || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx >= rowRight() || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
-    private int maxScroll() {
-        return Math.max(0, visible.size() * ROW_H - listH);
-    }
+    private int maxScroll() { return Math.max(0, visible.size() * ROW_H - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (DropdownWidget.scrollOpen(mouseX, mouseY, scrollY)) {
-            return true;
-        }
+        if (DropdownWidget.scrollOpen(mouseX, mouseY, scrollY)) return true;
         if (selected == null && mouseX >= listX && mouseX <= listX + listW && mouseY >= listY && mouseY <= listY + listH) {
             scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.round(scrollY * ROW_H)));
             return true;
@@ -454,7 +423,6 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -506,30 +474,20 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-        if (DropdownWidget.keyOpen(event)) {
-            return true;
-        }
+        if (DropdownWidget.keyOpen(event)) return true;
         return super.keyPressed(event);
     }
 
     /** Left edge of the status line. */
-    private int statusX() {
-        return listX;
-    }
+    private int statusX() { return listX; }
 
     /** Top of the status line: in its own strip, two pixels under the list's outline. */
-    private int statusY() {
-        return listY + listH + 3;
-    }
+    private int statusY() { return listY + listH + 3; }
 
     /** A running sync's page progress first, then the last button's message, then the list's sync state. */
     private String statusText() {
-        if (FriendsListSync.isSyncing()) {
-            return "§6" + FriendsListSync.syncProgress();
-        }
-        if (!statusMessage.isEmpty()) {
-            return statusMessage;
-        }
+        if (FriendsListSync.isSyncing()) return "§6" + FriendsListSync.syncProgress();
+        if (!statusMessage.isEmpty()) return statusMessage;
         return selected == null ? syncStatusLine() : "";
     }
 
@@ -540,16 +498,12 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         if (!cfg.isEverSynced()) {
             return "§cNever synced with your real /fl yet - press Refresh, or Hypixel's wording may differ from what this mod expects.";
         }
-        if (cfg.isLastSyncTruncated()) {
-            return "§6Hypixel's /fl may show more than this - the last sync looked cut short.";
-        }
+        if (cfg.isLastSyncTruncated()) return "§6Hypixel's /fl may show more than this - the last sync looked cut short.";
         return "§7" + cfg.friends().size() + " real friend(s), last synced " + secondsAgo(cfg.getLastSyncedAtMs()) + " ago.";
     }
 
     private static String secondsAgo(long epochMs) {
-        if (epochMs <= 0) {
-            return "a while";
-        }
+        if (epochMs <= 0) return "a while";
         long seconds = Math.max(0, (System.currentTimeMillis() - epochMs) / 1000L);
         return seconds < 60 ? seconds + "s" : (seconds / 60) + "m";
     }
@@ -570,9 +524,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         int first = Math.max(0, scroll / ROW_H);
         for (int i = first; i < visible.size(); i++) {
             int rowY = listY + i * ROW_H - scroll;
-            if (rowY > listY + listH) {
-                break;
-            }
+            if (rowY > listY + listH) break;
             FriendsListConfig.Friend f = visible.get(i);
             int right = rowRight();
             GuiRects rr = GuiRects.begin(graphics);
@@ -612,9 +564,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
     /** What the last real {@code /fl} said this friend was doing, aged if it is not fresh. */
     private static String activityText(FriendsListConfig.Friend f) {
-        if (f.activity == null || f.activity.isBlank()) {
-            return "§8No activity read yet - press Refresh";
-        }
+        if (f.activity == null || f.activity.isBlank()) return "§8No activity read yet - press Refresh";
         long age = f.activityAtMs <= 0 ? Long.MAX_VALUE : System.currentTimeMillis() - f.activityAtMs;
         String when = age > 2 * 60_000L ? " §8(" + agoText(f.activityAtMs) + " ago)" : "";
         String colour = "Offline".equals(f.activity) ? "§8" : "§b";
@@ -622,13 +572,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     private static String agoText(long epochMs) {
-        if (epochMs <= 0) {
-            return "a while";
-        }
+        if (epochMs <= 0) return "a while";
         long minutes = Math.max(0, (System.currentTimeMillis() - epochMs) / 60_000L);
-        if (minutes < 60) {
-            return minutes + "m";
-        }
+        if (minutes < 60) return minutes + "m";
         long hours = minutes / 60;
         return hours < 48 ? hours + "h" : (hours / 24) + "d";
     }
@@ -636,9 +582,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     /** Real Hypixel Online/Offline when the last sync could tell (see the class doc), else the old
      *  same-tab-list-instance guess. */
     private static String onlineStatusText(FriendsListConfig.Friend f) {
-        if (f.onlineHint != null) {
-            return f.onlineHint ? "§aOnline" : "§8Offline";
-        }
+        if (f.onlineHint != null) return f.onlineHint ? "§aOnline" : "§8Offline";
         return PlayerLookup.isOnlineNow(f.uuid) ? "§aNearby now" : "§8Unknown";
     }
 
@@ -664,9 +608,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     private static String formatDate(long epochMs) {
-        if (epochMs <= 0) {
-            return "-";
-        }
+        if (epochMs <= 0) return "-";
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd", java.util.Locale.US)
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.ofEpochMilli(epochMs));
@@ -676,14 +618,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "friendslist";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
     public void onClose() {
@@ -692,7 +630,5 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

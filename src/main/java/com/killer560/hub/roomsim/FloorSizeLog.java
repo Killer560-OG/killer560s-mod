@@ -67,9 +67,7 @@ public final class FloorSizeLog {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (++tickCounter % CHECK_INTERVAL != 0) {
-                return;
-            }
+            if (++tickCounter % CHECK_INTERVAL != 0) return;
             try {
                 sample(client);
             } catch (Throwable t) {
@@ -79,17 +77,11 @@ public final class FloorSizeLog {
     }
 
     private static void sample(Minecraft client) {
-        if (client.level == null || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if (client.level == null || !DungeonState.isInDungeon()) return;
         DungeonLayout layout = DungeonLayout.current();
-        if (layout == null || layout.roomCount() <= 0) {
-            return;
-        }
+        if (layout == null || layout.roomCount() <= 0) return;
         String floor = DungeonState.getFloor();
-        if (floor == null || floor.isBlank()) {
-            return;
-        }
+        if (floor == null || floor.isBlank()) return;
 
         // Which grid cells hold a room, and which room each belongs to.
         Set<Integer> roomCells = new HashSet<>();
@@ -100,9 +92,7 @@ public final class FloorSizeLog {
         int maxGz = Integer.MIN_VALUE;
         for (int cell = 0; cell < DungeonLayout.GRID * DungeonLayout.GRID; cell++) {
             int room = layout.roomOfCell(cell);
-            if (room < 0) {
-                continue;
-            }
+            if (room < 0) continue;
             roomCells.add(cell);
             cellToRoom.put(cell, room);
             int gx = cell % DungeonLayout.GRID;
@@ -112,9 +102,7 @@ public final class FloorSizeLog {
             maxGx = Math.max(maxGx, gx);
             maxGz = Math.max(maxGz, gz);
         }
-        if (roomCells.isEmpty()) {
-            return;
-        }
+        if (roomCells.isEmpty()) return;
 
         // Distinct rooms, not cells: a 2x2 room covers four cells and is still one room.
         Set<Integer> rooms = new HashSet<>(cellToRoom.values());
@@ -155,14 +143,10 @@ public final class FloorSizeLog {
         // Only once the map looks fully revealed. Sampling a half-discovered floor would record a smaller
         // dungeon than the one he actually ran, and a table built from those would be wrong in the direction
         // that looks plausible.
-        if (entranceRoom == null || bloodRoom == null) {
-            return;
-        }
+        if (entranceRoom == null || bloodRoom == null) return;
 
         String key = floor + ":" + rooms.size() + ":" + cellsToBlood;
-        if (key.equals(lastSampledKey)) {
-            return;
-        }
+        if (key.equals(lastSampledKey)) return;
         lastSampledKey = key;
 
         JsonObject sample = new JsonObject();
@@ -217,29 +201,21 @@ public final class FloorSizeLog {
         }
         while (!queue.isEmpty()) {
             int cell = queue.poll();
-            if (cellToRoom.get(cell) == toRoom) {
-                return dist.get(cell);
-            }
+            if (cellToRoom.get(cell) == toRoom) return dist.get(cell);
             int gx = cell % DungeonLayout.GRID;
             int gz = cell / DungeonLayout.GRID;
             for (int[] step : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}}) {
                 int nx = gx + step[0];
                 int nz = gz + step[1];
-                if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
-                    continue;
-                }
+                if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) continue;
                 int next = nz * DungeonLayout.GRID + nx;
                 Integer otherRoom = cellToRoom.get(next);
-                if (otherRoom == null || dist.containsKey(next)) {
-                    continue;
-                }
+                if (otherRoom == null || dist.containsKey(next)) continue;
                 // Within one room there is no door to pass; between two rooms there has to be one, or they
                 // merely sit side by side with a wall between them.
                 boolean sameRoom = otherRoom.equals(cellToRoom.get(cell));
                 int between = (gz + step[1] / 2) * DungeonLayout.GRID + (gx + step[0] / 2);
-                if (!sameRoom && !layout.isDoor(between)) {
-                    continue;
-                }
+                if (!sameRoom && !layout.isDoor(between)) continue;
                 // A cell in one of the given rooms is crossed for free - it is on the way, not on the count.
                 int cost = freeRooms.contains(otherRoom) ? 0 : 1;
                 dist.put(next, dist.get(cell) + cost);

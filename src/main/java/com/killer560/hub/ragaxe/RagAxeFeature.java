@@ -74,14 +74,10 @@ public final class RagAxeFeature {
     }
 
     /** The lead registers these into this mod's {@link HudElementRegistry} so the HUD editor can move them. */
-    public static List<HudElement> hudElements() {
-        return List.of(TIMERS_HUD, PROMPT_HUD);
-    }
+    public static List<HudElement> hudElements() { return List.of(TIMERS_HUD, PROMPT_HUD); }
 
     private static void onChat(Component message) {
-        if (!RagAxeConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!RagAxeConfig.getInstance().isEnabled()) return;
         // Stripped once for both readers (each used to strip every chat line itself).
         String plain = ChatObserver.strip(message).trim();
         RagAxeState.onChat(plain);
@@ -115,11 +111,8 @@ public final class RagAxeFeature {
 
     /** Entry point from {@code dungeonalerts.DungeonAlertsPackets.onSound} (main thread, Skyblock-gated).
      *  Routed through that existing bridge on purpose - one sound-packet mixin for the whole mod. */
-    public static void onSoundPacket(ClientboundSoundPacket packet) {
-        RagAxeState.onSoundPacket(packet);
-    }
+    public static void onSoundPacket(ClientboundSoundPacket packet) { RagAxeState.onSoundPacket(packet); }
 
-    // ------------------------------------------------------------------ output helpers
 
     static void showPrompt(String what, boolean sound, boolean title) {
         promptTicks = PROMPT_TICKS;
@@ -157,11 +150,8 @@ public final class RagAxeFeature {
         }
     }
 
-    // ------------------------------------------------------------------ HUD
 
-    private static boolean editorOpen() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
-    }
+    private static boolean editorOpen() { return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen; }
 
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
@@ -177,24 +167,16 @@ public final class RagAxeFeature {
     /** Up to three optional lines, each its own setting: channel wind-up, buff remaining, cooldown remaining. */
     public static final HudElement TIMERS_HUD = new HudElement() {
         @Override
-        public String id() {
-            return "ragnarock_timer";
-        }
+        public String id() { return "ragnarock_timer"; }
 
         @Override
-        public String displayName() {
-            return "Ragnarock Timers";
-        }
+        public String displayName() { return "Ragnarock Timers"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 100;
-        }
+        public int defaultY() { return 100; }
 
         /** The rows drawn right now as {label, value}; render() and the box both read it (the box was a fixed
          *  110x30 around what is usually one row). */
@@ -202,9 +184,7 @@ public final class RagAxeFeature {
             RagAxeConfig cfg = RagAxeConfig.getInstance();
             boolean example = editorOpen();
             java.util.List<String[]> out = new java.util.ArrayList<>(3);
-            if (!example && !cfg.isEnabled()) {
-                return out;
-            }
+            if (!example && !cfg.isEnabled()) return out;
             if (cfg.isChannelTimer()) {
                 addRow(out, "Rag in: ", example ? 2_400L : RagAxeState.channelRemainingMs());
             }
@@ -240,9 +220,7 @@ public final class RagAxeFeature {
         }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return RagAxeConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return RagAxeConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
@@ -266,19 +244,13 @@ public final class RagAxeFeature {
     /** NoammAddons' centered "rag" text, now driven by every prompt rather than just the Wither King line. */
     public static final HudElement PROMPT_HUD = new HudElement() {
         @Override
-        public String id() {
-            return "ragnarock_m7_alert";
-        }
+        public String id() { return "ragnarock_m7_alert"; }
 
         @Override
-        public String displayName() {
-            return "Rag Prompt";
-        }
+        public String displayName() { return "Rag Prompt"; }
 
         @Override
-        public int defaultX() {
-            return Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2 - 10;
-        }
+        public int defaultX() { return Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2 - 10; }
 
         @Override
         public int defaultY() {
@@ -295,9 +267,7 @@ public final class RagAxeFeature {
         }
 
         @Override
-        public int height() {
-            return 1 + com.killer560.hub.hud.HudText.ROW;
-        }
+        public int height() { return 1 + com.killer560.hub.hud.HudText.ROW; }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -309,9 +279,7 @@ public final class RagAxeFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             RagAxeConfig cfg = RagAxeConfig.getInstance();
             boolean example = editorOpen();
-            if (!example && (promptTicks <= 0 || !cfg.isEnabled())) {
-                return;
-            }
+            if (!example && (promptTicks <= 0 || !cfg.isEnabled())) return;
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, cfg.getPromptText(), x + 1, y + 1, 0xFFFFFFFF, true);
         }

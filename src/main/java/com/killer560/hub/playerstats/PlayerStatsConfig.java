@@ -130,13 +130,9 @@ public final class PlayerStatsConfig {
     private PlayerStatsConfig() {
     }
 
-    static int layoutVersion() {
-        return layoutVersion;
-    }
+    static int layoutVersion() { return layoutVersion; }
 
-    private static void layoutChanged() {
-        layoutVersion++;
-    }
+    private static void layoutChanged() { layoutVersion++; }
 
     public static PlayerStatsConfig getInstance() {
         if (instance == null) {
@@ -167,9 +163,7 @@ public final class PlayerStatsConfig {
             cfg.heldItemName = HeldItemName.byKey(ConfigJson.getString(obj, "heldItemName", null), cfg.heldItemName);
             if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
                 for (var e : obj.getAsJsonObject("readouts").entrySet()) {
-                    if (!e.getValue().isJsonObject()) {
-                        continue;
-                    }
+                    if (!e.getValue().isJsonObject()) continue;
                     JsonObject r = e.getValue().getAsJsonObject();
                     if (r.has("on")) {
                         cfg.readoutOn.put(e.getKey(), r.get("on").getAsBoolean());
@@ -301,88 +295,50 @@ public final class PlayerStatsConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         layoutChanged();
     }
 
-    public boolean isHideVanillaHearts() {
-        return hideVanillaHearts;
-    }
+    public boolean isHideVanillaHearts() { return hideVanillaHearts; }
 
-    public void setHideVanillaHearts(boolean value) {
-        this.hideVanillaHearts = value;
-    }
+    public void setHideVanillaHearts(boolean value) { this.hideVanillaHearts = value; }
 
-    public boolean isHideVanillaHunger() {
-        return hideVanillaHunger;
-    }
+    public boolean isHideVanillaHunger() { return hideVanillaHunger; }
 
-    public void setHideVanillaHunger(boolean value) {
-        this.hideVanillaHunger = value;
-    }
+    public void setHideVanillaHunger(boolean value) { this.hideVanillaHunger = value; }
 
-    public boolean isHideVanillaArmour() {
-        return hideVanillaArmour;
-    }
+    public boolean isHideVanillaArmour() { return hideVanillaArmour; }
 
-    public void setHideVanillaArmour(boolean value) {
-        this.hideVanillaArmour = value;
-    }
+    public void setHideVanillaArmour(boolean value) { this.hideVanillaArmour = value; }
 
-    public boolean isHideVanillaAir() {
-        return hideVanillaAir;
-    }
+    public boolean isHideVanillaAir() { return hideVanillaAir; }
 
-    public void setHideVanillaAir(boolean value) {
-        this.hideVanillaAir = value;
-    }
+    public void setHideVanillaAir(boolean value) { this.hideVanillaAir = value; }
 
     /** Whether the vanilla heart bar stays visible in The Rift even while {@link #isHideVanillaHearts()}. */
-    public boolean isShowHeartsInRift() {
-        return showHeartsInRift;
-    }
+    public boolean isShowHeartsInRift() { return showHeartsInRift; }
 
-    public void setShowHeartsInRift(boolean value) {
-        this.showHeartsInRift = value;
-    }
+    public void setShowHeartsInRift(boolean value) { this.showHeartsInRift = value; }
 
-    private static int clamp(int v, int lo, int hi) {
-        return Math.max(lo, Math.min(hi, v));
-    }
+    private static int clamp(int v, int lo, int hi) { return Math.max(lo, Math.min(hi, v)); }
 
     /** Raw master toggle, without the Skyblock gate - for the settings screen. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public boolean isHideHypixelStatText() {
-        return hideHypixelStatText;
-    }
+    public boolean isHideHypixelStatText() { return hideHypixelStatText; }
 
-    public void setHideHypixelStatText(boolean value) {
-        this.hideHypixelStatText = value;
-    }
+    public void setHideHypixelStatText(boolean value) { this.hideHypixelStatText = value; }
 
-    public boolean isHideXpBar() {
-        return hideXpBar;
-    }
+    public boolean isHideXpBar() { return hideXpBar; }
 
-    public void setHideXpBar(boolean value) {
-        this.hideXpBar = value;
-    }
+    public void setHideXpBar(boolean value) { this.hideXpBar = value; }
 
-    public HeldItemName getHeldItemName() {
-        return heldItemName;
-    }
+    public HeldItemName getHeldItemName() { return heldItemName; }
 
-    public void setHeldItemName(HeldItemName value) {
-        this.heldItemName = value == null ? HeldItemName.OVER_BARS : value;
-    }
+    public void setHeldItemName(HeldItemName value) { this.heldItemName = value == null ? HeldItemName.OVER_BARS : value; }
 
     /**
      * When vanilla's held-item name (the item's name shown over the hotbar for a moment after switching slot) is drawn.
@@ -410,17 +366,13 @@ public final class PlayerStatsConfig {
 
         static HeldItemName byKey(String key, HeldItemName def) {
             for (HeldItemName v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
     }
 
-    public boolean isReadoutOn(StatElements.Readout r) {
-        return readoutOn.getOrDefault(r.key, Boolean.FALSE);
-    }
+    public boolean isReadoutOn(StatElements.Readout r) { return readoutOn.getOrDefault(r.key, Boolean.FALSE); }
 
     public void setReadoutOn(StatElements.Readout r, boolean on) {
         readoutOn.put(r.key, on);
@@ -432,14 +384,10 @@ public final class PlayerStatsConfig {
         return c != null ? c : r.defaultColor;
     }
 
-    public void setReadoutColor(StatElements.Readout r, int argb) {
-        readoutColor.put(r.key, argb);
-    }
+    public void setReadoutColor(StatElements.Readout r, int argb) { readoutColor.put(r.key, argb); }
 
     /** The shared bar length (the tab's Bar Width slider). */
-    public int getBarWidth() {
-        return barWidth;
-    }
+    public int getBarWidth() { return barWidth; }
 
     /** Sets every bar's length: the shared value, and any bar resized on its own in the HUD editor goes back to it,
      *  so the slider always does what it says. */
@@ -450,9 +398,7 @@ public final class PlayerStatsConfig {
     }
 
     /** The shared bar thickness (the tab's Bar Height slider). */
-    public int getBarHeight() {
-        return barHeight;
-    }
+    public int getBarHeight() { return barHeight; }
 
     /** Sets every bar's thickness; see {@link #setBarWidth}. */
     public void setBarHeight(int v) {
@@ -495,9 +441,7 @@ public final class PlayerStatsConfig {
      * @return whether the file still carried Classic Display's keys (so it is re-saved without them)
      */
     private boolean migrateClassic(JsonObject obj) {
-        if (!obj.has("showText") && !obj.has("showBar")) {
-            return false;
-        }
+        if (!obj.has("showText") && !obj.has("showBar")) return false;
         boolean showText = ConfigJson.getBool(obj, "showText", true);
         boolean showBar = ConfigJson.getBool(obj, "showBar", true);
         boolean health = ConfigJson.getBool(obj, "showHealth", true);
@@ -507,9 +451,7 @@ public final class PlayerStatsConfig {
         for (StatElements.Readout r : StatElements.Readout.values()) {
             anyReadout |= isReadoutOn(r);
         }
-        if (!enabled || anyReadout || !(showText || showBar)) {
-            return true;
-        }
+        if (!enabled || anyReadout || !(showText || showBar)) return true;
         java.util.List<StatElements.Readout> on = new java.util.ArrayList<>();
         if (showBar && health) {
             on.add(StatElements.Readout.HEALTH_BAR);
@@ -552,38 +494,24 @@ public final class PlayerStatsConfig {
     /** The removed Classic Display's HUD id, read only by {@link #migrateClassic}. */
     static final String CLASSIC_HUD_ID = "player_stats";
 
-    public boolean isBarShowValue() {
-        return barShowValue;
-    }
+    public boolean isBarShowValue() { return barShowValue; }
 
     public void setBarShowValue(boolean v) {
         this.barShowValue = v;
         layoutChanged();
     }
 
-    public int getAbsorptionColor() {
-        return absorptionColor;
-    }
+    public int getAbsorptionColor() { return absorptionColor; }
 
-    public void setAbsorptionColor(int argb) {
-        this.absorptionColor = argb;
-    }
+    public void setAbsorptionColor(int argb) { this.absorptionColor = argb; }
 
-    public int getBarBackground() {
-        return barBackground;
-    }
+    public int getBarBackground() { return barBackground; }
 
-    public void setBarBackground(int argb) {
-        this.barBackground = argb;
-    }
+    public void setBarBackground(int argb) { this.barBackground = argb; }
 
-    public boolean isTextShadow() {
-        return textShadow;
-    }
+    public boolean isTextShadow() { return textShadow; }
 
-    public void setTextShadow(boolean v) {
-        this.textShadow = v;
-    }
+    public void setTextShadow(boolean v) { this.textShadow = v; }
 
     /** The bars' look. A saved "classic" (removed 2026-10-12) loads as Bold, like any key this jar does not know. */
     public enum BarStyle {
@@ -602,9 +530,7 @@ public final class PlayerStatsConfig {
 
         static BarStyle byKey(String key, BarStyle def) {
             for (BarStyle v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -625,9 +551,7 @@ public final class PlayerStatsConfig {
 
         static ValuePosition byKey(String key, ValuePosition def) {
             for (ValuePosition v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -649,99 +573,57 @@ public final class PlayerStatsConfig {
 
         static TextSize byKey(String key, TextSize def) {
             for (TextSize v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
     }
 
-    public BarStyle getBarStyle() {
-        return barStyle;
-    }
+    public BarStyle getBarStyle() { return barStyle; }
 
-    public void setBarStyle(BarStyle v) {
-        this.barStyle = v == null ? BarStyle.BOLD : v;
-    }
+    public void setBarStyle(BarStyle v) { this.barStyle = v == null ? BarStyle.BOLD : v; }
 
-    public boolean isMenuAdvancedOpen() {
-        return menuAdvancedOpen;
-    }
+    public boolean isMenuAdvancedOpen() { return menuAdvancedOpen; }
 
-    public void setMenuAdvancedOpen(boolean v) {
-        this.menuAdvancedOpen = v;
-    }
+    public void setMenuAdvancedOpen(boolean v) { this.menuAdvancedOpen = v; }
 
-    public TextSize getBarTextSize() {
-        return barTextSize;
-    }
+    public TextSize getBarTextSize() { return barTextSize; }
 
     public void setBarTextSize(TextSize v) {
         this.barTextSize = v == null ? TextSize.SMALL : v;
         layoutChanged();
     }
 
-    public boolean isBarRounded() {
-        return barRounded;
-    }
+    public boolean isBarRounded() { return barRounded; }
 
-    public void setBarRounded(boolean v) {
-        this.barRounded = v;
-    }
+    public void setBarRounded(boolean v) { this.barRounded = v; }
 
-    public boolean isBarIcons() {
-        return barIcons;
-    }
+    public boolean isBarIcons() { return barIcons; }
 
-    public void setBarIcons(boolean v) {
-        this.barIcons = v;
-    }
+    public void setBarIcons(boolean v) { this.barIcons = v; }
 
-    public boolean isBarSymbols() {
-        return barSymbols;
-    }
+    public boolean isBarSymbols() { return barSymbols; }
 
-    public void setBarSymbols(boolean v) {
-        this.barSymbols = v;
-    }
+    public void setBarSymbols(boolean v) { this.barSymbols = v; }
 
-    public ValuePosition getBarValuePosition() {
-        return barValuePosition;
-    }
+    public ValuePosition getBarValuePosition() { return barValuePosition; }
 
-    public void setBarValuePosition(ValuePosition v) {
-        this.barValuePosition = v == null ? ValuePosition.INSIDE : v;
-    }
+    public void setBarValuePosition(ValuePosition v) { this.barValuePosition = v == null ? ValuePosition.INSIDE : v; }
 
-    public boolean isBarSmooth() {
-        return barSmooth;
-    }
+    public boolean isBarSmooth() { return barSmooth; }
 
-    public void setBarSmooth(boolean v) {
-        this.barSmooth = v;
-    }
+    public void setBarSmooth(boolean v) { this.barSmooth = v; }
 
-    public boolean isBarDamageGhost() {
-        return barDamageGhost;
-    }
+    public boolean isBarDamageGhost() { return barDamageGhost; }
 
-    public void setBarDamageGhost(boolean v) {
-        this.barDamageGhost = v;
-    }
+    public void setBarDamageGhost(boolean v) { this.barDamageGhost = v; }
 
-    public int getOverflowManaColor() {
-        return overflowManaColor;
-    }
+    public int getOverflowManaColor() { return overflowManaColor; }
 
-    public void setOverflowManaColor(int argb) {
-        this.overflowManaColor = argb;
-    }
+    public void setOverflowManaColor(int argb) { this.overflowManaColor = argb; }
 
     /** Layout: true = Predefined (areas around the hotbar, {@link StatLayout}), false = Custom (own positions). */
-    public boolean isPredefinedLayout() {
-        return predefinedLayout;
-    }
+    public boolean isPredefinedLayout() { return predefinedLayout; }
 
     public void setPredefinedLayout(boolean predefined) {
         this.predefinedLayout = predefined;
@@ -749,9 +631,7 @@ public final class PlayerStatsConfig {
     }
 
     /** The own scale every readout shares under the Predefined layout. */
-    public float getPredefinedScale() {
-        return predefinedScale;
-    }
+    public float getPredefinedScale() { return predefinedScale; }
 
     public void setPredefinedScale(float scale) {
         this.predefinedScale = clampScale(scale);
@@ -759,9 +639,7 @@ public final class PlayerStatsConfig {
     }
 
     private static float clampScale(float v) {
-        if (!Float.isFinite(v)) {
-            return 1.0f;
-        }
+        if (!Float.isFinite(v)) return 1.0f;
         // Two decimals, so a slider or a scroll never leaves 1.0000001 behind.
         return Math.round(Math.max(MIN_PREDEFINED_SCALE, Math.min(MAX_PREDEFINED_SCALE, v)) * 100f) / 100f;
     }
@@ -774,9 +652,7 @@ public final class PlayerStatsConfig {
     }
 
     /** Puts {@code r} at the end of {@code area}. */
-    public void setArea(StatElements.Readout r, StatLayout.Area area) {
-        moveTo(r, area, null);
-    }
+    public void setArea(StatElements.Readout r, StatLayout.Area area) { moveTo(r, area, null); }
 
     /** {@code r}'s place in its area: lower first (left in a row, nearest the hotbar's bottom in a side column). */
     public int getOrder(StatElements.Readout r) {

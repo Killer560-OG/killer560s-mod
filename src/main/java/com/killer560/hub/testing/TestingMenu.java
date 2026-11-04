@@ -116,9 +116,7 @@ public final class TestingMenu {
         }
     }
 
-    public static Map<String, String> normalLeaves() {
-        return java.util.Collections.unmodifiableMap(NORMAL_LEAVES);
-    }
+    public static Map<String, String> normalLeaves() { return java.util.Collections.unmodifiableMap(NORMAL_LEAVES); }
 
     /**
      * The top-level name a tooltip lookup should use: a row shown in Untested keeps the tooltips scoped to the category
@@ -127,9 +125,7 @@ public final class TestingMenu {
     public static String tooltipCategory(String selectedTop, String scope) {
         if ((UNTESTED.equals(selectedTop) || BUGGED.equals(selectedTop)) && scope != null) {
             String c = CATEGORY.get(scope);
-            if (c != null) {
-                return c;
-            }
+            if (c != null) return c;
         }
         return selectedTop;
     }

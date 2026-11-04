@@ -50,14 +50,10 @@ public final class RaffleLog {
     }
 
     /** Raffle entity dumps written since the game started (testkit). */
-    public static int dumps() {
-        return dumps;
-    }
+    public static int dumps() { return dumps; }
 
     static void tick(Minecraft client) {
-        if (ticks++ % 5 != 0) {
-            return;
-        }
+        if (ticks++ % 5 != 0) return;
         if (client.level == null || client.player == null || !MiningState.dwarvenMines()
                 || !MiningQolConfig.getInstance().isRaffle()) {
             return;
@@ -76,9 +72,7 @@ public final class RaffleLog {
         }
         lastSignMs = now;
         lastSign = sign;
-        if (inRaffle) {
-            return;
-        }
+        if (inRaffle) return;
         inRaffle = true;
         dumps++;
         dump(client, sign);
@@ -97,12 +91,8 @@ public final class RaffleLog {
         }
         for (String raw : lines) {
             String line = ChatFormatting.stripFormatting(raw);
-            if (line == null || line.contains("Lucky Raffle") || line.contains("Raffle Ticket")) {
-                continue;
-            }
-            if (line.contains("RAFFLE") || line.contains("Raffle")) {
-                return "line \"" + line.trim() + "\"";
-            }
+            if (line == null || line.contains("Lucky Raffle") || line.contains("Raffle Ticket")) continue;
+            if (line.contains("RAFFLE") || line.contains("Raffle")) return "line \"" + line.trim() + "\"";
         }
         return null;
     }

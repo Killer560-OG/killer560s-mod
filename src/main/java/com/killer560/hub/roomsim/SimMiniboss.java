@@ -96,13 +96,9 @@ public final class SimMiniboss {
             this.text = text;
         }
 
-        public String text() {
-            return text;
-        }
+        public String text() { return text; }
 
-        boolean sendable() {
-            return text.length() <= MAX_PROFILE_NAME;
-        }
+        boolean sendable() { return text.length() <= MAX_PROFILE_NAME; }
     }
 
     /** Placed minibosses, so their tab-list profile entry can be withdrawn once the entity is gone. */
@@ -207,9 +203,7 @@ public final class SimMiniboss {
      * session.
      */
     static void tick(ServerLevel level) {
-        if (PLACED.isEmpty()) {
-            return;
-        }
+        if (PLACED.isEmpty()) return;
         List<UUID> gone = new ArrayList<>();
         for (UUID id : PLACED) {
             Entity entity = level.getEntity(id);
@@ -217,9 +211,7 @@ public final class SimMiniboss {
                 // Missing is gone only where the server ticks entities; elsewhere it may just be unreachable, and
                 // withdrawing its profile then would make it invisible when he comes back.
                 BlockPos at = PLACED_AT.get(id);
-                if (at != null && !level.isPositionEntityTicking(at)) {
-                    continue;
-                }
+                if (at != null && !level.isPositionEntityTicking(at)) continue;
                 gone.add(id);
             } else if (entity.isRemoved()) {
                 gone.add(id);
@@ -248,9 +240,7 @@ public final class SimMiniboss {
      * anything in the sim that walks the player list now sees minibosses too. Whatever the list is being used
      * for - waking a Fel, finding where "the player" is - it means the real one.
      */
-    static boolean isPlaced(Entity entity) {
-        return entity instanceof Miniboss;
-    }
+    static boolean isPlaced(Entity entity) { return entity instanceof Miniboss; }
 
     /**
      * A version-2 UUID, which is what {@code MobEspFeature.isMiniboss} tests for and what Hypixel's NPCs carry.
@@ -293,9 +283,7 @@ public final class SimMiniboss {
          * that. Either one alone refuses every hit.
          */
         @Override
-        public boolean isInvulnerableTo(ServerLevel level, DamageSource source) {
-            return false;
-        }
+        public boolean isInvulnerableTo(ServerLevel level, DamageSource source) { return false; }
 
         /**
          * {@code ServerPlayer.hurtServer} asks the victim {@code canHarmPlayer(attacker)} and
@@ -303,22 +291,16 @@ public final class SimMiniboss {
          * integrated server has PvP on is not this file's business to depend on, so the answer is fixed here.
          */
         @Override
-        public boolean canHarmPlayer(Player other) {
-            return true;
-        }
+        public boolean canHarmPlayer(Player other) { return true; }
 
         /** {@code ChunkMap$TrackedEntity.updatePlayer} never sends a spectator to anyone, and
          *  {@code Player.isPickable()} is false for one - a spectating miniboss would be invisible and
          *  unclickable. Fixed rather than inherited from a game mode nothing here sets. */
         @Override
-        public boolean isSpectator() {
-            return false;
-        }
+        public boolean isSpectator() { return false; }
 
         @Override
-        public boolean isCreative() {
-            return false;
-        }
+        public boolean isCreative() { return false; }
 
         /**
          * A deliberately tiny tick, and it must not be empty.
@@ -358,8 +340,6 @@ public final class SimMiniboss {
          * the next server tick.
          */
         @Override
-        public void die(DamageSource source) {
-            this.dead = true;
-        }
+        public void die(DamageSource source) { this.dead = true; }
     }
 }

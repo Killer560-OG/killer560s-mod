@@ -39,15 +39,9 @@ public final class P5State {
 
     public static boolean inP5() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) {
-            return false;
-        }
-        if (client.player.getY() > 45) {
-            return false;
-        }
-        if (DungeonState.isBossPhaseActive() || isP3Sim(client)) {
-            return true;
-        }
+        if (client.player == null || client.level == null) return false;
+        if (client.player.getY() > 45) return false;
+        if (DungeonState.isBossPhaseActive() || isP3Sim(client)) return true;
         return DungeonState.isF7OrM7() && client.player.getX() >= 0 && client.player.getZ() >= 0;
     }
 
@@ -58,13 +52,9 @@ public final class P5State {
 
     /** From the tab footer (only parsed in a dungeon, like Odin). */
     static void onTabFooter(Component footer) {
-        if (footer == null || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if (footer == null || !DungeonState.isInDungeon()) return;
         String text = ChatFormatting.stripFormatting(footer.getString());
-        if (text == null) {
-            return;
-        }
+        if (text == null) return;
         Matcher m = POWER.matcher(text);
         if (m.find()) {
             powerBlessing = romanToInt(m.group(1));
@@ -80,27 +70,19 @@ public final class P5State {
         timeBlessing = 0;
     }
 
-    public static int powerBlessing() {
-        return powerBlessing;
-    }
+    public static int powerBlessing() { return powerBlessing; }
 
-    public static int timeBlessing() {
-        return timeBlessing;
-    }
+    public static int timeBlessing() { return timeBlessing; }
 
     /** Your class: the config override if set, else Hypixel's dungeon tab list (via {@link PartyTracker}). */
     public static DungeonClass selfClass() {
         DungeonClass override = WitherDragonsConfig.getInstance().getClassOverride().clazz;
-        if (override != null) {
-            return override;
-        }
+        if (override != null) return override;
         return PartyTracker.selfClass();
     }
 
     static int romanToInt(String roman) {
-        if (roman == null || roman.isEmpty()) {
-            return 0;
-        }
+        if (roman == null || roman.isEmpty()) return 0;
         int total = 0;
         int prev = 0;
         for (int i = roman.length() - 1; i >= 0; i--) {

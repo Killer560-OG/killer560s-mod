@@ -44,9 +44,7 @@ public final class ShadowAssassinLeap {
 
     /** "a Shadow Assassin 1.8 blocks away", or "no Shadow Assassin in sight" - for log and chat lines. */
     public static String describe(Minecraft client) {
-        if (client == null || client.level == null || client.player == null) {
-            return "no Shadow Assassin in sight";
-        }
+        if (client == null || client.level == null || client.player == null) return "no Shadow Assassin in sight";
         double best = Double.MAX_VALUE;
         for (Entity e : client.level.entitiesForRendering()) {
             if (e instanceof Player p && p != client.player && "Shadow Assassin".equals(p.getName().getString())) {

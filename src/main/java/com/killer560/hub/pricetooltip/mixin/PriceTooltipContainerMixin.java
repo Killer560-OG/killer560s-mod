@@ -19,9 +19,7 @@ import java.util.List;
 @Mixin(AbstractContainerScreen.class)
 public abstract class PriceTooltipContainerMixin extends Screen {
 
-    protected PriceTooltipContainerMixin(Component title) {
-        super(title);
-    }
+    protected PriceTooltipContainerMixin(Component title) { super(title); }
 
     @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$appendPrices(ItemStack stack, CallbackInfoReturnable<List<Component>> cir) {

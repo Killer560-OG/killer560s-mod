@@ -28,9 +28,7 @@ import net.minecraft.client.input.MouseButtonEvent;
  */
 public final class PeekChatScreen extends ChatScreen {
 
-    public PeekChatScreen() {
-        super("", false);
-    }
+    public PeekChatScreen() { super("", false); }
 
     @Override
     protected void init() {
@@ -47,9 +45,7 @@ public final class PeekChatScreen extends ChatScreen {
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
-        return true;
-    }
+    public boolean charTyped(CharacterEvent event) { return true; }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
@@ -113,7 +109,5 @@ public final class PeekChatScreen extends ChatScreen {
     }
 
     @Override
-    public void removed() {
-        McCompat.chat(minecraft).resetChatScroll();
-    }
+    public void removed() { McCompat.chat(minecraft).resetChatScroll(); }
 }

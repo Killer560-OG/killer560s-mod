@@ -16,7 +16,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -113,18 +112,14 @@ public final class MaxorCrystalsFeature {
         ensureTickSubscribed();
         LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Maxor Crystals render", () -> MaxorConfig.getInstance().getHighlightRaw()), context -> {
-            if (!SkyblockGate.allows()) {
-                return;
-            }
+            if (!SkyblockGate.allows()) return;
             MaxorCrystalsRenderer.render(context);
         }));
         LOGGER.debug("[Maxor] Registered (all features default OFF)");
     }
 
     private static void ensureTickSubscribed() {
-        if (tickSubscribed) {
-            return;
-        }
+        if (tickSubscribed) return;
         tickSubscribed = true;
         ServerTickClock.register();
         PerTickServerClock.register();
@@ -174,9 +169,7 @@ public final class MaxorCrystalsFeature {
      * spawns) is the next set. The placed crystals sit at {@link #PLACE_Y}; the tower ones are well above it.
      */
     private static void watchNextSet(Minecraft client) {
-        if (nextSetTicks < 0) {
-            return;
-        }
+        if (nextSetTicks < 0) return;
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity.getType() == McEntities.END_CRYSTAL && (int) Math.floor(entity.getY()) != PLACE_Y) {
                 nextSetReady("crystal on a tower at y " + (int) Math.floor(entity.getY()));
@@ -186,9 +179,7 @@ public final class MaxorCrystalsFeature {
     }
 
     /** True while a laser line waits for the next set (the add-entity packet hook asks this first). */
-    public static boolean awaitingNextSet() {
-        return nextSetTicks >= 0;
-    }
+    public static boolean awaitingNextSet() { return nextSetTicks >= 0; }
 
     /** Called from the add-entity packet hook ({@code WitherDragonsPackets.onAddEntity}) while {@link #awaitingNextSet()}. */
     public static void onEntityAdded(Entity entity) {
@@ -204,16 +195,12 @@ public final class MaxorCrystalsFeature {
         return MaxorConfig.getInstance().isActiveCounterEnabled() && totalCrystals > 0 && inP1();
     }
 
-    public static int[] activeCounter() {
-        return new int[]{activeCrystals, totalCrystals};
-    }
+    public static int[] activeCounter() { return new int[]{activeCrystals, totalCrystals}; }
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
         // PICKUP and ACTIVE need "Energy Crystal", SPAWN "Maxor" (fps-idle-1015).
-        if (!plain.contains("Energy Crystal") && !plain.contains("Maxor")) {
-            return;
-        }
+        if (!plain.contains("Energy Crystal") && !plain.contains("Maxor")) return;
         MaxorConfig cfg = MaxorConfig.getInstance();
 
         if (cfg.isPlaceTimerEnabled()) {
@@ -307,9 +294,7 @@ public final class MaxorCrystalsFeature {
      */
     private static final java.util.List<net.minecraft.world.phys.AABB> HIGHLIGHT_BOXES = new java.util.ArrayList<>();
 
-    static java.util.List<net.minecraft.world.phys.AABB> highlightBoxes() {
-        return HIGHLIGHT_BOXES;
-    }
+    static java.util.List<net.minecraft.world.phys.AABB> highlightBoxes() { return HIGHLIGHT_BOXES; }
 
     private static void refreshHighlightBoxes(Minecraft client) {
         if (!MaxorConfig.getInstance().isHighlightEnabled() || !inP1()) {
@@ -344,9 +329,7 @@ public final class MaxorCrystalsFeature {
     /** Marks every End Crystal currently in the world as already seen (called when the stopwatch arms). */
     private static void snapshotVisibleCrystals() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return;
-        }
+        if (client.level == null) return;
         SEEN_CRYSTALS.clear();
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity.getType() == McEntities.END_CRYSTAL) {
@@ -359,17 +342,11 @@ public final class MaxorCrystalsFeature {
     public static void onCrystalEntity(Entity entity) {
         MaxorConfig cfg = MaxorConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isPlaceTimerEnabled() || pickupTimeMs == 0L || entity == null || client.player == null) {
-            return;
-        }
-        if ((int) Math.floor(entity.getY()) != PLACE_Y) {
-            return;
-        }
+        if (!cfg.isPlaceTimerEnabled() || pickupTimeMs == 0L || entity == null || client.player == null) return;
+        if ((int) Math.floor(entity.getY()) != PLACE_Y) return;
         double dx = entity.getX() - client.player.getX();
         double dz = entity.getZ() - client.player.getZ();
-        if (Math.sqrt(dx * dx + dz * dz) >= PLACE_RANGE) {
-            return;
-        }
+        if (Math.sqrt(dx * dx + dz * dz) >= PLACE_RANGE) return;
         long elapsedMs = System.currentTimeMillis() - pickupTimeMs;
         pickupTimeMs = 0L;
         long best = cfg.getBestPlaceMs();
@@ -392,9 +369,7 @@ public final class MaxorCrystalsFeature {
     /** MaxorsCrystals.kt line 82: F7 phase 1 only. Chat-driven phase first, position fallback - the mod's own
      *  {@link Floor7Tracker}, so this also works on p3sim.net wherever that already does. */
     static boolean inP1() {
-        if (!Floor7Tracker.inF7Boss()) {
-            return false;
-        }
+        if (!Floor7Tracker.inF7Boss()) return false;
         Floor7Tracker.Phase phase = Floor7Tracker.getPhase() == Floor7Tracker.Phase.UNKNOWN
                 ? Floor7Tracker.getPhaseAt() : Floor7Tracker.getPhase();
         return phase == Floor7Tracker.Phase.P1;
@@ -403,13 +378,9 @@ public final class MaxorCrystalsFeature {
     /** MaxorsCrystals.kt line 81: hotbar slot 8 holding an "Energy Crystal". */
     private static boolean holdingUnplacedCrystal() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return false;
-        }
+        if (client.player == null) return false;
         ItemStack stack = client.player.getInventory().getItem(CRYSTAL_HOTBAR_SLOT);
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         return "energy crystal".equalsIgnoreCase(ChatObserver.strip(stack.getHoverName().getString()));
     }
 
@@ -418,19 +389,13 @@ public final class MaxorCrystalsFeature {
     private static final class CrystalsHud implements HudElement {
 
         @Override
-        public String id() {
-            return "maxor_crystals";
-        }
+        public String id() { return "maxor_crystals"; }
 
         @Override
-        public String displayName() {
-            return "Maxor's Crystals";
-        }
+        public String displayName() { return "Maxor's Crystals"; }
 
         @Override
-        public int defaultX() {
-            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS);
-        }
+        public int defaultX() { return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS); }
 
         @Override
         public int defaultY() {
@@ -491,14 +456,10 @@ public final class MaxorCrystalsFeature {
         }
 
         @Override
-        public int width() {
-            return com.killer560.hub.hud.HudText.width(lines());
-        }
+        public int width() { return com.killer560.hub.hud.HudText.width(lines()); }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(lines().size(), 10);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(lines().size(), 10); }
 
         @Override
         public boolean isEnabledInSettings() {

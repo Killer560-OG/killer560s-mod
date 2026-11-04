@@ -91,51 +91,34 @@ public final class RealTimeFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Real Time";
-        }
+        public String displayName() { return "Real Time"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 40;
-        }
+        public int defaultY() { return 40; }
 
         @Override
         public int width() {
             Font font = Minecraft.getInstance().font;
-            if (font == null) {
-                return 80;
-            }
-            return Math.max(20, font.width(buildText(RealTimeConfig.getInstance())) + 1);
+            return font == null ? 80 : Math.max(20, font.width(buildText(RealTimeConfig.getInstance())) + 1);
         }
 
         @Override
-        public int height() {
-            return 10;
-        }
+        public int height() { return 10; }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return RealTimeConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return RealTimeConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             RealTimeConfig cfg = RealTimeConfig.getInstance();
             Minecraft client = Minecraft.getInstance();
-            if (!cfg.isEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isEnabled() || HudVisibility.hidesHud()) return;
             int color = cfg.getTextColor();
             if ((color >>> 24) == 0) {
                 color |= 0xFF000000;

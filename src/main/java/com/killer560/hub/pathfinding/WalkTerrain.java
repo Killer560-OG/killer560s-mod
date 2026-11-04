@@ -53,9 +53,7 @@ final class WalkTerrain {
         return effect == null ? 0 : effect.getAmplifier() + 1;
     }
 
-    static boolean climbable(Level level, BlockPos pos) {
-        return level.getBlockState(pos).is(BlockTags.CLIMBABLE);
-    }
+    static boolean climbable(Level level, BlockPos pos) { return level.getBlockState(pos).is(BlockTags.CLIMBABLE); }
 
     /** A block a player collides with (a ladder or vine is climbed, not walked into). */
     static boolean solid(Level level, BlockPos pos) {
@@ -81,9 +79,7 @@ final class WalkTerrain {
             BlockPos p = new BlockPos(bx, by + i, bz);
             // Only what stands under his footprint here counts: an open door's panel at the edge of the column is
             // beside him, not a two-block wall in front of him (before 2026-11-01 every doorway read as one).
-            if (!solid(level, p) || !underFootprint(level, p, x, z)) {
-                break;
-            }
+            if (!solid(level, p) || !underFootprint(level, p, x, z)) break;
             surface = Math.max(surface, top(level, p));
         }
         return surface - feetY;
@@ -93,24 +89,18 @@ final class WalkTerrain {
     static final double FOOTPRINT = 0.25;
 
     /** Whether the block's collision reaches into the square of half-width {@link #FOOTPRINT} around {@code (x, z)}. */
-    static boolean underFootprint(Level level, BlockPos p, double x, double z) {
-        return collidesNear(level, p, x, z, FOOTPRINT);
-    }
+    static boolean underFootprint(Level level, BlockPos p, double x, double z) { return collidesNear(level, p, x, z, FOOTPRINT); }
 
     /** Whether the block's collision reaches into the square of half-width {@code half} around {@code (x, z)}. */
     static boolean collidesNear(Level level, BlockPos p, double x, double z, double half) {
         VoxelShape shape = level.getBlockState(p).getCollisionShape(level, p);
-        if (shape.isEmpty()) {
-            return false;
-        }
+        if (shape.isEmpty()) return false;
         double lx = x - half - p.getX();
         double hx = x + half - p.getX();
         double lz = z - half - p.getZ();
         double hz = z + half - p.getZ();
         for (net.minecraft.world.phys.AABB b : shape.toAabbs()) {
-            if (b.maxX > lx && b.minX < hx && b.maxZ > lz && b.minZ < hz) {
-                return true;
-            }
+            if (b.maxX > lx && b.minX < hx && b.maxZ > lz && b.minZ < hz) return true;
         }
         return false;
     }
@@ -123,9 +113,7 @@ final class WalkTerrain {
         int hi = (int) Math.floor(feetY + 1.79);
         for (int y = lo; y <= hi; y++) {
             BlockPos p = new BlockPos(bx, y, bz);
-            if (solid(level, p) && top(level, p) > feetY + 0.01 && underFootprint(level, p, x, z)) {
-                return false;
-            }
+            if (solid(level, p) && top(level, p) > feetY + 0.01 && underFootprint(level, p, x, z)) return false;
         }
         return true;
     }
@@ -137,9 +125,7 @@ final class WalkTerrain {
         int start = (int) Math.floor(feetY - 0.01);
         for (int y = start; y >= start - 6; y--) {
             BlockPos p = new BlockPos(bx, y, bz);
-            if (solid(level, p) || climbable(level, p)) {
-                return Math.max(0.0, feetY - top(level, p));
-            }
+            if (solid(level, p) || climbable(level, p)) return Math.max(0.0, feetY - top(level, p));
         }
         return Double.MAX_VALUE;
     }
@@ -154,9 +140,7 @@ final class WalkTerrain {
         double dx = to.x - from.x;
         double dz = to.z - from.z;
         double length = Math.sqrt(dx * dx + dz * dz);
-        if (length < 0.05) {
-            return true;
-        }
+        if (length < 0.05) return true;
         double ux = dx / length;
         double uz = dz / length;
         double px = -uz * 0.3;
@@ -168,32 +152,22 @@ final class WalkTerrain {
             double x = from.x + ux * t;
             double z = from.z + uz * t;
             BlockPos feet = BlockPos.containing(x, y + 0.01, z);
-            if (climbable(level, feet) || climbable(level, feet.above())) {
-                return true;
-            }
+            if (climbable(level, feet) || climbable(level, feet.above())) return true;
             double r = rise(level, x, z, y);
             if (r > 0.01) {
-                if (r > jumpHeight - 0.05) {
-                    return false;
-                }
+                if (r > jumpHeight - 0.05) return false;
                 y += r;
             } else {
                 double drop = dropBelow(level, x, z, y);
-                if (drop > MAX_DROP) {
-                    return false;
-                }
+                if (drop > MAX_DROP) return false;
                 y -= drop;
             }
-            if (!headroom(level, x, z, y)) {
-                return false;
-            }
+            if (!headroom(level, x, z, y)) return false;
             for (int side = -1; side <= 1; side += 2) {
                 double sx = x + px * side;
                 double sz = z + pz * side;
                 BlockPos body = BlockPos.containing(sx, y + 1.2, sz);
-                if (solid(level, body) && collidesNear(level, body, sx, sz, 0.02)) {
-                    return false;
-                }
+                if (solid(level, body) && collidesNear(level, body, sx, sz, 0.02)) return false;
             }
         }
         // Arrived on a different level than the path point (under a bridge, on a roof): not the same place.
@@ -210,9 +184,7 @@ final class WalkTerrain {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     BlockPos p = base.offset(dx, dy, dz);
-                    if (!climbable(level, p)) {
-                        continue;
-                    }
+                    if (!climbable(level, p)) continue;
                     double cx = p.getX() + 0.5 - pos.x;
                     double cz = p.getZ() + 0.5 - pos.z;
                     double d = cx * cx + cz * cz;
@@ -232,9 +204,7 @@ final class WalkTerrain {
      */
     static float ladderYaw(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (!state.hasProperty(LadderBlock.FACING)) {
-            return Float.NaN;
-        }
+        if (!state.hasProperty(LadderBlock.FACING)) return Float.NaN;
         Direction into = state.getValue(LadderBlock.FACING).getOpposite();
         return (float) -Math.toDegrees(Math.atan2(into.getStepX(), into.getStepZ()));
     }

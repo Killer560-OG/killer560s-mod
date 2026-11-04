@@ -28,9 +28,7 @@ public abstract class SupportersNameTagMixin {
     @Inject(method = "getNameTag(Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/network/chat/Component;",
             at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$supportersNameTag(Entity entity, CallbackInfoReturnable<Component> cir) {
-        if (!(entity instanceof Player)) {
-            return;
-        }
+        if (!(entity instanceof Player)) return;
         Component replaced = PlayerNameDisplay.displayNameFor(entity.getUUID());
         if (replaced != null) {
             cir.setReturnValue(replaced);

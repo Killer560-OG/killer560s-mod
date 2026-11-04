@@ -42,9 +42,7 @@ final class AmberCalmScene {
         softGlow(r, bloomCx, h, w * 0.3, h * 0.26, hot, (int) (0x1C * bloom), 20, h);
 
         // Embers in three depths. Far: 1 px, dim, slow. Mid: 1 px, warmer. Near: 2 px core with a faint halo.
-        if (density <= 0f) {
-            return;
-        }
+        if (density <= 0f) return;
         int nFar = Math.max(8, Math.min(40, (int) Math.round(w * h / 9000.0 * density)));
         int nMid = Math.max(5, Math.min(24, (int) Math.round(w * h / 15000.0 * density)));
         int nNear = Math.max(2, Math.min(10, (int) Math.round(w * h / 36000.0 * density)));
@@ -74,9 +72,7 @@ final class AmberCalmScene {
             double off = Math.abs(x - w * 0.5) / centreHalf;
             double clear = off >= 1.0 ? 1.0 : 0.35 + 0.65 * off * off;
             int a = (int) (maxA * life * flicker * clear);
-            if (a <= 4) {
-                continue;
-            }
+            if (a <= 4) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             if (halo) {
@@ -91,22 +87,16 @@ final class AmberCalmScene {
      *  ellipse's edge, and the columns dim toward the sides, so there are no horizontal bands to see. Two rectangles per
      *  column (one when the center is off the bottom of the screen). */
     private static void softGlow(GuiRects r, int cx, int cy, double rx, double ry, int rgb, int maxAlpha, int cols, int h) {
-        if (rx < 1 || ry < 1 || maxAlpha <= 0) {
-            return;
-        }
+        if (rx < 1 || ry < 1 || maxAlpha <= 0) return;
         double colW = 2.0 * rx / cols;
         for (int j = 0; j < cols; j++) {
             int x0 = (int) Math.round(cx - rx + j * colW);
             int x1 = (int) Math.round(cx - rx + (j + 1) * colW);
             double dx = ((x0 + x1) * 0.5 - cx) / rx;
             double q = 1.0 - dx * dx;
-            if (q <= 0 || x1 <= x0) {
-                continue;
-            }
+            if (q <= 0 || x1 <= x0) continue;
             int a = (int) Math.round(maxAlpha * q * q);
-            if (a <= 0) {
-                continue;
-            }
+            if (a <= 0) continue;
             int hh = (int) Math.round(ry * Math.sqrt(q));
             int c = MenuStyle.alpha(rgb, a);
             r.gradient(x0, cy - hh, x1, cy, MenuStyle.alpha(rgb, 0), c);

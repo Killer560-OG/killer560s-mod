@@ -89,21 +89,16 @@ public final class ProfileExtras {
         misc = parseMisc(profile, member);
     }
 
-    // ------------------------------------------------------------------ collections
 
     private static Map<String, Long> parseCollections(JsonObject profile) {
         JsonObject members = asObj(profile.get("members"));
-        if (members == null) {
-            return null;
-        }
+        if (members == null) return null;
         Map<String, Long> out = new TreeMap<>();
         boolean any = false;
         for (Map.Entry<String, JsonElement> e : members.entrySet()) {
             JsonObject m = asObj(e.getValue());
             JsonObject col = m == null ? null : asObj(m.get("collection"));
-            if (col == null) {
-                continue;
-            }
+            if (col == null) continue;
             any = true;
             for (Map.Entry<String, JsonElement> c : col.entrySet()) {
                 out.merge(c.getKey(), (long) num(c.getValue()), Long::sum);
@@ -112,7 +107,6 @@ public final class ProfileExtras {
         return any ? Collections.unmodifiableMap(out) : null;
     }
 
-    // ------------------------------------------------------------------ mining / foraging
 
     private static Mining parseMining(JsonObject member) {
         JsonObject core = asObj(member.get("mining_core"));
@@ -126,9 +120,7 @@ public final class ProfileExtras {
         long[] total = new long[3];
         long[] available = new long[3];
         for (int i = 0; i < 3; i++) {
-            if (core == null) {
-                continue;
-            }
+            if (core == null) continue;
             total[i] = (long) num(core.get("powder_" + powders[i]));
             long spent = (long) num(core.get("powder_spent_" + powders[i] + (slot >= 2 ? "_" + slot : "")));
             available[i] = Math.max(0, total[i] - spent);
@@ -150,9 +142,7 @@ public final class ProfileExtras {
         if (f1 != null) {
             for (Map.Entry<String, JsonElement> e : f1.entrySet()) {
                 JsonObject s = asObj(e.getValue());
-                if (s == null) {
-                    continue;
-                }
+                if (s == null) continue;
                 int idx;
                 try {
                     idx = Integer.parseInt(e.getKey());
@@ -202,9 +192,7 @@ public final class ProfileExtras {
 
     private static Map<String, Integer> nodes(JsonObject obj) {
         Map<String, Integer> out = new LinkedHashMap<>();
-        if (obj == null) {
-            return out;
-        }
+        if (obj == null) return out;
         for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
             if (!e.getKey().startsWith("toggle_") && e.getValue().isJsonPrimitive()) {
                 int v = (int) num(e.getValue());
@@ -216,7 +204,6 @@ public final class ProfileExtras {
         return out;
     }
 
-    // ------------------------------------------------------------------ crimson isle
 
     private static final List<String> KUUDRA_IDS = List.of("none", "hot", "burning", "fiery", "infernal");
     private static final List<String> DOJO_IDS = List.of("mob_kb", "wall_jump", "archer", "snake", "sword_swap", "fireball", "lock_head");
@@ -243,7 +230,6 @@ public final class ProfileExtras {
                 (long) num(path(data, "matriarch.last_attempt")));
     }
 
-    // ------------------------------------------------------------------ rift
 
     private static Rift parseRift(JsonObject member) {
         JsonObject r = asObj(member.get("rift"));
@@ -269,7 +255,6 @@ public final class ProfileExtras {
                 r == null ? null : asObj(r.get("inventory")));
     }
 
-    // ------------------------------------------------------------------ farming
 
     private static Farming parseFarming(JsonObject member) {
         JsonObject j = asObj(member.get("jacobs_contest"));
@@ -316,7 +301,6 @@ public final class ProfileExtras {
                 garden == null ? 0 : (int) num(garden.get("copper")), garden == null ? 0 : (int) num(garden.get("larva_consumed")));
     }
 
-    // ------------------------------------------------------------------ misc
 
     private static Misc parseMisc(JsonObject profile, JsonObject member) {
         JsonObject stats = asObj(member.get("player_stats"));
@@ -362,7 +346,6 @@ public final class ProfileExtras {
                 (long) num(path(member, "leveling.experience")), sacksObj != null);
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static boolean isTrue(JsonElement el) {
         try {
@@ -374,9 +357,7 @@ public final class ProfileExtras {
 
     private static List<String> strings(JsonArray arr) {
         List<String> out = new ArrayList<>();
-        if (arr == null) {
-            return out;
-        }
+        if (arr == null) return out;
         for (JsonElement el : arr) {
             if (el != null && el.isJsonPrimitive()) {
                 out.add(el.getAsString());
@@ -387,9 +368,7 @@ public final class ProfileExtras {
 
     private static Map<String, Long> longMap(JsonObject obj) {
         Map<String, Long> out = new LinkedHashMap<>();
-        if (obj == null) {
-            return out;
-        }
+        if (obj == null) return out;
         for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
             if (e.getValue() != null && e.getValue().isJsonPrimitive()) {
                 out.put(e.getKey(), (long) num(e.getValue()));

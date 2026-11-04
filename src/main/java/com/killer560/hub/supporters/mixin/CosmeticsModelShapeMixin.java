@@ -51,9 +51,7 @@ public abstract class CosmeticsModelShapeMixin {
     @Inject(method = "scale(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;"
             + "Lcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("TAIL"), require = 0)
     private void killer560smod$applyShape(AvatarRenderState state, PoseStack poseStack, CallbackInfo ci) {
-        if (!(state instanceof CosmeticsStateMarker marker) || !marker.killer560smod$isLocalPlayer()) {
-            return;
-        }
+        if (!(state instanceof CosmeticsStateMarker marker) || !marker.killer560smod$isLocalPlayer()) return;
         SupportersConfig cfg = SupportersConfig.getInstance();
         float width = cfg.getModelWidth();
         float height = cfg.getModelHeight();

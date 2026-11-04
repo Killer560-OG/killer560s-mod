@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.player.Player;
@@ -102,48 +101,30 @@ public final class RibbonTrail {
     }
 
     /** Frames your own ribbon was drawn. */
-    public static long framesDrawn() {
-        return LOCAL.framesDrawn;
-    }
+    public static long framesDrawn() { return LOCAL.framesDrawn; }
 
     /** Points (laid + the anchor) in your ribbon's last drawn frame; 0 when the last frame drew nothing. */
-    public static int lastPointCount() {
-        return LOCAL.lastPointCount;
-    }
+    public static int lastPointCount() { return LOCAL.lastPointCount; }
 
     /** Length in blocks of your band drawn last frame; 0 when it drew nothing. */
-    public static double lastLength() {
-        return LOCAL.lastLength;
-    }
+    public static double lastLength() { return LOCAL.lastLength; }
 
     /** Laid points your ribbon currently holds. */
-    public static int pointCount() {
-        return LOCAL.count;
-    }
+    public static int pointCount() { return LOCAL.count; }
 
-    public static void clear() {
-        LOCAL.reset();
-    }
+    public static void clear() { LOCAL.reset(); }
 
     /** Teleports (a jump past {@link TeleportMode#MIN_JUMP} in one frame) your ribbon has seen since it was last cleared. */
-    public static int teleportsSeen() {
-        return LOCAL.teleports;
-    }
+    public static int teleportsSeen() { return LOCAL.teleports; }
 
     /** Gaps (Break mode teleports) in your ribbon's last drawn frame. */
-    public static int lastBreaks() {
-        return LOCAL.lastBreaks;
-    }
+    public static int lastBreaks() { return LOCAL.lastBreaks; }
 
     /** Quads in your ribbon's last drawn frame: one per joined pair of points, none across a gap. */
-    public static int lastSegments() {
-        return LOCAL.lastSegments;
-    }
+    public static int lastSegments() { return LOCAL.lastSegments; }
 
     /** Your ribbon's last drawn vertices (see {@link #vertices()}). */
-    public static float[] lastVertices() {
-        return LOCAL.vertices();
-    }
+    public static float[] lastVertices() { return LOCAL.vertices(); }
 
     /** World-space x y z of every vertex of the last drawn frame, bottom then top for each point, oldest first;
      *  empty when the last frame drew nothing. The test hook for "vertical, and the same from every camera angle". */
@@ -157,24 +138,16 @@ public final class RibbonTrail {
     }
 
     /** Height of the band's bottom above the feet for a player with {@code eyeHeight} and a band {@code height} tall. */
-    static double bandBottom(double eyeHeight, double height) {
-        return Math.max(MIN_BOTTOM, eyeHeight * MIDDLE - height / 2.0);
-    }
+    static double bandBottom(double eyeHeight, double height) { return Math.max(MIN_BOTTOM, eyeHeight * MIDDLE - height / 2.0); }
 
     /** This ribbon's frames drawn (the shared trails' test hook). */
-    public long frames() {
-        return framesDrawn;
-    }
+    public long frames() { return framesDrawn; }
 
     /** Points in this ribbon's last drawn frame. */
-    public int drawnPoints() {
-        return lastPointCount;
-    }
+    public int drawnPoints() { return lastPointCount; }
 
     /** Length in blocks of this ribbon's last drawn band. */
-    public double drawnLength() {
-        return lastLength;
-    }
+    public double drawnLength() { return lastLength; }
 
     void reset() {
         hasBack = false;
@@ -200,9 +173,7 @@ public final class RibbonTrail {
         }
     }
 
-    private int idx(int fromOldest) {
-        return Math.floorMod(head - count + fromOldest, MAX_POINTS);
-    }
+    private int idx(int fromOldest) { return Math.floorMod(head - count + fromOldest, MAX_POINTS); }
 
     /**
      * Lays new points behind {@code player} and draws; called every frame while this ribbon is shown. {@code spec} is
@@ -402,9 +373,7 @@ public final class RibbonTrail {
     private void emit(PoseStack.Pose pose, VertexConsumer buffer) {
         Matrix4f m = pose.pose();
         for (int i = 0; i + 1 < vertPoints; i++) {
-            if (brk[i + 1]) {
-                continue;
-            }
+            if (brk[i + 1]) continue;
             int l0 = i * 14, r0 = l0 + 7, l1 = l0 + 14, r1 = l0 + 21;
             v(buffer, m, l0);
             v(buffer, m, r0);
@@ -431,18 +400,14 @@ public final class RibbonTrail {
                 return ChromaWave.hsv((1f - u) * 0.6f - chromaT, 1f, 1f);
             }
             case NAME_FADE: {
-                if (fadeEnds != null && fadeEnds.length >= 2) {
-                    return lerp(fadeEnds[fadeEnds.length - 1], fadeEnds[0], u);
-                }
+                if (fadeEnds != null && fadeEnds.length >= 2) return lerp(fadeEnds[fadeEnds.length - 1], fadeEnds[0], u);
                 break;
             }
             default:
                 break;
         }
         int[] c = spec.colors();
-        if (c.length >= 3) {
-            return u >= 0.5f ? lerp(c[1], c[0], (u - 0.5f) * 2f) : lerp(c[2], c[1], u * 2f);
-        }
+        if (c.length >= 3) return u >= 0.5f ? lerp(c[1], c[0], (u - 0.5f) * 2f) : lerp(c[2], c[1], u * 2f);
         return lerp(c[c.length - 1], c[0], u);
     }
 
@@ -457,9 +422,7 @@ public final class RibbonTrail {
 
     /** One [1 2 1] / 4 pass over the interior points; the two ends, and the ends of each piece split by a gap, stay put. */
     private static void smooth(double[] x, double[] y, double[] z, int n, boolean[] gap) {
-        if (n < 3) {
-            return;
-        }
+        if (n < 3) return;
         double prevX = x[0], prevY = y[0], prevZ = z[0];
         for (int i = 1; i < n - 1; i++) {
             double cx = x[i], cy = y[i], cz = z[i];

@@ -36,14 +36,10 @@ public abstract class ObjectHiderTextShadowMixin {
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         boolean disable = cfg.isDisableTextShadow();
         boolean container = cfg.isContainerTextShadow();
-        if (!disable && !container) {
-            return shadow;
-        }
+        if (!disable && !container) return shadow;
         // QUOI's "Container text shadow" is a force-ON parity option, not a hider - it only exists so text
         // stays readable over an inventory background while "Disable text shadow" is on everywhere else.
-        if (container && McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?>) {
-            return true;
-        }
+        if (container && McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?>) return true;
         return !disable && shadow;
     }
 }

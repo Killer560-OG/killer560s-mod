@@ -202,11 +202,8 @@ public final class PetWheelConfig {
         }
     }
 
-    // ------------------------------------------------------------------ simple settings
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
@@ -214,99 +211,58 @@ public final class PetWheelConfig {
 
     /** Slices on the wheel at once: every pet on it (the Slices setting was removed 2026-10-11 - the wheel lays
      *  out however many pets you add). */
-    public int getSliceCount() {
-        return Math.max(1, wheelPets.size());
-    }
+    public int getSliceCount() { return Math.max(1, wheelPets.size()); }
 
-    public int getScalePercent() {
-        return scalePercent;
-    }
+    public int getScalePercent() { return scalePercent; }
 
-    public void setScalePercent(int scalePercent) {
-        this.scalePercent = clampScale(scalePercent);
-    }
+    public void setScalePercent(int scalePercent) { this.scalePercent = clampScale(scalePercent); }
 
-    public int getIconScalePercent() {
-        return iconScalePercent;
-    }
+    public int getIconScalePercent() { return iconScalePercent; }
 
-    public void setIconScalePercent(int iconScalePercent) {
-        this.iconScalePercent = clampIconScale(iconScalePercent);
-    }
+    public void setIconScalePercent(int iconScalePercent) { this.iconScalePercent = clampIconScale(iconScalePercent); }
 
-    public boolean isHideLevel() {
-        return hideLevel;
-    }
+    public boolean isHideLevel() { return hideLevel; }
 
-    public void setHideLevel(boolean hideLevel) {
-        this.hideLevel = hideLevel;
-    }
+    public void setHideLevel(boolean hideLevel) { this.hideLevel = hideLevel; }
 
-    public boolean isHideName() {
-        return hideName;
-    }
+    public boolean isHideName() { return hideName; }
 
-    public void setHideName(boolean hideName) {
-        this.hideName = hideName;
-    }
+    public void setHideName(boolean hideName) { this.hideName = hideName; }
 
-    public boolean isHideMenuWhileSummoning() {
-        return hideMenuWhileSummoning;
-    }
+    public boolean isHideMenuWhileSummoning() { return hideMenuWhileSummoning; }
 
     public void setHideMenuWhileSummoning(boolean hideMenuWhileSummoning) {
         this.hideMenuWhileSummoning = hideMenuWhileSummoning;
     }
 
-    public InteractionMode getMode() {
-        return mode;
-    }
+    public InteractionMode getMode() { return mode; }
 
-    public void setMode(InteractionMode mode) {
-        this.mode = mode == null ? InteractionMode.HOLD_RELEASE : mode;
-    }
+    public void setMode(InteractionMode mode) { this.mode = mode == null ? InteractionMode.HOLD_RELEASE : mode; }
 
-    public void cycleMode() {
-        cycleMode(1);
-    }
+    public void cycleMode() { cycleMode(1); }
 
     public void cycleMode(int dir) {
         mode = mode == InteractionMode.HOLD_RELEASE ? InteractionMode.PRESS_CLICK : InteractionMode.HOLD_RELEASE;
     }
 
-    public int getKeyCode() {
-        return keyCode;
-    }
+    public int getKeyCode() { return keyCode; }
 
-    public void setKeyCode(int keyCode) {
-        this.keyCode = KeyUtil.sanitizeBind(keyCode);
-    }
+    public void setKeyCode(int keyCode) { this.keyCode = KeyUtil.sanitizeBind(keyCode); }
 
-    public int getPrevPageKeyCode() {
-        return prevPageKeyCode;
-    }
+    public int getPrevPageKeyCode() { return prevPageKeyCode; }
 
-    public void setPrevPageKeyCode(int code) {
-        this.prevPageKeyCode = KeyUtil.sanitizeBind(code);
-    }
+    public void setPrevPageKeyCode(int code) { this.prevPageKeyCode = KeyUtil.sanitizeBind(code); }
 
-    public int getNextPageKeyCode() {
-        return nextPageKeyCode;
-    }
+    public int getNextPageKeyCode() { return nextPageKeyCode; }
 
-    public void setNextPageKeyCode(int code) {
-        this.nextPageKeyCode = KeyUtil.sanitizeBind(code);
-    }
+    public void setNextPageKeyCode(int code) { this.nextPageKeyCode = KeyUtil.sanitizeBind(code); }
 
-    // ------------------------------------------------------------------ pages
 
     private static void readPages(JsonObject root, PetWheelConfig cfg) {
         cfg.pages.clear();
         if (root.has("pages") && root.get("pages").isJsonArray()) {
             for (var el : root.getAsJsonArray("pages")) {
-                if (cfg.pages.size() >= MAX_PAGES) {
-                    break;
-                }
+                if (cfg.pages.size() >= MAX_PAGES) break;
                 try {
                     JsonObject po = el.getAsJsonObject();
                     WheelPage page = new WheelPage(cleanName(getString(po, "name", null), cfg.pages.size()));
@@ -335,22 +291,14 @@ public final class PetWheelConfig {
         return n.isEmpty() ? "Page " + (index + 1) : n;
     }
 
-    public int getPageCount() {
-        return pages.size();
-    }
+    public int getPageCount() { return pages.size(); }
 
     /** The current page, 0-based. */
-    public int getPageIndex() {
-        return pageIndex;
-    }
+    public int getPageIndex() { return pageIndex; }
 
-    public String getPageName(int index) {
-        return index >= 0 && index < pages.size() ? pages.get(index).name : "";
-    }
+    public String getPageName(int index) { return index >= 0 && index < pages.size() ? pages.get(index).name : ""; }
 
-    public String getCurrentPageName() {
-        return pages.get(pageIndex).name;
-    }
+    public String getCurrentPageName() { return pages.get(pageIndex).name; }
 
     /** Renames a page; a blank name goes back to "Page N". */
     public void setPageName(int index, String name) {
@@ -366,15 +314,11 @@ public final class PetWheelConfig {
     }
 
     /** Moves to the next ({@code dir} 1) or previous (-1) page, wrapping. */
-    public void stepPage(int dir) {
-        setPageIndex(pageIndex + dir);
-    }
+    public void stepPage(int dir) { setPageIndex(pageIndex + dir); }
 
     /** Adds an empty page after the last one and makes it current. @return false at {@link #MAX_PAGES}. */
     public boolean addPage() {
-        if (pages.size() >= MAX_PAGES) {
-            return false;
-        }
+        if (pages.size() >= MAX_PAGES) return false;
         pages.add(new WheelPage("Page " + (pages.size() + 1)));
         setPageIndex(pages.size() - 1);
         return true;
@@ -382,55 +326,31 @@ public final class PetWheelConfig {
 
     /** Deletes the current page (never the last one); the page before it becomes current. @return whether it did. */
     public boolean removeCurrentPage() {
-        if (pages.size() <= 1) {
-            return false;
-        }
+        if (pages.size() <= 1) return false;
         pages.remove(pageIndex);
         setPageIndex(Math.max(0, pageIndex - 1));
         return true;
     }
 
-    // ------------------------------------------------------------------ pet lists
 
     /** @return an unmodifiable, ordered snapshot of the wheel's pets. */
-    public List<PetEntry> getWheelPets() {
-        return List.copyOf(wheelPets);
-    }
+    public List<PetEntry> getWheelPets() { return List.copyOf(wheelPets); }
 
     /** @return an unmodifiable, insertion-ordered snapshot of every pet ever seen in a real /pets screen. */
-    public List<PetEntry> getKnownPets() {
-        return List.copyOf(knownPets.values());
-    }
+    public List<PetEntry> getKnownPets() { return List.copyOf(knownPets.values()); }
 
-    public boolean isOnWheel(String uuid) {
-        return wheelPets.stream().anyMatch(p -> p.uuid().equals(uuid));
-    }
+    public boolean isOnWheel(String uuid) { return wheelPets.stream().anyMatch(p -> p.uuid().equals(uuid)); }
 
     /** Appends a known pet to the end of the wheel (no-op if already on it or unknown). */
     public void addToWheel(String uuid) {
-        if (isOnWheel(uuid)) {
-            return;
-        }
+        if (isOnWheel(uuid)) return;
         PetEntry known = knownPets.get(uuid);
         if (known != null) {
             wheelPets.add(known);
         }
     }
 
-    public void removeFromWheel(String uuid) {
-        wheelPets.removeIf(p -> p.uuid().equals(uuid));
-    }
-
-    /** @return true if the swap happened (both indices were valid neighbors-or-not within range). */
-    public boolean moveInWheel(int index, int delta) {
-        int target = index + delta;
-        if (index < 0 || index >= wheelPets.size() || target < 0 || target >= wheelPets.size()) {
-            return false;
-        }
-        PetEntry moved = wheelPets.remove(index);
-        wheelPets.add(target, moved);
-        return true;
-    }
+    public void removeFromWheel(String uuid) { wheelPets.removeIf(p -> p.uuid().equals(uuid)); }
 
     /** killer560's reworked wheel-edit flow: left-click one slice then another (or drag one onto another)
      *  swaps their pets in place. Both indices must already hold a real pet - the wheel's one trailing empty
@@ -452,9 +372,7 @@ public final class PetWheelConfig {
      * rather than replacing; anything past that is out of range and ignored rather than leaving a gap.
      */
     public void replaceOrAppendWheelSlot(int index, PetEntry entry) {
-        if (entry == null || index < 0 || index > wheelPets.size()) {
-            return;
-        }
+        if (entry == null || index < 0 || index > wheelPets.size()) return;
         if (index == wheelPets.size()) {
             wheelPets.add(entry);
         } else {
@@ -487,20 +405,13 @@ public final class PetWheelConfig {
         return changed;
     }
 
-    // ------------------------------------------------------------------ helpers
 
-    private static int clampScale(int v) {
-        return Math.max(MIN_SCALE_PCT, Math.min(MAX_SCALE_PCT, v));
-    }
+    private static int clampScale(int v) { return Math.max(MIN_SCALE_PCT, Math.min(MAX_SCALE_PCT, v)); }
 
-    private static int clampIconScale(int v) {
-        return Math.max(MIN_ICON_SCALE_PCT, Math.min(MAX_ICON_SCALE_PCT, v));
-    }
+    private static int clampIconScale(int v) { return Math.max(MIN_ICON_SCALE_PCT, Math.min(MAX_ICON_SCALE_PCT, v)); }
 
     private static InteractionMode parseMode(String raw) {
-        if (raw == null) {
-            return InteractionMode.HOLD_RELEASE;
-        }
+        if (raw == null) return InteractionMode.HOLD_RELEASE;
         try {
             return InteractionMode.valueOf(raw.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
@@ -517,16 +428,12 @@ public final class PetWheelConfig {
     }
 
     private static void readPetList(JsonObject root, String key, List<PetEntry> out) {
-        if (!root.has(key) || !root.get(key).isJsonArray()) {
-            return;
-        }
+        if (!root.has(key) || !root.get(key).isJsonArray()) return;
         for (var el : root.getAsJsonArray(key)) {
             try {
                 JsonObject o = el.getAsJsonObject();
                 String uuid = o.has("uuid") ? o.get("uuid").getAsString() : null;
-                if (uuid == null || uuid.isBlank()) {
-                    continue;
-                }
+                if (uuid == null || uuid.isBlank()) continue;
                 String name = o.has("name") ? o.get("name").getAsString() : null;
                 String tier = o.has("tier") && !o.get("tier").isJsonNull() ? o.get("tier").getAsString() : null;
                 int level = getInt(o, "level", -1);

@@ -59,18 +59,14 @@ public final class SimRoomIndex {
     }
 
     /** Changes whenever the placed rooms do. */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /**
      * Records a placed room.
      *
      * @param gridX the 11x11 grid coordinates of the room's top-left cell
      */
-    public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-        add(room, gridX, gridZ, rotation, null);
-    }
+    public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation) { add(room, gridX, gridZ, rotation, null); }
 
     /**
      * Records a placed room on the tile cells the MAP gives it.
@@ -84,9 +80,7 @@ public final class SimRoomIndex {
      *                  bounding box at this rotation
      */
     public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation, int[] tileCells) {
-        if (room == null) {
-            return;
-        }
+        if (room == null) return;
         // Must match what SimSecrets actually did, or the waypoints point at where the secrets are not -
         // and the waypoints are the thing being practiced against.
         int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
@@ -124,9 +118,7 @@ public final class SimRoomIndex {
     }
 
     /** Every placed room on the floor, in paste order. Read by {@link SimRoomPuzzles} to arm the puzzles. */
-    public static List<Placed> placed() {
-        return List.copyOf(ROOMS);
-    }
+    public static List<Placed> placed() { return List.copyOf(ROOMS); }
 
     /**
      * Re-records one room's corner and rotation, because its own FURNITURE disagreed with the recovered turn.
@@ -148,9 +140,7 @@ public final class SimRoomIndex {
     public static boolean correct(int gridX, int gridZ, int clayX, int clayZ, int rotation) {
         for (int i = 0; i < ROOMS.size(); i++) {
             Placed p = ROOMS.get(i);
-            if (p.gridX() != gridX || p.gridZ() != gridZ) {
-                continue;
-            }
+            if (p.gridX() != gridX || p.gridZ() != gridZ) continue;
             ROOMS.set(i, new Placed(p.name(), clayX, clayZ, rotation, p.cells(), p.gridX(), p.gridZ(),
                     p.pasteRotation()));
             version++;
@@ -159,9 +149,7 @@ public final class SimRoomIndex {
         return false;
     }
 
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /** Every placed room, in the {@code {id, clayX, clayZ, rotation}} shape Secret Waypoints already reads. */
     public static List<int[]> identifiedRoomsWithRotation() {
@@ -179,22 +167,16 @@ public final class SimRoomIndex {
     /** The room database entry for a placed room, or null when that room is not in the database. */
     public static RoomEntry roomEntryAt(int id) {
         List<Placed> rooms = List.copyOf(ROOMS);
-        if (id < 0 || id >= rooms.size()) {
-            return null;
-        }
+        if (id < 0 || id >= rooms.size()) return null;
         return RoomDatabase.lookupByName(rooms.get(id).name());
     }
 
     /** Whether a placed room covers a grid cell. */
     public static boolean roomHasCell(int id, int cell) {
         List<Placed> rooms = List.copyOf(ROOMS);
-        if (id < 0 || id >= rooms.size()) {
-            return false;
-        }
+        if (id < 0 || id >= rooms.size()) return false;
         for (int c : rooms.get(id).cells()) {
-            if (c == cell) {
-                return true;
-            }
+            if (c == cell) return true;
         }
         return false;
     }
@@ -203,17 +185,13 @@ public final class SimRoomIndex {
     public static String nameAtCell(int cell) {
         for (Placed p : ROOMS) {
             for (int c : p.cells()) {
-                if (c == cell) {
-                    return p.name();
-                }
+                if (c == cell) return p.name();
             }
         }
         return null;
     }
 
-    public static int size() {
-        return ROOMS.size();
-    }
+    public static int size() { return ROOMS.size(); }
 
     private static final List<Placed> VIEW = java.util.Collections.unmodifiableList(ROOMS);
 
@@ -222,7 +200,5 @@ public final class SimRoomIndex {
      * {@link CopyOnWriteArrayList}'s iterator walks a snapshot, so a rebuild clearing the list mid-loop is safe; do
      * not index into it.
      */
-    public static List<Placed> placedView() {
-        return VIEW;
-    }
+    public static List<Placed> placedView() { return VIEW; }
 }

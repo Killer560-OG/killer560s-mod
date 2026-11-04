@@ -68,9 +68,7 @@ final class SupportersFetcher {
      *  instead of waiting for the next scheduled poll. Does not touch the schedule {@link #start} already set
      *  up - {@code runAndReschedule}'s own next {@code EXECUTOR.schedule} call is untouched, so this can only
      *  ever add one extra fetch, never duplicate or drop the recurring one. */
-    static void fetchNow(BiConsumer<Integer, List<SupporterEntry>> onFetched) {
-        EXECUTOR.execute(() -> fetchOnce(onFetched));
-    }
+    static void fetchNow(BiConsumer<Integer, List<SupporterEntry>> onFetched) { EXECUTOR.execute(() -> fetchOnce(onFetched)); }
 
     /** Every 5 minutes after a good fetch, but after 30 seconds when one fails, so a startup hiccup does not leave
      *  everyone without names for five minutes. */
@@ -108,17 +106,11 @@ final class SupportersFetcher {
 
     private static List<SupporterEntry> parseSupporters(JsonElement el) {
         List<SupporterEntry> out = new ArrayList<>();
-        if (el == null || !el.isJsonArray()) {
-            return out;
-        }
+        if (el == null || !el.isJsonArray()) return out;
         for (JsonElement entryEl : el.getAsJsonArray()) {
-            if (out.size() >= MAX_ENTRIES) {
-                break;
-            }
+            if (out.size() >= MAX_ENTRIES) break;
             try {
-                if (entryEl == null || !entryEl.isJsonObject()) {
-                    continue;
-                }
+                if (entryEl == null || !entryEl.isJsonObject()) continue;
                 JsonObject o = entryEl.getAsJsonObject();
                 UUID uuid = UUID.fromString(o.get("uuid").getAsString());
                 String name = o.has("name") && !o.get("name").isJsonNull() ? o.get("name").getAsString() : "";

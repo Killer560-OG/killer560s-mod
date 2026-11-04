@@ -1,6 +1,5 @@
 package com.killer560.hub.termism;
 
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalType;
@@ -28,17 +27,13 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
     public static final String THEME_ID = "termism";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     // Package-visible (not private) so TermismPracticeScreen's own "New Puzzle" reroll (killer560's
     // "make it completely random from all puzzles besides melody" request, 2026-09-09) can reuse the
@@ -83,9 +78,7 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
                 .bounds(x, y, width, 20).build());
     }
 
-    private void open(TerminalType type) {
-        McCompat.setScreen(Minecraft.getInstance(), new TermismPracticeScreen(this, type));
-    }
+    private void open(TerminalType type) { McCompat.setScreen(Minecraft.getInstance(), new TermismPracticeScreen(this, type)); }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -101,12 +94,8 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

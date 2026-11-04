@@ -36,9 +36,7 @@ public final class RunMapPainter {
     }
 
     /** The drawn size of a map at {@code cell}, backdrop excluded: {@code GRID * cell}. */
-    public static int size(int cell) {
-        return RunRecord.MapSnapshot.GRID * cell;
-    }
+    public static int size(int cell) { return RunRecord.MapSnapshot.GRID * cell; }
 
     /**
      * Draws {@code map} with its top-left cell at {@code x, y}, each grid cell {@code cell} units, on a backdrop
@@ -65,9 +63,7 @@ public final class RunMapPainter {
                 continue;
             }
             int door = map.doorAt(c);
-            if (door == 0) {
-                continue;
-            }
+            if (door == 0) continue;
             int inset = Math.max(1, cell / 4);
             int color = switch (door) {
                 case 2 -> DOOR_WITHER_COLOR;
@@ -85,16 +81,12 @@ public final class RunMapPainter {
 
     private static boolean sameRoom(RunRecord.MapSnapshot map, int cell, int step, int room) {
         int grid = RunRecord.MapSnapshot.GRID;
-        if (step == 1 && cell % grid == grid - 1) {
-            return false;
-        }
+        if (step == 1 && cell % grid == grid - 1) return false;
         return map.roomAt(cell + step) == room;
     }
 
     public static int colorForRoom(String type) {
-        if (type == null) {
-            return ROOM_NORMAL;
-        }
+        if (type == null) return ROOM_NORMAL;
         return switch (type.toLowerCase(Locale.ROOT)) {
             case "entrance" -> ROOM_ENTRANCE;
             case "blood" -> ROOM_BLOOD;

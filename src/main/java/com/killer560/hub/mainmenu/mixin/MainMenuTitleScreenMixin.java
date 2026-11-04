@@ -22,9 +22,7 @@ public abstract class MainMenuTitleScreenMixin {
             require = 0)
     private void killer560smod$hideVersionLine(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int color,
             Operation<Void> original) {
-        if (MainMenuTheme.active()) {
-            return;
-        }
+        if (MainMenuTheme.active()) return;
         original.call(graphics, font, text, x, y, color);
     }
 }

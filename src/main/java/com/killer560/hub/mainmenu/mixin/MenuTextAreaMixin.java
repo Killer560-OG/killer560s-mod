@@ -20,9 +20,7 @@ public abstract class MenuTextAreaMixin {
 
     @Inject(method = "extractBorder(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedTextAreaBorder(GuiGraphicsExtractor graphics, int x, int y, int width, int height, CallbackInfo ci) {
-        if (!MenuWidgets.active()) {
-            return;
-        }
+        if (!MenuWidgets.active()) return;
         try {
             AbstractTextAreaWidget self = (AbstractTextAreaWidget) (Object) this;
             MenuWidgets.drawTextField(graphics, x, y, width, height, self.isActive(), self.isFocused());

@@ -28,28 +28,20 @@ public final class GraphPathfinder {
     }
 
     public record Path(int[] nodes, double length) {
-        public boolean isEmpty() {
-            return nodes.length == 0;
-        }
+        public boolean isEmpty() { return nodes.length == 0; }
     }
 
     public record Tree(int source, double[] dist, int[] prev) {
-        public boolean reachable(int node) {
-            return dist[node] < UNREACHABLE;
-        }
+        public boolean reachable(int node) { return dist[node] < UNREACHABLE; }
 
         public Path pathTo(int target) {
-            if (!reachable(target)) {
-                return new Path(new int[0], UNREACHABLE);
-            }
+            if (!reachable(target)) return new Path(new int[0], UNREACHABLE);
             List<Integer> rev = new ArrayList<>();
             int cur = target;
             int guard = 0;
             while (cur != -1 && guard++ < dist.length + 1) {
                 rev.add(cur);
-                if (cur == source) {
-                    break;
-                }
+                if (cur == source) break;
                 cur = prev[cur];
             }
             int[] out = new int[rev.size()];
@@ -74,13 +66,9 @@ public final class GraphPathfinder {
         while (!queue.isEmpty()) {
             double[] top = queue.poll();
             int u = (int) top[1];
-            if (done[u] || top[0] > dist[u]) {
-                continue;
-            }
+            if (done[u] || top[0] > dist[u]) continue;
             done[u] = true;
-            if (u == stopAt) {
-                break;
-            }
+            if (u == stopAt) break;
             IslandGraph.Node node = graph.nodes[u];
             int[] out = node.neighbours();
             double[] w = node.weights();
@@ -97,9 +85,7 @@ public final class GraphPathfinder {
         return new Tree(source, dist, prev);
     }
 
-    public static Path shortestPath(IslandGraph graph, int from, int to) {
-        return dijkstra(graph, from, to).pathTo(to);
-    }
+    public static Path shortestPath(IslandGraph graph, int from, int to) { return dijkstra(graph, from, to).pathTo(to); }
 
     /** The candidate cheapest to reach over the graph from the node nearest (x, y, z); the first when none is reachable. */
     public static IslandGraph.Node closestByCost(IslandGraph graph, double x, double y, double z,
@@ -131,9 +117,7 @@ public final class GraphPathfinder {
      */
     public static int[] orderRoute(IslandGraph graph, IslandGraph.Node start, List<IslandGraph.Node> targets, LegCost legCost) {
         int n = targets.size();
-        if (n == 0) {
-            return new int[0];
-        }
+        if (n == 0) return new int[0];
         // stop 0 = start, stops 1..n = targets
         IslandGraph.Node[] stops = new IslandGraph.Node[n + 1];
         stops[0] = start;
@@ -182,9 +166,7 @@ public final class GraphPathfinder {
     /** Open-path 2-opt on a directed cost matrix; route[0] stays fixed. First-improvement, bounded passes. */
     static void twoOpt(int[] route, double[][] cost, int maxPasses) {
         int m = route.length;
-        if (m < 4) {
-            return;
-        }
+        if (m < 4) return;
         double[] fwd = new double[m];
         double[] bwd = new double[m];
         for (int pass = 0; pass < maxPasses; pass++) {
@@ -212,9 +194,7 @@ public final class GraphPathfinder {
                     }
                 }
             }
-            if (!improved) {
-                return;
-            }
+            if (!improved) return;
         }
     }
 
@@ -222,18 +202,14 @@ public final class GraphPathfinder {
     static void improve(int[] route, double[][] cost) {
         for (int round = 0; round < 20; round++) {
             twoOpt(route, cost, 400);
-            if (!relocateOnce(route, cost)) {
-                return;
-            }
+            if (!relocateOnce(route, cost)) return;
         }
     }
 
     /** Moves one stop to a better position if that shortens the route. @return whether a move was made. */
     static boolean relocateOnce(int[] route, double[][] cost) {
         int m = route.length;
-        if (m < 3) {
-            return false;
-        }
+        if (m < 3) return false;
         double base = routeCost(route, cost);
         int[] tmp = new int[m];
         int[] without = new int[m - 1];
@@ -245,9 +221,7 @@ public final class GraphPathfinder {
                 }
             }
             for (int to = 1; to < m; to++) {
-                if (to == from) {
-                    continue;
-                }
+                if (to == from) continue;
                 // insert "stop" before without[to] (to == m-1 appends)
                 System.arraycopy(without, 0, tmp, 0, to);
                 tmp[to] = stop;

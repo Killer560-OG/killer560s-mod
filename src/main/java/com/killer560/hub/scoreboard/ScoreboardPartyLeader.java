@@ -39,24 +39,18 @@ final class ScoreboardPartyLeader {
     private ScoreboardPartyLeader() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(ScoreboardPartyLeader::onChat);
-    }
+    static void register() { ChatObserver.subscribe(ScoreboardPartyLeader::onChat); }
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain == null) {
-            return;
-        }
+        if (plain == null) return;
         // DUNGEON_ENTER needs " entered " and "Catacombs, "; every other pattern needs "party"/"Party" (fps-idle-1015).
         Matcher m;
         if (plain.contains("Catacombs, ") && (m = DUNGEON_ENTER.matcher(plain)).find()) {
             leader = m.group(1);
             return;
         }
-        if (!plain.contains("arty")) {
-            return;
-        }
+        if (!plain.contains("arty")) return;
         plain = plain.trim();
         if ((m = YOU_JOINED.matcher(plain)).matches()
                 || (m = TRANSFER_LEAVE.matcher(plain)).matches()
@@ -82,7 +76,5 @@ final class ScoreboardPartyLeader {
     }
 
     /** @return the known party leader's name, or null when unknown / not in a party. */
-    static String get() {
-        return leader;
-    }
+    static String get() { return leader; }
 }

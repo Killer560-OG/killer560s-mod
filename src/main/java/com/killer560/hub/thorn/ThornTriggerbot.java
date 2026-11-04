@@ -36,9 +36,7 @@ public final class ThornTriggerbot {
 
     /** Called every client tick from {@link ThornFeature}; {@code active} is "in the Thorn fight". */
     static void tick(Minecraft client, boolean active) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return;
         LocalPlayer player = client.player;
         boolean want = active && player != null && client.level != null && McCompat.screen(client) == null
                 && ThornConfig.getInstance().isTriggerbotEnabled() && !player.isDeadOrDying()
@@ -66,13 +64,9 @@ public final class ThornTriggerbot {
     }
 
     /** Whether this triggerbot is holding the use key right now, and for how many ticks in all - for the testkit. */
-    public static boolean isHolding() {
-        return holding;
-    }
+    public static boolean isHolding() { return holding; }
 
-    public static int ticksHeld() {
-        return ticksHeld;
-    }
+    public static int ticksHeld() { return ticksHeld; }
 
     /** The crosshair line meets Thorn's box, and no block stands between the eyes and that point. Entities in between
      *  are ignored on purpose. */
@@ -80,19 +74,13 @@ public final class ThornTriggerbot {
         Vec3 eyes = player.getEyePosition(1.0f);
         Vec3 end = eyes.add(player.getViewVector(1.0f).scale(AIM_DISTANCE));
         for (Entity e : client.level.entitiesForRendering()) {
-            if (!(e instanceof Ghast) || !e.isAlive()) {
-                continue;
-            }
+            if (!(e instanceof Ghast) || !e.isAlive()) continue;
             AABB box = e.getBoundingBox();
             Vec3 hit = box.contains(eyes) ? eyes : box.clip(eyes, end).orElse(null);
-            if (hit == null) {
-                continue;
-            }
+            if (hit == null) continue;
             HitResult wall = client.level.clip(new ClipContext(eyes, hit, ClipContext.Block.COLLIDER,
                     ClipContext.Fluid.NONE, player));
-            if (wall.getType() == HitResult.Type.MISS) {
-                return true;
-            }
+            if (wall.getType() == HitResult.Type.MISS) return true;
         }
         return false;
     }

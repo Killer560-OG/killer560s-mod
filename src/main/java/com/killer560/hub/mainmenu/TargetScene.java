@@ -70,11 +70,7 @@ final class TargetScene {
             // motes rising at the sides
             .overlay(new PictureScene.Motes(26, 40, 480, 1400, 460, 900, 820, 0.02, 0.03, 3, HOT, 717, true));
 
-    static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
-        SCENE.drawImage(g, w, h, t);
-    }
+    static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) { SCENE.drawImage(g, w, h, t); }
 
-    static void drawOverlays(GuiRects r, int w, int h, double t) {
-        SCENE.drawOverlays(r, w, h, t, 1f);
-    }
+    static void drawOverlays(GuiRects r, int w, int h, double t) { SCENE.drawOverlays(r, w, h, t, 1f); }
 }

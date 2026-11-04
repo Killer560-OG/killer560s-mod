@@ -54,13 +54,9 @@ public final class SolverEspConfig {
             this.label = label;
         }
 
-        public WaypointStyle next() {
-            return this == OUTLINE ? FULL : OUTLINE;
-        }
+        public WaypointStyle next() { return this == OUTLINE ? FULL : OUTLINE; }
 
-        public WaypointStyle previous() {
-            return this == OUTLINE ? FULL : OUTLINE;
-        }
+        public WaypointStyle previous() { return this == OUTLINE ? FULL : OUTLINE; }
     }
 
     /** One solver's highlight settings. Default ON for all three, as the shared ones were: every solver is itself off by
@@ -148,25 +144,15 @@ public final class SolverEspConfig {
         }
     }
 
-    public boolean isEnabled(Solver solver) {
-        return entries.get(solver).enabled;
-    }
+    public boolean isEnabled(Solver solver) { return entries.get(solver).enabled; }
 
-    public void setEnabled(Solver solver, boolean enabled) {
-        entries.get(solver).enabled = enabled;
-    }
+    public void setEnabled(Solver solver, boolean enabled) { entries.get(solver).enabled = enabled; }
 
-    public boolean isThroughWalls(Solver solver) {
-        return entries.get(solver).throughWalls;
-    }
+    public boolean isThroughWalls(Solver solver) { return entries.get(solver).throughWalls; }
 
-    public void setThroughWalls(Solver solver, boolean throughWalls) {
-        entries.get(solver).throughWalls = throughWalls;
-    }
+    public void setThroughWalls(Solver solver, boolean throughWalls) { entries.get(solver).throughWalls = throughWalls; }
 
-    public WaypointStyle getWaypointStyle(Solver solver) {
-        return entries.get(solver).waypointStyle;
-    }
+    public WaypointStyle getWaypointStyle(Solver solver) { return entries.get(solver).waypointStyle; }
 
     public void setWaypointStyle(Solver solver, WaypointStyle s) {
         entries.get(solver).waypointStyle = s == null ? WaypointStyle.OUTLINE : s;

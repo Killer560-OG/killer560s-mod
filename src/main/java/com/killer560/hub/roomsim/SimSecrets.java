@@ -107,9 +107,7 @@ public final class SimSecrets {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             BlockPos at = hit.getBlockPos().immutable();
-            if (!PLACED_WITHER.remove(at)) {
-                return net.minecraft.world.InteractionResult.PASS;
-            }
+            if (!PLACED_WITHER.remove(at)) return net.minecraft.world.InteractionResult.PASS;
             level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
             SimScore.secretFound(at);
             net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
@@ -132,9 +130,7 @@ public final class SimSecrets {
      * used - the id is what every feature reads; only the color would be lost.
      */
     static net.minecraft.world.item.component.ResolvableProfile essenceProfile() {
-        if (essenceProfile != null) {
-            return essenceProfile;
-        }
+        if (essenceProfile != null) return essenceProfile;
         net.minecraft.world.item.component.ResolvableProfile plain =
                 net.minecraft.world.item.component.ResolvableProfile.createResolved(
                         new com.mojang.authlib.GameProfile(ESSENCE_PROFILE_ID, "WitherEssence"));
@@ -279,9 +275,7 @@ public final class SimSecrets {
     }
 
     /** A database coordinate in the world the floor was built into - the floor's shift applies to y. */
-    private static BlockPos world(BlockPos at) {
-        return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ());
-    }
+    private static BlockPos world(BlockPos at) { return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ()); }
 
     /** One line per secret placed, so a run's missed secrets can be named by position (testkit 1016-sim-fullclear
      *  pairs these with SimScore's "Sim secret counted" lines). */
@@ -340,9 +334,7 @@ public final class SimSecrets {
     private static volatile int forcedKeySpot = -1;
 
     /** For the testkit: put the key on spot {@code index} of a room with several (database order); -1 = random. */
-    public static void setKeySpotForTest(int index) {
-        forcedKeySpot = index;
-    }
+    public static void setKeySpotForTest(int index) { forcedKeySpot = index; }
 
     /** Starts a new floor's audit. */
     public static void resetAudit() {
@@ -364,9 +356,7 @@ public final class SimSecrets {
      * translation fault - the database has no duplicate coordinates - it is two rooms' secrets meeting in a
      * shared wall, which got likelier the moment floors started filling all 36 cells.
      */
-    public static int collidingChests() {
-        return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size();
-    }
+    public static int collidingChests() { return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size(); }
 
     /** Every chest this floor placed, so the build can check afterward that they are all still there. */
     /** Secret chests skipped because they landed in a carved doorway. Reported by the build. */
@@ -416,9 +406,7 @@ public final class SimSecrets {
     }
 
     /** Tiles across a captured dimension - {@code size = tiles * 32 + 1}, so this is its inverse. */
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * @param defer the chest is not put in the world yet: it appears when he comes near, as a secret bat does
@@ -426,9 +414,7 @@ public final class SimSecrets {
      */
     private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
                               boolean mimicEligible, boolean defer) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
@@ -493,15 +479,11 @@ public final class SimSecrets {
     }
 
     private static int bats(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             // REGISTERED, not spawned: the bat appears when he comes near it, as Hypixel's does - see
             // SimSecretItems.registerBat and SimMobs.spawnSecretBat.
             SimSecretItems.registerBat(at);
@@ -527,15 +509,11 @@ public final class SimSecrets {
      * been within three blocks of it for more than five ticks - and picking it up counts a secret.
      */
     private static int items(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             SimSecretItems.register(at);
             logPlaced("item", at);
             n++;
@@ -549,16 +527,12 @@ public final class SimSecrets {
     private static int markers(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
                                net.minecraft.world.level.block.state.BlockState marker,
                                java.util.Collection<BlockPos> record) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         int blocked = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             // THE DATABASE POSITION FIRST, and a head there is something to REPLACE rather than avoid.
             //
             // The old rule was "the first air at or within two blocks above", which is how a glowing lantern

@@ -48,9 +48,7 @@ public final class TurnFirst {
     private static final java.util.List<java.util.function.BooleanSupplier> BODY_OWNERS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) {
-        BODY_OWNERS.add(owner);
-    }
+    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) { BODY_OWNERS.add(owner); }
 
     /**
      * The yaws the body may be turned to right now without changing where he is being walked, or null for any yaw
@@ -63,16 +61,12 @@ public final class TurnFirst {
     private static final java.util.List<java.util.function.Supplier<float[]>> YAW_CONSTRAINTS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    public static void registerYawConstraint(java.util.function.Supplier<float[]> c) {
-        YAW_CONSTRAINTS.add(c);
-    }
+    public static void registerYawConstraint(java.util.function.Supplier<float[]> c) { YAW_CONSTRAINTS.add(c); }
 
     private static float[] yawConstraint() {
         for (java.util.function.Supplier<float[]> c : YAW_CONSTRAINTS) {
             float[] y = c.get();
-            if (y != null) {
-                return y;
-            }
+            if (y != null) return y;
         }
         return null;
     }
@@ -85,9 +79,7 @@ public final class TurnFirst {
     /** Whether some feature owns the body's rotation right now (see {@link #registerBodyOwner}). */
     public static boolean bodyOwned() {
         for (java.util.function.BooleanSupplier o : BODY_OWNERS) {
-            if (o.getAsBoolean()) {
-                return true;
-            }
+            if (o.getAsBoolean()) return true;
         }
         return false;
     }
@@ -109,14 +101,10 @@ public final class TurnFirst {
     private long myLastHold;
     private int foreignWait;
 
-    public TurnFirst() {
-        this(() -> { });
-    }
+    public TurnFirst() { this(() -> { }); }
 
     /** {@code onWrite}: run after every write to his rotation (an owner with a camera-turn detector rebases it). */
-    public TurnFirst(Runnable onWrite) {
-        this(onWrite, () -> false);
-    }
+    public TurnFirst(Runnable onWrite) { this(onWrite, () -> false); }
 
     /**
      * {@code ownHold}: true while a held camera belongs to this owner's own run - an auto puzzle that holds its free camera
@@ -137,9 +125,7 @@ public final class TurnFirst {
         if (pending && ++pendingAge > MAX_WAIT) {
             pending = false;
         }
-        if (!turned) {
-            return;
-        }
+        if (!turned) return;
         if (player == null) {
             turned = false;
             release();
@@ -189,13 +175,9 @@ public final class TurnFirst {
 
     /** Whether a turn is still out (the body is turned away from where it was). */
     /** Whether any aura's turn is out (turned, not yet given back) - Kill Mimic waits for the hand-back. */
-    public static boolean anyTurnOut() {
-        return current != null;
-    }
+    public static boolean anyTurnOut() { return current != null; }
 
-    public boolean isTurned() {
-        return turned;
-    }
+    public boolean isTurned() { return turned; }
 
     /**
      * A block: true when its outline is on the reported look within {@code reach} - act now. Otherwise turns the body to
@@ -291,16 +273,12 @@ public final class TurnFirst {
             for (int i = 0; i <= 720; i++) {
                 float step = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.25f;
                 float pitch = pitch0 + step;
-                if (pitch < -90f || pitch > 90f) {
-                    continue;
-                }
+                if (pitch < -90f || pitch > 90f) continue;
                 float yr = yaw * Mth.DEG_TO_RAD;
                 float pr = pitch * Mth.DEG_TO_RAD;
                 float cp = Mth.cos(pr);
                 Vec3 dir = new Vec3(-Mth.sin(yr) * cp, -Mth.sin(pr), Mth.cos(yr) * cp);
-                if (ray.test(eye, eye.add(dir.scale(reach)))) {
-                    return new float[]{yaw, pitch};
-                }
+                if (ray.test(eye, eye.add(dir.scale(reach)))) return new float[]{yaw, pitch};
             }
         }
         return null;

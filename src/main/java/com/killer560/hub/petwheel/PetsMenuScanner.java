@@ -54,9 +54,7 @@ public final class PetsMenuScanner {
 
     /** Drops the cached screen so a closed menu is not kept alive while the feature is off. */
     static void reset() {
-        if (judgedScreen == null) {
-            return;
-        }
+        if (judgedScreen == null) return;
         judgedScreen = null;
         judgedIsPets = false;
         scannedStacks = new ItemStack[0];
@@ -76,9 +74,7 @@ public final class PetsMenuScanner {
             judgedIsPets = PETS_TITLE.matcher(screen.getTitle().getString()).matches();
             scannedStacks = new ItemStack[0];
         }
-        if (!judgedIsPets) {
-            return;
-        }
+        if (!judgedIsPets) return;
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = Math.max(0, slots.size() - PLAYER_INVENTORY_SLOTS);
         if (scannedStacks.length != containerSlots) {
@@ -88,9 +84,7 @@ public final class PetsMenuScanner {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
         for (int i = 0; i < containerSlots; i++) {
             ItemStack stack = slots.get(i).getItem();
-            if (stack == scannedStacks[i]) {
-                continue;
-            }
+            if (stack == scannedStacks[i]) continue;
             scannedStacks[i] = stack;
             PetEntry entry = scanSlot(stack);
             if (entry != null && cfg.recordSeenPet(entry)) {
@@ -105,13 +99,9 @@ public final class PetsMenuScanner {
     /** @return a {@link PetEntry} for a real pet head slot, or null (empty slot, not a pet head, or - Next
      *  Page/other navigation item - no identifiable {@code ExtraAttributes.uuid}). */
     static PetEntry scanSlot(ItemStack stack) {
-        if (stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) {
-            return null;
-        }
+        if (stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) return null;
         String uuid = ItemProtect.itemUuid(stack);
-        if (uuid == null || uuid.isBlank()) {
-            return null;
-        }
+        if (uuid == null || uuid.isBlank()) return null;
         String plain = ChatFormatting.stripFormatting(stack.getHoverName().getString());
         String name = plain == null ? null : plain.trim();
         int level = -1;
@@ -151,13 +141,9 @@ public final class PetsMenuScanner {
      *  already uses for real skull identification, stopping at the texture string itself. */
     private static String skullTexture(ItemStack stack) {
         ResolvableProfile profile = stack.get(DataComponents.PROFILE);
-        if (profile == null) {
-            return null;
-        }
+        if (profile == null) return null;
         var partial = profile.partialProfile();
-        if (partial == null) {
-            return null;
-        }
+        if (partial == null) return null;
         Iterator<Property> it = partial.properties().get("textures").iterator();
         return it.hasNext() ? it.next().value() : null;
     }

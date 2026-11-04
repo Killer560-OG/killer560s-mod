@@ -134,9 +134,7 @@ public final class ZeroPingEtherwarp {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
-            if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-                return;
-            }
+            if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
             try {
                 BODY.tick(client.player, false);
                 pollClicks();
@@ -177,9 +175,7 @@ public final class ZeroPingEtherwarp {
         // Streamer Mode's Disable cheats too: ActionGate refuses every automated action under it, and these sends never
         // pass ActionGate (the same gap as the hold).
         boolean streamer = com.killer560.hub.streamer.StreamerMode.disablesCheats();
-        if (!streamer && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()) {
-            return false;
-        }
+        if (!streamer && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()) return false;
         heldRefused++;
         LOGGER.info("[ZPEW] {} not sent: {}", what, streamer ? "Streamer Mode disables cheats" : "Emergency Cancel Key hold");
         return true;
@@ -204,22 +200,15 @@ public final class ZeroPingEtherwarp {
         return prev;
     }
 
-    public static void done(ZpewSource previous) {
-        current = previous;
-    }
+    public static void done(ZpewSource previous) { current = previous; }
 
-    // ---- outbound ---------------------------------------------------------------------------------------------
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
     public static void onPacketSent(Packet<?> packet) {
-        if (!on()) {
-            return;
-        }
+        if (!on()) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || !mc.isSameThread()) {
-            return;
-        }
+        if (player == null || mc.level == null || !mc.isSameThread()) return;
         if (packet instanceof ServerboundUseItemOnPacket useOn) {
             ItemStack held = player.getItemInHand(McPackets.useItemOnHand(useOn));
             if (etherwarpRange(held) > 0) {
@@ -228,14 +217,10 @@ public final class ZeroPingEtherwarp {
             }
             return;
         }
-        if (!(packet instanceof ServerboundUseItemPacket use)) {
-            return;
-        }
+        if (!(packet instanceof ServerboundUseItemPacket use)) return;
         ItemStack held = player.getItemInHand(McPackets.useItemHand(use));
         double range = etherwarpRange(held);
-        if (range <= 0) {
-            return;
-        }
+        if (range <= 0) return;
         usesSeen++;
         if (usesTick != clientTick) {
             usesTick = clientTick;
@@ -311,9 +296,7 @@ public final class ZeroPingEtherwarp {
      * sent and ends the burst (the server would do nothing with it but spend his mana).
      */
     public static void flushExtraWarps() {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || owed <= 0 || extraSending) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || owed <= 0 || extraSending) return;
         int n = owed;
         owed = 0;
         Minecraft mc = Minecraft.getInstance();
@@ -322,9 +305,7 @@ public final class ZeroPingEtherwarp {
                 || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
             return;
         }
-        if (held("Warps Per Tick: " + n + " extra warp(s)")) {
-            return;
-        }
+        if (held("Warps Per Tick: " + n + " extra warp(s)")) return;
         int sent = 0;
         String stop = null;
         extraSending = true;
@@ -384,9 +365,7 @@ public final class ZeroPingEtherwarp {
      * each press keeps the look of the frame it was made in. Cheat build only.
      */
     public static void pollClicks() {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || !((Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key)) {
@@ -421,9 +400,7 @@ public final class ZeroPingEtherwarp {
      * past the bank are dropped rather than sent at a look he did not click at.
      */
     static void aimedBurst(Minecraft mc) {
-        if (CLICKS.size() < 2 || !on() || !ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()) {
-            return;
-        }
+        if (CLICKS.size() < 2 || !on() || !ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()) return;
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || com.killer560.hub.compat.McCompat.screen(mc) != null
                 || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)
@@ -442,9 +419,7 @@ public final class ZeroPingEtherwarp {
         if (!differ) {
             return; // one look: vanilla sends them (and Warps Per Tick adds to them)
         }
-        if (held("Aimed Warps: a burst of " + CLICKS.size() + " press(es) (left to vanilla)")) {
-            return;
-        }
+        if (held("Aimed Warps: a burst of " + CLICKS.size() + " press(es) (left to vanilla)")) return;
         int bank = com.killer560.hub.blink.BlinkCharge.isActive() ? com.killer560.hub.blink.BlinkCharge.banked() : 0;
         if (bank < 1) {
             aimedUnfunded++;
@@ -475,9 +450,7 @@ public final class ZeroPingEtherwarp {
     private static volatile float wireYaw = Float.NaN;
 
     public static void onWireYaw(float yaw) {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         wireYaw = yaw;
     }
 
@@ -491,9 +464,7 @@ public final class ZeroPingEtherwarp {
     /** At a tick's start: waiting presses fire once the bank is covered (conditions checked again), or go after 3 s. */
     static void aimedPending(Minecraft mc) {
         java.util.List<ClickLook> looks = pendingLooks;
-        if (looks == null) {
-            return;
-        }
+        if (looks == null) return;
         // Presses made while these wait join them, in order (never fired by vanilla ahead of the ones before them).
         if (!CLICKS.isEmpty() && (Object) mc.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor key) {
             looks.addAll(CLICKS);
@@ -516,9 +487,7 @@ public final class ZeroPingEtherwarp {
                             : "sneak, item, Charge or bank gone, or the Emergency Cancel Key hold");
             return;
         }
-        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) {
-            return;
-        }
+        if (!com.killer560.hub.blink.BlinkCharge.shotCovered()) return;
         pendingLooks = null;
         LOGGER.info("[ZPEW] Aimed Warps: the bank is covered after {} ms - firing", System.currentTimeMillis() - pendingAtMs);
         fireAimed(mc, player, (com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker) mc.gameMode,
@@ -578,36 +547,27 @@ public final class ZeroPingEtherwarp {
 
     /** 57 + tuners for an etherwarp-capable item, 0 for anything else. */
     static double etherwarpRange(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return 0;
-        }
+        if (stack == null || stack.isEmpty()) return 0;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) {
             return 0;
         }
         CompoundTag tag = com.killer560.hub.util.ItemNbt.view(data);
         String id = tag.getStringOr("id", "");
-        if (tag.getIntOr("ethermerge", 0) != 1 && !"ETHERWARP_CONDUIT".equals(id)) {
-            return 0;
-        }
+        if (tag.getIntOr("ethermerge", 0) != 1 && !"ETHERWARP_CONDUIT".equals(id)) return 0;
         int tuners = Math.max(0, Math.min(4, tag.getIntOr("tuned_transmission", 0)));
         return 57 + tuners;
     }
 
-    // ---- inbound ----------------------------------------------------------------------------------------------
 
     /** {@code mixin/ZpewPositionMixin}: a server position packet, render thread, before vanilla applies it. */
     public static void onServerPosition(Vec3 from, Vec3 to) {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         Prediction head;
         int left;
         synchronized (PENDING) {
             head = PENDING.peekFirst();
-            if (head == null) {
-                return;
-            }
+            if (head == null) return;
             double err = to == null ? Double.MAX_VALUE : head.landing().distanceTo(to);
             long latency = System.currentTimeMillis() - head.sentMs();
             if (err <= MATCH_BLOCKS) {
@@ -635,14 +595,10 @@ public final class ZeroPingEtherwarp {
 
     /** True when this server teleport is (or was just) a predicted warp, so Smooth Teleport does not glide it. */
     public static boolean claims(Vec3 to) {
-        if (!on() || to == null) {
-            return false;
-        }
+        if (!on() || to == null) return false;
         synchronized (PENDING) {
             Prediction head = PENDING.peekFirst();
-            if (head != null && head.landing().distanceTo(to) <= MATCH_BLOCKS) {
-                return true;
-            }
+            if (head != null && head.landing().distanceTo(to) <= MATCH_BLOCKS) return true;
         }
         Vec3 m = lastMatchedLanding;
         return m != null && System.nanoTime() - lastMatchedNanos < 200_000_000L && m.distanceTo(to) <= 0.01;
@@ -670,21 +626,15 @@ public final class ZeroPingEtherwarp {
     /** {@code mixin/ZpewCameraMixin}: where to draw from this frame, or {@code vanilla} when nothing is pending. */
     public static Vec3 cameraPosition(Entity cameraEntity, boolean detached, Vec3 vanilla) {
         pollClicks();
-        if (!on() || detached) {
-            return vanilla;
-        }
+        if (!on() || detached) return vanilla;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || cameraEntity != player) {
-            return vanilla;
-        }
+        if (player == null || cameraEntity != player) return vanilla;
         Prediction last;
         synchronized (PENDING) {
             last = PENDING.peekLast();
         }
-        if (last == null) {
-            return vanilla;
-        }
+        if (last == null) return vanilla;
         cameraFrames++;
         // The eye at the predicted landing, at his current eye height (sneaking or not).
         Vec3 landing = last.landing();
@@ -693,16 +643,13 @@ public final class ZeroPingEtherwarp {
 
     /** Where the player will be once every pending warp lands, or null with nothing pending (for the overlay). */
     public static Vec3 predictedFeet() {
-        if (!on() || !ZeroPingEtherwarpConfig.getInstance().isOverlayFromPrediction()) {
-            return null;
-        }
+        if (!on() || !ZeroPingEtherwarpConfig.getInstance().isOverlayFromPrediction()) return null;
         synchronized (PENDING) {
             Prediction last = PENDING.peekLast();
             return last == null ? null : last.landing();
         }
     }
 
-    // ---- state ------------------------------------------------------------------------------------------------
 
     public static int pending() {
         synchronized (PENDING) {
@@ -710,108 +657,56 @@ public final class ZeroPingEtherwarp {
         }
     }
 
-    public static long usesSeen() {
-        return usesSeen;
-    }
+    public static long usesSeen() { return usesSeen; }
 
-    public static long predictions() {
-        return predictions;
-    }
+    public static long predictions() { return predictions; }
 
-    public static long hits() {
-        return hits;
-    }
+    public static long hits() { return hits; }
 
-    public static long misses() {
-        return misses;
-    }
+    public static long misses() { return misses; }
 
-    public static long timeouts() {
-        return timeouts;
-    }
+    public static long timeouts() { return timeouts; }
 
-    public static long noLanding() {
-        return noLanding;
-    }
+    public static long noLanding() { return noLanding; }
 
-    public static long cameraFrames() {
-        return cameraFrames;
-    }
+    public static long cameraFrames() { return cameraFrames; }
 
-    public static double lastErrorBlocks() {
-        return lastErrorBlocks;
-    }
+    public static double lastErrorBlocks() { return lastErrorBlocks; }
 
-    public static long lastLatencyMs() {
-        return lastLatencyMs;
-    }
+    public static long lastLatencyMs() { return lastLatencyMs; }
 
     /** Per-source counters by {@link ZpewSource} name, for the testkit: uses seen, predicted, hit, skipped by Works For. */
-    public static long seenBy(String source) {
-        return SEEN[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long seenBy(String source) { return SEEN[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long predictedBy(String source) {
-        return PREDICTED[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long predictedBy(String source) { return PREDICTED[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long hitsBy(String source) {
-        return HIT[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long hitsBy(String source) { return HIT[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static long skippedBy(String source) {
-        return SKIPPED[ZpewSource.valueOf(source).ordinal()];
-    }
+    public static long skippedBy(String source) { return SKIPPED[ZpewSource.valueOf(source).ordinal()]; }
 
-    public static int maxChained() {
-        return maxChained;
-    }
+    public static int maxChained() { return maxChained; }
 
     /** Warps Per Tick, for the testkit: extra warps sent, bursts cut short, and the most etherwarp uses seen in one tick. */
-    public static long extraWarpsSent() {
-        return extraSent;
-    }
+    public static long extraWarpsSent() { return extraSent; }
 
-    public static long extraWarpsStopped() {
-        return extraStopped;
-    }
-
-    public static int maxUsesInOneTick() {
-        return maxUsesInOneTick;
-    }
+    public static int maxUsesInOneTick() { return maxUsesInOneTick; }
 
     /** Aimed Warps, for the testkit: bursts, warps sent, presses dropped past the bank, bursts left to vanilla (no bank). */
-    public static long aimedBursts() {
-        return aimedBursts;
-    }
+    public static long aimedBursts() { return aimedBursts; }
 
-    public static long aimedWarpsSent() {
-        return aimedWarpsSent;
-    }
+    public static long aimedWarpsSent() { return aimedWarpsSent; }
 
-    public static long aimedDropped() {
-        return aimedDropped;
-    }
+    public static long aimedDropped() { return aimedDropped; }
 
-    public static long aimedUnfunded() {
-        return aimedUnfunded;
-    }
+    public static long aimedUnfunded() { return aimedUnfunded; }
 
     /** Bursts that waited for Blink's bank to be covered before firing (or being dropped). */
-    public static long aimedWaited() {
-        return aimedWaited;
-    }
+    public static long aimedWaited() { return aimedWaited; }
 
-    public static int lastAimedBurst() {
-        return lastAimedBurst;
-    }
+    public static int lastAimedBurst() { return lastAimedBurst; }
 
     /** Extra or aimed warps the Emergency Cancel Key's hold refused (testkit). */
-    public static long heldRefused() {
-        return heldRefused;
-    }
+    public static long heldRefused() { return heldRefused; }
 
-    private static String fmt(Vec3 v) {
-        return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
-    }
+    private static String fmt(Vec3 v) { return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z); }
 }

@@ -78,95 +78,51 @@ public final class P3StatusConfig {
         }
     }
 
-    private boolean on(boolean part) {
-        return enabled && part && SkyblockGate.allows();
-    }
+    private boolean on(boolean part) { return enabled && part && SkyblockGate.allows(); }
 
     // ---- gated (what the feature reads) ----
 
-    public boolean isEnabled() {
-        return on(true);
-    }
+    public boolean isEnabled() { return on(true); }
 
-    public boolean isShowHud() {
-        return on(showHud);
-    }
+    public boolean isShowHud() { return on(showHud); }
 
-    public boolean isRewriteTitles() {
-        return on(rewriteTitles);
-    }
+    public boolean isRewriteTitles() { return on(rewriteTitles); }
 
-    public boolean isDeviceDoneTitle() {
-        return on(deviceDoneTitle);
-    }
+    public boolean isDeviceDoneTitle() { return on(deviceDoneTitle); }
 
-    public boolean isSectionCompleteTitle() {
-        return on(sectionCompleteTitle);
-    }
+    public boolean isSectionCompleteTitle() { return on(sectionCompleteTitle); }
 
-    public boolean isHideLaserSubtitle() {
-        return on(hideLaserSubtitle);
-    }
+    public boolean isHideLaserSubtitle() { return on(hideLaserSubtitle); }
 
-    public boolean isTitleSound() {
-        return on(titleSound);
-    }
+    public boolean isTitleSound() { return on(titleSound); }
 
     // ---- raw (what the menu shows) ----
 
-    public boolean getEnabledRaw() {
-        return enabled;
-    }
+    public boolean getEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
-    public boolean getShowHudRaw() {
-        return showHud;
-    }
+    public boolean getShowHudRaw() { return showHud; }
 
-    public void setShowHud(boolean v) {
-        showHud = v;
-    }
+    public void setShowHud(boolean v) { showHud = v; }
 
-    public boolean getRewriteTitlesRaw() {
-        return rewriteTitles;
-    }
+    public boolean getRewriteTitlesRaw() { return rewriteTitles; }
 
-    public void setRewriteTitles(boolean v) {
-        rewriteTitles = v;
-    }
+    public void setRewriteTitles(boolean v) { rewriteTitles = v; }
 
-    public boolean getDeviceDoneTitleRaw() {
-        return deviceDoneTitle;
-    }
+    public boolean getDeviceDoneTitleRaw() { return deviceDoneTitle; }
 
-    public void setDeviceDoneTitle(boolean v) {
-        deviceDoneTitle = v;
-    }
+    public void setDeviceDoneTitle(boolean v) { deviceDoneTitle = v; }
 
-    public boolean getSectionCompleteTitleRaw() {
-        return sectionCompleteTitle;
-    }
+    public boolean getSectionCompleteTitleRaw() { return sectionCompleteTitle; }
 
-    public void setSectionCompleteTitle(boolean v) {
-        sectionCompleteTitle = v;
-    }
+    public void setSectionCompleteTitle(boolean v) { sectionCompleteTitle = v; }
 
-    public boolean getHideLaserSubtitleRaw() {
-        return hideLaserSubtitle;
-    }
+    public boolean getHideLaserSubtitleRaw() { return hideLaserSubtitle; }
 
-    public void setHideLaserSubtitle(boolean v) {
-        hideLaserSubtitle = v;
-    }
+    public void setHideLaserSubtitle(boolean v) { hideLaserSubtitle = v; }
 
-    public boolean getTitleSoundRaw() {
-        return titleSound;
-    }
+    public boolean getTitleSoundRaw() { return titleSound; }
 
-    public void setTitleSound(boolean v) {
-        titleSound = v;
-    }
+    public void setTitleSound(boolean v) { titleSound = v; }
 }

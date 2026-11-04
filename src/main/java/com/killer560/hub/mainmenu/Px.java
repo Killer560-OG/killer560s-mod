@@ -12,13 +12,9 @@ interface Px {
     /** A vertical gradient, {@code top} at y0. */
     void gradient(int x0, int y0, int x1, int y1, int top, int bottom);
 
-    static int alpha(int argb, int a) {
-        return (Math.max(0, Math.min(255, a)) << 24) | (argb & 0x00FFFFFF);
-    }
+    static int alpha(int argb, int a) { return (Math.max(0, Math.min(255, a)) << 24) | (argb & 0x00FFFFFF); }
 
-    static int alpha(int argb, double a) {
-        return alpha(argb, (int) Math.round(a * 255.0));
-    }
+    static int alpha(int argb, double a) { return alpha(argb, (int) Math.round(a * 255.0)); }
 
     /** Channel-wise mix of two ARGB colors (alpha too). */
     static int mix(int a, int b, double t) {
@@ -32,25 +28,15 @@ interface Px {
     }
 
     /** An opaque color from 0..1 channels (clamped). */
-    static int rgb(double r, double g, double b) {
-        return 0xFF000000 | (ch(r) << 16) | (ch(g) << 8) | ch(b);
-    }
+    static int rgb(double r, double g, double b) { return 0xFF000000 | (ch(r) << 16) | (ch(g) << 8) | ch(b); }
 
-    static int ch(double v) {
-        return Math.max(0, Math.min(255, (int) Math.round(v * 255.0)));
-    }
+    static int ch(double v) { return Math.max(0, Math.min(255, (int) Math.round(v * 255.0))); }
 
-    static double r(int c) {
-        return ((c >> 16) & 0xFF) / 255.0;
-    }
+    static double r(int c) { return ((c >> 16) & 0xFF) / 255.0; }
 
-    static double g(int c) {
-        return ((c >> 8) & 0xFF) / 255.0;
-    }
+    static double g(int c) { return ((c >> 8) & 0xFF) / 255.0; }
 
-    static double b(int c) {
-        return (c & 0xFF) / 255.0;
-    }
+    static double b(int c) { return (c & 0xFF) / 255.0; }
 
     /** 0..1 from an integer and a salt; the same function the older scenes use. */
     static double hash(int i, int salt) {
@@ -68,9 +54,7 @@ interface Px {
      * no rings. {@code a} is the peak alpha 0..1.
      */
     static void softGlow(Px p, double cx, double cy, double rx, double ry, int rgb, double a) {
-        if (rx < 1 || ry < 1 || a <= 0.002) {
-            return;
-        }
+        if (rx < 1 || ry < 1 || a <= 0.002) return;
         int cw = Math.max(2, (int) Math.round(rx / 18.0));
         double span = 2.4;
         int x0 = (int) Math.floor(cx - rx * span);
@@ -78,9 +62,7 @@ interface Px {
         for (int x = x0; x < x1; x += cw) {
             double u = (x + cw * 0.5 - cx) / rx;
             double ax = a * Math.exp(-u * u * 1.6);
-            if (ax * 255 < 0.6) {
-                continue;
-            }
+            if (ax * 255 < 0.6) continue;
             double prevV = -span;
             double prevA = 0;
             for (int k = 1; k < GLOW_KNOTS.length; k++) {
@@ -102,9 +84,7 @@ interface Px {
      * outer ones fainter, so it reads round and soft with a few dozen rectangles.
      */
     static void blob(Px p, double cx, double cy, double r, int rgb, double a) {
-        if (r < 0.6 || a <= 0.003) {
-            return;
-        }
+        if (r < 0.6 || a <= 0.003) return;
         for (int layer = 0; layer < 3; layer++) {
             double rr = r * (1.0 - layer * 0.3);
             double la = a * (layer == 0 ? 0.30 : layer == 1 ? 0.45 : 0.75);
@@ -115,9 +95,7 @@ interface Px {
             for (int y = top; y < bottom; y += step) {
                 double dy = (y + step * 0.5 - cy) / rr;
                 double q = 1 - dy * dy;
-                if (q <= 0) {
-                    continue;
-                }
+                if (q <= 0) continue;
                 double half = rr * Math.sqrt(q);
                 int x0 = (int) Math.round(cx - half);
                 int x1 = (int) Math.round(cx + half);

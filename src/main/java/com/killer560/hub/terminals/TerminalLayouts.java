@@ -55,7 +55,6 @@ public final class TerminalLayouts {
     private TerminalLayouts() {
     }
 
-    // ------------------------------------------------------------------ Melody
 
     /** @return the slots of Melody's clickable row buttons, top row first: every slot in the button column whose
      *  item is a terracotta (lime on the row being played, another color on the others). A 4-row board gives
@@ -84,9 +83,7 @@ public final class TerminalLayouts {
 
     /** Records how many button rows a live Melody board showed (only call with a board that has terracotta). */
     public static void noteMelodyRows(int rows) {
-        if (rows <= 0 || rows == seenMelodyRows) {
-            return;
-        }
+        if (rows <= 0 || rows == seenMelodyRows) return;
         LOGGER.info("[Terminals] Melody board has {} button rows ({} layout)", rows, describe(rows, OLD_MELODY_ROWS, NEW_MELODY_ROWS));
         seenMelodyRows = rows;
     }
@@ -97,20 +94,15 @@ public final class TerminalLayouts {
     }
 
     public static boolean isTerracotta(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return false;
-        }
+        if (stack.isEmpty()) return false;
         String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         return path.equals("terracotta") || path.endsWith("_terracotta");
     }
 
-    // ------------------------------------------------------------------ Numbers
 
     /** Records how many numbered panes a live "Click in order!" board showed when it settled. */
     static void noteNumbersCount(int count) {
-        if (count <= 0 || count == seenNumbersCount) {
-            return;
-        }
+        if (count <= 0 || count == seenNumbersCount) return;
         LOGGER.info("[Terminals] Click in order board has {} numbers ({} layout)", count, describe(count, OLD_NUMBERS_COUNT, NEW_NUMBERS_COUNT));
         seenNumbersCount = count;
     }
@@ -120,7 +112,6 @@ public final class TerminalLayouts {
         return seenNumbersCount > 0 ? seenNumbersCount : ASSUME_NEW_LAYOUT ? NEW_NUMBERS_COUNT : OLD_NUMBERS_COUNT;
     }
 
-    // ------------------------------------------------------------------ Simon Says
 
     // The Simon Says round count is remembered PER SERVER (2026-10-27): p3sim.net still runs the old 5-round device
     // while Hypixel runs the 4-round one, and one session-wide value let a p3sim device teach "5" to the Hypixel devices
@@ -130,9 +121,7 @@ public final class TerminalLayouts {
     /** Servers known to run the OLD device, used before a device there has shown its count. p3sim.net: every device
      *  in killer560's Mod Only Test logs of 2026-10-22 and 2026-10-27 revealed a fifth round. A device that shows
      *  otherwise overrides this at once (noteSimonRounds). */
-    private static int knownSimonRounds(String server) {
-        return server.contains("p3sim") ? OLD_SIMON_ROUNDS : -1;
-    }
+    private static int knownSimonRounds(String server) { return server.contains("p3sim") ? OLD_SIMON_ROUNDS : -1; }
 
     private static String serverKey() {
         try {
@@ -149,27 +138,21 @@ public final class TerminalLayouts {
     public static void noteSimonRounds(int rounds, String why) {
         String server = serverKey();
         Integer seen = seenSimonRoundsByServer.get(server);
-        if (rounds <= 0 || (seen != null && seen == rounds)) {
-            return;
-        }
+        if (rounds <= 0 || (seen != null && seen == rounds)) return;
         LOGGER.info("[SimonSays] Device has {} rounds ({} layout) on {}: {}", rounds,
                 describe(rounds, OLD_SIMON_ROUNDS, NEW_SIMON_ROUNDS), server, why);
         seenSimonRoundsByServer.put(server, rounds);
     }
 
     /** @return true once a live device on this server has shown its round count this session. */
-    public static boolean simonRoundsSeen() {
-        return seenSimonRoundsByServer.containsKey(serverKey());
-    }
+    public static boolean simonRoundsSeen() { return seenSimonRoundsByServer.containsKey(serverKey()); }
 
     /** @return the Simon Says round count last seen live on this server this session, else what the server is known
      *  to run, else the assumed layout's. */
     public static int simonRounds() {
         String server = serverKey();
         Integer seen = seenSimonRoundsByServer.get(server);
-        if (seen != null) {
-            return seen;
-        }
+        if (seen != null) return seen;
         int known = knownSimonRounds(server);
         return known > 0 ? known : ASSUME_NEW_LAYOUT ? NEW_SIMON_ROUNDS : OLD_SIMON_ROUNDS;
     }

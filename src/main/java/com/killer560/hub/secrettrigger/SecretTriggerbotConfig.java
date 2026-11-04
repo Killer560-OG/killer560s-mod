@@ -80,48 +80,26 @@ public final class SecretTriggerbotConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getDelayMs() {
-        return delayMs;
-    }
+    public int getDelayMs() { return delayMs; }
 
-    public void setDelayMs(int ms) {
-        this.delayMs = Math.max(0, Math.min(MAX_DELAY_MS, ms));
-    }
+    public void setDelayMs(int ms) { this.delayMs = Math.max(0, Math.min(MAX_DELAY_MS, ms)); }
 
-    public int getCooldownMs() {
-        return cooldownMs;
-    }
+    public int getCooldownMs() { return cooldownMs; }
 
-    public void setCooldownMs(int ms) {
-        this.cooldownMs = Math.max(0, Math.min(MAX_COOLDOWN_MS, ms));
-    }
+    public void setCooldownMs(int ms) { this.cooldownMs = Math.max(0, Math.min(MAX_COOLDOWN_MS, ms)); }
 
-    public boolean isSwapEnabled() {
-        return swapEnabled;
-    }
+    public boolean isSwapEnabled() { return swapEnabled; }
 
-    public void setSwapEnabled(boolean swapEnabled) {
-        this.swapEnabled = swapEnabled;
-    }
+    public void setSwapEnabled(boolean swapEnabled) { this.swapEnabled = swapEnabled; }
 
     /** 1-9 (hotbar slot number as shown to the player). */
-    public int getSwapSlot() {
-        return swapSlot;
-    }
+    public int getSwapSlot() { return swapSlot; }
 
-    public void setSwapSlot(int slot) {
-        this.swapSlot = Math.max(1, Math.min(9, slot));
-    }
+    public void setSwapSlot(int slot) { this.swapSlot = Math.max(1, Math.min(9, slot)); }
 
-    public boolean isSwapBack() {
-        return swapBack;
-    }
+    public boolean isSwapBack() { return swapBack; }
 
-    public void setSwapBack(boolean swapBack) {
-        this.swapBack = swapBack;
-    }
+    public void setSwapBack(boolean swapBack) { this.swapBack = swapBack; }
 }

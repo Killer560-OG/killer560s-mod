@@ -30,29 +30,21 @@ public final class SimShadowAssassinLeap {
     }
 
     /** A leap is on: the client's border still refuses clicks. */
-    public static boolean leaping() {
-        return landsAt >= 0;
-    }
+    public static boolean leaping() { return landsAt >= 0; }
 
     /**
      * Leaps a Shadow Assassin at him for {@code ticks} server ticks: the nearest placed one within 32 blocks, else a new
      * one placed for it, put two blocks behind him; and the leap's border sent. False when the sim cannot act.
      */
     public static boolean leap(Minecraft client, int ticks) {
-        if (!SimState.canAct(client) || ticks <= 0) {
-            return false;
-        }
+        if (!SimState.canAct(client) || ticks <= 0) return false;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return false;
-        }
+        if (server == null) return false;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             ServerPlayer player = server.getPlayerList().getPlayers().isEmpty() ? null
                     : server.getPlayerList().getPlayers().get(0);
-            if (player == null) {
-                return;
-            }
+            if (player == null) return;
             double yaw = Math.toRadians(player.getYRot());
             // Two blocks behind him: his look along the ground is (-sin yaw, cos yaw).
             Vec3 at = player.position().add(Math.sin(yaw) * 2.0, 0, -Math.cos(yaw) * 2.0);
@@ -84,19 +76,10 @@ public final class SimShadowAssassinLeap {
         return true;
     }
 
-    /** Lands a leap that is on, on the next server tick (the testkit's cleanup). */
-    public static void landNow() {
-        if (landsAt >= 0) {
-            landsAt = 0;
-        }
-    }
-
     /** Server thread, every tick from {@link SimMobs}: the leap lands - the level's own border goes back to him. */
     static void tickServer(ServerLevel level) {
         int at = landsAt;
-        if (at < 0 || level.getServer().getTickCount() < at) {
-            return;
-        }
+        if (at < 0 || level.getServer().getTickCount() < at) return;
         landsAt = -1;
         for (ServerPlayer real : level.getServer().getPlayerList().getPlayers()) {
             real.connection.send(new ClientboundInitializeBorderPacket(level.getWorldBorder()));

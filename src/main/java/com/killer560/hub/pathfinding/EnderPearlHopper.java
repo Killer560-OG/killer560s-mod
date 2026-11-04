@@ -58,9 +58,7 @@ public final class EnderPearlHopper {
     private EnderPearlHopper() {
     }
 
-    public static boolean isBusy() {
-        return busy;
-    }
+    public static boolean isBusy() { return busy; }
 
     public static void cancel() {
         thrownAtTick = Long.MIN_VALUE;
@@ -74,14 +72,10 @@ public final class EnderPearlHopper {
     /** Hotbar slot (0-8) holding a real, throwable Ender Pearl, or -1. Spirit Pearls never match. */
     public static int hotbarSlot() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return -1;
-        }
+        if (player == null) return -1;
         for (int slot = 0; slot <= 8; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.isEmpty() || stack.getItem() != Items.ENDER_PEARL) {
-                continue;
-            }
+            if (stack.isEmpty() || stack.getItem() != Items.ENDER_PEARL) continue;
             String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
             if (name != null && name.toLowerCase(Locale.ROOT).contains("spirit")) {
                 continue; // Spirit Pearls read as a plain ENDER_PEARL client-side but teleport differently
@@ -91,9 +85,7 @@ public final class EnderPearlHopper {
         return -1;
     }
 
-    public static boolean hasPearl() {
-        return hotbarSlot() >= 0;
-    }
+    public static boolean hasPearl() { return hotbarSlot() >= 0; }
 
     /** A solved throw: the yaw/pitch to use and where it actually lands. */
     public record Result(float yaw, float pitch, Vec3 landing, int ticks) {
@@ -118,9 +110,7 @@ public final class EnderPearlHopper {
         // Steep up to flat-ish, a quarter of a degree apart: an escape from a pit is a steep, short throw.
         for (float pitch = -85f; pitch <= 25f; pitch += 0.25f) {
             Sim sim = simulate(eye, yaw, pitch);
-            if (sim == null || !sim.onTop() || sim.landing().y < target.y - 0.6) {
-                continue;
-            }
+            if (sim == null || !sim.onTop() || sim.landing().y < target.y - 0.6) continue;
             double err = sim.landing().distanceTo(target);
             if (err < bestErr) {
                 bestErr = err;
@@ -134,9 +124,7 @@ public final class EnderPearlHopper {
     private static Sim simulate(Vec3 eye, float yaw, float pitch) {
         Minecraft client = Minecraft.getInstance();
         Level level = client.level;
-        if (level == null) {
-            return null;
-        }
+        if (level == null) return null;
         double yawRad = Math.toRadians(-yaw - 180.0);
         double pitchRad = Math.toRadians(-pitch);
         double horizontal = -Math.cos(pitchRad);
@@ -164,13 +152,9 @@ public final class EnderPearlHopper {
     public static boolean hop(Vec3 target, Runnable onDone) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || busy || hotbarSlot() < 0) {
-            return false;
-        }
+        if (player == null || busy || hotbarSlot() < 0) return false;
         Result result = solve(player.getEyePosition(), target);
-        if (result == null) {
-            return false;
-        }
+        if (result == null) return false;
         busy = true;
         waitTicks = 0;
         thrownAtTick = Long.MIN_VALUE;
@@ -185,9 +169,7 @@ public final class EnderPearlHopper {
 
     /** Call every client tick (cheat build only, see {@link PathfindingFeature}): no-op unless {@link #isBusy()}. */
     public static void tick(Minecraft client) {
-        if (!busy) {
-            return;
-        }
+        if (!busy) return;
         LocalPlayer player = client.player;
         if (player == null) {
             cancel();
@@ -221,9 +203,7 @@ public final class EnderPearlHopper {
                 finish();
                 return;
             }
-            if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.FAIRY_SOUL)) {
-                return;
-            }
+            if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.FAIRY_SOUL)) return;
             // START_CLIENT_TICK (PathfindingFeature.tick): the slot goes out now, ahead of the use below.
             com.killer560.hub.util.HotbarSelect.select(client, player, slot);
             // A block click unpaired on the server gets vanilla's block half first (util/RightClick).

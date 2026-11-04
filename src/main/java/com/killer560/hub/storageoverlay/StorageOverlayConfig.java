@@ -112,21 +112,13 @@ public final class StorageOverlayConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public PanelTheme getTheme() {
-        return theme;
-    }
+    public PanelTheme getTheme() { return theme; }
 
-    public void setTheme(PanelTheme theme) {
-        this.theme = theme == null ? PanelTheme.AMBER : theme;
-    }
+    public void setTheme(PanelTheme theme) { this.theme = theme == null ? PanelTheme.AMBER : theme; }
 
     /** What the overlay draws in: the menu theme picked under Menu Theme (killer560, 2026-10-15), or - on Default - the
      *  Overlay Theme's Amber / Dark / Light exactly as before. */
@@ -135,33 +127,19 @@ public final class StorageOverlayConfig {
         return menu == null ? theme.colours() : com.killer560.hub.gui.PanelColours.fromMenu(menu);
     }
 
-    public float getScale() {
-        return scale;
-    }
+    public float getScale() { return scale; }
 
-    public void setScale(float scale) {
-        this.scale = clampScale(scale);
-    }
+    public void setScale(float scale) { this.scale = clampScale(scale); }
 
-    private static float clampScale(float value) {
-        return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
-    }
+    private static float clampScale(float value) { return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value)); }
 
-    public int getColumns() {
-        return columns;
-    }
+    public int getColumns() { return columns; }
 
-    public void setColumns(int columns) {
-        this.columns = clampColumns(columns);
-    }
+    public void setColumns(int columns) { this.columns = clampColumns(columns); }
 
-    private static int clampColumns(int value) {
-        return Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, value));
-    }
+    private static int clampColumns(int value) { return Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, value)); }
 
-    public String getCustomName(String storageKey) {
-        return customNames.get(storageKey);
-    }
+    public String getCustomName(String storageKey) { return customNames.get(storageKey); }
 
     public void setCustomName(String storageKey, String name) {
         if (name == null || name.isBlank()) {
@@ -171,7 +149,4 @@ public final class StorageOverlayConfig {
         }
     }
 
-    public Map<String, String> getCustomNames() {
-        return customNames;
-    }
 }

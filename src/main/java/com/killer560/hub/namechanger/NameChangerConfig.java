@@ -48,9 +48,7 @@ public final class NameChangerConfig {
         public String display;
         public int color;
 
-        public Mapping(String real, String display) {
-            this(real, display, NameColor.NONE);
-        }
+        public Mapping(String real, String display) { this(real, display, NameColor.NONE); }
 
         public Mapping(String real, String display, int color) {
             this.real = real == null ? "" : real;
@@ -113,14 +111,10 @@ public final class NameChangerConfig {
         return instance;
     }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     private static JsonObject readObject(Path path) {
-        if (!Files.exists(path)) {
-            return null;
-        }
+        if (!Files.exists(path)) return null;
         try {
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
@@ -214,18 +208,14 @@ public final class NameChangerConfig {
                 } catch (Exception ignored) {
                     ownCharColors.add(NameColor.NONE);
                 }
-                if (ownCharColors.size() >= MAX_CHAR_COLORS) {
-                    break;
-                }
+                if (ownCharColors.size() >= MAX_CHAR_COLORS) break;
             }
         }
         JsonArray arr = ConfigJson.getArray(obj, "mappings");
         if (arr != null) {
             for (JsonElement el : arr) {
                 try {
-                    if (el == null || !el.isJsonObject()) {
-                        continue;
-                    }
+                    if (el == null || !el.isJsonObject()) continue;
                     JsonObject m = el.getAsJsonObject();
                     String display = ConfigJson.getString(m, "display", "");
                     int color = ConfigJson.getInt(m, "color", NameColor.NONE);
@@ -301,141 +291,109 @@ public final class NameChangerConfig {
     }
 
     /** The Name Changer toggle itself (own name + custom renames). */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** Whether any name replacement runs at all: Name Changer, or the Nickhider tab's Randomize Others, which
      *  has its own tab and works without the Name Changer toggle (killer560, 2026-10-04). */
-    public boolean isActive() {
-        return (enabled || randomizeOthers) && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isActive() { return (enabled || randomizeOthers) && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         version++;
     }
 
-    public boolean isOwnNameEnabled() {
-        return ownNameEnabled;
-    }
+    public boolean isOwnNameEnabled() { return ownNameEnabled; }
 
     public void setOwnNameEnabled(boolean ownNameEnabled) {
         this.ownNameEnabled = ownNameEnabled;
         version++;
     }
 
-    public String getOwnDisplayName() {
-        return ownDisplayName;
-    }
+    public String getOwnDisplayName() { return ownDisplayName; }
 
     public void setOwnDisplayName(String ownDisplayName) {
         this.ownDisplayName = ownDisplayName == null ? "" : ownDisplayName;
         version++;
     }
 
-    public int getOwnColor() {
-        return ownColor;
-    }
+    public int getOwnColor() { return ownColor; }
 
     public void setOwnColor(int argb) {
         this.ownColor = argb;
         version++;
     }
 
-    public boolean isOwnColorFadeEnabled() {
-        return ownColorFadeEnabled;
-    }
+    public boolean isOwnColorFadeEnabled() { return ownColorFadeEnabled; }
 
     public void setOwnColorFadeEnabled(boolean ownColorFadeEnabled) {
         this.ownColorFadeEnabled = ownColorFadeEnabled;
         version++;
     }
 
-    public boolean isOwnShadow() {
-        return ownShadow;
-    }
+    public boolean isOwnShadow() { return ownShadow; }
 
     public void setOwnShadow(boolean ownShadow) {
         this.ownShadow = ownShadow;
         version++;
     }
 
-    public boolean isOwnBold() {
-        return ownBold;
-    }
+    public boolean isOwnBold() { return ownBold; }
 
     public void setOwnBold(boolean ownBold) {
         this.ownBold = ownBold;
         version++;
     }
 
-    public int getOwnColorFadeTo() {
-        return ownColorFadeTo;
-    }
+    public int getOwnColorFadeTo() { return ownColorFadeTo; }
 
     public void setOwnColorFadeTo(int argb) {
         this.ownColorFadeTo = argb;
         version++;
     }
 
-    public NameAnimation.Mode getOwnAnimation() {
-        return ownAnimation;
-    }
+    public NameAnimation.Mode getOwnAnimation() { return ownAnimation; }
 
     public void setOwnAnimation(NameAnimation.Mode mode) {
         this.ownAnimation = mode == null ? NameAnimation.Mode.OFF : mode;
         version++;
     }
 
-    public double getOwnAnimationSpeed() {
-        return ownAnimationSpeed;
-    }
+    public double getOwnAnimationSpeed() { return ownAnimationSpeed; }
 
     public void setOwnAnimationSpeed(double speed) {
         this.ownAnimationSpeed = NameAnimation.clampSpeed(speed);
         version++;
     }
 
-    public NameRank.Preset getOwnRank() {
-        return ownRank;
-    }
+    public NameRank.Preset getOwnRank() { return ownRank; }
 
     public void setOwnRank(NameRank.Preset rank) {
         this.ownRank = rank == null ? NameRank.Preset.DEFAULT : rank;
         version++;
     }
 
-    public int getOwnRankColor() {
-        return ownRankColor;
-    }
+    public int getOwnRankColor() { return ownRankColor; }
 
     public void setOwnRankColor(int argb) {
         this.ownRankColor = argb;
         version++;
     }
 
-    public int getOwnRankPlusColor() {
-        return ownRankPlusColor;
-    }
+    public int getOwnRankPlusColor() { return ownRankPlusColor; }
 
     public void setOwnRankPlusColor(int argb) {
         this.ownRankPlusColor = argb;
         version++;
     }
 
-    public String getOwnRankCustomText() {
-        return ownRankCustomText;
-    }
+    public String getOwnRankCustomText() { return ownRankCustomText; }
 
     public void setOwnRankCustomText(String text) {
         this.ownRankCustomText = NameRank.cleanText(text);
         version++;
     }
 
-    public boolean isPerProfileNames() {
-        return perProfileNames;
-    }
+    public boolean isPerProfileNames() { return perProfileNames; }
 
     /** Switching keeps the names as they are on screen: the {@link #save()} that follows writes them to wherever they now
      *  live (the profile, or the shared file). */
@@ -444,36 +402,28 @@ public final class NameChangerConfig {
         version++;
     }
 
-    public boolean isMappingsEnabled() {
-        return mappingsEnabled;
-    }
+    public boolean isMappingsEnabled() { return mappingsEnabled; }
 
     public void setMappingsEnabled(boolean mappingsEnabled) {
         this.mappingsEnabled = mappingsEnabled;
         version++;
     }
 
-    public boolean isRandomizeOthers() {
-        return randomizeOthers;
-    }
+    public boolean isRandomizeOthers() { return randomizeOthers; }
 
     public void setRandomizeOthers(boolean randomizeOthers) {
         this.randomizeOthers = randomizeOthers;
         version++;
     }
 
-    public boolean isRandomizedName() {
-        return randomizedName;
-    }
+    public boolean isRandomizedName() { return randomizedName; }
 
     public void setRandomizedName(boolean randomizedName) {
         this.randomizedName = randomizedName;
         version++;
     }
 
-    public String getRandomBaseName() {
-        return randomBaseName;
-    }
+    public String getRandomBaseName() { return randomBaseName; }
 
     public void setRandomBaseName(String randomBaseName) {
         this.randomBaseName = randomBaseName == null ? "" : randomBaseName;
@@ -484,17 +434,13 @@ public final class NameChangerConfig {
 
     /** {@link NameColor#NONE} when letter {@code index} has no color of its own. */
     public int getOwnCharColor(int index) {
-        if (index < 0 || index >= ownCharColors.size()) {
-            return NameColor.NONE;
-        }
+        if (index < 0 || index >= ownCharColors.size()) return NameColor.NONE;
         Integer c = ownCharColors.get(index);
         return c == null ? NameColor.NONE : c;
     }
 
     public void setOwnCharColor(int index, int argb) {
-        if (index < 0 || index >= MAX_CHAR_COLORS) {
-            return;
-        }
+        if (index < 0 || index >= MAX_CHAR_COLORS) return;
         while (ownCharColors.size() <= index) {
             ownCharColors.add(NameColor.NONE);
         }
@@ -504,9 +450,7 @@ public final class NameChangerConfig {
 
     public boolean hasOwnCharColors() {
         for (Integer c : ownCharColors) {
-            if (c != null && c != NameColor.NONE) {
-                return true;
-            }
+            if (c != null && c != NameColor.NONE) return true;
         }
         return false;
     }
@@ -517,9 +461,7 @@ public final class NameChangerConfig {
     }
 
     /** Live list - call {@link #save()} after editing an entry in place. */
-    public List<Mapping> mappings() {
-        return mappings;
-    }
+    public List<Mapping> mappings() { return mappings; }
 
     /** Cosmetics tab's bottom "Reset" button: puts the own-name display text/color/fade back to their
      *  defaults, letter colors included. Deliberately leaves {@link #ownNameEnabled}/{@link #mappingsEnabled}/{@link

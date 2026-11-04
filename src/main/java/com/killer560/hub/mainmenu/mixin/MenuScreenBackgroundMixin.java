@@ -37,9 +37,7 @@ public abstract class MenuScreenBackgroundMixin {
 
     @Inject(method = "extractMenuBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIII)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedMenuTint(GuiGraphicsExtractor graphics, int x, int y, int width, int height, CallbackInfo ci) {
-        if (!MainMenuTheme.activeOnMenuBackground()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenuBackground()) return;
         try {
             MenuChrome.drawMenuTint(graphics, x, y, width, height);
             ci.cancel();

@@ -48,9 +48,7 @@ final class SplitLagClock {
     }
 
     static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         PerTickServerClock.register();
         PerTickServerClock.subscribe(SplitLagClock::onTick);
@@ -89,37 +87,12 @@ final class SplitLagClock {
         lastTickMs = now;
     }
 
-    /** Testkit (logic suite): one server tick seen at wall time {@code nowMs}, as {@link #onTick} would at a ping. */
-    static synchronized void tickAtForTest(long nowMs) {
-        pingClockSeen = true;
-        if (lastTickMs != 0L) {
-            accumulatedLagMs += (nowMs - lastTickMs) - NOMINAL_TICK_MS;
-            long rise = accumulatedLagMs - lowMs;
-            if (rise > STALL_MS) {
-                stallLagMs += rise;
-                lowMs = accumulatedLagMs;
-            } else if (rise < 0L) {
-                lowMs = accumulatedLagMs;
-            }
-        }
-        lastTickMs = nowMs;
-    }
-
     /** Testkit: start over (a fresh connection). */
-    static synchronized void resetForTest() {
-        reset();
-    }
-
-    /** Testkit: the lag {@link #accumulatedLagMs()} would read at wall time {@code nowMs}. */
-    static long lagAtForTest(long nowMs) {
-        return lagAt(nowMs);
-    }
+    static synchronized void resetForTest() { reset(); }
 
     /** Lag so far: committed per tick, plus the live stall since the last tick, so the lagless time (real minus lag) only ever climbs. Split
      *  Timers snapshots it at each split boundary and subtracts; never read as an absolute value. */
-    static long accumulatedLagMs() {
-        return lagAt(System.currentTimeMillis());
-    }
+    static long accumulatedLagMs() { return lagAt(System.currentTimeMillis()); }
 
     /** The stall lag counted so far, plus a stall still running at {@code nowMs} (the same rule as {@link #onTick}). */
     private static long lagAt(long nowMs) {
@@ -130,13 +103,9 @@ final class SplitLagClock {
     }
 
     /** A lag span as shown on the Lag row: under 150 ms (three ticks) is arrival jitter, not a stall (2026-10-18). */
-    static long shownLag(long ms) {
-        return ms < 150L ? 0L : ms;
-    }
+    static long shownLag(long ms) { return ms < 150L ? 0L : ms; }
 
     /** False until a per-tick pinging server has been trusted this connection. Split Timers hides every lag-derived
      *  number while this is false. */
-    static boolean isTrustworthy() {
-        return pingClockSeen;
-    }
+    static boolean isTrustworthy() { return pingClockSeen; }
 }

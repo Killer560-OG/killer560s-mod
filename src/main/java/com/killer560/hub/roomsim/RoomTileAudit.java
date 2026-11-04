@@ -121,9 +121,7 @@ public final class RoomTileAudit {
         }
 
         for (List<String> holders : byTile.values()) {
-            if (holders.size() < 2) {
-                continue;
-            }
+            if (holders.size() < 2) continue;
             TreeSet<String> names = new TreeSet<>();
             for (String h : holders) {
                 names.add(h.substring(0, h.indexOf(" tile(")));
@@ -233,7 +231,5 @@ public final class RoomTileAudit {
     }
 
     /** Tiles across, from a captured size - 33 is one tile, 65 two, 129 four. */
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 }

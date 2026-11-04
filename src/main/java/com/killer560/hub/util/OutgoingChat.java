@@ -56,19 +56,13 @@ public final class OutgoingChat {
         private boolean cancelled;
         private boolean retried;
 
-        private Slot(long createdMs) {
-            this.createdMs = createdMs;
-        }
+        private Slot(long createdMs) { this.createdMs = createdMs; }
 
         /** Fills a reserved place with a command (without its slash, e.g. {@code "pc hi"}). */
-        public void fillCommand(String command) {
-            fill(command, true);
-        }
+        public void fillCommand(String command) { fill(command, true); }
 
         /** Fills a reserved place with a plain chat line. */
-        public void fillChat(String text) {
-            fill(text, false);
-        }
+        public void fillChat(String text) { fill(text, false); }
 
         /** Gives the place up (the line turned out empty, or the translation failed and nothing is sent). */
         public void cancel() {
@@ -97,9 +91,7 @@ public final class OutgoingChat {
             drain();
         }
 
-        boolean ready() {
-            return line != null;
-        }
+        boolean ready() { return line != null; }
     }
 
     private static final ArrayDeque<Slot> QUEUE = new ArrayDeque<>();
@@ -111,9 +103,7 @@ public final class OutgoingChat {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("OutgoingChat", client -> drain()));
         ClientSendMessageEvents.CHAT.register(message -> noteOther());
@@ -131,12 +121,8 @@ public final class OutgoingChat {
      * line already waiting. @return false only when there is nobody to send it as (not connected).
      */
     public static boolean command(String command) {
-        if (command == null || command.isBlank()) {
-            return false;
-        }
-        if (!connected()) {
-            return false;
-        }
+        if (command == null || command.isBlank()) return false;
+        if (!connected()) return false;
         Slot s;
         synchronized (OutgoingChat.class) {
             s = new Slot(now());
@@ -158,14 +144,10 @@ public final class OutgoingChat {
     }
 
     /** Lines (and reserved places) still waiting. */
-    public static synchronized int pending() {
-        return QUEUE.size();
-    }
+    public static synchronized int pending() { return QUEUE.size(); }
 
     /** When the last line left (ms, {@link System#nanoTime} based), for the testkit and diagnostics. */
-    public static synchronized long lastSentMs() {
-        return lastSentMs;
-    }
+    public static synchronized long lastSentMs() { return lastSentMs; }
 
     /** Sends the head of the line if its turn has come. Called on every tick and after every change. */
     static void drain() {
@@ -200,18 +182,14 @@ public final class OutgoingChat {
                     }
                     return;
                 }
-                if (t - lastSentMs < MIN_GAP_MS) {
-                    return;
-                }
+                if (t - lastSentMs < MIN_GAP_MS) return;
                 send = QUEUE.pollFirst();
                 lastSentMs = t;
                 lastOurs = send;
                 break;
             }
         }
-        if (send == null) {
-            return;
-        }
+        if (send == null) return;
         if (send.command) {
             ServerCommands.toServer(send.line);
         } else if (client.player != null) {
@@ -227,14 +205,10 @@ public final class OutgoingChat {
     }
 
     private static void onServerLine(String text) {
-        if (!RATE_LIMIT_LINE.equals(text)) {
-            return;
-        }
+        if (!RATE_LIMIT_LINE.equals(text)) return;
         synchronized (OutgoingChat.class) {
             Slot ours = lastOurs;
-            if (ours == null || ours.retried || now() - lastSentMs > REJECT_WINDOW_MS) {
-                return;
-            }
+            if (ours == null || ours.retried || now() - lastSentMs > REJECT_WINDOW_MS) return;
             ours.retried = true;
             lastOurs = null;
             // Hypixel refused it: send it again first, a full gap from now.
@@ -249,7 +223,5 @@ public final class OutgoingChat {
         return client.player != null && client.player.connection != null;
     }
 
-    private static long now() {
-        return System.nanoTime() / 1_000_000L;
-    }
+    private static long now() { return System.nanoTime() / 1_000_000L; }
 }

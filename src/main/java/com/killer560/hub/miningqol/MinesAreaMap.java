@@ -71,9 +71,7 @@ public final class MinesAreaMap {
     static void tick() {
         IslandGraph g = testGraph;
         if (g == null) {
-            if (!MiningState.dwarvenMines()) {
-                return;
-            }
+            if (!MiningState.dwarvenMines()) return;
             g = GraphRepository.get(ISLAND);
         }
         Map3 m = map;
@@ -94,13 +92,9 @@ public final class MinesAreaMap {
     }
 
     /** Bumped whenever the map changes (the callers re-decide then). */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
-    public static boolean loaded() {
-        return map != null;
-    }
+    public static boolean loaded() { return map != null; }
 
     static Map3 build(IslandGraph g) {
         int n = g.nodes.length;
@@ -110,9 +104,7 @@ public final class MinesAreaMap {
         boolean[] seed = new boolean[n];
         for (int i = 0; i < n; i++) {
             IslandGraph.Node node = g.nodes[i];
-            if (!node.hasTag("area") || node.cleanName == null || node.cleanName.isBlank()) {
-                continue;
-            }
+            if (!node.hasTag("area") || node.cleanName == null || node.cleanName.isBlank()) continue;
             seed[i] = true;
             String name = node.cleanName;
             if (name.equalsIgnoreCase("no_area")) {
@@ -155,9 +147,7 @@ public final class MinesAreaMap {
         while (!pq.isEmpty()) {
             double[] e = pq.poll();
             int i = (int) e[1];
-            if (done[i]) {
-                continue;
-            }
+            if (done[i]) continue;
             done[i] = true;
             area[i] = (byte) e[2];
             for (double[] nb : adj.get(i)) {
@@ -193,9 +183,7 @@ public final class MinesAreaMap {
      */
     public static String areaAt(int x, int y, int z) {
         Map3 m = map;
-        if (m == null) {
-            return null;
-        }
+        if (m == null) return null;
         long sec = cellKey(x >> 4, y >> 4, z >> 4);
         byte[] cache = m.sections.get(sec);
         if (cache == null) {
@@ -230,13 +218,9 @@ public final class MinesAreaMap {
             for (int dy = -r; dy <= r; dy++) {
                 for (int dz = -r; dz <= r; dz++) {
                     int[] list = m.cells.get(cellKey(cx + dx, cy + dy, cz + dz));
-                    if (list == null) {
-                        continue;
-                    }
+                    if (list == null) continue;
                     for (int i : list) {
-                        if (skipNoArea && m.nodeArea[i] == 0) {
-                            continue;
-                        }
+                        if (skipNoArea && m.nodeArea[i] == 0) continue;
                         double[] q = m.xyz[i];
                         // Node positions are feet blocks; compare against the block's center.
                         double ex = q[0] + 0.5 - px, ey = q[1] + 0.5 - py, ez = q[2] + 0.5 - pz;
@@ -261,9 +245,7 @@ public final class MinesAreaMap {
     /** Indices of the graph nodes whose area is {@code area} (case and apostrophe form ignored); empty when none. */
     public static int[] nodesInArea(String area) {
         Map3 m = map;
-        if (m == null || area == null) {
-            return new int[0];
-        }
+        if (m == null || area == null) return new int[0];
         int want = -1;
         for (int i = 0; i < m.areas.length; i++) {
             if (MiningState.areaIs(m.areas[i], area)) {
@@ -271,9 +253,7 @@ public final class MinesAreaMap {
                 break;
             }
         }
-        if (want < 0) {
-            return new int[0];
-        }
+        if (want < 0) return new int[0];
         int count = 0;
         for (byte b : m.nodeArea) {
             if (b == want) {
@@ -290,7 +270,6 @@ public final class MinesAreaMap {
         return out;
     }
 
-    // ---- testkit hooks
 
     /** Uses this SkyHanni-format graph JSON instead of the downloaded one (null: back to the real graph). */
     public static void useGraphJsonForTest(String json) {
@@ -310,9 +289,4 @@ public final class MinesAreaMap {
         return m == null ? List.of() : List.of(m.areas);
     }
 
-    /** How many sections hold cached answers. */
-    public static int cachedSections() {
-        Map3 m = map;
-        return m == null ? 0 : m.sections.size();
-    }
 }

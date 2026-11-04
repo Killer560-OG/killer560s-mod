@@ -95,9 +95,7 @@ public abstract class MenuSliderMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/AbstractSliderButton;extractScrollingStringOverContents(Lnet/minecraft/client/gui/ActiveTextCollector;Lnet/minecraft/network/chat/Component;I)V"),
             index = 1, require = 0)
     private Component killer560smod$themedSliderLabel(Component message) {
-        if (!MenuWidgets.active()) {
-            return message;
-        }
+        if (!MenuWidgets.active()) return message;
         try {
             AbstractSliderButton self = (AbstractSliderButton) (Object) this;
             Component recolored = MainMenuTheme.recolorLabel(message, self.isActive(), self.isHoveredOrFocused());

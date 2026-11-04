@@ -104,22 +104,16 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
 
     /** True when the query is blank or any of its words is in the mob's name or id (case-insensitive). */
     static boolean matches(String id, String query) {
-        if (query == null || query.isBlank()) {
-            return true;
-        }
+        if (query == null || query.isBlank()) return true;
         String name = label(id).toLowerCase(Locale.ROOT);
         String wireId = id.replace('_', ' ');
         for (String word : query.trim().toLowerCase(Locale.ROOT).split("\\s+")) {
-            if (!word.isEmpty() && (name.contains(word) || wireId.contains(word))) {
-                return true;
-            }
+            if (!word.isEmpty() && (name.contains(word) || wireId.contains(word))) return true;
         }
         return false;
     }
 
-    private static String label(String id) {
-        return id.isEmpty() ? "Player" : MobSkins.displayName(id);
-    }
+    private static String label(String id) { return id.isEmpty() ? "Player" : MobSkins.displayName(id); }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -179,17 +173,11 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(parent);
-    }
+    public void onClose() { this.minecraft.setScreenAndShow(parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 }

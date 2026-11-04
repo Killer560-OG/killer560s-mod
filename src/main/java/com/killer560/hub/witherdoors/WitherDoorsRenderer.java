@@ -1,21 +1,15 @@
 package com.killer560.hub.witherdoors;
 
 import com.killer560.hub.util.WorldRenderUtils;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
-import java.util.Optional;
 import com.killer560.hub.compat.McRender;
 
 /**
@@ -36,9 +30,7 @@ final class WitherDoorsRenderer {
     /** Called from {@link WitherDoorsFeature#register()}, cheat build only, so the pipeline exists before
      *  the renderer precompiles its pipeline list - same reason every other ESP-style feature in this
      *  repo touches its holder at init instead of on first draw. */
-    static void init() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    static void init() { RenderType unused = ThroughWalls.LINES; }
 
     private static final class ThroughWalls {
         static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
@@ -58,9 +50,7 @@ final class WitherDoorsRenderer {
      */
     static void draw(LevelRenderContext context, List<WitherDoorsFeature.DoorBox> boxes, boolean throughWalls,
                      WitherDoorsConfig.Style style, float fillAlpha) {
-        if (boxes.isEmpty()) {
-            return;
-        }
+        if (boxes.isEmpty()) return;
         if (style.fills()) {
             // Fresh arrays every frame: on 26.2 the callback runs later in the frame (renderFilledBoxes' contract).
             int n = boxes.size();
@@ -76,9 +66,7 @@ final class WitherDoorsRenderer {
             }
             WorldRenderUtils.renderFilledBoxes(context, fillBoxes, rgba, n, 1f, throughWalls);
         }
-        if (!style.outlines()) {
-            return;
-        }
+        if (!style.outlines()) return;
         if (!throughWalls) {
             for (WitherDoorsFeature.DoorBox box : boxes) {
                 WorldRenderUtils.renderOutlineBox(context, box.box(), box.r(), box.g(), box.b(), 1f, 2f);
@@ -102,9 +90,7 @@ final class WitherDoorsRenderer {
      */
     static void drawLabels(LevelRenderContext context, List<WitherDoorsFeature.DoorLabel> labels) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null || labels.isEmpty()) {
-            return;
-        }
+        if (poseStack == null || labels.isEmpty()) return;
         net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         WitherDoorsFeature.DoorLabel[] all = labels.toArray(new WitherDoorsFeature.DoorLabel[0]);

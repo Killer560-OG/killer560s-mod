@@ -104,26 +104,18 @@ final class InfoReplies {
             return "TPS: Unknown (server isn't ping-driven right now)";
         }
         long spanMs = TICK_TIMES.peekLast() - TICK_TIMES.peekFirst();
-        if (spanMs <= 0) {
-            return "TPS: Unknown";
-        }
+        if (spanMs <= 0) return "TPS: Unknown";
         double tps = Math.min(20.0, (TICK_TIMES.size() - 1) * 1000.0 / spanMs);
         return String.format(Locale.US, "TPS: %.1f", tps);
     }
 
     private static String locationReply(Minecraft client) {
-        if (client.getConnection() == null) {
-            return null;
-        }
+        if (client.getConnection() == null) return null;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher m = AREA_PATTERN.matcher(plain.trim());
-            if (m.matches()) {
-                return "Location: " + m.group(1).trim();
-            }
+            if (m.matches()) return "Location: " + m.group(1).trim();
         }
         return null;
     }

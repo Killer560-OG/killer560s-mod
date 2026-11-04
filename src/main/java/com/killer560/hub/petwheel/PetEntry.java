@@ -30,9 +30,7 @@ public record PetEntry(String uuid, String name, String tier, int level, String 
 
     /** A short label for buttons/rows: {@code "[Lvl 100] Golden Dragon"}, or just the name if the level or
      *  tier couldn't be read that scan. */
-    public String shortLabel() {
-        return level >= 0 ? "[Lvl " + level + "] " + name : name;
-    }
+    public String shortLabel() { return level >= 0 ? "[Lvl " + level + "] " + name : name; }
 
     /** Merges freshly-scanned fields onto this entry: whichever field the fresh read actually has wins,
      *  otherwise the previous value is kept - a single frame's item can briefly lack lore/petInfo while

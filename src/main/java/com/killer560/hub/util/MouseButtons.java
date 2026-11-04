@@ -20,9 +20,7 @@ public final class MouseButtons {
 
     /** A press ({@code action} 1) or release (0) of stored button {@code button}. Render thread. */
     public static void onButton(int button, int action) {
-        if (button < 0 || button >= DOWN.length) {
-            return;
-        }
+        if (button < 0 || button >= DOWN.length) return;
         if (action == 1) {
             DOWN[button] = true;
         } else if (action == 0) {
@@ -32,9 +30,7 @@ public final class MouseButtons {
 
     /** Whether stored button {@code button} went down and has not come up (false while the window is unfocused). */
     public static boolean isDown(int button) {
-        if (button < 0 || button >= DOWN.length) {
-            return false;
-        }
+        if (button < 0 || button >= DOWN.length) return false;
         if (!Minecraft.getInstance().isWindowActive()) {
             java.util.Arrays.fill(DOWN, false);
             return false;

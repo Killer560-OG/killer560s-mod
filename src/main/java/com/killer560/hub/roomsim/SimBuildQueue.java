@@ -65,6 +65,23 @@ public final class SimBuildQueue {
         long doneWork();
     }
 
+    /** A {@link Job} that counts positions visited against a total fixed when it is built. */
+    public abstract static class CountedJob implements Job {
+
+        protected boolean done;
+        protected long visited;
+        protected long total;
+
+        @Override
+        public boolean isDone() { return done; }
+
+        @Override
+        public long totalWork() { return total; }
+
+        @Override
+        public long doneWork() { return visited; }
+    }
+
     private static final Deque<Job> JOBS = new ArrayDeque<>();
 
     /**
@@ -83,9 +100,7 @@ public final class SimBuildQueue {
         // A paste walks z fastest, so nearly every call names the chunk the last one did: skip re-adding it (a boxed
         // Long and a hash lookup per block placed, ~60 MB per F7 build; fps-sim-1015). Safe across a clear(): an
         // emptied set always takes the add, and every add moves lastTouched on.
-        if (key == lastTouched && !touchedChunks.isEmpty()) {
-            return;
-        }
+        if (key == lastTouched && !touchedChunks.isEmpty()) return;
         lastTouched = key;
         touchedChunks.add(key);
     }
@@ -105,27 +120,18 @@ public final class SimBuildQueue {
      * (97-sim-roomspawn). Anything that writes after the queue finishes - secrets, doors, secret items picked up
      * and put back - now adds to the box instead of replacing it.
      */
-    public static synchronized int[] touchedBounds() {
-        return union(boundsOf(touchedChunks), lastBuiltBounds);
-    }
+    public static synchronized int[] touchedBounds() { return union(boundsOf(touchedChunks), lastBuiltBounds); }
 
     private static int[] union(int[] a, int[] b) {
-        if (a == null) {
-            return b;
-        }
-        if (b == null) {
-            return a;
-        }
-        return new int[]{Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])};
+        if (a == null) return b;
+        return b == null ? a : new int[]{Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])};
     }
 
     /** What the last finished build covered, so the next one knows what to clear. */
     private static int[] lastBuiltBounds;
 
     private static int[] boundsOf(Set<Long> chunks) {
-        if (chunks.isEmpty()) {
-            return null;
-        }
+        if (chunks.isEmpty()) return null;
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -167,19 +173,13 @@ public final class SimBuildQueue {
         }
 
         @Override
-        public boolean isDone() {
-            return index >= chunks.size();
-        }
+        public boolean isDone() { return index >= chunks.size(); }
 
         @Override
-        public long totalWork() {
-            return chunks.size();
-        }
+        public long totalWork() { return chunks.size(); }
 
         @Override
-        public long doneWork() {
-            return index;
-        }
+        public long doneWork() { return index; }
 
         @Override
         public int step(int budget) {
@@ -191,9 +191,7 @@ public final class SimBuildQueue {
                 int cz = (int) k;
                 var chunk = level.getChunkSource().getChunkNow(cx, cz);
                 did++;
-                if (chunk == null) {
-                    continue;
-                }
+                if (chunk == null) continue;
                 var lights = level.getChunkSource().getLightEngine();
                 var chunkPos = new net.minecraft.world.level.ChunkPos(cx, cz);
                 var sections = chunk.getSections();
@@ -244,14 +242,10 @@ public final class SimBuildQueue {
     private SimBuildQueue() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimBuildQueue::tick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimBuildQueue::tick); }
 
     /** Whether anything is still being placed. */
-    public static synchronized boolean isBusy() {
-        return !JOBS.isEmpty();
-    }
+    public static synchronized boolean isBusy() { return !JOBS.isEmpty(); }
 
     /**
      * How many builds have RUN TO COMPLETION since the game started.
@@ -266,9 +260,7 @@ public final class SimBuildQueue {
      * <p>{@code progress()} cannot serve here: {@code finishedWork} is zeroed the moment the queue empties, so
      * it reads 0 before a build and 0 after one.
      */
-    public static synchronized long buildsFinished() {
-        return buildsFinished;
-    }
+    public static synchronized long buildsFinished() { return buildsFinished; }
 
     private static long buildsFinished;
 
@@ -372,7 +364,7 @@ public final class SimBuildQueue {
     }
 
     /** Fills the air in a box's outer ring with an obvious block. */
-    private static final class SealJob implements Job {
+    private static final class SealJob extends CountedJob {
 
         private final ServerLevel level;
         private final int minX;
@@ -388,9 +380,6 @@ public final class SimBuildQueue {
         private int x;
         private int z;
         private int y = SimAltitude.minWorldY();
-        private boolean done;
-        private long visited;
-        private final long total;
 
         SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
             this.skip = skip;
@@ -403,21 +392,6 @@ public final class SimBuildQueue {
             this.maxZ = maxZ;
             this.x = minX;
             this.z = minZ;
-        }
-
-        @Override
-        public boolean isDone() {
-            return done;
-        }
-
-        @Override
-        public long totalWork() {
-            return total;
-        }
-
-        @Override
-        public long doneWork() {
-            return visited;
         }
 
         @Override
@@ -484,7 +458,7 @@ public final class SimBuildQueue {
      * exactly this reason in September and the clear was left behind, so a wipe cost far more per block than
      * the floor it was wiping.
      */
-    private static final class ClearJob implements Job {
+    private static final class ClearJob extends CountedJob {
 
         private final ServerLevel level;
         private final int minX;
@@ -508,9 +482,6 @@ public final class SimBuildQueue {
         private int chunkIndex;
         private int sectionIndex;
         private net.minecraft.world.level.chunk.LevelChunk chunk;
-        private boolean done;
-        private long visited;
-        private final long total;
 
         ClearJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
             this.level = level;
@@ -527,21 +498,6 @@ public final class SimBuildQueue {
                     chunks.add((((long) cx) << 32) ^ (cz & 0xffffffffL));
                 }
             }
-        }
-
-        @Override
-        public boolean isDone() {
-            return done;
-        }
-
-        @Override
-        public long totalWork() {
-            return total;
-        }
-
-        @Override
-        public long doneWork() {
-            return visited;
         }
 
         @Override
@@ -593,9 +549,7 @@ public final class SimBuildQueue {
                     for (int x = x0; x <= x1; x++) {
                         for (int z = z0; z <= z1; z++) {
                             var old = section.getBlockState(x & 15, y & 15, z & 15);
-                            if (old.isAir()) {
-                                continue;
-                            }
+                            if (old.isAir()) continue;
                             section.setBlockState(x & 15, y & 15, z & 15, air, false);
                             // Take the old block entity with it, for the same reason the paste does: a chest
                             // paved over behind Level.setBlock's back leaves a ChestBlockEntity attached to a
@@ -622,9 +576,7 @@ public final class SimBuildQueue {
      * supersedes the first, and running the old completion afterward would take the loading screen down for a
      * build that is no longer the one in progress.
      */
-    public static synchronized void whenDone(Runnable action) {
-        onDone = action;
-    }
+    public static synchronized void whenDone(Runnable action) { onDone = action; }
 
     /** Throws everything away - for leaving the sim mid-build. */
     public static synchronized void clear() {
@@ -644,9 +596,7 @@ public final class SimBuildQueue {
     private static void tick(net.minecraft.server.MinecraftServer server) {
         Runnable done = null;
         synchronized (SimBuildQueue.class) {
-            if (JOBS.isEmpty()) {
-                return;
-            }
+            if (JOBS.isEmpty()) return;
             int budget = BLOCKS_PER_TICK;
             while (budget > 0 && !JOBS.isEmpty()) {
                 Job job = JOBS.peek();

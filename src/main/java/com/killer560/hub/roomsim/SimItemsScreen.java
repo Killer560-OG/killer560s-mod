@@ -5,7 +5,6 @@ import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.hud.GuiRects;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -35,17 +34,13 @@ public final class SimItemsScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "sim";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     /** Nine across, the width of a hotbar - the row he will be filling. */
     private static final int COLUMNS = 9;
@@ -121,14 +116,10 @@ public final class SimItemsScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -180,20 +171,14 @@ public final class SimItemsScreen extends Screen implements MenuThemedScreen {
 
     /** Which cell a point is over, or -1. */
     private int cellAt(double mx, double my) {
-        if (mx < gridX || my < gridY) {
-            return -1;
-        }
+        if (mx < gridX || my < gridY) return -1;
         int col = (int) ((mx - gridX) / (double) (CELL + PAD));
         int row = (int) ((my - gridY) / (double) (CELL + PAD));
-        if (col < 0 || col >= COLUMNS || row < 0) {
-            return -1;
-        }
+        if (col < 0 || col >= COLUMNS || row < 0) return -1;
         // Reject the gaps between cells, so a click on the seam does nothing rather than the wrong thing.
         double inX = (mx - gridX) % (CELL + PAD);
         double inY = (my - gridY) % (CELL + PAD);
-        if (inX > CELL || inY > CELL) {
-            return -1;
-        }
+        if (inX > CELL || inY > CELL) return -1;
         int idx = row * COLUMNS + col;
         return idx < entries.size() ? idx : -1;
     }

@@ -45,13 +45,9 @@ public final class LockpickHelper {
 
     /** A particle packet (client thread). Never cancels it. */
     public static void onParticle(ClientboundLevelParticlesPacket packet) {
-        if (TreasureChests.chests().isEmpty() || !PowderMiningConfig.getInstance().isLockpickHelper()) {
-            return;
-        }
+        if (TreasureChests.chests().isEmpty() || !PowderMiningConfig.getInstance().isLockpickHelper()) return;
         ParticleOptions p = McPackets.particle(packet);
-        if (p == null || p.getType() != ParticleTypes.CRIT) {
-            return;
-        }
+        if (p == null || p.getType() != ParticleTypes.CRIT) return;
         double x = McPackets.particleX(packet), y = McPackets.particleY(packet), z = McPackets.particleZ(packet);
         for (BlockPos c : TreasureChests.chests().keySet()) {
             double dx = x - (c.getX() + 0.5), dy = y - (c.getY() + 0.4375), dz = z - (c.getZ() + 0.5);
@@ -70,9 +66,7 @@ public final class LockpickHelper {
     private static void recompute() {
         long now = System.currentTimeMillis();
         Sample last = SAMPLES.peekLast();
-        if (last == null) {
-            return;
-        }
+        if (last == null) return;
         double sx = 0, sy = 0, sz = 0;
         int n = 0;
         for (Iterator<Sample> it = SAMPLES.iterator(); it.hasNext(); ) {
@@ -88,9 +82,7 @@ public final class LockpickHelper {
                 n++;
             }
         }
-        if (n == 0) {
-            return;
-        }
+        if (n == 0) return;
         BlockPos c = last.chest();
         Vec3 avg = new Vec3(sx / n, sy / n, sz / n);
         double dx = avg.x - (c.getX() + 0.5), dy = avg.y - (c.getY() + 0.4375), dz = avg.z - (c.getZ() + 0.5);
@@ -126,9 +118,7 @@ public final class LockpickHelper {
         BlockPos c = spotChest;
         Vec3 s = spot;
         Direction f = face;
-        if (c == null || s == null || f == null || !PowderMiningConfig.getInstance().isLockpickHelper()) {
-            return;
-        }
+        if (c == null || s == null || f == null || !PowderMiningConfig.getInstance().isLockpickHelper()) return;
         float[] k = WorldRenderUtils.argbToFloats(PowderMiningConfig.getInstance().getLockpickColor());
         WorldRenderUtils.renderFilledFace(context, TreasureChests.box(c).inflate(0.01), f, k[0], k[1], k[2], 0.35f);
         AABB dot = new AABB(s.x - 0.07, s.y - 0.07, s.z - 0.07, s.x + 0.07, s.y + 0.07, s.z + 0.07);
@@ -136,24 +126,9 @@ public final class LockpickHelper {
         frames++;
     }
 
-    // ---- testkit hooks
 
-    public static int samples() {
-        return samples;
-    }
+    public static int samples() { return samples; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    /** The face to click ("EAST", ...), or null with no spot. */
-    public static String faceNow() {
-        Direction f = face;
-        return f == null ? null : f.name();
-    }
-
-    public static double[] spotNow() {
-        Vec3 s = spot;
-        return s == null ? null : new double[]{s.x, s.y, s.z};
-    }
 }

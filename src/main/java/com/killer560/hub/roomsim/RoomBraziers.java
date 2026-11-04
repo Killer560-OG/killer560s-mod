@@ -49,15 +49,11 @@ public final class RoomBraziers {
     }
 
     /** How many rooms the last library load lit braziers in. */
-    public static int lastRooms() {
-        return lastRooms;
-    }
+    public static int lastRooms() { return lastRooms; }
 
     /** Lights one room's unlit braziers in place; returns how many. */
     static int light(RoomLibrary.Room room) {
-        if (room.blockCount() == 0 || room.palette.isEmpty()) {
-            return 0;
-        }
+        if (room.blockCount() == 0 || room.palette.isEmpty()) return 0;
         boolean[] hopper = new boolean[room.palette.size()];
         boolean[] air = new boolean[room.palette.size()];
         boolean any = false;
@@ -68,9 +64,7 @@ public final class RoomBraziers {
             air[i] = id.equals("minecraft:air") || id.equals("minecraft:cave_air") || id.equals("minecraft:void_air");
             any |= hopper[i];
         }
-        if (!any) {
-            return 0;
-        }
+        if (!any) return 0;
         int margin = room.margin;
         short fire = -1;
         int lit = 0;
@@ -78,14 +72,10 @@ public final class RoomBraziers {
             for (int z = margin + 1; z < room.sizeZ - 1 - margin; z++) {
                 for (int x = margin + 1; x < room.sizeX - 1 - margin; x++) {
                     short here = room.blockAt(room.index(x, y, z));
-                    if (here < 0 || here >= hopper.length || !hopper[here]) {
-                        continue;
-                    }
+                    if (here < 0 || here >= hopper.length || !hopper[here]) continue;
                     int above = room.index(x, y + 1, z);
                     short up = room.blockAt(above);
-                    if (up < 0 || up >= air.length || !air[up]) {
-                        continue;
-                    }
+                    if (up < 0 || up >= air.length || !air[up]) continue;
                     if (fire < 0) {
                         fire = room.paletteFor(FIRE);
                     }

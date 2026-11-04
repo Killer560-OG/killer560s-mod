@@ -57,9 +57,7 @@ public final class MainMenuSettings {
                     btn.setMessage(vanillaText());
                 }).bounds(x, y, w, 20).build());
         y += 24;
-        if (cfg.getStyle() == MainMenuThemeConfig.Style.MATCH) {
-            return y;
-        }
+        if (cfg.getStyle() == MainMenuThemeConfig.Style.MATCH) return y;
         widgets.add(SettingsButtonWidget.cycling(themeText(), (btn, dir) -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
                     c.setTheme(SettingsButtonWidget.step(c.getTheme(), dir));
@@ -67,9 +65,7 @@ public final class MainMenuSettings {
                     btn.setMessage(themeText());
                 }).bounds(x, y, w, 20).build());
         y += 24;
-        if (cfg.getStyle() != MainMenuThemeConfig.Style.CUSTOM) {
-            return y;
-        }
+        if (cfg.getStyle() != MainMenuThemeConfig.Style.CUSTOM) return y;
         widgets.add(SettingsButtonWidget.cycling(sceneText(), (btn, dir) -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
                     c.setScene(SettingsButtonWidget.step(c.getScene(), dir));

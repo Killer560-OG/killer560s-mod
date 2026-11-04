@@ -35,15 +35,11 @@ public final class PathWorldRenderer {
     public static void render(LevelRenderContext context) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.player == null || client.level == null) {
-            return;
-        }
+        if (!cfg.isEnabled() || client.player == null || client.level == null) return;
         if (cfg.isSoulWaypoints() && cfg.isFairySouls()) {
             renderSouls(context, cfg);
         }
-        if (!NavigationManager.isActive()) {
-            return;
-        }
+        if (!NavigationManager.isActive()) return;
         NavigationManager.Target target = NavigationManager.target();
         List<Vec3> path = NavigationManager.path();
         float[] pc = WorldRenderUtils.argbToFloats(cfg.getPathColor());
@@ -87,18 +83,14 @@ public final class PathWorldRenderer {
     private static void renderSouls(LevelRenderContext context, PathfindingConfig cfg) {
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (graph == null) {
-            return;
-        }
+        if (graph == null) return;
         Vec3 cam = McRender.cameraPos(context);
         float[] c = WorldRenderUtils.argbToFloats(cfg.getTargetColor());
         List<IslandGraph.Node> unfound = unfoundSouls(graph, island, ProfileTracker.key());
         for (int i = 0; i < unfound.size(); i++) {
             IslandGraph.Node soul = unfound.get(i);
             double distSq = cam.distanceToSqr(soul.x, soul.y, soul.z);
-            if (distSq > 96 * 96) {
-                continue;
-            }
+            if (distSq > 96 * 96) continue;
             AABB box = new AABB(soul.x, soul.y, soul.z, soul.x + 1, soul.y + 1, soul.z + 1);
             WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 0.75f, 2f);
         }
@@ -147,9 +139,7 @@ public final class PathWorldRenderer {
 
     /** Catmull-Rom subdivision, same smoothing SkyHanni's PathRenderer uses. */
     private static List<Vec3> subdivide(List<Vec3> points) {
-        if (points.size() < 2) {
-            return points;
-        }
+        if (points.size() < 2) return points;
         List<Vec3> out = new ArrayList<>(points.size() * 4);
         out.add(points.get(0));
         for (int i = 0; i < points.size() - 1; i++) {
@@ -164,9 +154,7 @@ public final class PathWorldRenderer {
             // parseDouble accepts "Infinity", which made steps negative or enormous. A segment longer than a
             // few hundred blocks does not need more detail than this to look smooth.
             double segment = p1.distanceTo(p2);
-            if (!Double.isFinite(segment)) {
-                continue;
-            }
+            if (!Double.isFinite(segment)) continue;
             int steps = (int) Math.max(1, Math.min(MAX_SUBDIVISIONS, segment / SUBDIVISION_STEP));
             for (int step = 1; step <= steps; step++) {
                 out.add(catmullRom(p0, p1, p2, p3, (double) step / steps));
@@ -202,9 +190,7 @@ public final class PathWorldRenderer {
     private static void renderText(LevelRenderContext context, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null || (line1 == null && line2 == null)) {
-            return;
-        }
+        if (poseStack == null || (line1 == null && line2 == null)) return;
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));

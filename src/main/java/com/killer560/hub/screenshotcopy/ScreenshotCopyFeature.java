@@ -3,7 +3,6 @@ package com.killer560.hub.screenshotcopy;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -42,9 +41,7 @@ public final class ScreenshotCopyFeature {
      *  itself confirms a screenshot finished writing - runs on vanilla's own IO worker thread, not the
      *  render thread, but everything done here (file IO, spawning a process) is safe off-thread. */
     public static void onVanillaScreenshotSaved() {
-        if (!ScreenshotCopyConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!ScreenshotCopyConfig.getInstance().isEnabled()) return;
         // own thread: PowerShell takes a second or more, and this is one of vanilla's shared IO pool threads
         Thread worker = new Thread(ScreenshotCopyFeature::copyNewestScreenshotToClipboard, "killer560smod-screenshotcopy");
         worker.setDaemon(true);
@@ -106,9 +103,7 @@ public final class ScreenshotCopyFeature {
     }
 
     private static Optional<Path> findNewestPng(Path dir) {
-        if (!Files.isDirectory(dir)) {
-            return Optional.empty();
-        }
+        if (!Files.isDirectory(dir)) return Optional.empty();
         try (Stream<Path> files = Files.list(dir)) {
             return files.filter(p -> p.getFileName().toString().endsWith(".png"))
                     .max(Comparator.comparingLong(ScreenshotCopyFeature::lastModified));

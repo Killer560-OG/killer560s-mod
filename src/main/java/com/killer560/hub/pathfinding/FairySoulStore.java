@@ -53,9 +53,7 @@ public final class FairySoulStore {
         public int menuTotal = -1;
         public long menuAt = 0L;
 
-        public boolean menuComplete() {
-            return menuTotal > 0 && menuFound >= menuTotal;
-        }
+        public boolean menuComplete() { return menuTotal > 0 && menuFound >= menuTotal; }
     }
 
     private static final Map<String, Map<String, IslandRecord>> PROFILES = new LinkedHashMap<>();
@@ -70,9 +68,7 @@ public final class FairySoulStore {
      *  holding an answer from an older version knows to ask again (PathWorldRenderer's unfound-soul list). */
     private static volatile int version;
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     public static synchronized void load() {
         version++;
@@ -80,20 +76,14 @@ public final class FairySoulStore {
         PROFILE_NAMES.clear();
         PROFILE_IDS.clear();
         loaded = true;
-        if (!Files.exists(FILE)) {
-            return;
-        }
+        if (!Files.exists(FILE)) return;
         try {
             JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
             JsonObject profiles = ConfigJson.getObject(root, "profiles");
-            if (profiles == null) {
-                return;
-            }
+            if (profiles == null) return;
             for (String key : profiles.keySet()) {
                 JsonObject profile = ConfigJson.getObject(profiles, key);
-                if (profile == null) {
-                    continue;
-                }
+                if (profile == null) continue;
                 PROFILE_NAMES.put(key, ConfigJson.getString(profile, "name", ""));
                 PROFILE_IDS.put(key, ConfigJson.getString(profile, "profileId", ""));
                 Map<String, IslandRecord> islands = new LinkedHashMap<>();
@@ -101,9 +91,7 @@ public final class FairySoulStore {
                 if (islandsJson != null) {
                     for (String island : islandsJson.keySet()) {
                         JsonObject rec = ConfigJson.getObject(islandsJson, island);
-                        if (rec == null) {
-                            continue;
-                        }
+                        if (rec == null) continue;
                         IslandRecord record = new IslandRecord();
                         record.menuFound = ConfigJson.getInt(rec, "menuFound", -1);
                         record.menuTotal = ConfigJson.getInt(rec, "menuTotal", -1);
@@ -201,17 +189,11 @@ public final class FairySoulStore {
     public static synchronized boolean isFound(String profileKey, String island, double x, double y, double z) {
         Map<String, IslandRecord> islands = profile(profileKey);
         IslandRecord group = islands.get(IslandDetector.soulMenuGroup(island));
-        if (group != null && group.menuComplete()) {
-            return true;
-        }
+        if (group != null && group.menuComplete()) return true;
         IslandRecord record = islands.get(island);
-        if (record == null) {
-            return false;
-        }
+        if (record == null) return false;
         for (int[] pos : record.found) {
-            if (near(pos, x, y, z)) {
-                return true;
-            }
+            if (near(pos, x, y, z)) return true;
         }
         return false;
     }
@@ -227,18 +209,14 @@ public final class FairySoulStore {
     public static synchronized boolean markFound(String profileKey, String island, double x, double y, double z) {
         IslandRecord record = record(profileKey, island);
         int[] pos = {(int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z)};
-        if (!addIfNew(record, pos)) {
-            return false;
-        }
+        if (!addIfNew(record, pos)) return false;
         save();
         return true;
     }
 
     private static boolean addIfNew(IslandRecord record, int[] pos) {
         for (int[] existing : record.found) {
-            if (near(existing, pos[0], pos[1], pos[2])) {
-                return false;
-            }
+            if (near(existing, pos[0], pos[1], pos[2])) return false;
         }
         record.found.add(pos);
         return true;
@@ -304,13 +282,9 @@ public final class FairySoulStore {
     }
 
     private static int[] parsePos(String s) {
-        if (s == null) {
-            return null;
-        }
+        if (s == null) return null;
         String[] parts = s.split(":");
-        if (parts.length != 3) {
-            return null;
-        }
+        if (parts.length != 3) return null;
         try {
             return new int[]{Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()),
                     Integer.parseInt(parts[2].trim())};

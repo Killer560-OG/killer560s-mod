@@ -55,9 +55,7 @@ public final class FeatureBits {
     }
 
     /** A gated setting changed (or a config was reloaded): the bits are recomputed before the next gated call. */
-    public static void changed() {
-        dirty = true;
-    }
+    public static void changed() { dirty = true; }
 
     /** Whether the listener behind bit {@code id} may do anything. One field read and one array read when clean. */
     public static boolean on(int id) {
@@ -70,9 +68,7 @@ public final class FeatureBits {
     /** Called by a wrapper that skipped bit {@code id}: every {@link #RECHECK_EVERY}th skip asks the gate again. */
     static void skipped(int id) {
         int[] s = skips;
-        if (++s[id] < RECHECK_EVERY) {
-            return;
-        }
+        if (++s[id] < RECHECK_EVERY) return;
         s[id] = 0;
         if (evaluate(id)) {
             LOGGER.error("[FeatureBits] '{}' was switched on without FeatureBits.changed() - its listener was skipped"
@@ -108,7 +104,5 @@ public final class FeatureBits {
     }
 
     /** Testkit: how many bits are registered. */
-    public static int count() {
-        return gates.length;
-    }
+    public static int count() { return gates.length; }
 }

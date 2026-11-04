@@ -3,7 +3,6 @@ package com.killer560.hub.roomsim;
 import com.killer560.hub.livemap.DungeonLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
@@ -95,9 +94,7 @@ public final class RoomPlacer {
         }
 
         /** How many blocks were dropped for being outside the world. Zero on a healthy build. */
-        int outsideWorld() {
-            return outsideWorld;
-        }
+        int outsideWorld() { return outsideWorld; }
 
         /** @return whether the block was written */
         boolean set(int x, int y, int z, BlockState state) {
@@ -204,7 +201,7 @@ public final class RoomPlacer {
      * a hole in whatever is already there. A palette entry that no longer resolves to a real block (renamed since
      * capture) is skipped too, with one warning for that string rather than one per block.
      */
-    public static final class PasteJob implements SimBuildQueue.Job {
+    public static final class PasteJob extends SimBuildQueue.CountedJob {
 
         private final ServerLevel level;
         private final RoomLibrary.Room room;
@@ -216,9 +213,6 @@ public final class RoomPlacer {
         private int y;
         private int x;
         private int z;
-        private boolean done;
-        private long visited;
-        private final long total;
         private final SectionWriter writer;
         /**
          * Where the "never captured" marker goes for THIS room.
@@ -230,9 +224,7 @@ public final class RoomPlacer {
         private final int markerY;
 
         public PasteJob(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-            if (room == null) {
-                throw new IllegalArgumentException("room is null");
-            }
+            if (room == null) throw new IllegalArgumentException("room is null");
             this.level = level;
             this.room = room;
             this.rotation = rotation;
@@ -288,21 +280,6 @@ public final class RoomPlacer {
                 resolvedStates[paletteIdx] = true;
             }
             return rotatedStates[paletteIdx];
-        }
-
-        @Override
-        public boolean isDone() {
-            return done;
-        }
-
-        @Override
-        public long totalWork() {
-            return total;
-        }
-
-        @Override
-        public long doneWork() {
-            return visited;
         }
 
         /**
@@ -388,9 +365,7 @@ public final class RoomPlacer {
     static java.util.Map<Long, BlockState> doorOverrides(RoomLibrary.Room room, int rotation) {
         java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
         java.util.Map<Long, BlockState> deuces = DeucesChestDoorway.overrides(room);
-        if (deuces.isEmpty()) {
-            return pieces;
-        }
+        if (deuces.isEmpty()) return pieces;
         java.util.Map<Long, BlockState> out = new java.util.HashMap<>(pieces);
         out.putAll(deuces);
         return out;

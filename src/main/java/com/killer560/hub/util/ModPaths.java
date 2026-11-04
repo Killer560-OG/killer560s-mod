@@ -89,9 +89,7 @@ public final class ModPaths {
     );
 
     /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */
-    public static boolean isRetired(String name) {
-        return name != null && RETIRED_NAMES.contains(name);
-    }
+    public static boolean isRetired(String name) { return name != null && RETIRED_NAMES.contains(name); }
 
     /**
      * Name (with {@link #PREFIX} stripped) -> folder under {@link #root()}. Matched by PREFIX, longest key wins, so
@@ -104,7 +102,6 @@ public final class ModPaths {
     private static Map<String, String> buildTable() {
         Map<String, String> t = new LinkedHashMap<>();
 
-        // ---- dungeons --------------------------------------------------------------------------------------------
         t.put("ap3", "dungeons/ap3");
         t.put(LEGACY_AP3_DIR, "dungeons/ap3");
 
@@ -165,7 +162,6 @@ public final class ModPaths {
             t.put(run, "dungeons/runs");
         }
 
-        // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
         // How Lucky Are You's settings (killer560smod-luck.json); its records are in the shared store.
         t.put("luck", "skyblock/luck");
@@ -235,7 +231,6 @@ public final class ModPaths {
         // Kick Rejoin Timer (killer560smod-kickrejoin.json, 2026-11-03).
         t.put("kickrejoin", "skyblock/kickrejoin");
 
-        // ---- social ----------------------------------------------------------------------------------------------
         t.put("friendslist", "social/friends");
         t.put("bestfriends", "social/friends");
         t.put("social", "social/friends");
@@ -265,7 +260,6 @@ public final class ModPaths {
         t.put("posmsg", "social/posmsg");
         t.put("bridge", "social/bridge");
 
-        // ---- interface -------------------------------------------------------------------------------------------
         t.put("hud", "interface/hud");
         t.put("customscoreboard", "interface/customscoreboard");
         t.put("mainmenu", "interface/mainmenu");
@@ -316,7 +310,6 @@ public final class ModPaths {
         t.put("modusers", "interface/modusers");
         t.put("zoom", "interface/zoom");
 
-        // ---- system ----------------------------------------------------------------------------------------------
         t.put("configversion", "system/configversion");
         t.put("sharing-defaults", "system/sharing-defaults");
         t.put("interop", "system/interop");
@@ -452,9 +445,7 @@ public final class ModPaths {
                             if (parent != null) {
                                 Files.createDirectories(parent);
                             }
-                            if (!move(old, target)) {
-                                return old;
-                            }
+                            if (!move(old, target)) return old;
                         }
                     }
                     return target;
@@ -464,9 +455,7 @@ public final class ModPaths {
             if (Files.exists(legacy)) {
                 synchronized (ModPaths.class) {
                     if (!Files.exists(target) && Files.exists(legacy)) {
-                        if (!move(legacy, target)) {
-                            return legacy;
-                        }
+                        if (!move(legacy, target)) return legacy;
                     }
                 }
             }
@@ -587,9 +576,7 @@ public final class ModPaths {
     }
 
     /** Whether {@code name} in the config root is one of this mod's - the only entries {@link #migrateAll()} moves. */
-    static boolean isOurs(String name) {
-        return name.startsWith(PREFIX) || SPECIAL_NAMES.contains(name);
-    }
+    static boolean isOurs(String name) { return name.startsWith(PREFIX) || SPECIAL_NAMES.contains(name); }
 
     /**
      * Moves every one of this mod's files and folders out of the config root into the tree, so the root is clean
@@ -694,9 +681,7 @@ public final class ModPaths {
      */
     static int removeEmptyFolders() {
         Path r = root();
-        if (!Files.isDirectory(r)) {
-            return 0;
-        }
+        if (!Files.isDirectory(r)) return 0;
         List<Path> folders = new ArrayList<>();
         try (var walk = Files.walk(r, 2)) {
             walk.filter(p -> !p.equals(r) && Files.isDirectory(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
@@ -733,9 +718,7 @@ public final class ModPaths {
         int moved = 0;
         for (String former : FORMER_FOLDERS) {
             Path dir = root().resolve(former);
-            if (!Files.isDirectory(dir)) {
-                continue;
-            }
+            if (!Files.isDirectory(dir)) continue;
             List<String> names = new ArrayList<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
                 for (Path entry : stream) {
@@ -747,9 +730,7 @@ public final class ModPaths {
             }
             for (String name : names) {
                 try {
-                    if (!name.startsWith(PREFIX) || folderFor(name).equals(former)) {
-                        continue;
-                    }
+                    if (!name.startsWith(PREFIX) || folderFor(name).equals(former)) continue;
                     Path old = dir.resolve(name);
                     Path now = config(name);
                     if (!now.equals(old)) {
@@ -770,9 +751,7 @@ public final class ModPaths {
     /** {@code config/killer560smod/<file>} -> {@code dungeons/ap3/<file>}, then the emptied folder is removed. */
     private static int migrateLegacyAp3Dir() throws IOException {
         Path dir = configDir().resolve(LEGACY_AP3_DIR);
-        if (!Files.isDirectory(dir)) {
-            return 0;
-        }
+        if (!Files.isDirectory(dir)) return 0;
         List<String> children = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path child : stream) {
@@ -832,9 +811,7 @@ public final class ModPaths {
      *  (Zoom, Cape, Legit GFS, Streamer, Mod Users) out of profiles. */
     private static boolean isFeatureFolderDepth(Path relative) {
         int n = relative.getNameCount();
-        if (n >= 1 && relative.getName(0).toString().equals(RETIRED)) {
-            return false;
-        }
+        if (n >= 1 && relative.getName(0).toString().equals(RETIRED)) return false;
         return n == 3 || (n == 2 && relative.getName(0).toString().equals(OTHER));
     }
 

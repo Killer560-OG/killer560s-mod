@@ -39,7 +39,6 @@ public final class WalkCamera {
     private static int packetsSeen;
     private static int framesWritten;
 
-    // ---- the current movement
     private static float velYaw;
     private static float velPitch;
     private static float peak = 20f;
@@ -100,9 +99,7 @@ public final class WalkCamera {
         velPitch = 0f;
     }
 
-    public static boolean isLocked() {
-        return locked;
-    }
+    public static boolean isLocked() { return locked; }
 
     public static void clear() {
         active = false;
@@ -119,17 +116,11 @@ public final class WalkCamera {
         rebase();
     }
 
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
-    public static float targetYaw() {
-        return targetYaw;
-    }
+    public static float targetYaw() { return targetYaw; }
 
-    public static float targetPitch() {
-        return targetPitch;
-    }
+    public static float targetPitch() { return targetPitch; }
 
     /** Forget the last write: the next frame's rotation is not compared against it (a server-set rotation). */
     public static void rebase() {
@@ -139,34 +130,22 @@ public final class WalkCamera {
     }
 
     /** True once something other than this class turned the body since the last write; cleared by {@link #clear}. */
-    public static boolean userMoved() {
-        return userMoved;
-    }
+    public static boolean userMoved() { return userMoved; }
 
     /** Frames that wrote a rotation since launch (the testkit reads it to prove the camera moved per frame). */
-    public static int framesWritten() {
-        return framesWritten;
-    }
+    public static int framesWritten() { return framesWritten; }
 
     /** Testkit read-outs: movements drawn, of them overshooting, micro-pauses taken. */
-    public static int movements() {
-        return movements;
-    }
+    public static int movements() { return movements; }
 
-    public static int overshoots() {
-        return overshoots;
-    }
+    public static int overshoots() { return overshoots; }
 
-    public static int pauses() {
-        return pauses;
-    }
+    public static int pauses() { return pauses; }
 
     /** Remaining turn to the aim, in degrees (the larger of yaw and pitch). */
     public static float error() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !active) {
-            return 0f;
-        }
+        if (player == null || !active) return 0f;
         return Math.max(Math.abs(Mth.wrapDegrees(targetYaw - player.getYRot())),
                 Math.abs(targetPitch - player.getXRot()));
     }
@@ -186,17 +165,13 @@ public final class WalkCamera {
             lastFrameNanos = 0L;
             velYaw = 0f;
             velPitch = 0f;
-            if (paused) {
-                return;
-            }
+            if (paused) return;
         }
         long now = System.nanoTime();
         double dt = lastFrameNanos == 0L ? 1.0 : (now - lastFrameNanos) / 50_000_000.0;
         lastFrameNanos = now;
         dt = Mth.clamp(dt, 0.0, 3.0); // an alt-tab or lag spike must not become one big jump
-        if (dt <= 0.0) {
-            return;
-        }
+        if (dt <= 0.0) return;
 
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();
@@ -268,10 +243,7 @@ public final class WalkCamera {
     /** The speed (degrees per tick) this error wants: up to the peak, and no more than stops in time at {@code a}. */
     private static float profile(float err, float peakSpeed, float a) {
         float mag = Math.abs(err);
-        if (mag < 0.02f) {
-            return 0f;
-        }
-        return Math.signum(err) * Math.min(peakSpeed, (float) Math.sqrt(2.0 * a * mag));
+        return mag < 0.02f ? 0f : Math.signum(err) * Math.min(peakSpeed, (float) Math.sqrt(2.0 * a * mag));
     }
 
     private static float approach(float v, float want, float a, double dt) {
@@ -281,9 +253,6 @@ public final class WalkCamera {
 
     /** Never step past the point the error aims at (the overshoot is aimed at, not integrated into). */
     private static float limit(float step, float err) {
-        if (Math.signum(step) == Math.signum(err) && Math.abs(step) > Math.abs(err)) {
-            return err;
-        }
-        return step;
+        return Math.signum(step) == Math.signum(err) && Math.abs(step) > Math.abs(err) ? err : step;
     }
 }

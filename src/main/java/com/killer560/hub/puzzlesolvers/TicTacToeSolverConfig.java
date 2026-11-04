@@ -78,49 +78,29 @@ public final class TicTacToeSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isFill() {
-        return fill;
-    }
+    public boolean isFill() { return fill; }
 
-    public void setFill(boolean fill) {
-        this.fill = fill;
-    }
+    public void setFill(boolean fill) { this.fill = fill; }
 
-    public boolean isPreventMisclicks() {
-        return preventMisclicks;
-    }
+    public boolean isPreventMisclicks() { return preventMisclicks; }
 
-    public void setPreventMisclicks(boolean preventMisclicks) {
-        this.preventMisclicks = preventMisclicks;
-    }
+    public void setPreventMisclicks(boolean preventMisclicks) { this.preventMisclicks = preventMisclicks; }
 
-    public boolean isSneakOverride() {
-        return sneakOverride;
-    }
+    public boolean isSneakOverride() { return sneakOverride; }
 
-    public void setSneakOverride(boolean sneakOverride) {
-        this.sneakOverride = sneakOverride;
-    }
+    public void setSneakOverride(boolean sneakOverride) { this.sneakOverride = sneakOverride; }
 
-    public boolean isShowPrediction() {
-        return showPrediction;
-    }
+    public boolean isShowPrediction() { return showPrediction; }
 
-    public void setShowPrediction(boolean showPrediction) {
-        this.showPrediction = showPrediction;
-    }
+    public void setShowPrediction(boolean showPrediction) { this.showPrediction = showPrediction; }
 }

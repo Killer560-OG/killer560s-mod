@@ -238,14 +238,10 @@ public final class SimRoomLevers {
         }
 
         /** The same rule taking only these blocks. */
-        Rule only(String... ids) {
-            return new Rule(room, lever, from, to, place, Set.of(ids));
-        }
+        Rule only(String... ids) { return new Rule(room, lever, from, to, place, Set.of(ids)); }
 
         /** The same rule with its lever placed, hanging from the block over it. */
-        Rule ceiling() {
-            return new Rule(room, lever, from, to, AttachFace.CEILING, only);
-        }
+        Rule ceiling() { return new Rule(room, lever, from, to, AttachFace.CEILING, only); }
     }
 
     private static final List<Rule> RULES = List.of(
@@ -388,13 +384,9 @@ public final class SimRoomLevers {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event fires on both sides in singleplayer, and without the check a
             // single click would be handled twice - the same guard SimDoors uses.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) {
-                return InteractionResult.PASS;
-            }
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
             List<BlockPos> blocks = ARMED.remove(hit.getBlockPos());
-            if (blocks == null) {
-                return InteractionResult.PASS;
-            }
+            if (blocks == null) return InteractionResult.PASS;
             String room = ROOM_OF.remove(hit.getBlockPos());
             open(client, blocks, room);
             // PASS, so vanilla still flips the lever: the click, the sound and the animation are what make it
@@ -414,19 +406,13 @@ public final class SimRoomLevers {
     public static int armFloor(ServerLevel level) {
         ARMED.clear();
         ROOM_OF.clear();
-        if (level == null) {
-            return 0;
-        }
+        if (level == null) return 0;
         int armed = 0;
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
             for (Rule written : RULES) {
-                if (!written.room().equalsIgnoreCase(placed.name())) {
-                    continue;
-                }
+                if (!written.room().equalsIgnoreCase(placed.name())) continue;
                 RoomLibrary.Room room = RoomLibrary.get(placed.name());
-                if (room == null) {
-                    continue;
-                }
+                if (room == null) continue;
                 Rule rule = fit(written, room);
                 SimRoomPuzzles.Placement p = new SimRoomPuzzles.Placement(room,
                         placed.gridX(), placed.gridZ(), placed.pasteRotation(), placed.rotation());
@@ -485,9 +471,7 @@ public final class SimRoomLevers {
         int bestScore = Integer.MIN_VALUE;
         boolean square = room.sizeX == room.sizeZ;
         for (int k = 0; k < 4; k++) {
-            if (!square && (k & 1) == 1) {
-                continue;
-            }
+            if (!square && (k & 1) == 1) continue;
             Rule t = turned(rule, k, room.sizeX, room.sizeZ);
             String at = idAt(room, t.lever()[0], t.lever()[1], t.lever()[2]);
             boolean leverOk = t.place() != null ? at.equals("air") || at.equals("lever") : at.equals("lever");
@@ -506,9 +490,7 @@ public final class SimRoomLevers {
 
     /** A rule with its capture coordinates turned k quarter turns inside a sizeX by sizeZ capture. */
     private static Rule turned(Rule rule, int k, int sizeX, int sizeZ) {
-        if (k == 0) {
-            return rule;
-        }
+        if (k == 0) return rule;
         return new Rule(rule.room(), turn(rule.lever(), k, sizeX, sizeZ), turn(rule.from(), k, sizeX, sizeZ),
                 turn(rule.to(), k, sizeX, sizeZ), rule.place(), rule.only());
     }
@@ -602,9 +584,7 @@ public final class SimRoomLevers {
         }
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room room = RoomLibrary.get(name);
-            if (room == null) {
-                continue;
-            }
+            if (room == null) continue;
             for (int y = room.minY; y <= room.maxY; y++) {
                 for (int z = 0; z < room.sizeZ; z++) {
                     for (int x = 0; x < room.sizeX; x++) {
@@ -619,16 +599,12 @@ public final class SimRoomLevers {
         return out;
     }
 
-    private static String key(int[] p) {
-        return p[0] + "," + p[1] + "," + p[2];
-    }
+    private static String key(int[] p) { return p[0] + "," + p[1] + "," + p[2]; }
 
     /** The block id (path only) a capture holds here; "air" outside it or for a column never read. */
     private static String idAt(RoomLibrary.Room room, int x, int y, int z) {
         short i = room.at(x, y, z);
-        if (i < 0 || i >= room.palette.size()) {
-            return "air";
-        }
+        if (i < 0 || i >= room.palette.size()) return "air";
         String s = room.palette.get(i);
         int bracket = s.indexOf('[');
         if (bracket >= 0) {
@@ -640,9 +616,7 @@ public final class SimRoomLevers {
 
     private static void open(Minecraft client, List<BlockPos> blocks, String room) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (BlockPos pos : blocks) {
@@ -667,13 +641,9 @@ public final class SimRoomLevers {
      */
     public static BlockPos capturedWorld(String roomName, int cx, int cy, int cz) {
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
-            if (!placed.name().equalsIgnoreCase(roomName)) {
-                continue;
-            }
+            if (!placed.name().equalsIgnoreCase(roomName)) continue;
             RoomLibrary.Room room = RoomLibrary.get(placed.name());
-            if (room == null) {
-                return null;
-            }
+            if (room == null) return null;
             return SimRoomPuzzles.capturedPos(new SimRoomPuzzles.Placement(room,
                     placed.gridX(), placed.gridZ(), placed.pasteRotation(), placed.rotation()), cx, cy, cz);
         }
@@ -681,7 +651,5 @@ public final class SimRoomLevers {
     }
 
     /** For tests and the build log. */
-    public static int armedCount() {
-        return ARMED.size();
-    }
+    public static int armedCount() { return ARMED.size(); }
 }

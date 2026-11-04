@@ -81,40 +81,22 @@ public final class TerminalTriggerbotConfig {
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */
-    public boolean isEnabled() {
-        return enabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows(); }
 
     /** The raw stored value, for the toggle's own ON/OFF label. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getDelayMs() {
-        return Math.min(MAX_DELAY_MS, Math.max(0, delayMs));
-    }
+    public int getDelayMs() { return Math.min(MAX_DELAY_MS, Math.max(0, delayMs)); }
 
-    public void setDelayMs(int delayMs) {
-        this.delayMs = delayMs;
-    }
+    public void setDelayMs(int delayMs) { this.delayMs = delayMs; }
 
-    public int getCooldownMs() {
-        return Math.min(MAX_COOLDOWN_MS, Math.max(0, cooldownMs));
-    }
+    public int getCooldownMs() { return Math.min(MAX_COOLDOWN_MS, Math.max(0, cooldownMs)); }
 
-    public void setCooldownMs(int cooldownMs) {
-        this.cooldownMs = cooldownMs;
-    }
+    public void setCooldownMs(int cooldownMs) { this.cooldownMs = cooldownMs; }
 
-    public double getRange() {
-        return Math.min(MAX_RANGE, Math.max(0.5, range));
-    }
+    public double getRange() { return Math.min(MAX_RANGE, Math.max(0.5, range)); }
 
-    public void setRange(double range) {
-        this.range = range;
-    }
+    public void setRange(double range) { this.range = range; }
 }

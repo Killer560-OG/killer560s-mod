@@ -82,9 +82,7 @@ final class CommandChatListener {
                 return;
             }
             String text = m.group(2);
-            if (!text.startsWith("!")) {
-                return;
-            }
+            if (!text.startsWith("!")) return;
             PartyCommandsFeature.handle(m.group(1), text.substring(1).trim(), channel);
         } catch (RuntimeException e) {
             LOGGER.error("[PartyCommands] chat line failed", e);

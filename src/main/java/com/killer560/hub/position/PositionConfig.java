@@ -79,47 +79,25 @@ public final class PositionConfig {
         }
     }
 
-    private static int clampDecimalPlaces(int v) {
-        return Math.max(MIN_DECIMAL_PLACES, Math.min(MAX_DECIMAL_PLACES, v));
-    }
+    private static int clampDecimalPlaces(int v) { return Math.max(MIN_DECIMAL_PLACES, Math.min(MAX_DECIMAL_PLACES, v)); }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getDecimalPlaces() {
-        return decimalPlaces;
-    }
+    public int getDecimalPlaces() { return decimalPlaces; }
 
-    public void setDecimalPlaces(int decimalPlaces) {
-        this.decimalPlaces = clampDecimalPlaces(decimalPlaces);
-    }
+    public void setDecimalPlaces(int decimalPlaces) { this.decimalPlaces = clampDecimalPlaces(decimalPlaces); }
 
-    public boolean isShowFacing() {
-        return showFacing;
-    }
+    public boolean isShowFacing() { return showFacing; }
 
-    public void setShowFacing(boolean showFacing) {
-        this.showFacing = showFacing;
-    }
+    public void setShowFacing(boolean showFacing) { this.showFacing = showFacing; }
 
-    public boolean isShowBlock() {
-        return showBlock;
-    }
+    public boolean isShowBlock() { return showBlock; }
 
-    public void setShowBlock(boolean showBlock) {
-        this.showBlock = showBlock;
-    }
+    public void setShowBlock(boolean showBlock) { this.showBlock = showBlock; }
 
-    public boolean isShowVelocity() {
-        return showVelocity;
-    }
+    public boolean isShowVelocity() { return showVelocity; }
 
-    public void setShowVelocity(boolean showVelocity) {
-        this.showVelocity = showVelocity;
-    }
+    public void setShowVelocity(boolean showVelocity) { this.showVelocity = showVelocity; }
 }

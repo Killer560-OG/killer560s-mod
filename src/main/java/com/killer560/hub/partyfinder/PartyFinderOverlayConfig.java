@@ -16,7 +16,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -186,118 +185,64 @@ public final class PartyFinderOverlayConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** Raw toggle state for the settings tab (ignores the Skyblock gate). */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isHighlight() {
-        return highlight;
-    }
+    public boolean isHighlight() { return highlight; }
 
-    public void setHighlight(boolean highlight) {
-        this.highlight = highlight;
-    }
+    public void setHighlight(boolean highlight) { this.highlight = highlight; }
 
-    public boolean isIgnoreCataRequirement() {
-        return ignoreCataRequirement;
-    }
+    public boolean isIgnoreCataRequirement() { return ignoreCataRequirement; }
 
-    public void setIgnoreCataRequirement(boolean v) {
-        this.ignoreCataRequirement = v;
-    }
+    public void setIgnoreCataRequirement(boolean v) { this.ignoreCataRequirement = v; }
 
-    public boolean isIgnoreRoleLevel() {
-        return ignoreRoleLevel;
-    }
+    public boolean isIgnoreRoleLevel() { return ignoreRoleLevel; }
 
-    public void setIgnoreRoleLevel(boolean v) {
-        this.ignoreRoleLevel = v;
-    }
+    public void setIgnoreRoleLevel(boolean v) { this.ignoreRoleLevel = v; }
 
-    public boolean isIgnoreOwnRole() {
-        return ignoreOwnRole;
-    }
+    public boolean isIgnoreOwnRole() { return ignoreOwnRole; }
 
-    public void setIgnoreOwnRole(boolean v) {
-        this.ignoreOwnRole = v;
-    }
+    public void setIgnoreOwnRole(boolean v) { this.ignoreOwnRole = v; }
 
-    public int getJoinableColor() {
-        return joinableColor;
-    }
+    public int getJoinableColor() { return joinableColor; }
 
-    public void setJoinableColor(int argb) {
-        this.joinableColor = argb;
-    }
+    public void setJoinableColor(int argb) { this.joinableColor = argb; }
 
-    public int getBlockedColor() {
-        return blockedColor;
-    }
+    public int getBlockedColor() { return blockedColor; }
 
-    public void setBlockedColor(int argb) {
-        this.blockedColor = argb;
-    }
+    public void setBlockedColor(int argb) { this.blockedColor = argb; }
 
-    public boolean isMemberCount() {
-        return memberCount;
-    }
+    public boolean isMemberCount() { return memberCount; }
 
-    public void setMemberCount(boolean memberCount) {
-        this.memberCount = memberCount;
-    }
+    public void setMemberCount(boolean memberCount) { this.memberCount = memberCount; }
 
-    public int getCountColor() {
-        return countColor;
-    }
+    public int getCountColor() { return countColor; }
 
-    public void setCountColor(int argb) {
-        this.countColor = argb;
-    }
+    public void setCountColor(int argb) { this.countColor = argb; }
 
-    public boolean isTooltip() {
-        return tooltip;
-    }
+    public boolean isTooltip() { return tooltip; }
 
-    public void setTooltip(boolean tooltip) {
-        this.tooltip = tooltip;
-    }
+    public void setTooltip(boolean tooltip) { this.tooltip = tooltip; }
 
-    public boolean isShowMissing() {
-        return showMissing;
-    }
+    public boolean isShowMissing() { return showMissing; }
 
-    public void setShowMissing(boolean showMissing) {
-        this.showMissing = showMissing;
-    }
+    public void setShowMissing(boolean showMissing) { this.showMissing = showMissing; }
 
-    public PbMode getPbMode() {
-        return pbMode;
-    }
+    public PbMode getPbMode() { return pbMode; }
 
-    public void setPbMode(PbMode pbMode) {
-        this.pbMode = pbMode == null ? PbMode.BOTH : pbMode;
-    }
+    public void setPbMode(PbMode pbMode) { this.pbMode = pbMode == null ? PbMode.BOTH : pbMode; }
 
-    public CompactMode getCompactMode() {
-        return compactMode;
-    }
+    public CompactMode getCompactMode() { return compactMode; }
 
     public void setCompactMode(CompactMode compactMode) {
         this.compactMode = compactMode == null ? CompactMode.NONE : compactMode;
     }
 
-    public String getCustomStyle() {
-        return customStyle;
-    }
+    public String getCustomStyle() { return customStyle; }
 
     public void setCustomStyle(String customStyle) {
         String t = customStyle == null ? "" : customStyle;
@@ -308,9 +253,7 @@ public final class PartyFinderOverlayConfig {
 
     /** A style name: control characters and edges stripped, at most {@link #MAX_STYLE_NAME} long; null when nothing is left. */
     public static String cleanStyleName(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         String t = raw.replaceAll("\\p{Cntrl}", "").strip();
         if (t.length() > MAX_STYLE_NAME) {
             t = t.substring(0, MAX_STYLE_NAME).strip();
@@ -319,31 +262,23 @@ public final class PartyFinderOverlayConfig {
     }
 
     private String findSavedName(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         for (String n : savedStyles.keySet()) {
-            if (n.equalsIgnoreCase(name.strip())) {
-                return n;
-            }
+            if (n.equalsIgnoreCase(name.strip())) return n;
         }
         return null;
     }
 
     private void putSaved(String rawName, String text) {
         String name = cleanStyleName(rawName);
-        if (name == null || text == null || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(name) == null) {
-            return;
-        }
+        if (name == null || text == null || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(name) == null) return;
         String existing = findSavedName(name);
         savedStyles.put(existing != null ? existing : name,
                 text.length() > MAX_STYLE_LENGTH ? text.substring(0, MAX_STYLE_LENGTH) : text);
     }
 
     /** The saved style names, in the order they were first saved. */
-    public List<String> savedStyleNames() {
-        return new ArrayList<>(savedStyles.keySet());
-    }
+    public List<String> savedStyleNames() { return new ArrayList<>(savedStyles.keySet()); }
 
     /** The template saved under {@code name} (case-insensitive), or null. */
     public String savedStyle(String name) {
@@ -352,9 +287,7 @@ public final class PartyFinderOverlayConfig {
     }
 
     /** The saved style the Custom editor is on, or "" when its text is not from one. */
-    public String getActiveStyle() {
-        return activeStyle;
-    }
+    public String getActiveStyle() { return activeStyle; }
 
     /** Saves {@code text} under {@code name} (replacing a style of that name, whatever its case), makes it the active
      *  one and the current custom text. @return false for a bad name or a full list. */
@@ -373,9 +306,7 @@ public final class PartyFinderOverlayConfig {
     /** Makes the style saved as {@code name} the current custom text and selects Custom. @return false when none. */
     public boolean loadStyle(String name) {
         String n = findSavedName(name);
-        if (n == null) {
-            return false;
-        }
+        if (n == null) return false;
         activeStyle = n;
         setCustomStyle(savedStyles.get(n));
         compactMode = CompactMode.CUSTOM;
@@ -385,9 +316,7 @@ public final class PartyFinderOverlayConfig {
     /** Forgets the style saved as {@code name}; the current text stays. @return false when there was none. */
     public boolean deleteStyle(String name) {
         String n = findSavedName(name);
-        if (n == null) {
-            return false;
-        }
+        if (n == null) return false;
         savedStyles.remove(n);
         if (n.equals(activeStyle)) {
             activeStyle = "";
@@ -396,30 +325,20 @@ public final class PartyFinderOverlayConfig {
     }
 
     /** Leaves the active saved style without touching the text (the editor's "no saved style" step). */
-    public void clearActiveStyle() {
-        activeStyle = "";
-    }
+    public void clearActiveStyle() { activeStyle = ""; }
 
     /** Edits made to the text no longer match the saved style it came from: the editor marks it. */
-    public boolean isActiveStyleModified() {
-        return !activeStyle.isEmpty() && !customStyle.equals(savedStyles.get(activeStyle));
-    }
+    public boolean isActiveStyleModified() { return !activeStyle.isEmpty() && !customStyle.equals(savedStyles.get(activeStyle)); }
 
     /** Copies a built-in style's template into the custom text (the editor's "Load Built-in"), selecting Custom. */
     public void startFromBuiltIn(CompactMode mode) {
-        if (mode == null || mode.template == null) {
-            return;
-        }
+        if (mode == null || mode.template == null) return;
         activeStyle = "";
         setCustomStyle(mode.template);
         compactMode = CompactMode.CUSTOM;
     }
 
-    public boolean isRankNameColors() {
-        return rankNameColors;
-    }
+    public boolean isRankNameColors() { return rankNameColors; }
 
-    public void setRankNameColors(boolean rankNameColors) {
-        this.rankNameColors = rankNameColors;
-    }
+    public void setRankNameColors(boolean rankNameColors) { this.rankNameColors = rankNameColors; }
 }

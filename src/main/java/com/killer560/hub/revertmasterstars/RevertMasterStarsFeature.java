@@ -34,16 +34,10 @@ public final class RevertMasterStarsFeature {
     private static final java.util.Map<Component, Component> CACHE = new java.util.IdentityHashMap<>();
 
     public static Component modifyHoverName(Component component) {
-        if (!RevertMasterStarsConfig.getInstance().isEnabled()) {
-            return component;
-        }
-        if (component == null) {
-            return rebuild(component);
-        }
+        if (!RevertMasterStarsConfig.getInstance().isEnabled()) return component;
+        if (component == null) return rebuild(component);
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc == null || !mc.isSameThread()) {
-            return rebuild(component);
-        }
+        if (mc == null || !mc.isSameThread()) return rebuild(component);
         Component known = CACHE.get(component);
         if (known == null) {
             known = rebuild(component);
@@ -58,9 +52,7 @@ public final class RevertMasterStarsFeature {
     private static Component rebuild(Component component) {
         String text = component.getString();
         int starsStart = findMasterStars(text);
-        if (starsStart == -1) {
-            return component;
-        }
+        if (starsStart == -1) return component;
 
         int masterStarIndex = starsStart + STAR_SEQUENCE.length();
         int redStarsEnd = starsStart + (text.charAt(masterStarIndex) - FIRST_MASTER_STAR + 1);
@@ -80,15 +72,11 @@ public final class RevertMasterStarsFeature {
         int searchFrom = 0;
         while (true) {
             int starsStart = text.indexOf(STAR_SEQUENCE, searchFrom);
-            if (starsStart == -1) {
-                return -1;
-            }
+            if (starsStart == -1) return -1;
             int pipIndex = starsStart + STAR_SEQUENCE.length();
             if (pipIndex < text.length()) {
                 char masterStar = text.charAt(pipIndex);
-                if (masterStar >= FIRST_MASTER_STAR && masterStar <= LAST_MASTER_STAR) {
-                    return starsStart;
-                }
+                if (masterStar >= FIRST_MASTER_STAR && masterStar <= LAST_MASTER_STAR) return starsStart;
             }
             searchFrom = starsStart + 1;
         }

@@ -123,30 +123,18 @@ public final class AutoSoulRunner {
     private AutoSoulRunner() {
     }
 
-    public static int clicksSent() {
-        return clicksSent;
-    }
+    public static int clicksSent() { return clicksSent; }
 
-    public static int escapesEther() {
-        return escapesEther;
-    }
+    public static int escapesEther() { return escapesEther; }
 
-    public static int escapesPearl() {
-        return escapesPearl;
-    }
+    public static int escapesPearl() { return escapesPearl; }
 
-    public static int noWayOuts() {
-        return noWayOuts;
-    }
+    public static int noWayOuts() { return noWayOuts; }
 
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
     public static void start() {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (!cfg.isAutoSouls()) {
             ModChat.send(CHAT, ModChat.bad("Auto Fairy Souls is off "),
@@ -174,9 +162,7 @@ public final class AutoSoulRunner {
     }
 
     public static void stop(String reason, boolean announce) {
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         active = false;
         state = State.IDLE;
         releaseClickView(Minecraft.getInstance().player);
@@ -209,12 +195,9 @@ public final class AutoSoulRunner {
         }
     }
 
-    // ------------------------------------------------------------------ ticking
 
     public static void tick(Minecraft client) {
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         LocalPlayer player = client.player;
         if (player == null && state == State.WARPING && cfg.isAutoSouls()) {
@@ -289,7 +272,6 @@ public final class AutoSoulRunner {
         }
     }
 
-    // ------------------------------------------------------------------ the last blocks to the soul
 
     /**
      * The soul stand is out of reach or out of sight from here: walk to a spot it is in both from. On Hypixel the stand
@@ -350,12 +332,8 @@ public final class AutoSoulRunner {
     private static boolean inReach(LocalPlayer player, ArmorStand stand) {
         Vec3 eye = player.getEyePosition();
         AABB box = stand.getBoundingBox();
-        if (box.contains(eye)) {
-            return true;
-        }
-        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.15) * (REACH - 0.15)) {
-            return false;
-        }
+        if (box.contains(eye)) return true;
+        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.15) * (REACH - 0.15)) return false;
         return aimPoint(player.level(), eye, box) != null;
     }
 
@@ -365,9 +343,7 @@ public final class AutoSoulRunner {
      */
     private static Vec3 aimPoint(net.minecraft.world.level.Level level, Vec3 eye, AABB box) {
         Vec3 c = box.getCenter();
-        if (box.contains(eye)) {
-            return c;
-        }
+        if (box.contains(eye)) return c;
         if (box.getSize() < 0.05) {
             // A box with no size (a marker stand): the point itself, if nothing stands between.
             return eye.distanceTo(c) <= REACH - 0.05 && clearLine(level, eye, c) ? c : null;
@@ -376,9 +352,7 @@ public final class AutoSoulRunner {
                 Mth.clamp(eye.y, box.minY + 0.05, box.maxY - 0.05), Mth.clamp(eye.z, box.minZ + 0.05, box.maxZ - 0.05));
         for (Vec3 p : new Vec3[]{new Vec3(c.x, box.maxY - 0.25, c.z), c, near}) {
             Optional<Vec3> onBox = box.clip(eye, eye.add(p.subtract(eye).normalize().scale(eye.distanceTo(p) + 1.0)));
-            if (onBox.isEmpty() || onBox.get().distanceTo(eye) > REACH - 0.05) {
-                continue;
-            }
+            if (onBox.isEmpty() || onBox.get().distanceTo(eye) > REACH - 0.05) continue;
             net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, onBox.get(),
                     net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
                     net.minecraft.world.phys.shapes.CollisionContext.empty()));
@@ -417,9 +391,7 @@ public final class AutoSoulRunner {
                     }
                     double feetY = c.getY() + Math.max(0.0, LocalPlanner.lowTop(level, c));
                     Vec3 eye = new Vec3(c.getX() + 0.5, feetY + (crouch ? LocalPlanner.CROUCH_EYE : 1.62), c.getZ() + 0.5);
-                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.3) * (REACH - 0.3)) {
-                        continue;
-                    }
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, box) > (REACH - 0.3) * (REACH - 0.3)) continue;
                     if (aimPoint(level, eye, box) != null) {
                         // Not inside the stand itself unless nothing else will do: its column is often a lone ledge with
                         // no way off, but a soul at the bottom of a 1x1 hole is clicked from in it.
@@ -495,9 +467,7 @@ public final class AutoSoulRunner {
             warnedNoItem = true;
             EtherwarpHopper.warnNoItem();
         }
-        if (!etherMode || !hasItem || EtherwarpHopper.isBusy() || AutoWalker.isRescuing()) {
-            return;
-        }
+        if (!etherMode || !hasItem || EtherwarpHopper.isBusy() || AutoWalker.isRescuing()) return;
         if (cfg.getAutoMode() == PathfindingConfig.AutoMode.FAST_ETHERWARP && !chainTriedForSoul && player.onGround()) {
             chainTriedForSoul = true;
             BlockPos goal = chainGoal(player, soulCentre);
@@ -522,9 +492,7 @@ public final class AutoSoulRunner {
      * in the hotbar, aimed at the route ahead or the soul; else say so (once a run) and move on to the next soul.
      */
     private static void escape(LocalPlayer player, PathfindingConfig cfg, Vec3 soulCentre) {
-        if (EtherwarpHopper.isBusy() || EnderPearlHopper.isBusy()) {
-            return;
-        }
+        if (EtherwarpHopper.isBusy() || EnderPearlHopper.isBusy()) return;
         List<Vec3> targets = escapeTargets(soulCentre);
         if (cfg.getAutoMode().etherwarps() && EtherwarpHopper.hotbarItem() != null) {
             for (Vec3 t : targets) {
@@ -565,9 +533,7 @@ public final class AutoSoulRunner {
                 }
             }
         }
-        if (cfg.isWarpWhenStuck() && !warpedForSoul && startWarp(player)) {
-            return;
-        }
+        if (cfg.isWarpWhenStuck() && !warpedForSoul && startWarp(player)) return;
         noWayOuts++;
         String tools = cfg.getAutoMode().etherwarps() || cfg.isAllowPearls()
                 ? "no etherwarp or pearl lands anywhere useful" : "etherwarp and pearls are not allowed";
@@ -583,16 +549,11 @@ public final class AutoSoulRunner {
         FairySoulsFeature.skipCurrent();
     }
 
-    // ------------------------------------------------------------------ warp back when stuck
 
     /** A warp back to the island's spawn is under way (the world change and the screen it brings are not failsafes). */
-    public static boolean isWarping() {
-        return active && state == State.WARPING;
-    }
+    public static boolean isWarping() { return active && state == State.WARPING; }
 
-    public static int warpsSent() {
-        return warpsSent;
-    }
+    public static int warpsSent() { return warpsSent; }
 
     /**
      * Stuck with no way out on foot or by an allowed tool: /warp to this island's own spawn, then walk back to the same
@@ -601,9 +562,7 @@ public final class AutoSoulRunner {
     private static boolean startWarp(LocalPlayer player) {
         String island = IslandDetector.graphIsland();
         String warp = island == null ? null : WARPS.get(island);
-        if (warp == null || !com.killer560.hub.util.ServerCommands.toServer("warp " + warp)) {
-            return false;
-        }
+        if (warp == null || !com.killer560.hub.util.ServerCommands.toServer("warp " + warp)) return false;
         warpedForSoul = true;
         warpsSent++;
         warpIsland = island;
@@ -658,29 +617,21 @@ public final class AutoSoulRunner {
         net.minecraft.world.level.Level level = player.level();
         BlockPos feet = player.blockPosition();
         List<BlockPos> goals = AutoWalker.routeGoals(level, player.position(), feet);
-        if (goals.isEmpty()) {
-            return null;
-        }
+        if (goals.isEmpty()) return null;
         double jumpH = WalkTerrain.jumpHeight(player);
         int plans = 0;
         for (int r = 1; r <= 6; r++) {
             for (int dy = 8; dy >= 0; dy--) {
                 for (int dx = -r; dx <= r; dx++) {
                     for (int dz = -r; dz <= r; dz++) {
-                        if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
-                            continue;
-                        }
+                        if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                         BlockPos b = feet.offset(dx, dy - 1, dz);
                         if (!TeleportUtils.etherwarpable(b) || !LocalPlanner.cell(level, b.above())
                                 || b.above().getY() < feet.getY() + 2) {
                             continue;
                         }
-                        if (EtherwarpHopper.directionTo(b) == null) {
-                            continue;
-                        }
-                        if (plans++ >= RING_PLANS) {
-                            return null;
-                        }
+                        if (EtherwarpHopper.directionTo(b) == null) continue;
+                        if (plans++ >= RING_PLANS) return null;
                         if (LocalPlanner.plan(level, b.above(), goals, jumpH).size() >= 2
                                 || LocalPlanner.isGoal(b.above(), goals)) {
                             return b;
@@ -724,9 +675,7 @@ public final class AutoSoulRunner {
     /** Waits on {@link EnderPearlHopper} (ticked from {@link PathfindingFeature}) to land the pearl or give up. */
     private static void tickPearl() {
         AutoWalker.setWalking(false);
-        if (EnderPearlHopper.isBusy()) {
-            return;
-        }
+        if (EnderPearlHopper.isBusy()) return;
         AutoWalker.rebaseCamera();
         endEscape();
         state = State.IDLE;
@@ -799,9 +748,7 @@ public final class AutoSoulRunner {
         } else {
             lockedTicks = 0;
             Optional<Vec3> aim = Optional.ofNullable(aimPoint(player.level(), eye, box));
-            if (aim.isEmpty()) {
-                return;
-            }
+            if (aim.isEmpty()) return;
             AutoWalker.lookAt(aim.get());
             if (box.contains(eye) || AutoWalker.aimError() <= 1.0f) {
                 Vec3 nowLook = lookOf(player);
@@ -811,14 +758,10 @@ public final class AutoSoulRunner {
             }
             return;
         }
-        if (lockedTicks < 1) {
-            return;
-        }
+        if (lockedTicks < 1) return;
         long now = ActionGate.currentTick();
         long retryTicks = Math.max(10, (long) Math.ceil(com.killer560.hub.util.PingTracker.automationMs() * 1.5 / 50.0) + 6);
-        if (clicksForSoul > 0 && now - lastClickTick < retryTicks) {
-            return;
-        }
+        if (clicksForSoul > 0 && now - lastClickTick < retryTicks) return;
         if (clicksForSoul >= MAX_CLICKS_PER_SOUL) {
             ModChat.log(CHAT, ModChat.bad("Clicking a soul did nothing"), ModChat.dim(" - skipping it."));
             releaseClickView(player);
@@ -826,9 +769,7 @@ public final class AutoSoulRunner {
             FairySoulsFeature.skipCurrent();
             return;
         }
-        if (!ActionGate.tryAct(ActionGate.Actor.FAIRY_SOUL)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.FAIRY_SOUL)) return;
         client.gameMode.interact(player, stand, new EntityHitResult(stand, held.get()), InteractionHand.MAIN_HAND);
         clicksSent++;
         clicksForSoul++;
@@ -838,9 +779,7 @@ public final class AutoSoulRunner {
     /** Where a ray from the eye along {@code look} meets the box within reach - the eye itself when it is inside the
      *  box (standing right on a soul: its 2-block-tall stand contains a 1.62 eye; testkit 1017-fairy-overshoot). */
     private static Optional<Vec3> rayHit(Vec3 eye, Vec3 look, AABB box) {
-        if (box.contains(eye)) {
-            return Optional.of(eye);
-        }
+        if (box.contains(eye)) return Optional.of(eye);
         return box.clip(eye, eye.add(look.scale(REACH + 1.0)));
     }
 
@@ -854,9 +793,7 @@ public final class AutoSoulRunner {
 
     /** Auto Walk off: the camera held for a click goes back, body turned under the view first. */
     private static void releaseClickView(LocalPlayer player) {
-        if (!clickViewHeld) {
-            return;
-        }
+        if (!clickViewHeld) return;
         clickViewHeld = false;
         float viewYaw = ViewFreeze.viewYaw();
         float viewPitch = ViewFreeze.viewPitch();
@@ -870,22 +807,17 @@ public final class AutoSoulRunner {
         WalkCamera.clear();
     }
 
-    // ------------------------------------------------------------------ etherwarp helpers
 
     /** The soul's own landing spot when it is within range, else the furthest reachable spot along the path. */
     private static BlockPos chainGoal(LocalPlayer player, Vec3 soulCentre) {
         BlockPos direct = EtherwarpHopper.landingSpotNear(soulCentre);
         Vec3 pos = player.position();
-        if (direct != null && pos.distanceToSqr(Vec3.atCenterOf(direct)) < 110 * 110) {
-            return direct;
-        }
+        if (direct != null && pos.distanceToSqr(Vec3.atCenterOf(direct)) < 110 * 110) return direct;
         List<Vec3> path = NavigationManager.path();
         BlockPos best = null;
         for (int i = path.size() - 1; i >= 0; i--) {
             Vec3 point = path.get(i);
-            if (pos.distanceToSqr(point) > 100 * 100) {
-                continue;
-            }
+            if (pos.distanceToSqr(point) > 100 * 100) continue;
             BlockPos spot = EtherwarpHopper.landingSpotNear(point);
             if (spot != null) {
                 best = spot;
@@ -898,9 +830,7 @@ public final class AutoSoulRunner {
     /** ETHERWARP mode: the furthest point along the path this hop can reach, if it saves enough walking. */
     private static boolean tryShortcut(LocalPlayer player) {
         List<Vec3> path = NavigationManager.path();
-        if (path.size() < 2) {
-            return false;
-        }
+        if (path.size() < 2) return false;
         Vec3 pos = player.position();
         int seg = NavigationManager.closestSegment(pos);
         double along = 0;
@@ -911,20 +841,12 @@ public final class AutoSoulRunner {
             Vec3 point = path.get(i);
             along += previous.distanceTo(point);
             previous = point;
-            if (along < SHORTCUT_MIN_SAVING) {
-                continue;
-            }
-            if (pos.distanceToSqr(point) > 60 * 60) {
-                continue;
-            }
+            if (along < SHORTCUT_MIN_SAVING) continue;
+            if (pos.distanceToSqr(point) > 60 * 60) continue;
             BlockPos spot = EtherwarpHopper.landingSpotNear(point);
-            if (spot == null) {
-                continue;
-            }
+            if (spot == null) continue;
             TeleportUtils.Rotation dir = EtherwarpHopper.directionTo(spot);
-            if (dir == null) {
-                continue;
-            }
+            if (dir == null) continue;
             double saving = along - dir.distance();
             if (saving > bestSaving) {
                 bestSaving = saving;
@@ -936,21 +858,15 @@ public final class AutoSoulRunner {
 
     /** The soul itself: Hypixel renders it as an armor stand wearing a head, right next to the graph node. */
     private static ArmorStand findSoulEntity(Minecraft client, Vec3 soulCentre) {
-        if (client.level == null) {
-            return null;
-        }
+        if (client.level == null) return null;
         AABB box = new AABB(soulCentre.x - SOUL_SEARCH_RADIUS, soulCentre.y - SOUL_SEARCH_RADIUS,
                 soulCentre.z - SOUL_SEARCH_RADIUS, soulCentre.x + SOUL_SEARCH_RADIUS,
                 soulCentre.y + SOUL_SEARCH_RADIUS, soulCentre.z + SOUL_SEARCH_RADIUS);
         ArmorStand best = null;
         double bestDist = Double.MAX_VALUE;
         for (Entity entity : client.level.getEntities(null, box)) {
-            if (!(entity instanceof ArmorStand stand)) {
-                continue;
-            }
-            if (stand.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
-                continue;
-            }
+            if (!(entity instanceof ArmorStand stand)) continue;
+            if (stand.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) continue;
             double d = stand.position().distanceToSqr(soulCentre);
             if (d < bestDist) {
                 bestDist = d;

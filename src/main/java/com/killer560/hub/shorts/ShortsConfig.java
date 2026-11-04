@@ -274,211 +274,109 @@ public final class ShortsConfig {
         }
     }
 
-    private static int intOr(JsonObject o, String key, int def) {
-        return ConfigJson.getInt(o, key, def);
-    }
+    private static int intOr(JsonObject o, String key, int def) { return ConfigJson.getInt(o, key, def); }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
-    }
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public Anchor getAnchor() {
-        return anchor;
-    }
+    public Anchor getAnchor() { return anchor; }
 
-    public void setAnchor(Anchor anchor) {
-        this.anchor = anchor == null ? Anchor.RIGHT_CENTER : anchor;
-    }
+    public void setAnchor(Anchor anchor) { this.anchor = anchor == null ? Anchor.RIGHT_CENTER : anchor; }
 
-    public Theme getTheme() {
-        return theme;
-    }
+    public Theme getTheme() { return theme; }
 
-    public void setTheme(Theme theme) {
-        this.theme = theme == null ? Theme.SYSTEM : theme;
-    }
+    public void setTheme(Theme theme) { this.theme = theme == null ? Theme.SYSTEM : theme; }
 
-    public int getSizePercent() {
-        return sizePercent;
-    }
+    public int getSizePercent() { return sizePercent; }
 
-    public void setSizePercent(int sizePercent) {
-        this.sizePercent = clamp(sizePercent, MIN_SIZE_PERCENT, MAX_SIZE_PERCENT);
-    }
+    public void setSizePercent(int sizePercent) { this.sizePercent = clamp(sizePercent, MIN_SIZE_PERCENT, MAX_SIZE_PERCENT); }
 
-    public int getMargin() {
-        return margin;
-    }
+    public int getMargin() { return margin; }
 
-    public void setMargin(int margin) {
-        this.margin = clamp(margin, 0, MAX_MARGIN);
-    }
+    public void setMargin(int margin) { this.margin = clamp(margin, 0, MAX_MARGIN); }
 
-    public int getOpacity() {
-        return opacity;
-    }
+    public int getOpacity() { return opacity; }
 
-    public void setOpacity(int opacity) {
-        this.opacity = clamp(opacity, MIN_OPACITY, 100);
-    }
+    public void setOpacity(int opacity) { this.opacity = clamp(opacity, MIN_OPACITY, 100); }
 
-    public boolean isHideWhenUnfocused() {
-        return hideWhenUnfocused;
-    }
+    public boolean isHideWhenUnfocused() { return hideWhenUnfocused; }
 
-    public void setHideWhenUnfocused(boolean hideWhenUnfocused) {
-        this.hideWhenUnfocused = hideWhenUnfocused;
-    }
+    public void setHideWhenUnfocused(boolean hideWhenUnfocused) { this.hideWhenUnfocused = hideWhenUnfocused; }
 
-    public boolean isHidden() {
-        return hidden;
-    }
+    public boolean isHidden() { return hidden; }
 
-    public void setHidden(boolean hidden) {
-        this.hidden = hidden;
-    }
+    public void setHidden(boolean hidden) { this.hidden = hidden; }
 
-    public boolean isPauseWhenHidden() {
-        return pauseWhenHidden;
-    }
+    public boolean isPauseWhenHidden() { return pauseWhenHidden; }
 
-    public void setPauseWhenHidden(boolean pauseWhenHidden) {
-        this.pauseWhenHidden = pauseWhenHidden;
-    }
+    public void setPauseWhenHidden(boolean pauseWhenHidden) { this.pauseWhenHidden = pauseWhenHidden; }
 
-    public int getVolume() {
-        return volume;
-    }
+    public int getVolume() { return volume; }
 
-    public void setVolume(int volume) {
-        this.volume = clamp(volume, -1, 100);
-    }
+    public void setVolume(int volume) { this.volume = clamp(volume, -1, 100); }
 
-    public int getToggleKey() {
-        return toggleKey;
-    }
+    public int getToggleKey() { return toggleKey; }
 
-    public void setToggleKey(int toggleKey) {
-        this.toggleKey = toggleKey;
-    }
+    public void setToggleKey(int toggleKey) { this.toggleKey = toggleKey; }
 
-    public int getNextKey() {
-        return nextKey;
-    }
+    public int getNextKey() { return nextKey; }
 
-    public void setNextKey(int nextKey) {
-        this.nextKey = nextKey;
-    }
+    public void setNextKey(int nextKey) { this.nextKey = nextKey; }
 
-    public int getPreviousKey() {
-        return previousKey;
-    }
+    public int getPreviousKey() { return previousKey; }
 
-    public void setPreviousKey(int previousKey) {
-        this.previousKey = previousKey;
-    }
+    public void setPreviousKey(int previousKey) { this.previousKey = previousKey; }
 
-    public int getPlayPauseKey() {
-        return playPauseKey;
-    }
+    public int getPlayPauseKey() { return playPauseKey; }
 
-    public void setPlayPauseKey(int playPauseKey) {
-        this.playPauseKey = playPauseKey;
-    }
+    public void setPlayPauseKey(int playPauseKey) { this.playPauseKey = playPauseKey; }
 
-    public int getMuteKey() {
-        return muteKey;
-    }
+    public int getMuteKey() { return muteKey; }
 
-    public void setMuteKey(int muteKey) {
-        this.muteKey = muteKey;
-    }
+    public void setMuteKey(int muteKey) { this.muteKey = muteKey; }
 
-    public Site getSite() {
-        return site;
-    }
+    public Site getSite() { return site; }
 
-    public void setSite(Site site) {
-        this.site = site == null ? Site.YOUTUBE_SHORTS : site;
-    }
+    public void setSite(Site site) { this.site = site == null ? Site.YOUTUBE_SHORTS : site; }
 
-    public String getCustomUrl() {
-        return customUrl;
-    }
+    public String getCustomUrl() { return customUrl; }
 
-    public void setCustomUrl(String customUrl) {
-        this.customUrl = customUrl == null ? "" : customUrl.strip();
-    }
+    public void setCustomUrl(String customUrl) { this.customUrl = customUrl == null ? "" : customUrl.strip(); }
 
-    public PlacementMode getPlacementMode() {
-        return placementMode;
-    }
+    public PlacementMode getPlacementMode() { return placementMode; }
 
     public void setPlacementMode(PlacementMode placementMode) {
         this.placementMode = placementMode == null ? PlacementMode.ANCHORED : placementMode;
     }
 
-    public int getCustomX() {
-        return customX;
-    }
+    public int getCustomX() { return customX; }
 
-    public void setCustomX(int customX) {
-        this.customX = customX;
-    }
+    public void setCustomX(int customX) { this.customX = customX; }
 
-    public int getCustomY() {
-        return customY;
-    }
+    public int getCustomY() { return customY; }
 
-    public void setCustomY(int customY) {
-        this.customY = customY;
-    }
+    public void setCustomY(int customY) { this.customY = customY; }
 
-    public int getCustomW() {
-        return customW;
-    }
+    public int getCustomW() { return customW; }
 
-    public void setCustomW(int customW) {
-        this.customW = Math.max(MIN_CUSTOM_SIZE, customW);
-    }
+    public void setCustomW(int customW) { this.customW = Math.max(MIN_CUSTOM_SIZE, customW); }
 
-    public int getCustomH() {
-        return customH;
-    }
+    public int getCustomH() { return customH; }
 
-    public void setCustomH(int customH) {
-        this.customH = Math.max(MIN_CUSTOM_SIZE, customH);
-    }
+    public void setCustomH(int customH) { this.customH = Math.max(MIN_CUSTOM_SIZE, customH); }
 
-    public int getZoomPercent() {
-        return zoomPercent;
-    }
+    public int getZoomPercent() { return zoomPercent; }
 
-    public void setZoomPercent(int zoomPercent) {
-        this.zoomPercent = clamp(zoomPercent, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT);
-    }
+    public void setZoomPercent(int zoomPercent) { this.zoomPercent = clamp(zoomPercent, MIN_ZOOM_PERCENT, MAX_ZOOM_PERCENT); }
 
-    public boolean isCommentsScrollGuard() {
-        return commentsScrollGuard;
-    }
+    public boolean isCommentsScrollGuard() { return commentsScrollGuard; }
 
-    public void setCommentsScrollGuard(boolean commentsScrollGuard) {
-        this.commentsScrollGuard = commentsScrollGuard;
-    }
+    public void setCommentsScrollGuard(boolean commentsScrollGuard) { this.commentsScrollGuard = commentsScrollGuard; }
 
-    public boolean isAutoScroll() {
-        return autoScroll;
-    }
+    public boolean isAutoScroll() { return autoScroll; }
 
-    public void setAutoScroll(boolean autoScroll) {
-        this.autoScroll = autoScroll;
-    }
+    public void setAutoScroll(boolean autoScroll) { this.autoScroll = autoScroll; }
 }

@@ -43,9 +43,7 @@ public final class TeleportMazeLinks {
     public record Maze(int[] link, int exitPad) {
     }
 
-    public static int chamberOf(int pad) {
-        return pad >= 0 && pad < END ? pad / PADS_PER_CHAMBER : -1;
-    }
+    public static int chamberOf(int pad) { return pad >= 0 && pad < END ? pad / PADS_PER_CHAMBER : -1; }
 
     /**
      * The pad diagonally across the chamber from {@code pad}, from the pads' own positions ({@code rel[pad] = {x,
@@ -56,9 +54,7 @@ public final class TeleportMazeLinks {
         int c = chamberOf(pad);
         for (int i = 0; i < PADS_PER_CHAMBER; i++) {
             int other = c * PADS_PER_CHAMBER + i;
-            if (other != pad && rel[other][0] != rel[pad][0] && rel[other][2] != rel[pad][2]) {
-                return other;
-            }
+            if (other != pad && rel[other][0] != rel[pad][0] && rel[other][2] != rel[pad][2]) return other;
         }
         return -1;
     }
@@ -72,13 +68,9 @@ public final class TeleportMazeLinks {
         List<int[]> diagonals = new ArrayList<>();
         boolean[] seen = new boolean[END];
         for (int p = 0; p < END; p++) {
-            if (seen[p]) {
-                continue;
-            }
+            if (seen[p]) continue;
             int q = diagonal(p, rel);
-            if (q < 0) {
-                throw new IllegalStateException("pad " + p + " has no diagonal partner");
-            }
+            if (q < 0) throw new IllegalStateException("pad " + p + " has no diagonal partner");
             seen[p] = true;
             seen[q] = true;
             diagonals.add(new int[]{p, q});
@@ -86,9 +78,7 @@ public final class TeleportMazeLinks {
         for (int attempt = 0; attempt < 1000; attempt++) {
             List<int[]> order = new ArrayList<>(diagonals);
             Collections.shuffle(order, rng);
-            if (!separated(order)) {
-                continue;
-            }
+            if (!separated(order)) continue;
             int[] link = new int[END + 2];
             Arrays.fill(link, -1);
             int previous = START;
@@ -111,9 +101,7 @@ public final class TeleportMazeLinks {
     /** No two neighbors in the chain from the same chamber (a pad never links into its own chamber). */
     private static boolean separated(List<int[]> order) {
         for (int i = 1; i < order.size(); i++) {
-            if (chamberOf(order.get(i)[0]) == chamberOf(order.get(i - 1)[0])) {
-                return false;
-            }
+            if (chamberOf(order.get(i)[0]) == chamberOf(order.get(i - 1)[0])) return false;
         }
         return true;
     }
@@ -153,12 +141,8 @@ public final class TeleportMazeLinks {
         for (int guard = 0; guard < 64; guard++) {
             stepped.add(pad);
             int landed = link[pad];
-            if (landed == END) {
-                return stepped;
-            }
-            if (landed < 0 || landed == START) {
-                return null;
-            }
+            if (landed == END) return stepped;
+            if (landed < 0 || landed == START) return null;
             pad = diagonal(landed, rel);
         }
         return null;
@@ -173,9 +157,7 @@ public final class TeleportMazeLinks {
     }
 
     private static void union(int[] parent, int a, int b) {
-        if (a < 0 || b < 0) {
-            return;
-        }
+        if (a < 0 || b < 0) return;
         parent[find(parent, a)] = find(parent, b);
     }
 }

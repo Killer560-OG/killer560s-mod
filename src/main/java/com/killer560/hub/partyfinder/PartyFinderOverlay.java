@@ -89,7 +89,6 @@ public final class PartyFinderOverlay {
         });
     }
 
-    // ------------------------------------------------------------------------------------------ scanning
 
     private static void tick(Minecraft client) {
         // Background lookups outlive the menu, but not the world it was opened in (dungeon start, lobby swap).
@@ -134,13 +133,9 @@ public final class PartyFinderOverlay {
 
         boolean changed = false;
         for (Slot slot : screen.getMenu().slots) {
-            if (slot.container == client.player.getInventory() || slot.index < 0 || slot.index >= SCAN_SLOTS) {
-                continue;
-            }
+            if (slot.container == client.player.getInventory() || slot.index < 0 || slot.index >= SCAN_SLOTS) continue;
             ItemStack stack = slot.getItem();
-            if (stack == scannedStacks[slot.index]) {
-                continue;
-            }
+            if (stack == scannedStacks[slot.index]) continue;
             scannedStacks[slot.index] = stack;
             parties[slot.index] = PartyFinderParser.parse(slot.index, stack, currentRole);
             changed = true;
@@ -165,9 +160,7 @@ public final class PartyFinderOverlay {
     }
 
     private static void clearScan() {
-        if (scannedScreen == null) {
-            return;
-        }
+        if (scannedScreen == null) return;
         scannedScreen = null;
         scannedRole = null;
         devonianConflict = false;
@@ -177,28 +170,19 @@ public final class PartyFinderOverlay {
     }
 
     private static Party partyAt(AbstractContainerScreen<?> screen, Slot slot) {
-        if (screen != scannedScreen || slot.index < 0 || slot.index >= SCAN_SLOTS) {
-            return null;
-        }
+        if (screen != scannedScreen || slot.index < 0 || slot.index >= SCAN_SLOTS) return null;
         Minecraft client = Minecraft.getInstance();
-        if (client.player != null && slot.container == client.player.getInventory()) {
-            return null;
-        }
+        if (client.player != null && slot.container == client.player.getInventory()) return null;
         return parties[slot.index];
     }
 
-    // ------------------------------------------------------------------------------------------ rendering
 
     /** Highlight: called right before the slot's item is drawn. */
     public static void drawSlotBackground(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, Slot slot) {
         PartyFinderOverlayConfig cfg = PartyFinderOverlayConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isHighlight()) {
-            return;
-        }
+        if (!cfg.isEnabled() || !cfg.isHighlight()) return;
         Party party = partyAt(screen, slot);
-        if (party == null) {
-            return;
-        }
+        if (party == null) return;
         EnumSet<Status> blockers = EnumSet.noneOf(Status.class);
         blockers.addAll(party.blockers());
         if (cfg.isIgnoreCataRequirement()) {
@@ -217,29 +201,20 @@ public final class PartyFinderOverlay {
     /** Member Count: called after the slot's item is drawn. */
     public static void drawSlotForeground(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, Slot slot) {
         PartyFinderOverlayConfig cfg = PartyFinderOverlayConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isMemberCount()) {
-            return;
-        }
+        if (!cfg.isEnabled() || !cfg.isMemberCount()) return;
         Party party = partyAt(screen, slot);
-        if (party == null) {
-            return;
-        }
+        if (party == null) return;
         graphics.centeredText(Minecraft.getInstance().font, String.valueOf(party.members().size()),
                 slot.x + 14, slot.y + 8, cfg.getCountColor());
     }
 
-    // ------------------------------------------------------------------------------------------ tooltip
 
     /** @return the rewritten tooltip for a Party Finder party head, or null to leave it unchanged. */
     public static List<Component> rewriteTooltip(AbstractContainerScreen<?> screen, ItemStack stack, List<Component> lines) {
         PartyFinderOverlayConfig cfg = PartyFinderOverlayConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isTooltip() || lines == null || screen != scannedScreen) {
-            return null;
-        }
+        if (!cfg.isEnabled() || !cfg.isTooltip() || lines == null || screen != scannedScreen) return null;
         Party party = PartyFinderParser.parse(-1, stack, currentRole);
-        if (party == null) {
-            return null;
-        }
+        if (party == null) return null;
 
         if (!devonianConflict && !party.members().isEmpty()) {
             // The party he is looking at goes to the front of both lookup paths.
@@ -296,9 +271,7 @@ public final class PartyFinderOverlay {
                 out.add(line);
                 continue;
             }
-            if (text.contains("Missing: ")) {
-                continue;
-            }
+            if (text.contains("Missing: ")) continue;
             Matcher m = PartyFinderParser.USER_ROLE.matcher(text);
             if (!m.find()) {
                 out.add(line);
@@ -454,13 +427,9 @@ public final class PartyFinderOverlay {
     /** The legacy color code ("&b") of the styled segment holding {@code name} (the player's rank color). */
     private static String rankColorCode(Component line, String name) {
         Optional<String> code = line.visit((style, text) -> {
-            if (!text.contains(name)) {
-                return Optional.empty();
-            }
+            if (!text.contains(name)) return Optional.empty();
             TextColor color = style.getColor();
-            if (color == null) {
-                return Optional.empty();
-            }
+            if (color == null) return Optional.empty();
             for (ChatFormatting f : ChatFormatting.values()) {
                 if (ChatColors.isColor(f) && ChatColors.RGB[f.ordinal()] == color.getValue()) {
                     return Optional.of("&" + ChatColors.code(f));
@@ -473,12 +442,8 @@ public final class PartyFinderOverlay {
 
     /** Devonian {@code StringUtils.shortenNumber}. */
     static String shortenNumber(int num) {
-        if (num < 0) {
-            return "-" + shortenNumber(-num);
-        }
-        if (num < 1000) {
-            return Integer.toString(num);
-        }
+        if (num < 0) return "-" + shortenNumber(-num);
+        if (num < 1000) return Integer.toString(num);
         double n = num / 1000.0;
         if (n < 10.0) return String.format(Locale.US, "%.2fK", n);
         if (n < 100.0) return String.format(Locale.US, "%.1fK", n);
@@ -486,20 +451,14 @@ public final class PartyFinderOverlay {
         n /= 1000.0;
         if (n < 10.0) return String.format(Locale.US, "%.2fM", n);
         if (n < 100.0) return String.format(Locale.US, "%.1fM", n);
-        if (n < 1000.0) return String.format(Locale.US, "%.0fM", n);
-        return String.format(Locale.US, "%.2fB", n / 1000.0);
+        return n < 1000.0 ? String.format(Locale.US, "%.0fM", n) : String.format(Locale.US, "%.2fB", n / 1000.0);
     }
 
-    private static Component literal(String text) {
-        return Component.literal(text.replace('&', '§'));
-    }
+    private static Component literal(String text) { return Component.literal(text.replace('&', '§')); }
 
     /** Selected dungeon class as last seen, or null. */
-    public static DungeonClass getCurrentRole() {
-        return currentRole;
-    }
+    public static DungeonClass getCurrentRole() { return currentRole; }
 
-    // ------------------------------------------------------------------------------------------ settings-tab preview
 
     /** killer560 7.2: "live preview of the selected style using killer560, aut0balls, agreencatgirl,
      *  femboy_recruiter, latinomommy at cata/class 50/45/40/35/30". Fixed sample data, one per dungeon class,
@@ -518,9 +477,7 @@ public final class PartyFinderOverlay {
     }
 
     private static JsonObject pbEntry(String s, String sPlus) {
-        if (s == null && sPlus == null) {
-            return null;
-        }
+        if (s == null && sPlus == null) return null;
         JsonObject root = new JsonObject();
         if (s != null) {
             JsonObject sObj = new JsonObject();
@@ -579,9 +536,7 @@ public final class PartyFinderOverlay {
     /** Stats for a sample name, or null. */
     private static PlayerStats previewStatsFor(String name) {
         for (PreviewPlayer p : PREVIEW_PLAYERS) {
-            if (p.name().equalsIgnoreCase(name)) {
-                return p.stats();
-            }
+            if (p.name().equalsIgnoreCase(name)) return p.stats();
         }
         return null;
     }

@@ -40,9 +40,7 @@ public final class BlockHits {
      */
     public static BlockHitResult surface(BlockGetter level, BlockPos pos, Vec3 eye) {
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
-        if (shape.isEmpty()) {
-            return null;
-        }
+        if (shape.isEmpty()) return null;
         Vec3 centre = shape.bounds().getCenter().add(pos.getX(), pos.getY(), pos.getZ());
         Vec3 dir = centre.subtract(eye);
         if (dir.lengthSqr() < 1.0E-9) {
@@ -61,38 +59,28 @@ public final class BlockHits {
      */
     public static BlockHitResult exposedSurface(BlockGetter level, BlockPos pos, Vec3 eye) {
         BlockHitResult first = surface(level, pos, eye);
-        if (first != null && level.getBlockState(pos.relative(first.getDirection())).isAir()) {
-            return first;
-        }
+        if (first != null && level.getBlockState(pos.relative(first.getDirection())).isAir()) return first;
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
-        if (shape.isEmpty()) {
-            return null;
-        }
+        if (shape.isEmpty()) return null;
         net.minecraft.world.phys.AABB box = shape.bounds().move(pos);
         BlockHitResult best = null;
         double bestSq = Double.MAX_VALUE;
         for (Direction d : Direction.values()) {
-            if (!level.getBlockState(pos.relative(d)).isAir()) {
-                continue;
-            }
+            if (!level.getBlockState(pos.relative(d)).isAir()) continue;
             // The eye must be in front of that face's plane, or no ray from it can strike the face.
             double plane = switch (d) {
                 case UP -> box.maxY; case DOWN -> box.minY; case EAST -> box.maxX;
                 case WEST -> box.minX; case SOUTH -> box.maxZ; case NORTH -> box.minZ;
             };
             double eyeAxis = d.getAxis().choose(eye.x, eye.y, eye.z);
-            if (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? eyeAxis <= plane : eyeAxis >= plane) {
-                continue;
-            }
+            if (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? eyeAxis <= plane : eyeAxis >= plane) continue;
             // Aim a little inside the face's center, so the ray enters through that face and no other.
             Vec3 faceCentre = box.getCenter().add(d.getStepX() * (box.getXsize() / 2.0 - 0.01),
                     d.getStepY() * (box.getYsize() / 2.0 - 0.01), d.getStepZ() * (box.getZsize() / 2.0 - 0.01));
             Vec3 dir = faceCentre.subtract(eye);
             Vec3 end = eye.add(dir.normalize().scale(dir.length() + 1.5));
             BlockHitResult hit = shape.clip(eye, end, pos);
-            if (hit == null || hit.getDirection() != d) {
-                continue;
-            }
+            if (hit == null || hit.getDirection() != d) continue;
             double sq = hit.getLocation().distanceToSqr(eye);
             if (sq < bestSq) {
                 bestSq = sq;
@@ -141,9 +129,7 @@ public final class BlockHits {
      */
     public static BlockHitResult surfaceOrCentre(BlockGetter level, BlockPos pos, Vec3 eye) {
         BlockHitResult hit = surface(level, pos, eye);
-        if (hit != null) {
-            return hit;
-        }
+        if (hit != null) return hit;
         Vec3 centre = Vec3.atCenterOf(pos);
         return new BlockHitResult(centre, Direction.getApproximateNearest(eye.subtract(centre)), pos, false);
     }

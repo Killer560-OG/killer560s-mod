@@ -101,15 +101,12 @@ public final class PlayerNames {
     private PlayerNames() {
     }
 
-    // ---------------------------------------------------------------------------------------- immediate, cache-only
 
     /** The UUID for {@code name} from the tab list of anyone currently in your lobby, or the persisted cache -
      *  never touches the network. Null when nobody by that name has been seen or resolved yet; call
      *  {@link #resolveAsync(String, Consumer)} to actually look it up. */
     public static UUID uuidFor(String name) {
-        if (name == null || name.isBlank()) {
-            return null;
-        }
+        if (name == null || name.isBlank()) return null;
         scanLocalTabListIfDue();
         return PlayerNameCache.getInstance().uuidOf(name.trim());
     }
@@ -117,9 +114,7 @@ public final class PlayerNames {
     /** The last-known name for {@code id} - possibly stale (see class doc), never null-but-blocking on the
      *  network. Null only when this UUID has never been seen or resolved. */
     public static String nameFor(UUID id) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         scanLocalTabListIfDue();
         return PlayerNameCache.getInstance().nameOf(id);
     }
@@ -142,9 +137,7 @@ public final class PlayerNames {
 
     private static void scanLocalTabListIfDue() {
         long now = System.currentTimeMillis();
-        if (now - lastLocalScanAt < LOCAL_SCAN_GAP_MS) {
-            return;
-        }
+        if (now - lastLocalScanAt < LOCAL_SCAN_GAP_MS) return;
         lastLocalScanAt = now;
         try {
             Minecraft client = Minecraft.getInstance();
@@ -177,29 +170,20 @@ public final class PlayerNames {
         }
     }
 
-    // ---------------------------------------------------------------------------------------- async
 
     /** Resolves {@code name} to a UUID: calls {@code onResolved} immediately with whatever is already known
      *  (tab list / cache - possibly null), then again from a background lookup if nothing was known yet. See
      *  class doc for the thread/failure contract. */
     public static void resolveAsync(String name, Consumer<UUID> onResolved) {
-        if (name == null || onResolved == null) {
-            return;
-        }
+        if (name == null || onResolved == null) return;
         String clean = name.trim();
         UUID known = uuidFor(clean);
         onResolved.accept(known);
-        if (known != null || !VALID_NAME.matcher(clean).matches()) {
-            return;
-        }
+        if (known != null || !VALID_NAME.matcher(clean).matches()) return;
         String key = clean.toLowerCase(Locale.ROOT);
         Long failedAt = NAME_FAILED_AT.get(key);
-        if (failedAt != null && System.currentTimeMillis() - failedAt < NAME_FAILURE_RETRY_MS) {
-            return;
-        }
-        if (!IN_FLIGHT_NAME.add(key)) {
-            return;
-        }
+        if (failedAt != null && System.currentTimeMillis() - failedAt < NAME_FAILURE_RETRY_MS) return;
+        if (!IN_FLIGHT_NAME.add(key)) return;
         EXECUTOR.execute(() -> {
             try {
                 UUID resolved = fetchUuidForName(clean);
@@ -220,18 +204,12 @@ public final class PlayerNames {
      *  a background refresh completes. A refresh only runs when the cache is missing or older than a day. See
      *  class doc for the thread/failure contract. */
     public static void resolveAsync(UUID id, Consumer<String> onResolved) {
-        if (id == null || onResolved == null) {
-            return;
-        }
+        if (id == null || onResolved == null) return;
         String known = nameFor(id);
         onResolved.accept(known);
         long updatedAt = PlayerNameCache.getInstance().updatedAtOf(id);
-        if (System.currentTimeMillis() - updatedAt < REFRESH_MS) {
-            return;
-        }
-        if (!IN_FLIGHT_UUID.add(id)) {
-            return;
-        }
+        if (System.currentTimeMillis() - updatedAt < REFRESH_MS) return;
+        if (!IN_FLIGHT_UUID.add(id)) return;
         EXECUTOR.execute(() -> {
             try {
                 String resolved = fetchNameForUuid(id);
@@ -333,9 +311,7 @@ public final class PlayerNames {
     /** Mojang's lookup responses give the UUID with no dashes. */
     private static UUID dashUuid(String raw) {
         String clean = raw.replace("-", "");
-        if (clean.length() != 32) {
-            return null;
-        }
+        if (clean.length() != 32) return null;
         String dashed = clean.substring(0, 8) + "-" + clean.substring(8, 12) + "-" + clean.substring(12, 16) + "-"
                 + clean.substring(16, 20) + "-" + clean.substring(20, 32);
         try {

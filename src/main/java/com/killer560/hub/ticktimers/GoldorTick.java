@@ -105,9 +105,7 @@ public final class GoldorTick {
     private GoldorTick() {
     }
 
-    static long now() {
-        return PerTickServerClock.now();
-    }
+    static long now() { return PerTickServerClock.now(); }
 
     /** Clock read when a chat line was handled this client tick (MIN = none): chat arrives while the client tick runs its
      *  packets, before the clock's own end-of-tick step, while a health drop is seen at the end of the tick. Everything is
@@ -139,15 +137,11 @@ public final class GoldorTick {
     }
 
     /** Storm's death line: remembered only for the log (is Goldor's phase tied to it rather than to his own line?). */
-    static synchronized void stormDeath() {
-        stormDeathTick = now();
-    }
+    static synchronized void stormDeath() { stormDeathTick = now(); }
 
     /** Once per clock tick: one log line on every tick the line reads 0 (the predicted hit). */
     static synchronized void serverTick() {
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         long t = now();
         if (remaining() == 0 && t != lastLoggedZero) {
             lastLoggedZero = t;
@@ -166,40 +160,25 @@ public final class GoldorTick {
         HURT.clear();
     }
 
-    public static boolean active() {
-        return active;
-    }
+    public static boolean active() { return active; }
 
-    public static synchronized boolean testLocked() {
-        return locked;
-    }
+    public static synchronized boolean testLocked() { return locked; }
 
     /** Ticks until Goldor's next hit: 0 on the hit's own tick, 59 the tick after, and 60 on Goldor's line itself. */
     public static synchronized int remaining() {
         long d = anchor - now();
-        if (d > 0) {
-            return (int) ((d - 1) % PERIOD) + 1;
-        }
-        return (int) Math.floorMod(d, (long) PERIOD);
+        return d > 0 ? (int) ((d - 1) % PERIOD) + 1 : (int) Math.floorMod(d, (long) PERIOD);
     }
 
     /** How far {@code t} is past the predicted hit, -30..29. */
-    private static int offset(long t) {
-        return (int) (Math.floorMod(t - anchor + PERIOD / 2, (long) PERIOD) - PERIOD / 2);
-    }
+    private static int offset(long t) { return (int) (Math.floorMod(t - anchor + PERIOD / 2, (long) PERIOD) - PERIOD / 2); }
 
     /** A hit seen at server tick {@code t}; {@code strong} = it landed on two or more players in the same tick. */
-    static synchronized void onHit(long t, boolean strong, String why) {
-        onHit(t, strong ? Kind.MULTI : Kind.SELF, why);
-    }
+    static synchronized void onHit(long t, boolean strong, String why) { onHit(t, strong ? Kind.MULTI : Kind.SELF, why); }
 
     static synchronized void onHit(long t, Kind kind, String why) {
-        if (!active) {
-            return;
-        }
-        if (lastAccepted != Long.MIN_VALUE && t - lastAccepted >= 0 && t - lastAccepted <= DEBOUNCE) {
-            return;
-        }
+        if (!active) return;
+        if (lastAccepted != Long.MIN_VALUE && t - lastAccepted >= 0 && t - lastAccepted <= DEBOUNCE) return;
         int off = offset(t);
         OFFSETS_AT_HITS.add(off);
         if (OFFSETS_AT_HITS.size() > 32) {
@@ -251,9 +230,7 @@ public final class GoldorTick {
     }
 
     private static boolean inPhase(long gap) {
-        if (gap < PERIOD - TRUSTED_PAIR) {
-            return false;
-        }
+        if (gap < PERIOD - TRUSTED_PAIR) return false;
         return Math.floorMod(gap + TRUSTED_PAIR, (long) PERIOD) <= 2L * TRUSTED_PAIR;
     }
 
@@ -304,9 +281,7 @@ public final class GoldorTick {
         lastHealth = h;
         int others = 0;
         for (AbstractClientPlayer p : client.level.players()) {
-            if (p == client.player) {
-                continue;
-            }
+            if (p == client.player) continue;
             Integer prev = HURT.put(p.getId(), p.hurtTime);
             if (prev != null && p.hurtTime > prev) {
                 others++;
@@ -322,9 +297,7 @@ public final class GoldorTick {
 
     /** A mask or Phoenix proc line: you were just hit for lethal damage, in P3 that is Goldor's tick. Counted at the end
      *  of this client tick, with the health drops. */
-    static synchronized void onProc() {
-        procPending = active;
-    }
+    static synchronized void onProc() { procPending = active; }
 
     /** End of every client tick, before {@link #clientTick}: puts this tick's chat-time events on the end-of-tick clock. */
     public static synchronized void endOfTick() {
@@ -344,27 +317,12 @@ public final class GoldorTick {
         }
     }
 
-    // ---- test hooks --------------------------------------------------------------------------------------------------
 
-    public static synchronized List<Integer> testOffsetsAtHits() {
-        return new ArrayList<>(OFFSETS_AT_HITS);
-    }
+    public static synchronized List<Integer> testOffsetsAtHits() { return new ArrayList<>(OFFSETS_AT_HITS); }
 
-    public static synchronized int testRelocks() {
-        return relocks;
-    }
-
-    public static synchronized long testAnchor() {
-        return anchor;
-    }
+    public static synchronized int testRelocks() { return relocks; }
 
     /** Testkit: a hit at the clock's current tick, as the client would observe it. */
-    public static void testHitNow(boolean strong) {
-        onHit(now(), strong, "the testkit");
-    }
+    public static void testHitNow(boolean strong) { onHit(now(), strong, "the testkit"); }
 
-    /** Testkit: a hit of one kind ("PROC", "MULTI", "SELF") at the clock's current tick. */
-    public static void testHitKindNow(String kind) {
-        onHit(now(), Kind.valueOf(kind), "the testkit (" + kind + ")");
-    }
 }

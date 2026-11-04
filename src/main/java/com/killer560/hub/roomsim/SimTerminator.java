@@ -150,9 +150,7 @@ public final class SimTerminator {
     private static final java.util.Map<UUID, String> LAST_HIT_BY = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The arrow that last damaged {@code id}, described, or null. */
-    public static String lastHitBy(UUID id) {
-        return LAST_HIT_BY.get(id);
-    }
+    public static String lastHitBy(UUID id) { return LAST_HIT_BY.get(id); }
 
     /** Arrows actually put in the world, so a test can prove the weapon acted rather than trust a log line. */
     private static volatile int arrowsFired;
@@ -214,22 +212,16 @@ public final class SimTerminator {
 
     /** Whether enough time has passed since the last shot, and claims the slot if so. */
     public static boolean readyToFire() {
-        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) {
-            return false;
-        }
+        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) return false;
         lastShotTick = tickCounter;
         return true;
     }
 
     /** Advances the fire-rate clock; called once per client tick. */
-    public static void tick() {
-        tickCounter++;
-    }
+    public static void tick() { tickCounter++; }
 
     /** Arrow entities put in the world since {@link #reset}. A shot that fired nothing cannot hide behind this. */
-    public static int arrowsFired() {
-        return arrowsFired;
-    }
+    public static int arrowsFired() { return arrowsFired; }
 
     /**
      * One use of the Terminator: Salvation if it is armed AND this is a left click, otherwise the three-arrow
@@ -243,9 +235,7 @@ public final class SimTerminator {
      * @return whether anything was fired
      */
     public static boolean use(Minecraft client, boolean leftClick) {
-        if (!SimState.canAct(client)) {
-            return false;
-        }
+        if (!SimState.canAct(client)) return false;
         if (salvationArmed && leftClick) {
             salvation(client);
             salvationArmed = false;
@@ -265,9 +255,7 @@ public final class SimTerminator {
      */
     private static void shoot(Minecraft client) {
         var server = client.getSingleplayerServer();
-        if (server == null || client.player == null) {
-            return;
-        }
+        if (server == null || client.player == null) return;
         // SimAim: the rotation the use packet carried when the server fired this shot, his own otherwise.
         final float yaw = SimAim.yaw(client.player);
         final float pitch = SimAim.pitch(client.player);
@@ -283,9 +271,7 @@ public final class SimTerminator {
                 fromAngles(yaw, pitch), ARROW_RANGE);
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);
-            if (sp == null || !(sp.level() instanceof ServerLevel level)) {
-                return;
-            }
+            if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
             for (int i = 0; i < ARROWS_PER_SHOT; i++) {
                 double offset = (i - (ARROWS_PER_SHOT - 1) / 2.0) * SPREAD_DEGREES;
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
@@ -315,9 +301,7 @@ public final class SimTerminator {
      * thread, which is where {@code ModChat} belongs.
      */
     private static void recordHit(LivingEntity target) {
-        if (target == null || salvationArmed || !MOBS_HIT.add(target.getUUID())) {
-            return;
-        }
+        if (target == null || salvationArmed || !MOBS_HIT.add(target.getUUID())) return;
         if (MOBS_HIT.size() >= HITS_TO_ARM) {
             salvationArmed = true;
             Minecraft.getInstance().execute(() ->
@@ -334,9 +318,7 @@ public final class SimTerminator {
     private static void salvationParticles(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3 along = to.subtract(from);
         double length = along.length();
-        if (length < 1.0E-4) {
-            return;
-        }
+        if (length < 1.0E-4) return;
         Vec3 step = along.scale(1.0 / length).scale(0.33);
         var dust = new net.minecraft.core.particles.DustParticleOptions(0xFF3030, 1.0f);
         for (double travelled = 0; travelled <= length; travelled += 0.33) {
@@ -400,24 +382,16 @@ public final class SimTerminator {
     }
 
     private static void applyDamage(Minecraft client, List<UUID> ids) {
-        if (ids.isEmpty()) {
-            return;
-        }
+        if (ids.isEmpty()) return;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<UUID> copy = List.copyOf(ids);
         UUID shooter = client.player == null ? null : client.player.getUUID();
-        if (shooter == null) {
-            return;
-        }
+        if (shooter == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var sp = server.getPlayerList().getPlayer(shooter);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             // playerAttack, NOT magic() - see the same note in SimClass.fire. SimMobs treats a source with no
             // entity behind it as environmental and makes every 1 HP sim mob invulnerable to it, so the
             // terminator's shots landed and did nothing.
@@ -440,9 +414,7 @@ public final class SimTerminator {
      * {@code ProjectileDeflection.REVERSE}, which turns it about 180 degrees. Anything that needs "which way was
      * this shot aimed" - Ice Path's shove - reads this instead.
      */
-    public static Float shotYaw(Entity entity) {
-        return entity instanceof TerminatorArrow arrow ? arrow.shotYaw : null;
-    }
+    public static Float shotYaw(Entity entity) { return entity instanceof TerminatorArrow arrow ? arrow.shotYaw : null; }
 
     /** Vanilla's own yaw/pitch to direction, so an angled arrow goes where the crosshair says it would. */
     private static Vec3 fromAngles(float yaw, float pitch) {
@@ -516,9 +488,7 @@ public final class SimTerminator {
          * anything had been fired (93-solve, 2026-10-05: two of fifteen runs; the save held two such arrows).
          */
         @Override
-        public boolean shouldBeSaved() {
-            return false;
-        }
+        public boolean shouldBeSaved() { return false; }
 
         @Override
         public void tick() {
