@@ -49,7 +49,6 @@ public final class BarPainter {
     /** Not drawn for this long: the next draw starts at the value instead of easing from a stale one. */
     private static final long STALE_NANOS = 1_000_000_000L;
 
-    // ---- what the last draw of each bar measured, in the bar's own units; read by the testkit ----
     /** Length of the track (the part of the box that fills). */
     public static final int[] lastTrack = new int[N];
     /** Filled length of the main value. */
@@ -185,7 +184,6 @@ public final class BarPainter {
         lastScreenBox[i * 4 + 3] = pm.m11() * (y + h) + pm.m21();
 
         GuiRects q = RECTS.start(g);
-        // ---- frame ----
         // Rounded corners (killer560, 2026-10-12: "make the corners slightly more rounded for the bars"): a 2-unit stepped
         // curve - the outer ring skips two units at each corner and steps in one unit diagonally - and the track's own
         // corner unit is painted back in the frame color after the fill, so no square fill corner shows through.
@@ -199,23 +197,19 @@ public final class BarPainter {
             }
         }
         if (iw > 0 && ih > 0) {
-            // ---- empty track ----
             q.fill(ix0, iy0, ix1, iy1, cfg.getBarBackground());
             // ---- ghost: where the bar was before the hit, draining toward the value ----
             if (ghostEnd > filled) {
                 q.fill(ix0 + filled, iy0, ix0 + ghostEnd, iy1, ghostColor(color));
             }
-            // ---- value ----
             if (filled > 0) {
                 shade(q, ix0, iy0, ix0 + filled, iy1, color, bold);
             }
-            // ---- overflow layer ----
             if (seg > 0) {
                 shade(q, ix0 + segX, iy0, ix0 + segX + seg, iy1, overColor, bold);
             }
             boolean deep = ih >= 4;
             int lit = Math.max(filled, seg > 0 ? segX + seg : 0);
-            // ---- light top edge on what is filled ----
             if (deep && lit > 0) {
                 q.fill(ix0, iy0 + 1, ix0 + lit, iy0 + 2, bold ? 0x80FFFFFF : 0x60FFFFFF);
             }

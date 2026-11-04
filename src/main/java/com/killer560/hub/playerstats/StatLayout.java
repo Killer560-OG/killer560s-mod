@@ -158,7 +158,6 @@ public final class StatLayout {
     private static boolean previewActive;
     private static int previewVersion;
 
-    // ---- memo -------------------------------------------------------------------------------------------------------
     private static int frame;
     private static Layout memo;
     private static int memoFrame = -1;
@@ -362,7 +361,6 @@ public final class StatLayout {
         return target.index() < in.size() ? in.get(target.index()) : null;
     }
 
-    // ---- the layout ---------------------------------------------------------------------------------------------------
 
     private static Layout compute(Minecraft mc, int w, int h, boolean editor, Readout exclude, Readout moving,
                                   Area into, int index, boolean reserveEmpty) {
