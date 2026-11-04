@@ -49,9 +49,7 @@ public final class PacketGuard {
     public static void armTestThrow(int n) { testThrows = n; }
 
     public static boolean consumeTestThrow() {
-        if (testThrows <= 0) {
-            return false;
-        }
+        if (testThrows <= 0) return false;
         testThrows--;
         return true;
     }
@@ -59,9 +57,7 @@ public final class PacketGuard {
     /** True when the disconnect for this packet error should be skipped (the throw came from this mod). */
     public static synchronized boolean keepConnected(Packet<?> packet, Exception error) {
         StackTraceElement site = ourThrowSite(error);
-        if (site == null) {
-            return false;
-        }
+        if (site == null) return false;
         long now = System.currentTimeMillis();
         if (now - windowStart > FLOOD_WINDOW_MS) {
             windowStart = now;
@@ -94,14 +90,10 @@ public final class PacketGuard {
         for (int i = 0; i < 8 && t != null && t.getCause() != null && t.getCause() != t; i++) {
             t = t.getCause();
         }
-        if (t == null) {
-            return null;
-        }
+        if (t == null) return null;
         for (StackTraceElement e : t.getStackTrace()) {
             String c = e.getClassName();
-            if (isLibrary(c)) {
-                continue;
-            }
+            if (isLibrary(c)) continue;
             return isOurs(e) ? e : null;
         }
         return null;
