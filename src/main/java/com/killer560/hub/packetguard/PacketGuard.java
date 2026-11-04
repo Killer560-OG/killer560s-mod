@@ -41,16 +41,12 @@ public final class PacketGuard {
     }
 
     /** Total throws kept from disconnecting (testkit). */
-    public static synchronized int kept() {
-        return kept;
-    }
+    public static synchronized int kept() { return kept; }
 
     private static volatile int testThrows;
 
     /** Testkit: the next {@code n} time packets throw from our own hook (dev builds only). */
-    public static void armTestThrow(int n) {
-        testThrows = n;
-    }
+    public static void armTestThrow(int n) { testThrows = n; }
 
     public static boolean consumeTestThrow() {
         if (testThrows <= 0) {
@@ -90,9 +86,7 @@ public final class PacketGuard {
         return true;
     }
 
-    private static String packetName(Packet<?> packet) {
-        return packet == null ? "?" : packet.getClass().getSimpleName();
-    }
+    private static String packetName(Packet<?> packet) { return packet == null ? "?" : packet.getClass().getSimpleName(); }
 
     /** The first frame that is not the JDK or a library, if it is ours; null otherwise. Looks at the root cause. */
     static StackTraceElement ourThrowSite(Throwable error) {
