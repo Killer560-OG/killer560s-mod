@@ -145,9 +145,7 @@ public final class WalkCamera {
     /** Remaining turn to the aim, in degrees (the larger of yaw and pitch). */
     public static float error() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !active) {
-            return 0f;
-        }
+        if (player == null || !active) return 0f;
         return Math.max(Math.abs(Mth.wrapDegrees(targetYaw - player.getYRot())),
                 Math.abs(targetPitch - player.getXRot()));
     }
@@ -167,17 +165,13 @@ public final class WalkCamera {
             lastFrameNanos = 0L;
             velYaw = 0f;
             velPitch = 0f;
-            if (paused) {
-                return;
-            }
+            if (paused) return;
         }
         long now = System.nanoTime();
         double dt = lastFrameNanos == 0L ? 1.0 : (now - lastFrameNanos) / 50_000_000.0;
         lastFrameNanos = now;
         dt = Mth.clamp(dt, 0.0, 3.0); // an alt-tab or lag spike must not become one big jump
-        if (dt <= 0.0) {
-            return;
-        }
+        if (dt <= 0.0) return;
 
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();

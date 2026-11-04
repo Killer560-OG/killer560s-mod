@@ -79,9 +79,7 @@ public final class NavigationManager {
     }
 
     public static void stop(String reason, boolean announce) {
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         String label = target.label;
         target = null;
         path = List.of();
@@ -94,13 +92,9 @@ public final class NavigationManager {
     /** Distance still to walk: player to the path, then along the path to the target. */
     public static double remainingDistance() {
         Minecraft client = Minecraft.getInstance();
-        if (target == null || client.player == null) {
-            return 0;
-        }
+        if (target == null || client.player == null) return 0;
         Vec3 pos = client.player.position();
-        if (path.size() < 2) {
-            return pos.distanceTo(target.pos);
-        }
+        if (path.size() < 2) return pos.distanceTo(target.pos);
         int seg = closestSegment(pos);
         Vec3 proj = projectOnSegment(pos, path.get(seg), path.get(seg + 1));
         double total = pos.distanceTo(proj) + proj.distanceTo(path.get(seg + 1));
@@ -121,17 +115,13 @@ public final class NavigationManager {
             }
         }
         teleported = false;
-        if (player == null) {
-            return;
-        }
+        if (player == null) return;
         Vec3 pos = player.position();
         if (lastPlayerPos != null && lastPlayerPos.distanceToSqr(pos) > 64.0) {
             teleported = true;
         }
         lastPlayerPos = pos;
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (!cfg.isEnabled() && !FairySoulsFeature.autoRunning()) {
             stop(null, false);
@@ -166,9 +156,7 @@ public final class NavigationManager {
             recalculate(true);
         }
 
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         boolean stale = path.isEmpty() || teleported;
         if (!stale) {
             double offPath = Math.sqrt(distanceSqToPath(pos));
@@ -190,13 +178,9 @@ public final class NavigationManager {
     public static void recalculate(boolean force) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || target == null) {
-            return;
-        }
+        if (player == null || target == null) return;
         long now = System.currentTimeMillis();
-        if (!force && now - lastPathMs < MIN_REPATH_MS) {
-            return;
-        }
+        if (!force && now - lastPathMs < MIN_REPATH_MS) return;
         lastPathMs = now;
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
@@ -256,9 +240,7 @@ public final class NavigationManager {
     private static int segResult;
 
     public static int closestSegment(Vec3 pos) {
-        if (path == segPath && pos.x == segX && pos.y == segY && pos.z == segZ) {
-            return segResult;
-        }
+        if (path == segPath && pos.x == segX && pos.y == segY && pos.z == segZ) return segResult;
         int found = closestSegment0(pos);
         segPath = path;
         segX = pos.x;
@@ -282,12 +264,8 @@ public final class NavigationManager {
     }
 
     public static double distanceSqToPath(Vec3 pos) {
-        if (path.isEmpty()) {
-            return Double.MAX_VALUE;
-        }
-        if (path.size() == 1) {
-            return pos.distanceToSqr(path.get(0));
-        }
+        if (path.isEmpty()) return Double.MAX_VALUE;
+        if (path.size() == 1) return pos.distanceToSqr(path.get(0));
         double best = Double.MAX_VALUE;
         for (int i = 0; i < path.size() - 1; i++) {
             best = Math.min(best, pos.distanceToSqr(projectOnSegment(pos, path.get(i), path.get(i + 1))));
@@ -298,9 +276,7 @@ public final class NavigationManager {
     public static Vec3 projectOnSegment(Vec3 p, Vec3 a, Vec3 b) {
         Vec3 ab = b.subtract(a);
         double lenSq = ab.lengthSqr();
-        if (lenSq < 1.0e-6) {
-            return a;
-        }
+        if (lenSq < 1.0e-6) return a;
         double t = p.subtract(a).dot(ab) / lenSq;
         t = Math.max(0.0, Math.min(1.0, t));
         return a.add(ab.scale(t));
@@ -308,21 +284,15 @@ public final class NavigationManager {
 
     /** A point {@code ahead} blocks further along the path than the player's projection - the walker's "carrot". */
     public static Vec3 pointAhead(Vec3 pos, double ahead) {
-        if (path.isEmpty()) {
-            return null;
-        }
-        if (path.size() == 1) {
-            return path.get(0);
-        }
+        if (path.isEmpty()) return null;
+        if (path.size() == 1) return path.get(0);
         int seg = closestSegment(pos);
         Vec3 current = projectOnSegment(pos, path.get(seg), path.get(seg + 1));
         double remaining = ahead;
         for (int i = seg; i < path.size() - 1; i++) {
             Vec3 next = path.get(i + 1);
             double d = current.distanceTo(next);
-            if (d >= remaining) {
-                return current.add(next.subtract(current).normalize().scale(remaining));
-            }
+            if (d >= remaining) return current.add(next.subtract(current).normalize().scale(remaining));
             remaining -= d;
             current = next;
         }

@@ -63,9 +63,7 @@ public final class EtherwarpHopper {
     /** The custom data of the first etherwarp-capable hotbar item, or null. */
     private static CompoundTag hotbarTag() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return null;
-        }
+        if (player == null) return null;
         for (int slot = 0; slot <= 8; slot++) {
             CompoundTag tag = tag(player.getInventory().getItem(slot));
             if (tag != null && (tag.getIntOr("ethermerge", 0) == 1
@@ -77,9 +75,7 @@ public final class EtherwarpHopper {
     }
 
     private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         // Read-only view: range() reads all nine hotbar slots every tick the floor graph is kept warm, and copyTag()
         // there deep-copied every Skyblock item's whole ExtraAttributes tree each time (fps-auto-1015).
         return com.killer560.hub.util.ItemNbt.view(stack);
@@ -103,9 +99,7 @@ public final class EtherwarpHopper {
     /** An etherwarpable block to land on next to {@code point} (the soul / a path point), or null. */
     public static BlockPos landingSpotNear(Vec3 point) {
         BlockPos below = BlockPos.containing(point.x, point.y - 1, point.z);
-        if (TeleportUtils.etherwarpable(below)) {
-            return below;
-        }
+        if (TeleportUtils.etherwarpable(below)) return below;
         return TeleportUtils.nearestEtherwarpable(below);
     }
 
@@ -113,9 +107,7 @@ public final class EtherwarpHopper {
     public static TeleportUtils.Rotation directionTo(BlockPos target) {
         LocalPlayer player = Minecraft.getInstance().player;
         double range = range();
-        if (player == null || range <= 0 || target == null || !TeleportUtils.etherwarpable(target)) {
-            return null;
-        }
+        if (player == null || range <= 0 || target == null || !TeleportUtils.etherwarpable(target)) return null;
         Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
         return TeleportUtils.getEtherwarpDirection(eye, target, range);
     }
@@ -124,14 +116,10 @@ public final class EtherwarpHopper {
     public static boolean hop(BlockPos target, Runnable onDone) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || isBusy()) {
-            return false;
-        }
+        if (player == null || isBusy()) return false;
         TeleportUtils.Rotation dir = directionTo(target);
         String item = hotbarItem();
-        if (dir == null || item == null) {
-            return false;
-        }
+        if (dir == null || item == null) return false;
         Vec3 pos = player.position();
         List<ClearNode> nodes = new ArrayList<>(1);
         nodes.add(new PathEtherNode(pos, dir.yaw(), dir.pitch(), item,
@@ -183,9 +171,7 @@ public final class EtherwarpHopper {
             List<EtherwarpPathfinder.Node> result = path;
             client.execute(() -> {
                 planning = false;
-                if (gen != generation) {
-                    return;
-                }
+                if (gen != generation) return;
                 if (result == null || result.isEmpty()) {
                     if (onFail != null) {
                         onFail.run();

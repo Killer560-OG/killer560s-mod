@@ -95,9 +95,7 @@ public final class IslandGraph {
     /** @throws IllegalArgumentException when the JSON isn't a usable graph (no nodes). */
     public static IslandGraph parse(String island, String json) {
         JsonElement root = JsonParser.parseString(json);
-        if (!root.isJsonObject()) {
-            throw new IllegalArgumentException("graph root is not an object");
-        }
+        if (!root.isJsonObject()) throw new IllegalArgumentException("graph root is not an object");
         JsonObject obj = root.getAsJsonObject();
         List<Node> list = new ArrayList<>(obj.size());
         List<Map<Integer, Double>> edges = new ArrayList<>(obj.size());
@@ -108,14 +106,10 @@ public final class IslandGraph {
             } catch (NumberFormatException ex) {
                 continue;
             }
-            if (!e.getValue().isJsonObject()) {
-                continue;
-            }
+            if (!e.getValue().isJsonObject()) continue;
             JsonObject n = e.getValue().getAsJsonObject();
             double[] pos = parsePos(n.has("Position") && n.get("Position").isJsonPrimitive() ? n.get("Position").getAsString() : null);
-            if (pos == null) {
-                continue;
-            }
+            if (pos == null) continue;
             String name = n.has("Name") && n.get("Name").isJsonPrimitive() ? n.get("Name").getAsString() : null;
             List<String> tags = new ArrayList<>(2);
             if (n.has("Tags") && n.get("Tags").isJsonArray()) {
@@ -142,9 +136,7 @@ public final class IslandGraph {
             list.add(new Node(list.size(), id, pos[0], pos[1], pos[2], name, tags.isEmpty() ? List.of() : List.copyOf(tags)));
             edges.add(nb);
         }
-        if (list.isEmpty()) {
-            throw new IllegalArgumentException("graph has no nodes");
-        }
+        if (list.isEmpty()) throw new IllegalArgumentException("graph has no nodes");
         IslandGraph graph = new IslandGraph(island, list.toArray(new Node[0]));
         for (int i = 0; i < graph.nodes.length; i++) {
             Map<Integer, Double> nb = edges.get(i);
@@ -167,13 +159,9 @@ public final class IslandGraph {
     }
 
     private static double[] parsePos(String s) {
-        if (s == null) {
-            return null;
-        }
+        if (s == null) return null;
         String[] parts = s.split(":");
-        if (parts.length != 3) {
-            return null;
-        }
+        if (parts.length != 3) return null;
         try {
             double x = Double.parseDouble(parts[0]);
             double y = Double.parseDouble(parts[1]);
@@ -224,9 +212,7 @@ public final class IslandGraph {
     public List<String> destinationNames() {
         TreeMap<String, String> names = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (Node n : nodes) {
-            if (n.cleanName == null || n.cleanName.isEmpty() || n.cleanName.equalsIgnoreCase("no_area")) {
-                continue;
-            }
+            if (n.cleanName == null || n.cleanName.isEmpty() || n.cleanName.equalsIgnoreCase("no_area")) continue;
             names.putIfAbsent(n.cleanName, n.cleanName);
         }
         return Collections.unmodifiableList(new ArrayList<>(names.values()));

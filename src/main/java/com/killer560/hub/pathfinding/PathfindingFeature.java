@@ -98,9 +98,7 @@ public final class PathfindingFeature {
             // Ahead of the Fairy Souls gate: Auto Fairy Souls starts and runs with that switch off (killer560, 2026-10-17).
             pollResumeKey(client, cfg);
         }
-        if (!cfg.isEnabled() && !FairySoulsFeature.autoRunning()) {
-            return;
-        }
+        if (!cfg.isEnabled() && !FairySoulsFeature.autoRunning()) return;
         String island = IslandDetector.graphIsland();
         if (island != null) {
             GraphRepository.ensureLoading(island, false);
@@ -130,13 +128,9 @@ public final class PathfindingFeature {
             }
             resumeMouseWasDown = down;
         }
-        if (!startKeyPressed) {
-            return;
-        }
+        if (!startKeyPressed) return;
         startKeyPressed = false;
-        if (cfg.getResumeKeyCode() == KeyUtil.NONE || McCompat.screen(client) != null) {
-            return;
-        }
+        if (cfg.getResumeKeyCode() == KeyUtil.NONE || McCompat.screen(client) != null) return;
         if (AutoSoulRunner.isActive()) {
             AutoSoulRunner.stop("the Start/Stop key", true);
         } else {
@@ -239,9 +233,7 @@ public final class PathfindingFeature {
         LocalPlayer player = client.player;
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (player == null) {
-            return 0;
-        }
+        if (player == null) return 0;
         String text = input.trim().replace("\"", "");
         String[] parts = text.split("\\s+");
         if (parts.length == 3) {
@@ -426,9 +418,7 @@ public final class PathfindingFeature {
             Minecraft client = Minecraft.getInstance();
             PathfindingConfig cfg = PathfindingConfig.getInstance();
             boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
-            if (!(cfg.isEnabled() && cfg.isSoulHud()) && !editor) {
-                return;
-            }
+            if (!(cfg.isEnabled() && cfg.isSoulHud()) && !editor) return;
             List<String> lines = drawnLines();
             if (!lines.isEmpty()) {
                 HudSeen.markDrawn(id());

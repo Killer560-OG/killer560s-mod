@@ -116,9 +116,7 @@ public final class PathfindingConfig {
     private static void load0() {
         PathfindingConfig cfg = new PathfindingConfig();
         instance = cfg;
-        if (!Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!Files.exists(CONFIG_PATH)) return;
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             cfg.readFrom(obj);

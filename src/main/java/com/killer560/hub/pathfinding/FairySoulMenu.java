@@ -54,9 +54,7 @@ public final class FairySoulMenu {
 
     /** Call once per client tick. */
     public static void tick(Minecraft client) {
-        if (!FairySoulsFeature.soulsWanted()) {
-            return;
-        }
+        if (!FairySoulsFeature.soulsWanted()) return;
         Screen screen = McCompat.screen(client);
         if (screen != lastScreen) {
             lastScreen = screen;
@@ -64,27 +62,19 @@ public final class FairySoulMenu {
             lastSignature = 0;
             applied = false;
         }
-        if (applied || !(screen instanceof AbstractContainerScreen<?> container)) {
-            return;
-        }
+        if (applied || !(screen instanceof AbstractContainerScreen<?> container)) return;
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
-        if (title == null || !title.contains(MENU_TITLE)) {
-            return;
-        }
+        if (title == null || !title.contains(MENU_TITLE)) return;
         Map<String, int[]> counts = read(container);
         int signature = signature(counts);
-        if (counts.isEmpty()) {
-            return;
-        }
+        if (counts.isEmpty()) return;
         // Hypixel fills a chest GUI over a few ticks - wait until the contents stop changing.
         if (signature != lastSignature) {
             lastSignature = signature;
             stableTicks = 0;
             return;
         }
-        if (++stableTicks < 5) {
-            return;
-        }
+        if (++stableTicks < 5) return;
         applied = true;
         apply(counts);
     }
@@ -109,23 +99,15 @@ public final class FairySoulMenu {
                 continue; // the player's own inventory half of the chest GUI
             }
             ItemStack stack = slot.getItem();
-            if (stack == null || stack.isEmpty()) {
-                continue;
-            }
+            if (stack == null || stack.isEmpty()) continue;
             String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
             String island = IslandDetector.byDisplayName(name);
-            if (island == null) {
-                continue;
-            }
+            if (island == null) continue;
             ItemLore lore = stack.get(DataComponents.LORE);
-            if (lore == null) {
-                continue;
-            }
+            if (lore == null) continue;
             for (Component line : lore.lines()) {
                 String plain = ChatFormatting.stripFormatting(line.getString());
-                if (plain == null) {
-                    continue;
-                }
+                if (plain == null) continue;
                 Matcher m = LORE_COUNT.matcher(plain);
                 if (m.find()) {
                     try {

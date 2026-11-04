@@ -48,9 +48,7 @@ public final class FairySoulsFeature {
     }
 
     public static void register() {
-        if (subscribed) {
-            return;
-        }
+        if (subscribed) return;
         subscribed = true;
         ChatObserver.subscribe(FairySoulsFeature::onChat);
     }
@@ -100,9 +98,7 @@ public final class FairySoulsFeature {
     public static int[] islandCounts() {
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (graph == null) {
-            return null;
-        }
+        if (graph == null) return null;
         List<IslandGraph.Node> souls = graph.withTag(IslandGraph.TAG_FAIRY_SOUL);
         return new int[]{souls.size() - unfound(graph).size(), souls.size()};
     }
@@ -110,9 +106,7 @@ public final class FairySoulsFeature {
     /** What Hypixel's own menu last said for this island, or null if it was never opened. */
     public static FairySoulStore.IslandRecord menuRecord() {
         String island = IslandDetector.graphIsland();
-        if (island == null) {
-            return null;
-        }
+        if (island == null) return null;
         FairySoulStore.IslandRecord record =
                 FairySoulStore.record(ProfileTracker.key(), IslandDetector.soulMenuGroup(island));
         return record.menuTotal > 0 ? record : null;
@@ -127,9 +121,7 @@ public final class FairySoulsFeature {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         if (graph == null) {
             GraphRepository.ensureLoading(island, false);
             ModChat.send(CHAT, ModChat.bad(island == null
@@ -181,9 +173,7 @@ public final class FairySoulsFeature {
             int[] finalOrder = order;
             client.execute(() -> {
                 routing = false;
-                if (!island.equals(IslandDetector.graphIsland()) || !guiding) {
-                    return;
-                }
+                if (!island.equals(IslandDetector.graphIsland()) || !guiding) return;
                 queue.clear();
                 for (int idx : finalOrder) {
                     queue.add(missing.get(idx));
@@ -235,9 +225,7 @@ public final class FairySoulsFeature {
      * Without auto walking (display-only guidance) it is plain graph distance.
      */
     static GraphPathfinder.LegCost costFor(PathfindingConfig cfg) {
-        if (!cfg.isAutoSouls()) {
-            return GraphPathfinder.GRAPH_DISTANCE;
-        }
+        if (!cfg.isAutoSouls()) return GraphPathfinder.GRAPH_DISTANCE;
         if (!cfg.getAutoMode().etherwarps()) {
             return GraphPathfinder.GRAPH_DISTANCE; // Walk Only never warps (pearls are only an escape)
         }
@@ -268,9 +256,7 @@ public final class FairySoulsFeature {
         Minecraft client = Minecraft.getInstance();
         String island = IslandDetector.graphIsland();
         IslandGraph graph = GraphRepository.get(island);
-        if (client.player == null || graph == null) {
-            return;
-        }
+        if (client.player == null || graph == null) return;
         Vec3 pos = client.player.position();
         IslandGraph.Node best = null;
         double bestDist = Double.MAX_VALUE;
@@ -281,9 +267,7 @@ public final class FairySoulsFeature {
                 best = soul;
             }
         }
-        if (best == null || bestDist > CLICK_MATCH_DISTANCE * CLICK_MATCH_DISTANCE) {
-            return;
-        }
+        if (best == null || bestDist > CLICK_MATCH_DISTANCE * CLICK_MATCH_DISTANCE) return;
         final IslandGraph.Node found = best;
         boolean changed = FairySoulStore.markFound(ProfileTracker.key(), island, found.x, found.y, found.z);
         IslandGraph.Node current = currentSoul();
@@ -354,9 +338,7 @@ public final class FairySoulsFeature {
             return;
         }
         String island = IslandDetector.graphIsland();
-        if (island == null) {
-            return;
-        }
+        if (island == null) return;
         GraphRepository.ensureLoading(island, false);
         if (guiding && !island.equals(queueIsland)) {
             stopGuide(false);
@@ -374,9 +356,7 @@ public final class FairySoulsFeature {
     }
 
     private static void onChat(Component message) {
-        if (!soulsWanted()) {
-            return;
-        }
+        if (!soulsWanted()) return;
         String plain = ChatObserver.strip(message).trim();
         if (plain.equals("SOUL! You found a Fairy Soul!") || plain.equals("You have already found that Fairy Soul!")) {
             Minecraft.getInstance().execute(FairySoulsFeature::markClosestFound);

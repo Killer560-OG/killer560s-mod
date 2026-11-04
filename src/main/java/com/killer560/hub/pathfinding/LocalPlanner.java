@@ -50,9 +50,7 @@ final class LocalPlanner {
      * a soul is in reach from: one block off may be out of reach).
      */
     static List<BlockPos> plan(Level level, BlockPos start, List<BlockPos> goals, double jumpHeight, boolean exact) {
-        if (goals.isEmpty()) {
-            return List.of();
-        }
+        if (goals.isEmpty()) return List.of();
         int maxUp = Math.max(1, (int) Math.floor(jumpHeight - 0.05));
         planJump = jumpHeight;
         PriorityQueue<double[]> open = new PriorityQueue<>((a, b) -> Double.compare(a[0], b[0]));
@@ -71,9 +69,7 @@ final class LocalPlanner {
                 continue; // a stale entry
             }
             expansions++;
-            if ((exact ? goals.contains(at) : isGoal(at, goals)) && key != startKey) {
-                return rebuild(parent, key);
-            }
+            if ((exact ? goals.contains(at) : isGoal(at, goals)) && key != startKey) return rebuild(parent, key);
             for (Move move : moves(level, at, start, maxUp)) {
                 long nk = move.to.asLong();
                 double ng = g + move.cost;
@@ -107,9 +103,7 @@ final class LocalPlanner {
             int dx = Math.abs(g.getX() - p.getX());
             int dz = Math.abs(g.getZ() - p.getZ());
             int dy = Math.abs(g.getY() - p.getY());
-            if (dx <= 1 && dz <= 1 && dy <= 1) {
-                return true;
-            }
+            if (dx <= 1 && dz <= 1 && dy <= 1) return true;
         }
         return false;
     }
@@ -152,9 +146,7 @@ final class LocalPlanner {
                 continue;
             }
             BlockPos side = at.offset(d[0], 0, d[1]);
-            if (!inBounds(side, origin)) {
-                continue;
-            }
+            if (!inBounds(side, origin)) continue;
             double base = diagonal ? 1.414 : 1.0;
             if (!diagonal && crouchCell(level, side)) {
                 // Under a 1.5-high overhang (a top slab, a trapdoor): only a crouching player fits, at 0.3 of the speed.
@@ -181,9 +173,7 @@ final class LocalPlanner {
                 // Nothing under it: walking off drops him to the first thing below.
                 for (int k = 1; k <= MAX_FALL; k++) {
                     BlockPos fall = side.below(k);
-                    if ((!passable(level, fall) && lowTop(level, fall) < 0.0) || lava(level, fall)) {
-                        break;
-                    }
+                    if ((!passable(level, fall) && lowTop(level, fall) < 0.0) || lava(level, fall)) break;
                     if (cell(level, fall)) {
                         out.add(new Move(fall, base + k * 0.4));
                         break;
@@ -201,9 +191,7 @@ final class LocalPlanner {
                 if (body(level, lifted) && cell(level, lifted) && !lava(level, lifted)) {
                     // Onto a fence or a wall the feet end up half a block higher than the cell: a 1.5 rise his jump does
                     // not clear (testkit 1101-fairy-island-GOLD_MINES: a way back planned on top of a fence line).
-                    if (feetHeight(level, lifted) - feetHeight(level, at) > planJump - 0.05 && !inWater) {
-                        break;
-                    }
+                    if (feetHeight(level, lifted) - feetHeight(level, at) > planJump - 0.05 && !inWater) break;
                     out.add(new Move(lifted, base + 0.6 + k * 0.5));
                     break;
                 }
@@ -218,15 +206,11 @@ final class LocalPlanner {
     /** Where his feet are standing in this cell: on a low block its top, on a fence or wall below it 0.5 above the cell. */
     static double feetHeight(Level level, BlockPos c) {
         double low = lowTop(level, c);
-        if (low > 0.0) {
-            return c.getY() + low;
-        }
+        if (low > 0.0) return c.getY() + low;
         BlockPos below = c.below();
         if (level.isLoaded(below)) {
             var shape = level.getBlockState(below).getCollisionShape(level, below);
-            if (!shape.isEmpty()) {
-                return c.getY() + Math.max(0.0, shape.max(net.minecraft.core.Direction.Axis.Y) - 1.0);
-            }
+            if (!shape.isEmpty()) return c.getY() + Math.max(0.0, shape.max(net.minecraft.core.Direction.Axis.Y) - 1.0);
         }
         return c.getY();
     }
@@ -243,9 +227,7 @@ final class LocalPlanner {
      * back could never cross one (testkit 1101-fairy-plan-floors).
      */
     static boolean cell(Level level, BlockPos feet) {
-        if (!body(level, feet)) {
-            return false;
-        }
+        if (!body(level, feet)) return false;
         return water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)
                 || lowTop(level, feet) > 0.0 || standOn(level, feet.below());
     }
@@ -260,20 +242,12 @@ final class LocalPlanner {
      * to stand on. Not in fluids or on a ladder.
      */
     static boolean crouchCell(Level level, BlockPos feet) {
-        if (body(level, feet) || water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)) {
-            return false;
-        }
+        if (body(level, feet) || water(level, feet) || lava(level, feet) || WalkTerrain.climbable(level, feet)) return false;
         double low = lowTop(level, feet);
-        if (low < 0.0 || low > 0.2) {
-            return false;
-        }
-        if (low <= 0.0 && !standOn(level, feet.below())) {
-            return false;
-        }
+        if (low < 0.0 || low > 0.2) return false;
+        if (low <= 0.0 && !standOn(level, feet.below())) return false;
         BlockPos head = feet.above();
-        if (!level.isLoaded(head) || level.getBlockState(head).is(BlockTags.CLIMBABLE)) {
-            return false;
-        }
+        if (!level.isLoaded(head) || level.getBlockState(head).is(BlockTags.CLIMBABLE)) return false;
         var shape = level.getBlockState(head).getCollisionShape(level, head);
         return !shape.isEmpty() && shape.min(net.minecraft.core.Direction.Axis.Y) >= low + CROUCH_HEIGHT - 1.0 - 1.0e-4;
     }
@@ -290,12 +264,8 @@ final class LocalPlanner {
      */
     static boolean body(Level level, BlockPos feet) {
         double low = lowTop(level, feet);
-        if (low < 0.0 && !passable(level, feet)) {
-            return false;
-        }
-        if (!passable(level, feet.above())) {
-            return false;
-        }
+        if (low < 0.0 && !passable(level, feet)) return false;
+        if (!passable(level, feet.above())) return false;
         return low <= 0.2 || passable(level, feet.above(2));
     }
 
@@ -312,12 +282,8 @@ final class LocalPlanner {
     static final double PANEL = 0.25;
 
     private static boolean panelOrOpen(Level level, BlockPos p, int dx, int dz) {
-        if (passable(level, p)) {
-            return true;
-        }
-        if (!level.isLoaded(p)) {
-            return false;
-        }
+        if (passable(level, p)) return true;
+        if (!level.isLoaded(p)) return false;
         var shape = level.getBlockState(p).getCollisionShape(level, p);
         if (dx != 0) {
             double lo = shape.min(net.minecraft.core.Direction.Axis.Z);
@@ -331,37 +297,25 @@ final class LocalPlanner {
 
     /** The collision top (0..LOW_TOP] of a low block in this cell, 0 for no collision, -1 for anything taller. */
     static double lowTop(Level level, BlockPos p) {
-        if (!level.isLoaded(p)) {
-            return -1.0;
-        }
+        if (!level.isLoaded(p)) return -1.0;
         BlockState s = level.getBlockState(p);
-        if (s.is(BlockTags.CLIMBABLE)) {
-            return 0.0;
-        }
+        if (s.is(BlockTags.CLIMBABLE)) return 0.0;
         var shape = s.getCollisionShape(level, p);
-        if (shape.isEmpty()) {
-            return 0.0;
-        }
+        if (shape.isEmpty()) return 0.0;
         double top = shape.max(net.minecraft.core.Direction.Axis.Y);
         return shape.min(net.minecraft.core.Direction.Axis.Y) <= 0.01 && top <= LOW_TOP ? top : -1.0;
     }
 
     static boolean passable(Level level, BlockPos p) {
-        if (!level.isLoaded(p)) {
-            return false;
-        }
+        if (!level.isLoaded(p)) return false;
         BlockState s = level.getBlockState(p);
         return s.is(BlockTags.CLIMBABLE) || s.getCollisionShape(level, p).isEmpty();
     }
 
     private static boolean standOn(Level level, BlockPos p) {
-        if (!level.isLoaded(p)) {
-            return false;
-        }
+        if (!level.isLoaded(p)) return false;
         BlockState s = level.getBlockState(p);
-        if (s.getFluidState().is(FluidTags.LAVA)) {
-            return false;
-        }
+        if (s.getFluidState().is(FluidTags.LAVA)) return false;
         return !s.getCollisionShape(level, p).isEmpty() || s.is(BlockTags.CLIMBABLE);
     }
 
@@ -392,13 +346,9 @@ final class LocalPlanner {
             int sx = Math.abs(rx) > 0.15 ? (rx > 0 ? 1 : -1) : 0;
             int sz = Math.abs(rz) > 0.15 ? (rz > 0 ? 1 : -1) : 0;
             for (int[] d : new int[][]{{sx, sz}, {sx, 0}, {0, sz}}) {
-                if (d[0] == 0 && d[1] == 0) {
-                    continue;
-                }
+                if (d[0] == 0 && d[1] == 0) continue;
                 BlockPos q = p.offset(d[0], 0, d[1]);
-                if (cell(level, q)) {
-                    return q;
-                }
+                if (cell(level, q)) return q;
             }
         }
         return p;

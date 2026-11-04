@@ -100,18 +100,14 @@ public final class ShortWalk {
         double jumpH = WalkTerrain.jumpHeight(player);
         BlockPos start = BlockPos.containing(player.getX(), player.getY() + 0.01, player.getZ());
         List<BlockPos> cells = LocalPlanner.plan(level, start, List.of(goalFeet), jumpH);
-        if (cells.isEmpty()) {
-            return null;
-        }
+        if (cells.isEmpty()) return null;
         List<BlockPos> withGoal = new ArrayList<>(cells);
         if (!withGoal.get(withGoal.size() - 1).equals(goalFeet) && LocalPlanner.cell(level, goalFeet)) {
             withGoal.add(goalFeet);   // LocalPlanner's goal test takes a neighbor of it; finish on the block itself
         }
         List<Vec3> points = LocalPlanner.toPoints(withGoal);
         points.remove(0);   // his own block
-        if (points.isEmpty()) {
-            return null;
-        }
+        if (points.isEmpty()) return null;
         WalkPhysics.Model model = WalkPhysics.read(player);
         double k = model.friction * WalkPhysics.FRICTION_SCALE;
         double push = model.walkAttr * WalkPhysics.SPRINT_MULTIPLIER
@@ -181,9 +177,7 @@ public final class ShortWalk {
      */
     public static Status tick(Level level, LocalPlayer player, java.util.function.Consumer<Float> turnBody) {
         Plan plan = active;
-        if (plan == null) {
-            return Status.ARRIVED;
-        }
+        if (plan == null) return Status.ARRIVED;
         clearKeys();
         Vec3 pos = player.position();
         List<Vec3> pts = plan.points();
@@ -212,9 +206,7 @@ public final class ShortWalk {
         if (next > 0 && player.onGround()) {
             Vec3 a = pts.get(next - 1);
             Vec3 b = pts.get(next);
-            if (offLine(pos, a, b) > OFF_ROUTE) {
-                return Status.OFF_ROUTE;
-            }
+            if (offLine(pos, a, b) > OFF_ROUTE) return Status.OFF_ROUTE;
         }
         double jumpH = WalkTerrain.jumpHeight(player);
         // ---- the carrot: the farthest of the next few points with a straight walk to it
@@ -272,9 +264,7 @@ public final class ShortWalk {
         double dx = b.x - a.x;
         double dz = b.z - a.z;
         double len2 = dx * dx + dz * dz;
-        if (len2 < 1e-6) {
-            return Math.hypot(p.x - a.x, p.z - a.z);
-        }
+        if (len2 < 1e-6) return Math.hypot(p.x - a.x, p.z - a.z);
         double t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
         return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
     }

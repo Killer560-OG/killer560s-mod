@@ -109,9 +109,7 @@ final class WalkPhysics {
         boolean above = h >= landY - 1.0e-4;
         for (int t = 1; t <= 80; t++) {
             double next = h + v;
-            if (above && next <= landY + 1.0e-4 && v <= 0) {
-                return t;
-            }
+            if (above && next <= landY + 1.0e-4 && v <= 0) return t;
             h = next;
             if (h >= landY - 1.0e-4) {
                 above = true;
@@ -149,9 +147,7 @@ final class WalkPhysics {
      */
     static double[] keyDirection(int forward, int strafe, float yawDeg) {
         double len = Math.sqrt(forward * forward + strafe * strafe);
-        if (len == 0) {
-            return new double[]{0, 0};
-        }
+        if (len == 0) return new double[]{0, 0};
         double f = forward / len * INPUT_SCALE;
         double s = strafe / len * INPUT_SCALE;
         double rad = Math.toRadians(yawDeg);
@@ -175,9 +171,7 @@ final class WalkPhysics {
             int st = KEYS[c][1];
             for (int s = 0; s < 2; s++) {
                 boolean sprint = s == 1;
-                if (sprint && (!sprintOk || fw <= 0)) {
-                    continue;
-                }
+                if (sprint && (!sprintOk || fw <= 0)) continue;
                 double[] dir = keyDirection(fw, st, bodyYaw);
                 double push = model.push(sprint);
                 double mx = model.vx + dir[0] * push;

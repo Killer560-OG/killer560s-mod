@@ -40,15 +40,11 @@ public abstract class PathWalkInputMixin extends ClientInput {
             this.moveVector = new Vec2((l ? 1f : 0f) - (r ? 1f : 0f), (f ? 1f : 0f) - (b ? 1f : 0f)).normalized();
             return;
         }
-        if (!AutoWalker.isSessionActive()) {
-            return;
-        }
+        if (!AutoWalker.isSessionActive()) return;
         // His own presses stop it through PathStopKeyMixin (a fresh press only); a key held from before the start is
         // simply overridden here, as Auto Routes does.
         Input keys = this.keyPresses;
-        if (!AutoWalker.isDriving()) {
-            return;
-        }
+        if (!AutoWalker.isDriving()) return;
         boolean f = AutoWalker.wantForward();
         boolean b = AutoWalker.wantBack();
         boolean l = AutoWalker.wantLeft();
