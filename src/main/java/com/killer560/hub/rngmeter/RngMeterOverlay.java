@@ -103,9 +103,7 @@ public final class RngMeterOverlay {
     private static volatile int shownRowCount = 0;
 
     /** The largest scroll offset that still shows a full page of {@code rowCount} rows. */
-    static int maxScrollOffset(int rowCount) {
-        return Math.max(0, rowCount - VISIBLE_ROWS);
-    }
+    static int maxScrollOffset(int rowCount) { return Math.max(0, rowCount - VISIBLE_ROWS); }
 
     private RngMeterOverlay() {
     }
@@ -113,37 +111,25 @@ public final class RngMeterOverlay {
     public static void register() {
         HudElementRegistry.register(new HudElement() {
             @Override
-            public String id() {
-                return ELEMENT_ID;
-            }
+            public String id() { return ELEMENT_ID; }
 
             @Override
-            public String displayName() {
-                return "RNG Meter Ranking";
-            }
+            public String displayName() { return "RNG Meter Ranking"; }
 
             @Override
-            public int defaultX() {
-                return Minecraft.getInstance().getWindow().getGuiScaledWidth() - 230;
-            }
+            public int defaultX() { return Minecraft.getInstance().getWindow().getGuiScaledWidth() - 230; }
 
             @Override
-            public int defaultY() {
-                return 20;
-            }
+            public int defaultY() { return 20; }
 
             /** The editor preview's panel, measured from the same lines it draws (2026-10-07: the box was a fixed
              *  220x100 round a 236x43 preview). The real panel over the RNG Meter menu grows with the menu's rows;
              *  the preview shows the same number of sample rows the real one shows at most. */
             @Override
-            public int width() {
-                return previewSize()[0];
-            }
+            public int width() { return previewSize()[0]; }
 
             @Override
-            public int height() {
-                return previewSize()[1];
-            }
+            public int height() { return previewSize()[1]; }
 
             @Override
             public boolean isEnabledInSettings() {
@@ -354,16 +340,12 @@ public final class RngMeterOverlay {
     }
 
     /** Test hook: how many rewards the open page's committed scan holds (testkit 7xx). */
-    public static int committedCount() {
-        return committedScan.size();
-    }
+    public static int committedCount() { return committedScan.size(); }
 
     private static final Pattern PAGE_PREFIX = Pattern.compile("^\\(\\d+/\\d+\\)\\s*");
 
     /** Strips a leading "(1/2) " pagination marker so every page of one floor/menu shares the same log key. */
-    private static String normalizeGroupKey(String title) {
-        return PAGE_PREFIX.matcher(title).replaceFirst("");
-    }
+    private static String normalizeGroupKey(String title) { return PAGE_PREFIX.matcher(title).replaceFirst(""); }
 
     /** Rebuilds a live {@link RngItem} list from every item ever logged for this menu, across all its pages. */
     private static List<RngItem> itemsFromLog(String groupKey) {
@@ -545,9 +527,7 @@ public final class RngMeterOverlay {
      * not describing an actual reward), which is why they were showing up as phantom ranked rows.
      * No real reward item is ever named like this.
      */
-    private static boolean isRealReward(String name) {
-        return !name.toLowerCase(Locale.US).contains("rng meter");
-    }
+    private static boolean isRealReward(String name) { return !name.toLowerCase(Locale.US).contains("rng meter"); }
 
     // Gemstone crystals become soulbound the moment they're obtained, so they can never actually
     // be sold - showing them (priced or "no price found") is misleading either way, per killer560's
@@ -799,9 +779,7 @@ public final class RngMeterOverlay {
     }
 
     /** Reward names in this project are always literally "<Color> Dye". */
-    private static boolean isDye(String name) {
-        return name.endsWith(" Dye");
-    }
+    private static boolean isDye(String name) { return name.endsWith(" Dye"); }
 
     /**
      * Moves any dye with zero current AH listings to the very front of the ranking, ahead of

@@ -73,27 +73,17 @@ public final class RngMeterConfig {
         }
     }
 
-    public boolean isUseInstantBuyPrice() {
-        return useInstantBuyPrice;
-    }
+    public boolean isUseInstantBuyPrice() { return useInstantBuyPrice; }
 
-    public void setUseInstantBuyPrice(boolean useInstantBuyPrice) {
-        this.useInstantBuyPrice = useInstantBuyPrice;
-    }
+    public void setUseInstantBuyPrice(boolean useInstantBuyPrice) { this.useInstantBuyPrice = useInstantBuyPrice; }
 
-    public int getRefreshIntervalMinutes() {
-        return refreshIntervalMinutes;
-    }
+    public int getRefreshIntervalMinutes() { return refreshIntervalMinutes; }
 
     public void setRefreshIntervalMinutes(int refreshIntervalMinutes) {
         this.refreshIntervalMinutes = Math.max(1, refreshIntervalMinutes);
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 }

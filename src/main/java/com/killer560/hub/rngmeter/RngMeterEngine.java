@@ -16,9 +16,7 @@ public final class RngMeterEngine {
     }
 
     /** Ranks every item given, with no group filtering - for a live-scanned menu's own item list. */
-    public static List<RankedItem> rankAll(List<RngItem> items) {
-        return rank(items, item -> true);
-    }
+    public static List<RankedItem> rankAll(List<RngItem> items) { return rank(items, item -> true); }
 
     private static List<RankedItem> rank(List<RngItem> items, Predicate<RngItem> filter) {
         List<RankedItem> ranked = new ArrayList<>();

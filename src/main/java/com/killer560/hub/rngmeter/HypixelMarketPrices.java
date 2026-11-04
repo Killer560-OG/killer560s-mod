@@ -96,32 +96,20 @@ public final class HypixelMarketPrices {
     private volatile long lastRefreshedAtMs = 0;
     private volatile String lastError = null;
 
-    public boolean isRefreshing() {
-        return refreshing;
-    }
+    public boolean isRefreshing() { return refreshing; }
 
-    public long getLastRefreshedAtMs() {
-        return lastRefreshedAtMs;
-    }
+    public long getLastRefreshedAtMs() { return lastRefreshedAtMs; }
 
-    public String getLastError() {
-        return lastError;
-    }
+    public String getLastError() { return lastError; }
 
     /** How many items currently have a resolved Bazaar price - useful to tell a slow AH scan from a stuck one. */
-    public int getBazaarPriceCount() {
-        return bazaarSellPrice.size();
-    }
+    public int getBazaarPriceCount() { return bazaarSellPrice.size(); }
 
     /** How many items currently have a resolved AH lowest-BIN price - grows as the auction scan pages through. */
-    public int getAhPriceCount() {
-        return ahLowestBin.size();
-    }
+    public int getAhPriceCount() { return ahLowestBin.size(); }
 
     /** True if this exact ID exists as a real Bazaar product (regardless of whether a price was resolvable for it). */
-    public boolean hasBazaarProduct(String id) {
-        return bazaarSellPrice.containsKey(id);
-    }
+    public boolean hasBazaarProduct(String id) { return bazaarSellPrice.containsKey(id); }
 
     /**
      * Live price for one item, in coins, or null if not found anywhere. AH-sourced items are

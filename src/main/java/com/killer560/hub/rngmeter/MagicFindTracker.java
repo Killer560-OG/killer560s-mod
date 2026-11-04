@@ -55,7 +55,5 @@ public final class MagicFindTracker {
     }
 
     /** Last observed Magic Find percentage, or null if no drop message has been seen yet this session. */
-    public static Integer getLastMagicFind() {
-        return lastMagicFind;
-    }
+    public static Integer getLastMagicFind() { return lastMagicFind; }
 }

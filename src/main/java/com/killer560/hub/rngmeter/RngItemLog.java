@@ -57,9 +57,7 @@ public final class RngItemLog {
         save();
     }
 
-    public static Map<String, Long> get(String group) {
-        return LOG.getOrDefault(group, Map.of());
-    }
+    public static Map<String, Long> get(String group) { return LOG.getOrDefault(group, Map.of()); }
 
     /**
      * Writes happen on one background thread: merge() runs on the render thread (a menu commit or a rescan that found

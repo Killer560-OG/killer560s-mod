@@ -34,9 +34,7 @@ import java.util.List;
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin extends Screen {
 
-    protected AbstractContainerScreenMixin(Component title) {
-        super(title);
-    }
+    protected AbstractContainerScreenMixin(Component title) { super(title); }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$renderRngMeterOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
