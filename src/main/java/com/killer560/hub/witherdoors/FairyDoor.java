@@ -46,8 +46,11 @@ public final class FairyDoor {
     private static int door = -1;
     /** The Fairy door when it is a shut wither door (coal): the normal highlight draws it, in the Fairy color. */
     private static int shutDoor = -1;
-    private static int fairyRoom = -1;
-    private static int lastRoom = -1;
+    /** Cells (a tile of each room), never room indices: a new layout snapshot numbers its rooms afresh (the grouping
+     *  is a HashMap walk), so a kept index named another room - his Entrance - and "you entered Fairy" cleared the
+     *  Fairy door for the whole run at its start (his logs 2026-11-04 00:01:52, 00:05:34; fairydoor-1104). */
+    private static int fairyCell = -1;
+    private static int lastCell = -1;
     private static boolean entered = false;
     private static String status = "idle";
     private static int generation = Integer.MIN_VALUE;
@@ -94,8 +97,8 @@ public final class FairyDoor {
             level = client.level;
             door = -1;
             shutDoor = -1;
-            fairyRoom = -1;
-            lastRoom = -1;
+            fairyCell = -1;
+            lastCell = -1;
             entered = false;
             mapSawUnopened = false;
             solidDoor = -1;
@@ -108,11 +111,14 @@ public final class FairyDoor {
         DungeonLayout layout = DungeonLayout.current();
         int room = layout.currentRoom();
         if (room >= 0) {
-            lastRoom = room;
+            lastCell = layout.tiles(room)[0];
         }
         // The Fairy room is looked up on the path cadence (or while none is known), not every tick: the scan allocates.
-        int fairy = fairyRoom >= 0 && fairyRoom < layout.roomCount() && ticksToPath > 1 ? fairyRoom : findFairy(layout);
-        fairyRoom = fairy;
+        int fairy = ticksToPath > 1 ? layout.roomOfCell(fairyCell) : -1;
+        if (fairy < 0) {
+            fairy = findFairy(layout);
+            fairyCell = fairy >= 0 ? layout.tiles(fairy)[0] : -1;
+        }
         if (fairy >= 0 && checkEntered(client, layout, fairy)) {
             return;
         }
@@ -120,7 +126,7 @@ public final class FairyDoor {
             return;
         }
         ticksToPath = PATH_EVERY_TICKS;
-        int next = decide(layout, fairy);
+        int next = decide(layout, layout.roomOfCell(lastCell), fairy);
         if (next == KEEP) {
             return;
         }
@@ -138,7 +144,7 @@ public final class FairyDoor {
     /** {@link #decide}: no answer this time - the door (or shut door) already decided stands. */
     private static final int KEEP = -2;
 
-    private static int decide(DungeonLayout layout, int fairy) {
+    private static int decide(DungeonLayout layout, int lastRoom, int fairy) {
         if (lastRoom < 0) {
             setStatus("no room yet");
             shutDoor = -1;
