@@ -825,10 +825,6 @@ public final class RouteExecutor {
         return nextNode < ordered.size() ? ordered.get(nextNode) : null;
     }
 
-    static Route runningRoute() {
-        return running ? route : null;
-    }
-
     // ------------------------------------------------------------------------------------------- session
 
     /** Starts playback of {@code route} from {@code startNode} (a node of that route). Only the feature's arming

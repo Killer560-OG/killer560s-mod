@@ -800,11 +800,6 @@ public final class LfgFeature {
         }
     }
 
-    /** Test hook: one pass of the leader's inbox judging, as the tick does it. */
-    public static void judgeInboxForTest() {
-        judgeInbox(System.currentTimeMillis());
-    }
-
     private static void onClient(Runnable r) {
         Minecraft.getInstance().execute(r);
     }

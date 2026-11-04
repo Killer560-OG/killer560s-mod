@@ -222,8 +222,4 @@ public final class AbilityCooldownFeature {
         AbilityCooldownState.onSoundPacket(packet);
     }
 
-    /** Small convenience for the settings tab's summary line. */
-    public static Component describeTable() {
-        return Component.literal("§7" + ItemAbility.values().length + " abilities, cooldowns ported from SkyHanni");
-    }
 }

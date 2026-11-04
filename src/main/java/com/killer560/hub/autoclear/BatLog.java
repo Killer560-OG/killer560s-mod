@@ -150,10 +150,6 @@ public final class BatLog {
             return done;
         }
 
-        public boolean batSeen() {
-            return batId >= 0;
-        }
-
         /** Ticks from the use to the bat going (-1: no bat). */
         public int flightTicks() {
             return batId < 0 || endTick < 0 ? -1 : (int) (endTick - useTick);

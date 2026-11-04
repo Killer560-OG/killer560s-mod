@@ -371,22 +371,6 @@ public final class ItemProtectConfig {
         return protectedNames;
     }
 
-    public void addProtectedName(String name) {
-        if (name == null) {
-            return;
-        }
-        String trimmed = name.trim();
-        if (trimmed.isEmpty()) {
-            return;
-        }
-        for (String existing : protectedNames) {
-            if (existing.equalsIgnoreCase(trimmed)) {
-                return;
-            }
-        }
-        protectedNames.add(trimmed);
-    }
-
     public void removeProtectedName(String name) {
         protectedNames.removeIf(s -> s.equalsIgnoreCase(name == null ? "" : name.trim()));
     }

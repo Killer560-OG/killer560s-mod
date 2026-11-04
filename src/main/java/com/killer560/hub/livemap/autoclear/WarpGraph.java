@@ -126,24 +126,6 @@ public final class WarpGraph {
         return count;
     }
 
-    /** How many edges are stored, over every node whose edges are worked out. */
-    public long edgeCount() {
-        long n = 0;
-        for (int i = 0; i < count; i++) {
-            n += eTo[i] != null ? eTo[i].length : 0;
-        }
-        return n;
-    }
-
-    /** How many nodes currently have their edges worked out. */
-    public int expandedCount() {
-        int n = 0;
-        for (int i = 0; i < count; i++) {
-            n += eTo[i] != null ? 1 : 0;
-        }
-        return n;
-    }
-
     // ------------------------------------------------------------------------------------------- keys
 
     private static final long EMPTY = Long.MIN_VALUE;
@@ -2853,52 +2835,6 @@ public final class WarpGraph {
     }
 
     // ------------------------------------------------------------------------------------------- bench access
-
-    /** The graph's own aim test, for the bench to compare against {@link EtherSearch#aim}. */
-    public boolean fastAimForBench(EtherSearch.Grid grid, double ex, double ey, double ez, int x, int y, int z) {
-        owner.inner = grid;
-        return owner.fastAim(ex, ey, ez, x, y, z);
-    }
-
-    /**
-     * For the bench: every node with edges is expanded again from scratch, and its target set compared with the one
-     * the graph holds. Returns the number of nodes that differ (the first few are printed with what differs).
-     */
-    public int verifyEdges(EtherSearch.Grid grid, int print) {
-        Expander x = new Expander();
-        x.inner = grid;
-        int bad = 0;
-        for (int u = 0; u < count; u++) {
-            int[] to = eTo[u];
-            if (to == null) {
-                continue;
-            }
-            long self = EtherSearch.pack(nx[u], ny[u], nz[u]);
-            x.expandFrom(standX(u), standY(u), standZ(u), self, false);
-            java.util.HashSet<Long> want = new java.util.HashSet<>();
-            for (int k = 0; k < x.outN; k++) {
-                want.add(x.outPos[k]);
-            }
-            java.util.HashSet<Long> have = new java.util.HashSet<>();
-            for (int t : to) {
-                have.add(EtherSearch.pack(nx[t], ny[t], nz[t]));
-            }
-            if (!want.equals(have) || have.size() != to.length) {
-                bad++;
-                if (bad <= print) {
-                    java.util.HashSet<Long> extra = new java.util.HashSet<>(have);
-                    extra.removeAll(want);
-                    java.util.HashSet<Long> missing = new java.util.HashSet<>(want);
-                    missing.removeAll(have);
-                    System.out.println("  EDGE CHECK node " + nx[u] + "," + ny[u] + "," + nz[u] + ": " + to.length
-                            + " held (" + have.size() + " distinct), " + x.outN + " fresh; " + extra.size()
-                            + " extra, " + missing.size() + " missing; extra e.g. " + extra.stream().limit(3)
-                            .map(k -> unpackX(k) + "," + unpackY(k) + "," + unpackZ(k)).toList());
-                }
-            }
-        }
-        return bad;
-    }
 
     /** The owner's search over this graph's grid, for checking a path hop by hop. */
     public EtherSearch probe() {

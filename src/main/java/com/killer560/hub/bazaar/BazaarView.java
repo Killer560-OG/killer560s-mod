@@ -156,10 +156,6 @@ public final class BazaarView {
         return scoreboardClear;
     }
 
-    /** The panel's {x, w} of the last frame (testkit). */
-    public static int[] panelSpan() {
-        return new int[]{lastPanelX, lastPanelW};
-    }
     private static int contentItems;
     private static int searchX, searchY, searchW, searchH;
     private static int railX, railY, railW, railH;

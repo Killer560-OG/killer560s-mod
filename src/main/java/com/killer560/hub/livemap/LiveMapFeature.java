@@ -994,11 +994,6 @@ public final class LiveMapFeature {
         }
     }
 
-    /** {@link #getHighestY} for callers outside this class - the roof probe that decides a cell holds a room. */
-    public static int roofAt(net.minecraft.client.Minecraft client, int worldX, int worldZ) {
-        return getHighestY(client, worldX, worldZ);
-    }
-
     /**
      * The highest non-air block in this column at y 0..255, or 0 when there is none.
      *

@@ -101,10 +101,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
         return options.get(selected).value();
     }
 
-    public int selectedIndex() {
-        return selected;
-    }
-
     /** The list's texts, in order (read by the testkit). */
     public List<String> optionLabels() {
         List<String> out = new ArrayList<>();

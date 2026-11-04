@@ -690,14 +690,6 @@ public final class Ap3Node {
         return wallDir == null ? null : new Vec3(wallDir.getStepX(), 0.0, wallDir.getStepZ());
     }
 
-    /** The world axis an AXIS_ALIGN corrects on besides the wall: perpendicular to the wall side, horizontal. */
-    public Vec3 wallPerpendicular() {
-        if (wallDir == null) {
-            return null;
-        }
-        return wallDir.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
-    }
-
     /** The nearest horizontal world direction to the node's yaw ("front"), for migrating old FRONT/LEFT/RIGHT walls. */
     public static Direction nearestHorizontal(float yaw) {
         return Direction.fromYRot(Mth.wrapDegrees(yaw));

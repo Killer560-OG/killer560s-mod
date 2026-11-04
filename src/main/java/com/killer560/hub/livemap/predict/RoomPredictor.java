@@ -332,20 +332,6 @@ public final class RoomPredictor {
         }
     }
 
-    /**
-     * Test hook: one client tick of the predictor exactly as {@link #tick} runs it, but seen from {@code eye} looking
-     * along {@code view} (the player is not moved, and the enabled setting is not read). Returns the nanoseconds it took.
-     * For testkit 1020-predict-matrix, which glances into every room of many floors from many distances.
-     */
-    public static long tickFrom(Minecraft client, Vec3 eye, Vec3 view) {
-        long t0 = System.nanoTime();
-        if (!RoomLibrary.isReady() || client.level == null) {
-            return 0;
-        }
-        step(client, eye, view.normalize());
-        return System.nanoTime() - t0;
-    }
-
     /** Forgets everything seen: a new floor or a new world. */
     public static void reset() {
         if (obsCount > 0 || !PREDICTIONS.isEmpty()) {

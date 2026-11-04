@@ -282,10 +282,6 @@ public final class ArmorHudFeature {
 
     private static int loadoutSwaps = 0;
 
-    public static int loadoutSwapsForTest() {
-        return loadoutSwaps;
-    }
-
     private static void saveCache() {
         int n = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.lastEquippedLoadout();
         if (n > 0) {

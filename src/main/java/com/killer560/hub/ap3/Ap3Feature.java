@@ -523,16 +523,6 @@ public final class Ap3Feature {
         }
     }
 
-    /** Deletes the last node of the current chain. */
-    public static boolean deleteLastNode() {
-        List<Ap3Node> nodes = currentChainNodes();
-        if (nodes.isEmpty()) {
-            chatBad("No nodes in " + currentChainLabel() + ".");
-            return false;
-        }
-        return deleteNode(nodes.size() - 1);
-    }
-
     // ---- in-place editing (killer560: "make it easier to edit them") ----
     // All 0-BASED indices here, like deleteNode; the command layer and the tab convert from the 1-based number
     // the player sees. Every one of these stops a running chain (the executor holds a node index) and saves.
@@ -1123,13 +1113,4 @@ public final class Ap3Feature {
         ModChat.send(CHAT, ModChat.bad(text));
     }
 
-    /** {@code /ap3 list} body: one line per node, 1-based. */
-    public static List<String> describeCurrentChain() {
-        List<Ap3Node> nodes = currentChainNodes();
-        List<String> out = new java.util.ArrayList<>(nodes.size());
-        for (int i = 0; i < nodes.size(); i++) {
-            out.add(String.format(Locale.US, "#%d %s", i + 1, nodes.get(i).describe()));
-        }
-        return out;
-    }
 }

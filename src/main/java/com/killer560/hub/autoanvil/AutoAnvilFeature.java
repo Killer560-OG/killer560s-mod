@@ -122,11 +122,6 @@ public final class AutoAnvilFeature {
         return containerId != -1;
     }
 
-    /** For tests: books combined in the current or last session. */
-    public static int combinedCount() {
-        return combined;
-    }
-
     private static void tick(Minecraft client) {
         try {
             tickUnsafe(client);

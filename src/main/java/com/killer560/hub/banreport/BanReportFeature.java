@@ -512,10 +512,6 @@ public final class BanReportFeature {
         }
     }
 
-    public static String lastResultForTest() {
-        return lastResult;
-    }
-
     /** Test hook: forget attempts, decisions, history, names seen and the last connection. */
     public static void clearForTest() {
         synchronized (ATTEMPTS) {

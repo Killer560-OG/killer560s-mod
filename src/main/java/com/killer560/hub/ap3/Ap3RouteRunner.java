@@ -1862,9 +1862,4 @@ final class Ap3RouteRunner {
         snapZ = start.z;
     }
 
-    /** Throw the kept scan away - the world it pictures is no longer the one we are in. */
-    static void forgetSnapshot() {
-        snapKept = null;
-        snapKey = "";
-    }
 }

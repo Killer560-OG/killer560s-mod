@@ -1957,17 +1957,6 @@ public class ModScreen extends Screen {
         return out;
     }
 
-    /** The grid's section headers on the current page as "text" or "!text" for a red one, in order. */
-    public List<String> gridHeaders() {
-        List<String> out = new ArrayList<>();
-        for (Item it : items) {
-            if (it.kind == ItemKind.HEADER) {
-                out.add((it.red ? "!" : "") + it.text);
-            }
-        }
-        return out;
-    }
-
     /** True while a tab waits for a key ("Press any key..."): that key is his, not a shortcut (util/TypingDetector). */
     public boolean isCapturingKey() {
         return findListeningKeyCaptureTab() != null;

@@ -118,11 +118,6 @@ public final class CustomFonts {
         return anyGlyphs != null;
     }
 
-    /** Whether Mod Menu Only scoping is wanted (a font built and its scope is the mod's screens). */
-    static boolean menuScoped() {
-        return anyGlyphs != null && !everywhere;
-    }
-
     public static String lastError() {
         return lastError;
     }

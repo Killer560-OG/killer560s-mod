@@ -506,17 +506,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         InventorySorterExecutor.applyByName(layout.name());
     }
 
-    /** Applies the selected layout to the real inventory. Public for tests. */
-    public void applySelected() {
-        if (selected == null) {
-            say("Pick a saved layout on the right first.", true);
-            return;
-        }
-        String name = selected;
-        this.minecraft.setScreenAndShow(null);
-        InventorySorterExecutor.applyByName(name);
-    }
-
     /** Renames the selected layout to the typed name. Public for tests. */
     public void renameSelected() {
         if (selected == null) {

@@ -827,10 +827,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         return scene();
     }
 
-    public int sceneIndex() {
-        return index;
-    }
-
     public int sceneCount() {
         return scenes.size();
     }

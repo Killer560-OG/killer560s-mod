@@ -97,16 +97,6 @@ public final class DevonianCodec {
         return "RoomSecrets[" + found + "/" + total + ", " + devonianRoomId + "]";
     }
 
-    /** Spec 1.4 ({@code TeamSecretsStats.kt:44}). Encoded for completeness and the test harness; the bridge
-     *  never sends it because this mod has no SELF "secrets I personally found" fact (see
-     *  {@code PartyDataFeature}'s class doc). */
-    public static String secretTracker(String ign, int secrets) {
-        if (ign == null || !IGN.matcher(ign).matches() || secrets < 0 || secrets > MAX_SECRETS) {
-            return null;
-        }
-        return "SecretTracker[" + ign + ", " + secrets + "]";
-    }
-
     // ------------------------------------------------------------------ decode
 
     /** Everything Devonian's server can send that we understand. */

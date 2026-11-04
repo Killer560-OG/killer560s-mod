@@ -533,13 +533,6 @@ abstract class SocketAdapter {
         }
     }
 
-    /** Worker: refresh the CONNECTED detail. */
-    protected final void refreshConnectedDetail() {
-        if (status == BridgeStatus.CONNECTED) {
-            setStatus(BridgeStatus.CONNECTED, "");
-        }
-    }
-
     private static Throwable unwrap(Throwable t) {
         while ((t instanceof CompletionException || t instanceof ExecutionException) && t.getCause() != null) {
             t = t.getCause();

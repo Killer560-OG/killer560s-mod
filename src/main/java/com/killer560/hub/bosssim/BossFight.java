@@ -2145,10 +2145,6 @@ public final class BossFight {
         return phase == Phase.P1 && tops[i] != null && !tops[i].isRemoved();
     }
 
-    public static int crystalsCarried() {
-        return carrying;
-    }
-
     /** Debug and testkit: drives the next stun's hits without a weapon (the same path a hit takes). */
     public static void testHit(String boss) {
         switch (boss) {
@@ -2231,7 +2227,4 @@ public final class BossFight {
         return laserHits;
     }
 
-    static BlockPos pylonBlock(int i) {
-        return BlockPos.containing(PYLONS[i].x, PYLONS[i].y - 1, PYLONS[i].z);
-    }
 }

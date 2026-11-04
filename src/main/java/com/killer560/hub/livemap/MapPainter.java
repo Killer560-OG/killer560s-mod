@@ -90,14 +90,6 @@ public final class MapPainter {
         return rooms * (ROOM_UNITS + GAP_UNITS) - GAP_UNITS;
     }
 
-    /**
-     * The grid being drawn, in map units: {@code {unitsX, unitsZ}} - the size half of {@link #gridExtent}.
-     */
-    static int[] gridUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] e = gridExtent(groups);
-        return new int[]{e[2], e[3]};
-    }
-
     /** Room slots {@code {across, down}} of the floor being played - {@link #floorRooms} of the current floor. */
     static int[] currentFloorRooms() {
         return floorRooms(com.killer560.hub.secrets.DungeonState.getFloor());
@@ -1239,26 +1231,6 @@ public final class MapPainter {
         return gx > 0 && gz > 0 && gx < g - 1 && gz < g - 1
                 && LiveMapFeature.groupIdAt(gx - 1 + gz * g) == gid && LiveMapFeature.groupIdAt(gx + 1 + gz * g) == gid
                 && LiveMapFeature.groupIdAt(gx + (gz - 1) * g) == gid && LiveMapFeature.groupIdAt(gx + (gz + 1) * g) == gid;
-    }
-
-    static void outlineGroup(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
-                             float ox, float oy, float ppu) {
-        int g = LiveMapFeature.GRID;
-        for (int c : group.cells) {
-            int gx = c % g;
-            int gz = c / g;
-            if (gx % 2 == 1 && gz % 2 == 1 && !centreOfSquare(gid, gx, gz)) {
-                continue;
-            }
-            int x0 = px(ox, cellPos(gx), ppu);
-            int y0 = px(oy, cellPos(gz), ppu);
-            int x1 = px(ox, cellPos(gx) + cellSize(gx), ppu);
-            int y1 = px(oy, cellPos(gz) + cellSize(gz), ppu);
-            if (!sameRoom(gid, gx - 1, gz)) graphics.fill(x0 - 1, y0 - 1, x0, y1 + 1, color);
-            if (!sameRoom(gid, gx + 1, gz)) graphics.fill(x1, y0 - 1, x1 + 1, y1 + 1, color);
-            if (!sameRoom(gid, gx, gz - 1)) graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, color);
-            if (!sameRoom(gid, gx, gz + 1)) graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, color);
-        }
     }
 
     static boolean sameRoom(int gid, int gx, int gz) {

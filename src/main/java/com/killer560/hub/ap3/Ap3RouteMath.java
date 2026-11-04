@@ -76,30 +76,6 @@ final class Ap3RouteMath {
     static final double LAVA_EXIT_DRAG = 0.8;
     static final double LAVA_EXIT_DROP = 0.025;
 
-    /** The launch impulse for this look and this key, in blocks of rise on the launch tick. */
-    static double lavaBounceImpulse(float pitch, boolean jumpHeld) {
-        double impulse = LAVA_BOUNCE * (pitch <= LAVA_LOOK_UP_PITCH ? LAVA_BOUNCE_LOOK_UP : 1.0);
-        return impulse + (jumpHeld ? LAVA_BOUNCE_JUMP : 0.0);
-    }
-
-    /** The upward velocity left once the launch tick is over - after that it is ordinary air flight. */
-    static double lavaBounceExitVy(double impulse) {
-        return impulse * LAVA_EXIT_DRAG - LAVA_EXIT_DROP;
-    }
-
-    /** How high a bounce carries you above the lava, and how many ticks it takes to get there. */
-    static double[] lavaBounceApex(double exitVy, double impulse) {
-        double y = impulse; // the launch tick's own rise
-        double vy = exitVy;
-        int ticks = 1;
-        while (vy > 0) {
-            y += vy;
-            vy = (vy - GRAVITY) * VERTICAL_DRAG;
-            ticks++;
-        }
-        return new double[]{y, ticks};
-    }
-
     /** Endless floor at y = 0: what {@link #topSpeed} and the harness's flat tests stand on. */
     static final Ap3RouteCollide.Shapes FLAT_GROUND = Ap3RouteCollide.flat(0.0);
 

@@ -413,23 +413,6 @@ public final class Ap3Store {
         return area == null ? null : chains.get(Ap3Chain.key(area, classFilter));
     }
 
-    /** Every chain for an area (class-less first, then per class), for the tab. */
-    public List<Ap3Chain> chainsFor(Ap3Area area) {
-        List<Ap3Chain> out = new ArrayList<>();
-        for (Ap3Chain c : chains.values()) {
-            if (c.area().equals(area)) {
-                out.add(c);
-            }
-        }
-        out.sort((a, b) -> {
-            if (a.classFilter() == null) {
-                return b.classFilter() == null ? 0 : -1;
-            }
-            return b.classFilter() == null ? 1 : a.classFilter().compareTo(b.classFilter());
-        });
-        return out;
-    }
-
     /** The chain keyed (area, classFilter), created empty if missing (not saved until {@link #save()}). */
     public Ap3Chain forAreaOrCreate(Ap3Area area, DungeonClass classFilter) {
         String key = Ap3Chain.key(area, classFilter);

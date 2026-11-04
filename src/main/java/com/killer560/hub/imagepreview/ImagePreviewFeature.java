@@ -639,10 +639,6 @@ public final class ImagePreviewFeature {
         lastDrawn = null;
     }
 
-    public static long framesDrawnForTest() {
-        return framesDrawn;
-    }
-
     /** HTTP requests actually sent since start (a cache hit leaves it alone). */
     public static int requestsForTest() {
         return ImageFetcher.REQUESTS.get();
@@ -719,11 +715,6 @@ public final class ImagePreviewFeature {
             }
         }
         return n;
-    }
-
-    /** Empties the disk cache (worker-safe). */
-    public static void clearDiskCacheForTest() {
-        ImageFetcher.trimCache(0);
     }
 
     static Pic currentPic(Entry e) {

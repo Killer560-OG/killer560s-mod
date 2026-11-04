@@ -116,12 +116,4 @@ public final class ModCallbackTimes {
         return "all " + FrameStats.ms(total) + (sb.length() > 0 ? "; " + sb : "");
     }
 
-    /** Total mod callback time in the frame now ending (ns). */
-    static long totalNs() {
-        long total = 0;
-        for (int i = 0; i < touchedCount; i++) {
-            total += NS[TOUCHED[i]];
-        }
-        return total;
-    }
 }

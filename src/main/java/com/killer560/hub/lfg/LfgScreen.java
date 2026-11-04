@@ -647,8 +647,4 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         return lastHeaderRight;
     }
 
-    /** Test hook: the inbox rows drawn. */
-    public List<LfgFeature.InboxRow> inboxForTest() {
-        return new ArrayList<>(inboxShown);
-    }
 }

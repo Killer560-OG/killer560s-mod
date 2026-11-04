@@ -311,14 +311,6 @@ public final class ChatTabsFeature {
         return selected.name();
     }
 
-    public static String appliedName() {
-        return applied.name();
-    }
-
-    public static void testSelect(String name) {
-        select(Tab.valueOf(name));
-    }
-
     public static int switches() {
         return switches;
     }

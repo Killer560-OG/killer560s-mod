@@ -189,9 +189,4 @@ public final class CopyChatFeature {
         return copies;
     }
 
-    /** The plain text of the wrapped line under (x, y) and of its whole message, or null. Render thread. */
-    public static String[] testLineAt(double x, double y) {
-        GuiMessage.Line line = lineAt(x, y);
-        return line == null ? null : new String[]{plain(line.content()), messageText(line.parent())};
-    }
 }

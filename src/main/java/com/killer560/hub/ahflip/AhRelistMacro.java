@@ -872,7 +872,4 @@ public final class AhRelistMacro {
         nextCycleAtMs = 0L;
     }
 
-    static List<String> toListForTest() {
-        return List.copyOf(TO_LIST.keySet());
-    }
 }

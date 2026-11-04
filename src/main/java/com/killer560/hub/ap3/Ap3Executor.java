@@ -341,11 +341,6 @@ public final class Ap3Executor {
         return chain != null && !chain.isEmpty();
     }
 
-    /** Triggered nodes waiting their turn behind the active one. */
-    public static int queuedCount() {
-        return queue.size();
-    }
-
     public static boolean isTestMode() {
         return testMode;
     }
@@ -5086,14 +5081,6 @@ public final class Ap3Executor {
     /** {fw, st, key yaw offset}: where each combination pushes relative to the facing, fastest first. */
     private static final int[][] AIM_KEYS = {
             {1, 1, -45}, {1, -1, 45}, {1, 0, 0}, {0, 1, -90}, {0, -1, 90}, {-1, 1, -135}, {-1, -1, 135}, {-1, 0, 180}};
-
-    static float aimYawFor(Ap3Node node) {
-        return aimNode == node ? aimYaw : node.yaw;
-    }
-
-    static float aimPitchFor(Ap3Node node) {
-        return aimNode == node ? aimPitch : node.pitch;
-    }
 
     private static void chooseAim(LocalPlayer player, Ap3Node node) {
         aimNode = node;

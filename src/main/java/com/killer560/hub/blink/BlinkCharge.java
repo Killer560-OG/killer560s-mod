@@ -1004,9 +1004,6 @@ public final class BlinkCharge {
     /** How far short of the bank's ticks the oldest answer may be and still cover it (the shot is a tick later at least). */
     private static final long TP_BATCH_SLACK_MS = 120L;
 
-    public static long teleportBatches() {
-        return tpBatches;
-    }
     private static boolean flushingTp;
     private static long tpHolds;
     private static long tpHeldTotal;
@@ -1021,10 +1018,6 @@ public final class BlinkCharge {
 
     public static long teleportHolds() {
         return tpHolds;
-    }
-
-    public static long teleportHoldMsMax() {
-        return tpHoldMsMax;
     }
 
     /** An answer just went: the teleports waiting for it go right behind it. Under LOCK. */
@@ -1678,23 +1671,6 @@ public final class BlinkCharge {
     }
 
     /**
-     * Sends every waiting ping answer now, in order (Blink's own hold is starting: it holds what comes next, so these must
-     * go first or the server sees answers out of order - GrimAC TransactionOrder, testkit 1025-blink-charge-double). The
-     * bank starts again.
-     */
-    public static void flushAnswers(String why) {
-        int n;
-        synchronized (LOCK) {
-            if (answers.isEmpty()) {
-                return;
-            }
-            n = releaseAnswersLocked();
-            banked = 0;
-        }
-        BlinkLog.event("charge: %d waiting ping answer(s) sent (%s)", n, why);
-    }
-
-    /**
      * A hold is starting: the waiting answers go first, in order (TransactionOrder, testkit 1025-blink-charge-double), and
      * the bank is dropped even when none were waiting (before 2026-10-26 it was kept then, so a shot after the hold sent
      * the bank's ticks on top of the hold's). Returns a note for the hold's log line ("" when not charging).
@@ -1988,14 +1964,6 @@ public final class BlinkCharge {
         net.minecraft.world.phys.Vec3 from = requestFrom;
         net.minecraft.world.phys.Vec3 to = lastShotTo;
         return from == null || to == null || p == null ? 0 : from.distanceTo(to);
-    }
-
-    public static net.minecraft.world.phys.Vec3 lastReleaseFrom() {
-        return requestFrom;
-    }
-
-    public static net.minecraft.world.phys.Vec3 lastReleaseTo() {
-        return lastShotTo;
     }
 
     /** Who drives Charge now, or null (his key). */

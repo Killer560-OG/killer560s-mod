@@ -218,11 +218,6 @@ public final class AhFlipper {
         return lastOpen;
     }
 
-    /** Flips found since start (or the last test reset). */
-    public static int foundCount() {
-        return found;
-    }
-
     /** The queued flips (testkit: what the next tick will announce). */
     public static List<Found> queued() {
         return new ArrayList<>(FOUND);

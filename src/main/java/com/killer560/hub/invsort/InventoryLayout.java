@@ -108,11 +108,6 @@ public final class InventoryLayout {
         return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout);
     }
 
-    /** The same layout with these free slots (slots it also manages are dropped). */
-    public InventoryLayout withFree(Set<Integer> free) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, free, fetchFromStorage, dumpPage, loadout);
-    }
-
     /** The same layout selecting Hypixel loadout {@code n} (1..12) when applied; 0 for none. */
     public InventoryLayout withLoadout(int n) {
         return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n);

@@ -202,10 +202,6 @@ public final class DoorKeysFeature {
     /** For the testkit: the last frame's circle/sphere color and tracer color, r g b a each, or null before any. */
     private static volatile float[][] lastColors = null;
 
-    public static float[][] lastDrawnColors() {
-        return lastColors;
-    }
-
     /** For the testkit: the style the last frame drew ("radius" for the Circle style, "sphere"), or "" before any. */
     private static volatile String lastDrawn = "";
 

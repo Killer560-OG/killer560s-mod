@@ -78,11 +78,6 @@ public final class MimicKiller {
         return state != State.IDLE;
     }
 
-    /** Whether it holds the camera (aiming down or using) - Secret Aura turns nothing meanwhile. */
-    public static boolean holdsCamera() {
-        return state == State.AIM || state == State.USING;
-    }
-
     /** Lets go now (his left click skipped the node it held): the slot he held goes back, as when it finishes. */
     static void cancel(Minecraft client, String why) {
         if (state != State.IDLE) {

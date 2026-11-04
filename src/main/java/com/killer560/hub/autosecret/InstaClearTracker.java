@@ -845,11 +845,6 @@ public final class InstaClearTracker {
         return STORE.counts(room, key);
     }
 
-    public static String testLast() {
-        InstaClearStore.Obs o = STORE.last();
-        return o == null ? null : STORE.lastRoom() + "|" + STORE.lastKey() + "|" + o.toJson();
-    }
-
     /** The newest observation for one room as {@code room|key|json}, or null. */
     public static String testLastFor(String room) {
         String s = STORE.newestIn(room);

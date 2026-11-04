@@ -484,10 +484,6 @@ public final class InstaClearWarningFeature {
         FAKE.cleared.add(room);
     }
 
-    public static void testOpenDoor(int door) {
-        FAKE.lockedOpen.add(door);
-    }
-
     public static void testKeys(int wither, int blood, boolean onGround, boolean near) {
         FAKE.wither = wither;
         FAKE.blood = blood;

@@ -547,11 +547,4 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         return "profit";
     }
 
-    // Test hooks
-    void selectForTest(String key) {
-        selected = key;
-        calcAttempts = -1;
-        calcMf = -1;
-        rebuildWidgets();
-    }
 }
