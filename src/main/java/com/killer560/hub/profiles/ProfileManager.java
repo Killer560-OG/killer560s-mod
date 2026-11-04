@@ -711,7 +711,6 @@ public final class ProfileManager {
         return failed;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Blank profile
 
     /** Files a blank profile carries over from the live ones instead of resetting: his recorded routes, waypoints and
@@ -1231,7 +1230,6 @@ public final class ProfileManager {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Import drop folder
 
     /** The drop folder, created if missing - what the Profiles tab's Import button opens. */
@@ -1294,7 +1292,6 @@ public final class ProfileManager {
         return messages;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Auto-save into the active profile
 
     /**

@@ -105,7 +105,6 @@ public final class ProfileData {
     private ProfileData() {
     }
 
-    // ------------------------------------------------------------------------------------------------------- rules
 
     /** Logs, corrupt/broken backups and temp files are never carried, wherever they sit. */
     static boolean isExcludedFileName(String fileName) {
@@ -149,7 +148,6 @@ public final class ProfileData {
         return true;
     }
 
-    // ------------------------------------------------------------------------------------------------- live side
 
     /** Every live data entry by name: {@code config/killer560/<category>/<feature>/<name>}. Where one name appears
      *  in two folders (a leftover from an older layout), the one {@link ModPaths#config} reads wins. */
@@ -243,7 +241,6 @@ public final class ProfileData {
         Files.copy(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
     }
 
-    // ------------------------------------------------------------------------------------------------ save / sync
 
     /** Makes {@code <profile>/data} an exact copy of the live data (Save). Returns the number of files carried. */
     static int snapshot(Path profileDir) throws IOException {
@@ -329,7 +326,6 @@ public final class ProfileData {
         return new HashSet<>(live.keySet());
     }
 
-    // ----------------------------------------------------------------------------------------------------- apply
 
     /** Whether this profile carries data (format 2 or later) - a format-1 profile leaves the live data alone. */
     static boolean carriesData(Path profileDir) {
@@ -412,7 +408,6 @@ public final class ProfileData {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------ meta
 
     /** The stamp: format, mod version, Minecraft version, variant, testing, commit, when. */
     static void writeMeta(Path profileDir) throws IOException {
@@ -472,7 +467,6 @@ public final class ProfileData {
         return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : null;
     }
 
-    // --------------------------------------------------------------------------------------------------- helpers
 
     static void deleteRecursive(Path path) throws IOException {
         if (!Files.exists(path)) {
