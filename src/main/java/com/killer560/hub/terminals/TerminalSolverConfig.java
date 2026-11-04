@@ -207,8 +207,8 @@ public final class TerminalSolverConfig {
      *  arrived and pressed; the Min/Max delays are replaced by the cursor's Speed / Reaction Time. Off: the Min/Max timing,
      *  and no cursor is ever drawn (Hide Mouse Cursor may hide the real one). Replaces the 2026-10-26 Fake Cursor toggle. */
     private boolean autoStreamSafe = false;
-    /** First Click Delay (killer560, 2026-11-03): extra ms Auto Terminals waits, on top of the opening settle, before the first click of a terminal. 0 = today's timing. */
-    private int firstClickDelayMs = 0;
+    /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
+    private int firstClickDelayMs = 300;
     private int cursorReactionMs = 130;
     private int cursorMissChance = 6;
     private int cursorOvershootChance = 18;
@@ -313,7 +313,7 @@ public final class TerminalSolverConfig {
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
             cfg.hideMouseCursor = ConfigJson.getBool(obj, "hideMouseCursor", false);
             cfg.autoStreamSafe = ConfigJson.getBool(obj, "autoStreamSafe", false);
-            cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 0), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
+            cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 300), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
             cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
             cfg.cursorOvershootChance = clamp(ConfigJson.getInt(obj, "cursorOvershootChance", 18), 0, MAX_CURSOR_OVERSHOOT_CHANCE);
