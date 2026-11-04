@@ -166,14 +166,31 @@ public final class CrystalHollowsWalls {
         if (walls.isEmpty()) {
             return;
         }
-        // Fresh arrays every frame (26.2 draws later in the frame).
-        AABB[] boxes = new AABB[walls.size()];
-        float[] rgba = new float[walls.size() * 4];
-        for (int i = 0; i < boxes.length; i++) {
-            boxes[i] = walls.get(i).box();
-            System.arraycopy(walls.get(i).rgba(), 0, rgba, i * 4, 4);
+        // Only each slab's two big faces, pulled in to 0.01 either side of its middle: the slab's own faces sit on
+        // whole block coordinates and z-fought every block face they touched, and its thin rim faces did the same
+        // (killer560, 2026-11-04; the Color Portal's fix, ScoreWarnings).
+        for (Wall w : walls) {
+            AABB b = w.box();
+            float[] c = w.rgba();
+            double dx = b.getXsize(), dy = b.getYsize(), dz = b.getZsize();
+            net.minecraft.core.Direction face;
+            AABB plane;
+            if (dx <= dy && dx <= dz) {
+                double m = (b.minX + b.maxX) / 2;
+                plane = new AABB(m - 0.01, b.minY, b.minZ, m + 0.01, b.maxY, b.maxZ);
+                face = net.minecraft.core.Direction.WEST;
+            } else if (dz <= dy) {
+                double m = (b.minZ + b.maxZ) / 2;
+                plane = new AABB(b.minX, b.minY, m - 0.01, b.maxX, b.maxY, m + 0.01);
+                face = net.minecraft.core.Direction.NORTH;
+            } else {
+                double m = (b.minY + b.maxY) / 2;
+                plane = new AABB(b.minX, m - 0.01, b.minZ, b.maxX, m + 0.01, b.maxZ);
+                face = net.minecraft.core.Direction.DOWN;
+            }
+            WorldRenderUtils.renderFilledFace(context, plane, face, c[0], c[1], c[2], c[3]);
+            WorldRenderUtils.renderFilledFace(context, plane, face.getOpposite(), c[0], c[1], c[2], c[3]);
         }
-        WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, boxes.length, 1f, false);
         frames++;
     }
 
