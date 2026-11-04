@@ -62,3 +62,7 @@ secrets/
 *-token*.txt
 *api-key*.txt
 secret-fingerprints.json
+
+# Private world captures (never commit; Hypixel owns the builds)
+world-captures/
+killer560-world-captures/
