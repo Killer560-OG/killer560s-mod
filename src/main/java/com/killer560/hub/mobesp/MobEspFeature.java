@@ -132,9 +132,7 @@ public final class MobEspFeature {
     /** Glow mixin hook: the ARGB outline color for this entity, or null if Dungeon ESP isn't glowing it. */
     public static Integer glowColor(Entity entity) {
         GlowSet set = glowSet;
-        if (entity == null || set.ids.length == 0) {
-            return null;
-        }
+        if (entity == null || set.ids.length == 0) return null;
         int i = java.util.Arrays.binarySearch(set.ids, entity.getId());
         return i >= 0 ? set.colors[i] : null;
     }
@@ -149,9 +147,7 @@ public final class MobEspFeature {
     private static volatile GlowSet glowSet = NO_GLOW;
 
     private static GlowSet glowSetOf(Map<Integer, Integer> targets) {
-        if (targets.isEmpty()) {
-            return NO_GLOW;
-        }
+        if (targets.isEmpty()) return NO_GLOW;
         int[] ids = new int[targets.size()];
         int n = 0;
         for (Integer id : targets.keySet()) {
@@ -261,9 +257,7 @@ public final class MobEspFeature {
         int bloodDrawn = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity == client.player) {
-                continue;
-            }
+            if (entity == client.player) continue;
             if (wantBlood && bloodIds.contains(entity.getId())) {
                 // A Floor VII giant is 12 blocks tall: its eye sits in or above the Blood Room's ceiling while its body
                 // stands in plain view (killer560, 2026-10-22), so without ESP a blood mob also counts as seen when the
@@ -280,9 +274,7 @@ public final class MobEspFeature {
                 // Both wither modes ignore Range and Room Scoped entirely (killer560: "the wither esp should work
                 // no matter the range"). Wither ESP is also unconditionally through-walls.
                 boolean espMode = wantWitherEsp;
-                if (!espMode && !wantWitherHighlight) {
-                    continue;
-                }
+                if (!espMode && !wantWitherHighlight) continue;
                 // The same color in both modes (killer560, 2026-10-15: no separate wither boss color for ESP).
                 int color = cfg.getWitherHighlightColor();
                 boolean wallsOk = espMode;
@@ -310,9 +302,7 @@ public final class MobEspFeature {
                     continue;
                 }
                 String name = stand.getName().getString();
-                if (!name.contains(STAR) || !name.contains(HEART)) {
-                    continue;
-                }
+                if (!name.contains(STAR) || !name.contains(HEART)) continue;
                 liveStands.add(stand.getId());
                 Entity mob = resolveMob(client, stand, name);
                 if (mob != null) {
@@ -398,16 +388,10 @@ public final class MobEspFeature {
             cachedRoomBox = null;
         }
         int room = layout.roomAtWorld(client.player.getX(), client.player.getZ());
-        if (room < 0 || room >= layout.roomCount()) {
-            return null;
-        }
-        if (room == cachedRoom && margin == cachedRoomMargin && cachedRoomBox != null) {
-            return cachedRoomBox;
-        }
+        if (room < 0 || room >= layout.roomCount()) return null;
+        if (room == cachedRoom && margin == cachedRoomMargin && cachedRoomBox != null) return cachedRoomBox;
         int[] tiles = layout.tiles(room);
-        if (tiles == null || tiles.length == 0) {
-            return null;
-        }
+        if (tiles == null || tiles.length == 0) return null;
         double minX = Double.MAX_VALUE;
         double minZ = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE;
@@ -441,20 +425,14 @@ public final class MobEspFeature {
                                   boolean skipRaycast, boolean asGlow, boolean asFilled, boolean noDepth,
                                   Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows, int color) {
         int id = target.getId();
-        if (target.isRemoved() || foundBoxes.containsKey(id) || foundGlows.containsKey(id)) {
-            return false;
-        }
+        if (target.isRemoved() || foundBoxes.containsKey(id) || foundGlows.containsKey(id)) return false;
         // Cheap rejections first, so the raycast below only ever runs for a target that could actually be shown.
         if (roomBox != null) {
-            if (!roomBox.contains(target.getX(), target.getY(), target.getZ())) {
-                return false;
-            }
+            if (!roomBox.contains(target.getX(), target.getY(), target.getZ())) return false;
         } else if (target.distanceToSqr(client.player) > rangeSq) {
             return false;
         }
-        if (!skipRaycast && !hasLineOfSight(client, eye, target)) {
-            return false;
-        }
+        if (!skipRaycast && !hasLineOfSight(client, eye, target)) return false;
         if (asGlow) {
             foundGlows.put(id, color);
         } else {
@@ -468,9 +446,7 @@ public final class MobEspFeature {
         Map<Integer, Integer> tracers = tracerTargets;
         List<ChestBox> chests = chestTargets;
         Minecraft client = Minecraft.getInstance();
-        if ((current.isEmpty() && tracers.isEmpty() && chests.isEmpty()) || client.level == null || client.player == null) {
-            return;
-        }
+        if ((current.isEmpty() && tracers.isEmpty() && chests.isEmpty()) || client.level == null || client.player == null) return;
         MobEspConfig renderCfg = MobEspConfig.getInstance();
         float lineWidth = renderCfg.getLineWidth();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -484,9 +460,7 @@ public final class MobEspFeature {
             float thickness = renderCfg.getWitherTracerThickness();
             for (Map.Entry<Integer, Integer> target : tracers.entrySet()) {
                 Entity entity = client.level.getEntity(target.getKey());
-                if (entity == null || entity.isRemoved()) {
-                    continue;
-                }
+                if (entity == null || entity.isRemoved()) continue;
                 // Aim at the hitbox center rather than the feet: a wither's box is 3.5 blocks tall and a line to
                 // its origin reads as pointing at the floor underneath it.
                 Vec3 lerped = entity.getPosition(partialTick);
@@ -503,9 +477,7 @@ public final class MobEspFeature {
         LINE_WALLS.clear();
         for (Map.Entry<Integer, Box> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
-            if (entity == null || entity.isRemoved()) {
-                continue;
-            }
+            if (entity == null || entity.isRemoved()) continue;
             Box box = target.getValue();
             // entity.getBoundingBox().move(entity.getPosition(partialTick).subtract(entity.position())), without the
             // three allocations.
@@ -561,14 +533,10 @@ public final class MobEspFeature {
      */
     public static List<Entity> starredMobs(Minecraft client, Map<Integer, String> tags) {
         List<Entity> out = new java.util.ArrayList<>();
-        if (client.level == null || client.player == null) {
-            return out;
-        }
+        if (client.level == null || client.player == null) return out;
         Set<Integer> seen = new HashSet<>();
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity == client.player) {
-                continue;
-            }
+            if (entity == client.player) continue;
             Entity mob = null;
             String tag = null;
             if (entity instanceof ArmorStand stand && stand.hasCustomName()) {
@@ -603,9 +571,7 @@ public final class MobEspFeature {
         Integer cached = standToMob.get(stand.getId());
         if (cached != null) {
             Entity mob = client.level.getEntity(cached);
-            if (mob != null && !mob.isRemoved()) {
-                return mob;
-            }
+            if (mob != null && !mob.isRemoved()) return mob;
             standToMob.remove(stand.getId());
         }
 
@@ -632,15 +598,9 @@ public final class MobEspFeature {
 
     /** Only real living, non-bat, non-wither entities (never a dropped item, projectile or you) count as a star mob. */
     private static boolean isValidMob(Minecraft client, Entity e) {
-        if (!(e instanceof LivingEntity) || e instanceof Bat) {
-            return false;
-        }
-        if (e == client.player || e instanceof WitherBoss || e instanceof AbstractArrow) {
-            return false;
-        }
-        if (e instanceof Player p) {
-            return !p.isInvisible() && p.getUUID().version() == 2;
-        }
+        if (!(e instanceof LivingEntity) || e instanceof Bat) return false;
+        if (e == client.player || e instanceof WitherBoss || e instanceof AbstractArrow) return false;
+        if (e instanceof Player p) return !p.isInvisible() && p.getUUID().version() == 2;
         return true;
     }
 
@@ -657,9 +617,7 @@ public final class MobEspFeature {
     private static boolean hasLineOfSightTo(Minecraft client, Vec3 eye, Entity target, Vec3 point, int keySalt) {
         int id = target.getId() ^ keySalt;
         Long cached = losCache.get(id);
-        if (cached != null && (tickCounter + target.getId()) % LOS_REFRESH_TICKS != 0) {
-            return (cached & 1L) != 0L;
-        }
+        if (cached != null && (tickCounter + target.getId()) % LOS_REFRESH_TICKS != 0) return (cached & 1L) != 0L;
         BlockHitResult result = client.level.clip(new ClipContext(
                 eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
         boolean visible = result.getType() == HitResult.Type.MISS;
@@ -728,9 +686,7 @@ public final class MobEspFeature {
      * skulls are not Fels.
      */
     static boolean isFelSkull(Minecraft client, ArmorStand stand) {
-        if (stand.isRemoved() || stand.isPassenger()) {
-            return false;
-        }
+        if (stand.isRemoved() || stand.isPassenger()) return false;
         net.minecraft.world.item.ItemStack head = stand.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD);
         // A wither skeleton skull too (simmobs2-1101): his Doc has Fels as "black fel skulls", and that is what the sim places;
         // with only the player head and the plain skull, Fel Skulls drew none of the sim's sleeping Fels.
@@ -739,9 +695,7 @@ public final class MobEspFeature {
                 || head.is(net.minecraft.world.item.Items.WITHER_SKELETON_SKULL))) {
             return false;
         }
-        if (!stand.isInvisible()) {
-            return false;
-        }
+        if (!stand.isInvisible()) return false;
         return !com.killer560.hub.bloodcamp.BloodCampFeature.inBloodRoomTile(stand.position());
     }
 
@@ -799,9 +753,7 @@ public final class MobEspFeature {
             long room = roomKey(s.getX(), s.getZ());
             boolean predicted = PREDICTED_FELS.contains(s.getId());
             boolean others = !predicted && STARRED_ROOMS.contains(room) && !busy.contains(room) && !roomCleared(room);
-            if (predicted && roomCleared(room)) {
-                continue;
-            }
+            if (predicted && roomCleared(room)) continue;
             if ((predicted || others) && accept(client, eye, s, Double.MAX_VALUE, null, throughWalls, glow, filled,
                     throughWalls, foundBoxes, foundGlows, color)) {
                 LAST_FELS_DRAWN.add(s.getId());
@@ -815,27 +767,19 @@ public final class MobEspFeature {
     /** A room id from the scanned map, or (off the map) a key for the 32x32 dungeon cell. */
     static long roomKey(double x, double z) {
         int room = DungeonLayout.current().roomAtWorld(x, z);
-        if (room >= 0) {
-            return room;
-        }
+        if (room >= 0) return room;
         long tx = Math.round((x - LiveMapFeature.START_X) / 32.0);
         long tz = Math.round((z - LiveMapFeature.START_Z) / 32.0);
         return -1_000_000L - ((tx + 500L) * 2000L + (tz + 500L));
     }
 
     private static boolean roomCleared(long key) {
-        if (TEST_CLEARED_ROOMS.contains(key) || key < 0) {
-            return TEST_CLEARED_ROOMS.contains(key);
-        }
+        if (TEST_CLEARED_ROOMS.contains(key) || key < 0) return TEST_CLEARED_ROOMS.contains(key);
         DungeonLayout layout = DungeonLayout.current();
         int[] tiles = key < layout.roomCount() ? layout.tiles((int) key) : null;
-        if (tiles == null) {
-            return false;
-        }
+        if (tiles == null) return false;
         for (int tile : tiles) {
-            if (LiveMapFeature.isRoomCleared(tile)) {
-                return true;
-            }
+            if (LiveMapFeature.isRoomCleared(tile)) return true;
         }
         return false;
     }
@@ -856,9 +800,7 @@ public final class MobEspFeature {
             }
         }
         long now = client.level.getGameTime();
-        if (now - lastChestScanTick < 10 && now >= lastChestScanTick) {
-            return;
-        }
+        if (now - lastChestScanTick < 10 && now >= lastChestScanTick) return;
         lastChestScanTick = now;
         List<ChestBox> out = new java.util.ArrayList<>();
         int r = 48;
@@ -871,16 +813,10 @@ public final class MobEspFeature {
                 } catch (RuntimeException e) {
                     continue;
                 }
-                if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
-                    continue;
-                }
+                if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) continue;
                 for (BlockPos p : lc.getBlockEntities().keySet()) {
-                    if (!client.level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)) {
-                        continue;
-                    }
-                    if (MIMIC_CHESTS_SPENT.contains(p.asLong())) {
-                        continue;
-                    }
+                    if (!client.level.getBlockState(p).is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)) continue;
+                    if (MIMIC_CHESTS_SPENT.contains(p.asLong())) continue;
                     Vec3 c = Vec3.atCenterOf(p);
                     boolean spent = false;
                     for (Entity m : mimics) {

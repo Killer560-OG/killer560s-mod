@@ -223,14 +223,10 @@ public final class MobEspConfig {
 
     /** Pulls the old Cheat Utils Wither ESP enabled flag, if that file still has it. */
     private static boolean migrateWitherEsp(MobEspConfig cfg) {
-        if (!Files.exists(OLD_CHEATUTILS_PATH)) {
-            return false;
-        }
+        if (!Files.exists(OLD_CHEATUTILS_PATH)) return false;
         try {
             JsonObject o = JsonParser.parseString(Files.readString(OLD_CHEATUTILS_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (!o.has("witherEspEnabled")) {
-                return false;
-            }
+            if (!o.has("witherEspEnabled")) return false;
             cfg.withers = ConfigJson.getBool(o, "witherEspEnabled", false);
             return true;
         } catch (Exception e) {
