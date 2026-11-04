@@ -47,7 +47,6 @@ public final class RunStatsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RunStatsFeature.tick", RunStatsFeature::tick));
     }
 
-    // ------------------------------------------------------------------------------------------- chat
 
     private static void onChat(Component message) {
         RunStatsConfig cfg = RunStatsConfig.getInstance();
@@ -71,7 +70,6 @@ public final class RunStatsFeature {
         pendingTicks = Math.max(1, cfg.getDelaySeconds() * 20);
     }
 
-    // ------------------------------------------------------------------------------------------- tick
 
     private static void tick(Minecraft client) {
         if (client.player == null || client.level == null) {
@@ -106,7 +104,6 @@ public final class RunStatsFeature {
         printSummary(client, cfg);
     }
 
-    // ------------------------------------------------------------------------------------------- output
 
     private static void printSummary(Minecraft client, RunStatsConfig cfg) {
         List<PlayerRunStats> rows = RunStatsTracker.buildRows(client);

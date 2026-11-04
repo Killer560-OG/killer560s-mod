@@ -68,7 +68,6 @@ public final class RunStatsTracker {
     private RunStatsTracker() {
     }
 
-    // ------------------------------------------------------------------------------------- run lifecycle
 
     /** Clears everything for a fresh run (world change / dungeon entry). */
     public static synchronized void resetRun() {
@@ -108,7 +107,6 @@ public final class RunStatsTracker {
         }
     }
 
-    // ------------------------------------------------------------------------------------- collection
 
     /** Feeds the map-derived room clears in. Call every few ticks while in a dungeon. */
     public static synchronized void pollRooms(Minecraft client) {
@@ -147,7 +145,6 @@ public final class RunStatsTracker {
         DEATHS.computeIfAbsent(key(name), k -> new ArrayList<>()).add(m.group(2));
     }
 
-    // ------------------------------------------------------------------------------------- results
 
     /** The rows of the most recent finished run, in party order. Consume this from {@code runsummary}. */
     public static List<PlayerRunStats> lastRun() {
@@ -186,7 +183,6 @@ public final class RunStatsTracker {
                 new ArrayList<>(STACKED_ROOMS.getOrDefault(key, Set.of())));
     }
 
-    // ------------------------------------------------------------------------------------- internals
 
     private static Set<String> rooms(Map<String, Set<String>> map, String name) {
         remember(name);
