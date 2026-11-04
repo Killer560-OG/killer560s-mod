@@ -30,9 +30,7 @@ public abstract class StorageOverlaySlotMixin {
     @Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideStorageSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!StorageOverlayConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!StorageOverlayConfig.getInstance().isEnabled()) return;
         if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
@@ -50,9 +48,7 @@ public abstract class StorageOverlaySlotMixin {
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideRelocatedTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!StorageOverlayConfig.getInstance().isEnabled() || hoveredSlot == null) {
-            return;
-        }
+        if (!StorageOverlayConfig.getInstance().isEnabled() || hoveredSlot == null) return;
         if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
@@ -65,9 +61,7 @@ public abstract class StorageOverlaySlotMixin {
     @Inject(method = "extractLabels", at = @At("HEAD"), cancellable = true)
     private void killer560smod$hideStorageLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (!StorageOverlayConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!StorageOverlayConfig.getInstance().isEnabled()) return;
         if (StorageOverlayFeature.shouldHideVanilla(self.getTitle())) {
             ci.cancel();
         }
