@@ -250,7 +250,4 @@ public final class WaypointRoutesConfig {
         }
     }
 
-    public Map<String, String> getActiveByArea() {
-        return activeByArea;
-    }
 }
