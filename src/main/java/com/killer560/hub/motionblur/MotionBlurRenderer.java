@@ -162,10 +162,7 @@ public final class MotionBlurRenderer {
         double referenceBlend = (strengthPercent / 100.0) * MAX_REFERENCE_BLEND;
         // Keep the per-second decay constant: blend_fps = blend_ref ^ (refFps / fps).
         double blend = Math.pow(referenceBlend, smoothedFrameSeconds * REFERENCE_FPS);
-        if (!Double.isFinite(blend)) {
-            return 0.0f;
-        }
-        return (float) Math.max(0.0, Math.min(MAX_BLEND, blend));
+        return !Double.isFinite(blend) ? 0.0f : (float) Math.max(0.0, Math.min(MAX_BLEND, blend));
     }
 
     private static void writeBlend(float blend) {
