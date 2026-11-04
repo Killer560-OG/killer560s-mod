@@ -18,8 +18,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all and, on hypixel.net, once trusted STAYS
  * trusted (2026-11-03, timers2): a stall or a burst is just a window that fails that test, and dropping trust there ran the
  * clock on client ticks through the stall. Odin (ConnectionMixin) and NoammAddons (MixinConnection) count every non-zero ping
- * and nothing else, so a stall pauses their countdowns and a burst catches them up. Only 15 windows in a row with no ping at
- * all end trust. The first rule, at 18 pings a window, still
+ * and nothing else, so a stall pauses their countdowns and a burst catches them up. The first rule, at 18 pings a window, still
  * trusted GrimAC now and then and ran testkit 792's first trip 31 ticks slow.
  * <p>
  * The clock is one count: each ping advances it while the server is trusted; while it is not, it follows the client's
