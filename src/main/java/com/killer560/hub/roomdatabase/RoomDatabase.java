@@ -88,12 +88,8 @@ public final class RoomDatabase {
      *  each spawning a new thread, a new HTTP fetch, and a new stack trace in the log. Now at most one
      *  load is ever in flight (compare-and-set) and failures back off 30s, 60s, 120s... capped at 10min. */
     public static void ensureLoading() {
-        if (byCoreHash != null || System.currentTimeMillis() < nextAttemptAtMs) {
-            return;
-        }
-        if (!loading.compareAndSet(false, true)) {
-            return;
-        }
+        if (byCoreHash != null || System.currentTimeMillis() < nextAttemptAtMs) return;
+        if (!loading.compareAndSet(false, true)) return;
         loadAttempts++;
         Thread thread = new Thread(RoomDatabase::loadBlocking, "killer560smod-roomdb-load");
         thread.setDaemon(true);
@@ -127,9 +123,7 @@ public final class RoomDatabase {
             } catch (IOException e) {
                 // 2026-09-14: an unreachable version endpoint no longer throws away a perfectly good
                 // previously-downloaded copy - use the local file if there is one.
-                if (!Files.exists(dir.resolve("rooms-modern.json"))) {
-                    throw e;
-                }
+                if (!Files.exists(dir.resolve("rooms-modern.json"))) throw e;
                 LOGGER.warn("[RoomDatabase] Version check failed ({}) - using cached local room database (version={})",
                         e.toString(), localHash);
                 remoteHash = localHash;
@@ -150,9 +144,7 @@ public final class RoomDatabase {
                 if (entry.name != null) {
                     nameMap.put(entry.name, entry);
                 }
-                if (entry.cores == null) {
-                    continue;
-                }
+                if (entry.cores == null) continue;
                 for (int core : entry.cores) {
                     map.put(core, entry);
                 }
@@ -208,9 +200,7 @@ public final class RoomDatabase {
                     rootPrefix = slash >= 0 ? name.substring(0, slash + 1) : "";
                 }
                 String relative = name.startsWith(rootPrefix) ? name.substring(rootPrefix.length()) : name;
-                if (relative.isEmpty()) {
-                    continue;
-                }
+                if (relative.isEmpty()) continue;
                 Path target = dir.resolve(relative).normalize();
                 if (!target.startsWith(dir)) {
                     continue; // zip-slip guard
@@ -304,9 +294,7 @@ public final class RoomDatabase {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 4; i++) {
             pos.set(corners[i][0], roofHeight, corners[i][1]);
-            if (!ChunkCacheManager.isLoadedOrCached(level, pos)) {
-                continue;
-            }
+            if (!ChunkCacheManager.isLoadedOrCached(level, pos)) continue;
             if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)
                     && isOuterRoofCorner(level, corners[i][0], roofHeight, corners[i][1], outward[i][0], outward[i][1])) {
                 return new int[]{corners[i][0], corners[i][1], i * 90};
@@ -328,9 +316,7 @@ public final class RoomDatabase {
      */
     private static boolean isOuterRoofCorner(Level level, int x, int y, int z, int dx, int dz) {
         BlockPos sideX = new BlockPos(x + dx, y, z);
-        if (ChunkCacheManager.isLoadedOrCached(level, sideX) && !level.getBlockState(sideX).isAir()) {
-            return false;
-        }
+        if (ChunkCacheManager.isLoadedOrCached(level, sideX) && !level.getBlockState(sideX).isAir()) return false;
         BlockPos sideZ = new BlockPos(x, y, z + dz);
         return !ChunkCacheManager.isLoadedOrCached(level, sideZ) || level.getBlockState(sideZ).isAir();
     }
@@ -339,9 +325,7 @@ public final class RoomDatabase {
      *  "2x2", "L") covers - NoammAddons' {@code RoomShape.tileCount}; 4 (the largest real room) when the
      *  shape is missing or unrecognized. */
     public static int shapeTileCount(String shape) {
-        if (shape == null) {
-            return 4;
-        }
+        if (shape == null) return 4;
         return switch (shape) {
             case "1x1" -> 1;
             case "1x2" -> 2;
