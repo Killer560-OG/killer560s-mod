@@ -255,37 +255,21 @@ public final class ObjectHiderFeature {
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
         String text = plain != null ? plain : message.getString();
-        if (cfg.isHideEmptyChatMessages() && text.isBlank()) {
-            return false;
-        }
-        if (cfg.isHideUselessMessages() && USELESS_MESSAGE.matcher(text).matches()) {
-            return false;
-        }
-        if (cfg.isHideDiscordWarnings() && DISCORD_WARNING.matcher(text).matches()) {
-            return false;
-        }
-        if (cfg.isHideMicrosoftWarnings() && MICROSOFT_WARNING.matcher(text).matches()) {
-            return false;
-        }
-        if (cfg.isHideBanAnnouncements() && isBanAnnouncement(text)) {
-            return false;
-        }
+        if (cfg.isHideEmptyChatMessages() && text.isBlank()) return false;
+        if (cfg.isHideUselessMessages() && USELESS_MESSAGE.matcher(text).matches()) return false;
+        if (cfg.isHideDiscordWarnings() && DISCORD_WARNING.matcher(text).matches()) return false;
+        if (cfg.isHideMicrosoftWarnings() && MICROSOFT_WARNING.matcher(text).matches()) return false;
+        if (cfg.isHideBanAnnouncements() && isBanAnnouncement(text)) return false;
         return !cfg.isHideNonRankInvites() || !NON_RANK_INVITE.matcher(text.trim()).matches();
     }
 
     /** True when every non-blank line of {@code text} is a line of the Watchdog announcement and at least one is. */
     public static boolean isBanAnnouncement(String text) {
-        if (text == null || text.length() > 400) {
-            return false;
-        }
+        if (text == null || text.length() > 400) return false;
         boolean any = false;
         for (String line : text.split("\\R")) {
-            if (line.isBlank()) {
-                continue;
-            }
-            if (!BAN_ANNOUNCEMENT_LINE.matcher(line).matches()) {
-                return false;
-            }
+            if (line.isBlank()) continue;
+            if (!BAN_ANNOUNCEMENT_LINE.matcher(line).matches()) return false;
             any = true;
         }
         return any;
@@ -294,9 +278,7 @@ public final class ObjectHiderFeature {
     // QUOI Render Optimizer "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (!ObjectHiderConfig.getInstance().isHideRecipeBookButton()) {
-            return;
-        }
+        if (!ObjectHiderConfig.getInstance().isHideRecipeBookButton()) return;
         for (AbstractWidget widget : Screens.getWidgets(screen)) {
             if (widget instanceof ImageButton button
                     && ((ImageButtonSpritesAccessor) button).killer560smod$getSprites()
@@ -310,9 +292,7 @@ public final class ObjectHiderFeature {
 
     private static void onChatMessage(net.minecraft.network.chat.Component message) {
         String text = ChatObserver.strip(message);
-        if (text == null) {
-            return;
-        }
+        if (text == null) return;
         if (!bossDone && text.contains("Defeated ") && BOSS_DEFEATED.matcher(text).matches()) {
             bossDone = true;
         } else if (bossDone && text.contains("The Catacombs - Floor ") && CHESTS_SPAWNED.matcher(text).matches()) {
@@ -358,31 +338,21 @@ public final class ObjectHiderFeature {
 
     /** @return true to stop this entity rendering this frame. Never mutates or removes the entity. */
     public static boolean shouldHideEntity(Entity entity) {
-        if (entity == null) {
-            return false;
-        }
+        if (entity == null) return false;
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         // Vanilla calls this for every entity every frame, so the all-off case (the default) must cost one
         // field read, not ten gated getters plus a DungeonState/Minecraft lookup - see hidesAnyEntity().
-        if (!cfg.hidesAnyEntity()) {
-            return false;
-        }
+        if (!cfg.hidesAnyEntity()) return false;
         Minecraft client = Minecraft.getInstance();
-        if (entity == client.player) {
-            return false;
-        }
+        if (entity == client.player) return false;
         boolean inDungeon = DungeonState.isInDungeon();
 
-        if (cfg.isCleanEnd() && bossDone && inDungeon && cleanEndHides(entity, cfg, client)) {
-            return true;
-        }
+        if (cfg.isCleanEnd() && bossDone && inDungeon && cleanEndHides(entity, cfg, client)) return true;
         if (cfg.isHideGroundedArrows() && entity instanceof AbstractArrow arrow
                 && ((AbstractArrowInGroundAccessor) arrow).killer560smod$isInGround()) {
             return true;
         }
-        if (cfg.isHideWitherborn() && isWitherborn(entity)) {
-            return true;
-        }
+        if (cfg.isHideWitherborn() && isWitherborn(entity)) return true;
         if (cfg.isHideCloakCreepers() && entity instanceof Creeper creeper
                 && creeper.isInvisible() && creeper.isPowered() && creeper.getHealth() == 20.0f) {
             return true;
@@ -397,36 +367,22 @@ public final class ObjectHiderFeature {
             return true;
         }
         if (inDungeon) {
-            if (cfg.isHideSheep() && entity instanceof Sheep) {
-                return true;
-            }
+            if (cfg.isHideSheep() && entity instanceof Sheep) return true;
             if (cfg.isHideArcherPassive() && entity instanceof ItemEntity item
                     && item.getItem().getItem() == Items.BONE_MEAL) {
                 return true;
             }
-            if (cfg.isHideDyingDragons() && entity instanceof EnderDragon dragon && dragon.dragonDeathTime > 0) {
-                return true;
-            }
-            if (entity instanceof ArmorStand stand && hidesArmorStand(stand, cfg)) {
-                return true;
-            }
+            if (cfg.isHideDyingDragons() && entity instanceof EnderDragon dragon && dragon.dragonDeathTime > 0) return true;
+            if (entity instanceof ArmorStand stand && hidesArmorStand(stand, cfg)) return true;
         }
         return cfg.isHideDeathAnimations() && entity instanceof LivingEntity living && isDeadAndHidden(living, cfg);
     }
 
     private static boolean hidesArmorStand(ArmorStand stand, ObjectHiderConfig cfg) {
-        if (cfg.isHideFairy() && hasSkullProfile(stand, EquipmentSlot.MAINHAND, FAIRY_SKULL)) {
-            return true;
-        }
-        if (cfg.isHideSoulweaverSkulls() && hasSkullProfile(stand, EquipmentSlot.HEAD, SOULWEAVER_SKULL)) {
-            return true;
-        }
-        if (cfg.isHideHealerOrbs() && isOrbStand(stand) && !isKeptOrb(stand, cfg)) {
-            return true;
-        }
-        if (cfg.isHideWitherKing() && isWitherKingArea(stand.getY(), stand.getZ()) && isMasterSeven()) {
-            return true;
-        }
+        if (cfg.isHideFairy() && hasSkullProfile(stand, EquipmentSlot.MAINHAND, FAIRY_SKULL)) return true;
+        if (cfg.isHideSoulweaverSkulls() && hasSkullProfile(stand, EquipmentSlot.HEAD, SOULWEAVER_SKULL)) return true;
+        if (cfg.isHideHealerOrbs() && isOrbStand(stand) && !isKeptOrb(stand, cfg)) return true;
+        if (cfg.isHideWitherKing() && isWitherKingArea(stand.getY(), stand.getZ()) && isMasterSeven()) return true;
         return cfg.isHideBossDamageSplash() && LiveMapFeature.isInBoss() && isDamageSplash(stand);
     }
 
@@ -457,27 +413,17 @@ public final class ObjectHiderFeature {
 
     /** @return true to drop this particle before it is added to the engine (ParticleEngine.add HEAD). */
     public static boolean shouldHideParticle(Particle particle) {
-        if (particle == null) {
-            return false;
-        }
+        if (particle == null) return false;
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
-        if (cfg.isCleanEnd() && bossDone && DungeonState.isInDungeon()) {
-            return true;
-        }
-        if (cfg.isHideBlockBreakParticles() && particle instanceof TerrainParticle) {
-            return true;
-        }
-        if (cfg.isHideWitherImpactExplosions() && particle instanceof HugeExplosionParticle) {
-            return true;
-        }
+        if (cfg.isCleanEnd() && bossDone && DungeonState.isInDungeon()) return true;
+        if (cfg.isHideBlockBreakParticles() && particle instanceof TerrainParticle) return true;
+        if (cfg.isHideWitherImpactExplosions() && particle instanceof HugeExplosionParticle) return true;
         return cfg.isHideSmokeParticles() && particle instanceof SmokeParticle;
     }
 
     /** @return true to drop a server particle packet whose flags/position identify it (orbs, hearts, King). */
     public static boolean shouldCancelParticlePacket(ClientboundLevelParticlesPacket packet) {
-        if (packet == null) {
-            return false;
-        }
+        if (packet == null) return false;
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         Object type = McPackets.particle(packet).getType();
 
@@ -486,9 +432,7 @@ public final class ObjectHiderFeature {
                 && McPackets.particleCount(packet) == 3 && packet.alwaysShow() && McPackets.particleOverrideLimiter(packet)) {
             return true;
         }
-        if (!DungeonState.isInDungeon()) {
-            return false;
-        }
+        if (!DungeonState.isInDungeon()) return false;
         // Devonian HideWitherKing.kt - the King's witch particles, inside the same arena box as his model.
         if (cfg.isHideWitherKing() && type == ParticleTypes.WITCH
                 && isWitherKingArea(McPackets.particleY(packet), McPackets.particleZ(packet)) && isMasterSeven()) {
@@ -512,9 +456,7 @@ public final class ObjectHiderFeature {
     /** QUOI 1.1.1 {@code HidePlayers.class} "Distance" - 0 means no cap (hide regardless of range). */
     private static boolean withinHidePlayersDistance(Entity entity, ObjectHiderConfig cfg, Minecraft client) {
         int distance = cfg.getHidePlayersDistance();
-        if (distance <= 0 || client.player == null) {
-            return true;
-        }
+        if (distance <= 0 || client.player == null) return true;
         return client.player.distanceToSqr(entity) <= (double) distance * distance;
     }
 
@@ -522,25 +464,17 @@ public final class ObjectHiderFeature {
      *  the entity exists at all, cheaper than canceling its render every frame afterward. Both are pure
      *  client-render cosmetics; nothing about what's sent to the server changes. */
     public static boolean shouldCancelAddEntity(ClientboundAddEntityPacket packet) {
-        if (packet == null) {
-            return false;
-        }
+        if (packet == null) return false;
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
-        if (!cfg.isHideFallingBlocks() && !cfg.isHideLightning()) {
-            return false;
-        }
+        if (!cfg.isHideFallingBlocks() && !cfg.isHideLightning()) return false;
         EntityType<?> type = packet.getType();
-        if (cfg.isHideFallingBlocks() && type == McEntities.FALLING_BLOCK) {
-            return true;
-        }
+        if (cfg.isHideFallingBlocks() && type == McEntities.FALLING_BLOCK) return true;
         return cfg.isHideLightning() && type == McEntities.LIGHTNING_BOLT;
     }
 
     /** Devonian {@code DisableBlindness.kt} - drop the local player's blindness application. */
     public static boolean shouldCancelMobEffect(ClientboundUpdateMobEffectPacket packet) {
-        if (packet == null || !ObjectHiderConfig.getInstance().isDisableBlindness()) {
-            return false;
-        }
+        if (packet == null || !ObjectHiderConfig.getInstance().isDisableBlindness()) return false;
         Minecraft client = Minecraft.getInstance();
         return client.player != null
                 && packet.getEntityId() == client.player.getId()
@@ -552,27 +486,19 @@ public final class ObjectHiderFeature {
 
     private static boolean hasSkullProfile(ArmorStand stand, EquipmentSlot slot, UUID id) {
         ItemStack stack = stand.getItemBySlot(slot);
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         ResolvableProfile profile = stack.get(DataComponents.PROFILE);
         return profile != null && profile.partialProfile() != null && id.equals(profile.partialProfile().id());
     }
 
     private static boolean isOrbStand(ArmorStand stand) {
         String itemId = skyblockId(stand.getItemBySlot(EquipmentSlot.HEAD));
-        if (itemId != null && ORB_ITEM_IDS.contains(itemId)) {
-            return true;
-        }
-        if (!stand.hasCustomName()) {
-            return false;
-        }
+        if (itemId != null && ORB_ITEM_IDS.contains(itemId)) return true;
+        if (!stand.hasCustomName()) return false;
         net.minecraft.network.chat.Component custom = stand.getCustomName();
         Map<net.minecraft.network.chat.Component, Boolean> memo = nameMemo(ORB_NAME_MEMO);
         Boolean known = custom == null ? null : memo.get(custom);
-        if (known != null) {
-            return known;
-        }
+        if (known != null) return known;
         boolean orb = orbLabel(stand.getName().getString());
         if (custom != null) {
             memo.put(custom, orb);
@@ -582,14 +508,10 @@ public final class ObjectHiderFeature {
 
     private static boolean orbLabel(String raw) {
         String name = ChatFormatting.stripFormatting(raw);
-        if (name == null) {
-            return false;
-        }
+        if (name == null) return false;
         String upper = name.trim().toUpperCase(Locale.ROOT);
         for (String prefix : ORB_LABEL_PREFIXES) {
-            if (upper.startsWith(prefix)) {
-                return true;
-            }
+            if (upper.startsWith(prefix)) return true;
         }
         return false;
     }
@@ -624,28 +546,20 @@ public final class ObjectHiderFeature {
     }
 
     private static boolean isKeptPosition(double x, double y, double z, ObjectHiderConfig cfg) {
-        if (!cfg.isKeepNearbyOrbs()) {
-            return false;
-        }
+        if (!cfg.isKeepNearbyOrbs()) return false;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return false;
-        }
+        if (client.player == null) return false;
         double r = cfg.getKeepOrbRadius();
         return client.player.distanceToSqr(x, y, z) <= r * r;
     }
 
     /** SkyHanni {@code DamageIndicatorManager.isDamageSplash}. */
     private static boolean isDamageSplash(ArmorStand stand) {
-        if (stand.tickCount > 300 || !stand.hasCustomName()) {
-            return false;
-        }
+        if (stand.tickCount > 300 || !stand.hasCustomName()) return false;
         net.minecraft.network.chat.Component custom = stand.getCustomName();
         Map<net.minecraft.network.chat.Component, Boolean> memo = nameMemo(SPLASH_NAME_MEMO);
         Boolean known = custom == null ? null : memo.get(custom);
-        if (known != null) {
-            return known;
-        }
+        if (known != null) return known;
         String name = ChatFormatting.stripFormatting(stand.getName().getString());
         boolean splash = name != null && DAMAGE_SPLASH.matcher(name.replace(",", "")).matches();
         if (custom != null) {
@@ -656,19 +570,11 @@ public final class ObjectHiderFeature {
 
     /** Devonian {@code NoDeathAnimation.shouldHide}. */
     private static boolean isDeadAndHidden(LivingEntity entity, ObjectHiderConfig cfg) {
-        if (entity instanceof EnderDragon) {
-            return false;
-        }
-        if (cfg.isHideDeadNametags() && entity instanceof ArmorStand && deadTags.contains(entity.getId())) {
-            return true;
-        }
-        if (entity.isAlive() && entity.getHealth() > 0.0f) {
-            return false;
-        }
+        if (entity instanceof EnderDragon) return false;
+        if (cfg.isHideDeadNametags() && entity instanceof ArmorStand && deadTags.contains(entity.getId())) return true;
+        if (entity.isAlive() && entity.getHealth() > 0.0f) return false;
         String name = entity.getName() == null ? null : entity.getName().getString();
-        if (name != null && LIVID_NAME.matcher(name).matches()) {
-            return false;
-        }
+        if (name != null && LIVID_NAME.matcher(name).matches()) return false;
         // Hypixel's nametag stand sits at mobId + 1; a Withermancer's two wither skulls take the ids between.
         int offset = entity instanceof WitherSkeleton && name != null && name.contains("Withermancer") ? 3 : 1;
         deadTags.add(entity.getId() + offset);
@@ -692,14 +598,10 @@ public final class ObjectHiderFeature {
 
     /** Hypixel Skyblock item id from CUSTOM_DATA "id" (same technique as {@code DungeonBreakerFeature}), or null. */
     private static String skyblockId(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         // Read-only view, no deep copy: this runs per armor stand per frame with Hide Healer Orbs on (fps pass).
         CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack);
-        if (tag == null) {
-            return null;
-        }
+        if (tag == null) return null;
         return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 }

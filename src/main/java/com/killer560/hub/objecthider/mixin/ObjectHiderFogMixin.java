@@ -27,14 +27,10 @@ public abstract class ObjectHiderFogMixin {
     @ModifyVariable(method = "getBuffer", at = @At("HEAD"), argsOnly = true, require = 0)
     private FogRenderer.FogMode killer560smod$objectHider$fogMode(FogRenderer.FogMode mode) {
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
-        if (cfg.isDisableFog()) {
-            return FogRenderer.FogMode.NONE;
-        }
+        if (cfg.isDisableFog()) return FogRenderer.FogMode.NONE;
         if (cfg.isFixCrimsonIsleFog() && "CRIMSON_ISLE".equals(IslandDetector.graphIsland())) {
             Player player = Minecraft.getInstance().player;
-            if (player != null && player.hasEffect(MobEffects.NIGHT_VISION)) {
-                return FogRenderer.FogMode.NONE;
-            }
+            if (player != null && player.hasEffect(MobEffects.NIGHT_VISION)) return FogRenderer.FogMode.NONE;
         }
         return mode;
     }
