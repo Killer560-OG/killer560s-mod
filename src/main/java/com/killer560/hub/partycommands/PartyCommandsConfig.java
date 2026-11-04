@@ -228,9 +228,7 @@ public final class PartyCommandsConfig {
     }
 
     private static JsonObject read(Path path) {
-        if (!Files.exists(path)) {
-            return null;
-        }
+        if (!Files.exists(path)) return null;
         try {
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {

@@ -113,9 +113,7 @@ public final class PartyCommandsFeature {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         CommandChatListener.register();
         InfoReplies.register();
@@ -136,9 +134,7 @@ public final class PartyCommandsFeature {
      * party-leader tracking and the end-of-run downtime payoff on the same real-server-only intake.
      */
     static void onServerLine(String plain) {
-        if (plain == null || plain.isEmpty()) {
-            return;
-        }
+        if (plain == null || plain.isEmpty()) return;
         if (PartyLeaderTracker.onServerLine(plain)) {
             cancelReinvites("you're no longer in that party");
         }
@@ -154,9 +150,7 @@ public final class PartyCommandsFeature {
      */
     public static void onModChat(String from, String message) {
         try {
-            if (message == null || !message.startsWith("!") || !PartyCommandsConfig.getInstance().isEnabled()) {
-                return;
-            }
+            if (message == null || !message.startsWith("!") || !PartyCommandsConfig.getInstance().isEnabled()) return;
             handle(from, message.substring(1).trim(), Channel.MOD_CHAT);
         } catch (RuntimeException e) {
             LOGGER.error("[PartyCommands] Mod Chat line from {} failed", from, e);
@@ -173,20 +167,14 @@ public final class PartyCommandsFeature {
         if (!cfg.isEnabled() || channel == null || body == null || body.isBlank() || body.length() > MAX_BODY_LENGTH) {
             return false;
         }
-        if (!validName(sender)) {
-            return false;
-        }
-        if (!cfg.isChannelOn(channel)) {
-            return false;
-        }
+        if (!validName(sender)) return false;
+        if (!cfg.isChannelOn(channel)) return false;
         String[] words = body.trim().split("\\s+", 3);
         String word = words[0].toLowerCase(Locale.US);
         String arg = words.length > 1 ? words[1] : null;
 
         Command command = commandFor(word);
-        if (command == null || !cfg.isOn(command)) {
-            return false;
-        }
+        if (command == null || !cfg.isOn(command)) return false;
         // THE gate (killer560, 2026-09-21: "the one thing to keep"): anything that changes the party or the run only
         // for someone actually on the team, from whichever chat. A DM'd !invite invites the sender, Odin's one
         // exception, since inviting them is how they would become a teammate.
@@ -215,9 +203,7 @@ public final class PartyCommandsFeature {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - you are not the party leader", word, sender);
             return true;
         }
-        if (!allowRate(sender)) {
-            return true;
-        }
+        if (!allowRate(sender)) return true;
         long received = System.currentTimeMillis();
         // Everything a command does goes out from the client tick after the reply delay (see the class doc). The
         // world it was asked in must still be the one it answers into.
@@ -234,20 +220,14 @@ public final class PartyCommandsFeature {
 
     /** The command a "!" word names, or null. Which chat it came from never changes the answer. */
     static Command commandFor(String word) {
-        if (word == null) {
-            return null;
-        }
-        if (FLOOR_PATTERN.matcher(word).matches()) {
-            return instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
-        }
+        if (word == null) return null;
+        if (FLOOR_PATTERN.matcher(word).matches()) return instanceFor(word) == null ? null : Command.QUEUE_INSTANCE;
         for (Command c : Command.values()) {
             if (c == Command.QUEUE_INSTANCE) {
                 continue;   // its "f1" trigger is the label only; the floor pattern above answers for it
             }
             for (String trigger : c.triggers()) {
-                if (trigger.equals(word)) {
-                    return c;
-                }
+                if (trigger.equals(word)) return c;
             }
         }
         return null;
@@ -289,9 +269,7 @@ public final class PartyCommandsFeature {
             }
             case KICK -> {
                 String target = validName(arg) ? firstNonNull(matchMember(arg), arg) : null;
-                if (target == null) {
-                    return;
-                }
+                if (target == null) return;
                 execute(sender, "p kick " + target, "kicked " + target);
             }
             case KICK_OFFLINE -> execute(sender, "p kickoffline", "kicked the offline members");
@@ -336,9 +314,7 @@ public final class PartyCommandsFeature {
 
     /** On his Hypixel friends list, as last mirrored from {@code /fl} ({@link com.killer560.hub.social.FriendsListConfig}). */
     static boolean isFriend(String name) {
-        if (name == null || !validName(name)) {
-            return false;
-        }
+        if (name == null || !validName(name)) return false;
         try {
             return com.killer560.hub.social.FriendsListConfig.getInstance().byName(name) != null;
         } catch (RuntimeException e) {
@@ -352,57 +328,39 @@ public final class PartyCommandsFeature {
      * Mod Chat users outside the party - is not.
      */
     public static boolean isTeammate(String name) {
-        if (name == null || !validName(name)) {
-            return false;
-        }
+        if (name == null || !validName(name)) return false;
         Minecraft client = Minecraft.getInstance();
         String self = client.player == null ? null : client.player.getGameProfile().name();
-        if (self != null && self.equalsIgnoreCase(name)) {
-            return true;
-        }
+        if (self != null && self.equalsIgnoreCase(name)) return true;
         for (String member : PartyTracker.teammates()) {
-            if (member.equalsIgnoreCase(name)) {
-                return true;
-            }
+            if (member.equalsIgnoreCase(name)) return true;
         }
         return isInDungeonTabList(client, name);
     }
 
     private static boolean isInDungeonTabList(Minecraft client, String name) {
-        if (client.getConnection() == null || !DungeonState.isInDungeon()) {
-            return false;
-        }
+        if (client.getConnection() == null || !DungeonState.isInDungeon()) return false;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher m = TAB_REGEX.matcher(plain.trim());
-            if (m.matches() && m.group(1).equalsIgnoreCase(name)) {
-                return true;
-            }
+            if (m.matches() && m.group(1).equalsIgnoreCase(name)) return true;
         }
         return false;
     }
 
     /** Odin's {@code findPartyMember}: exact name first, then a unique prefix match, else null. */
     private static String matchMember(String arg) {
-        if (!validName(arg)) {
-            return null;
-        }
+        if (!validName(arg)) return null;
         String lower = arg.toLowerCase(Locale.US);
         List<String> members = PartyTracker.teammates();
         for (String member : members) {
-            if (member.toLowerCase(Locale.US).equals(lower)) {
-                return member;
-            }
+            if (member.toLowerCase(Locale.US).equals(lower)) return member;
         }
         String found = null;
         for (String member : members) {
             if (member.toLowerCase(Locale.US).startsWith(lower)) {
-                if (found != null) {
-                    return null;
-                }
+                if (found != null) return null;
                 found = member;
             }
         }
@@ -486,9 +444,7 @@ public final class PartyCommandsFeature {
     }
 
     private static void announceDowntime() {
-        if (DOWNTIME.isEmpty()) {
-            return;
-        }
+        if (DOWNTIME.isEmpty()) return;
         Minecraft client = Minecraft.getInstance();
         String self = client.player == null ? null : client.player.getGameProfile().name();
         StringBuilder all = new StringBuilder();
@@ -531,16 +487,10 @@ public final class PartyCommandsFeature {
     }
 
     private static boolean reinviteStillValid(ClientLevel level, boolean wasInDungeon) {
-        if (!PartyCommandsConfig.getInstance().allows(Command.REINVITE)) {
-            return false;
-        }
+        if (!PartyCommandsConfig.getInstance().allows(Command.REINVITE)) return false;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.getConnection() == null || client.level != level) {
-            return false;
-        }
-        if (wasInDungeon && !DungeonState.isInDungeon()) {
-            return false;
-        }
+        if (client.player == null || client.getConnection() == null || client.level != level) return false;
+        if (wasInDungeon && !DungeonState.isInDungeon()) return false;
         return !PartyLeaderTracker.knownNotLeader();
     }
 
@@ -549,9 +499,7 @@ public final class PartyCommandsFeature {
      *  "t5" -> kuudra_infernal. Returns null for a tier that doesn't exist (there is no T6/T7). */
     static String instanceFor(String word) {
         Matcher m = FLOOR_PATTERN.matcher(word);
-        if (!m.matches()) {
-            return null;
-        }
+        if (!m.matches()) return null;
         int n = m.group(2).charAt(0) - '0';
         return switch (m.group(1)) {
             case "f" -> "catacombs_floor_" + FLOOR_WORDS[n - 1];
@@ -603,9 +551,7 @@ public final class PartyCommandsFeature {
         PartyCommandsConfig cfg = PartyCommandsConfig.getInstance();
         StringBuilder sb = new StringBuilder();
         for (Command c : Command.values()) {
-            if (!cfg.allows(c)) {
-                continue;
-            }
+            if (!cfg.allows(c)) continue;
             if (!sb.isEmpty()) {
                 sb.append(", ");
             }
@@ -625,9 +571,7 @@ public final class PartyCommandsFeature {
     private static void runPending() {
         List<Pending> due = null;
         synchronized (PENDING) {
-            if (PENDING.isEmpty()) {
-                return;
-            }
+            if (PENDING.isEmpty()) return;
             long now = System.currentTimeMillis();
             for (int i = PENDING.size() - 1; i >= 0; i--) {
                 if (PENDING.get(i).dueAtMs() <= now) {
@@ -638,9 +582,7 @@ public final class PartyCommandsFeature {
                 }
             }
         }
-        if (due == null) {
-            return;
-        }
+        if (due == null) return;
         // The backward remove-loop above collects newest-first; run in scheduling order.
         java.util.Collections.reverse(due);
         for (Pending pending : due) {
@@ -660,9 +602,7 @@ public final class PartyCommandsFeature {
     private static boolean isPending(String key) {
         synchronized (PENDING) {
             for (Pending pending : PENDING) {
-                if (key.equals(pending.key())) {
-                    return true;
-                }
+                if (key.equals(pending.key())) return true;
             }
         }
         return false;
@@ -679,9 +619,7 @@ public final class PartyCommandsFeature {
                 }
             }
         }
-        if (cancelled.isEmpty()) {
-            return;
-        }
+        if (cancelled.isEmpty()) return;
         ModChat.send("Party Commands", ModChat.bad("Re-invite canceled"), ModChat.text(" for "),
                 ModChat.value(String.join(", ", cancelled)), ModChat.dim(" - " + reason + "."));
         LOGGER.info("[PartyCommands] Canceled queued re-invite(s) {} - {}", cancelled, reason);

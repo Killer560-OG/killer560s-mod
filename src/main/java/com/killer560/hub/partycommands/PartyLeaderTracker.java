@@ -91,9 +91,7 @@ final class PartyLeaderTracker {
     /** True when we know we are NOT the leader. Unknown leader returns false (let the command through). */
     static boolean knownNotLeader() {
         String current = leader;
-        if (current == null) {
-            return false;
-        }
+        if (current == null) return false;
         Minecraft client = Minecraft.getInstance();
         String self = client.player == null ? null : client.player.getGameProfile().name();
         return self != null && !current.equalsIgnoreCase(self);
