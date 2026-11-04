@@ -50,9 +50,7 @@ public final class TestedFeatures {
     private TestedFeatures() {
     }
 
-    public static String id(BaseTab tab) {
-        return tab.getClass().getSimpleName();
-    }
+    public static String id(BaseTab tab) { return tab.getClass().getSimpleName(); }
 
     public static synchronized boolean isTested(BaseTab tab) {
         String id = id(tab);
@@ -121,9 +119,7 @@ public final class TestedFeatures {
         return new ArrayList<>(markedBugged);
     }
 
-    public static Path marksFile() {
-        return ModPaths.config("killer560smod-tested-" + TestingBuild.VARIANT + ".json");
-    }
+    public static Path marksFile() { return ModPaths.config("killer560smod-tested-" + TestingBuild.VARIANT + ".json"); }
 
     /** Forget everything read so far (the testkit points the config dir elsewhere between cases). */
     public static synchronized void reload() {

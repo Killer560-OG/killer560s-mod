@@ -116,9 +116,7 @@ public final class TestingMenu {
         }
     }
 
-    public static Map<String, String> normalLeaves() {
-        return java.util.Collections.unmodifiableMap(NORMAL_LEAVES);
-    }
+    public static Map<String, String> normalLeaves() { return java.util.Collections.unmodifiableMap(NORMAL_LEAVES); }
 
     /**
      * The top-level name a tooltip lookup should use: a row shown in Untested keeps the tooltips scoped to the category
