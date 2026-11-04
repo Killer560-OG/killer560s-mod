@@ -171,14 +171,10 @@ public final class SoundDisabler {
 
 
     /** Sounds judged while the feature was on. */
-    public static int checked() {
-        return checked;
-    }
+    public static int checked() { return checked; }
 
     /** Sounds muted, every row and the custom list together. */
-    public static int muted() {
-        return muted;
-    }
+    public static int muted() { return muted; }
 
     /** Sounds muted by row {@code key} ("custom" for the Custom Sound IDs list), 0 for an unknown key. */
     public static int muted(String key) {
@@ -194,22 +190,14 @@ public final class SoundDisabler {
     }
 
     /** Ghast and firework sounds the Bonzo's Staff row let through because they were not the staff's. */
-    public static int bonzoCandidatesPassed() {
-        return bonzoCandidatesPassed;
-    }
+    public static int bonzoCandidatesPassed() { return bonzoCandidatesPassed; }
 
     /** The id of the last muted sound, "" before any. */
-    public static String lastMutedId() {
-        return lastMutedId;
-    }
+    public static String lastMutedId() { return lastMutedId; }
 
     /** The row that muted the last muted sound, "" before any. */
-    public static String lastMutedRow() {
-        return lastMutedRow;
-    }
+    public static String lastMutedRow() { return lastMutedRow; }
 
     /** Forgets the last staff shot, so a test's firework blast is judged on its own. */
-    public static void forgetShot() {
-        lastShotNanos = Long.MIN_VALUE / 2;
-    }
+    public static void forgetShot() { lastShotNanos = Long.MIN_VALUE / 2; }
 }

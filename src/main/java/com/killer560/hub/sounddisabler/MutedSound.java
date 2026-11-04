@@ -69,9 +69,7 @@ public enum MutedSound {
     }
 
     /** A ghast sound: Hypixel's 1.8 {@code mob.ghast.fireball} (and its other ghast sounds) arrive as {@code entity.ghast.*}. */
-    static boolean isBonzoShotId(String path) {
-        return path.startsWith("entity.ghast.");
-    }
+    static boolean isBonzoShotId(String path) { return path.startsWith("entity.ghast."); }
 
     /** A firework blast or twinkle, near or far: the balloon's explosion. */
     static boolean isBonzoBlastId(String path) {
