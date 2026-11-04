@@ -86,9 +86,7 @@ final class PartyLeaderTracker {
     }
 
     /** @return the known leader, or null when unknown / not in a party. */
-    static String get() {
-        return leader;
-    }
+    static String get() { return leader; }
 
     /** True when we know we are NOT the leader. Unknown leader returns false (let the command through). */
     static boolean knownNotLeader() {

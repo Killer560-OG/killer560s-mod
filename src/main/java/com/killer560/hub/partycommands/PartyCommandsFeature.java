@@ -409,13 +409,9 @@ public final class PartyCommandsFeature {
         return found;
     }
 
-    private static boolean validName(String name) {
-        return name != null && NAME_PATTERN.matcher(name).matches();
-    }
+    private static boolean validName(String name) { return name != null && NAME_PATTERN.matcher(name).matches(); }
 
-    private static String firstNonNull(String a, String b) {
-        return a != null ? a : b;
-    }
+    private static String firstNonNull(String a, String b) { return a != null ? a : b; }
 
 
     private static boolean allowRate(String sender) {
@@ -618,9 +614,7 @@ public final class PartyCommandsFeature {
         return sb.isEmpty() ? "none" : sb.toString();
     }
 
-    private static void schedule(long delayMs, Runnable action) {
-        schedule(delayMs, null, null, action);
-    }
+    private static void schedule(long delayMs, Runnable action) { schedule(delayMs, null, null, action); }
 
     private static void schedule(long delayMs, String key, BooleanSupplier guard, Runnable action) {
         synchronized (PENDING) {
