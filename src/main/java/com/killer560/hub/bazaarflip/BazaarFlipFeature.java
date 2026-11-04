@@ -974,7 +974,12 @@ public final class BazaarFlipFeature {
 
     /** "Buy up to 71,680x." off Custom Amount, or -1. */
     static long loreBuyUpTo(List<String> lore) {
-        return lore.stream().map(BUY_UP_TO::matcher).filter(Matcher::matches)
+        return loreLong(lore, BUY_UP_TO);
+    }
+
+    /** The first lore line matching {@code p}, as its group 1 number (commas dropped), or -1. */
+    static long loreLong(List<String> lore, Pattern p) {
+        return lore.stream().map(p::matcher).filter(Matcher::matches)
                 .mapToLong(m -> Long.parseLong(m.group(1).replace(",", ""))).findFirst().orElse(-1);
     }
 
