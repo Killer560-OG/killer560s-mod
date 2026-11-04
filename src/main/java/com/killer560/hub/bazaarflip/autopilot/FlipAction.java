@@ -9,6 +9,21 @@ public sealed interface FlipAction {
 
     String why();
 
+    /** The product this action is about; null for Wait and Stop. The records that carry it as a component override this. */
+    default String productId() {
+        return order() == null ? null : order().productId();
+    }
+
+    /** The product's display name; empty for Wait and Stop. */
+    default String name() {
+        return order() == null ? "" : order().name();
+    }
+
+    /** The order a Relist, Cancel or Collect acts on; null for the rest. */
+    default FlipOrder order() {
+        return null;
+    }
+
     /** Buy {@code amount} units straight from the sell offers. */
     record InstaBuy(String productId, String name, long amount, double expectedEach, String why) implements FlipAction {
     }

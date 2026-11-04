@@ -495,7 +495,7 @@ final class BazaarFlipAutopilot {
                 fail("the Bazaar menu never opened");
                 return;
             }
-            if (commandSentAtMs == 0 && BazaarFlipFeature.sendCommand(orderJob ? "bz" : "bz " + productName(action))) {
+            if (commandSentAtMs == 0 && BazaarFlipFeature.sendCommand(orderJob ? "bz" : "bz " + action.name())) {
                 commandSentAtMs = now;
             }
             return;
@@ -678,14 +678,14 @@ final class BazaarFlipAutopilot {
         }
         lastWaitWhy = "";
         if (isSale(next) && client.player != null) {
-            String id = productId(next);
+            String id = next.productId();
             long have = carried(client, id);
             long held = holdings.getOrDefault(id, 0L);
             if (have > held) {
                 // Sell Instantly, a Sell Offer and the NPC take every unit: never his own. Leave the stock with him.
                 avoid.add(id);
                 holdings.remove(id);
-                ModChat.send(CHAT, ModChat.bad("Not selling " + productName(next) + ": "), ModChat.text("you carry " + have
+                ModChat.send(CHAT, ModChat.bad("Not selling " + next.name() + ": "), ModChat.text("you carry " + have
                         + ", more than the " + held + " the autopilot bought. It is yours to sell now."));
                 return;
             }
@@ -733,7 +733,7 @@ final class BazaarFlipAutopilot {
      * {@code fits}, the action is dropped without skipping the product, and after {@link #MAX_RESIZES} it is skipped.
      */
     private static void resize(Minecraft client, long tried, long fits, String why) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         if (id == null) {
             abandon(client, why);
             return;
@@ -745,7 +745,7 @@ final class BazaarFlipAutopilot {
             return;
         }
         unitCap.merge(id, next, Math::min);
-        ModChat.log(CHAT, ModChat.text("Buying fewer " + productName(action) + ": " + why),
+        ModChat.log(CHAT, ModChat.text("Buying fewer " + action.name() + ": " + why),
                 ModChat.dim(String.format(Locale.US, " - trying %,d instead of %,d.", next, tried)));
         LOGGER.info("[BazaarFlip] Autopilot resized {}: {} -> {} ({})", action, tried, next, why);
         closeMenu(client);
@@ -859,11 +859,11 @@ final class BazaarFlipAutopilot {
 
     /** The live page refused what the snapshot promised: leave the product alone this session, carry on. */
     private static void abandon(Minecraft client, String why) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         if (id != null) {
             avoid.add(id);
         }
-        ModChat.log(CHAT, ModChat.text("Skipping " + (action == null ? "it" : productName(action)) + ": " + why));
+        ModChat.log(CHAT, ModChat.text("Skipping " + (action == null ? "it" : action.name()) + ": " + why));
         LOGGER.info("[BazaarFlip] Autopilot skipped {}: {}", action, why);
         closeMenu(client);
         done("skipped");
@@ -905,7 +905,7 @@ final class BazaarFlipAutopilot {
 
     /** True once what the last click should cause has happened (the step goes on), false while still waiting. */
     private static boolean checkExpect(Minecraft client, Screen open, long now) {
-        String id = action == null ? null : productId(action);
+        String id = action == null ? null : action.productId();
         boolean timedOut = now - expectSinceMs > STEP_TIMEOUT_MS;
         switch (expect) {
             case CARRIED_UP -> {
@@ -1111,8 +1111,8 @@ final class BazaarFlipAutopilot {
 
     private static void tickProductPages(Minecraft client, AbstractContainerScreen<?> screen, BazaarPages.Page page,
                                          BazaarFlipConfig cfg, long now) {
-        String name = productName(action);
-        String id = productId(action);
+        String name = action.name();
+        String id = action.productId();
         switch (page.kind()) {
             case SEARCH, GROUP, CATEGORY -> {
                 BazaarPages.Item product = null;
@@ -1807,36 +1807,6 @@ final class BazaarFlipAutopilot {
             }
         }
         return -1;
-    }
-
-    static String productId(FlipAction a) {
-        return switch (a) {
-            case FlipAction.InstaBuy x -> x.productId();
-            case FlipAction.InstaSell x -> x.productId();
-            case FlipAction.PlaceBuyOrder x -> x.productId();
-            case FlipAction.PlaceSellOffer x -> x.productId();
-            case FlipAction.SellToNpc x -> x.productId();
-            case FlipAction.Collect x -> x.order().productId();
-            case FlipAction.Cancel x -> x.order().productId();
-            case FlipAction.Relist x -> x.order().productId();
-            case FlipAction.Wait x -> null;
-            case FlipAction.Stop x -> null;
-        };
-    }
-
-    static String productName(FlipAction a) {
-        return switch (a) {
-            case FlipAction.InstaBuy x -> x.name();
-            case FlipAction.InstaSell x -> x.name();
-            case FlipAction.PlaceBuyOrder x -> x.name();
-            case FlipAction.PlaceSellOffer x -> x.name();
-            case FlipAction.SellToNpc x -> x.name();
-            case FlipAction.Collect x -> x.order().name();
-            case FlipAction.Cancel x -> x.order().name();
-            case FlipAction.Relist x -> x.order().name();
-            case FlipAction.Wait x -> "";
-            case FlipAction.Stop x -> "";
-        };
     }
 
     private static String jobName() {
