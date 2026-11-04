@@ -100,6 +100,7 @@ public final class TreasureChests {
         if (client.player == null || !MiningState.crystalHollows()) {
             return;
         }
+        PowderMining.markChest();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         if (cfg.isChestAlert()) {
             alerts++;
@@ -145,6 +146,7 @@ public final class TreasureChests {
 
     /** The loot block came: the nearest claimed chest within 8 blocks is done (its block goes on its own). */
     static void onLooted() {
+        PowderMining.markChest();
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;

@@ -239,7 +239,57 @@ public final class PowderChat {
         blockHidden = false;
     }
 
-    private static void compactLine(Map<String, Long> got, String hover) {
+    /**
+     * Rare Crystal Hollows treasure chest drops: those with a roll weight of 10 or less in the pools on
+     * hypixelskyblock.minecraft.wiki "Treasure Chest/Crystal Hollows Loot" (read 2026-11-03; under 1% a chest): Fine and
+     * Flawless gemstones (Fine 0.06-0.13%, Flawless 0.06%), Prehistoric Egg (0.3%) and Pickonimbus 2000 (0.6%).
+     */
+    static boolean isRare(String name) {
+        return name.equals("Prehistoric Egg") || name.equals("Pickonimbus 2000")
+                || (name.endsWith(" Gemstone") && (name.startsWith("Fine ") || name.startsWith("Flawless ")));
+    }
+
+    static boolean isPowder(String name) {
+        return name.equals("Gemstone Powder") || name.equals("Mithril Powder") || name.equals("Glacite Powder");
+    }
+
+    static boolean shown(String name, PowderMiningConfig.LootShow mode) {
+        return switch (mode) {
+            case ALL -> true;
+            case POWDER_ONLY -> isPowder(name);
+            case POWDER_RARE -> isPowder(name) || isRare(name);
+            case HIDE_ALL -> false;
+        };
+    }
+
+    private static void compactLine(Map<String, Long> all, String fullHover) {
+        PowderMiningConfig.LootShow mode = PowderMiningConfig.getInstance().getLootShow();
+        if (mode == PowderMiningConfig.LootShow.HIDE_ALL) {
+            return;
+        }
+        Map<String, Long> got = new LinkedHashMap<>();
+        for (Map.Entry<String, Long> e : all.entrySet()) {
+            if (shown(e.getKey(), mode)) {
+                got.put(e.getKey(), e.getValue());
+            }
+        }
+        String hover = fullHover;
+        if (mode != PowderMiningConfig.LootShow.ALL) {
+            if (got.isEmpty()) {
+                return;
+            }
+            StringBuilder h = new StringBuilder();
+            for (String line : fullHover.split("\\n")) {
+                Matcher m = REWARD.matcher(line.trim());
+                if (m.matches() && shown(m.group(1).trim(), mode)) {
+                    if (h.length() > 0) {
+                        h.append('\n');
+                    }
+                    h.append(line);
+                }
+            }
+            hover = h.toString();
+        }
         StringBuilder sb = new StringBuilder();
         long gem = got.getOrDefault("Gemstone Powder", 0L);
         long mith = got.getOrDefault("Mithril Powder", 0L);

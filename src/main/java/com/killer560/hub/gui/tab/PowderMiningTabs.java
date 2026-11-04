@@ -16,9 +16,7 @@ final class PowderMiningTabs {
         out.add(new PowderTrackerTab());
         out.add(new DoublePowderAlertTab());
         out.add(new ChestLootCompactTab());
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            out.add(new LockpickHelperTab());
-        }
+        out.add(new LockpickHelperTab());
         return out;
     }
 }

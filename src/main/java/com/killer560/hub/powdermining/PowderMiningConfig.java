@@ -16,7 +16,7 @@ import java.nio.file.Path;
 /**
  * Settings for the Crystal Hollows powder grinding features (killer560, 2026-11-03: "implement everything you think i need
  * from all those other mods to gemstone powder grind ... no macros"): Treasure Chest Highlight, Treasure Chest Alert,
- * Lockpick Helper (cheat), Powder Tracker, 2x Powder Alert and Chest Loot Compact. One file,
+ * Lockpick Helper, Powder Tracker, 2x Powder Alert and Chest Loot Compact. One file,
  * {@code killer560smod-powdermining.json} (folder skyblock/miningqol).
  *
  * <p>The {@code is...} getters a feature reads are the gated ones: OFF outside Skyblock, and the cheat-only switches are
@@ -42,7 +42,7 @@ public final class PowderMiningConfig {
     private boolean chestAlertSound = true;
     private boolean chestAlertTitle = false;
 
-    private boolean lockpickHelper = false;
+    private boolean lockpickHelper = true;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
 
     private boolean powderTracker = true;
@@ -53,6 +53,44 @@ public final class PowderMiningConfig {
     private boolean doublePowderSound = true;
 
     private boolean lootCompact = true;
+    private LootShow lootShow = LootShow.ALL;
+
+    /** What Chest Loot Compact shows (killer560, 2026-11-03): left click forward, right click back, wrapping. */
+    public enum LootShow {
+        ALL("All"), POWDER_ONLY("Powder Only"), POWDER_RARE("Powder + Rare"), HIDE_ALL("Hide All");
+
+        private final String label;
+
+        LootShow(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        static LootShow byName(String n) {
+            for (LootShow v : values()) {
+                if (v.name().equals(n)) {
+                    return v;
+                }
+            }
+            return ALL;
+        }
+    }
+
+    public LootShow getLootShow() {
+        return lootShow;
+    }
+
+    public void stepLootShow(int dir) {
+        LootShow[] all = LootShow.values();
+        lootShow = all[Math.floorMod(lootShow.ordinal() + dir, all.length)];
+    }
+
+    public void setLootShow(LootShow v) {
+        lootShow = v == null ? LootShow.ALL : v;
+    }
 
     private PowderMiningConfig() {
     }
@@ -86,6 +124,8 @@ public final class PowderMiningConfig {
                 cfg.doublePowder = ConfigJson.getBool(o, "doublePowder", cfg.doublePowder);
                 cfg.doublePowderSound = ConfigJson.getBool(o, "doublePowderSound", cfg.doublePowderSound);
                 cfg.lootCompact = ConfigJson.getBool(o, "lootCompact", cfg.lootCompact);
+                cfg.lootShow = LootShow.byName(o.has("lootShow") && o.get("lootShow").isJsonPrimitive()
+                        ? o.get("lootShow").getAsString() : null);
             } catch (Exception ignored) {
                 // a broken file keeps the defaults
             }
@@ -120,6 +160,7 @@ public final class PowderMiningConfig {
             o.addProperty("doublePowder", doublePowder);
             o.addProperty("doublePowderSound", doublePowderSound);
             o.addProperty("lootCompact", lootCompact);
+            o.addProperty("lootShow", lootShow.name());
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -206,9 +247,9 @@ public final class PowderMiningConfig {
         chestAlertTitle = v;
     }
 
-    // ---- Lockpick Helper (cheat build only)
+    // ---- Lockpick Helper (legit, both builds; killer560, 2026-11-03)
     public boolean isLockpickHelper() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && lockpickHelper && sb();
+        return lockpickHelper && sb();
     }
 
     public boolean isLockpickHelperRaw() {

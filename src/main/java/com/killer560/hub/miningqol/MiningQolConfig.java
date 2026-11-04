@@ -123,6 +123,8 @@ public final class MiningQolConfig {
     private boolean commissionEmissaries = true;
     /** Commission Mobs (killer560, 2026-11-03: "it should highlight commission mobs as an option as well"). */
     private boolean commissionMobs = false;
+    /** Hide Commissions While Powder Mining (killer560, 2026-11-03). */
+    private boolean hideCommissionsPowder = true;
     private boolean commissionMobsEsp = false;
     private int commissionMobColor = DEFAULT_COMMISSION_MOB_COLOR;
     private CommissionMobStyle commissionMobStyle = CommissionMobStyle.OUTLINE;
@@ -205,6 +207,7 @@ public final class MiningQolConfig {
                 cfg.commissionWaypoints = ConfigJson.getBool(o, "commissionWaypoints", cfg.commissionWaypoints);
                 cfg.commissionEmissaries = ConfigJson.getBool(o, "commissionEmissaries", cfg.commissionEmissaries);
                 cfg.commissionMobs = ConfigJson.getBool(o, "commissionMobs", cfg.commissionMobs);
+                cfg.hideCommissionsPowder = ConfigJson.getBool(o, "hideCommissionsPowder", cfg.hideCommissionsPowder);
                 cfg.commissionMobsEsp = ConfigJson.getBool(o, "commissionMobsEsp", cfg.commissionMobsEsp);
                 cfg.commissionMobColor = intOr(o, "commissionMobColor", cfg.commissionMobColor);
                 cfg.commissionMobStyle = ConfigJson.getEnum(o, "commissionMobStyle", CommissionMobStyle.class,
@@ -280,6 +283,7 @@ public final class MiningQolConfig {
             o.addProperty("commissionWaypoints", commissionWaypoints);
             o.addProperty("commissionEmissaries", commissionEmissaries);
             o.addProperty("commissionMobs", commissionMobs);
+            o.addProperty("hideCommissionsPowder", hideCommissionsPowder);
             o.addProperty("commissionMobsEsp", commissionMobsEsp);
             o.addProperty("commissionMobColor", commissionMobColor);
             o.addProperty("commissionMobStyle", commissionMobStyle.name());
@@ -397,6 +401,19 @@ public final class MiningQolConfig {
 
     public void setCommissionMobs(boolean v) {
         commissionMobs = v;
+    }
+
+    public boolean isHideCommissionsPowder() {
+        return hideCommissionsPowder;
+    }
+
+    public void setHideCommissionsPowder(boolean v) {
+        hideCommissionsPowder = v;
+    }
+
+    /** The commissions' HUD, waypoints and route are hidden right now: the option is on and he is powder mining. */
+    public boolean commissionsHiddenNow() {
+        return hideCommissionsPowder && com.killer560.hub.powdermining.PowderMining.activeRecently();
     }
 
     /** Commission Mobs through walls: cheat build only. */

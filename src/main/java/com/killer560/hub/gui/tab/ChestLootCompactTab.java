@@ -19,6 +19,8 @@ public class ChestLootCompactTab extends BaseTab {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         w.add(onOffButton("Chest Loot Compact", cfg::isLootCompactRaw, cfg::setLootCompact, cfg::save,
                 requestRebuild, contentX, contentY, contentWidth, 20));
+        MiningQolRows.cycle(w, contentX, contentY + MiningQolRows.STEP, contentWidth, "Show", () -> cfg.getLootShow().label(),
+                cfg::stepLootShow, cfg::save);
         return w;
     }
 }
