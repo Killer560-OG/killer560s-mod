@@ -250,11 +250,7 @@ public final class BanReportFeature {
         message = scrub(message, selfName, selfUuid, names);
         o.addProperty("message", cap(message, MAX_MESSAGE));
         o.addProperty("kind", kind);
-        o.addProperty("modVersion", safeShort(FabricLoader.getInstance().getModContainer("killer560smod")
-                .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("unknown")));
-        o.addProperty("minecraft", safeShort(BuildInfo.minecraft()));
-        o.addProperty("variant", safeShort(BuildInfo.variant()));
-        o.addProperty("commit", safeShort(BuildInfo.shortCommit()));
+        addBuild(o);
         JsonArray features = new JsonArray();
         StringBuilder settings = new StringBuilder();
         collectSettings(features, settings, selfName, selfUuid, names);
@@ -264,7 +260,17 @@ public final class BanReportFeature {
         return o;
     }
 
-    private static String safeShort(String s) {
+    /** modVersion, minecraft, variant and commit, in the relay's short alphabet (ban and crash reports alike). */
+    public static void addBuild(JsonObject o) {
+        o.addProperty("modVersion", safeShort(FabricLoader.getInstance().getModContainer("killer560smod")
+                .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("unknown")));
+        o.addProperty("minecraft", safeShort(BuildInfo.minecraft()));
+        o.addProperty("variant", safeShort(BuildInfo.variant()));
+        o.addProperty("commit", safeShort(BuildInfo.shortCommit()));
+    }
+
+    /** At most 64 characters of {@code [A-Za-z0-9 ._+-()]}, the relay's alphabet for names and versions. */
+    public static String safeShort(String s) {
         String out = SAFE_SHORT.matcher(s == null ? "" : s).replaceAll("");
         return out.length() > 64 ? out.substring(0, 64) : out;
     }
@@ -274,7 +280,7 @@ public final class BanReportFeature {
     }
 
     /** Other players' names the scrub replaces: seen this session, plus every name in the mod's name cache. */
-    private static Set<String> otherNames(String selfName) {
+    public static Set<String> otherNames(String selfName) {
         Set<String> out = new HashSet<>(SEEN_NAMES);
         Path cache = ModPaths.config("killer560smod-playernames.json");
         try {
@@ -356,6 +362,17 @@ public final class BanReportFeature {
         return c == '_' || Character.isLetterOrDigit(c);
     }
 
+    /** The features switched on, named as a ban report lists them; Auto Crash Reports sends the same list. Reads every
+     *  setting file, so call it off the render thread. */
+    public static List<String> featuresOn() {
+        JsonArray a = new JsonArray();
+        collectSettings(a, null, null, null, Set.of());
+        List<String> out = new ArrayList<>(a.size());
+        a.forEach(e -> out.add(e.getAsString()));
+        return out;
+    }
+
+    /** {@code settings} null: only the features list is filled. */
     private static void collectSettings(JsonArray features, StringBuilder settings, String selfName, String selfUuid,
                                         Set<String> names) {
         List<Path> files = new ArrayList<>(BugReportFeature.listConfigFiles());
@@ -399,6 +416,9 @@ public final class BanReportFeature {
             } catch (RuntimeException ignored) {
                 // features are a summary; the file itself is still sent below
             }
+            if (settings == null) {
+                continue;
+            }
             String block = "== " + fileName + " ==\n" + scrub(redacted, selfName, selfUuid, names) + "\n";
             if (settings.length() + block.length() > MAX_SETTINGS) {
                 settings.append("== (more setting files left out: size limit) ==\n");
@@ -406,7 +426,7 @@ public final class BanReportFeature {
             }
             settings.append(block);
         }
-        if (skipped > 0) {
+        if (skipped > 0 && settings != null) {
             settings.append("== ").append(skipped).append(" file(s) with other players, history or account data left out ==\n");
         }
     }

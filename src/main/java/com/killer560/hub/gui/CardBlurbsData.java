@@ -69,6 +69,7 @@ final class CardBlurbsData {
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
         d.put("BanReportTab", "Opt-in: reports a Hypixel ban to staff.");
+        d.put("CrashReportTab", "Opt-in: sends a game crash to the admins.");
         d.put("CorrectionAlarmTab", "Siren on a position fix.");
         d.put("ArchitectDraftTab", "Chat link for a draft.");
         d.put("ArrowAlignTab", "Shows the Arrow Align solution.");

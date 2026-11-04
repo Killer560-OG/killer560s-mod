@@ -3,6 +3,7 @@ package com.killer560.hub.intro;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.autoupdate.AutoUpdateConfig;
 import com.killer560.hub.banreport.BanReportConfig;
+import com.killer560.hub.crashreport.CrashReportConfig;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuAnim;
 import com.killer560.hub.gui.MenuConfig;
@@ -40,7 +41,7 @@ import java.util.Map;
  *
  * <p>Scenes: welcome (time estimate, Skip Guide), how to open the mod (the real Open Menu key), the menu with a theme and
  * a main menu style to pick (nothing changes until a choice is clicked), "change it anytime", which variant this is, the
- * cheat build's Auto Report Bans question and the Auto Update question (each must be answered before Next; Yes is the
+ * cheat build's Auto Report Bans question, the Auto Crash Reports question and the Auto Update question (each must be answered before Next; Yes is the
  * suggested answer), the menus, then Discord, YouTube and bug reports. Every button is an {@link IntroButton}, drawn like
  * the bubble.
  */
@@ -48,7 +49,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     /** One stop of the tour. */
     public enum Scene {
-        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, AUTO_UPDATE, MENUS, COMMUNITY
+        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, CRASH_REPORTS, AUTO_UPDATE, MENUS, COMMUNITY
     }
 
     private enum Spot { LEFT, NEAR, RIGHT }
@@ -72,6 +73,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     /** The answers to the two questions, null until one is clicked (Next waits for it). */
     private Boolean banChoice;
+    private Boolean crashChoice;
     private Boolean updateChoice;
     // menus scene
     private static final String[] TOUR_CATEGORIES = {"Dungeons", "HUD", "Items", "Cosmetics", "Misc", "Home"};
@@ -107,6 +109,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             scenes.add(Scene.BAN_LOGS);
         }
+        scenes.add(Scene.CRASH_REPORTS);
         scenes.add(Scene.AUTO_UPDATE);
         scenes.add(Scene.MENUS);
         scenes.add(Scene.COMMUNITY);
@@ -150,6 +153,9 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             case BAN_LOGS -> "Want to share your ban logs? If Hypixel ever bans you, {Auto Report Bans} sends the ban "
                     + "and this session's mod log to my staff, so we can find what caused it. Nothing is sent unless you "
                     + "say yes.";
+            case CRASH_REPORTS -> "Want to send crash reports? If the game ever crashes, {Auto Crash Reports} sends "
+                    + "the crash report, your mods and the features you had on to my admins, with no tokens, IPs or "
+                    + "usernames, so we can fix it. Nothing is sent unless you say yes.";
             case AUTO_UPDATE -> "{Auto Update} keeps the mod up to date by itself, installing new versions when you close "
                     + "the game. Want it on? You can change it anytime in {Home}.";
             case MENUS -> "Every feature has a card, sorted into the categories on the left. Open a card for its "
@@ -172,6 +178,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     public boolean nextBlocked() {
         return switch (scene()) {
             case BAN_LOGS -> banChoice == null;
+            case CRASH_REPORTS -> crashChoice == null;
             case AUTO_UPDATE -> updateChoice == null;
             default -> false;
         };
@@ -270,6 +277,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                         m == mode ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickMainMenu(m))).toList());
             }
             case BAN_LOGS -> rowsOf.add(yesNo("Yes, share them", banChoice, this::chooseBanLogs));
+            case CRASH_REPORTS -> rowsOf.add(yesNo("Yes, send them", crashChoice, this::chooseCrashReports));
             case AUTO_UPDATE -> rowsOf.add(yesNo("Yes, keep me updated", updateChoice, this::chooseAutoUpdate));
             case COMMUNITY -> rowsOf.add(List.of(
                     chip("Join Discord", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.DISCORD_URL)),
@@ -474,6 +482,15 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         cfg.setEnabled(yes);
         cfg.save();
         banChoice = yes;
+        rebuildWidgets();
+    }
+
+    /** The crash-report answer: sets Auto Crash Reports to it and saves. */
+    public void chooseCrashReports(boolean yes) {
+        CrashReportConfig cfg = CrashReportConfig.getInstance();
+        cfg.setEnabled(yes);
+        cfg.save();
+        crashChoice = yes;
         rebuildWidgets();
     }
 
