@@ -163,7 +163,6 @@ public final class NameReplacer {
         STRING_CACHE.clear();
     }
 
-    // ------------------------------------------------------------------ entry points
 
     /** Replacement for {@code Font.prepareText(FormattedCharSequence, ...)} / {@code Font.width(FormattedCharSequence)}. */
     public static FormattedCharSequence replace(FormattedCharSequence seq) {
@@ -278,7 +277,6 @@ public final class NameReplacer {
         return out == seq ? null : out;
     }
 
-    // ------------------------------------------------------------------ sequence types
 
     /** Marker: text that must be drawn exactly as-is (edit box contents). */
     public record Skip(FormattedCharSequence inner) implements FormattedCharSequence {
@@ -309,7 +307,6 @@ public final class NameReplacer {
         }
     }
 
-    // ------------------------------------------------------------------ scanner
 
     private static final class Scanner implements FormattedCharSink {
         private NameTable table;

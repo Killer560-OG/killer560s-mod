@@ -63,7 +63,6 @@ public final class ChatNames {
             Pattern.compile("^" + R + N + " left the guild!$"),
             Pattern.compile("^" + R + N + " was kicked from the guild by " + R + N + "!$"),
             Pattern.compile("^" + R + N + " has invited you to join their guild, .{1,40}!.*$"),
-            // Trades.
             Pattern.compile("^" + R + N + " has sent you a trade request\\..*$"),
             Pattern.compile("^You have sent a trade request to " + R + N + "\\.$"),
             Pattern.compile("^Trade completed with " + R + N + "!$"));

@@ -99,7 +99,6 @@ public final class NameAnimation {
         return t + "x";
     }
 
-    // ---- registry ---------------------------------------------------------------------------------------------------
 
     /** One animated name: its letters (code points) and their base colors, plus the wave's looping palette. */
     private static final class Entry {
@@ -252,7 +251,6 @@ public final class NameAnimation {
         return entries;
     }
 
-    // ---- the Font hook ----------------------------------------------------------------------------------------------
 
     /** {@code seq} with every animated name in it recolored for now, or {@code seq} itself when there is none. */
     public static FormattedCharSequence animate(FormattedCharSequence seq) {
@@ -473,7 +471,6 @@ public final class NameAnimation {
         }
     }
 
-    // ---- color math -----------------------------------------------------------------------------------------------
 
     static int lerp(int a, int b, double t) {
         int r = (int) Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * t);
