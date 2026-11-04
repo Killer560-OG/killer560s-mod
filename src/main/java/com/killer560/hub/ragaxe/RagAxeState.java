@@ -195,7 +195,7 @@ public final class RagAxeState {
         if (data == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(data);
         return tag.getStringOr("id", null);
     }
 

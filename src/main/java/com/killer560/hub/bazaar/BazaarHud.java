@@ -66,6 +66,24 @@ public final class BazaarHud {
         }
         // Debug-only (perfprobe/PerfProbe): time the layer itself, not this shared gate, which the probe also wraps.
         HudElement element = com.killer560.hub.perfprobe.PerfProbe.wrapListener(HudElement.class, layer);
+        if (layer.getClass().getName().startsWith("com.killer560.")) {
+            // This mod's own layers draw their String lines through HudTextCache (fps-1104): only HudInGameRenderer's
+            // layers opened its scope, so every other layer (Hoppity Eggs, Inventory HUD, Thorn, Rag Axe, the alerts...)
+            // ran ICU Bidi over each line every frame (Hoppity Eggs' HUD alone: 32 KB and ~45 us a frame). The cached
+            // sequence is the one vanilla computes; other mods' layers are left alone.
+            return (graphics, delta) -> {
+                if (hidesHud()) {
+                    skipped++;
+                    return;
+                }
+                com.killer560.hub.hud.HudTextCache.begin();
+                try {
+                    element.extractRenderState(graphics, delta);
+                } finally {
+                    com.killer560.hub.hud.HudTextCache.end();
+                }
+            };
+        }
         return (graphics, delta) -> {
             if (hidesHud()) {
                 skipped++;
