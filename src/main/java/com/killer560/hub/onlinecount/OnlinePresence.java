@@ -182,10 +182,7 @@ public final class OnlinePresence {
     public static String locationFor(boolean onSkyblock, String tabArea, String floor) {
         if (floor != null && !floor.isBlank()) {
             String f = clean(floor);
-            if (!f.isEmpty() && f.length() <= 3) {
-                return "Catacombs " + f;
-            }
-            return "Catacombs";
+            return !f.isEmpty() && f.length() <= 3 ? "Catacombs " + f : "Catacombs";
         }
         if (!onSkyblock) {
             return NOT_SKYBLOCK;
