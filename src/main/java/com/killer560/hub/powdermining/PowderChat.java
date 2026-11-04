@@ -118,6 +118,11 @@ public final class PowderChat {
                 finish();
                 return !wasHidden;
             }
+            // Hypixel sends a blank line between the header and REWARDS (killer560's log, 2026-11-03 22:56); it used to end
+            // the block before any reward, so nothing was counted and Compact printed "[Chest] nothing".
+            if (t.isEmpty()) {
+                return !blockHidden;
+            }
             if (REWARDS.matcher(t).matches()) {
                 return !blockHidden;
             }
