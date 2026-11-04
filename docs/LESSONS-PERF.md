@@ -83,3 +83,10 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - In a gametest client quiet frames reached 51.5 ms in 200 ticks (1026-stutter-hooks, 2026-10-26, other clients running),
   so the "nothing fires on quiet frames" check uses a 500 ms threshold.
 
+
+- Memory over a long session (scanleak-1104, 2026-11-04): all ~600 static collections were scanned (`killer560s-mod-logs/leakscan-1104.py`)
+  and almost all are capped, cleared on reset, weak/identity-keyed or keyed by finite data. Joining and leaving a full F7 sim 30
+  times (testkit `1104-leak-sim-hops`) plateaus at ~+30 MB after GC (vanilla registry/biome reload per world; no mod class and no
+  mod collection grows). The one real unbounded map was Auto Routes' `RouteExecutor.lastDugAt` (one entry per breaker dig, never
+  removed; 1500 of 1500 kept on the old jar, 60 on the fixed one); `PlayerHeadRenderer` (RESOLVED/FETCH_AT) and
+  `PlayerNames.NAME_FAILED_AT` were capped too. A cache keyed by a player or a dug block needs a size check at its put, not only a reset hook.

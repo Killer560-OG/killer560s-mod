@@ -121,6 +121,9 @@ public final class PlayerHeadRenderer {
         if (!IN_FLIGHT.add(id)) {
             return;
         }
+        if (FETCH_AT.size() > 512) {
+            FETCH_AT.values().removeIf(t -> now - t >= RETRY_MS);
+        }
         FETCH_AT.put(id, now);
         ProfileViewerApi.fetchSkinProfile(id).whenComplete((GameProfile profile, Throwable error) -> {
             IN_FLIGHT.remove(id);
@@ -128,7 +131,15 @@ public final class PlayerHeadRenderer {
                 return; // FETCH_AT already holds the attempt time, so this retries after RETRY_MS
             }
             Minecraft mc = Minecraft.getInstance();
-            mc.execute(() -> RESOLVED.put(id, mc.getSkinManager().createLookup(profile, false)));
+            mc.execute(() -> {
+                if (RESOLVED.size() >= 512) {
+                    // Every player ever looked up stayed here for the whole session. Dropping the lot only costs
+                    // a refetch (the tab list answers first for anyone online).
+                    RESOLVED.clear();
+                    FETCH_AT.clear();
+                }
+                RESOLVED.put(id, mc.getSkinManager().createLookup(profile, false));
+            });
         });
     }
 }

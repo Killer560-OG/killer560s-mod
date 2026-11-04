@@ -207,7 +207,11 @@ public final class PlayerNames {
                     noteKnown(resolved, clean);
                     runOnClientThread(() -> onResolved.accept(resolved));
                 } else {
-                    NAME_FAILED_AT.put(key, System.currentTimeMillis());
+                    long failNow = System.currentTimeMillis();
+                    if (NAME_FAILED_AT.size() > 512) {
+                        NAME_FAILED_AT.values().removeIf(t -> failNow - t >= NAME_FAILURE_RETRY_MS);
+                    }
+                    NAME_FAILED_AT.put(key, failNow);
                 }
             } finally {
                 IN_FLIGHT_NAME.remove(key);
