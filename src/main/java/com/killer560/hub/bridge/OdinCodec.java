@@ -55,10 +55,7 @@ public final class OdinCodec {
     /** Spec 3.1: {@code wss://ws.odtheking.com/<lobbyId>}; {@code null} for a lobby id that is not a plain
      *  server code (never put arbitrary text in a URL path). */
     public static URI socketUri(String lobbyId) {
-        if (lobbyId == null || !LOBBY.matcher(lobbyId).matches()) {
-            return null;
-        }
-        return URI.create(WS_BASE + lobbyId);
+        return lobbyId == null || !LOBBY.matcher(lobbyId).matches() ? null : URI.create(WS_BASE + lobbyId);
     }
 
     /** Spec 3.4: {@code {"user": <ign>, "type": <int>, "slot": <int>}}, Gson field order user/type/slot.
@@ -103,10 +100,7 @@ public final class OdinCodec {
         if (type == BridgeTables.MELODY_TYPE_REMOVE) {
             return new Update(user, type, 0);
         }
-        if (slot == null || !validPayload(type, slot)) {
-            return null;
-        }
-        return new Update(user, type, slot);
+        return slot == null || !validPayload(type, slot) ? null : new Update(user, type, slot);
     }
 
     private static boolean validPayload(int type, int slot) {

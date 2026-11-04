@@ -117,10 +117,7 @@ public final class DevonianCodec {
             int found = parse(m.group(1), MAX_SECRETS);
             int total = parse(m.group(2), MAX_SECRETS);
             int id = parse(m.group(3), MAX_ROOM_ID);
-            if (found < 0 || total < 0 || id < 0 || found > total) {
-                return null;
-            }
-            return new RoomSecrets(found, total, id);
+            return found < 0 || total < 0 || id < 0 || found > total ? null : new RoomSecrets(found, total, id);
         }
         m = SECRET_TRACKER.matcher(text);
         if (m.matches()) {
