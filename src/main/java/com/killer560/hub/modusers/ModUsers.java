@@ -34,9 +34,7 @@ public final class ModUsers {
         Map<String, String> fresh = new ConcurrentHashMap<>();
         if (mods != null) {
             for (Map.Entry<String, com.google.gson.JsonElement> e : mods.entrySet()) {
-                if (fresh.size() >= MAX_SHOWN) {
-                    break;
-                }
+                if (fresh.size() >= MAX_SHOWN) break;
                 if (e.getValue().isJsonPrimitive() && validName(e.getKey()) && validVariant(e.getValue().getAsString())) {
                     fresh.put(e.getKey(), e.getValue().getAsString());
                 }
@@ -48,9 +46,7 @@ public final class ModUsers {
 
     /** A presence event: {@code shareAs} null means that player stopped showing (or left). */
     public static void onPresence(String name, String shareAs) {
-        if (!validName(name)) {
-            return;
-        }
+        if (!validName(name)) return;
         Map<String, String> shown = SHOWN;
         if (shareAs == null) {
             shown.remove(name);
@@ -66,14 +62,10 @@ public final class ModUsers {
 
     /** A Minecraft name: 1-16 of letters, digits, underscore. */
     private static boolean validName(String name) {
-        if (name == null || name.isEmpty() || name.length() > 16) {
-            return false;
-        }
+        if (name == null || name.isEmpty() || name.length() > 16) return false;
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
-                return false;
-            }
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) return false;
         }
         return true;
     }
