@@ -139,7 +139,9 @@ final class OceanFallsScene {
 
     /** The picture through the shader (or still), before the frame's batch. */
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
-        WebpPictures.ensure(TEXTURE);
+        if (!WebpPictures.ensure(TEXTURE)) {
+            return; // still decoding in the background: the title screen's own background shows meanwhile
+        }
         if (pipeline != null && !failed) {
             try {
                 AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(TEXTURE);

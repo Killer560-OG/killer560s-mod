@@ -15,6 +15,7 @@ Java 25 and a JDK on `JAVA_HOME`. Gradle wrapper, Fabric Loom.
 python deploy-to-instances.py [--dry-run] [--jars-dir DIR]   # install into every Prism instance; writes minecraft/killer560smod-no-auto-update in each (Auto Update off there)
 # every build (not only -Prelease, since jarsize-1104) drops JNA natives for platforms Java 25 cannot run on and rewrites the jar at deflate 9; -PnoJarTrim=true skips it
 # PNG recompression: oxipng -o max --zopfli --nc --nb --np (without --nc/--nb/--np it turned cape/light.png grayscale and 70 others into palette PNGs; jarsize-1104). Report: killer560s-mod-logs/jarsize-1104.md
+# The 4 main menu pictures are lossless WebP (Pillow lossless, method 6, exact), read by mainmenu/WebpPictures with the bundled TwelveMonkeys reader OFF the render thread and drawn once ready (decoding on it took 11-35 s on a loaded PC); a new painted picture goes the same way. GIFs: gifsicle -O3 (C:\Users\Hunter\tools-dl\gifsicle)
 python tools/verify-artifact.py JARS_OR_DIRS [--git REPO]    # secret scan; deploy-to-instances.py, release-assets.py, dev-build.yml and killer560s-mod-logs/verify_gate.py all run it and stop on exit 1
 # --auto-update-instance NAME: leave NAME to the mod's own Auto Update (no jar, marker removed); none uses it (2026-10-24: all 7 have the marker)
 ```
