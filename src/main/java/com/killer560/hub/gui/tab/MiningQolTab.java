@@ -10,7 +10,7 @@ import java.util.List;
 public class MiningQolTab extends FolderTab {
 
     public MiningQolTab() {
-        super("Mining", tabs());
+        super("Mining", PowderMiningTabs.with(tabs()));
     }
 
     private static List<BaseTab> tabs() {
