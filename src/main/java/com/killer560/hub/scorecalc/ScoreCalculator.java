@@ -82,9 +82,7 @@ public final class ScoreCalculator {
     /** Odin {@code Floor.requiredPercentage}: E 0.3, F1 0.3, F2 0.4, F3 0.5, F4 0.6, F5 0.7, F6 0.85, F7 and every
      *  Master Mode floor 1.0. */
     public static double requiredSecretFraction(String floor) {
-        if (floor == null) {
-            return 1.0;
-        }
+        if (floor == null) return 1.0;
         return switch (floor) {
             case "E", "F1" -> 0.3;
             case "F2" -> 0.4;
@@ -98,9 +96,7 @@ public final class ScoreCalculator {
 
     /** NoammAddons {@code timeLimit} (seconds before speed score starts dropping). */
     public static int timeLimitSeconds(String floor) {
-        if (floor == null) {
-            return 600;
-        }
+        if (floor == null) return 600;
         return switch (floor) {
             case "F4", "F6" -> 720;
             case "F7", "M7" -> 840;
@@ -110,9 +106,7 @@ public final class ScoreCalculator {
     }
 
     public static int floorNumber(String floor) {
-        if (floor == null || floor.isEmpty()) {
-            return 0;
-        }
+        if (floor == null || floor.isEmpty()) return 0;
         char last = floor.charAt(floor.length() - 1);
         return Character.isDigit(last) ? last - '0' : 0;
     }
@@ -125,9 +119,7 @@ public final class ScoreCalculator {
         float deduction = 0f;
         float[][] tiers = {{20f, 2f}, {20f, 3.5f}, {10f, 4f}, {10f, 5f}};
         for (float[] tier : tiers) {
-            if (over <= 0) {
-                return deduction;
-            }
+            if (over <= 0) return deduction;
             deduction += Math.min(over, tier[0]) / tier[1];
             over -= tier[0];
         }
@@ -139,27 +131,17 @@ public final class ScoreCalculator {
 
     public static int speedScore(String floor, int secondsElapsed) {
         int limit = timeLimitSeconds(floor);
-        if (secondsElapsed <= limit) {
-            return 100;
-        }
+        if (secondsElapsed <= limit) return 100;
         float over = (secondsElapsed - limit) * 100f / limit;
         return Math.max(0, (int) (100 - speedDeduction(over)));
     }
 
     /** Skytils {@code ScoreCalculation.rank}. */
     public static String rank(int score) {
-        if (score < 100) {
-            return "D";
-        }
-        if (score < 160) {
-            return "C";
-        }
-        if (score < 230) {
-            return "B";
-        }
-        if (score < 270) {
-            return "A";
-        }
+        if (score < 100) return "D";
+        if (score < 160) return "C";
+        if (score < 230) return "B";
+        if (score < 270) return "A";
         return score < 300 ? "S" : "S+";
     }
 
@@ -238,9 +220,7 @@ public final class ScoreCalculator {
                                        int speed) {
         int failedPenalty = Math.max(0, puzzlesFailed) * 10;
         int requiredSecretScore = 40 - bonus + deathPenalty + failedPenalty + (100 - speed);
-        if (requiredSecretScore > 40) {
-            return Integer.MAX_VALUE;
-        }
+        if (requiredSecretScore > 40) return Integer.MAX_VALUE;
         return (int) Math.ceil(totalSecrets * requiredSecretFraction(floor) * Math.max(0, requiredSecretScore) / 40.0);
     }
 

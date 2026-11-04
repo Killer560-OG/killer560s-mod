@@ -191,9 +191,7 @@ public final class ScoreCalculatorConfig {
      *  or unparseable legacy file just means there was nothing to carry over - defaults stand. */
     private static void migrateLegacyDungeonInfoSettings(ScoreCalculatorConfig cfg) {
         cfg.legacyAlertsMigrated = true;
-        if (!Files.exists(LEGACY_DUNGEON_INFO_CONFIG_PATH)) {
-            return;
-        }
+        if (!Files.exists(LEGACY_DUNGEON_INFO_CONFIG_PATH)) return;
         try {
             JsonObject legacy = JsonParser.parseString(Files.readString(LEGACY_DUNGEON_INFO_CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             cfg.mimicAlertEnabled = ConfigJson.getBool(legacy, "mimicMessageEnabled", cfg.mimicAlertEnabled);
