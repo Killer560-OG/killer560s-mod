@@ -24,14 +24,14 @@ public class MiningGoldenGoblinTab extends BaseTab {
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Highlight Box", cfg::isGoldenGoblinBox,
                 cfg::setGoldenGoblinBox, cfg::save);
         y += MiningQolRows.STEP;
-        MiningQolRows.color(w, contentX, y, contentWidth, "Box Color", cfg::getGoldenGoblinBoxColor,
-                cfg::setGoldenGoblinBoxColor, MiningQolConfig.DEFAULT_GOLDEN_GOBLIN_COLOR, cfg::save);
-        y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Tracer", cfg::isGoldenGoblinTracer,
                 cfg::setGoldenGoblinTracer, cfg::save);
         y += MiningQolRows.STEP;
-        MiningQolRows.color(w, contentX, y, contentWidth, "Tracer Color", cfg::getGoldenGoblinTracerColor,
-                cfg::setGoldenGoblinTracerColor, MiningQolConfig.DEFAULT_GOLDEN_GOBLIN_COLOR, cfg::save);
+        MiningQolRows.color(w, contentX, y, contentWidth, "Golden Color", cfg::getGoldenGoblinColor,
+                cfg::setGoldenGoblinColor, MiningQolConfig.DEFAULT_GOLDEN_GOBLIN_COLOR, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.color(w, contentX, y, contentWidth, "Diamond Color", cfg::getDiamondGoblinColor,
+                cfg::setDiamondGoblinColor, MiningQolConfig.DEFAULT_DIAMOND_GOBLIN_COLOR, cfg::save);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             y += MiningQolRows.STEP + 4;
             MiningQolRows.cheatHeader(w, contentX, y, contentWidth);
