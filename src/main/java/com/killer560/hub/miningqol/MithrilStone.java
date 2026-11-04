@@ -150,10 +150,6 @@ public final class MithrilStone {
         return swapped.get();
     }
 
-    public static int remeshCount() {
-        return remeshes;
-    }
-
     /** Testkit: record each position the mesher swaps (off by default; on clears the record). */
     public static void recordSwapsForTest(boolean on) {
         SWAPPED_AT.clear();
@@ -168,11 +164,6 @@ public final class MithrilStone {
     /** Testkit: re-mesh the view now. */
     public static void remeshForTest() {
         remesh(Minecraft.getInstance());
-    }
-
-    /** Testkit: forget the record (call before a remesh to read only its draws). */
-    public static void clearSwapRecordForTest() {
-        SWAPPED_AT.clear();
     }
 
     private static final class BlockPosKey {

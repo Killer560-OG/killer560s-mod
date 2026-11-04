@@ -112,11 +112,6 @@ public final class CommissionMobs {
         return List.copyOf(out);
     }
 
-    /** Whether a plain (codes stripped) name tag names one of {@code mobs}: the name as whole words, after "[LvN]". */
-    public static boolean tagMatches(String plain, List<String> mobs) {
-        return compile(mobs).matcher(plain).find();
-    }
-
     private static Pattern compile(List<String> mobs) {
         StringBuilder sb = new StringBuilder("(?:^|[\\s\\]])(?:");
         for (int i = 0; i < mobs.size(); i++) {
@@ -338,11 +333,6 @@ public final class CommissionMobs {
             out.add(id);
         }
         return out;
-    }
-
-    /** The mob names the open commissions want now (empty while the option is off). */
-    public static List<String> wantedMobs() {
-        return wanted;
     }
 
     public static int frames() {

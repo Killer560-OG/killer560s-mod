@@ -234,11 +234,6 @@ public final class MiningHighlights {
     private static final java.util.concurrent.atomic.AtomicLong carpetAsked = new java.util.concurrent.atomic.AtomicLong();
     private static int carpetDirtied = 0;
 
-    /** Vein-carpet blocks the mesher asked about (testkit). */
-    public static long carpetAskedCount() {
-        return carpetAsked.get();
-    }
-
     public static int carpetDirtied() {
         return carpetDirtied;
     }
@@ -487,11 +482,6 @@ public final class MiningHighlights {
     /** The last carpet fill box drawn (testkit: no face lies on the carpet's or the lantern's own face). */
     public static double[] lastCarpetBox() {
         return lastCarpetBox;
-    }
-
-    /** Full scans so far, block events handled (testkit: the event path ran). */
-    public static int scanCount() {
-        return scans;
     }
 
     public static int blockEvents() {

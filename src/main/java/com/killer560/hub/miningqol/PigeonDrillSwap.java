@@ -215,10 +215,6 @@ public final class PigeonDrillSwap {
 
     // ---- testkit hooks
 
-    public static void useForTest(ItemStack held) {
-        onUse(held);
-    }
-
     public static void tickForTest(Minecraft client) {
         tick(client);
     }

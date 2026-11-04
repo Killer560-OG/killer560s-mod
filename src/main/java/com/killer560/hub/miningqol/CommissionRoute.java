@@ -595,15 +595,6 @@ public final class CommissionRoute {
         return out;
     }
 
-    /** The ore nodes the route is going to (graph node indexes), empty when it falls back to the area's nodes (testkit). */
-    public static List<Integer> oreGoalIds() {
-        List<Integer> out = new ArrayList<>();
-        for (int n : OreNodes.goals()) {
-            out.add(n);
-        }
-        return out;
-    }
-
     public static String currentTargetArea() {
         return targetArea;
     }
@@ -612,15 +603,6 @@ public final class CommissionRoute {
     public static double[] lastOrigin() {
         Vec3 o = lastOrigin;
         return o == null ? null : new double[]{o.x, o.y, o.z};
-    }
-
-    /** The blocks of the landing patches now drawn, as "x,y,z" (testkit). */
-    public static List<String> patchBlockList() {
-        List<String> out = new ArrayList<>();
-        for (BlockPos p : patchBlocks) {
-            out.add(p.getX() + "," + p.getY() + "," + p.getZ());
-        }
-        return out;
     }
 
     /** How many patch boxes the last frame drew (testkit). */

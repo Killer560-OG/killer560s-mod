@@ -268,24 +268,6 @@ public final class MiningState {
         return menuSeen;
     }
 
-    /** Testkit: forget menu reads. */
-    public static void resetMenuForTest() {
-        MENU.clear();
-        menuSeen = List.of();
-    }
-
-    /** Testkit: a menu read stored against {@code tabLines} and applied to them. */
-    public static List<Commission> menuForTest(List<Commission> menu, List<String> tabLines, long now) {
-        List<Commission> tab = parse(tabLines);
-        storeMenu(menu, tab, now);
-        return applyMenu(tab, now);
-    }
-
-    /** Testkit: the tab lines with any stored menu read applied. */
-    public static List<Commission> applyMenuForTest(List<String> tabLines, long now) {
-        return applyMenu(parse(tabLines), now);
-    }
-
     private MiningState() {
     }
 

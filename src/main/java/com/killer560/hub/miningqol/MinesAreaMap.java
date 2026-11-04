@@ -310,9 +310,4 @@ public final class MinesAreaMap {
         return m == null ? List.of() : List.of(m.areas);
     }
 
-    /** How many sections hold cached answers. */
-    public static int cachedSections() {
-        Map3 m = map;
-        return m == null ? 0 : m.sections.size();
-    }
 }

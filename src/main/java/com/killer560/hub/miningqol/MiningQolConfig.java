@@ -442,10 +442,6 @@ public final class MiningQolConfig {
         return pigeonDrillMode;
     }
 
-    public void setPigeonDrillMode(PigeonDrillMode v) {
-        pigeonDrillMode = v == null ? PigeonDrillMode.AUTO : v;
-    }
-
     /** Left click forward, right click back, wrapping. */
     public void stepPigeonDrillMode(int dir) {
         PigeonDrillMode[] all = PigeonDrillMode.values();
@@ -609,14 +605,6 @@ public final class MiningQolConfig {
 
     public void setCarpet(boolean v) {
         carpet = v;
-    }
-
-    public int getCarpetColor() {
-        return carpetColor;
-    }
-
-    public void setCarpetColor(int v) {
-        carpetColor = v;
     }
 
     // ---- Mithril As Stone
