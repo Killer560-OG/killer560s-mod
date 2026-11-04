@@ -50,9 +50,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
         int y = height - BOTTOM + 8;
 
         addRenderableWidget(SettingsButtonWidget.cycling(monitorText(), (btn, dir) -> {
-            if (monitors.isEmpty()) {
-                return;
-            }
+            if (monitors.isEmpty()) return;
             int next = monitor == null ? (dir > 0 ? 0 : monitors.size() - 1)
                     : SettingsButtonWidget.step(monitor.index(), dir, monitors.size());
             monitor = monitors.get(next);
@@ -85,9 +83,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
     }
 
     private void choose(int count, int cellIndex) {
-        if (monitor == null) {
-            return;
-        }
+        if (monitor == null) return;
         WindowMonitors.MonitorInfo target = monitor;
         onClose();
         WindowLayoutFeature.place(target, count, cellIndex);
@@ -95,9 +91,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
 
     /** @return {x, y, w, h, scale} of the monitor preview in GUI coordinates (scale = GUI units per pixel). */
     private double[] preview() {
-        if (monitor == null) {
-            return null;
-        }
+        if (monitor == null) return null;
         double availW = width - SIDE * 2;
         double availH = height - TOP - BOTTOM;
         double scale = Math.min(availW / monitor.width(), availH / monitor.height());
@@ -131,9 +125,7 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
     private int hoveredCell(int[][] cells, double mx, double my) {
         for (int i = 0; i < cells.length; i++) {
             int[] c = cells[i];
-            if (mx >= c[0] && mx < c[2] && my >= c[1] && my < c[3]) {
-                return i;
-            }
+            if (mx >= c[0] && mx < c[2] && my >= c[1] && my < c[3]) return i;
         }
         return -1;
     }
@@ -209,17 +201,11 @@ public class WindowLayoutScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (super.mouseClicked(event, doubleClick)) {
-            return true;
-        }
+        if (super.mouseClicked(event, doubleClick)) return true;
         double[] p = preview();
-        if (p == null || com.killer560.hub.compat.McInput.button(event) != 0) {
-            return false;
-        }
+        if (p == null || com.killer560.hub.compat.McInput.button(event) != 0) return false;
         int hit = hoveredCell(guiCells(p), event.x(), event.y());
-        if (hit < 0) {
-            return false;
-        }
+        if (hit < 0) return false;
         choose(WindowLayoutConfig.getInstance().getWindowsPerMonitor(), hit);
         return true;
     }

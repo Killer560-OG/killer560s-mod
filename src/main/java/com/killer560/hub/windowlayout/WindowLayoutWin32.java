@@ -61,23 +61,15 @@ final class WindowLayoutWin32 {
 
     /** @return {x, y, w, h} of the work area (rcWork) of the monitor covering the given full bounds, or null. */
     static int[] workArea(int x, int y, int w, int h) {
-        if (!ensureLoaded()) {
-            return null;
-        }
+        if (!ensureLoaded()) return null;
         try {
             long hMonitor = user32.MonitorFromRect(new int[]{x, y, x + w, y + h}, MONITOR_DEFAULTTONULL);
-            if (hMonitor == 0L) {
-                return null;
-            }
+            if (hMonitor == 0L) return null;
             int[] info = new int[10];
             info[0] = 40;
-            if (!user32.GetMonitorInfoW(hMonitor, info)) {
-                return null;
-            }
+            if (!user32.GetMonitorInfoW(hMonitor, info)) return null;
             // rcMonitor = [1..4] must match the GLFW monitor, otherwise MonitorFromRect picked a neighbor.
-            if (info[1] != x || info[2] != y || info[3] - info[1] != w || info[4] - info[2] != h) {
-                return null;
-            }
+            if (info[1] != x || info[2] != y || info[3] - info[1] != w || info[4] - info[2] != h) return null;
             int ww = info[7] - info[5];
             int wh = info[8] - info[6];
             return ww > 0 && wh > 0 ? new int[]{info[5], info[6], ww, wh} : null;
@@ -105,9 +97,7 @@ final class WindowLayoutWin32 {
      *  drawn. @return {left, top, right, bottom} of those invisible borders, or all zeros when unknown. */
     static int[] invisibleBorders(long hwnd) {
         int[] zero = {0, 0, 0, 0};
-        if (hwnd == 0L || !ensureLoaded() || dwmapi == null || !isPerMonitorAware()) {
-            return zero;
-        }
+        if (hwnd == 0L || !ensureLoaded() || dwmapi == null || !isPerMonitorAware()) return zero;
         try {
             int[] window = new int[4];
             int[] visible = new int[4];
@@ -117,9 +107,7 @@ final class WindowLayoutWin32 {
             }
             int[] out = {visible[0] - window[0], visible[1] - window[1], window[2] - visible[2], window[3] - visible[3]};
             for (int v : out) {
-                if (v < 0 || v > 48) {
-                    return zero;
-                }
+                if (v < 0 || v > 48) return zero;
             }
             return out;
         } catch (Throwable t) {
