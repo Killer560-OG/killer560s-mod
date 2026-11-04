@@ -69,10 +69,6 @@ public final class PosmsgEntry {
         return text.isEmpty() ? name : text;
     }
 
-    public static double clampRadius(double v) {
-        return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, v));
-    }
-
     public static double clampTextScale(double v) {
         return Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, v));
     }
