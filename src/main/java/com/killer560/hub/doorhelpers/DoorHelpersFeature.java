@@ -81,7 +81,7 @@ public final class DoorHelpersFeature {
     }
 
     /** QUOI {@code Dungeon.isDead}: the tab list shows you as DEAD, or hotbar slot 1 is the ghost "Haunt" item. */
-    static boolean isDead(Minecraft client) {
+    public static boolean isDead(Minecraft client) {
         if (client.player == null) {
             return true;
         }

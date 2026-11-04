@@ -1,10 +1,12 @@
 package com.killer560.hub.splittimers;
 
+import com.killer560.hub.doorhelpers.DoorHelpersFeature;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.LeapMenuFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.OutgoingChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
@@ -160,8 +162,18 @@ final class CoreEntryTimes {
         // EXPECTED name and this entity's real GameProfile name aren't guaranteed to match case-for-case -
         // a mismatch here would silently create a duplicate "ghost" entry that never resolves (see this
         // batch's staging notes for how that could also produce a wrong slowest-person result).
-        if (containsKeyIgnoreCase(ENTRIES, name)) return;
-        if (!inCore(player.getX(), player.getY(), player.getZ())) return;
+        if (containsKeyIgnoreCase(ENTRIES, name)) {
+            return;
+        }
+        // A dead player is a ghost that can fly through the core box: never timed (killer560, 2026-11-04: "this person
+        // was dead when we went to enter core"). Our own death also shows in the Haunt item.
+        if (player == Minecraft.getInstance().player ? DoorHelpersFeature.isDead(Minecraft.getInstance())
+                : PartyTracker.isDead(name)) {
+            return;
+        }
+        if (!inCore(player.getX(), player.getY(), player.getZ())) {
+            return;
+        }
         if (!containsIgnoreCase(EXPECTED, name)) {
             // The party list wasn't complete when the core opened (tab list not parsed yet, late join) - they are
             // clearly in this run, so they join the expected list instead of being timed but never shown.
@@ -188,13 +200,13 @@ final class CoreEntryTimes {
     /** For the testkit: player name -> ms from the core opening to entering it. */
     static Map<String, Long> entries() { return new LinkedHashMap<>(ENTRIES); }
 
-    /** HUD/chat rows: everyone expected, in party order, with a dash for anyone never seen inside the core. */
+    /** HUD/chat rows: everyone expected, in party order; a dash for anyone not in yet, "Did not enter" once timing ended. */
     static List<String> lines() {
         if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryActive()) return List.of();
         List<String> out = new ArrayList<>(EXPECTED.size());
         for (String name : EXPECTED) {
             Long ms = getIgnoreCase(ENTRIES, name);   // the tab list's name and the entity's may differ in case
-            out.add(colorFor(name) + name + "§f: " + (ms == null ? "§7-" : format(ms)));
+            out.add(colorFor(name) + name + "§f: " + (ms != null ? format(ms) : announced ? "§cDid not enter" : "§7-"));
         }
         return out;
     }
@@ -237,7 +249,7 @@ final class CoreEntryTimes {
         Map.Entry<String, Long> slowest = slowestEntry();
         if (slowest == null) return;
         int missing = EXPECTED.size() - ENTRIES.size();
-        String suffix = missing > 0 ? " (" + missing + " never seen entering)" : "";
+        String suffix = missing > 0 ? " (" + missing + " did not enter)" : "";
         if (cfg.isCoreEntrySlowestChat()) {
             ModChat.send(CHAT, ModChat.text("Slowest into core: "), ModChat.value(slowest.getKey()),
                     ModChat.text(" ("), ModChat.value(format(slowest.getValue())), ModChat.text(")" + suffix));
@@ -245,9 +257,7 @@ final class CoreEntryTimes {
         if (cfg.isCoreEntrySlowestParty()) {
             Minecraft client = Minecraft.getInstance();
             if (client.player != null) {
-                // Same channel command the Chat Commands feature uses for its party replies.
-                client.player.connection.sendCommand(
-                        "pc Slowest into core: " + slowest.getKey() + " (" + format(slowest.getValue()) + ")");
+                OutgoingChat.command("pc Slowest into core: " + slowest.getKey() + " (" + format(slowest.getValue()) + ")");
             }
         }
     }
