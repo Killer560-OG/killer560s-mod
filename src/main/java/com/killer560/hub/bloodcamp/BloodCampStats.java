@@ -4,16 +4,13 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 /**
  * Blood Camp Stats (killer560, 2026-11-01): mobs left, the mob ticks lost to slow kills, the server lag during the camp,
@@ -37,7 +34,7 @@ import java.util.regex.Pattern;
  * stall adds nothing here: it is reported apart, as the camp's lag (the ticks {@code util.PerTickServerClock} saw the server miss since the Watcher's greeting).
  * <p>
  * It is all read from what the client sees - the Watcher's lines and the blood mobs' own entities - so it works from any
- * room the blood mobs are loaded in, whoever camps. Party Message sends it after the run when he camped himself (was in
+ * room the blood mobs are loaded in, whoever camps. Party Message sends it the moment the camp clears ("You have proven yourself") when he camped himself (was in
  * the Blood Room after the kill timer); Send For Any Class sends it whoever camped.
  */
 public final class BloodCampStats {
@@ -55,8 +52,6 @@ public final class BloodCampStats {
     private static long lastClock = com.killer560.hub.util.PerTickServerClock.now();
     /** Testkit: the last party message sent (or that would have been, with Party Message on). */
     private static String lastMessage;
-
-    private static final Pattern EXTRA_STATS = Pattern.compile("^\\s*> EXTRA STATS <\\s*$");
 
     private BloodCampStats() {
     }
@@ -76,7 +71,6 @@ public final class BloodCampStats {
                 WatcherBar.tick(client);
             }
         });
-        ChatObserver.subscribe(BloodCampStats::onChat);
     }
 
     static void onGreeting() {
@@ -154,6 +148,7 @@ public final class BloodCampStats {
         campLagMs = BloodCampMoveTimer.lagMsSinceGreeting();
         BloodCampFeature.LOGGER.info("[BloodCampStats] camp done: {} mob ticks lost (first kill {}), lag {} ms, camped {}",
                 ticksLost, firstKillTicks, campLagMs, camped);
+        sendSummary();
         phase = Phase.DONE;
     }
 
@@ -168,16 +163,8 @@ public final class BloodCampStats {
         // (the kill timer itself is read on the server tick; kept so the feature's tick names the moment it saw it)
     }
 
-    private static void onChat(Component message) {
-        String plain = ChatObserver.strip(message);
-        if (plain.length() > 40 || !EXTRA_STATS.matcher(plain).matches()) {
-            return;
-        }
-        endOfRun();
-    }
-
-    /** The run's summary arrived: send the message once, if it is wanted and there is something to say. */
-    static void endOfRun() {
+    /** The camp cleared: send the message once, if it is wanted and there is something to say. */
+    private static void sendSummary() {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
         if (sentThisRun || phase == Phase.IDLE || phase == Phase.WAITING_KILL) {
             return;
@@ -186,16 +173,16 @@ public final class BloodCampStats {
         String text = message(cfg.isPartyMessageLag());
         lastMessage = text;
         if (!cfg.isEnabled() || !cfg.isPartyMessage()) {
-            BloodCampFeature.LOGGER.info("[BloodCampStats] end of run: Party Message off ({})", text);
+            BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared: Party Message off ({})", text);
             return;
         }
         if (!camped && !cfg.isPartyMessageAnyClass()) {
-            BloodCampFeature.LOGGER.info("[BloodCampStats] end of run: he did not camp and Send For Any Class is off ({})", text);
+            BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared: he did not camp and Send For Any Class is off ({})", text);
             return;
         }
         boolean sent = com.killer560.hub.util.OutgoingChat.command("pc " + text);
         partyMessagesSent += sent ? 1 : 0;
-        BloodCampFeature.LOGGER.info("[BloodCampStats] end of run: party message {}: {}", sent ? "sent" : "not sent", text);
+        BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared: party message {}: {}", sent ? "sent" : "not sent", text);
     }
 
     private static int partyMessagesSent;
@@ -236,10 +223,7 @@ public final class BloodCampStats {
         return partyMessagesSent;
     }
 
-    /** Testkit: the end-of-run summary as if "> EXTRA STATS <" arrived. */
-    public static void endOfRunForTest() {
-        endOfRun();
-    }
+    // ---- HUD -------------------------------------------------------------------------------------------------------
 
     /** The lines the HUD shows now (empty outside a camp). */
     static List<String> lines(boolean preview) {
