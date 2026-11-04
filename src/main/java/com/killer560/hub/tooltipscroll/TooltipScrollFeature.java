@@ -134,13 +134,9 @@ public final class TooltipScrollFeature {
      *  and is a real scroll event reaching it at all". */
     private static volatile boolean scrollHookSeen;
 
-    public static boolean renderHookSeen() {
-        return renderHookSeen;
-    }
+    public static boolean renderHookSeen() { return renderHookSeen; }
 
-    public static boolean scrollHookSeen() {
-        return scrollHookSeen;
-    }
+    public static boolean scrollHookSeen() { return scrollHookSeen; }
 
     private TooltipScrollFeature() {
     }
@@ -335,7 +331,5 @@ public final class TooltipScrollFeature {
         return sum;
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
+    private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
 }
