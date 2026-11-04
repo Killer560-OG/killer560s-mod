@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -9,8 +10,16 @@ import java.util.List;
 public class MiningQolTab extends FolderTab {
 
     public MiningQolTab() {
-        super("Mining", List.of(new MiningCommissionHudTab(), new MiningCommissionRouteTab(), new MiningPickobulusTab(), new MiningAbilityReadyTab(),
+        super("Mining", tabs());
+    }
+
+    private static List<BaseTab> tabs() {
+        List<BaseTab> t = new ArrayList<>(List.of(new MiningCommissionHudTab(), new MiningCommissionRouteTab(), new MiningPickobulusTab(), new MiningAbilityReadyTab(),
                 new MiningCarpetTab(), new MiningMithrilStoneTab(), new MiningTitaniumTab(), new MiningRaffleTab(),
                 new MiningResumeBreakTab(), new MiningPowderGhastTab(), new MiningWrongArmorTab()));
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            t.add(new MiningPigeonDrillTab());
+        }
+        return t;
     }
 }

@@ -262,6 +262,9 @@ public final class ActionGate {
         /** Auto Relist clicking in /ah's menus (View Bids, Manage Auctions, Collect Auction, Create BIN Auction, Confirm).
          *  {@code ahflip.AhRelistMacro#click} is its only caller. */
         AH_RELIST_MENU(Kind.SCREEN),
+        /** Swap To Drill On Pigeon (killer560, 2026-11-03): the held-slot change to the best drill right after a Royal
+         *  Pigeon use, before the Commissions menu opens. {@code miningqol.PigeonDrillSwap} is its only caller. */
+        PIGEON_DRILL(Kind.HOTBAR),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as

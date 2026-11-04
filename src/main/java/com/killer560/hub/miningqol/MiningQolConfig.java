@@ -55,6 +55,24 @@ public final class MiningQolConfig {
      * with the shared paths: {@code WorldRenderUtils.renderOutlineBoxes}/{@code renderFilledBoxes} for the boxes, and the
      * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses.
      */
+    /** Which drill Swap To Drill On Pigeon picks. */
+    public enum PigeonDrillMode {
+        AUTO("Auto"),
+        MITHRIL("Mithril Powder"),
+        GEMSTONE("Gemstone Powder"),
+        SPECIFIC("Specific Drill");
+
+        private final String label;
+
+        PigeonDrillMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     /** How the Commission Route gets there (killer560, 2026-11-03: "one for etherwarp one for aote one for walking"). */
     public enum CommissionRouteMode {
         WALK("Walk"),
@@ -118,6 +136,11 @@ public final class MiningQolConfig {
     private boolean commissionRouteEmissary = true;
     /** Pulse the Royal Pigeon's hotbar slot while a claim is due (killer560, 2026-11-03), apart from the route switches. */
     private boolean commissionPigeon = true;
+    /** Swap To Drill On Pigeon (killer560, 2026-11-03), cheat-only. */
+    private boolean pigeonDrill = false;
+    private PigeonDrillMode pigeonDrillMode = PigeonDrillMode.AUTO;
+    /** For {@link PigeonDrillMode#SPECIFIC}: part of the drill's name or Skyblock id. */
+    private String pigeonDrillName = "";
     // Pickobulus Estimate
     private boolean pickobulus = false;
     private int pickobulusColor = DEFAULT_PICKOBULUS_COLOR;
@@ -193,6 +216,9 @@ public final class MiningQolConfig {
                 cfg.commissionPigeon = ConfigJson.getBool(o, "commissionPigeon", cfg.commissionPigeon);
                 cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
                         CommissionRouteMode.WALK);
+                cfg.pigeonDrill = ConfigJson.getBool(o, "pigeonDrill", cfg.pigeonDrill);
+                cfg.pigeonDrillMode = ConfigJson.getEnum(o, "pigeonDrillMode", PigeonDrillMode.class, PigeonDrillMode.AUTO);
+                cfg.pigeonDrillName = ConfigJson.getString(o, "pigeonDrillName", cfg.pigeonDrillName);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
                 cfg.abilityAlert = ConfigJson.getBool(o, "abilityAlert", cfg.abilityAlert);
@@ -263,6 +289,9 @@ public final class MiningQolConfig {
             o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
             o.addProperty("commissionPigeon", commissionPigeon);
             o.addProperty("commissionRouteMode", commissionRouteMode.name());
+            o.addProperty("pigeonDrill", pigeonDrill);
+            o.addProperty("pigeonDrillMode", pigeonDrillMode.name());
+            o.addProperty("pigeonDrillName", pigeonDrillName);
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
             o.addProperty("abilityAlert", abilityAlert);
@@ -377,6 +406,41 @@ public final class MiningQolConfig {
 
     public void setCommissionMobsEsp(boolean v) {
         commissionMobsEsp = v;
+    }
+
+    /** Swap To Drill On Pigeon: cheat jars only. */
+    public boolean isPigeonDrill() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && pigeonDrill;
+    }
+
+    public boolean isPigeonDrillRaw() {
+        return pigeonDrill;
+    }
+
+    public void setPigeonDrill(boolean v) {
+        pigeonDrill = v;
+    }
+
+    public PigeonDrillMode getPigeonDrillMode() {
+        return pigeonDrillMode;
+    }
+
+    public void setPigeonDrillMode(PigeonDrillMode v) {
+        pigeonDrillMode = v == null ? PigeonDrillMode.AUTO : v;
+    }
+
+    /** Left click forward, right click back, wrapping. */
+    public void stepPigeonDrillMode(int dir) {
+        PigeonDrillMode[] all = PigeonDrillMode.values();
+        pigeonDrillMode = all[Math.floorMod(pigeonDrillMode.ordinal() + dir, all.length)];
+    }
+
+    public String getPigeonDrillName() {
+        return pigeonDrillName;
+    }
+
+    public void setPigeonDrillName(String v) {
+        pigeonDrillName = v == null ? "" : v;
     }
 
     public boolean isCommissionPigeon() {
