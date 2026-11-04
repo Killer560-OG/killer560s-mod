@@ -2882,7 +2882,7 @@ final class SettingTooltipsData {
         d.put("blood camp/mobs left hud", "Blood Camp Stats HUD: every blood mob the camp still needs, alive or not spawned yet, read off The Watcher's boss bar. Reads 1 only when one mob is left in the whole camp; ? when his bar is not in sight and more mobs are due.");
         d.put("blood camp/mob ticks hud", "Blood Camp Stats HUD: server ticks lost to slow kills - every tick from the kill timer to the first kill, then every tick a blood mob is alive on the floor.");
         d.put("blood camp/camp lag hud", "Blood Camp Stats HUD: how long the server lagged since the Watcher's greeting.");
-        d.put("blood camp/party message", "After the run, sends the mob ticks lost to party chat if you camped the Blood Room.");
+        d.put("blood camp/party message", "The moment the camp clears (the Watcher's \"You have proven yourself\"), sends the mob ticks lost to party chat if you camped the Blood Room.");
         d.put("blood camp/send for any class", "Sends the party message even when someone else camped: the ticks are counted from any room the blood mobs are loaded in.");
         d.put("blood camp/include camp lag", "Adds the server lag during the camp to the party message.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
