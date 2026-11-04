@@ -82,7 +82,6 @@ public final class SmoothTeleport {
     private static long glideNs;
     private static Level glideLevel;
 
-    // ---- counters, for the testkit and the log ----------------------------------------------------------------
     private static int glides;
     private static int snaps;
     private static String lastDecision = "none";
@@ -326,7 +325,6 @@ public final class SmoothTeleport {
         glideLevel = null;
     }
 
-    // ---- read-only state --------------------------------------------------------------------------------------
 
     /** True while the camera is drawn somewhere other than where vanilla would put it. */
     public static boolean isGliding() {
