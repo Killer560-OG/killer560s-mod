@@ -101,7 +101,6 @@ public final class PlayerNames {
     private PlayerNames() {
     }
 
-    // ---------------------------------------------------------------------------------------- immediate, cache-only
 
     /** The UUID for {@code name} from the tab list of anyone currently in your lobby, or the persisted cache -
      *  never touches the network. Null when nobody by that name has been seen or resolved yet; call
@@ -177,7 +176,6 @@ public final class PlayerNames {
         }
     }
 
-    // ---------------------------------------------------------------------------------------- async
 
     /** Resolves {@code name} to a UUID: calls {@code onResolved} immediately with whatever is already known
      *  (tab list / cache - possibly null), then again from a background lookup if nothing was known yet. See
