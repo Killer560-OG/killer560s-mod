@@ -42,14 +42,7 @@ public final class SecretWaypointsRenderer {
 
     /** Called from {@link SecretWaypointsFeature#register()} so the pipelines exist before the renderer
      *  precompiles its pipeline list. */
-    static void init() { RenderType unused = ThroughWalls.LINES; }
-
-    /** Holder idiom - built once, on {@link #init()}. */
-    private static final class ThroughWalls {
-        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
-
-        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
-    }
+    static void init() { RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU; }
 
     /**
      * Draws every waypoint in {@code waypoints} whose center is within {@code maxDistance} blocks of the camera.
@@ -123,7 +116,7 @@ public final class SecretWaypointsRenderer {
             // while making a type switch mid-pass impossible.
             if (fill) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
+                        com.killer560.hub.util.EspTypes.fill(throughWalls),
                         (pose, fillBuffer) -> {
                             for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 filledBox(pose.pose(), fillBuffer, wp.box(), wp.r(), wp.g(), wp.b(),
@@ -133,7 +126,7 @@ public final class SecretWaypointsRenderer {
             }
             if (outline) {
                 McRender.inCameraSpace(context,
-                        throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
+                        com.killer560.hub.util.EspTypes.lines(throughWalls),
                         (pose, lineBuffer) -> {
                             for (SecretWaypointsFeature.Waypoint wp : snap) {
                                 lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
@@ -156,7 +149,7 @@ public final class SecretWaypointsRenderer {
 
     /** Test hook (util/EspDepthTestHook): one through-walls fill drawn exactly as a waypoint fill is. */
     public static void drawForTest(LevelRenderContext context, net.minecraft.world.phys.AABB box) {
-        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) -> filledBox(pose.pose(), buffer, box, 0f, 1f, 0f, 0.5f));
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED_THRU, (pose, buffer) -> filledBox(pose.pose(), buffer, box, 0f, 1f, 0f, 0.5f));
     }
 
     /** Indices of the waypoints that passed this frame's distance cull. Render thread only; reused

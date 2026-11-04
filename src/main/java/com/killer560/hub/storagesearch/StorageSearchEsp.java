@@ -39,7 +39,7 @@ public final class StorageSearchEsp {
     }
 
     static void register() {
-        RenderType unused = ThroughWalls.LINES;
+        RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU;
         LevelRenderEvents.COLLECT_SUBMITS.register(StorageSearchEsp::onWorldRender);
     }
 
@@ -81,13 +81,13 @@ public final class StorageSearchEsp {
         for (int i = 0; i < snap.length; i++) {
             snap[i] = boxFor(TARGETS.get(i).pos());
         }
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.fill(throughWalls),
                 (pose, fillBuffer) -> {
                     for (AABB box : snap) {
                         filledBox(pose.pose(), fillBuffer, box, r, g, b, 0.25f);
                     }
                 });
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.lines(throughWalls),
                 (pose, lineBuffer) -> {
                     for (AABB box : snap) {
                         lineBox(pose, lineBuffer, box, r, g, b, 1f, 2.5f);
@@ -99,13 +99,6 @@ public final class StorageSearchEsp {
     private static AABB boxFor(BlockPos pos) {
         return new AABB(pos.getX() + 0.0625, pos.getY(), pos.getZ() + 0.0625,
                 pos.getX() + 0.9375, pos.getY() + 0.875, pos.getZ() + 0.9375);
-    }
-
-    /** Holder idiom - built once, on {@link #register()}. */
-    private static final class ThroughWalls {
-        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
-
-        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
 }

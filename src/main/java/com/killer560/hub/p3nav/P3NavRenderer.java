@@ -32,15 +32,8 @@ final class P3NavRenderer {
     /** Called from {@link P3NavFeature#register()} so the pipelines exist before the renderer precompiles. */
     static void init() {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            RenderType unused = ThroughWalls.LINES;
+            RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU;
         }
-    }
-
-    /** Holder idiom - built once, on {@link #init()}. */
-    private static final class ThroughWalls {
-        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
-
-        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     /** Fill is drawn at 35% of the color's own alpha so whatever is inside the box stays readable. */
@@ -69,12 +62,12 @@ final class P3NavRenderer {
     }
 
     private static void outlineThroughWalls(LevelRenderContext context, AABB box, float[] c, float lineWidth) {
-        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) ->
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES_THRU, (pose, buffer) ->
                 lineBox(pose, buffer, box, c[0], c[1], c[2], c[3], lineWidth));
     }
 
     private static void filledThroughWalls(LevelRenderContext context, AABB box, float[] c) {
-        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) ->
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED_THRU, (pose, buffer) ->
                 filledBox(pose.pose(), buffer, box, c[0], c[1], c[2], c[3]));
     }
 

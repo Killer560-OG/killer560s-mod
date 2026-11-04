@@ -24,23 +24,16 @@ final class EspRenderer {
 
     /** Called from client init (like Noamm registering its pipelines at init) so the two pipelines are in
      *  {@code RenderPipelines}' static list before the renderer precompiles it. */
-    static void init() { RenderType unused = ThroughWalls.LINES; }
-
-    /** Holder idiom - built once, on {@link #init()}. */
-    private static final class ThroughWalls {
-        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
-
-        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
-    }
+    static void init() { RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU; }
 
     /** The line type an outline uses: the no-depth copy through walls, vanilla's depth-tested one otherwise. */
     static RenderType lineType(boolean throughWalls) {
-        return throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES;
+        return com.killer560.hub.util.EspTypes.lines(throughWalls);
     }
 
     /** The fill type {@link #filled} uses. */
     static RenderType fillType(boolean throughWalls) {
-        return throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED;
+        return com.killer560.hub.util.EspTypes.fill(throughWalls);
     }
 
     /** The color's alpha as {@link #rgba} reads it (0 means opaque). */
@@ -52,7 +45,7 @@ final class EspRenderer {
     /** A single line from {@code from} to {@code to} - the Wither ESP tracer, drawn in the ESP's own color. */
     static void tracer(LevelRenderContext context, Vec3 from, Vec3 to, int argb, float width, boolean throughWalls) {
         float[] c = rgba(argb, 1.0f);
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.lines(throughWalls), (pose, buffer) -> {
             float sx = (float) from.x, sy = (float) from.y, sz = (float) from.z;
             float ex = (float) to.x, ey = (float) to.y, ez = (float) to.z;
             float dx = ex - sx, dy = ey - sy, dz = ez - sz;

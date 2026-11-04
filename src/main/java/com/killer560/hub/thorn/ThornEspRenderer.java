@@ -30,18 +30,11 @@ final class ThornEspRenderer {
 
     /** Called from client init (like Noamm registering its pipelines at init) so the two pipelines are in
      *  {@code RenderPipelines}' static list before the renderer precompiles it. */
-    static void init() { RenderType unused = ThroughWalls.LINES; }
-
-    /** Holder idiom - built once, on {@link #init()}. */
-    private static final class ThroughWalls {
-        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
-
-        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
-    }
+    static void init() { RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU; }
 
     static void outline(LevelRenderContext context, AABB box, int argb, float lineWidth, boolean throughWalls) {
         float[] c = rgba(argb, 1.0f);
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.lines(throughWalls), (pose, buffer) -> {
             lineBox(pose, buffer, box, c[0], c[1], c[2], c[3], lineWidth);
         });
     }
@@ -49,7 +42,7 @@ final class ThornEspRenderer {
     /** Fill is drawn at 35% of the color's own alpha so the mob stays visible inside it. */
     static void filled(LevelRenderContext context, AABB box, int argb, boolean throughWalls) {
         float[] c = rgba(argb, 0.35f);
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.fill(throughWalls), (pose, buffer) -> {
             filledBox(pose.pose(), buffer, box, c[0], c[1], c[2], c[3]);
         });
     }
