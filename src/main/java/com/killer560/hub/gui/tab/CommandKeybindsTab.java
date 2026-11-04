@@ -107,12 +107,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
         int y = contentY;
         CommandKeybindsConfig cfg = CommandKeybindsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Chat Keybinds", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
-                    CommandShortcutsFeature.customsChanged();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Chat Keybinds", cfg::isEnabledRaw, cfg::setEnabled, () -> { cfg.save(); CommandShortcutsFeature.customsChanged(); }, requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
 
         if (!cfg.isEnabledRaw() && !isSearchScan()) {

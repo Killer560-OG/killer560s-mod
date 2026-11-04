@@ -3,7 +3,6 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.discordrpc.DiscordRpcConfig;
 import com.killer560.hub.discordrpc.DiscordRpcFeature;
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -32,12 +31,7 @@ public class DiscordRpcTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Discord Rich Presence", false));
         y += 16;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Discord Rich Presence", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    DiscordRpcFeature.onSettingsChanged();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(onOffButton("Discord Rich Presence", cfg::isEnabled, cfg::setEnabled, () -> { cfg.save(); DiscordRpcFeature.onSettingsChanged(); }, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (!cfg.isEnabled() && !isSearchScan()) {
@@ -52,33 +46,13 @@ public class DiscordRpcTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "What To Show", false));
         y += 14;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Details", cfg.isHideDetails()), btn -> {
-                    cfg.setHideDetails(!cfg.isHideDetails());
-                    cfg.save();
-                    DiscordRpcFeature.onSettingsChanged();
-                    requestRebuild.run();
-                }).bounds(contentX, y, halfW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Elapsed Time", cfg.isShowElapsed()), btn -> {
-                    cfg.setShowElapsed(!cfg.isShowElapsed());
-                    cfg.save();
-                    DiscordRpcFeature.onSettingsChanged();
-                    btn.setMessage(onOff("Show Elapsed Time", cfg.isShowElapsed()));
-                }).bounds(contentX + halfW + gap, y, halfW, 18).build());
+        widgets.add(onOffButton("Hide Details", cfg::isHideDetails, cfg::setHideDetails, () -> { cfg.save(); DiscordRpcFeature.onSettingsChanged(); }, requestRebuild, contentX, y, halfW, 18));
+        widgets.add(onOffButton("Show Elapsed Time", cfg::isShowElapsed, cfg::setShowElapsed, () -> { cfg.save(); DiscordRpcFeature.onSettingsChanged(); }, null, contentX + halfW + gap, y, halfW, 18));
         y += 22;
 
         if (!cfg.isHideDetails()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Show Island / Area", cfg.isShowArea()), btn -> {
-                        cfg.setShowArea(!cfg.isShowArea());
-                        cfg.save();
-                        DiscordRpcFeature.onSettingsChanged();
-                        btn.setMessage(onOff("Show Island / Area", cfg.isShowArea()));
-                    }).bounds(contentX, y, halfW, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Show Dungeon Info", cfg.isShowDungeonInfo()), btn -> {
-                        cfg.setShowDungeonInfo(!cfg.isShowDungeonInfo());
-                        cfg.save();
-                        DiscordRpcFeature.onSettingsChanged();
-                        btn.setMessage(onOff("Show Dungeon Info", cfg.isShowDungeonInfo()));
-                    }).bounds(contentX + halfW + gap, y, halfW, 18).build());
+            widgets.add(onOffButton("Show Island / Area", cfg::isShowArea, cfg::setShowArea, () -> { cfg.save(); DiscordRpcFeature.onSettingsChanged(); }, null, contentX, y, halfW, 18));
+            widgets.add(onOffButton("Show Dungeon Info", cfg::isShowDungeonInfo, cfg::setShowDungeonInfo, () -> { cfg.save(); DiscordRpcFeature.onSettingsChanged(); }, null, contentX + halfW + gap, y, halfW, 18));
             y += 22;
         }
         y += 4;

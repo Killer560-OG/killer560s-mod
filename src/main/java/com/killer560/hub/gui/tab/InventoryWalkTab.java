@@ -35,11 +35,7 @@ public class InventoryWalkTab extends BaseTab {
         var font = Minecraft.getInstance().font;
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff("Inventory Walk", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(onOffButton("Inventory Walk", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;
         if (!cfg.isEnabled()) {
             return w;
@@ -62,23 +58,11 @@ public class InventoryWalkTab extends BaseTab {
                     btn.setMessage(screensText(cfg));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Jump", cfg.isJump()), btn -> {
-                    cfg.setJump(!cfg.isJump());
-                    cfg.save();
-                    btn.setMessage(onOff("Jump", cfg.isJump()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(onOffButton("Jump", cfg::isJump, cfg::setJump, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Sprint", cfg.isSprint()), btn -> {
-                    cfg.setSprint(!cfg.isSprint());
-                    cfg.save();
-                    btn.setMessage(onOff("Sprint", cfg.isSprint()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(onOffButton("Sprint", cfg::isSprint, cfg::setSprint, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;
-        w.add(SettingsButtonWidget.builder(onOff("Stop To Click", cfg.isStopToClick()), btn -> {
-                    cfg.setStopToClick(!cfg.isStopToClick());
-                    cfg.save();
-                    btn.setMessage(onOff("Stop To Click", cfg.isStopToClick()));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(onOffButton("Stop To Click", cfg::isStopToClick, cfg::setStopToClick, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;
         double span = InventoryWalkConfig.MAX_PAUSE_TICKS;
         w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, pauseText(cfg),

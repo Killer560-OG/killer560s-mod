@@ -138,11 +138,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
 
     private static int toggle(List<AbstractWidget> w, int x, int y, int width, String label,
                               java.util.function.BooleanSupplier get, BoolSetter set, BlinkConfig cfg) {
-        w.add(SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-                    set.set(!get.getAsBoolean());
-                    cfg.save();
-                    btn.setMessage(onOff(label, get.getAsBoolean()));
-                }).bounds(x, y, width, ROW).build());
+        w.add(onOffButton(label, () -> get.getAsBoolean(), v -> set.set(v), cfg::save, null, x, y, width, ROW));
         return y + ROW + 4;
     }
 

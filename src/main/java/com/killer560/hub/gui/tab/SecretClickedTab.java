@@ -27,11 +27,7 @@ public class SecretClickedTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         int y = contentY;
-        w.add(SettingsButtonWidget.builder(onOff("Secret Clicked", cfg.isSecretClickedEnabled()), btn -> {
-                    cfg.setSecretClickedEnabled(!cfg.isSecretClickedEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Secret Clicked", cfg::isSecretClickedEnabled, cfg::setSecretClickedEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (cfg.isSecretClickedEnabled()) {
             y = toggle(w, contentX, y, contentWidth, "Locked Chest Sound", cfg::isSecretClickedLockedSound, cfg::setSecretClickedLockedSound);

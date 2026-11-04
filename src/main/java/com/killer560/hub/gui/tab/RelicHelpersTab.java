@@ -47,11 +47,7 @@ public class RelicHelpersTab extends BaseTab {
 
         w.add(new StringWidget(contentX, y[0], contentWidth, 12, SectionHeaders.header("Relic Triggerbot", true), font));
         y[0] += 16;
-        w.add(SettingsButtonWidget.builder(onOff("Relic Triggerbot", cfg.isTriggerEnabledRaw()), btn -> {
-            cfg.setTriggerEnabled(!cfg.isTriggerEnabledRaw());
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Relic Triggerbot", cfg::isTriggerEnabledRaw, cfg::setTriggerEnabled, cfg::save, requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
         if (cfg.isTriggerEnabledRaw()) {
             w.add(toggle("Pick Up Relics", cfg::isTriggerPickup, cfg::setTriggerPickup, cfg, contentX, y[0], halfW));
@@ -68,11 +64,7 @@ public class RelicHelpersTab extends BaseTab {
 
         w.add(new StringWidget(contentX, y[0], contentWidth, 12, SectionHeaders.header("Relic Look", true), font));
         y[0] += 16;
-        w.add(SettingsButtonWidget.builder(onOff("Relic Look", cfg.isLookEnabledRaw()), btn -> {
-            cfg.setLookEnabled(!cfg.isLookEnabledRaw());
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Relic Look", cfg::isLookEnabledRaw, cfg::setLookEnabled, cfg::save, requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
         if (cfg.isLookEnabledRaw()) {
             w.add(toggle("Look At Relic", cfg::isLookAtRelic, cfg::setLookAtRelic, cfg, contentX, y[0], halfW));
@@ -91,11 +83,7 @@ public class RelicHelpersTab extends BaseTab {
 
     private static SettingsButtonWidget toggle(String label, BooleanSupplier get, Consumer<Boolean> set, RelicHelpersConfig cfg,
                                                int x, int y, int width) {
-        return SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-            set.accept(!get.getAsBoolean());
-            cfg.save();
-            btn.setMessage(onOff(label, get.getAsBoolean()));
-        }).bounds(x, y, width, ROW).build();
+        return onOffButton(label, () -> get.getAsBoolean(), v -> set.accept(v), cfg::save, null, x, y, width, ROW);
     }
 
     private static Component cooldownText(RelicHelpersConfig cfg) {

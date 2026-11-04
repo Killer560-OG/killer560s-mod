@@ -29,19 +29,11 @@ public class SpringBootsTab extends BaseTab {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         int y = contentY;
 
-        w.add(SettingsButtonWidget.builder(onOff("Spring Boots Overlay", cfg.springBootsEnabled), btn -> {
-                    cfg.springBootsEnabled = !cfg.springBootsEnabled;
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        w.add(onOffButton("Spring Boots Overlay", () -> cfg.springBootsEnabled, v -> cfg.springBootsEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
         if (cfg.springBootsEnabled) {
-            w.add(SettingsButtonWidget.builder(onOff("Height Box", cfg.springBootsBox), btn -> {
-                        cfg.springBootsBox = !cfg.springBootsBox;
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
+            w.add(onOffButton("Height Box", () -> cfg.springBootsBox, v -> cfg.springBootsBox = v, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
             if (cfg.springBootsBox) {
                 // Color and style of the height box (killer560, 2026-10-11).

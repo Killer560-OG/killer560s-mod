@@ -124,21 +124,11 @@ public class NameChangerTab extends BaseTab {
 
         // "Bold Name" (killer560, 2026-10-13: "make a toggle for custom names to be bold"): your own display name in
         // bold here and, with Share if Supporter, for other mod users too (NameChangerFeature#ownStyled).
-        widgets.add(SettingsButtonWidget.builder(onOff("Bold Name", cfg.isOwnBold()), btn -> {
-                    cfg.setOwnBold(!cfg.isOwnBold());
-                    cfg.save();
-                    preview.setMessage(previewLine());
-                    btn.setMessage(onOff("Bold Name", cfg.isOwnBold()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Bold Name", cfg::isOwnBold, cfg::setOwnBold, () -> { cfg.save(); preview.setMessage(previewLine()); }, null, contentX, y, contentWidth, 18));
         y += 24;
 
         // "Text Shadow" (killer560, 2026-11-01): your name drawn with a drop shadow everywhere, name tags included.
-        widgets.add(SettingsButtonWidget.builder(onOff("Text Shadow", cfg.isOwnShadow()), btn -> {
-                    cfg.setOwnShadow(!cfg.isOwnShadow());
-                    cfg.save();
-                    preview.setMessage(previewLine());
-                    btn.setMessage(onOff("Text Shadow", cfg.isOwnShadow()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Text Shadow", cfg::isOwnShadow, cfg::setOwnShadow, () -> { cfg.save(); preview.setMessage(previewLine()); }, null, contentX, y, contentWidth, 18));
         y += 24;
 
         // "Fade Color" (killer560, cosmetics tab: "also allow them to fade the colour") - a second color

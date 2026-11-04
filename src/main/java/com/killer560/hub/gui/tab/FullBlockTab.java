@@ -114,11 +114,7 @@ public class FullBlockTab extends BaseTab {
                                  java.util.function.IntSupplier w, java.util.function.IntConsumer setW,
                                  java.util.function.IntSupplier h, java.util.function.IntConsumer setH,
                                  java.util.function.IntSupplier l, java.util.function.IntConsumer setL) {
-        widgets.add(SettingsButtonWidget.builder(onOff(name, enabled.getAsBoolean()), btn -> {
-                    setEnabled.accept(!enabled.getAsBoolean());
-                    SecretsConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(x, y, 220, 20).build());
+        widgets.add(onOffButton(name, () -> enabled.getAsBoolean(), v -> setEnabled.accept(v), () -> SecretsConfig.getInstance().save(), requestRebuild, x, y, 220, 20));
         y += 24;
         if (!enabled.getAsBoolean()) {
             return y + 2;

@@ -96,11 +96,7 @@ public class CroesusTab extends BaseTab {
 
         // ---- Reroll Protection, Kismet Count, Croesus Chests HUD (2026-10-25): each only drops his own click or shows a
         // number, so legit ----
-        widgets.add(SettingsButtonWidget.builder(onOff("Reroll Protection", cfg.isRerollProtectionRaw()), btn -> {
-                    cfg.setRerollProtection(!cfg.isRerollProtectionRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Reroll Protection", cfg::isRerollProtectionRaw, cfg::setRerollProtection, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
         if (cfg.isRerollProtectionRaw()) {
             widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 18, protectAboveText(),
@@ -120,17 +116,9 @@ public class CroesusTab extends BaseTab {
             });
             y += 20;
         }
-        widgets.add(SettingsButtonWidget.builder(onOff("Kismet Count", cfg.isKismetCountRaw()), btn -> {
-                    cfg.setKismetCount(!cfg.isKismetCountRaw());
-                    cfg.save();
-                    btn.setMessage(onOff("Kismet Count", cfg.isKismetCountRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Kismet Count", cfg::isKismetCountRaw, cfg::setKismetCount, cfg::save, null, contentX, y, contentWidth, 18));
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Croesus Chests HUD", cfg.isChestCountHudRaw()), btn -> {
-                    cfg.setChestCountHud(!cfg.isChestCountHudRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(onOffButton("Croesus Chests HUD", cfg::isChestCountHudRaw, cfg::setChestCountHud, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
         if (cfg.isChestCountHudRaw()) {
             widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 18, warnAtText(),

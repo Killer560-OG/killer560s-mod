@@ -81,11 +81,7 @@ public class PosmsgTab extends BaseTab {
         // Enabled sits directly under the title and collapses the rest of the waypoint when it's off
         // (killer560, 2026-09-16) - with 7+ waypoints in one scrolling list, the ones you aren't using
         // should take one line, not six.
-        widgets.add(SettingsButtonWidget.builder(onOff("Enabled", e.enabled), btn -> {
-                    e.enabled = !e.enabled;
-                    PosmsgConfig.getInstance().save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        widgets.add(onOffButton("Enabled", () -> e.enabled, v -> e.enabled = v, () -> PosmsgConfig.getInstance().save(), requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + GAP;
 
         if (!e.enabled) {
@@ -142,11 +138,7 @@ public class PosmsgTab extends BaseTab {
                     }
                 }).bounds(col1, y, colW, ROW).build());
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Radius", e.showRadius), btn -> {
-                    e.showRadius = !e.showRadius;
-                    PosmsgConfig.getInstance().save();
-                    btn.setMessage(onOff("Show Radius", e.showRadius));
-                }).bounds(col2, y, colW, ROW).build());
+        widgets.add(onOffButton("Show Radius", () -> e.showRadius, v -> e.showRadius = v, () -> PosmsgConfig.getInstance().save(), null, col2, y, colW, ROW));
 
         // A slider, not a cycling button (killer560's test round, 2026-09-16). 1.0-10.0 in half-block
         // steps; a radius typed wider than that via "/posmsg add" still loads and fires - the handle just
@@ -163,11 +155,7 @@ public class PosmsgTab extends BaseTab {
 
         // Plain on/off, default off = fires every time you walk in (killer560, 2026-09-16: "by default
         // it will do it an infinate amount of times... It will be an on or off button though").
-        widgets.add(SettingsButtonWidget.builder(onOff("Only Send Once Per Run", e.onceOnlyPerRun), btn -> {
-                    e.onceOnlyPerRun = !e.onceOnlyPerRun;
-                    PosmsgConfig.getInstance().save();
-                    btn.setMessage(onOff("Only Send Once Per Run", e.onceOnlyPerRun));
-                }).bounds(col2, y, colW, ROW).build());
+        widgets.add(onOffButton("Only Send Once Per Run", () -> e.onceOnlyPerRun, v -> e.onceOnlyPerRun = v, () -> PosmsgConfig.getInstance().save(), null, col2, y, colW, ROW));
 
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", e.color()), btn -> {
                     Minecraft client = Minecraft.getInstance();

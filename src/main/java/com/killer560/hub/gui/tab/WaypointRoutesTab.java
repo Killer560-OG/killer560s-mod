@@ -128,11 +128,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                                         RouteStore.save();
                                     })))
                     .bounds(contentX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Loop", sel.loop), btn -> {
-                        sel.loop = !sel.loop;
-                        RouteStore.save();
-                        btn.setMessage(onOff("Loop", sel.loop));
-                    }).bounds(col2bX, y, col2W, 18).build());
+            widgets.add(onOffButton("Loop", () -> sel.loop, v -> sel.loop = v, RouteStore::save, null, col2bX, y, col2W, 18));
             y += 20;
 
             double radiusNorm = (sel.getRadius() - Route.MIN_RADIUS) / (Route.MAX_RADIUS - Route.MIN_RADIUS);
