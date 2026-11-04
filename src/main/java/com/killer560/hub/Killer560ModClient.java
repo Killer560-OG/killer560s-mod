@@ -482,6 +482,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
         com.killer560.hub.invsort.InventorySorterExecutor.register();
+        com.killer560.hub.invsort.InvSortDump.register();
         com.killer560.hub.invsort.InventorySorterCommands.register();
         com.killer560.hub.autosell.AutoSellFeature.register();
         com.killer560.hub.autosell.AutoSellCommands.register();

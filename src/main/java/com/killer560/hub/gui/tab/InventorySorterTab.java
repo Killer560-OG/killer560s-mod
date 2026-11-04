@@ -28,6 +28,7 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
     private String capturingFor;
     /** Not a legal layout name (validateName refuses it), so it can never collide with one. */
     private static final String OPEN_MENU = "/open-menu";
+    private static final String DUMP_KEY = "/dump-key";
 
     public InventorySorterTab() {
         super("Inventory Sorter");
@@ -55,7 +56,9 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         }
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
         int code = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode;
-        if (OPEN_MENU.equals(capturingFor)) {
+        if (DUMP_KEY.equals(capturingFor)) {
+            cfg.setDumpKey(code);
+        } else if (OPEN_MENU.equals(capturingFor)) {
             cfg.setOpenMenuKey(code);
         } else {
             cfg.setLayoutKey(capturingFor, code);
@@ -93,6 +96,21 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal(openListening ? "Press any key..."
                         : "Open Menu Key: " + CommandKeybindsTab.bindName(cfg.getOpenMenuKey())), btn -> {
                     capturingFor = OPEN_MENU;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // Dump Into Chest (killer560, 2026-11-04).
+        widgets.add(onOffButton("Dump Button On Chests", cfg::isDumpButton, cfg::setDumpButton, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(onOffButton("Dump Hotbar", cfg::isDumpHotbar, cfg::setDumpHotbar, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 18));
+        y += 22;
+        boolean dumpListening = DUMP_KEY.equals(capturingFor);
+        widgets.add(SettingsButtonWidget.builder(Component.literal(dumpListening ? "Press any key..."
+                        : "Dump Key: " + CommandKeybindsTab.bindName(cfg.getDumpKey())), btn -> {
+                    capturingFor = DUMP_KEY;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
