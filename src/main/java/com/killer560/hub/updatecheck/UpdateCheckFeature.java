@@ -53,14 +53,10 @@ public final class UpdateCheckFeature {
      */
     public static void registerStartupNotice() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            if (noticeShown || !UpdateCheckConfig.getInstance().isNotifyOnStart()) {
-                return;
-            }
+            if (noticeShown || !UpdateCheckConfig.getInstance().isNotifyOnStart()) return;
             noticeShown = true;
             checkForUpdateAsync(result -> {
-                if (result == null || result.error() != null || !result.updateAvailable()) {
-                    return;
-                }
+                if (result == null || result.error() != null || !result.updateAvailable()) return;
                 ModChat.send("Killer560's Mod",
                         ModChat.text("Version "), ModChat.value(result.remoteVersion()),
                         ModChat.text(" is out - you are on "), ModChat.value(result.currentVersion()),
