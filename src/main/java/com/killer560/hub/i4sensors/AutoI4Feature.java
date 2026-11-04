@@ -540,13 +540,8 @@ public final class AutoI4Feature {
         if (wait != null) {
             return false;
         }
-        int found = -1;
-        for (int i = 0; i < 9; i++) {
-            if (isWeapon(player.getInventory().getItem(i), weapon)) {
-                found = i;
-                break;
-            }
-        }
+        int found = java.util.stream.IntStream.range(0, 9).filter(i -> isWeapon(player.getInventory().getItem(i), weapon))
+                .findFirst().orElse(-1);
         if (found < 0) {
             return false;
         }
@@ -798,36 +793,18 @@ public final class AutoI4Feature {
      *  {@link #choosePrediction}'s job, so a re-rolled draw does not count. */
     private static BlockPos predictNext(BlockPos lastLit, Set<BlockPos> exclude) {
         Minecraft client = Minecraft.getInstance();
-        List<BlockPos> valid = new ArrayList<>();
-        for (BlockPos pos : I4SensorsFeature.DEV_BLOCKS) {
-            if (!doneTargets.contains(pos) && !pos.equals(lastLit) && !exclude.contains(pos)
-                    && I4SensorsFeature.blockId(client.level.getBlockState(pos)).equals("blue_terracotta")) {
-                valid.add(pos);
-            }
-        }
+        List<BlockPos> valid = I4SensorsFeature.DEV_BLOCKS.stream()
+                .filter(pos -> !doneTargets.contains(pos) && !pos.equals(lastLit) && !exclude.contains(pos)
+                        && I4SensorsFeature.blockId(client.level.getBlockState(pos)).equals("blue_terracotta"))
+                .toList();
         if (valid.isEmpty()) {
             return null;
         }
         // Least-prefired spots first (continuous prefire cycles through every remaining spot instead of hammering one).
-        int fewest = Integer.MAX_VALUE;
-        for (BlockPos pos : valid) {
-            fewest = Math.min(fewest, predictionCounts.getOrDefault(pos, 0));
-        }
-        List<BlockPos> candidates = new ArrayList<>();
-        for (BlockPos pos : valid) {
-            if (predictionCounts.getOrDefault(pos, 0) == fewest) {
-                candidates.add(pos);
-            }
-        }
-        List<BlockPos> paired = new ArrayList<>();
-        for (BlockPos a : candidates) {
-            for (BlockPos b : candidates) {
-                if (a.getY() == b.getY() && Math.abs(a.getX() - b.getX()) == 2) {
-                    paired.add(a);
-                    break;
-                }
-            }
-        }
+        int fewest = valid.stream().mapToInt(pos -> predictionCounts.getOrDefault(pos, 0)).min().getAsInt();
+        List<BlockPos> candidates = valid.stream().filter(pos -> predictionCounts.getOrDefault(pos, 0) == fewest).toList();
+        List<BlockPos> paired = candidates.stream().filter(a -> candidates.stream()
+                .anyMatch(b -> a.getY() == b.getY() && Math.abs(a.getX() - b.getX()) == 2)).toList();
         List<BlockPos> pool = paired.isEmpty() ? candidates : paired;
         return pool.get((int) (Math.random() * pool.size()));
     }
