@@ -211,7 +211,6 @@ public final class AbilityReadyAlert {
         timerLines = List.of();
     }
 
-    // ---- testkit hooks
 
     public static String popup() {
         return System.currentTimeMillis() < popupUntil ? popupText : null;
@@ -261,10 +260,7 @@ public final class AbilityReadyAlert {
 
         private String shown() {
             String p = popup();
-            if (p == null && HudVisibility.editorOpen()) {
-                return "§a§lPickobulus READY";
-            }
-            return p;
+            return p == null && HudVisibility.editorOpen() ? "§a§lPickobulus READY" : p;
         }
 
         @Override

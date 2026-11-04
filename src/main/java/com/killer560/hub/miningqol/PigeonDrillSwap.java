@@ -213,7 +213,6 @@ public final class PigeonDrillSwap {
         return n == null ? "" : n;
     }
 
-    // ---- testkit hooks
 
     public static void tickForTest(Minecraft client) {
         tick(client);

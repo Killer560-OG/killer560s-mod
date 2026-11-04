@@ -324,7 +324,6 @@ public final class CommissionMobs {
         frames++;
     }
 
-    // ---- testkit hooks
 
     /** Entity ids boxed now. */
     public static List<Integer> targetIds() {

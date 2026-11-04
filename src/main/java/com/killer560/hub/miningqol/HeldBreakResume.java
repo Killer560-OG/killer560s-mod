@@ -92,7 +92,6 @@ public final class HeldBreakResume {
         return trustTrackedForTest || McInput.isStoredButtonDown(client.getWindow(), 0);
     }
 
-    // ---- testkit hooks
 
     public static int resumes() {
         return resumes;

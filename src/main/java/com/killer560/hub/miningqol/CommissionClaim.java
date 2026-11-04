@@ -165,7 +165,6 @@ public final class CommissionClaim {
         lastPulseSlot = slot;
     }
 
-    // ---- testkit hooks
 
     /** Testkit: Emissary spots to use instead of the Mines' real ones (null: the real ones). */
     public static void emissariesForTest(List<BlockPos> spots) {

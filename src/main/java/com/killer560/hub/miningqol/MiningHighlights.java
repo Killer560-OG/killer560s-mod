@@ -455,7 +455,6 @@ public final class MiningHighlights {
         WALL_LINES.drawOutlines(context, WorldRenderUtils.throughWallsLines(), 2f);
     }
 
-    // ---- testkit hooks
 
     public static int carpetCount() {
         return carpets.size();

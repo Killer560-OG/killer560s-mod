@@ -175,7 +175,6 @@ public final class WrongArmorAlert {
         showing = false;
     }
 
-    // ---- testkit hooks ------------------------------------------------------------------------------------------------
 
     public static boolean showing() {
         return showing;

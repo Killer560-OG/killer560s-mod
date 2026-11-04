@@ -555,7 +555,6 @@ public final class CommissionRoute {
         frames++;
     }
 
-    // ---- testkit hooks
 
     /** Graph node ids (SkyHanni's keys) along the current path, in order. */
     public static List<Integer> pathNodeIds() {

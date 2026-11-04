@@ -342,19 +342,13 @@ public final class CommissionProgress {
             return c.progress();
         }
         Track tr = TRACKS.get(c.name());
-        if (tr == null || tr.shown < 0) {
-            return c.progress();
-        }
-        return format(tr.shown);
+        return tr == null || tr.shown < 0 ? c.progress() : format(tr.shown);
     }
 
     /** 42 -> "42%", 40.4 -> "40.4%" (one decimal, as the tab writes it). */
     static String format(double v) {
         double r = Math.floor(v * 10 + 1e-6) / 10;
-        if (Math.abs(r - Math.rint(r)) < 1e-9) {
-            return (long) Math.rint(r) + "%";
-        }
-        return String.format(Locale.ROOT, "%.1f%%", r);
+        return Math.abs(r - Math.rint(r)) < 1e-9 ? (long) Math.rint(r) + "%" : String.format(Locale.ROOT, "%.1f%%", r);
     }
 
     static int version() {
@@ -369,7 +363,6 @@ public final class CommissionProgress {
         version++;
     }
 
-    // ---- testkit hooks
 
     /** Feeds the tab's commission lines ("Upper Mines Mithril: 40%") at {@code now}. */
     public static void tabForTest(List<String> lines, long now) {

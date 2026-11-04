@@ -459,7 +459,6 @@ public final class AttackHoldProbe {
         return true;
     }
 
-    // ---- testkit hooks
     public static int screenLines() {
         return screenLines;
     }

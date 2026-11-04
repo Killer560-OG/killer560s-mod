@@ -290,7 +290,6 @@ public final class MinesAreaMap {
         return out;
     }
 
-    // ---- testkit hooks
 
     /** Uses this SkyHanni-format graph JSON instead of the downloaded one (null: back to the real graph). */
     public static void useGraphJsonForTest(String json) {

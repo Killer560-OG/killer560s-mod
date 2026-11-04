@@ -115,7 +115,6 @@ public final class MiningQolConfig {
 
     private static MiningQolConfig instance;
 
-    // Commission HUD
     private boolean commissionHud = false;
     private boolean commissionColorProgress = true;
     private boolean commissionInterpolate = true;
@@ -332,7 +331,6 @@ public final class MiningQolConfig {
         MithrilStone.settingsChanged();
     }
 
-    // ---- Resume Held Break After Menus
     public boolean isResumeHeldBreak() {
         return resumeHeldBreak && sb();
     }
@@ -349,7 +347,6 @@ public final class MiningQolConfig {
         return SkyblockGate.allows();
     }
 
-    // ---- Commission HUD
     public boolean isCommissionHud() {
         return commissionHud && sb();
     }
@@ -523,7 +520,6 @@ public final class MiningQolConfig {
         commissionMenuHighlight = v;
     }
 
-    // ---- Pickobulus Estimate
     public boolean isPickobulus() {
         return pickobulus && sb();
     }
@@ -544,7 +540,6 @@ public final class MiningQolConfig {
         pickobulusColor = v;
     }
 
-    // ---- Ability Ready Alert
     public boolean isAbilityAlert() {
         return abilityAlert && sb();
     }
@@ -573,7 +568,6 @@ public final class MiningQolConfig {
         abilitySound = v;
     }
 
-    // ---- Wrong Armor Alert
     public boolean isWrongArmor() {
         return wrongArmor && sb();
     }
@@ -594,7 +588,6 @@ public final class MiningQolConfig {
         wrongArmorSound = v;
     }
 
-    // ---- Carpet Highlighter
     public boolean isCarpet() {
         return carpet && sb();
     }
@@ -607,7 +600,6 @@ public final class MiningQolConfig {
         carpet = v;
     }
 
-    // ---- Mithril As Stone
     public boolean isMithrilStone() {
         return mithrilStone && sb();
     }
@@ -620,7 +612,6 @@ public final class MiningQolConfig {
         mithrilStone = v;
     }
 
-    // ---- Titanium Highlight
     public boolean isTitanium() {
         return titanium && sb();
     }
@@ -680,7 +671,6 @@ public final class MiningQolConfig {
         titaniumExposedOnly = v;
     }
 
-    // ---- Raffle Ticket Highlight
     public boolean isRaffle() {
         return raffle && sb();
     }

@@ -298,7 +298,6 @@ public final class PowderGhast {
         return null;
     }
 
-    // ---- testkit hooks
 
     public static int alerts() {
         return alerts;
@@ -360,10 +359,7 @@ public final class PowderGhast {
 
         private String shown() {
             String s = hudLine();
-            if (s == null && HudVisibility.editorOpen()) {
-                return SAMPLE;
-            }
-            return s;
+            return s == null && HudVisibility.editorOpen() ? SAMPLE : s;
         }
 
         @Override

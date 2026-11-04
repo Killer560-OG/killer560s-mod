@@ -248,7 +248,6 @@ public final class PickobulusEstimate {
         frames++;
     }
 
-    // ---- testkit hooks
 
     public static int count() {
         return breaks.size();

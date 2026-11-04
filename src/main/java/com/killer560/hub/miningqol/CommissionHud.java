@@ -171,7 +171,6 @@ public final class CommissionHud {
         return List.copyOf(out);
     }
 
-    // ---- world labels
 
     static void render(LevelRenderContext context) {
         List<Spot> snap = waypoints;
@@ -216,7 +215,6 @@ public final class CommissionHud {
         return Component.literal(name).append(Component.literal(" (" + meters + "m)").withStyle(ChatFormatting.GRAY));
     }
 
-    // ---- testkit hooks
 
     public static List<String> lines() {
         return hudLines;
