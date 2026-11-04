@@ -730,14 +730,10 @@ public final class ScoreCalculatorFeature {
 
 
     /** Latest estimate for the current run, or null before the first poll / outside a tracked run. */
-    public static ScoreCalculator.Result currentResult() {
-        return DungeonState.isInDungeon() ? lastResult : null;
-    }
+    public static ScoreCalculator.Result currentResult() { return DungeonState.isInDungeon() ? lastResult : null; }
 
     /** The inputs behind {@link #currentResult()}, or null. */
-    public static ScoreCalculator.Inputs currentInputs() {
-        return DungeonState.isInDungeon() ? lastInputs : null;
-    }
+    public static ScoreCalculator.Inputs currentInputs() { return DungeonState.isInDungeon() ? lastInputs : null; }
 
     /**
      * A puzzle room's state from the tab list - '✔' done, '✖' failed, '✦' open - or 0 when the tab list does not name
@@ -760,17 +756,11 @@ public final class ScoreCalculatorFeature {
     // The map never re-derives mimic/prince/bat state or the score formula itself - it only reads what this
     // class already tracks, exactly like this class's own HUD (buildLines above) does.
 
-    public static boolean isMimicKilled() {
-        return DungeonState.isInDungeon() && mimicKilled;
-    }
+    public static boolean isMimicKilled() { return DungeonState.isInDungeon() && mimicKilled; }
 
-    public static boolean isPrinceKilled() {
-        return DungeonState.isInDungeon() && princeKilled;
-    }
+    public static boolean isPrinceKilled() { return DungeonState.isInDungeon() && princeKilled; }
 
-    public static boolean isBatKilled() {
-        return DungeonState.isInDungeon() && !batKillers.isEmpty();
-    }
+    public static boolean isBatKilled() { return DungeonState.isInDungeon() && !batKillers.isEmpty(); }
 
     /** The Murkbat bonus this run counts: one per player known to have had it, at most
      *  {@link ScoreCalculator#BAT_BONUS_CAP}. */
@@ -778,9 +768,7 @@ public final class ScoreCalculatorFeature {
         return DungeonState.isInDungeon() ? Math.min(ScoreCalculator.BAT_BONUS_CAP, batKillers.size()) : 0;
     }
 
-    public static int getCrypts() {
-        return DungeonState.isInDungeon() ? crypts : 0;
-    }
+    public static int getCrypts() { return DungeonState.isInDungeon() ? crypts : 0; }
 
     /**
      * Same "S+ Secrets" readout {@link #buildLines} shows on this feature's own HUD, exposed for the Dungeon
@@ -849,9 +837,7 @@ public final class ScoreCalculatorFeature {
     }
 
     /** A bonus letter, green when it is done and red when not (NoammAddons' M | P | B). */
-    private static String mark(String letter, boolean done) {
-        return (done ? "§a" : "§c") + letter;
-    }
+    private static String mark(String letter, boolean done) { return (done ? "§a" : "§c") + letter; }
 
     private static int parseInt(String s, int def) {
         if (s == null) {
@@ -1064,9 +1050,7 @@ public final class ScoreCalculatorFeature {
         return lines;
     }
 
-    private static boolean inEditor() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
-    }
+    private static boolean inEditor() { return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen; }
 
     public static final class ScoreHudElement implements HudElement {
 
@@ -1076,19 +1060,13 @@ public final class ScoreCalculatorFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Score Calculator";
-        }
+        public String displayName() { return "Score Calculator"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {

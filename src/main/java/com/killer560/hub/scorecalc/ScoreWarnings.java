@@ -136,24 +136,16 @@ public final class ScoreWarnings {
     }
 
     /** Testkit: the portal tint now (0 = none) and how many portal blocks it covers. */
-    public static int portalColor() {
-        return portalColor;
-    }
+    public static int portalColor() { return portalColor; }
 
     private static volatile int portalScore = -1;
 
     /** Testkit: the score the portal color was picked from. */
-    public static int portalScore() {
-        return portalScore;
-    }
+    public static int portalScore() { return portalScore; }
 
-    public static int portalBlockCount() {
-        return portalBlocks.size();
-    }
+    public static int portalBlockCount() { return portalBlocks.size(); }
 
-    public static int portalFrames() {
-        return portalFrames;
-    }
+    public static int portalFrames() { return portalFrames; }
 
     static void onWatcherDone(int runTicks) {
         if (watcherDoneTick < 0) {
@@ -265,12 +257,8 @@ public final class ScoreWarnings {
     }
 
     /** For the testkit: warnings shown since the client started. */
-    public static int warningsShown() {
-        return warningsShown;
-    }
+    public static int warningsShown() { return warningsShown; }
 
     /** For the testkit: the last warning's title and subtitle. */
-    public static String lastWarning() {
-        return lastWarning;
-    }
+    public static String lastWarning() { return lastWarning; }
 }

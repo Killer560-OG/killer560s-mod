@@ -38,13 +38,9 @@ public final class ScoreCalculatorConfig {
             this.label = label;
         }
 
-        public PaulMode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public PaulMode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public PaulMode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public PaulMode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     private static ScoreCalculatorConfig instance;
@@ -285,46 +281,26 @@ public final class ScoreCalculatorConfig {
     }
 
 
-    public boolean isEnabled() {
-        return enabled && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
 
-    public boolean isShowBreakdown() {
-        return showBreakdown;
-    }
+    public boolean isShowBreakdown() { return showBreakdown; }
 
-    public void setShowBreakdown(boolean v) {
-        showBreakdown = v;
-    }
+    public void setShowBreakdown(boolean v) { showBreakdown = v; }
 
-    public boolean isShowSecretsNeeded() {
-        return showSecretsNeeded;
-    }
+    public boolean isShowSecretsNeeded() { return showSecretsNeeded; }
 
-    public void setShowSecretsNeeded(boolean v) {
-        showSecretsNeeded = v;
-    }
+    public void setShowSecretsNeeded(boolean v) { showSecretsNeeded = v; }
 
-    public boolean isShowCrypts() {
-        return showCrypts;
-    }
+    public boolean isShowCrypts() { return showCrypts; }
 
-    public void setShowCrypts(boolean v) {
-        showCrypts = v;
-    }
+    public void setShowCrypts(boolean v) { showCrypts = v; }
 
-    public boolean isShowDeaths() {
-        return showDeaths;
-    }
+    public boolean isShowDeaths() { return showDeaths; }
 
-    public void setShowDeaths(boolean v) {
-        showDeaths = v;
-    }
+    public void setShowDeaths(boolean v) { showDeaths = v; }
 
     public int getLabelColor() { return labelColor; }
     public void setLabelColor(int rgb) { labelColor = rgb & 0xFFFFFF; }
@@ -338,245 +314,129 @@ public final class ScoreCalculatorConfig {
     public void setBadColor(int rgb) { badColor = rgb & 0xFFFFFF; }
 
     /** One number that changes when any HUD color does (the HUD's line cache compares it). */
-    public int colorsKey() {
-        return java.util.Objects.hash(labelColor, subLabelColor, valueColor, goodColor, badColor);
-    }
+    public int colorsKey() { return java.util.Objects.hash(labelColor, subLabelColor, valueColor, goodColor, badColor); }
 
-    public boolean isShowMimicPrince() {
-        return showMimicPrince;
-    }
+    public boolean isShowMimicPrince() { return showMimicPrince; }
 
-    public void setShowMimicPrince(boolean v) {
-        showMimicPrince = v;
-    }
+    public void setShowMimicPrince(boolean v) { showMimicPrince = v; }
 
-    public boolean isTextShadow() {
-        return textShadow;
-    }
+    public boolean isTextShadow() { return textShadow; }
 
-    public void setTextShadow(boolean v) {
-        textShadow = v;
-    }
+    public void setTextShadow(boolean v) { textShadow = v; }
 
 
-    public PaulMode getPaulMode() {
-        return paulMode;
-    }
+    public PaulMode getPaulMode() { return paulMode; }
 
-    public void setPaulMode(PaulMode v) {
-        paulMode = v == null ? PaulMode.AUTO : v;
-    }
+    public void setPaulMode(PaulMode v) { paulMode = v == null ? PaulMode.AUTO : v; }
 
-    public boolean isAssumeSpiritPet() {
-        return assumeSpiritPet;
-    }
+    public boolean isAssumeSpiritPet() { return assumeSpiritPet; }
 
-    public void setAssumeSpiritPet(boolean v) {
-        assumeSpiritPet = v;
-    }
+    public void setAssumeSpiritPet(boolean v) { assumeSpiritPet = v; }
 
     // ---- alerts (action toggles are gated like the master) ----
 
-    public boolean isTitle270() {
-        return title270 && SkyblockGate.allows();
-    }
+    public boolean isTitle270() { return title270 && SkyblockGate.allows(); }
 
-    public void setTitle270(boolean v) {
-        title270 = v;
-    }
+    public void setTitle270(boolean v) { title270 = v; }
 
-    public String getTitle270Text() {
-        return title270Text;
-    }
+    public String getTitle270Text() { return title270Text; }
 
-    public void setTitle270Text(String v) {
-        title270Text = v == null ? "" : v;
-    }
+    public void setTitle270Text(String v) { title270Text = v == null ? "" : v; }
 
-    public boolean isParty270() {
-        return party270 && SkyblockGate.allows();
-    }
+    public boolean isParty270() { return party270 && SkyblockGate.allows(); }
 
-    public void setParty270(boolean v) {
-        party270 = v;
-    }
+    public void setParty270(boolean v) { party270 = v; }
 
-    public String getParty270Message() {
-        return party270Message;
-    }
+    public String getParty270Message() { return party270Message; }
 
-    public void setParty270Message(String v) {
-        party270Message = v == null ? "" : v;
-    }
+    public void setParty270Message(String v) { party270Message = v == null ? "" : v; }
 
-    public boolean isTitle300() {
-        return title300 && SkyblockGate.allows();
-    }
+    public boolean isTitle300() { return title300 && SkyblockGate.allows(); }
 
-    public void setTitle300(boolean v) {
-        title300 = v;
-    }
+    public void setTitle300(boolean v) { title300 = v; }
 
-    public String getTitle300Text() {
-        return title300Text;
-    }
+    public String getTitle300Text() { return title300Text; }
 
-    public void setTitle300Text(String v) {
-        title300Text = v == null ? "" : v;
-    }
+    public void setTitle300Text(String v) { title300Text = v == null ? "" : v; }
 
-    public boolean isParty300() {
-        return party300 && SkyblockGate.allows();
-    }
+    public boolean isParty300() { return party300 && SkyblockGate.allows(); }
 
-    public void setParty300(boolean v) {
-        party300 = v;
-    }
+    public void setParty300(boolean v) { party300 = v; }
 
-    public String getParty300Message() {
-        return party300Message;
-    }
+    public String getParty300Message() { return party300Message; }
 
-    public void setParty300Message(String v) {
-        party300Message = v == null ? "" : v;
-    }
+    public void setParty300Message(String v) { party300Message = v == null ? "" : v; }
 
-    public boolean isChatNote() {
-        return chatNote && SkyblockGate.allows();
-    }
+    public boolean isChatNote() { return chatNote && SkyblockGate.allows(); }
 
-    public void setChatNote(boolean v) {
-        chatNote = v;
-    }
+    public void setChatNote(boolean v) { chatNote = v; }
 
-    public boolean isPreBossMageOnly() {
-        return preBossMageOnly;
-    }
+    public boolean isPreBossMageOnly() { return preBossMageOnly; }
 
-    public void setPreBossMageOnly(boolean v) {
-        preBossMageOnly = v;
-    }
+    public void setPreBossMageOnly(boolean v) { preBossMageOnly = v; }
 
-    public boolean isPreBossPermanent() {
-        return preBossPermanent;
-    }
+    public boolean isPreBossPermanent() { return preBossPermanent; }
 
-    public void setPreBossPermanent(boolean v) {
-        preBossPermanent = v;
-    }
+    public void setPreBossPermanent(boolean v) { preBossPermanent = v; }
 
-    public boolean isPreBossListMissing() {
-        return preBossListMissing;
-    }
+    public boolean isPreBossListMissing() { return preBossListMissing; }
 
-    public void setPreBossListMissing(boolean v) {
-        preBossListMissing = v;
-    }
+    public void setPreBossListMissing(boolean v) { preBossListMissing = v; }
 
-    public boolean isPreBossPortalColor() {
-        return preBossPortalColor;
-    }
+    public boolean isPreBossPortalColor() { return preBossPortalColor; }
 
-    public void setPreBossPortalColor(boolean v) {
-        preBossPortalColor = v;
-    }
+    public void setPreBossPortalColor(boolean v) { preBossPortalColor = v; }
 
-    public boolean isPreBossWarning() {
-        return preBossWarning;
-    }
+    public boolean isPreBossWarning() { return preBossWarning; }
 
-    public void setPreBossWarning(boolean v) {
-        preBossWarning = v;
-    }
+    public void setPreBossWarning(boolean v) { preBossWarning = v; }
 
-    public boolean isCryptReminder() {
-        return cryptReminder;
-    }
+    public boolean isCryptReminder() { return cryptReminder; }
 
-    public void setCryptReminder(boolean v) {
-        cryptReminder = v;
-    }
+    public void setCryptReminder(boolean v) { cryptReminder = v; }
 
-    public int getCryptReminderSeconds() {
-        return cryptReminderSeconds;
-    }
+    public int getCryptReminderSeconds() { return cryptReminderSeconds; }
 
     public void setCryptReminderSeconds(int v) {
         int stepped = Math.round(v / (float) CRYPT_REMINDER_STEP) * CRYPT_REMINDER_STEP;
         cryptReminderSeconds = Math.max(MIN_CRYPT_REMINDER_SECONDS, Math.min(MAX_CRYPT_REMINDER_SECONDS, stepped));
     }
 
-    public boolean isCryptReminderParty() {
-        return cryptReminderParty;
-    }
+    public boolean isCryptReminderParty() { return cryptReminderParty; }
 
-    public void setCryptReminderParty(boolean v) {
-        cryptReminderParty = v;
-    }
+    public void setCryptReminderParty(boolean v) { cryptReminderParty = v; }
 
-    public boolean isScoreWarningSound() {
-        return scoreWarningSound;
-    }
+    public boolean isScoreWarningSound() { return scoreWarningSound; }
 
-    public void setScoreWarningSound(boolean v) {
-        scoreWarningSound = v;
-    }
+    public void setScoreWarningSound(boolean v) { scoreWarningSound = v; }
 
-    public boolean isAlertSound() {
-        return alertSound;
-    }
+    public boolean isAlertSound() { return alertSound; }
 
-    public void setAlertSound(boolean v) {
-        alertSound = v;
-    }
+    public void setAlertSound(boolean v) { alertSound = v; }
 
     // ---- bonus-kill party alerts (moved from DungeonInfoConfig 2026-09-21) ----
 
-    public boolean isMimicAlertEnabled() {
-        return mimicAlertEnabled && SkyblockGate.allows();
-    }
+    public boolean isMimicAlertEnabled() { return mimicAlertEnabled && SkyblockGate.allows(); }
 
-    public void setMimicAlertEnabled(boolean v) {
-        mimicAlertEnabled = v;
-    }
+    public void setMimicAlertEnabled(boolean v) { mimicAlertEnabled = v; }
 
-    public String getMimicAlertMessage() {
-        return mimicAlertMessage;
-    }
+    public String getMimicAlertMessage() { return mimicAlertMessage; }
 
-    public void setMimicAlertMessage(String v) {
-        mimicAlertMessage = v == null ? "" : v;
-    }
+    public void setMimicAlertMessage(String v) { mimicAlertMessage = v == null ? "" : v; }
 
-    public boolean isPrinceAlertEnabled() {
-        return princeAlertEnabled && SkyblockGate.allows();
-    }
+    public boolean isPrinceAlertEnabled() { return princeAlertEnabled && SkyblockGate.allows(); }
 
-    public void setPrinceAlertEnabled(boolean v) {
-        princeAlertEnabled = v;
-    }
+    public void setPrinceAlertEnabled(boolean v) { princeAlertEnabled = v; }
 
-    public String getPrinceAlertMessage() {
-        return princeAlertMessage;
-    }
+    public String getPrinceAlertMessage() { return princeAlertMessage; }
 
-    public void setPrinceAlertMessage(String v) {
-        princeAlertMessage = v == null ? "" : v;
-    }
+    public void setPrinceAlertMessage(String v) { princeAlertMessage = v == null ? "" : v; }
 
-    public boolean isBatAlertEnabled() {
-        return batAlertEnabled && SkyblockGate.allows();
-    }
+    public boolean isBatAlertEnabled() { return batAlertEnabled && SkyblockGate.allows(); }
 
-    public void setBatAlertEnabled(boolean v) {
-        batAlertEnabled = v;
-    }
+    public void setBatAlertEnabled(boolean v) { batAlertEnabled = v; }
 
-    public String getBatAlertMessage() {
-        return batAlertMessage;
-    }
+    public String getBatAlertMessage() { return batAlertMessage; }
 
-    public void setBatAlertMessage(String v) {
-        batAlertMessage = v == null ? "" : v;
-    }
+    public void setBatAlertMessage(String v) { batAlertMessage = v == null ? "" : v; }
 }

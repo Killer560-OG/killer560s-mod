@@ -58,9 +58,7 @@ public final class ScoreCalculator {
                     batKilled ? 1 : 0, paul, assumeSpiritPet);
         }
 
-        public boolean batKilled() {
-            return batBonus > 0;
-        }
+        public boolean batKilled() { return batBonus > 0; }
     }
 
     /**
@@ -246,7 +244,5 @@ public final class ScoreCalculator {
         return (int) Math.ceil(totalSecrets * requiredSecretFraction(floor) * Math.max(0, requiredSecretScore) / 40.0);
     }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
-    }
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 }
