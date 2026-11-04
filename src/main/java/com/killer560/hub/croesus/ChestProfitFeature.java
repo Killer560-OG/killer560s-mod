@@ -242,10 +242,7 @@ public final class ChestProfitFeature {
             return null;
         }
         Integer n = DungeonChestValuer.roman(m.group(2));
-        if (n == null) {
-            return lastKnownRunFloor;
-        }
-        return (m.group(1) != null ? "M" : "F") + n;
+        return n == null ? lastKnownRunFloor : (m.group(1) != null ? "M" : "F") + n;
     }
 
     /** Floor from a Croesus menu run head: name "Master Mode The Catacombs" -> M, lore "Floor VII" (quoi). */
@@ -321,10 +318,7 @@ public final class ChestProfitFeature {
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
             try {
                 // A hidden run takes no hotbar swap or drop either (each is a real click on it); Escape still closes.
-                if (!AutoCroesusFeature.isBusy()) {
-                    return true;
-                }
-                return event.key() == InputConstants.KEY_ESCAPE;
+                return !AutoCroesusFeature.isBusy() || event.key() == InputConstants.KEY_ESCAPE;
             } catch (Exception e) {
                 LOGGER.error("[Croesus] Key hook failed", e);
                 return true;
@@ -986,10 +980,7 @@ public final class ChestProfitFeature {
         int r = (rgb >> 16) & 255;
         int g = (rgb >> 8) & 255;
         int b = rgb & 255;
-        if (r + g + b > 3 * 90) {
-            return rgb;
-        }
-        return ((r + 96) << 16) | ((g + 96) << 8) | (b + 96);
+        return r + g + b > 3 * 90 ? rgb : ((r + 96) << 16) | ((g + 96) << 8) | (b + 96);
     }
 
     // titleOf() and the Croesus title regex for the screen drawn last frame. A Screen's title is a final field and a
@@ -1178,10 +1169,7 @@ public final class ChestProfitFeature {
         if (rgb == ModChat.TEXT) {
             return menu.text();
         }
-        if (rgb == ModChat.DIM) {
-            return menu.dim();
-        }
-        return argb;
+        return rgb == ModChat.DIM ? menu.dim() : argb;
     }
 
     private static void drawLines(GuiGraphicsExtractor graphics, int x, int y, List<Line> lines) {

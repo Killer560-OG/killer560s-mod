@@ -103,10 +103,7 @@ public final class CroesusExtras {
 
     private static String skyblockId(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
-        return data.copyTag().getStringOr("id", null);
+        return data == null ? null : data.copyTag().getStringOr("id", null);
     }
 
     private static void readTab(Minecraft client, CroesusConfig cfg) {
