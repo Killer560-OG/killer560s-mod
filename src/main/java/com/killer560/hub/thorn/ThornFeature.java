@@ -57,7 +57,7 @@ public final class ThornFeature {
         // Anchored server-format "[BOSS] Thorn: " prefix, so this mod's own client messages can't match.
         ChatObserver.subscribe(ThornFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ThornFeature.tick", ThornFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
             if (!SkyblockGate.allows()) {
                 return;
             }

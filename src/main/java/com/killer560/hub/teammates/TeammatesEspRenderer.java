@@ -34,29 +34,19 @@ final class TeammatesEspRenderer {
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_teammates_esp_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/teammates_esp_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_teammates_esp_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/teammates_esp_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     /** The line type an outline uses: the no-depth copy through walls, vanilla's depth-tested one otherwise. */
     static RenderType lineType(boolean throughWalls) {
-        return throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT;
+        return throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES;
     }
 
     /** The fill type for the batched fill call. */
     static RenderType fillType(boolean throughWalls) {
-        return throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox();
+        return throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED;
     }
 
     /** The color's alpha as the box batch reads it (0 means opaque). */

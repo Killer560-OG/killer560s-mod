@@ -94,7 +94,7 @@ public final class HoppityEggs {
         java.util.Arrays.fill(eggStatus, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
         LocatorGuessRenderer.register();
-        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> {
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS.register(ctx -> {
             try {
                 net.minecraft.world.phys.Vec3 g = on() ? LocatorTrail.guess(System.currentTimeMillis()) : null;
                 if (g != null) {

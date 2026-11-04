@@ -141,7 +141,7 @@ final class SquareTrail {
             BATCH.add(x - half, y, z - half, x + half, y + SQUARE_THICKNESS, z + half, rgb[0], rgb[1], rgb[2], alpha);
             drawn++;
         }
-        BATCH.drawFilled(context, net.minecraft.client.renderer.rendertype.RenderTypes.debugFilledBox());
+        BATCH.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
         return drawn;
     }
 

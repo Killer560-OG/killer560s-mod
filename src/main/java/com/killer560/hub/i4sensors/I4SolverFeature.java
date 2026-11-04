@@ -73,7 +73,7 @@ public final class I4SolverFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("I4SolverFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(I4SolverFeature::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(I4SolverFeature::render);
     }
 
     private static String gate(Minecraft client) {

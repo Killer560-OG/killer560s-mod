@@ -300,7 +300,8 @@ public final class InventoryLayoutStore {
         if (dump != null && !DUMP_PAGE.matcher(dump).matches()) {
             dump = null;
         }
-        return new InventoryLayout(name, slots, icons, exact, free, fetch, dump);
+        int loadout = ConfigJson.getInt(root, "loadout", 0);
+        return new InventoryLayout(name, slots, icons, exact, free, fetch, dump, loadout);
     }
 
     /** {@code enderchest_1}-{@code enderchest_9} or {@code backpack_1}-{@code backpack_18}. */
@@ -340,6 +341,9 @@ public final class InventoryLayoutStore {
         root.addProperty("fetchFromStorage", layout.fetchFromStorage());
         if (layout.dumpPage() != null) {
             root.addProperty("dumpPage", layout.dumpPage());
+        }
+        if (layout.loadout() > 0) {
+            root.addProperty("loadout", layout.loadout());
         }
         return root;
     }

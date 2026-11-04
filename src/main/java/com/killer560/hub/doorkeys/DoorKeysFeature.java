@@ -60,7 +60,7 @@ public final class DoorKeysFeature {
     public static void register() {
         DungeonKeys.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DoorKeysFeature.tick", com.killer560.hub.util.FeatureBits.register("Door Keys tick", () -> DoorKeysConfig.getInstance().isEnabledRaw()), DoorKeysFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Door Keys render", () -> DoorKeysConfig.getInstance().isEnabledRaw()), DoorKeysFeature::onWorldRender));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Register the no-depth pipeline during client init, before the renderer precompiles its list -
@@ -74,12 +74,7 @@ public final class DoorKeysFeature {
      *  mod's own {@code mobesp.EspRenderer} use; its copy is package-private there, hence this one. Holder
      *  idiom: built on the first touch, which {@link #register()} does at client init. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_doorkeys_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/doorkeys_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
     }
 
     private static void tick(Minecraft client) {

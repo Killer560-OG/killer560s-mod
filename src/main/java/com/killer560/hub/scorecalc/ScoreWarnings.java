@@ -55,7 +55,6 @@ public final class ScoreWarnings {
     static final int PORTAL_GREEN = 0xFF30FF30;
     private static volatile int portalColor = 0;
     private static volatile java.util.List<net.minecraft.core.BlockPos> portalBlocks = java.util.List.of();
-    private static final com.killer560.hub.util.BoxBatch PORTAL_FILL = new com.killer560.hub.util.BoxBatch();
     private static int portalFrames = 0;
 
     public static int portalColorFor(int score) {
@@ -96,13 +95,43 @@ public final class ScoreWarnings {
             return;
         }
         float[] k = com.killer560.hub.util.WorldRenderUtils.argbToFloats(color);
-        PORTAL_FILL.clear();
-        double e = 0.002;
-        for (net.minecraft.core.BlockPos b : blocks) {
-            PORTAL_FILL.add(b.getX() - e, b.getY() - e, b.getZ() - e, b.getX() + 1 + e, b.getY() + 1 + e, b.getZ() + 1 + e,
-                    k[0], k[1], k[2], 0.55f);
+        // One flat pane per connected portal, not a box per block (killer560, 2026-11-03: "dont have those block things in
+        // between ... it should be one static color throughout"): the inner faces of per-block boxes drew as lines.
+        java.util.Set<net.minecraft.core.BlockPos> left = new java.util.HashSet<>(blocks);
+        while (!left.isEmpty()) {
+            net.minecraft.core.BlockPos seed = left.iterator().next();
+            java.util.ArrayDeque<net.minecraft.core.BlockPos> q = new java.util.ArrayDeque<>();
+            q.add(seed);
+            left.remove(seed);
+            int x0 = seed.getX(), y0 = seed.getY(), z0 = seed.getZ(), x1 = x0, y1 = y0, z1 = z0;
+            while (!q.isEmpty()) {
+                net.minecraft.core.BlockPos p = q.poll();
+                x0 = Math.min(x0, p.getX()); y0 = Math.min(y0, p.getY()); z0 = Math.min(z0, p.getZ());
+                x1 = Math.max(x1, p.getX()); y1 = Math.max(y1, p.getY()); z1 = Math.max(z1, p.getZ());
+                for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                    net.minecraft.core.BlockPos n = p.relative(d);
+                    if (left.remove(n)) {
+                        q.add(n);
+                    }
+                }
+            }
+            // The portal's thin axis: the one it spans a single block on (its pane sits in the block's middle).
+            boolean thinX = x0 == x1 && z1 > z0;
+            // A hair OUTSIDE the portal's own faces (0.375 / 0.625): exactly on them the portal texture z-fought the pane
+            // (owner 2026-11-03: half the portal tinted, split on a diagonal).
+            // Only the slab's two big faces are drawn, not its four rim faces: those lay exactly on the obsidian frame's inner
+            // faces and z-fought them, so the edges changed with the view angle (owner 2026-11-03 23:13, "on the very edges it
+            // changes a lot if I change how I am looking"; testkit 1103-preboss-portal-pixels' rim check). The faces run to the
+            // frame: a face edge meeting a frame face at a right angle cannot z-fight, and an inset showed as an obsidian sliver
+            // at grazing angles.
+            double m = 0.03;
+            net.minecraft.world.phys.AABB slab = thinX
+                    ? new net.minecraft.world.phys.AABB(x0 + 0.375 - m, y0, z0, x0 + 0.625 + m, y1 + 1, z1 + 1)
+                    : new net.minecraft.world.phys.AABB(x0, y0, z0 + 0.375 - m, x1 + 1, y1 + 1, z0 + 0.625 + m);
+            net.minecraft.core.Direction a = thinX ? net.minecraft.core.Direction.WEST : net.minecraft.core.Direction.NORTH;
+            com.killer560.hub.util.WorldRenderUtils.renderFilledFace(context, slab, a, k[0], k[1], k[2], 0.55f);
+            com.killer560.hub.util.WorldRenderUtils.renderFilledFace(context, slab, a.getOpposite(), k[0], k[1], k[2], 0.55f);
         }
-        PORTAL_FILL.drawFilled(context, net.minecraft.client.renderer.rendertype.RenderTypes.debugFilledBox());
         portalFrames++;
     }
 

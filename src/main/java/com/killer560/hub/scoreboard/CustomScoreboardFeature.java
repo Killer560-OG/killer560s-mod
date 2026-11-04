@@ -102,9 +102,15 @@ public final class CustomScoreboardFeature {
             ScoreboardBlur.register();
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("CustomScoreboardFeature.tick", CustomScoreboardFeature::tick));
+        // Ungated (bazaar/BazaarHud): the Bazaar gate would hide the board, but the Bazaar draws it itself, over its
+        // backdrop (drawOverBazaar); so this layer draws nothing while the Bazaar is on screen (no double draw).
+        com.killer560.hub.bazaar.BazaarHud.Ungated layer = (graphics, deltaTracker) -> {
+            if (!com.killer560.hub.bazaar.BazaarHud.bazaarOnScreen()) {
+                drawInGame(graphics, false);
+            }
+        };
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
-                Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"),
-                (graphics, deltaTracker) -> drawInGame(graphics));
+                Identifier.fromNamespaceAndPath("killer560smod", "custom_scoreboard"), layer);
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
             if (screen instanceof ChatScreen) {
                 ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
@@ -484,28 +490,85 @@ public final class CustomScoreboardFeature {
 
     // ---- rendering ----
 
-    private static void drawInGame(GuiGraphicsExtractor graphics) {
+    /**
+     * The board (or, with Custom Scoreboard off, vanilla's sidebar) drawn by the Bazaar screen right after its backdrop
+     * (bzscore-1104, killer560: "dont hide my scoreboard in the /bz menu"). Hide In Menus does not apply here.
+     * @return the box it took on screen {x, y, w, h} in GUI pixels, or null when nothing was drawn
+     */
+    public static int[] drawOverBazaar(GuiGraphicsExtractor graphics) {
+        Minecraft client = Minecraft.getInstance();
+        int[] box = drawInGame(graphics, true);
+        if (box != null) {
+            return box;
+        }
+        if (isActive() || minimalActive() || client.player == null || client.level == null || McCompat.hudHidden(client)
+                || !SkyblockGate.allows() || shouldHideVanilla()) {
+            return null;
+        }
+        return vanillaSidebarOverBazaar(client, graphics);
+    }
+
+    /** Vanilla's own sidebar (through {@code Hud#displayScoreboardSidebar}) for a Bazaar frame with no custom board. */
+    private static int[] vanillaSidebarOverBazaar(Minecraft client, GuiGraphicsExtractor graphics) {
+        net.minecraft.world.scores.Objective objective = ScoreboardData.sidebarObjective(client);
+        Object hud = client.gui.hud;
+        if (objective == null || !(hud instanceof VanillaSidebar sidebar)) {
+            return null;
+        }
+        List<String> lines = ScoreboardData.sidebarNow(client);
+        Font font = client.font;
+        int w = font.width(ScoreboardData.objectiveTitle());
+        for (String l : lines) {
+            w = Math.max(w, font.width(l));
+        }
+        int boxW = w + 4;
+        int boxH = (lines.size() + 1) * font.lineHeight + 2;
+        int sw = client.getWindow().getGuiScaledWidth();
+        int sh = client.getWindow().getGuiScaledHeight();
+        try {
+            sidebar.killer560smod$drawSidebar(graphics, objective);
+        } catch (RuntimeException | LinkageError e) {
+            return null;
+        }
+        vanillaOverBazaarFrames++;
+        // Vanilla keeps it 3 pixels off the right edge, centered vertically (a slightly generous box is fine).
+        return new int[]{sw - 3 - boxW, Math.max(0, sh / 2 - boxH / 2 - 2), boxW, boxH};
+    }
+
+    /** Implemented by {@code CustomScoreboardGuiMixin}: calls the private {@code displayScoreboardSidebar}. */
+    public interface VanillaSidebar {
+        void killer560smod$drawSidebar(GuiGraphicsExtractor graphics, net.minecraft.world.scores.Objective objective);
+    }
+
+    private static long vanillaOverBazaarFrames = 0L;
+
+    /** Frames the Bazaar screen drew vanilla's sidebar (testkit). */
+    public static long vanillaOverBazaarFrames() {
+        return vanillaOverBazaarFrames;
+    }
+
+    private static int[] drawInGame(GuiGraphicsExtractor graphics, boolean bazaar) {
         Minecraft client = Minecraft.getInstance();
         lastLayout = null;
         if (!(isActive() || minimalActive()) || client.player == null || McCompat.hudHidden(client)
                 || McCompat.screen(client) instanceof HudEditorScreen) {
-            return;
+            return null;
         }
         List<ScoreboardLine> lines = current;
         if (lines.isEmpty()) {
-            return;
+            return null;
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         if (cfg.isHideWhenTab() && client.options.keyPlayerList.isDown()) {
-            return;
+            return null;
         }
         boolean chatOpen = McCompat.screen(client) instanceof ChatScreen;
         if (cfg.isHideWhenChat() && chatOpen) {
-            return;
+            return null;
         }
         // Chat is not a menu: with it open the board stays up, unless "Hide With Chat Open" is on.
-        if (cfg.isHideInMenus() && McCompat.screen(client) != null && !chatOpen) {
-            return;
+        if (!bazaar && cfg.isHideInMenus() && McCompat.screen(client) != null && !chatOpen) {
+            return null;
         }
         Font font = client.font;
         int[] pos;
@@ -516,7 +579,7 @@ public final class CustomScoreboardFeature {
             pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(Element.INSTANCE);
             scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
         } catch (RuntimeException e) {
-            return;
+            return null;
         }
         // The anchored wall sits on a whole GUI pixel whatever the board's width (anchorShift).
         float drawX = pos[0] + anchorShift(font, lines, cfg, scale);
@@ -538,8 +601,10 @@ public final class CustomScoreboardFeature {
         } finally {
             graphics.pose().popMatrix();
         }
+        int[] drawnBox = new int[]{Math.round(drawX), pos[1],
+                Math.max(1, Math.round(Element.INSTANCE.width() * scale)), Math.max(1, Math.round(Element.INSTANCE.height() * scale))};
         if (!chatOpen) {
-            return; // hover and click only exist while chat is open; nothing to lay out for them
+            return drawnBox; // hover and click only exist while chat is open; nothing to lay out for them
         }
         int inset = borderSize(cfg) + cfg.getPadding();
         // The text block, where drawBoard puts it: against the anchored side of the box (blockOffset).
@@ -553,6 +618,7 @@ public final class CustomScoreboardFeature {
                 // tooltip is cosmetic
             }
         }
+        return drawnBox;
     }
 
     /** How many frames drew the real board in game (testkit). */

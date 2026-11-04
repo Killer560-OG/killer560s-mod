@@ -44,6 +44,12 @@ public final class InventoryLayout {
     /** Storage mode's dump page ({@code enderchest_3}, {@code backpack_5}): items in the inventory that the layout does
      *  not use are shift-clicked into it first. Null for none. */
     private final String dumpPage;
+    /** The Hypixel loadout (1..{@link #MAX_LOADOUT}, the slot in /loadouts' first page) applying the layout selects first,
+     *  or 0 for none (killer560, 2026-11-04: "allow invsort to select a loadout"). */
+    private final int loadout;
+
+    /** /loadouts' first page shows 12 loadouts; the selector clicks on that page only. */
+    public static final int MAX_LOADOUT = 12;
 
     public InventoryLayout(String name, Map<Integer, String> slotIdentities) {
         this(name, slotIdentities, Map.of());
@@ -61,6 +67,13 @@ public final class InventoryLayout {
     public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
                            Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
                            String dumpPage) {
+        this(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, 0);
+    }
+
+    public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
+                           Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
+                           String dumpPage, int loadout) {
+        this.loadout = loadout >= 1 && loadout <= MAX_LOADOUT ? loadout : 0;
         this.name = name;
         this.slotIdentities = new LinkedHashMap<>(slotIdentities);
         this.slotIdentities.remove(LOCKED_SLOT); // the last hotbar slot is Hypixel's locked item: no layout holds it
@@ -87,17 +100,27 @@ public final class InventoryLayout {
 
     /** The same slots under another name. */
     public InventoryLayout renamed(String newName) {
-        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage);
+        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout);
     }
 
     /** The same slots with other storage-mode settings. */
     public InventoryLayout withStorage(boolean fetch, String dump) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout);
     }
 
     /** The same layout with these free slots (slots it also manages are dropped). */
     public InventoryLayout withFree(Set<Integer> free) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, free, fetchFromStorage, dumpPage);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, free, fetchFromStorage, dumpPage, loadout);
+    }
+
+    /** The same layout selecting Hypixel loadout {@code n} (1..12) when applied; 0 for none. */
+    public InventoryLayout withLoadout(int n) {
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n);
+    }
+
+    /** The Hypixel loadout applying this layout selects first (1..12), or 0 for none. */
+    public int loadout() {
+        return loadout;
     }
 
     public boolean fetchFromStorage() {

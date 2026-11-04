@@ -675,7 +675,7 @@ public final class SimonSaysFeature {
                 }
             }
         });
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Simon Says render", () -> SimonSaysConfig.getInstance().isEnabledRaw() && SimonSaysConfig.getInstance().isSolverEnabledRaw()), SimonSaysFeature::onWorldRender));
         // Rotate Mode's own real rotation-applying step - deliberately every FRAME, not every tick, so
         // it's as smooth as real mouse look (see this class's own "Rotate Mode" field-group doc comment
@@ -716,6 +716,11 @@ public final class SimonSaysFeature {
      *  manual "click it anyway" is never fully locked out). Never blocks the start button, and never
      *  blocks anything once the device isn't actively being tracked - this is a safety net during a
      *  real attempt, not a general block-interaction filter. */
+    /** One of the Simon Says device's buttons (the 4x4 grid or its start button). */
+    public static boolean isDeviceButton(BlockPos pos) {
+        return pos != null && (START_BUTTON.equals(pos) || GRID_BUTTONS.contains(pos));
+    }
+
     public static boolean shouldBlockClick(BlockPos pos, boolean shiftDown) {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isPreventMisclicksEnabled() || !wasActive || shiftDown) {
@@ -957,8 +962,27 @@ public final class SimonSaysFeature {
      *  just the manual "Announce Reset Key" press. Killer560's explicit request (2026-09-14): "make sure
      *  that works if i ever press the reset button after the first time or if you sense it reset via
      *  removing all buttons and no new highlights." */
+    private static long lastResetAnnounceAtMs = 0L;
+    // Test hooks: reset lines sent, and start presses that were not announced (a skip, no grid click yet).
+    private static volatile int resetAnnounces = 0;
+    private static volatile int resetAnnouncesSkipped = 0;
+
+    public static int resetAnnounces() {
+        return resetAnnounces;
+    }
+
+    public static int resetAnnouncesSkipped() {
+        return resetAnnouncesSkipped;
+    }
+
     private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
+        long now = System.currentTimeMillis();
+        if (now - lastResetAnnounceAtMs < 5_000L) {
+            return;
+        }
         if (cfg.isAutoSendResetMessage() && client.player != null) {
+            lastResetAnnounceAtMs = now;
+            resetAnnounces++;
             com.killer560.hub.util.OutgoingChat.command("pc " + cfg.getResetMessageText());
         }
     }
@@ -1039,6 +1063,9 @@ public final class SimonSaysFeature {
             // rapid repeats killer560 specifically wanted timing on ("it should be 3 or 4 clicks really
             // close together" - his real log only ever showed multi-SECOND gaps). See that method's own
             // doc comment for the real fix: hooking the actual click event instead of polling state.
+            // A skip is a burst of start presses before any grid click: not a reset to announce (killer560,
+            // 2026-11-03: "every time i simon says skip it says it reset").
+            boolean hadProgress = totalClicksThisAttempt > 0 || !clickInOrder.isEmpty();
             resetSolveState();
             // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
             roundVerdictPending = false;
@@ -1070,7 +1097,11 @@ public final class SimonSaysFeature {
             // genuinely attempted", uninterrupted by this same reset.
             idleSuppressedAfterCompletion = false;
             rememberedFirstButton = null;
-            maybeAutoAnnounceReset(client, cfg);
+            if (hadProgress) {
+                maybeAutoAnnounceReset(client, cfg);
+            } else {
+                resetAnnouncesSkipped++;
+            }
         }
     }
 

@@ -95,7 +95,7 @@ public final class CommissionHud {
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (!cfg.isCommissionHud() || !MiningState.commissionsKnown()) {
+        if (!cfg.isCommissionHud() || !MiningState.commissionsKnown() || cfg.commissionsHiddenNow()) {
             hudLines = List.of();
             waypoints = List.of();
             lastVersion = -1;

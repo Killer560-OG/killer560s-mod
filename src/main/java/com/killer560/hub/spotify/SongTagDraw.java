@@ -101,20 +101,31 @@ public final class SongTagDraw {
      */
     public static Component lyricFor(Entity entity) {
         Minecraft mc = Minecraft.getInstance();
-        if (entity != mc.player || !SongShareConfig.getInstance().isLyricsOverHead()) {
+        if (entity != mc.player) {
+            return null;
+        }
+        if (!SongShareConfig.getInstance().isLyricsOverHead()) {
+            whyNoLyric("not drawn, My Lyrics In F5 is off");
             return null;
         }
         LyricsEngine.Snapshot snap = SpotifyLyricsFeature.snapshot();
-        if (!snap.hasTrack() || snap.lines().isEmpty()) {
+        if (!snap.hasTrack()) {
+            whyNoLyric("not drawn, no track");
+            return null;
+        }
+        if (snap.lines().isEmpty()) {
+            whyNoLyric("not drawn, the track has no synced lines");
             return null;
         }
         if (SpotifyLyricsFeature.pausedTooLong(snap)) {
             pauseHides++;
+            whyNoLyric("not drawn, paused for over a minute");
             return null;
         }
         double elapsed = snap.elapsedSeconds(SpotifyLyricsFeature.nowMs());
         int idx = snap.lineAt(elapsed);
         if (idx < 0) {
+            whyNoLyric("not drawn, before the first line (at " + Math.round(elapsed) + " s)");
             return null;
         }
         boolean paused = snap.kind() == NowPlaying.Kind.PAUSED;
@@ -132,11 +143,28 @@ public final class SongTagDraw {
             lyricPaused = paused;
             lyricStyle = style;
             lyricTag = buildLyric(snap.lines().get(idx).parsed().words(), sung, paused, p);
+            if (lyricTag == null) {
+                whyNoLyric("not drawn, line " + idx + " has no words");
+            }
             lastOwnLyric = lyricTag == null ? "" : lyricTag.getString();
             lastF5Word = sung;
             lyricBuilds++;
         }
+        if (lyricTag != null) {
+            whyNoLyric("drawn");
+        }
         return lyricTag;
+    }
+
+    private static String lastWhy = "";
+
+    /** Logs (INFO, only when the reason changes) why your own F5 lyric line is not drawn: it is a silent feature, and
+     *  the owner's game showed the song line but no lyric (2026-11-03) with nothing in the log to say why. */
+    private static void whyNoLyric(String why) {
+        if (!why.equals(lastWhy)) {
+            lastWhy = why;
+            SpotifyLyricsFeature.LOGGER.info("[SongTag] own F5 lyric line: {}", why);
+        }
     }
 
     /** One number that changes when anything an F5 line's look depends on changes: theme, F5 colors, censor level. */

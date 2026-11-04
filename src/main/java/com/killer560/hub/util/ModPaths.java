@@ -188,6 +188,8 @@ public final class ModPaths {
         t.put("chmap", "skyblock/chmap");
         // The pre-2.0 mining features (miningqol/, 2026-11-01).
         t.put("miningqol", "skyblock/miningqol");
+        // Crystal Hollows powder grinding (powdermining/, 2026-11-03), beside the other mining settings.
+        t.put("powdermining", "skyblock/miningqol");
         t.put("pathfinding", "skyblock/pathfinding");
         // Auto Sprint (killer560smod-autosprint.json, 2026-11-01).
         t.put("autosprint", "skyblock/autosprint");

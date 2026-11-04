@@ -72,7 +72,7 @@ public final class AttackHoldProbe {
 
     static final int RING = 40;
     static final int LINES = 10;
-    private static final long DUMP_GAP_MS = 5000L;
+    private static final long DUMP_GAP_MS = 2000L;
     private static final String[] SENT = new String[RING];
     private static final long[] SENT_MS = new long[RING];
     private static int sentHead = 0;
@@ -126,6 +126,35 @@ public final class AttackHoldProbe {
                         // diagnostics only
                     }
                 });
+    }
+
+    private static int directionDrops = 0;
+    /** Testkit: treat the connection as Hypixel for {@link #dropOnHypixel}. */
+    public static volatile boolean forceHypixelForTest = false;
+
+    /**
+     * On Hypixel, the dig's CHANGE_DESTROY_DIRECTION is not sent (MiningSendTapMixin cancels it). killer560's 2026-11-03
+     * 19:40 log: both real stalls began with it and, one ping later, Hypixel cleared the crack and dropped the dig.
+     */
+    public static boolean dropOnHypixel(Packet<?> packet) {
+        if (!(packet instanceof ServerboundPlayerActionPacket p) || !"CHANGE_DESTROY_DIRECTION".equals(p.getAction().name())) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        net.minecraft.client.multiplayer.ServerData server = client.getCurrentServer();
+        boolean hypixel = forceHypixelForTest || server != null && server.ip != null
+                && server.ip.toLowerCase(java.util.Locale.ROOT).contains("hypixel.net");
+        if (!hypixel) {
+            return false;
+        }
+        if (directionDrops++ == 0) {
+            LOGGER.info("[AttackHold] not sending CHANGE_DESTROY_DIRECTION on Hypixel (it reset his digs)");
+        }
+        return true;
+    }
+
+    public static int directionDrops() {
+        return directionDrops;
     }
 
     /** A packet this client is sending (MiningSendTapMixin, any thread that sends). */
@@ -311,7 +340,8 @@ public final class AttackHoldProbe {
     }
 
     // ---- stall while mining (owner 2026-11-03: "it should be when i am actually mining")
-    static final long STALL_MS = 5000L;
+    static final long STALL_MS = 250L;
+    private static long lastHeartbeatMs = 0L;
     private static net.minecraft.core.BlockPos stallPos = null;
     private static net.minecraft.world.level.block.state.BlockState stallState = null;
     private static long stallSinceMs = 0L;
@@ -350,6 +380,14 @@ public final class AttackHoldProbe {
             }
         }
         long now = System.currentTimeMillis();
+        // A heartbeat so his log shows the probe is watching (2026-11-03: a mining session left no line at all): at most
+        // once a minute while left click is held, what the probe sees.
+        if (down && now - lastHeartbeatMs > 60_000L) {
+            lastHeartbeatMs = now;
+            LOGGER.info("[AttackHold] holding left click: watching={} island={} screen={} focused={} target={}",
+                    watching(client), MiningState.island(), McCompat.screen(client) != null, client.isWindowActive(),
+                    pos == null ? "none" : state.getBlock().getName().getString() + " at " + pos.toShortString());
+        }
         if (pos == null || !pos.equals(stallPos) || state != stallState) {
             stallPos = pos;
             stallState = state;
@@ -360,7 +398,10 @@ public final class AttackHoldProbe {
             stageMax = -2;
             return;
         }
-        if (stallLogged || now - stallSinceMs < STALL_MS || now - lastDumpMs < DUMP_GAP_MS) {
+        // Owner 2026-11-03: the stalls last "1/4 of a second to half a second", then he lets go and presses again. So: held
+        // STALL_MS on the same block with no crack-stage update from the server for it in the last STALL_MS.
+        boolean noProgress = stageCount == 0 || now - stageLastMs >= STALL_MS;
+        if (stallLogged || now - stallSinceMs < STALL_MS || !noProgress || now - lastDumpMs < DUMP_GAP_MS) {
             return;
         }
         stallLogged = true;

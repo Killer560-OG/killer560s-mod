@@ -114,6 +114,11 @@ final class SettingTooltipsData {
         d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them. No range: a mob once recognized stays highlighted while it is loaded, even after its name tag stops arriving.");
         d.put("commission hud/commission mob color", "The color of the Commission Mobs boxes.");
         d.put("commission hud/commission mob style", "How commission mobs are drawn: Outline, Fill, Fill + Outline or Glow. Left click forward, right click back.");
+        d.put("commission route", "In the Dwarven Mines, draws a line from your crosshair along the island's paths to the area of your first open area commission, and to the nearest Emissary once one is done. Draws only.");
+        d.put("commission route/route color", "The color of the Commission Route line and its landing patches.");
+        d.put("commission route/route mode", "Walk: the walking path. AOTE: Aspect of the End teleports straight through air where they land on the path. Etherwarp: the fewest etherwarps, each landing a 3x3 of whole blocks. Left click forward, right click back.");
+        d.put("commission route/route to emissary", "When a commission is done, the line goes to the nearest Emissary. Off: the normal area line carries on.");
+        d.put("commission route/highlight royal pigeon", "When a commission is done, pulses the Royal Pigeon in your hotbar so you can use it to claim. Works on its own, whatever the route switches say.");
         d.put("commission hud/commission route", "In the Dwarven Mines, draws a line along the island's paths from you to the area of your first open area commission. It disappears once you are in that area. Only draws; never moves you.");
         d.put("commission hud/commission route color", "The color of the Commission Route line.");
         d.put("commission hud/route mode", "Walk: the walking path. AOTE: the path as Aspect of the End teleports, each landing marked. Etherwarp: the path as etherwarps, each block to warp onto highlighted. Left click forward, right click back.");
@@ -437,6 +442,8 @@ final class SettingTooltipsData {
         d.put("chat hider/hide ability spam", "In dungeons: hides cooldown, ability-ready, 'Used ...!', orb and tether lines.");
         d.put("chat hider/hide dungeon breaker spam", "In dungeons: hides the Dungeon Breaker's 'A mystical force prevents you...' and 'not enough charges' lines.");
         d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
+        d.put("chat hider/hide mining reminders", "Hides the Breaking Power reminder (\"You need a tool with a Breaking Power of N to mine ...\") and the unspent Tokens of the Mountain reminder. Mining alerts still see them.");
+        d.put("chat hider/hide sack messages", "Hides the [Sacks] +N items / -N items summary lines Hypixel prints after sack pickups.");
         d.put("image preview", "With chat open, hovering a link to a picture (imgur, Discord, any .png/.jpg/.gif/.webp link) shows it beside the cursor. The wheel steps through an imgur album; a middle click opens a bigger view. A left click still asks to open the link.");
         d.put("image preview/max preview size", "The longest side of the floating preview, in screen units. Pictures are never shown larger than their own size, except tiny ones.");
         d.put("image preview/hosts", "Trusted Hosts Only fetches only imgur and Discord links. Any Host fetches pictures from any site (and reads a page's preview picture), which tells that site your IP address when you hover. Local network addresses are never fetched.");
@@ -944,6 +951,7 @@ final class SettingTooltipsData {
         d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
         d.put("cooldown", "Minimum wait between two automatic actions.");
+        d.put("pv link on join", "When someone joins your party in a dungeon queue or run, adds a clickable [PV] line under the join message that opens their profile viewer.");
         d.put("auto requeue", "Sends /instancerequeue automatically when a dungeon run ends.");
         d.put("requeue delay", "Seconds to wait (0-30) after the run ends before requeuing.");
         d.put("disable on leave/kick", "Skips the next auto requeue if someone leaves, is kicked or the party disbands.");
@@ -1083,6 +1091,7 @@ final class SettingTooltipsData {
         d.put("source", "Where profile data comes from: your Hypixel API key, SkyBlockPV, or Auto.");
         d.put("remember last page", "Reopens the profile viewer on the page you last used.");
         d.put("show skin", "Shows the player's 3D skin on the profile viewer's main page.");
+        d.put("non-cosmetic networth", "The profile viewer's networth leaves out cosmetic value: pet skins, armor and helmet skins, dyes, runes, and items that are only cosmetic. The Networth page shows both totals either way.");
         d.put("hypixel api key", "Optional. Paste your own Hypixel API key for faster lookups.");
         d.put("clear", "Deletes the saved Hypixel API key.");
         d.put("player stats hud", "Shows a HUD line with your health, mana and defense.");
@@ -1200,7 +1209,7 @@ final class SettingTooltipsData {
         d.put("highlight best upgrade", "Outlines the upgrade with the best chocolate-per-second value green, and other upgrades you can afford yellow.");
         d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
         d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
-        d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
+        d.put("time tower reminder", "Outlines the Time Tower when it has a charge and is not running (no chat message).");
         d.put("hoppity egg timers", "A movable HUD with the six Hoppity eggs: each ready, found or ? when unknown, and when the next one spawns. Read-only.");
         d.put("egg extra info", "Adds the rest of Hoppity's info to the egg HUD: eggs spawned, time to the next egg, eggs left and the tracker totals.");
         d.put("egglocator tracer line", "Draws a line from your crosshair to the Egglocator's guess. Off leaves just the box and label on the guessed block.");
@@ -2713,7 +2722,7 @@ final class SettingTooltipsData {
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
         d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
         d.put("bazaar/follow-up click", "When you click a product, the Bazaar clicks the one matching search result for you, so you land on the product.");
-        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, scoreboard, map, timers, overlays) while the Bazaar is open.");
+        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, map, timers, overlays) while the Bazaar is open. The scoreboard stays up, and the Bazaar panel makes room beside it.");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");
@@ -2846,6 +2855,9 @@ final class SettingTooltipsData {
         d.put("inventory sorter/open layouts", "Opens the layouts menu (/invsort): each saved layout shows its hotbar items; left click one to swap to it, right click to edit it, drag to reorder, and set its key in the cell on its right. In the grid, right-click a slot (or press Delete over it) to make it Free: the sort leaves what is in it alone.");
         d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Backspace clears it.");
         d.put("inventory sorter/instant (0-tick)", "Cheat build. Sends every click of a sort in one tick without opening your inventory. UNTESTED on Hypixel: clicks with no inventory open are what got a limbo for \"Bad client inventory move\". Off by default.");
+        d.put("inventory sorter/dump button on chests", "Cheat build. Shows a Dump Into Chest button above an open chest, Ender Chest page or backpack: it shift-clicks your inventory into it, one click per paced tick. Never the locked last hotbar slot or the SkyBlock Menu.");
+        d.put("inventory sorter/dump hotbar", "Dump Into Chest also moves your hotbar. Off by default; the locked bottom-right slot is never moved.");
+        d.put("inventory sorter/dump key", "Press to capture a key (or mouse button) that dumps your inventory into the open chest; Backspace clears it.");
         d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");
         d.put("inventory sorter/random extra ticks", "Adds 0 up to this many extra ticks, at random, before each click.");
         d.put("inventory sorter/layout key", "Press to capture a key (or mouse button) that applies this layout; Backspace clears it.");

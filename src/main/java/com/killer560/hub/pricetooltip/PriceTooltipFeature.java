@@ -88,6 +88,27 @@ public final class PriceTooltipFeature {
         }
     }
 
+    /** The lines of the last tooltip a mod screen drew through {@link #drawItemTooltip}; read by the testkit. */
+    public static volatile List<Component> lastDrawnLines = List.of();
+
+    /**
+     * Draws {@code stack}'s tooltip for a mod screen that shows items itself (Storage Overlay, Storage Search, Bazaar,
+     * Profile Viewer...): vanilla's lines plus this feature's, once. The lines are built here and drawn through the list
+     * overload, so the price lines never depend on which tooltip hook a screen's draw call happens to reach.
+     */
+    public static void drawItemTooltip(net.minecraft.client.gui.GuiGraphicsExtractor g, net.minecraft.client.gui.Font font,
+                                       ItemStack stack, int x, int y) {
+        Minecraft mc = Minecraft.getInstance();
+        List<Component> lines = net.minecraft.client.gui.screens.Screen.getTooltipFromItem(mc, stack);
+        List<Component> withPrices = append(stack, lines);
+        if (withPrices != null) {
+            lines = withPrices;
+        }
+        lastDrawnLines = lines;
+        g.setTooltipForNextFrame(font, lines, stack.getTooltipImage(), x, y,
+                stack.get(net.minecraft.core.component.DataComponents.TOOLTIP_STYLE));
+    }
+
     /** This feature's lines for a stack (cached), empty when it has none. */
     public static List<Component> linesFor(ItemStack stack, CompoundTag tag) {
         boolean shift = shiftDown();

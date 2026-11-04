@@ -86,6 +86,9 @@ public class Killer560ModClient implements ClientModInitializer {
         // Before anything reads a setting: sweep every killer560smod-* file and folder out of the config root into
         // config/killer560/<category>/<feature>/, so the root is clean even for features not touched this session.
         com.killer560.hub.util.ModPaths.migrateAll();
+        // Highlight render types (depth-writing, with OIT pipelines) must be registered before the renderer precompiles its list.
+        com.killer560.hub.util.EspTypes.init();
+        com.killer560.hub.util.EspDepthTestHook.register();
         // Copies setting changes into the active profile and imports zips dropped into the profile import folder.
         com.killer560.hub.profiles.ProfileManager.startBackgroundTasks();
 
@@ -261,6 +264,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
+        com.killer560.hub.worldexport.WorldExportCommand.register();
         if (com.killer560.hub.BuildVariant.TESTING) {
             com.killer560.hub.testing.TestingCommands.register();
         }
@@ -449,6 +453,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Pre-2.0 mining features (to-do Doc 2026-11-01): Commission HUD, Pickobulus Estimate, Ability Ready Alert,
         // Carpet Highlighter, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight.
         com.killer560.hub.miningqol.MiningQolFeatures.register();
+        // Crystal Hollows powder grinding (2026-11-03): treasure chests, lockpick helper, powder tracker, 2x powder.
+        com.killer560.hub.powdermining.PowderMiningFeatures.register();
         com.killer560.hub.lagdisplay.LagDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
         com.killer560.hub.terminals.TerminalQolFeature.register();
@@ -476,6 +482,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());
         com.killer560.hub.invsort.InventorySorterExecutor.register();
+        com.killer560.hub.invsort.InvSortDump.register();
         com.killer560.hub.invsort.InventorySorterCommands.register();
         com.killer560.hub.autosell.AutoSellFeature.register();
         com.killer560.hub.autosell.AutoSellCommands.register();

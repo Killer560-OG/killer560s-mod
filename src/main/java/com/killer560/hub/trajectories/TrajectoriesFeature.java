@@ -50,7 +50,7 @@ public final class TrajectoriesFeature {
     }
 
     public static void register() {
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TrajectoriesFeature::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(TrajectoriesFeature::onWorldRender);
     }
 
     /** Test views (testkit 1080-1083): every render call, the frames that drew at least one arc, and what the last

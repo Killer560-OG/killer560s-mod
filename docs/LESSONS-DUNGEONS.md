@@ -179,6 +179,13 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   still trusted Grim now and then (792: a trip 31 ticks slow). Blood Camp times on `util.PerTickServerClock`: trusted only
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
+- **Split Timers' lag is the stalls, not the net tick deficit** (tickfix-1104; killer560 2026-11-04: "run splits never
+  shows lag now"). Odin (`SplitsManager.tickCounter`) and NoammAddons (`DualTime`) both show `wall - 50 ms * pings`, and
+  so did `SplitLagClock` after timers2: on Hypixel that nets to 0, because the server runs the lost ticks afterwards (a burst
+  of pings). His 2026-11-03 23:56 run printed "Storm took 45.15s (43.90s)" and then "Lag: 0.00s" for the run, and every
+  other split equal to its lagless time to 0.01 s. `SplitLagClock` now follows that deficit from its lowest point and
+  counts a rise of more than 150 ms in full, never paid back (a burst only lowers the low point); jitter counts nothing.
+  Testkit 1104-logic-split-lag drives it at wall-clock pace. Each counted stall logs `[SplitLag] stall: +N ms`.
 - **A repeating boss timer kept as a counter drifts; keep the server tick of one real event instead.** Goldor's "Tick:"
   was set to 60 on his line and decremented once per `ServerTickClock` event, which counts CLIENT ticks in any second
   with under 15 pings and was skipped whenever the sidebar did not read F7, so nothing ever pulled it back onto the
@@ -197,10 +204,26 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   server do not stop a drift: hits read 4-8 off, and on 26.2 drifted 4 ticks per 60 (1102-hx-goldor-tick), so GoldorTick's
   re-lock pair allows 6 ticks off a whole period. With
   per-tick pings (Hypixel; the testmod's `boss.pertickping` under -Pnogrim) hits read 0 +-1. GoldorTick snaps within 8.
+- **On a trusted per-tick clock a locked Goldor phase must not be moved by single hits** (tickfix-1104; killer560
+  2026-11-04: "still happens ... i mainly notice it during goldor"). The 8-tick snap sized for GrimAC let every stray
+  health drop near the prediction walk the phase on Hypixel: his 2026-11-03 23:55:05/08/11 log has Spirit Mask, Phoenix and
+  Bonzo procs exactly 3 s apart, the first locked the phase, and the Bonzo proc read 16 ticks off it. Odin and NoammAddons
+  never resync at all (60 on Goldor's line, minus one per non-zero ping). Trusted, `GoldorTick` now confirms a hit within 3
+  ticks and moves nothing, and re-locks only on hits a whole number of periods apart within 2 ticks (a pair with a mask proc
+  or a multi-player hit in it, else three in a row). Testkit 1104-logic-goldor-trusted. Every hit and every predicted 0 logs a
+  `[TickTimers] Goldor ...` line (ticks since Storm's death and Goldor's line, wall ms, pings, trust); every other tick timer
+  logs a `[TickTimers] <name> proc:` line.
+- **Countdowns decremented inside a gated listener lose ticks.** Maxor Start, Goldor Start and Necron's drop were
+  `x--` in the per-server-tick listener behind `DungeonState.isBossPhaseActive()`, so each tick the gate read false left
+  them a tick behind for good. They keep their end tick now and are worked out from the clock every tick (tickfix-1104).
 - **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
   (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
   `GOLDOR_START_TICKS` 17 from NoammAddons 1.2.9 does not - not changed, Goldor's line ends that countdown anyway); the
-  party's mask procs 3 and 6 s after Goldor's line, so his damage tick is phased on the line.
+  party's mask procs 3 and 6 s after Goldor's line, so his damage tick was taken as phased on the line. It is NOT at one
+  fixed place after the line: his first mask proc re-locked the phase 42, 9, 2, 21 and 25 ticks (mod 60) after Goldor's
+  line in five 2026-11-03/04 runs (26.3 log, "[TickTimers] Goldor tick re-locked by a mask proc (N ticks off ..., the first
+  hit)"), on a clock whose ping count matched the wall time to 0.01 s over 62 s in the same runs. The start phase is a
+  guess; the first hit is what places it. Whether Storm's death line places it is what the new log lines will tell.
 - **A player-model mob is still `isAlive()` on the client after the server says it died.** Vanilla's
   `LivingEntity.handleEntityEvent(3)` (the death event) sets health 0 and calls `die` only `if (!(this instanceof Player))`
   (javap 26.2 and 26.3), because a player's health comes from its own data. So a killed player-model blood mob counted as

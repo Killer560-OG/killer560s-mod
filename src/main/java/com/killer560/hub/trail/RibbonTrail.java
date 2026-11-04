@@ -384,7 +384,7 @@ public final class RibbonTrail {
         lastPointCount = n;
         lastLength = total;
         framesDrawn++;
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), geometry);
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, geometry);
     }
 
     private int put(int o, float x, float y, float z, float r, float g, float b, float a) {

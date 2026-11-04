@@ -37,7 +37,7 @@ public final class WorldRenderUtils {
     /** Draws a solid box, respecting depth (won't show through walls) - same choice Odin's Simon Says
      *  highlight uses by default, since this is meant to highlight a button you can already see. */
     public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
 
             float minX = (float) box.minX, minY = (float) box.minY, minZ = (float) box.minZ;
             float maxX = (float) box.maxX, maxY = (float) box.maxY, maxZ = (float) box.maxZ;
@@ -54,7 +54,7 @@ public final class WorldRenderUtils {
                                         float r, float g, float b, float a) {
         final float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
         final float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
             var m = pose.pose();
             switch (face) {
                 case WEST -> quad(buffer, m, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, r, g, b, a);
@@ -86,7 +86,7 @@ public final class WorldRenderUtils {
     public static void renderFilledCylinder(LevelRenderContext context, Vec3 centre, double radius, double y0, double y1,
                                             int segments, float r, float g, float b, float a) {
         int n = Math.max(3, segments);
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
             var matrix = pose.pose();
             float cx = (float) centre.x, cz = (float) centre.z;
             float bottom = (float) y0, top = (float) y1;
@@ -131,7 +131,7 @@ public final class WorldRenderUtils {
         int nl = Math.max(6, slices);
         SphereTrig trig = sphereTrig(ns, nl);
         final double[] sinP = trig.sinP, cosP = trig.cosP, sinT = trig.sinT, cosT = trig.cosT;
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
             var matrix = pose.pose();
             for (int i = 0; i < ns; i++) {
                 // One flat color, no per-band shading (killer560, 2026-11-01, Door Keys: "Make it all the same color").
@@ -191,7 +191,7 @@ public final class WorldRenderUtils {
     /** Draws a wireframe outline box. */
     public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
                                          float thickness) {
-        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
 
             renderLineBox(pose, buffer, box, r, g, b, a, thickness);
         });
@@ -241,7 +241,7 @@ public final class WorldRenderUtils {
         if (pts.length < 2) {
             return;
         }
-        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
 
             for (int i = 0; i < pts.length - 1; i++) {
                 Vec3 start = pts[i];
@@ -262,7 +262,7 @@ public final class WorldRenderUtils {
      */
     public static void renderFrontOutlineBox(LevelRenderContext context, AABB box, Vec3 cam, float r, float g, float b,
                                              float a, float thickness) {
-        McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT,
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES,
                 (pose, buffer) -> frontOutlineVertices(pose, buffer, box, cam, r, g, b, a, thickness));
     }
 
@@ -310,7 +310,7 @@ public final class WorldRenderUtils {
                                   float thickness, boolean throughWalls) {
         final float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
         final float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                 (pose, buffer) -> {
                     float dx = ex - sx, dy = ey - sy, dz = ez - sz;
                     buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
@@ -415,21 +415,9 @@ public final class WorldRenderUtils {
     /** Holder idiom. Same no-depth construction as SecretWaypointsRenderer / EtherwarpWaypointsRenderer, with
      *  its own pipeline ids so the registrations cannot collide. */
     private static final class ThroughWalls {
-        static final RenderType LINES = RenderType.create("killer560smod_worldrender_lines_through_walls",
-                RenderSetup.builder(RenderPipelines.register(com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/worldrender_lines_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_worldrender_filled_through_walls",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod",
-                                "pipeline/worldrender_filled_through_walls"))
-                        .withCull(false)
-                        .withDepthStencilState(Optional.<DepthStencilState>empty())
-                        .build())).sortOnUpload().createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
     /**
@@ -443,7 +431,7 @@ public final class WorldRenderUtils {
         if (count <= 0) {
             return;
         }
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT,
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {
                         int c = i * 4;
@@ -458,7 +446,7 @@ public final class WorldRenderUtils {
         if (count <= 0) {
             return;
         }
-        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox(),
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {
                         int c = i * 4;

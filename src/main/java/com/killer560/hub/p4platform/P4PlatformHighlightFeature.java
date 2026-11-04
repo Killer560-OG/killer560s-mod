@@ -69,7 +69,7 @@ public final class P4PlatformHighlightFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(P4PlatformHighlightFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("P4PlatformHighlightFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("P4 Platform render", () -> P4PlatformHighlightConfig.getInstance().isEnabledRaw()), P4PlatformHighlightFeature::onWorldRender));
     }
 

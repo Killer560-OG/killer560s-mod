@@ -26,6 +26,7 @@ public final class MiningQolFeatures {
         AttackHoldProbe.register();
         PowderGhast.register();
         CommissionClaim.register();
+        PigeonDrillSwap.register();
         HudElementRegistry.register(new PowderGhast.Timer());
         HudElementRegistry.register(new CommissionHud.Element());
         HudElementRegistry.register(new AbilityReadyAlert.Popup());
@@ -52,6 +53,7 @@ public final class MiningQolFeatures {
             MiningHighlights.tick(client);
             RaffleLog.tick(client);
             MithrilStone.tick(client);
+            CommissionClaim.tick(client);
             CommissionRoute.tick(client);
             PowderGhast.tick(client);
         }));

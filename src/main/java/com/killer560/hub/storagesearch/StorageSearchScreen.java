@@ -257,7 +257,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         if (hovered != null) {
-            graphics.setTooltipForNextFrame(this.font, hovered.stack(), mouseX, mouseY);
+            com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(graphics, this.font, hovered.stack(), mouseX, mouseY);
         }
     }
 

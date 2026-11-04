@@ -35,7 +35,7 @@ public final class GyroOverlayFeature {
 
     public static void register() {
         GyroOverlayConfig.getInstance();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(
                 FeatureBits.register("Gyro Overlay render", () -> GyroOverlayConfig.getInstance().isEnabledRaw()),
                 GyroOverlayFeature::onWorldRender));
     }

@@ -149,3 +149,5 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   unless its id is in `HudInGameRenderer.UNDRAWN_ELEMENT_IDS` (or it has its own draw path). Advanced Position, Blink and the
   Quiz Timer (2026-11-01, 1101-pz-quiz: 0 frames drawn) all shipped missing from it at first. Add the id with the element, and
   have a test count real draws.
+
+- Scoreboard in the Bazaar (bzscore-1104, killer560: "dont hide my scoreboard in the /bz menu"): the Bazaar gate wraps every Fabric HUD layer and its backdrop covers deferred ones, so the Custom Scoreboard layer is `BazaarHud.Ungated` and draws nothing while the Bazaar is on screen; `BazaarView` calls `CustomScoreboardFeature.drawOverBazaar` right after its backdrop (Hide In Menus does not apply there; with Custom Scoreboard off it draws vanilla through a mixin @Invoker on Hud.displayScoreboardSidebar) and fits the panel beside the returned box (panel keeps its spot when under 400 wide is left). The view canvas is Auto Scale's, so the board is drawn with the scale undone and its box converted back. Testkit 1104-menu-bz-scoreboard (hx session).

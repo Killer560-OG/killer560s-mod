@@ -62,7 +62,7 @@ public final class EtherwarpFeature {
 
     public static void register() {
         EtherwarpWaypointsRenderer.init();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Etherwarp Waypoints render", () -> EtherwarpWaypointsConfig.getInstance().isHighlightBlocksRaw()), EtherwarpFeature::onWorldRender));
     }
 

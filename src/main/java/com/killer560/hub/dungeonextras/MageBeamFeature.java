@@ -277,7 +277,7 @@ public final class MageBeamFeature {
         for (int k = 0; k <= pieces; k++) {
             colors[k] = colorAt(c1, c2, mode, k / (float) pieces, now);
         }
-        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
             org.joml.Matrix4f matrix = pose.pose();
             for (Vec3[] q : quads) {
                 for (int k = 0; k < pieces; k++) {

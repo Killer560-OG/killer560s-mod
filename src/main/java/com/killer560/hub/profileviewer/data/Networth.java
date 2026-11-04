@@ -6,6 +6,12 @@ import com.killer560.hub.profileviewer.item.LegacyItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.nbt.CompoundTag;
+import com.killer560.hub.pricetooltip.ItemKeys;
+import com.killer560.hub.pricetooltip.ItemValueCalc;
+import com.killer560.hub.pricetooltip.PriceData;
+import com.killer560.hub.pricetooltip.PriceTooltipConfig;
+import com.killer560.hub.util.ItemNbt;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -14,17 +20,62 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Networth estimate, same category split as skyblock-pv's {@code NetworthCategory}. Every item is valued
- * at its base price only (no enchant/reforge/star/gemstone upgrades): Bazaar price from the mod's shared
- * {@code RngMeterEngine.PRICES} cache (the "Price refresh finished" loop), else the lowest BIN from
- * {@link ExtraTables#lowestBins()}. Pets use the NEU-format {@code TYPE;rarity} key.
+ * Networth estimate, same category split as skyblock-pv's {@code NetworthCategory}. Every item stack is valued by the
+ * Price Tooltip's Est. Item Value calculator ({@link ItemValueCalc} in NETWORTH mode: base price plus enchants,
+ * recombs, potato books, stars, gemstones, scrolls, parts, dye, skin, rune...) times the stack count (killer560,
+ * 2026-11-04). An item the calculator has no base price for falls back to the old lookup: Bazaar price from the
+ * mod's shared {@code RngMeterEngine.PRICES} cache, else the lowest BIN from {@link ExtraTables#lowestBins()}.
+ * Pets of the API's pet list use the NEU-format {@code TYPE;rarity} key. A second, non-cosmetic total leaves out
+ * cosmetic value (see {@link #isCosmeticItem}); both totals come from one pass.
  */
 public final class Networth {
 
     public record Category(String name, long total, List<Map.Entry<String, Long>> top) {
     }
 
-    public record Result(long total, List<Category> categories, int bazaarPrices, int binPrices, boolean museumIncluded) {
+    /**
+     * {@code total}/{@code categories} count everything; the {@code nonCosmetic} ones leave out cosmetic value.
+     * {@code calcReady} is false when the Price Tooltip's price table was still empty (so items fell back to base prices).
+     */
+    public record Result(long total, List<Category> categories, int bazaarPrices, int binPrices, boolean museumIncluded,
+                         long totalNonCosmetic, List<Category> categoriesNonCosmetic, boolean calcReady) {
+        public long total(boolean nonCosmetic) {
+            return nonCosmetic ? totalNonCosmetic : total;
+        }
+
+        public List<Category> categories(boolean nonCosmetic) {
+            return nonCosmetic ? categoriesNonCosmetic : categories;
+        }
+    }
+
+    /** One stack's value: {@code total} for the whole stack, {@code cosmetic} the part of it that is cosmetic. */
+    public record ItemValue(double total, double cosmetic) {
+        static final ItemValue ZERO = new ItemValue(0, 0);
+    }
+
+    /** True when a finished result should be calculated again: Bazaar prices or the item price table arrived since. */
+    public static boolean stale(Result r) {
+        return r.bazaarPrices() == 0 && bazaarCount() > 0 || !r.calcReady() && PriceData.lowestBinCount() > 0;
+    }
+
+    /** Accumulates one category's per-item values twice: all of it, and without cosmetics. */
+    private static final class Acc {
+        final String name;
+        final Map<String, Long> all = new LinkedHashMap<>();
+        final Map<String, Long> non = new LinkedHashMap<>();
+
+        Acc(String name) {
+            this.name = name;
+        }
+
+        void add(String label, double total, double cosmetic) {
+            if (total > 0) {
+                all.merge(label, (long) total, Long::sum);
+            }
+            if (total - cosmetic > 0) {
+                non.merge(label, (long) (total - cosmetic), Long::sum);
+            }
+        }
     }
 
     private Networth() {
@@ -33,16 +84,18 @@ public final class Networth {
     public static Result calculate(SbProfile p, SbProfile.Inventories inv, ProfileExtras extras, Map<String, Double> lbin,
                                    List<ItemStack> museumItems) {
         Map<String, Double> bins = lbin == null ? Map.of() : lbin;
-        List<Category> cats = new ArrayList<>();
-        Map<String, Long> currency = new LinkedHashMap<>();
-        currency.put("Purse", (long) p.purse);
+        PriceData.touchFromOtherFeature();
+        boolean ready = PriceData.lowestBinCount() > 0;
+        List<Acc> cats = new ArrayList<>();
+        Acc currency = new Acc("Purse / Bank");
+        currency.add("Purse", p.purse, 0);
         if (p.bank > 0) {
-            currency.put("Profile Bank", (long) p.bank);
+            currency.add("Profile Bank", p.bank, 0);
         }
         if (p.personalBank > 0) {
-            currency.put("Solo Bank", (long) p.personalBank);
+            currency.add("Solo Bank", p.personalBank, 0);
         }
-        cats.add(category("Purse / Bank", currency));
+        cats.add(currency);
         if (inv != null) {
             cats.add(items("Inventory", inv.inventory(), bins));
             List<ItemStack> armor = new ArrayList<>(inv.armor());
@@ -63,46 +116,56 @@ public final class Networth {
             cats.add(items("Bags", bags, bins));
         }
         if (extras != null) {
-            Map<String, Long> sacks = new LinkedHashMap<>();
+            Acc sacks = new Acc("Sacks");
             for (Map.Entry<String, Long> e : extras.misc.sacks().entrySet()) {
                 double unit = price(e.getKey(), bins);
                 if (unit > 0) {
-                    sacks.merge(SbProfile.titleCase(e.getKey()), (long) (unit * e.getValue()), Long::sum);
+                    double v = unit * e.getValue();
+                    sacks.add(SbProfile.titleCase(e.getKey()), v, isCosmeticItem(e.getKey()) ? v : 0);
                 }
             }
-            cats.add(category("Sacks", sacks));
-            Map<String, Long> essence = new LinkedHashMap<>();
+            cats.add(sacks);
+            Acc essence = new Acc("Essence");
             for (Map.Entry<String, Long> e : extras.misc.essence().entrySet()) {
                 double unit = price("ESSENCE_" + e.getKey().toUpperCase(Locale.ROOT), bins);
                 if (unit > 0) {
-                    essence.put(SbProfile.titleCase(e.getKey()) + " Essence", (long) (unit * e.getValue()));
+                    essence.add(SbProfile.titleCase(e.getKey()) + " Essence", unit * e.getValue(), 0);
                 }
             }
-            cats.add(category("Essence", essence));
+            cats.add(essence);
         }
-        Map<String, Long> pets = new LinkedHashMap<>();
+        Acc pets = new Acc("Pets");
         for (SbProfile.Pet pet : p.pets) {
             double v = petPrice(pet.type, pet.tier, bins);
             if (pet.heldItem != null) {
                 v += price(pet.heldItem, bins);
             }
+            double skin = 0;
             if (pet.skin != null) {
-                v += price("PET_SKIN_" + pet.skin, bins);
+                skin = price("PET_SKIN_" + pet.skin, bins);
+                v += skin;
             }
-            if (v > 0) {
-                pets.merge(pet.displayName() + " (" + SbProfile.titleCase(pet.tier) + ")", (long) v, Long::sum);
-            }
+            pets.add(pet.displayName() + " (" + SbProfile.titleCase(pet.tier) + ")", v, skin);
         }
-        cats.add(category("Pets", pets));
+        cats.add(pets);
         if (museumItems != null) {
             cats.add(items("Museum", museumItems, bins));
         }
+        List<Category> all = new ArrayList<>();
+        List<Category> non = new ArrayList<>();
         long total = 0;
-        for (Category c : cats) {
-            total += c.total();
+        long totalNon = 0;
+        for (Acc c : cats) {
+            Category a = category(c.name, c.all);
+            Category n = category(c.name, c.non);
+            all.add(a);
+            non.add(n);
+            total += a.total();
+            totalNon += n.total();
         }
-        cats.sort((a, b) -> Long.compare(b.total(), a.total()));
-        return new Result(total, cats, bazaarCount(), bins.size(), museumItems != null);
+        all.sort((x, y) -> Long.compare(y.total(), x.total()));
+        non.sort((x, y) -> Long.compare(y.total(), x.total()));
+        return new Result(total, all, bazaarCount(), bins.size(), museumItems != null, totalNon, non, ready);
     }
 
     private static List<ItemStack> flatten(List<List<ItemStack>> pages) {
@@ -113,18 +176,16 @@ public final class Networth {
         return out;
     }
 
-    private static Category items(String name, List<ItemStack> stacks, Map<String, Double> bins) {
-        Map<String, Long> values = new LinkedHashMap<>();
+    private static Acc items(String name, List<ItemStack> stacks, Map<String, Double> bins) {
+        Acc acc = new Acc(name);
         for (ItemStack s : stacks) {
             if (s == null || s.isEmpty()) {
                 continue;
             }
-            double v = stackValue(s, bins);
-            if (v > 0) {
-                values.merge(s.getHoverName().getString(), (long) v, Long::sum);
-            }
+            ItemValue v = itemValue(s, bins);
+            acc.add(s.getHoverName().getString(), v.total(), v.cosmetic());
         }
-        return category(name, values);
+        return acc;
     }
 
     private static Category category(String name, Map<String, Long> values) {
@@ -137,22 +198,79 @@ public final class Networth {
         return new Category(name, total, list.size() > 8 ? new ArrayList<>(list.subList(0, 8)) : list);
     }
 
-    private static double stackValue(ItemStack s, Map<String, Double> bins) {
+    /** Part labels of {@link ItemValueCalc} that are cosmetic: dye, armor/helmet skin, rune, and a pet's skin. */
+    private static final java.util.Set<String> COSMETIC_PARTS = java.util.Set.of("Dye", "Skin", "Rune", "Pet Skin");
+
+    /**
+     * Items that are only cosmetic, valued entirely as cosmetic: pet skins, dyes, runes, and armor/minion/other skins.
+     * (SkyHelper-Networth's nonCosmetic flag drops the same groups - skins, dyes, runes. This list is ours, written
+     * from the item ids; SkyHelper's own constants were not reachable.)
+     */
+    public static boolean isCosmeticItem(String id) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        String u = id.toUpperCase(Locale.ROOT);
+        return u.startsWith("PET_SKIN_") || u.startsWith("DYE_") || u.equals("RUNE") || u.equals("UNIQUE_RUNE")
+                || u.startsWith("RUNE_") || u.contains("_RUNE") || u.startsWith("SKIN_") || u.contains("_SKIN");
+    }
+
+    /**
+     * One stack's value: Est. Item Value (NETWORTH mode) per unit times the count (a pet counts once). Falls back to
+     * the plain base-price lookup for whatever the calculator has no base price for.
+     */
+    public static ItemValue itemValue(ItemStack s, Map<String, Double> bins) {
         String id = LegacyItems.skyblockId(s);
         if (id.isEmpty()) {
-            return 0;
+            return ItemValue.ZERO;
         }
-        if ("PET".equals(id)) {
-            CustomData data = s.get(DataComponents.CUSTOM_DATA);
-            String info = data == null ? "" : data.copyTag().getStringOr("petInfo", "");
-            try {
-                JsonObject o = JsonParser.parseString(info).getAsJsonObject();
-                return petPrice(SbProfile.str(o, "type", ""), SbProfile.str(o, "tier", "COMMON"), bins);
-            } catch (Exception e) {
-                return 0;
+        boolean pet = "PET".equals(id);
+        int count = pet ? 1 : Math.max(1, s.getCount());
+        double unit = 0;
+        double cosmetic = 0;
+        boolean hasBase = false;
+        try {
+            CompoundTag tag = ItemNbt.view(s);
+            if (tag != null && tag.contains("id")) {
+                String key = ItemKeys.priceKey(tag, s.getHoverName().getString());
+                if (key != null) {
+                    ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.ValueMode.NETWORTH);
+                    for (ItemValueCalc.Part part : r.parts()) {
+                        if ("Base".equals(part.label())) {
+                            hasBase = true;
+                        } else if (COSMETIC_PARTS.contains(part.label())) {
+                            cosmetic += part.value();
+                        }
+                    }
+                    unit = r.total();
+                }
             }
+        } catch (Throwable ignored) {
+            unit = 0;
+            cosmetic = 0;
+            hasBase = false;
         }
-        return price(id, bins) * Math.max(1, s.getCount());
+        if (!hasBase) {
+            double base;
+            if (pet) {
+                CustomData data = s.get(DataComponents.CUSTOM_DATA);
+                String info = data == null ? "" : data.copyTag().getStringOr("petInfo", "");
+                try {
+                    JsonObject o = JsonParser.parseString(info).getAsJsonObject();
+                    base = petPrice(SbProfile.str(o, "type", ""), SbProfile.str(o, "tier", "COMMON"), bins);
+                } catch (Exception e) {
+                    base = 0;
+                }
+            } else {
+                base = price(id, bins);
+            }
+            unit += base;
+        }
+        double total = unit * count;
+        if (isCosmeticItem(id)) {
+            return new ItemValue(total, total);
+        }
+        return new ItemValue(total, Math.min(total, cosmetic * count));
     }
 
     private static double petPrice(String type, String tier, Map<String, Double> bins) {

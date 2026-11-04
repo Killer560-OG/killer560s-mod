@@ -257,7 +257,7 @@ public final class SlotBindsFeature {
         ScreenMouseEvents.allowMouseRelease(screen).register((s, event) ->
                 bindRelease.test(KeyUtil.codeForMouseButton(com.killer560.hub.compat.McInput.button(event))));
 
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) -> {
             mouse[0] = mouseX;
             mouse[1] = mouseY;
             render((AbstractContainerScreen<?>) screen, graphics, mouseX, mouseY, pendingSlot[0], gesture[0]);

@@ -129,8 +129,20 @@ public final class PackDisabler {
                 || !(MAP_MODEL.equals(current) || FILLED_MAP_MODEL.equals(current))) {
             return false;
         }
-        if (!(stack.is(Items.MAP) || stack.is(Items.FILLED_MAP)) || stack.has(DataComponents.MAP_ID)) {
+        if (!(stack.is(Items.MAP) || stack.is(Items.FILLED_MAP))) {
             return false;
+        }
+        // Create Buy Order is a filled map WITH a map number but no map data ("Unknown Map" in its tooltip; killer560,
+        // 2026-11-03 screenshot). A map whose picture the client holds is a real map and keeps its look.
+        if (stack.has(DataComponents.MAP_ID)) {
+            try {
+                net.minecraft.client.multiplayer.ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
+                if (level == null || level.getMapData(stack.get(DataComponents.MAP_ID)) != null) {
+                    return false;
+                }
+            } catch (Exception e) {
+                return false;
+            }
         }
         try {
             if (!PackDisablerConfig.getInstance().isPaperMenuButtons() || !isActive()) {

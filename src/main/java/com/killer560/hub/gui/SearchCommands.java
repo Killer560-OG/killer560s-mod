@@ -110,6 +110,7 @@ public final class SearchCommands {
             Map.entry("k560tested", "testing build: marks a tab tested"),
             Map.entry("ahmenudump", "developer: records an AH menu"),
             Map.entry("simbosscapture", "developer: captures a boss room for the sim"),
+            Map.entry("k560worldexport", "developer: records a world for offline testing"),
             Map.entry("reboot", "restarts the game; no setting"));
 
     private static final String ROOT = "com.killer560.hub.";

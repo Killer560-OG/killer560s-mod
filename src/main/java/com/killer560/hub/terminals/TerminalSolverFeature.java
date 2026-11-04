@@ -181,6 +181,61 @@ public final class TerminalSolverFeature {
     }
 
     private static final Map<Integer, PendingClick> pendingClicks = new LinkedHashMap<>();
+
+    /** A real PICKUP click (Rubix) predicts the pickup locally: the slot reads EMPTY until the server answers. When the
+     *  server rejects or drops the click it never sends the slot back, so the solver saw no pane there, the custom GUI
+     *  drew nothing and the terminal looked finished while still open (killer560, 2026-11-03). Each predicted slot is
+     *  kept with its pre-click stack; the server's update wins if it arrives, and once the answer is overdue the stack
+     *  the server last sent is put back so the pane shows again. */
+    private record PredictedSlot(ItemStack before, long sentAtMs) {
+    }
+
+    private static final Map<Integer, PredictedSlot> predictedSlots = new LinkedHashMap<>();
+
+    /** Called BEFORE a click that may predict locally; remembers what the server last said about the slot. */
+    static void notePredictedPickup(AbstractContainerScreen<?> screen, int slotIndex, long now) {
+        List<Slot> slots = screen.getMenu().slots;
+        if (slotIndex < 0 || slotIndex >= slots.size()) {
+            return;
+        }
+        ItemStack stack = slots.get(slotIndex).getItem();
+        if (stack.isEmpty()) {
+            return;
+        }
+        PredictedSlot old = predictedSlots.get(slotIndex);
+        predictedSlots.put(slotIndex, new PredictedSlot(old != null ? old.before() : stack.copy(), now));
+    }
+
+    /** How long a predicted slot may read empty before the server's last state is restored: a round trip plus a few ticks. */
+    static long predictionTimeoutMs() {
+        return Math.max(250L, 2L * Math.max(0, com.killer560.hub.util.PingTracker.bestMs()) + 150L);
+    }
+
+    /** Per frame: drops entries the server has answered, restores the overdue ones. */
+    private static void resyncPredictedSlots(AbstractContainerScreen<?> screen, long now) {
+        if (predictedSlots.isEmpty()) {
+            return;
+        }
+        List<Slot> slots = screen.getMenu().slots;
+        long timeout = predictionTimeoutMs();
+        var it = predictedSlots.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            if (e.getKey() >= slots.size()) {
+                it.remove();
+                continue;
+            }
+            Slot slot = slots.get(e.getKey());
+            if (!slot.getItem().isEmpty()) {
+                it.remove();
+            } else if (now - e.getValue().sentAtMs() >= timeout) {
+                slot.set(e.getValue().before().copy());
+                LOGGER.info("{} slot {} still empty {} ms after a click (server never answered): put its last server state back",
+                        DIAG_TAG, e.getKey(), now - e.getValue().sentAtMs());
+                it.remove();
+            }
+        }
+    }
     // Crash fixed 2026-09-20 (killer560's log, 15:39:52, "Rendering screen" / NullPointerException):
     // set once another mod's slotClicked mixin has thrown on this terminal - see #invokeSlotClicked.
     // Both click loops stand down for the rest of the terminal rather than re-throwing on every retry.
@@ -520,6 +575,7 @@ public final class TerminalSolverFeature {
             diagScreenIdentity = screenIdentityNow;
         }
         currentType = type;
+        resyncPredictedSlots(screen, now);
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
         boolean realContent = hasRealContent(items);
@@ -640,6 +696,7 @@ public final class TerminalSolverFeature {
     private static void resetAutoClickState() {
         nextAutoClickAllowedAtMs = 0;
         pendingClicks.clear();
+        predictedSlots.clear();
         foreignClickFailed = false;
         melodyButtonRow = null;
         melodyCurrentColumn = null;
@@ -689,7 +746,9 @@ public final class TerminalSolverFeature {
         if (!cfg.isAutoTerminalsEnabled()) {
             return;
         }
-        if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS) {
+        // First Click Delay (2026-11-03): the owner's wait REPLACES the fixed 500 ms settle for Auto Terminals' first click
+        // (still timed from stabilizedAtMs, which a container-id or screen change re-arms, so a double-open is re-stabilized).
+        if (System.currentTimeMillis() - stabilizedAtMs < cfg.getFirstClickDelayMs()) {
             // Round 31 - see stabilizedAtMs's own doc. Lets a freshly-opened terminal's real double-open
             // finish before this class ever attempts its first click against it. Stream Safe's hand already sets off
             // meanwhile (killer560, 2026-11-01: "The first click is really slow"): it used to start its reaction and move
@@ -956,7 +1015,11 @@ public final class TerminalSolverFeature {
             return false;
         }
         Slot slot = slots.get(slotIndex);
+        if (clickType == ContainerInput.PICKUP) {
+            notePredictedPickup(screen, slotIndex, System.currentTimeMillis());
+        }
         if (!invokeSlotClicked(screen, slot, button, clickType)) {
+            predictedSlots.remove(slotIndex);
             return false;
         }
         if (clickType == ContainerInput.PICKUP) {
@@ -1667,7 +1730,13 @@ public final class TerminalSolverFeature {
             }
             ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
             int effectiveButton = needsRealClick ? button : 0;
+            if (needsRealClick) {
+                notePredictedPickup(screen, slotIndex, System.currentTimeMillis());
+            }
             boolean sent = invokeSlotClicked(screen, slot, effectiveButton, clickType);
+            if (!sent) {
+                predictedSlots.remove(slotIndex);
+            }
             if (sent && needsRealClick) {
                 // Per killer560's "whenever I click in rubix it makes my held item move... please dont
                 // make that happen, it is the only term it does that for" report (2026-09-09, round 11):

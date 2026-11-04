@@ -112,13 +112,13 @@ public final class AutoRoutesRenderer {
                     continue;
                 }
                 if (m.preFill[i] != null) {
-                    McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), m.preFill[i]);
+                    McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.FILLED, m.preFill[i]);
                 }
                 if (m.lines[i] != null) {
-                    McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, m.lines[i]);
+                    McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.LINES, m.lines[i]);
                 }
                 if (m.postFill[i] != null) {
-                    McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), m.postFill[i]);
+                    McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.FILLED, m.postFill[i]);
                 }
             }
             if (m.chainEnd > m.chainStart || path != null) {
@@ -126,7 +126,7 @@ public final class AutoRoutesRenderer {
                 LINES.nodes = false;
                 LINES.path = path;
                 LINES.pathWidth = Math.max(0.5f, thickness / 2f);
-                McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
+                McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.LINES, LINES);
             }
         } else {
             // 26.1.2: one camera-space pass per render type, in the order the per-shape calls used to fill each buffer.
@@ -135,11 +135,11 @@ public final class AutoRoutesRenderer {
                 LINES.nodes = true;
                 LINES.path = path;
                 LINES.pathWidth = Math.max(0.5f, thickness / 2f);
-                McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
+                McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.LINES, LINES);
             }
             if (m.fillVertCount() > 0) {
                 FILLS.mesh = m;
-                McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), FILLS);
+                McRender.inCameraSpace(ctx, com.killer560.hub.util.EspTypes.FILLED, FILLS);
             }
         }
 

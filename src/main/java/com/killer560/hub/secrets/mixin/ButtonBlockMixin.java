@@ -29,6 +29,12 @@ public abstract class ButtonBlockMixin {
         if (!SecretsFeature.shouldExpandButtons()) {
             return;
         }
+        // F7/M7 boss: only the Simon Says device's buttons are enlarged; every other button keeps its vanilla
+        // shape (killer560, 2026-11-03).
+        if (com.killer560.hub.secrets.DungeonState.isBossPhaseActive()
+                && !com.killer560.hub.simonsays.SimonSaysFeature.isDeviceButton(pos)) {
+            return;
+        }
         com.killer560.hub.secrets.SecretsConfig cfg = com.killer560.hub.secrets.SecretsConfig.getInstance();
         if (cfg.getButtonShape() == com.killer560.hub.secrets.SecretsConfig.Shape.CUSTOM) {
             cir.setReturnValue(SecretsFeature.BUTTON_SIZER.attached(SecretsFeature.mount(state.getValue(ButtonBlock.FACE)),

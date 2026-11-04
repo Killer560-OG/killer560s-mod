@@ -22,6 +22,9 @@ public class MiningCommissionHudTab extends BaseTab {
                 contentWidth, 20));
         y += MiningQolRows.STEP;
 
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Hide While Powder Mining", cfg::isHideCommissionsPowder,
+                cfg::setHideCommissionsPowder, cfg::save);
+        y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Color By Progress", cfg::isCommissionColorProgress,
                 cfg::setCommissionColorProgress, cfg::save);
         y += MiningQolRows.STEP;

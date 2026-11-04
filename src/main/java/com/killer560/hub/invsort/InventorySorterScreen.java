@@ -107,6 +107,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private SettingsButtonWidget bindButton;
     private SettingsButtonWidget fetchButton;
     private SettingsButtonWidget dumpButton;
+    private SettingsButtonWidget loadoutButton;
 
     /** The list row a press started on (index into the names), its button and where; -1 when none. */
     private int pressedRow = -1;
@@ -461,7 +462,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         InventoryLayout layout = toLayout(name);
         InventoryLayout existing = InventoryLayoutStore.getInstance().get(name);
         layout = existing != null ? layout.withStorage(existing.fetchFromStorage(), existing.dumpPage())
-                : layout.withStorage(true, null);
+                .withLoadout(existing.loadout()) : layout.withStorage(true, null);
         if (layout.isEmpty()) {
             say("Nothing to save - the grid is empty.", true);
             return;
@@ -608,12 +609,31 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         say("Put Others In cleared for " + layout.name() + ".", false);
     }
 
+    /** Steps the selected layout's Hypixel loadout: none, 1, 2 ... 12, wrapping (left click forward, right click back).
+     *  Public for tests. */
+    public void stepLoadout(int dir) {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (layout == null) {
+            say("Right-click a saved layout first.", true);
+            return;
+        }
+        int next = Math.floorMod(layout.loadout() + dir, InventoryLayout.MAX_LOADOUT + 1);
+        InventoryLayoutStore.getInstance().save(layout.withLoadout(next));
+        refreshStorageLabels();
+        say("Hypixel Loadout " + (next == 0 ? "cleared" : "set to " + next) + " for " + layout.name() + ".", false);
+    }
+
     private void refreshStorageLabels() {
         InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
         if (fetchButton != null) {
             fetchButton.setMessage(Component.literal("Fetch From Storage: " + (layout == null ? "-"
                     : layout.fetchFromStorage() ? "ON" : "OFF")));
             fetchButton.active = layout != null;
+        }
+        if (loadoutButton != null) {
+            loadoutButton.setMessage(Component.literal("Hypixel Loadout: " + (layout == null ? "-"
+                    : layout.loadout() == 0 ? "None" : String.valueOf(layout.loadout()))));
+            loadoutButton.active = layout != null;
         }
         if (dumpButton != null) {
             dumpButton.setMessage(Component.literal("Put Others In: " + (layout == null ? "-"
@@ -723,7 +743,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         listW = panelX + PANEL_W - 8 - listX;
 
         // Two storage buttons at the foot of the list column; the rows fill the rest.
-        int storageY = panelY + PANEL_H - 8 - 18 - 22;
+        int storageY = panelY + PANEL_H - 8 - 18 - 44;
         int listH = storageY - 4 - listY;
         int byWidth = (listW - 2 - KEY_W - 2 - 8) / 9;
         int byHeight = listH / 5 - 16; // at least five rows
@@ -768,6 +788,9 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 .secondaryPress(b -> clearDumpPage())
                 .bounds(listX, storageY + 22, listW, 18).build();
         addRenderableWidget(dumpButton);
+        loadoutButton = SettingsButtonWidget.cycling(Component.literal("Hypixel Loadout"), (b, dir) -> stepLoadout(dir))
+                .bounds(listX, storageY + 44, listW, 18).build();
+        addRenderableWidget(loadoutButton);
         refreshStorageLabels();
         refreshBindLabel();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
@@ -973,6 +996,13 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             lines.add(Component.literal("§7Where the items that are not in the layout go when it is applied."));
             lines.add(Component.literal("§7Left click: pick an Ender Chest page or backpack. Right click: None."));
             lines.add(Component.literal("§7None: they are left in your inventory, in the slots the layout does not use."));
+            graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
+        } else if (loadoutButton != null && loadoutButton.active && mouseX >= loadoutButton.getX() && mouseX < loadoutButton.getX() + loadoutButton.getWidth()
+                && mouseY >= loadoutButton.getY() && mouseY < loadoutButton.getY() + loadoutButton.getHeight()) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.literal("Hypixel Loadout"));
+            lines.add(Component.literal("§7Applying this layout first selects this loadout from /loadouts (page 1, 1-12),"));
+            lines.add(Component.literal("§7then sorts. Left click: next. Right click: back. None: the loadout is left alone."));
             graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!hover.isEmpty()) {
             graphics.setTooltipForNextFrame(this.font, Screen.getTooltipFromItem(this.minecraft, hover),

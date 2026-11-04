@@ -91,7 +91,7 @@ public final class PosmsgFeature {
             }
         });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PosmsgFeature.tick", PosmsgFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Posmsg render", () -> PosmsgConfig.getInstance().isEnabledRaw()), PosmsgRenderer::render));
     }
 

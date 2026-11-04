@@ -56,6 +56,7 @@ public final class DungeonQueueFeature {
 
     public static void register() {
         ChatObserver.subscribe(DungeonQueueFeature::onChat);
+        PvJoinLink.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonQueueFeature.tick", DungeonQueueFeature::tick));
     }
 

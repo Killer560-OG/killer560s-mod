@@ -48,7 +48,7 @@ public final class WaypointRoutesFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WaypointRoutesFeature.tick", WaypointRoutesFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("Waypoint Routes render", () -> WaypointRoutesConfig.getInstance().isEnabledRaw()), WaypointRoutesFeature::onWorldRender));
     }
 

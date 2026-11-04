@@ -418,7 +418,7 @@ public final class SimCreeperPuzzle {
      */
     public static void registerRender() {
         com.killer560.hub.puzzlesolvers.SolverEspRender.init();
-        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS
                 .register(context -> {
                     boolean[] c = connected;
                     List<Pair> world = worldPairs;
