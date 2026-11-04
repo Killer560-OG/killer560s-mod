@@ -123,7 +123,7 @@ public class ArrowAlignTab extends BaseTab {
                 @Override
                 protected void onRangeChanged(int low, int high) {
                     cfg.setTriggerBotCpsRange(low, high);
-                    cfg.save();
+                    ThemedSliderButton.saveOnRelease(cfg::save);
                 }
             });
             y += 22;

@@ -167,7 +167,8 @@ public final class EggTracker {
             }
             JsonObject root = new JsonObject();
             root.add("hunts", arr);
-            SharedRecords.save(SharedRecords.file(RecordCatalog.EGG_TRACKER), root);
+            com.killer560.hub.shared.SharedFile target = SharedRecords.file(RecordCatalog.EGG_TRACKER);
+            com.killer560.hub.shared.SharedWriter.submit(() -> SharedRecords.save(target, root));
         } catch (Exception ignored) {
         }
     }

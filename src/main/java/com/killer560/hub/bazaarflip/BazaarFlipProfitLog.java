@@ -264,7 +264,8 @@ public final class BazaarFlipProfitLog {
             CYCLES.forEach(c -> arr.add(c.toJson()));
             root.add("cycles", arr);
             root.add("view", view.toJson());
-            SharedRecords.save(SharedRecords.file(RecordCatalog.BAZAAR_FLIP), root);
+            com.killer560.hub.shared.SharedFile target = SharedRecords.file(RecordCatalog.BAZAAR_FLIP);
+            com.killer560.hub.shared.SharedWriter.submit(() -> SharedRecords.save(target, root));
         } catch (Exception e) {
             LOGGER.warn("[BazaarFlip] Couldn't save the profit log", e);
         }

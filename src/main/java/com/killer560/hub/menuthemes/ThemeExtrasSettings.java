@@ -84,7 +84,7 @@ public final class ThemeExtrasSettings {
             protected void applyValue() {
                 ThemeExtrasConfig c = ThemeExtrasConfig.getInstance();
                 c.setMusicVolume((int) Math.round(this.value * ThemeExtrasConfig.MAX_VOLUME));
-                c.save();
+                com.killer560.hub.gui.ThemedSliderButton.saveOnRelease(c::save);
             }
         }.steps(stops));
         y += 24;
