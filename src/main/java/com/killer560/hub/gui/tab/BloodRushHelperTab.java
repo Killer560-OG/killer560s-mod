@@ -54,11 +54,7 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("All Rooms", cfg::isAllRooms, cfg::setAllRooms, cfg::save, null, colB, y, colW, 18));
         y += 22;
 
-        w.add(SettingsButtonWidget.cycling(doorKillsText(cfg), (btn, dir) -> {
-            cfg.setDoorKills(SettingsButtonWidget.step(cfg.getDoorKills(), dir));
-            cfg.save();
-            btn.setMessage(doorKillsText(cfg));
-        }).bounds(contentX, y, colW, 18).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> doorKillsText(cfg), cfg::getDoorKills, cfg::setDoorKills, cfg::save).bounds(contentX, y, colW, 18).build());
         w.add(onOffButton("Drop Bottom After Fairy", cfg::isDropBottom, cfg::setDropBottom, cfg::save, null,
                 colB, y, colW, 18));
         y += 22;

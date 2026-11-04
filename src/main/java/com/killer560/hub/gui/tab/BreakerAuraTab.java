@@ -203,16 +203,8 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,
         // out to the render distance), each as Outline / Fill / Filled Outline.
-        widgets.add(SettingsButtonWidget.cycling(displayText(cfg), (btn, dir) -> {
-                    cfg.setBreakerAuraDisplay(SettingsButtonWidget.step(cfg.getBreakerAuraDisplay(), dir));
-                    cfg.save();
-                    btn.setMessage(displayText(cfg));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
-                    cfg.setBreakerAuraStyle(SettingsButtonWidget.step(cfg.getBreakerAuraStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> displayText(cfg), cfg::getBreakerAuraDisplay, cfg::setBreakerAuraDisplay, cfg::save).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> styleText(cfg), cfg::getBreakerAuraStyle, cfg::setBreakerAuraStyle, cfg::save).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
         widgets.add(onOffButton("Auto Swap", cfg::isBreakerAuraAutoSwap, cfg::setBreakerAuraAutoSwap, cfg::save,

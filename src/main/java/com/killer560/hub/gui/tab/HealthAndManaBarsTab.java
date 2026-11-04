@@ -186,16 +186,8 @@ public class HealthAndManaBarsTab extends BaseTab {
                     y[0] += ROW;
                 }
             }
-            widgets.add(SettingsButtonWidget.cycling(barStyleText(ps), (btn, dir) -> {
-                        ps.setBarStyle(SettingsButtonWidget.step(ps.getBarStyle(), dir));
-                        ps.save();
-                        btn.setMessage(barStyleText(ps));
-                    }).bounds(contentX, y[0], half, ROW_H).build());
-            widgets.add(SettingsButtonWidget.cycling(textSizeText(ps), (btn, dir) -> {
-                        ps.setBarTextSize(SettingsButtonWidget.step(ps.getBarTextSize(), dir));
-                        ps.save();
-                        btn.setMessage(textSizeText(ps));
-                    }).bounds(col2, y[0], half, ROW_H).build());
+            widgets.add(SettingsButtonWidget.cycleEnum(() -> barStyleText(ps), ps::getBarStyle, ps::setBarStyle, ps::save).bounds(contentX, y[0], half, ROW_H).build());
+            widgets.add(SettingsButtonWidget.cycleEnum(() -> textSizeText(ps), ps::getBarTextSize, ps::setBarTextSize, ps::save).bounds(col2, y[0], half, ROW_H).build());
             y[0] += ROW;
         }
 
@@ -230,11 +222,7 @@ public class HealthAndManaBarsTab extends BaseTab {
             toggle(widgets, contentX, y[0], half, "Show Value", ps::isBarShowValue, ps::setBarShowValue, ps::save,
                     requestRebuild);
             if (ps.isBarShowValue() || scanningForSearch) {
-                widgets.add(SettingsButtonWidget.cycling(valuePositionText(ps), (btn, dir) -> {
-                            ps.setBarValuePosition(SettingsButtonWidget.step(ps.getBarValuePosition(), dir));
-                            ps.save();
-                            btn.setMessage(valuePositionText(ps));
-                        }).bounds(col2, y[0], half, ROW_H).build());
+                widgets.add(SettingsButtonWidget.cycleEnum(() -> valuePositionText(ps), ps::getBarValuePosition, ps::setBarValuePosition, ps::save).bounds(col2, y[0], half, ROW_H).build());
             }
             y[0] += ROW;
             toggle(widgets, contentX, y[0], half, "Smooth Fill", ps::isBarSmooth, ps::setBarSmooth, ps::save, null);
@@ -354,11 +342,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                 ps::save, null);
         y[0] += ROW;
         // Vanilla's held-item name over the hotbar (2026-10-07): Shown / Hidden Over Bars (the default) / Hidden.
-        widgets.add(SettingsButtonWidget.cycling(heldItemNameText(ps), (btn, dir) -> {
-                    ps.setHeldItemName(SettingsButtonWidget.step(ps.getHeldItemName(), dir));
-                    ps.save();
-                    btn.setMessage(heldItemNameText(ps));
-                }).bounds(contentX, y[0], contentWidth, ROW_H).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> heldItemNameText(ps), ps::getHeldItemName, ps::setHeldItemName, ps::save).bounds(contentX, y[0], contentWidth, ROW_H).build());
         y[0] += ROW;
         return widgets;
     }

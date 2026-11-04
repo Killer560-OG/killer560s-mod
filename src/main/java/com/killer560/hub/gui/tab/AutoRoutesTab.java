@@ -166,11 +166,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // killer560, 2026-10-05: work while the Interactive Map is open (not while it is warping you).
         toggleCell(w, contentX, y[0], half, "Run While Map Open", cfg::isRunWhileMapOpen, cfg::setRunWhileMapOpen, null);
         // killer560, 2026-10-05: after he clicks a trapped chest, kill the mimic - Off / Hyperion / Spirit Sceptre.
-        w.add(SettingsButtonWidget.cycling(killMimicText(cfg), (btn, dir) -> {
-                    cfg.setKillMimic(SettingsButtonWidget.step(cfg.getKillMimic(), dir));
-                    cfg.save();
-                    btn.setMessage(killMimicText(cfg));
-                }).bounds(contentX + half + GAP, y[0], right, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> killMimicText(cfg), cfg::getKillMimic, cfg::setKillMimic, cfg::save).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += 24;
         // killer560, 2026-10-25: zero ping etherwarp "for auto routes and such" - consecutive warps from the predicted landing.
         toggleCell(w, contentX, y[0], half, "Zero Ping Chain", cfg::getZeroPingChainSetting, cfg::setZeroPingChain, null);
@@ -193,11 +189,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                         + v * (AutoRoutesConfig.MAX_MIMIC_TIMEOUT_TICKS - AutoRoutesConfig.MIN_MIMIC_TIMEOUT_TICKS))));
         y[0] += 24;
         // killer560, 2026-10-05: what a crypt node attacks with.
-        w.add(SettingsButtonWidget.cycling(cryptWeaponText(cfg), (btn, dir) -> {
-                    cfg.setCryptWeapon(SettingsButtonWidget.step(cfg.getCryptWeapon(), dir));
-                    cfg.save();
-                    btn.setMessage(cryptWeaponText(cfg));
-                }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> cryptWeaponText(cfg), cfg::getCryptWeapon, cfg::setCryptWeapon, cfg::save).bounds(contentX, y[0], half, 20).build());
         // killer560, 2026-10-05: how long a crypt node attacks before moving on, in case the undead walk out of reach.
         slider(w, contentX + half + GAP, y[0], right,
                 () -> String.format(Locale.US, "Crypt Attack Time: %.1fs", cfg.getCryptAttackTicks() / 20.0),
@@ -207,11 +199,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                         + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
         y[0] += 24;
         // killer560, 2026-10-13: a bat node, "just like crypts" - its own weapon and attack time.
-        w.add(SettingsButtonWidget.cycling(batWeaponText(cfg), (btn, dir) -> {
-                    cfg.setBatWeapon(SettingsButtonWidget.step(cfg.getBatWeapon(), dir));
-                    cfg.save();
-                    btn.setMessage(batWeaponText(cfg));
-                }).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> batWeaponText(cfg), cfg::getBatWeapon, cfg::setBatWeapon, cfg::save).bounds(contentX, y[0], half, 20).build());
         slider(w, contentX + half + GAP, y[0], right,
                 () -> String.format(Locale.US, "Bat Attack Time: %.1fs", cfg.getBatAttackTicks() / 20.0),
                 (cfg.getBatAttackTicks() - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS)
@@ -330,11 +318,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         header(w, x, y, width, "Render Style");
         int right = Math.max(1, width - half - GAP);
         // Cycles Box / Filled Box / Cylinder (QUOI's three) - whatever the config enum declares, in its order.
-        w.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
-                    cfg.setRenderStyle(SettingsButtonWidget.step(cfg.getRenderStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).bounds(x, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> styleText(cfg), cfg::getRenderStyle, cfg::setRenderStyle, cfg::save).bounds(x, y[0], half, 20).build());
         // AP3's "Show Node Numbers": the number over each node is the one /ar delete and /ar remove take.
         toggleCell(w, x + half + GAP, y[0], right, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers, null);
         y[0] += 24;
@@ -347,16 +331,8 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         y[0] += 24;
         // killer560, 2026-10-06: "have an option under auto routes for it to be waypoints or highlights" - how a
         // breaker node's picked blocks are drawn in edit mode, Breaker Aura's Display and Box Style for these blocks.
-        w.add(SettingsButtonWidget.cycling(breakerDisplayText(cfg), (btn, dir) -> {
-                    cfg.setBreakerDisplay(SettingsButtonWidget.step(cfg.getBreakerDisplay(), dir));
-                    cfg.save();
-                    btn.setMessage(breakerDisplayText(cfg));
-                }).bounds(x, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.cycling(breakerStyleText(cfg), (btn, dir) -> {
-                    cfg.setBreakerStyle(SettingsButtonWidget.step(cfg.getBreakerStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(breakerStyleText(cfg));
-                }).bounds(x + half + GAP, y[0], right, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> breakerDisplayText(cfg), cfg::getBreakerDisplay, cfg::setBreakerDisplay, cfg::save).bounds(x, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> breakerStyleText(cfg), cfg::getBreakerStyle, cfg::setBreakerStyle, cfg::save).bounds(x + half + GAP, y[0], right, 20).build());
         y[0] += 24;
     }
 

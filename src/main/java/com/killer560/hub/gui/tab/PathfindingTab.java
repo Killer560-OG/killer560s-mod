@@ -59,11 +59,7 @@ public class PathfindingTab extends BaseTab {
         y += 20;
         widgets.add(onOffButton("Show Path", cfg::isShowPath, cfg::setShowPath, cfg::save,
                 null, contentX, y, col2W, 18));
-        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-                    cfg.setSoulMode(SettingsButtonWidget.step(cfg.getSoulMode(), dir));
-                    cfg.save();
-                    btn.setMessage(modeText(cfg));
-                }).bounds(col2bX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> modeText(cfg), cfg::getSoulMode, cfg::setSoulMode, cfg::save).bounds(col2bX, y, col2W, 18).build());
         y += 20;
         widgets.add(onOffButton("Dim Path", cfg::isDimPath, cfg::setDimPath, cfg::save, null, contentX, y, col2W, 18));
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Color", cfg.getPathColor()), btn ->

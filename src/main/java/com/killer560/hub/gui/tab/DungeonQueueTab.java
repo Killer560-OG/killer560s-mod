@@ -120,11 +120,7 @@ public class DungeonQueueTab extends BaseTab {
             return widgets;
         }
         widgets.add(toggle("Show Missing", pf::isShowMissing, pf::setShowMissing, pf::save, contentX, y, colW));
-        widgets.add(SettingsButtonWidget.cycling(valueText("PB Mode", pf.getPbMode().label), (btn, dir) -> {
-                    pf.setPbMode(SettingsButtonWidget.step(pf.getPbMode(), dir));
-                    pf.save();
-                    btn.setMessage(valueText("PB Mode", pf.getPbMode().label));
-                }).bounds(colBX, y, colW, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> valueText("PB Mode", pf.getPbMode().label), pf::getPbMode, pf::setPbMode, pf::save).bounds(colBX, y, colW, 18).build());
         y += 20;
         // Label renamed from "Compact" to "Party Finder style" (killer560 7.2) - the persisted CompactMode
         // enum values (NONE/STYLE1/STYLE2/CUSTOM) are untouched, so an existing selection still loads.

@@ -44,22 +44,14 @@ public class LuckTab extends BaseTab {
         widgets.add(onOffButton("Count Dye Pickups", cfg::isInventoryDrops, cfg::setInventoryDrops, cfg::save, null,
                 contentX + half + GAP, y, half, 18));
         y += 22;
-        widgets.add(SettingsButtonWidget.cycling(chestOddsText(), (btn, dir) -> {
-            cfg.setChestOdds(SettingsButtonWidget.step(cfg.getChestOdds(), dir));
-            cfg.save();
-            btn.setMessage(chestOddsText());
-        }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> chestOddsText(), cfg::getChestOdds, cfg::setChestOdds, cfg::save).bounds(contentX, y, half, 18).build());
         widgets.add(SettingsButtonWidget.cycling(mfModeText(), (btn, dir) -> {
             cfg.setMagicFindMode(SettingsButtonWidget.step(cfg.getMagicFindMode(), dir));
             cfg.save();
             requestRebuild.run();
         }).bounds(contentX + half + GAP, y, half, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.cycling(mobKillsText(), (btn, dir) -> {
-            cfg.setMobKills(SettingsButtonWidget.step(cfg.getMobKills(), dir));
-            cfg.save();
-            btn.setMessage(mobKillsText());
-        }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> mobKillsText(), cfg::getMobKills, cfg::setMobKills, cfg::save).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
         if (cfg.getMagicFindMode() == LuckConfig.MagicFindMode.MANUAL) {
             widgets.add(normSlider(contentX, y, contentWidth, 18,

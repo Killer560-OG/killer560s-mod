@@ -141,11 +141,7 @@ public class CroesusTab extends BaseTab {
 
         // Price Mode (killer560, 2026-10-11): how every Croesus value is priced - the chest overlay, the logger and
         // Auto Croesus's decisions. Left click steps forward, right click back.
-        widgets.add(SettingsButtonWidget.cycling(priceModeText(cfg), (btn, dir) -> {
-                    cfg.setPriceMode(SettingsButtonWidget.step(cfg.getPriceMode(), dir));
-                    cfg.save();
-                    btn.setMessage(priceModeText(cfg));
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> priceModeText(cfg), cfg::getPriceMode, cfg::setPriceMode, cfg::save).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
         // ---- Theme: ONE for all of Croesus (killer560, 2026-10-18) - the chest profit panel, the Start button and the

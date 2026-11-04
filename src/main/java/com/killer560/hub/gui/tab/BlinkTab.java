@@ -93,11 +93,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
             return w;
         }
         y = toggle(w, contentX, y, contentWidth, "Show HUD", cfg::isShowHud, v -> cfg.setShowHud(v), cfg);
-        w.add(SettingsButtonWidget.cycling(Component.literal("HUD Style: " + cfg.getHudStyle().label), (btn, dir) -> {
-                    cfg.setHudStyle(SettingsButtonWidget.step(cfg.getHudStyle(), dir));
-                    cfg.save();
-                    btn.setMessage(Component.literal("HUD Style: " + cfg.getHudStyle().label));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> Component.literal("HUD Style: " + cfg.getHudStyle().label), cfg::getHudStyle, cfg::setHudStyle, cfg::save).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         y = toggle(w, contentX, y, contentWidth, "Show Server Position", cfg::isShowServerBox,
                 v -> cfg.setShowServerBox(v), cfg);
@@ -112,11 +108,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Charge Key: §ePress any key..."));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
-        w.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-                    cfg.setChargeMode(SettingsButtonWidget.step(cfg.getChargeMode(), dir));
-                    cfg.save();
-                    btn.setMessage(modeText(cfg));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> modeText(cfg), cfg::getChargeMode, cfg::setChargeMode, cfg::save).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         y = slider(w, contentX, y, contentWidth, "Charge Ticks", cfg::getChargeTicks, cfg::setChargeTicks, cfg);
         y += 6;

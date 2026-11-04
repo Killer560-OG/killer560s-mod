@@ -159,11 +159,7 @@ public class RibbonTrailTab extends BaseTab {
             y[0] += 22;
         }
 
-        w.add(SettingsButtonWidget.cycling(teleportLabel(cfg), (btn, dir) -> {
-                    cfg.setTeleportMode(SettingsButtonWidget.step(cfg.getTeleportMode(), dir));
-                    cfg.save();
-                    btn.setMessage(teleportLabel(cfg));
-                }).bounds(x, y[0], width, 18).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> teleportLabel(cfg), cfg::getTeleportMode, cfg::setTeleportMode, cfg::save).bounds(x, y[0], width, 18).build());
         y[0] += 22;
 
         toggle(w, x, y[0], width, "Show In First Person", cfg::isShowInFirstPerson, v -> {

@@ -69,16 +69,8 @@ public final class AutoClearSettings {
                 Minecraft.getInstance().font));
         y[0] += 16;
 
-        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-            cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));
-            cfg.save();
-            btn.setMessage(modeText(cfg));
-        }).bounds(x, y[0], half, 20).build());
-        widgets.add(SettingsButtonWidget.cycling(weaponText(cfg), (btn, dir) -> {
-            cfg.setWeapon(SettingsButtonWidget.step(cfg.getWeapon(), dir));
-            cfg.save();
-            btn.setMessage(weaponText(cfg));
-        }).bounds(x + half + GAP, y[0], right, 20).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> modeText(cfg), cfg::getMode, cfg::setMode, cfg::save).bounds(x, y[0], half, 20).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> weaponText(cfg), cfg::getWeapon, cfg::setWeapon, cfg::save).bounds(x + half + GAP, y[0], right, 20).build());
         y[0] += 24;
 
         toggleCell(widgets, x, y[0], half, "Hyperion Hops", cfg::isHyperionHops, cfg::setHyperionHops, null);
@@ -90,11 +82,7 @@ public final class AutoClearSettings {
                 null);
         y[0] += 24;
 
-        widgets.add(SettingsButtonWidget.cycling(oneTapText(cfg), (btn, dir) -> {
-            cfg.setOneTap(SettingsButtonWidget.step(cfg.getOneTap(), dir));
-            cfg.save();
-            btn.setMessage(oneTapText(cfg));
-        }).bounds(x, y[0], half, 20).build());
+        widgets.add(SettingsButtonWidget.cycleEnum(() -> oneTapText(cfg), cfg::getOneTap, cfg::setOneTap, cfg::save).bounds(x, y[0], half, 20).build());
         y[0] += 24;
 
         int span = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;

@@ -52,11 +52,7 @@ public class InventoryWalkTab extends BaseTab {
             y += 11;
         }
         y += 6;
-        w.add(SettingsButtonWidget.cycling(screensText(cfg), (btn, dir) -> {
-                    cfg.setScreens(SettingsButtonWidget.step(cfg.getScreens(), dir));
-                    cfg.save();
-                    btn.setMessage(screensText(cfg));
-                }).bounds(contentX, y, contentWidth, ROW).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> screensText(cfg), cfg::getScreens, cfg::setScreens, cfg::save).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         w.add(onOffButton("Jump", cfg::isJump, cfg::setJump, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;

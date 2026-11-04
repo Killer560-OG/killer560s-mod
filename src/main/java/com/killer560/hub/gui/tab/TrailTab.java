@@ -96,11 +96,7 @@ public class TrailTab extends BaseTab {
             cfg.save();
         });
         y[0] += 22;
-        w.add(SettingsButtonWidget.cycling(teleportLabel(cfg), (btn, dir) -> {
-                    cfg.setTeleportMode(SettingsButtonWidget.step(cfg.getTeleportMode(), dir));
-                    cfg.save();
-                    btn.setMessage(teleportLabel(cfg));
-                }).bounds(contentX, y[0], contentWidth, 18).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> teleportLabel(cfg), cfg::getTeleportMode, cfg::setTeleportMode, cfg::save).bounds(contentX, y[0], contentWidth, 18).build());
         y[0] += 22;
         firstPerson(w, contentX, y, contentWidth, cfg);
 

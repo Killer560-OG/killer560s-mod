@@ -105,6 +105,16 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return b;
     }
 
+    /** A cycling button over an enum setting: each click steps it, saves, and redraws the label from {@code text}. */
+    public static <E extends Enum<E>> Builder cycleEnum(java.util.function.Supplier<Component> text,
+            java.util.function.Supplier<E> get, java.util.function.Consumer<E> set, Runnable save) {
+        return cycling(text.get(), (btn, dir) -> {
+            set.accept(step(get.get(), dir));
+            save.run();
+            btn.setMessage(text.get());
+        });
+    }
+
     /** The constant {@code dir} steps away from {@code current} in declaration order, wrapping at both ends. */
     public static <E extends Enum<E>> E step(E current, int dir) {
         E[] all = current.getDeclaringClass().getEnumConstants();
