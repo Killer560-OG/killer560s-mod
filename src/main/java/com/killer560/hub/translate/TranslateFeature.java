@@ -115,9 +115,7 @@ public final class TranslateFeature {
      * the caller should let the vanilla chat-send logic run as normal.
      */
     public static boolean tryIntercept(String normalizedMessage, boolean addToHistory) {
-        if (normalizedMessage.isEmpty()) {
-            return false;
-        }
+        if (normalizedMessage.isEmpty()) return false;
 
         TranslateConfig cfg = TranslateConfig.getInstance();
         boolean translateActive = cfg.isEnabled() && !cfg.getTargetLanguageCode().isBlank()
@@ -128,9 +126,7 @@ public final class TranslateFeature {
         boolean autoCorrectActive = AutoCorrectConfig.getInstance().isEnabled();
         boolean emotesActive = ChatEmoteConfig.getInstance().isEnabled();
 
-        if (!translateActive && !autoCorrectActive && !emotesActive) {
-            return false;
-        }
+        if (!translateActive && !autoCorrectActive && !emotesActive) return false;
 
         String commandWord = null;
         String toProcess = normalizedMessage;
@@ -171,9 +167,7 @@ public final class TranslateFeature {
      * "pc" for Party Chat) instead of whatever the player's default channel currently is.
      */
     public static void sendGenerated(String message, String commandWord) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
+        if (message == null || message.isBlank()) return;
         TranslateConfig cfg = TranslateConfig.getInstance();
         boolean translateActive = cfg.isEnabled() && !cfg.getTargetLanguageCode().isBlank()
                 && !"en".equalsIgnoreCase(cfg.getTargetLanguageCode());
@@ -396,9 +390,7 @@ public final class TranslateFeature {
                 .header("User-Agent", BROWSER_USER_AGENT)
                 .GET().build();
         HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() / 100 != 2) {
-            throw new RuntimeException("MyMemory returned HTTP " + response.statusCode());
-        }
+        if (response.statusCode() / 100 != 2) throw new RuntimeException("MyMemory returned HTTP " + response.statusCode());
 
         JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonObject responseData = root.getAsJsonObject("responseData");

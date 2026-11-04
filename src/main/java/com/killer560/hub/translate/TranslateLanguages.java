@@ -16,9 +16,7 @@ public final class TranslateLanguages {
 
     public static List<Lang> search(String query) {
         String q = query.toLowerCase(Locale.US).trim();
-        if (q.isEmpty()) {
-            return ALL;
-        }
+        if (q.isEmpty()) return ALL;
         List<Lang> result = new ArrayList<>();
         for (Lang lang : ALL) {
             if (lang.name().toLowerCase(Locale.US).contains(q)) {
@@ -32,16 +30,12 @@ public final class TranslateLanguages {
     public static Optional<Lang> findByName(String name) {
         String trimmed = name.trim();
         for (Lang lang : ALL) {
-            if (lang.name().equalsIgnoreCase(trimmed)) {
-                return Optional.of(lang);
-            }
+            if (lang.name().equalsIgnoreCase(trimmed)) return Optional.of(lang);
         }
         List<Lang> prefixMatches = ALL.stream()
                 .filter(l -> l.name().toLowerCase(Locale.US).startsWith(trimmed.toLowerCase(Locale.US)))
                 .toList();
-        if (prefixMatches.size() == 1) {
-            return Optional.of(prefixMatches.get(0));
-        }
+        if (prefixMatches.size() == 1) return Optional.of(prefixMatches.get(0));
         return fuzzyMatch(trimmed);
     }
 
@@ -85,9 +79,7 @@ public final class TranslateLanguages {
 
     public static String nameForCode(String code) {
         for (Lang lang : ALL) {
-            if (lang.code().equals(code)) {
-                return lang.name();
-            }
+            if (lang.code().equals(code)) return lang.name();
         }
         return code;
     }
