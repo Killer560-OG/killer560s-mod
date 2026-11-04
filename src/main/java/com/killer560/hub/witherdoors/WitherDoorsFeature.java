@@ -437,11 +437,6 @@ public final class WitherDoorsFeature {
         }
     }
 
-    /** Test hook: the Fairy door as {cell drawn by the Fairy Door, shut fairy door cell drawn by the normal highlight}. */
-    public static int[] fairyDoorNow() {
-        return new int[]{FairyDoor.door(), FairyDoor.shutDoor()};
-    }
-
     /** Test hook: the doors the held-map rule would draw now, as {cell, kind ordinal (0 wither, 1 blood, 2 fairy)}. */
     public static List<int[]> mapDoorsNow() {
         List<int[]> out = new ArrayList<>();
