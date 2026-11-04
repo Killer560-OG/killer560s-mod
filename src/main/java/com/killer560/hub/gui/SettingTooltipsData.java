@@ -2718,7 +2718,7 @@ final class SettingTooltipsData {
         d.put("bazaar/track my orders", "Reads your buy orders and sell offers whenever you open Hypixel's Manage Orders, so each order shows whether it is still the top one. Read only: nothing is clicked.");
         d.put("bazaar/open manage orders", "Opens Hypixel's Bazaar and presses Manage Orders for you, as the follow-up to this click (needs an active Booster Cookie and Follow-up Click).");
         d.put("bazaar/follow-up click", "When you click a product, the Bazaar clicks the one matching search result for you, so you land on the product.");
-        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, scoreboard, map, timers, overlays) while the Bazaar is open.");
+        d.put("bazaar/hide huds in bazaar", "Hides every HUD (bars, map, timers, overlays) while the Bazaar is open. The scoreboard stays up, and the Bazaar panel makes room beside it.");
         d.put("video browser/site", "Which site opens in the companion window.");
         d.put("video browser/set url", "The web address to open when Site is set to Custom URL.");
         d.put("video browser/placement", "Where the window sits: anchored to a screen edge, at a custom spot, or bouncing like a DVD logo.");

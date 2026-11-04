@@ -32,7 +32,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code setOverlayMessage(Component, boolean)} still public.
  */
 @Mixin(Hud.class)
-public abstract class CustomScoreboardGuiMixin {
+public abstract class CustomScoreboardGuiMixin implements CustomScoreboardFeature.VanillaSidebar {
+
+    /** Draws vanilla's sidebar for the Bazaar screen (bzscore-1104); the private method itself. */
+    @org.spongepowered.asm.mixin.gen.Invoker("displayScoreboardSidebar")
+    @Override
+    public abstract void killer560smod$drawSidebar(GuiGraphicsExtractor graphics, Objective objective);
 
     @Inject(method = "displayScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/scores/Objective;)V",
             at = @At("HEAD"), cancellable = true, require = 0)

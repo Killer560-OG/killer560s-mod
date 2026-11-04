@@ -138,6 +138,28 @@ public final class BazaarView {
 
     private static final List<Lay> LAYOUT = new ArrayList<>();
     private static String summary = "";
+
+    /** The least width the panel keeps beside the scoreboard; below it the panel wins. */
+    private static final int MIN_PANEL_W = 400;
+    private static final int SB_GAP = 6;
+    /** The scoreboard's box {x, y, w, h} drawn over the backdrop this frame, or null (testkit). */
+    private static int[] scoreboardBox;
+    /** True when the panel was fitted beside the scoreboard this frame rather than over it. */
+    private static boolean scoreboardClear;
+    private static int lastPanelX, lastPanelW;
+
+    public static int[] scoreboardBox() {
+        return scoreboardBox;
+    }
+
+    public static boolean scoreboardClear() {
+        return scoreboardClear;
+    }
+
+    /** The panel's {x, w} of the last frame (testkit). */
+    public static int[] panelSpan() {
+        return new int[]{lastPanelX, lastPanelW};
+    }
     private static int contentItems;
     private static int searchX, searchY, searchW, searchH;
     private static int railX, railY, railW, railH;
@@ -254,6 +276,44 @@ public final class BazaarView {
         int panelH = height - 2 * m;
         int px = (width - panelW) / 2;
         int py = m;
+        // The scoreboard stays up over the backdrop (bzscore-1104, "dont hide my scoreboard in the /bz menu") and the
+        // panel makes room: it takes the free span beside the board, centered in it. With less than MIN_PANEL_W left
+        // the panel wins (it keeps its usual spot and the board is drawn under it, at the screen edge).
+        scoreboardBox = null;
+        // The board lives in real GUI pixels; under Auto Scale this canvas is f times larger or smaller, so draw it with
+        // the scale undone and bring its box back into this canvas.
+        float f = Minecraft.getInstance().getWindow().getGuiScaledWidth() / (float) Math.max(1, width);
+        g.pose().pushMatrix();
+        try {
+            if (Math.abs(f - 1.0f) > 0.001f) {
+                g.pose().scale(1.0f / f, 1.0f / f);
+            }
+            int[] real = com.killer560.hub.scoreboard.CustomScoreboardFeature.drawOverBazaar(g);
+            if (real != null) {
+                int x0 = (int) Math.floor(real[0] / f);
+                int y0 = (int) Math.floor(real[1] / f);
+                scoreboardBox = new int[]{x0, y0, (int) Math.ceil((real[0] + real[2]) / f) - x0,
+                        (int) Math.ceil((real[1] + real[3]) / f) - y0};
+            }
+        } catch (RuntimeException e) {
+            scoreboardBox = null;
+        } finally {
+            g.pose().popMatrix();
+        }
+        scoreboardClear = false;
+        if (scoreboardBox != null) {
+            int sbL = scoreboardBox[0] - SB_GAP;
+            int sbR = scoreboardBox[0] + scoreboardBox[2] + SB_GAP;
+            boolean boardOnRight = scoreboardBox[0] + scoreboardBox[2] / 2 >= width / 2;
+            int spanL = boardOnRight ? m : Math.min(width - m, sbR);
+            int spanR = boardOnRight ? Math.max(m, sbL) : width - m;
+            int free = spanR - spanL;
+            if (free >= MIN_PANEL_W) {
+                panelW = Math.min(panelW, free);
+                px = spanL + (free - panelW) / 2;
+                scoreboardClear = true;
+            }
+        }
         int pad = 6;
         if (t.bevel()) {
             ScreenChrome.frameTight(g, px, py, panelW, panelH);
@@ -262,6 +322,8 @@ public final class BazaarView {
             g.outline(px, py, panelW, panelH, t.border());
         }
         region("panel", px, py, panelW, panelH);
+        lastPanelX = px;
+        lastPanelW = panelW;
 
         int headerY = py + pad;
         int tabsY = headerY + 16;
