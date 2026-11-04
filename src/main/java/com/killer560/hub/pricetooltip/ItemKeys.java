@@ -27,9 +27,7 @@ public final class ItemKeys {
 
     /** The plain Skyblock id, or null for an item that has none. */
     public static String id(CompoundTag tag) {
-        if (tag == null) {
-            return null;
-        }
+        if (tag == null) return null;
         String id = tag.getStringOr("id", "");
         return id.isEmpty() ? null : id;
     }
@@ -37,28 +35,20 @@ public final class ItemKeys {
     /** The price key (see the class doc), or null for an item with no Skyblock id. */
     public static String priceKey(CompoundTag tag, String hoverName) {
         String id = id(tag);
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         switch (id) {
             case "ENCHANTED_BOOK" -> {
                 CompoundTag ench = tag.getCompoundOrEmpty("enchantments");
-                if (ench.size() != 1) {
-                    return id;
-                }
+                if (ench.size() != 1) return id;
                 String name = ench.keySet().iterator().next();
                 return "ENCHANTMENT_" + name.toUpperCase(Locale.ROOT) + "_" + ench.getIntOr(name, 1);
             }
             case "PET" -> {
                 JsonObject info = petInfo(tag);
-                if (info == null) {
-                    return id;
-                }
+                if (info == null) return id;
                 String type = str(info, "type");
                 String tier = str(info, "tier");
-                if (type == null || tier == null) {
-                    return id;
-                }
+                if (type == null || tier == null) return id;
                 int lvl = 1;
                 if (hoverName != null) {
                     if (hoverName.startsWith("[Lvl 200]")) {
@@ -71,9 +61,7 @@ public final class ItemKeys {
             }
             case "RUNE", "UNIQUE_RUNE" -> {
                 CompoundTag runes = tag.getCompoundOrEmpty("runes");
-                if (runes.isEmpty()) {
-                    return id;
-                }
+                if (runes.isEmpty()) return id;
                 String type = runes.keySet().iterator().next();
                 return type.toUpperCase(Locale.ROOT) + "_RUNE_" + runes.getIntOr(type, 1);
             }
@@ -87,9 +75,7 @@ public final class ItemKeys {
         if (id.startsWith("PARTY_HAT") || id.startsWith("BALLOON_HAT")) {
             String extra = id.equals("PARTY_HAT_SLOTH") ? tag.getStringOr("party_hat_emoji", "")
                     : tag.getStringOr("party_hat_color", "");
-            if (!extra.isEmpty()) {
-                return id + "_" + extra.toUpperCase(Locale.ROOT);
-            }
+            if (!extra.isEmpty()) return id + "_" + extra.toUpperCase(Locale.ROOT);
         }
         return tag.getBooleanOr("is_shiny", false) && PriceData.lowestBin("SHINY_" + id) != null ? "SHINY_" + id : id;
     }
@@ -97,9 +83,7 @@ public final class ItemKeys {
     /** The pet's {@code petInfo} JSON, or null. */
     public static JsonObject petInfo(CompoundTag tag) {
         String raw = tag.getStringOr("petInfo", "");
-        if (raw.isEmpty()) {
-            return null;
-        }
+        if (raw.isEmpty()) return null;
         try {
             JsonElement el = JsonParser.parseString(raw);
             return el.isJsonObject() ? el.getAsJsonObject() : null;

@@ -40,17 +40,11 @@ public final class MuseumDonations {
     public static Boolean isDonated(String id, PriceData.ItemInfo info) {
         maybeFetch();
         Set<String> set = donated;
-        if (set == null) {
-            return null;
-        }
-        if (set.contains(id)) {
-            return true;
-        }
+        if (set == null) return null;
+        if (set.contains(id)) return true;
         if (info != null) {
             for (String s : info.museumSets()) {
-                if (set.contains(s)) {
-                    return true;
-                }
+                if (set.contains(s)) return true;
             }
         }
         return false;
@@ -58,9 +52,7 @@ public final class MuseumDonations {
 
     private static void maybeFetch() {
         long now = System.currentTimeMillis();
-        if (now - fetchedAt < REFRESH_MS || now - attemptAt < RETRY_MS || !inFlight.compareAndSet(false, true)) {
-            return;
-        }
+        if (now - fetchedAt < REFRESH_MS || now - attemptAt < RETRY_MS || !inFlight.compareAndSet(false, true)) return;
         attemptAt = now;
         UUID self;
         try {
@@ -85,9 +77,7 @@ public final class MuseumDonations {
                 if (selected == null && !result.profiles().isEmpty()) {
                     selected = result.profiles().get(0);
                 }
-                if (selected == null) {
-                    throw new IllegalStateException("no profile");
-                }
+                if (selected == null) throw new IllegalStateException("no profile");
                 return ProfileViewerApi.fetchAux(ProfileViewerApi.AuxKind.MUSEUM, selected.profileId, false);
             }).whenComplete((res, err) -> {
                 try {

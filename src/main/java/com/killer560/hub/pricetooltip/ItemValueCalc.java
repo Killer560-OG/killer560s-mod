@@ -72,9 +72,7 @@ public final class ItemValueCalc {
         boolean nw = mode == PriceTooltipConfig.ValueMode.NETWORTH;
         List<Part> parts = new ArrayList<>();
         String id = ItemKeys.id(tag);
-        if (id == null) {
-            return new Result(0, parts);
-        }
+        if (id == null) return new Result(0, parts);
 
         double base = PriceData.unitPrice(priceKey);
         if (base <= 0 && !priceKey.equals(id)) {
@@ -83,9 +81,7 @@ public final class ItemValueCalc {
         if (base > 0) {
             parts.add(new Part("Base", base));
         }
-        if ("ENCHANTED_BOOK".equals(id)) {
-            return finish(parts);
-        }
+        if ("ENCHANTED_BOOK".equals(id)) return finish(parts);
 
         if (tag.getIntOr("rarity_upgrades", 0) > 0) {
             add(parts, "Recombobulator", PriceData.unitPrice("RECOMBOBULATOR_3000") * (nw ? 0.8 : 1));
@@ -216,9 +212,7 @@ public final class ItemValueCalc {
         if (level <= 0) {
             level = tag.getIntOr("dungeon_item_level", 0);
         }
-        if (level <= 0) {
-            return;
-        }
+        if (level <= 0) return;
         PriceData.ItemInfo info = PriceData.item(id);
         if (info == null && id.startsWith("STARRED_")) {
             info = PriceData.item(id.substring("STARRED_".length()));
@@ -254,15 +248,11 @@ public final class ItemValueCalc {
 
     private static void gems(CompoundTag tag, String id, boolean nw, List<Part> parts) {
         CompoundTag gems = tag.getCompoundOrEmpty("gems");
-        if (gems.isEmpty()) {
-            return;
-        }
+        if (gems.isEmpty()) return;
         double gemSum = 0;
         int gemCount = 0;
         for (String slot : gems.keySet()) {
-            if (slot.endsWith("_gem") || slot.equals("unlocked_slots") || slot.equals("formatted")) {
-                continue;
-            }
+            if (slot.endsWith("_gem") || slot.equals("unlocked_slots") || slot.equals("formatted")) continue;
             Tag v = gems.get(slot);
             String quality = null;
             if (v instanceof StringTag s) {
@@ -270,15 +260,11 @@ public final class ItemValueCalc {
             } else if (v instanceof CompoundTag c) {
                 quality = c.getStringOr("quality", null);
             }
-            if (quality == null || quality.isEmpty()) {
-                continue;
-            }
+            if (quality == null || quality.isEmpty()) continue;
             int us = slot.lastIndexOf('_');
             String slotType = us > 0 ? slot.substring(0, us) : slot;
             String gemType = GENERIC_SLOTS.contains(slotType) ? gems.getStringOr(slot + "_gem", "") : slotType;
-            if (gemType.isEmpty()) {
-                continue;
-            }
+            if (gemType.isEmpty()) continue;
             gemSum += PriceData.unitPrice(quality.toUpperCase(Locale.ROOT) + "_" + gemType.toUpperCase(Locale.ROOT) + "_GEM");
             gemCount++;
         }
@@ -286,16 +272,12 @@ public final class ItemValueCalc {
 
         ListTag unlocked = gems.getListOrEmpty("unlocked_slots");
         PriceData.ItemInfo info = PriceData.item(id);
-        if (unlocked.size() == 0 || info == null || info.gemSlots().isEmpty()) {
-            return;
-        }
+        if (unlocked.size() == 0 || info == null || info.gemSlots().isEmpty()) return;
         double unlockSum = 0;
         for (int i = 0; i < unlocked.size(); i++) {
             String slot = unlocked.getStringOr(i, "");
             int us = slot.lastIndexOf('_');
-            if (us <= 0) {
-                continue;
-            }
+            if (us <= 0) continue;
             String type = slot.substring(0, us);
             int index;
             try {
