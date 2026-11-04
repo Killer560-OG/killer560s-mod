@@ -411,6 +411,9 @@ public final class ArmorHudFeature {
             equipment[i] = null;
         }
         pendingBlobs = null;
+        BY_LOADOUT.clear();
+        loadoutSeen = 0;
+        loadoutSwaps = 0;
         loaded = true;
         try {
             Files.deleteIfExists(CACHE_PATH);
