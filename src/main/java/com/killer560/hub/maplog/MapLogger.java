@@ -78,15 +78,11 @@ public final class MapLogger {
 
     public static void register() {
         pruneOldLogs();
-        if (!BuildVariant.DEV_TOOLS) {
-            return;
-        }
+        if (!BuildVariant.DEV_TOOLS) return;
         // Through FeatureGuard so the Performance HUD's stutter line can name it (stutter-1026: his logs show ~250-line
         // bursts from here on entering a room).
         ClientTickEvents.END_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.end("MapLogger", client -> {
-            if (++ticks % SCAN_EVERY_TICKS != 0) {
-                return;
-            }
+            if (++ticks % SCAN_EVERY_TICKS != 0) return;
             try {
                 scan(client);
             } catch (RuntimeException e) {
@@ -106,9 +102,7 @@ public final class MapLogger {
         DungeonLayout layout = DungeonLayout.capture();
         int room = layout.currentRoom();
         String name = room < 0 ? null : layout.name(room);
-        if (name == null || UNIDENTIFIED.equals(name)) {
-            return;
-        }
+        if (name == null || UNIDENTIFIED.equals(name)) return;
         int[] tiles = layout.tiles(room);
         int minGx = Integer.MAX_VALUE;
         int minGz = Integer.MAX_VALUE;
@@ -170,9 +164,7 @@ public final class MapLogger {
         Set<BlockPos> found = new HashSet<>();
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
-                if (!ClientChunks.isLive(level, cx, cz)) {
-                    return null;
-                }
+                if (!ClientChunks.isLive(level, cx, cz)) return null;
                 LevelChunk chunk = level.getChunk(cx, cz);
                 int x0 = Math.max(minX, cx << 4);
                 int x1 = Math.min(maxX, (cx << 4) + 15);
@@ -189,9 +181,7 @@ public final class MapLogger {
                     for (int x = x0; x <= x1; x++) {
                         for (int z = z0; z <= z1; z++) {
                             for (int y = sectionMinY; y < sectionMinY + 16; y++) {
-                                if (y < level.getMinY() || y > level.getMaxY()) {
-                                    continue;
-                                }
+                                if (y < level.getMinY() || y > level.getMaxY()) continue;
                                 if (section.getBlockState(x & 15, y & 15, z & 15).getBlock() instanceof AbstractSkullBlock) {
                                     found.add(new BlockPos(x, y, z));
                                 }
@@ -234,9 +224,7 @@ public final class MapLogger {
      */
     static int pruneOldLogs() {
         Path dir = ModPaths.root().resolve(ModPaths.folderFor(LOG_PREFIX));
-        if (!Files.isDirectory(dir)) {
-            return 0;
-        }
+        if (!Files.isDirectory(dir)) return 0;
         java.util.List<Path> logs = new java.util.ArrayList<>();
         try (var stream = Files.newDirectoryStream(dir, LOG_PREFIX + "*.log")) {
             for (Path p : stream) {
@@ -248,9 +236,7 @@ public final class MapLogger {
             LOGGER.warn("Map logger could not list {}: {}", dir, e.toString());
             return 0;
         }
-        if (logs.size() <= KEEP_LOGS) {
-            return 0;
-        }
+        if (logs.size() <= KEEP_LOGS) return 0;
         logs.sort(java.util.Comparator.comparing((Path p) -> p.getFileName().toString()).reversed());
         int deleted = 0;
         for (Path old : logs.subList(KEEP_LOGS, logs.size())) {
