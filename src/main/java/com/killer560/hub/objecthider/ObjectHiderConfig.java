@@ -1,5 +1,6 @@
 package com.killer560.hub.objecthider;
 
+import com.killer560.hub.util.BoolFields;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -131,66 +132,70 @@ public final class ObjectHiderConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<ObjectHiderConfig> BOOLS = new BoolFields<ObjectHiderConfig>()
+            .add("objectHiderEnabled", true, c -> c.objectHiderEnabled, (c, v) -> c.objectHiderEnabled = v)
+            .add("hideFairy", false, c -> c.hideFairy, (c, v) -> c.hideFairy = v)
+            .add("hideHealerOrbs", false, c -> c.hideHealerOrbs, (c, v) -> c.hideHealerOrbs = v)
+            .add("keepNearbyOrbs", false, c -> c.keepNearbyOrbs, (c, v) -> c.keepNearbyOrbs = v)
+            .add("hideSoulweaverSkulls", false, c -> c.hideSoulweaverSkulls, (c, v) -> c.hideSoulweaverSkulls = v)
+            .add("hideArcherPassive", false, c -> c.hideArcherPassive, (c, v) -> c.hideArcherPassive = v)
+            .add("hideSheep", false, c -> c.hideSheep, (c, v) -> c.hideSheep = v)
+            .add("hideCloakCreepers", false, c -> c.hideCloakCreepers, (c, v) -> c.hideCloakCreepers = v)
+            .add("hideWitherborn", false, c -> c.hideWitherborn, (c, v) -> c.hideWitherborn = v)
+            .add("hideHypeHearts", false, c -> c.hideHypeHearts, (c, v) -> c.hideHypeHearts = v)
+            .add("hideDyingDragons", false, c -> c.hideDyingDragons, (c, v) -> c.hideDyingDragons = v)
+            .add("hideWitherKing", false, c -> c.hideWitherKing, (c, v) -> c.hideWitherKing = v)
+            .add("hideBossDamageSplash", false, c -> c.hideBossDamageSplash, (c, v) -> c.hideBossDamageSplash = v)
+            .add("cleanEnd", false, c -> c.cleanEnd, (c, v) -> c.cleanEnd = v)
+            .add("cleanEndKeepGuardians", false, c -> c.cleanEndKeepGuardians, (c, v) -> c.cleanEndKeepGuardians = v)
+            .add("hideGroundedArrows", false, c -> c.hideGroundedArrows, (c, v) -> c.hideGroundedArrows = v)
+            .add("disableBlindness", false, c -> c.disableBlindness, (c, v) -> c.disableBlindness = v)
+            .add("hideDeathAnimations", false, c -> c.hideDeathAnimations, (c, v) -> c.hideDeathAnimations = v)
+            .add("hideDeadNametags", false, c -> c.hideDeadNametags, (c, v) -> c.hideDeadNametags = v)
+            .add("hideBlockBreakParticles", false, c -> c.hideBlockBreakParticles, (c, v) -> c.hideBlockBreakParticles = v)
+            .add("hideSmokeParticles", false, c -> c.hideSmokeParticles, (c, v) -> c.hideSmokeParticles = v)
+            .add("disableTextShadow", false, c -> c.disableTextShadow, (c, v) -> c.disableTextShadow = v)
+            .add("containerTextShadow", false, c -> c.containerTextShadow, (c, v) -> c.containerTextShadow = v)
+            .add("disableFog", false, c -> c.disableFog, (c, v) -> c.disableFog = v)
+            .add("fixCrimsonIsleFog", false, c -> c.fixCrimsonIsleFog, (c, v) -> c.fixCrimsonIsleFog = v)
+            .add("hideFallingBlocks", false, c -> c.hideFallingBlocks, (c, v) -> c.hideFallingBlocks = v)
+            .add("hideLightning", false, c -> c.hideLightning, (c, v) -> c.hideLightning = v)
+            .add("hideRecipeBookButton", false, c -> c.hideRecipeBookButton, (c, v) -> c.hideRecipeBookButton = v)
+            .add("cancelVanillaNametags", false, c -> c.cancelVanillaNametags, (c, v) -> c.cancelVanillaNametags = v)
+            .add("hideHealthBar", false, c -> c.hideHealthBar, (c, v) -> c.hideHealthBar = v)
+            .add("hideAbsorptionHearts", false, c -> c.hideAbsorptionHearts, (c, v) -> c.hideAbsorptionHearts = v)
+            .add("hideMountHealthBar", false, c -> c.hideMountHealthBar, (c, v) -> c.hideMountHealthBar = v)
+            .add("hideRegenBounce", false, c -> c.hideRegenBounce, (c, v) -> c.hideRegenBounce = v)
+            .add("hideArmorBar", false, c -> c.hideArmorBar, (c, v) -> c.hideArmorBar = v)
+            .add("hideHungerBar", false, c -> c.hideHungerBar, (c, v) -> c.hideHungerBar = v)
+            .add("disableItemCooldowns", false, c -> c.disableItemCooldowns, (c, v) -> c.disableItemCooldowns = v)
+            .add("noEatAnimation", false, c -> c.noEatAnimation, (c, v) -> c.noEatAnimation = v)
+            .add("noShortbowSwing", false, c -> c.noShortbowSwing, (c, v) -> c.noShortbowSwing = v)
+            .add("hidePlayers", false, c -> c.hidePlayers, (c, v) -> c.hidePlayers = v)
+            .add("hidePlayersDungeonOnly", false, c -> c.hidePlayersDungeonOnly, (c, v) -> c.hidePlayersDungeonOnly = v)
+            .add("hidePlayersBossOnly", false, c -> c.hidePlayersBossOnly, (c, v) -> c.hidePlayersBossOnly = v);
+
     public static void load() {
         ObjectHiderConfig cfg = new ObjectHiderConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-                cfg.objectHiderEnabled = ConfigJson.getBool(obj, "objectHiderEnabled", true);
-                cfg.hideFairy = ConfigJson.getBool(obj, "hideFairy", false);
-                cfg.hideHealerOrbs = ConfigJson.getBool(obj, "hideHealerOrbs", false);
-                cfg.keepNearbyOrbs = ConfigJson.getBool(obj, "keepNearbyOrbs", false);
+                BOOLS.load(cfg, obj);
                 cfg.keepOrbRadius = Math.max(1, Math.min(20, ConfigJson.getInt(obj, "keepOrbRadius", 5)));
-                cfg.hideSoulweaverSkulls = ConfigJson.getBool(obj, "hideSoulweaverSkulls", false);
-                cfg.hideArcherPassive = ConfigJson.getBool(obj, "hideArcherPassive", false);
-                cfg.hideSheep = ConfigJson.getBool(obj, "hideSheep", false);
-                cfg.hideCloakCreepers = ConfigJson.getBool(obj, "hideCloakCreepers", false);
-                cfg.hideWitherborn = ConfigJson.getBool(obj, "hideWitherborn", false);
-                cfg.hideHypeHearts = ConfigJson.getBool(obj, "hideHypeHearts", false);
-                cfg.hideDyingDragons = ConfigJson.getBool(obj, "hideDyingDragons", false);
-                cfg.hideWitherKing = ConfigJson.getBool(obj, "hideWitherKing", false);
-                cfg.hideBossDamageSplash = ConfigJson.getBool(obj, "hideBossDamageSplash", false);
-                cfg.cleanEnd = ConfigJson.getBool(obj, "cleanEnd", false);
-                cfg.cleanEndKeepGuardians = ConfigJson.getBool(obj, "cleanEndKeepGuardians", false);
-                cfg.hideGroundedArrows = ConfigJson.getBool(obj, "hideGroundedArrows", false);
-                cfg.disableBlindness = ConfigJson.getBool(obj, "disableBlindness", false);
-                cfg.hideDeathAnimations = ConfigJson.getBool(obj, "hideDeathAnimations", false);
-                cfg.hideDeadNametags = ConfigJson.getBool(obj, "hideDeadNametags", false);
-                cfg.hideBlockBreakParticles = ConfigJson.getBool(obj, "hideBlockBreakParticles", false);
                 // Renamed setting, old key kept as fallback so an existing config doesn't silently reset to OFF.
                 cfg.hideWitherImpactExplosions = ConfigJson.getBool(obj, "hideWitherImpactExplosions",
                         ConfigJson.getBool(obj, "hideExplosionParticles", false));
-                cfg.hideSmokeParticles = ConfigJson.getBool(obj, "hideSmokeParticles", false);
-
-                cfg.disableTextShadow = ConfigJson.getBool(obj, "disableTextShadow", false);
-                cfg.containerTextShadow = ConfigJson.getBool(obj, "containerTextShadow", false);
-                cfg.disableFog = ConfigJson.getBool(obj, "disableFog", false);
-                cfg.fixCrimsonIsleFog = ConfigJson.getBool(obj, "fixCrimsonIsleFog", false);
-                cfg.hideFallingBlocks = ConfigJson.getBool(obj, "hideFallingBlocks", false);
-                cfg.hideLightning = ConfigJson.getBool(obj, "hideLightning", false);
-                cfg.hideRecipeBookButton = ConfigJson.getBool(obj, "hideRecipeBookButton", false);
-
-                cfg.cancelVanillaNametags = ConfigJson.getBool(obj, "cancelVanillaNametags", false);
-
-                cfg.hideHealthBar = ConfigJson.getBool(obj, "hideHealthBar", false);
-                cfg.hideAbsorptionHearts = ConfigJson.getBool(obj, "hideAbsorptionHearts", false);
-                cfg.hideMountHealthBar = ConfigJson.getBool(obj, "hideMountHealthBar", false);
-                cfg.hideRegenBounce = ConfigJson.getBool(obj, "hideRegenBounce", false);
-                cfg.hideArmorBar = ConfigJson.getBool(obj, "hideArmorBar", false);
-                cfg.hideHungerBar = ConfigJson.getBool(obj, "hideHungerBar", false);
-
-                cfg.disableItemCooldowns = ConfigJson.getBool(obj, "disableItemCooldowns", false);
-
-                cfg.noEatAnimation = ConfigJson.getBool(obj, "noEatAnimation", false);
-                cfg.noShortbowSwing = ConfigJson.getBool(obj, "noShortbowSwing", false);
 
 
 
-                cfg.hidePlayers = ConfigJson.getBool(obj, "hidePlayers", false);
+
+
+
+
+
                 cfg.hidePlayersDistance = Math.max(0, Math.min(128, ConfigJson.getInt(obj, "hidePlayersDistance", 0)));
-                cfg.hidePlayersDungeonOnly = ConfigJson.getBool(obj, "hidePlayersDungeonOnly", false);
-                cfg.hidePlayersBossOnly = ConfigJson.getBool(obj, "hidePlayersBossOnly", false);
             } catch (Exception ignored) {
                 // A completely unparseable file falls back to all-defaults (all OFF), like every other config here.
             }
@@ -202,58 +207,18 @@ public final class ObjectHiderConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("objectHiderEnabled", objectHiderEnabled);
-            obj.addProperty("hideFairy", hideFairy);
-            obj.addProperty("hideHealerOrbs", hideHealerOrbs);
-            obj.addProperty("keepNearbyOrbs", keepNearbyOrbs);
+            BOOLS.save(this, obj);
             obj.addProperty("keepOrbRadius", keepOrbRadius);
-            obj.addProperty("hideSoulweaverSkulls", hideSoulweaverSkulls);
-            obj.addProperty("hideArcherPassive", hideArcherPassive);
-            obj.addProperty("hideSheep", hideSheep);
-            obj.addProperty("hideCloakCreepers", hideCloakCreepers);
-            obj.addProperty("hideWitherborn", hideWitherborn);
-            obj.addProperty("hideHypeHearts", hideHypeHearts);
-            obj.addProperty("hideDyingDragons", hideDyingDragons);
-            obj.addProperty("hideWitherKing", hideWitherKing);
-            obj.addProperty("hideBossDamageSplash", hideBossDamageSplash);
-            obj.addProperty("cleanEnd", cleanEnd);
-            obj.addProperty("cleanEndKeepGuardians", cleanEndKeepGuardians);
-            obj.addProperty("hideGroundedArrows", hideGroundedArrows);
-            obj.addProperty("disableBlindness", disableBlindness);
-            obj.addProperty("hideDeathAnimations", hideDeathAnimations);
-            obj.addProperty("hideDeadNametags", hideDeadNametags);
-            obj.addProperty("hideBlockBreakParticles", hideBlockBreakParticles);
             obj.addProperty("hideWitherImpactExplosions", hideWitherImpactExplosions);
-            obj.addProperty("hideSmokeParticles", hideSmokeParticles);
-
-            obj.addProperty("disableTextShadow", disableTextShadow);
-            obj.addProperty("containerTextShadow", containerTextShadow);
-            obj.addProperty("disableFog", disableFog);
-            obj.addProperty("fixCrimsonIsleFog", fixCrimsonIsleFog);
-            obj.addProperty("hideFallingBlocks", hideFallingBlocks);
-            obj.addProperty("hideLightning", hideLightning);
-            obj.addProperty("hideRecipeBookButton", hideRecipeBookButton);
-
-            obj.addProperty("cancelVanillaNametags", cancelVanillaNametags);
-
-            obj.addProperty("hideHealthBar", hideHealthBar);
-            obj.addProperty("hideAbsorptionHearts", hideAbsorptionHearts);
-            obj.addProperty("hideMountHealthBar", hideMountHealthBar);
-            obj.addProperty("hideRegenBounce", hideRegenBounce);
-            obj.addProperty("hideArmorBar", hideArmorBar);
-            obj.addProperty("hideHungerBar", hideHungerBar);
-
-            obj.addProperty("disableItemCooldowns", disableItemCooldowns);
-
-            obj.addProperty("noEatAnimation", noEatAnimation);
-            obj.addProperty("noShortbowSwing", noShortbowSwing);
 
 
 
-            obj.addProperty("hidePlayers", hidePlayers);
+
+
+
+
+
             obj.addProperty("hidePlayersDistance", hidePlayersDistance);
-            obj.addProperty("hidePlayersDungeonOnly", hidePlayersDungeonOnly);
-            obj.addProperty("hidePlayersBossOnly", hidePlayersBossOnly);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
