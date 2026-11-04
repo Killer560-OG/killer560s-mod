@@ -16,23 +16,17 @@ public final class PerfProbeMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public String getRefMapperConfig() {
-        return null;
-    }
+    public String getRefMapperConfig() { return null; }
 
     @Override
-    public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        return PerfProbe.ENABLED;
-    }
+    public boolean shouldApplyMixin(String targetClassName, String mixinClassName) { return PerfProbe.ENABLED; }
 
     @Override
     public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
     }
 
     @Override
-    public List<String> getMixins() {
-        return null;
-    }
+    public List<String> getMixins() { return null; }
 
     @Override
     public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {

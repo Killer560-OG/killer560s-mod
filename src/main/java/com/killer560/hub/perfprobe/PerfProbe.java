@@ -250,9 +250,7 @@ public final class PerfProbe {
         }
     }
 
-    private static long allocated() {
-        return THREADS == null ? 0L : THREADS.getCurrentThreadAllocatedBytes();
-    }
+    private static long allocated() { return THREADS == null ? 0L : THREADS.getCurrentThreadAllocatedBytes(); }
 
     private static com.sun.management.ThreadMXBean threads() {
         try {
@@ -264,9 +262,7 @@ public final class PerfProbe {
         }
     }
 
-    private static Stat stat(String key, String kind) {
-        return STATS.computeIfAbsent(key, k -> new Stat(k, kind));
-    }
+    private static Stat stat(String key, String kind) { return STATS.computeIfAbsent(key, k -> new Stat(k, kind)); }
 
 
     /** {@code com.killer560.hub.trail.TrailFeature$$Lambda/0x..} -> {@code trail.TrailFeature}; an anonymous
@@ -309,9 +305,7 @@ public final class PerfProbe {
 
     // ---- read-out for the testkit (reflection; plain types only) -------------------------------------------------
 
-    public static boolean enabled() {
-        return ENABLED;
-    }
+    public static boolean enabled() { return ENABLED; }
 
     /** One line per key: {@code key \t kind \t calls \t selfNs \t bytes \t maxNs}. Call on the render thread. */
     public static String snapshot() {
@@ -349,9 +343,7 @@ public final class PerfProbe {
     }
 
     /** Number of keys registered so far: proof the wrapping ran. */
-    public static int keyCount() {
-        return STATS.size();
-    }
+    public static int keyCount() { return STATS.size(); }
 
     /**
      * The probe's own cost per call, from {@code n} calls of an empty listener through the same proxy path:
