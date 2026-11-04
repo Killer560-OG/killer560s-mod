@@ -25,8 +25,12 @@ import java.util.Locale;
  * "Lava Springs Mithril" goes to Lava Springs); a commission with no area ("Mithril Miner", "Goblin Slayer") is skipped,
  * and with none left there is no line. The path is the shortest one over SkyHanni's Dwarven Mines island graph (the one
  * {@link MinesAreaMap} names areas from), from the node nearest him to the nearest node of that area
- * ({@link GraphPathfinder}, one Dijkstra), drawn from where he stands through the nodes. In the target area (the sidebar
- * says so, or the area map's label of the block he stands on) the line goes. Recomputed when the commissions, the map,
+ * ({@link GraphPathfinder}, one Dijkstra), drawn from where he stands through the nodes. For a mithril or titanium area
+ * commission the goal is the area's nodes that have ore beside them in the loaded world ({@link OreNodes}: at least
+ * {@link OreNodes#MIN_ORE} exposed ore blocks within {@link OreNodes#RADIUS} blocks; killer560 2026-11-03: "takes me to an
+ * area but there are no mithril things there"), and the line goes only when he is at that node, not for entering the
+ * area; with no ore node known (chunks not loaded, or another kind of commission) the goal is the area's nodes and the
+ * line goes in the area (the sidebar says so, or the area map's label of the block he stands on). Recomputed when the commissions, the map,
  * the mode or his nearest node change, never per frame.
  *
  * <p>Route Mode: Walk is the graph path. AOTE cuts it into Aspect of the End teleports ({@link #AOTE_RANGE} blocks along the
@@ -211,9 +215,24 @@ public final class CommissionRoute {
         }
         Vec3 pos = client.player.position();
         BlockPos feet = client.player.blockPosition();
+        String ore = claim ? null : OreNodes.oreFor(MiningState.commissions(), area);
+        int[] oreGoals = new int[0];
+        if (ore != null) {
+            OreNodes.tick(client.level, g, area, ore, MinesAreaMap.nodesInArea(area), pos.x, pos.y, pos.z);
+            oreGoals = OreNodes.goals();
+        }
         if (claim) {
             for (BlockPos e : CommissionClaim.emissaries()) {
                 if (e.distSqr(feet) <= EMISSARY_ARRIVED * EMISSARY_ARRIVED) {
+                    clear();
+                    return;
+                }
+            }
+        } else if (oreGoals.length > 0) {
+            // An ore node is known: being in the area is not enough, he has to be at the ore.
+            for (int n : oreGoals) {
+                IslandGraph.Node nd = g.nodes[n];
+                if (Math.hypot(nd.x - pos.x, nd.z - pos.z) <= ORE_ARRIVED && Math.abs(nd.y - pos.y) <= ORE_ARRIVED_Y) {
                     clear();
                     return;
                 }
@@ -226,7 +245,7 @@ public final class CommissionRoute {
         MiningQolConfig.CommissionRouteMode mode = cfg.getCommissionRouteMode();
         // What a plan depends on: where it goes, how, and the map. Not the commission percentages (they change every few
         // seconds) and not which node he is nearest: those used to rebuild it, and its warps, again and again.
-        String key = area + "|" + mode + "|" + MinesAreaMap.version();
+        String key = area + "|" + mode + "|" + MinesAreaMap.version() + "|" + java.util.Arrays.hashCode(oreGoals);
         sincePlan++;
         targetArea = area;
         boolean replan = false;
@@ -242,7 +261,7 @@ public final class CommissionRoute {
             computes++;
             cur = null;
             IslandGraph.Node start = g.nearest(pos.x, pos.y + 1.0, pos.z);
-            int[] goals = claim ? emissaryNodes(g) : MinesAreaMap.nodesInArea(area);
+            int[] goals = claim ? emissaryNodes(g) : oreGoals.length > 0 ? oreGoals : MinesAreaMap.nodesInArea(area);
             if (start != null && goals.length > 0) {
                 Plan plan = plan(g, pos, start.index, goals, mode);
                 if (plan != null) {
@@ -258,6 +277,9 @@ public final class CommissionRoute {
         publish();
     }
 
+    /** He is at an ore node within this many blocks sideways (and {@link #ORE_ARRIVED_Y} up or down): the line goes. */
+    private static final double ORE_ARRIVED = 4.0;
+    private static final double ORE_ARRIVED_Y = 5.0;
     private static final String EMISSARY = "Emissary";
     private static final double EMISSARY_ARRIVED = 6.0;
     /** What one etherwarp costs in blocks of walking: fewer warps win (killer560: "more of a minimal etherwarps style"). */
@@ -572,6 +594,15 @@ public final class CommissionRoute {
         List<String> out = new ArrayList<>();
         for (BlockPos p : hopBlocks) {
             out.add(p.getX() + "," + p.getY() + "," + p.getZ());
+        }
+        return out;
+    }
+
+    /** The ore nodes the route is going to (graph node indexes), empty when it falls back to the area's nodes (testkit). */
+    public static List<Integer> oreGoalIds() {
+        List<Integer> out = new ArrayList<>();
+        for (int n : OreNodes.goals()) {
+            out.add(n);
         }
         return out;
     }
