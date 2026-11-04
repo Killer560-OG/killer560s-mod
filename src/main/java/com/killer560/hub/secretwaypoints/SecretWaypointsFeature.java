@@ -407,7 +407,6 @@ public final class SecretWaypointsFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------ owner-evidence logging
 
     /** Room changes logged, and when the last one was (at most one line a second: a doorway walked back and forth). */
     private static long lastRoomLogMs = 0L;
