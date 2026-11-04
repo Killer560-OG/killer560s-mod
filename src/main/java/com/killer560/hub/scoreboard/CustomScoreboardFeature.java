@@ -125,9 +125,7 @@ public final class CustomScoreboardFeature {
     }
 
     /** Custom Scoreboard is on and you're on Skyblock / p3sim. */
-    public static boolean isActive() {
-        return CustomScoreboardConfig.getInstance().isEnabled() && SkyblockGate.isOnSkyblock();
-    }
+    public static boolean isActive() { return CustomScoreboardConfig.getInstance().isEnabled() && SkyblockGate.isOnSkyblock(); }
 
     /** The off-Skyblock minimal board is switched on and allowed ("Skyblock Only" off). */
     private static boolean minimalActive() {
@@ -147,9 +145,7 @@ public final class CustomScoreboardFeature {
     }
 
     /** Sidebar lines no pattern recognized this update, unmodified. */
-    static List<String> unknownLines() {
-        return unknown;
-    }
+    static List<String> unknownLines() { return unknown; }
 
 
     private static void tick(Minecraft client) {
@@ -365,9 +361,7 @@ public final class CustomScoreboardFeature {
 
     /** An unknown line's identity for "seen it already": its digits folded to one '#', so "Wave 3: 0:12" and
      *  "Wave 3: 0:13" are the same line. */
-    static String shape(String line) {
-        return line == null ? "" : line.replaceAll("\\d+", "#");
-    }
+    static String shape(String line) { return line == null ? "" : line.replaceAll("\\d+", "#"); }
 
     /** The sidebar line as the patterns are matched against it: no invisible format characters (zero-width joiners and
      *  the like, which a server can put in to keep lines unique) and no surrounding blanks. */
@@ -541,9 +535,7 @@ public final class CustomScoreboardFeature {
     private static long vanillaOverBazaarFrames = 0L;
 
     /** Frames the Bazaar screen drew vanilla's sidebar (testkit). */
-    public static long vanillaOverBazaarFrames() {
-        return vanillaOverBazaarFrames;
-    }
+    public static long vanillaOverBazaarFrames() { return vanillaOverBazaarFrames; }
 
     private static int[] drawInGame(GuiGraphicsExtractor graphics, boolean bazaar) {
         Minecraft client = Minecraft.getInstance();
@@ -622,9 +614,7 @@ public final class CustomScoreboardFeature {
     /** How many frames drew the real board in game (testkit). */
     private static long drawnFrames = 0L;
 
-    public static long drawnFrames() {
-        return drawnFrames;
-    }
+    public static long drawnFrames() { return drawnFrames; }
 
     /** The board's lines as text, top to bottom (what the in-game board draws). */
     public static List<String> currentTexts() {
@@ -783,9 +773,7 @@ public final class CustomScoreboardFeature {
         return posResult;
     }
 
-    private static int borderSize(CustomScoreboardConfig cfg) {
-        return cfg.isBorderEnabled() ? cfg.getBorderThickness() : 0;
-    }
+    private static int borderSize(CustomScoreboardConfig cfg) { return cfg.isBorderEnabled() ? cfg.getBorderThickness() : 0; }
 
     private static int lineWidth(Font font, ScoreboardLine line, long now) {
         int w = font.width(line.text());
@@ -882,9 +870,7 @@ public final class CustomScoreboardFeature {
 
     /** Distance from the board's top-left corner to its first line's text: border plus padding (what
      *  {@link #drawBoard} adds). The visual editor maps its drawn rows back to entries with it. */
-    static int textInset(CustomScoreboardConfig cfg) {
-        return borderSize(cfg) + cfg.getPadding();
-    }
+    static int textInset(CustomScoreboardConfig cfg) { return borderSize(cfg) + cfg.getPadding(); }
 
     static int boxWidth(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
         return innerWidth(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg));
@@ -969,9 +955,7 @@ public final class CustomScoreboardFeature {
     }
 
     /** {@link #inset} for {@link ScoreboardBlur}. */
-    static int roundedInset(int row, int h, int r) {
-        return inset(row, h, r);
-    }
+    static int roundedInset(int row, int h, int r) { return inset(row, h, r); }
 
     /** Horizontal inset of row {@code row} (0-based) of a {@code h}-tall rounded rectangle with corner radius {@code r}. */
     private static int inset(int row, int h, int r) {
@@ -1226,13 +1210,9 @@ public final class CustomScoreboardFeature {
     private static int previewTitleRows;
 
     /** Re-reads {@code background.png} on the next frame. */
-    public static void reloadBackgroundImage() {
-        ScoreboardBackgroundImage.reload();
-    }
+    public static void reloadBackgroundImage() { ScoreboardBackgroundImage.reload(); }
 
-    public static boolean backgroundImageExists() {
-        return ScoreboardBackgroundImage.fileExists();
-    }
+    public static boolean backgroundImageExists() { return ScoreboardBackgroundImage.fileExists(); }
 
     /** HUD-editor entry: movable and scalable. Its scale lives in {@code HudConfig}; its position is the edge anchor in
      *  {@link CustomScoreboardConfig} (2026-10-15), served by {@link #layoutPosition()} and kept wholly on screen. */
@@ -1244,36 +1224,24 @@ public final class CustomScoreboardFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Custom Scoreboard";
-        }
+        public String displayName() { return "Custom Scoreboard"; }
 
         /** Only read when an old save is converted ({@link #convertOldPosition}); the board's own default is the right
          *  edge, vertically centered ({@link CustomScoreboardConfig#resetAnchor}). */
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 80;
-        }
+        public int defaultY() { return 80; }
 
         @Override
-        public int[] layoutPosition() {
-            return resolveAnchored();
-        }
+        public int[] layoutPosition() { return resolveAnchored(); }
 
         @Override
-        public boolean keepOnScreen() {
-            return true;
-        }
+        public boolean keepOnScreen() { return true; }
 
         @Override
         public boolean storeEditorPosition(int x, int y, int w, int h, int screenW, int screenH) {

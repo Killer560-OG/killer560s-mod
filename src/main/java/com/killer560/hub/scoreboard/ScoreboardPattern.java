@@ -19,9 +19,7 @@ public final class ScoreboardPattern {
     private ScoreboardPattern() {
     }
 
-    private static Pattern p(String regex) {
-        return Pattern.compile(regex);
-    }
+    private static Pattern p(String regex) { return Pattern.compile(regex); }
 
     private static final String HEALTH_ICON = "❤";
     private static final String MINING_FORTUNE_ICON = "☘";

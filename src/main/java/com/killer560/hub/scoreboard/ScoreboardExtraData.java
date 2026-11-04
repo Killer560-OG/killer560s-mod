@@ -985,63 +985,37 @@ public final class ScoreboardExtraData {
     }
 
 
-    public static Candidate mayor() {
-        return mayor;
-    }
+    public static Candidate mayor() { return mayor; }
 
-    public static Candidate minister() {
-        return minister;
-    }
+    public static Candidate minister() { return minister; }
 
     /** -1 unknown, 0 not active, else epoch ms. */
-    public static long cookieExpiresAtMs() {
-        return cookieExpiresAtMs;
-    }
+    public static long cookieExpiresAtMs() { return cookieExpiresAtMs; }
 
-    public static String maxwellPower() {
-        return maxwellPower;
-    }
+    public static String maxwellPower() { return maxwellPower; }
 
-    public static int magicalPower() {
-        return magicalPower;
-    }
+    public static int magicalPower() { return magicalPower; }
 
-    public static List<Tuning> tunings() {
-        return tunings;
-    }
+    public static List<Tuning> tunings() { return tunings; }
 
-    public static String quiverArrow() {
-        return quiverArrow;
-    }
+    public static String quiverArrow() { return quiverArrow; }
 
-    public static int quiverAmount() {
-        return quiverAmount;
-    }
+    public static int quiverAmount() { return quiverAmount; }
 
-    public static boolean hasBow() {
-        return hasBow;
-    }
+    public static boolean hasBow() { return hasBow; }
 
-    public static boolean wearingSkeletonMasterChestplate() {
-        return wearingSkeletonMaster;
-    }
+    public static boolean wearingSkeletonMasterChestplate() { return wearingSkeletonMaster; }
 
     /** Unclaimed bits from the cookie buff, -1 unknown. */
-    public static long bitsAvailable() {
-        return bitsAvailable;
-    }
+    public static long bitsAvailable() { return bitsAvailable; }
 
     /** Total Mithril/Gemstone/Glacite powder ({@link #POWDER_TYPES} index), -1 unknown. */
-    public static long powderTotal(int index) {
-        return index >= 0 && index < powderTotal.length ? powderTotal[index] : -1L;
-    }
+    public static long powderTotal(int index) { return index >= 0 && index < powderTotal.length ? powderTotal[index] : -1L; }
 
     /** The Perkpocalypse mayor while Jerry is mayor and it hasn't expired, else null. */
     public static String jerryMayor() {
         return jerryMayor != null && jerryMayorExpiresAtMs > System.currentTimeMillis() ? jerryMayor : null;
     }
 
-    public static long jerryMayorExpiresAtMs() {
-        return jerryMayorExpiresAtMs;
-    }
+    public static long jerryMayorExpiresAtMs() { return jerryMayorExpiresAtMs; }
 }

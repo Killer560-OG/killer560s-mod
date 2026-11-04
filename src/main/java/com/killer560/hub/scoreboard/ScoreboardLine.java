@@ -18,9 +18,7 @@ import java.util.Locale;
  */
 public record ScoreboardLine(String text, Align align, List<String> hover, String command, String popup, long popupUntilMs) {
 
-    public ScoreboardLine(String text, Align align) {
-        this(text, align, null, null, null, 0L);
-    }
+    public ScoreboardLine(String text, Align align) { this(text, align, null, null, null, 0L); }
 
     public static ScoreboardLine of(String text) {
         return new ScoreboardLine(text, CustomScoreboardConfig.getInstance().getTextAlignment());
@@ -33,9 +31,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         }
     }
 
-    public boolean isBlank() {
-        return text == null || text.isBlank();
-    }
+    public boolean isBlank() { return text == null || text.isBlank(); }
 
     /** Copy with tooltip lines and/or a click command (either may be null). */
     public ScoreboardLine withActions(List<String> hoverLines, String clickCommand) {
@@ -47,9 +43,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
     }
 
     /** The popup text if it hasn't expired yet, else null. */
-    public String activePopup(long nowMs) {
-        return popup != null && nowMs < popupUntilMs ? popup : null;
-    }
+    public String activePopup(long nowMs) { return popup != null && nowMs < popupUntilMs ? popup : null; }
 
     public static List<ScoreboardLine> of(List<String> texts) {
         List<ScoreboardLine> out = new ArrayList<>(texts.size());

@@ -65,9 +65,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     private enum Page {
         BOARD("Board"), SETTINGS("Settings");
@@ -121,25 +119,17 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     private record Board(List<ScoreboardLine> lines, List<Block> blocks, int x, int y, float scale, int boxW, int boxH,
                          int inset, int lineStep, int lineHeight, int titleRows) {
 
-        double rowTop(int row) {
-            return y + (inset + row * (double) lineStep) * scale;
-        }
+        double rowTop(int row) { return y + (inset + row * (double) lineStep) * scale; }
 
-        double blockTop(Block b) {
-            return rowTop(b.first) - (lineStep - lineHeight) * scale / 2.0;
-        }
+        double blockTop(Block b) { return rowTop(b.first) - (lineStep - lineHeight) * scale / 2.0; }
 
         double blockBottom(Block b) {
             return rowTop(b.first + b.count - 1) + lineHeight * scale + (lineStep - lineHeight) * scale / 2.0;
         }
 
-        int right() {
-            return x + Math.round(boxW * scale);
-        }
+        int right() { return x + Math.round(boxW * scale); }
 
-        int bottom() {
-            return y + Math.round(boxH * scale);
-        }
+        int bottom() { return y + Math.round(boxH * scale); }
     }
 
     public ScoreboardEditorScreen(Screen parent) {
@@ -208,9 +198,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 .bounds(this.width / 2 - 50, this.height - 26, 100, 20).build());
     }
 
-    private int buildPage(List<AbstractWidget> panel) {
-        return buildSettings(panel, panelX, panelTop - panelScroll, panelW);
-    }
+    private int buildPage(List<AbstractWidget> panel) { return buildSettings(panel, panelX, panelTop - panelScroll, panelW); }
 
     /** The selected line's settings on top, "Not Active" below. Returns the content's bottom. */
     private int buildBoardPage(List<AbstractWidget> out) {
@@ -577,18 +565,12 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         return slot;
     }
 
-    private boolean overPanel(double mx, double my) {
-        return mx >= panelX - 7 && my >= boardY - 4 && my <= panelBottom + 4;
-    }
+    private boolean overPanel(double mx, double my) { return mx >= panelX - 7 && my >= boardY - 4 && my <= panelBottom + 4; }
 
     /** What Not Active offers, one Separator for the sixteen. */
-    private List<ScoreboardEntry> inactive() {
-        return ScoreboardListEditor.picks(cfg.entries(), e -> e.label);
-    }
+    private List<ScoreboardEntry> inactive() { return ScoreboardListEditor.picks(cfg.entries(), e -> e.label); }
 
-    private int inactiveVisibleH() {
-        return panelBottom - inactiveY;
-    }
+    private int inactiveVisibleH() { return panelBottom - inactiveY; }
 
     private int maxInactiveScroll() {
         int rows = (inactive().size() + inactiveCols - 1) / inactiveCols;
@@ -643,14 +625,10 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /** {x, y, w, h} of the right-hand panel (a board line dropped here comes off). */
-    public int[] panelRect() {
-        return new int[]{panelX, boardY, panelW, panelBottom - boardY};
-    }
+    public int[] panelRect() { return new int[]{panelX, boardY, panelW, panelBottom - boardY}; }
 
     /** True while a board line or Not Active row is being dragged. */
-    public boolean isDraggingLine() {
-        return dragging;
-    }
+    public boolean isDraggingLine() { return dragging; }
 
     public static void resetSession() {
         page = Page.BOARD;
@@ -659,9 +637,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         inactiveScroll = 0;
     }
 
-    public static ScoreboardEntry selectedEntry() {
-        return selected;
-    }
+    public static ScoreboardEntry selectedEntry() { return selected; }
 
 
     @Override
@@ -1012,14 +988,10 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         CustomScoreboardConfig c = cfg;
         return new ThemedSliderButton(x, y, w, ROW, Component.literal(label.apply(current)),
                 (current - min) / (double) range) {
-            private int valueInt() {
-                return min + (int) Math.round(this.value * range);
-            }
+            private int valueInt() { return min + (int) Math.round(this.value * range); }
 
             @Override
-            protected void updateMessage() {
-                setMessage(Component.literal(label.apply(valueInt())));
-            }
+            protected void updateMessage() { setMessage(Component.literal(label.apply(valueInt()))); }
 
             @Override
             protected void applyValue() {
@@ -1046,12 +1018,8 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

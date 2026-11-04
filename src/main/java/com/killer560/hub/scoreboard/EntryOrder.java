@@ -42,25 +42,15 @@ public final class EntryOrder<E extends Enum<E>> {
     }
 
     /** The entries on the board, top to bottom. Read-only view; change it through this class. */
-    public List<E> active() {
-        return Collections.unmodifiableList(active);
-    }
+    public List<E> active() { return Collections.unmodifiableList(active); }
 
-    public int size() {
-        return active.size();
-    }
+    public int size() { return active.size(); }
 
-    public E get(int index) {
-        return active.get(index);
-    }
+    public E get(int index) { return active.get(index); }
 
-    public int indexOf(E id) {
-        return active.indexOf(id);
-    }
+    public int indexOf(E id) { return active.indexOf(id); }
 
-    public boolean contains(E id) {
-        return active.contains(id);
-    }
+    public boolean contains(E id) { return active.contains(id); }
 
     /** Everything not on the board, in default (enum) order. */
     public List<E> available() {
@@ -96,9 +86,7 @@ public final class EntryOrder<E extends Enum<E>> {
         return active.remove(index);
     }
 
-    public boolean remove(E id) {
-        return active.remove(id);
-    }
+    public boolean remove(E id) { return active.remove(id); }
 
     /**
      * Moves the entry at {@code from} so it ends up at index {@code to} of the resulting list (both clamped). This is

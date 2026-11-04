@@ -124,9 +124,7 @@ public final class CustomScoreboardConfig {
             this.formatter = DateTimeFormatter.ofPattern(pattern, Locale.US);
         }
 
-        public String today() {
-            return LocalDate.now().format(formatter);
-        }
+        public String today() { return LocalDate.now().format(formatter); }
     }
 
     /** SkyHanni's DisplayConfig.PowderDisplay. */
@@ -527,143 +525,77 @@ public final class CustomScoreboardConfig {
         }
     }
 
-    private static int clamp(int v, int min, int max) {
-        return Math.max(min, Math.min(max, v));
-    }
+    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
 
-    public void resetEntries() {
-        entries.reset();
-    }
+    public void resetEntries() { entries.reset(); }
 
-    public void resetEvents() {
-        events.reset();
-    }
+    public void resetEvents() { events.reset(); }
 
-    public void resetChunkedStats() {
-        chunkedStats.reset();
-    }
+    public void resetChunkedStats() { chunkedStats.reset(); }
 
     /** True if {@code entry} is on the board. */
-    public boolean isEntryEnabled(ScoreboardEntry entry) {
-        return entries.contains(entry);
-    }
+    public boolean isEntryEnabled(ScoreboardEntry entry) { return entries.contains(entry); }
 
     /** The board's lines, top to bottom, and the pool the editor's Add offers. */
-    public EntryOrder<ScoreboardEntry> entries() {
-        return entries;
-    }
+    public EntryOrder<ScoreboardEntry> entries() { return entries; }
 
-    public EntryOrder<ScoreboardEvent> events() {
-        return events;
-    }
+    public EntryOrder<ScoreboardEvent> events() { return events; }
 
-    public EntryOrder<ChunkedStat> chunkedStats() {
-        return chunkedStats;
-    }
+    public EntryOrder<ChunkedStat> chunkedStats() { return chunkedStats; }
 
-    public List<ScoreboardEntry> getLineOrder() {
-        return entries.active();
-    }
+    public List<ScoreboardEntry> getLineOrder() { return entries.active(); }
 
-    public void setLineOrder(List<ScoreboardEntry> v) {
-        entries.setActive(v);
-    }
+    public void setLineOrder(List<ScoreboardEntry> v) { entries.setActive(v); }
 
     /** "current", "legacy" (migrated from the toggle lists) or "default", per list: lines/events/stats. */
-    public String getLoadedFrom() {
-        return loadedFrom;
-    }
+    public String getLoadedFrom() { return loadedFrom; }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean v) {
-        enabled = v;
-    }
+    public void setEnabled(boolean v) { enabled = v; }
 
-    public boolean isHideVanillaScoreboard() {
-        return hideVanillaScoreboard;
-    }
+    public boolean isHideVanillaScoreboard() { return hideVanillaScoreboard; }
 
-    public void setHideVanillaScoreboard(boolean v) {
-        hideVanillaScoreboard = v;
-    }
+    public void setHideVanillaScoreboard(boolean v) { hideVanillaScoreboard = v; }
 
-    public boolean isUseCustomLines() {
-        return useCustomLines;
-    }
+    public boolean isUseCustomLines() { return useCustomLines; }
 
-    public void setUseCustomLines(boolean v) {
-        useCustomLines = v;
-    }
+    public void setUseCustomLines(boolean v) { useCustomLines = v; }
 
-    public Align getTextAlignment() {
-        return textAlignment;
-    }
+    public Align getTextAlignment() { return textAlignment; }
 
-    public void setTextAlignment(Align v) {
-        textAlignment = v;
-    }
+    public void setTextAlignment(Align v) { textAlignment = v; }
 
-    public Align getTitleAlignment() {
-        return titleAlignment;
-    }
+    public Align getTitleAlignment() { return titleAlignment; }
 
-    public void setTitleAlignment(Align v) {
-        titleAlignment = v;
-    }
+    public void setTitleAlignment(Align v) { titleAlignment = v; }
 
-    public Align getFooterAlignment() {
-        return footerAlignment;
-    }
+    public Align getFooterAlignment() { return footerAlignment; }
 
-    public void setFooterAlignment(Align v) {
-        footerAlignment = v;
-    }
+    public void setFooterAlignment(Align v) { footerAlignment = v; }
 
-    public boolean isTextShadow() {
-        return textShadow;
-    }
+    public boolean isTextShadow() { return textShadow; }
 
-    public void setTextShadow(boolean v) {
-        textShadow = v;
-    }
+    public void setTextShadow(boolean v) { textShadow = v; }
 
-    public int getLineSpacing() {
-        return lineSpacing;
-    }
+    public int getLineSpacing() { return lineSpacing; }
 
-    public void setLineSpacing(int v) {
-        lineSpacing = clamp(v, 0, 10);
-    }
+    public void setLineSpacing(int v) { lineSpacing = clamp(v, 0, 10); }
 
     /** The pre-2026-10-15 Snap X, for converting an old save ({@link #isPositionPending}). */
-    HorizontalSnap legacyHorizontalSnap() {
-        return horizontalSnap;
-    }
+    HorizontalSnap legacyHorizontalSnap() { return horizontalSnap; }
 
     /** The pre-2026-10-15 Snap Y, for converting an old save ({@link #isPositionPending}). */
-    VerticalSnap legacyVerticalSnap() {
-        return verticalSnap;
-    }
+    VerticalSnap legacyVerticalSnap() { return verticalSnap; }
 
     /** The pre-2026-10-15 Screen Margin, for converting an old save ({@link #isPositionPending}). */
-    int legacyMargin() {
-        return margin;
-    }
+    int legacyMargin() { return margin; }
 
-    public Side getAnchorSide() {
-        return anchorSide;
-    }
+    public Side getAnchorSide() { return anchorSide; }
 
-    public int getEdgeGap() {
-        return edgeGap;
-    }
+    public int getEdgeGap() { return edgeGap; }
 
-    public int getCenterOffsetY() {
-        return centerOffsetY;
-    }
+    public int getCenterOffsetY() { return centerOffsetY; }
 
     /** Sets where the board sits (see {@link #anchorSide}); the caller saves. */
     public void setAnchor(Side side, int gap, int offsetY) {
@@ -674,523 +606,263 @@ public final class CustomScoreboardConfig {
     }
 
     /** Back to the default spot: against the right edge, vertically centered. */
-    public void resetAnchor() {
-        setAnchor(Side.RIGHT, DEFAULT_EDGE_GAP, 0);
-    }
-
-    public boolean isPositionPending() {
-        return positionPending;
-    }
-
-    public boolean isEditorAdvancedOpen() {
-        return editorAdvancedOpen;
-    }
-
-    public void setEditorAdvancedOpen(boolean v) {
-        editorAdvancedOpen = v;
-    }
-
-    public NumberFormat getNumberFormat() {
-        return numberFormat;
-    }
-
-    public void setNumberFormat(NumberFormat v) {
-        numberFormat = v;
-    }
-
-    public NumberDisplayFormat getNumberDisplayFormat() {
-        return numberDisplayFormat;
-    }
-
-    public void setNumberDisplayFormat(NumberDisplayFormat v) {
-        numberDisplayFormat = v;
-    }
-
-    public boolean isUseCustomTitle() {
-        return useCustomTitle;
-    }
-
-    public void setUseCustomTitle(boolean v) {
-        useCustomTitle = v;
-    }
-
-    public String getCustomTitle() {
-        return customTitle;
-    }
-
-    public void setCustomTitle(String v) {
-        customTitle = v == null ? "" : v;
-    }
-
-    public String getCustomFooter() {
-        return customFooter;
-    }
-
-    public void setCustomFooter(String v) {
-        customFooter = v == null ? "" : v;
-    }
-
-    public boolean isHideEmptyLines() {
-        return hideEmptyLines;
-    }
-
-    public void setHideEmptyLines(boolean v) {
-        hideEmptyLines = v;
-    }
-
-    public boolean isHideConsecutiveEmptyLines() {
-        return hideConsecutiveEmptyLines;
-    }
-
-    public void setHideConsecutiveEmptyLines(boolean v) {
-        hideConsecutiveEmptyLines = v;
-    }
-
-    public boolean isHideEmptyLinesAtTopAndBottom() {
-        return hideEmptyLinesAtTopAndBottom;
-    }
-
-    public void setHideEmptyLinesAtTopAndBottom(boolean v) {
-        hideEmptyLinesAtTopAndBottom = v;
-    }
-
-    public boolean isHideIrrelevantLines() {
-        return hideIrrelevantLines;
-    }
-
-    public void setHideIrrelevantLines(boolean v) {
-        hideIrrelevantLines = v;
-    }
-
-    public boolean isShowProfileName() {
-        return showProfileName;
-    }
-
-    public void setShowProfileName(boolean v) {
-        showProfileName = v;
-    }
-
-    public boolean isShowPartyEverywhere() {
-        return showPartyEverywhere;
-    }
-
-    public void setShowPartyEverywhere(boolean v) {
-        showPartyEverywhere = v;
-    }
-
-    public int getMaxPartyMembers() {
-        return maxPartyMembers;
-    }
-
-    public void setMaxPartyMembers(int v) {
-        maxPartyMembers = clamp(v, 1, 25);
-    }
-
-    public boolean isShowAllActiveEvents() {
-        return showAllActiveEvents;
-    }
-
-    public void setShowAllActiveEvents(boolean v) {
-        showAllActiveEvents = v;
-    }
-
-    public boolean isHideWhenTab() {
-        return hideWhenTab;
-    }
-
-    public void setHideWhenTab(boolean v) {
-        hideWhenTab = v;
-    }
-
-    public boolean isHideInMenus() {
-        return hideInMenus;
-    }
-
-    public void setHideInMenus(boolean v) {
-        hideInMenus = v;
-    }
-
-    public boolean isHideWhenChat() {
-        return hideWhenChat;
-    }
-
-    public void setHideWhenChat(boolean v) {
-        hideWhenChat = v;
-    }
-
-    public OutsideSkyblockMode getOutsideSkyblockMode() {
-        return outsideSkyblockMode;
-    }
-
-    public void setOutsideSkyblockMode(OutsideSkyblockMode v) {
-        outsideSkyblockMode = v;
-    }
-
-    public boolean isCacheOnIslandSwitch() {
-        return cacheOnIslandSwitch;
-    }
-
-    public void setCacheOnIslandSwitch(boolean v) {
-        cacheOnIslandSwitch = v;
-    }
-
-    public boolean isUnknownLinesWarning() {
-        return unknownLinesWarning;
-    }
-
-    public void setUnknownLinesWarning(boolean v) {
-        unknownLinesWarning = v;
-    }
-
-    public boolean isLineActions() {
-        return lineActions;
-    }
-
-    public void setLineActions(boolean v) {
-        lineActions = v;
-    }
-
-    public boolean isShowNumberDifference() {
-        return showNumberDifference;
-    }
-
-    public void setShowNumberDifference(boolean v) {
-        showNumberDifference = v;
-    }
-
-    public boolean isDateInLobbyCode() {
-        return dateInLobbyCode;
-    }
-
-    public void setDateInLobbyCode(boolean v) {
-        dateInLobbyCode = v;
-    }
-
-    public DateFormat getDateFormat() {
-        return dateFormat;
-    }
-
-    public void setDateFormat(DateFormat v) {
-        dateFormat = v;
-    }
-
-    public boolean isTime24h() {
-        return time24h;
-    }
-
-    public void setTime24h(boolean v) {
-        time24h = v;
-    }
-
-    public boolean isShowMayorPerks() {
-        return showMayorPerks;
-    }
-
-    public void setShowMayorPerks(boolean v) {
-        showMayorPerks = v;
-    }
-
-    public boolean isShowMayorTime() {
-        return showMayorTime;
-    }
-
-    public void setShowMayorTime(boolean v) {
-        showMayorTime = v;
-    }
-
-    public boolean isShowMinister() {
-        return showMinister;
-    }
-
-    public void setShowMinister(boolean v) {
-        showMinister = v;
-    }
-
-    public boolean isShowMagicalPower() {
-        return showMagicalPower;
-    }
-
-    public void setShowMagicalPower(boolean v) {
-        showMagicalPower = v;
-    }
-
-    public boolean isCompactTuning() {
-        return compactTuning;
-    }
-
-    public void setCompactTuning(boolean v) {
-        compactTuning = v;
-    }
-
-    public int getTuningAmount() {
-        return tuningAmount;
-    }
-
-    public void setTuningAmount(int v) {
-        tuningAmount = clamp(v, 1, 8);
-    }
-
-    public ArrowDisplay getArrowDisplay() {
-        return arrowDisplay;
-    }
-
-    public void setArrowDisplay(ArrowDisplay v) {
-        arrowDisplay = v;
-    }
-
-    public boolean isColorArrowAmount() {
-        return colorArrowAmount;
-    }
-
-    public void setColorArrowAmount(boolean v) {
-        colorArrowAmount = v;
-    }
-
-    public boolean isShowMaxIslandPlayers() {
-        return showMaxIslandPlayers;
-    }
-
-    public void setShowMaxIslandPlayers(boolean v) {
-        showMaxIslandPlayers = v;
-    }
-
-    public boolean isShowPartyLeader() {
-        return showPartyLeader;
-    }
-
-    public void setShowPartyLeader(boolean v) {
-        showPartyLeader = v;
-    }
-
-    public int getStatsPerLine() {
-        return statsPerLine;
-    }
-
-    public void setStatsPerLine(int v) {
-        statsPerLine = clamp(v, 1, 10);
-    }
-
-    public boolean isBackgroundEnabled() {
-        return backgroundEnabled;
-    }
-
-    public void setBackgroundEnabled(boolean v) {
-        backgroundEnabled = v;
-    }
-
-    public int getBackgroundColor() {
-        return backgroundColor;
-    }
-
-    public void setBackgroundColor(int v) {
-        backgroundColor = v;
-    }
-
-    public int getPadding() {
-        return padding;
-    }
-
-    public void setPadding(int v) {
-        padding = clamp(v, 0, 20);
-    }
-
-    public boolean isRoundedCorners() {
-        return roundedCorners;
-    }
-
-    public void setRoundedCorners(boolean v) {
-        roundedCorners = v;
-    }
-
-    public int getCornerRadius() {
-        return cornerRadius;
-    }
-
-    public void setCornerRadius(int v) {
-        cornerRadius = clamp(v, 1, 20);
-    }
-
-    public boolean isBorderEnabled() {
-        return borderEnabled;
-    }
-
-    public void setBorderEnabled(boolean v) {
-        borderEnabled = v;
-    }
-
-    public BorderStyle getBorderStyle() {
-        return borderStyle;
-    }
-
-    public void setBorderStyle(BorderStyle v) {
-        borderStyle = v == null ? BorderStyle.CUSTOM : v;
-    }
-
-    public int getBorderColor() {
-        return borderColor;
-    }
-
-    public void setBorderColor(int v) {
-        borderColor = v;
-    }
-
-    public int getBorderThickness() {
-        return borderThickness;
-    }
-
-    public void setBorderThickness(int v) {
-        borderThickness = clamp(v, 1, 5);
-    }
-
-    public boolean isBorderGradient() {
-        return borderGradient;
-    }
-
-    public void setBorderGradient(boolean v) {
-        borderGradient = v;
-    }
-
-    public int getBorderColorBottom() {
-        return borderColorBottom;
-    }
-
-    public void setBorderColorBottom(int v) {
-        borderColorBottom = v;
-    }
-
-    public boolean isChromaBorder() {
-        return chromaBorder;
-    }
-
-    public void setChromaBorder(boolean v) {
-        chromaBorder = v;
-    }
-
-    public int getChromaSpeed() {
-        return chromaSpeed;
-    }
-
-    public void setChromaSpeed(int v) {
-        chromaSpeed = clamp(v, 1, 20);
-    }
-
-    public boolean isImageBackground() {
-        return imageBackground;
-    }
-
-    public void setImageBackground(boolean v) {
-        imageBackground = v;
-    }
-
-    public int getImageOpacity() {
-        return imageOpacity;
-    }
-
-    public void setImageOpacity(int v) {
-        imageOpacity = clamp(v, 5, 100);
-    }
-
-    public String getCustomAlphaFooter() {
-        return customAlphaFooter;
-    }
-
-    public void setCustomAlphaFooter(String v) {
-        customAlphaFooter = v == null ? "" : v;
-    }
-
-    public boolean isUseCustomTitleOutsideSkyblock() {
-        return useCustomTitleOutsideSkyblock;
-    }
-
-    public void setUseCustomTitleOutsideSkyblock(boolean v) {
-        useCustomTitleOutsideSkyblock = v;
-    }
-
-    public boolean isTimeExactMinutes() {
-        return timeExactMinutes;
-    }
-
-    public void setTimeExactMinutes(boolean v) {
-        timeExactMinutes = v;
-    }
-
-    public boolean isSeparatorBetweenEvents() {
-        return separatorBetweenEvents;
-    }
-
-    public void setSeparatorBetweenEvents(boolean v) {
-        separatorBetweenEvents = v;
-    }
-
-    public boolean isShowJerryMayor() {
-        return showJerryMayor;
-    }
-
-    public void setShowJerryMayor(boolean v) {
-        showJerryMayor = v;
-    }
-
-    public boolean isShowUnclaimedBits() {
-        return showUnclaimedBits;
-    }
-
-    public void setShowUnclaimedBits(boolean v) {
-        showUnclaimedBits = v;
-    }
-
-    public PowderDisplay getPowderDisplay() {
-        return powderDisplay;
-    }
-
-    public void setPowderDisplay(PowderDisplay v) {
-        powderDisplay = v;
-    }
-
-    public boolean isHidePurseInDungeons() {
-        return hidePurseInDungeons;
-    }
-
-    public void setHidePurseInDungeons(boolean v) {
-        hidePurseInDungeons = v;
-    }
-
-    public int getMinWidth() {
-        return minWidth;
-    }
-
-    public void setMinWidth(int v) {
-        minWidth = clamp(v, 0, 400);
-    }
-
-    public int getMinHeight() {
-        return minHeight;
-    }
-
-    public void setMinHeight(int v) {
-        minHeight = clamp(v, 0, 400);
-    }
-
-    public int getBorderSoftness() {
-        return borderSoftness;
-    }
-
-    public void setBorderSoftness(int v) {
-        borderSoftness = clamp(v, 0, 10);
-    }
-
-    public boolean isBackgroundBlur() {
-        return backgroundBlur;
-    }
-
-    public void setBackgroundBlur(boolean v) {
-        backgroundBlur = v;
-    }
-
-    public int getBlurStrength() {
-        return blurStrength;
-    }
-
-    public void setBlurStrength(int v) {
-        blurStrength = clamp(v, 1, 20);
-    }
+    public void resetAnchor() { setAnchor(Side.RIGHT, DEFAULT_EDGE_GAP, 0); }
+
+    public boolean isPositionPending() { return positionPending; }
+
+    public boolean isEditorAdvancedOpen() { return editorAdvancedOpen; }
+
+    public void setEditorAdvancedOpen(boolean v) { editorAdvancedOpen = v; }
+
+    public NumberFormat getNumberFormat() { return numberFormat; }
+
+    public void setNumberFormat(NumberFormat v) { numberFormat = v; }
+
+    public NumberDisplayFormat getNumberDisplayFormat() { return numberDisplayFormat; }
+
+    public void setNumberDisplayFormat(NumberDisplayFormat v) { numberDisplayFormat = v; }
+
+    public boolean isUseCustomTitle() { return useCustomTitle; }
+
+    public void setUseCustomTitle(boolean v) { useCustomTitle = v; }
+
+    public String getCustomTitle() { return customTitle; }
+
+    public void setCustomTitle(String v) { customTitle = v == null ? "" : v; }
+
+    public String getCustomFooter() { return customFooter; }
+
+    public void setCustomFooter(String v) { customFooter = v == null ? "" : v; }
+
+    public boolean isHideEmptyLines() { return hideEmptyLines; }
+
+    public void setHideEmptyLines(boolean v) { hideEmptyLines = v; }
+
+    public boolean isHideConsecutiveEmptyLines() { return hideConsecutiveEmptyLines; }
+
+    public void setHideConsecutiveEmptyLines(boolean v) { hideConsecutiveEmptyLines = v; }
+
+    public boolean isHideEmptyLinesAtTopAndBottom() { return hideEmptyLinesAtTopAndBottom; }
+
+    public void setHideEmptyLinesAtTopAndBottom(boolean v) { hideEmptyLinesAtTopAndBottom = v; }
+
+    public boolean isHideIrrelevantLines() { return hideIrrelevantLines; }
+
+    public void setHideIrrelevantLines(boolean v) { hideIrrelevantLines = v; }
+
+    public boolean isShowProfileName() { return showProfileName; }
+
+    public void setShowProfileName(boolean v) { showProfileName = v; }
+
+    public boolean isShowPartyEverywhere() { return showPartyEverywhere; }
+
+    public void setShowPartyEverywhere(boolean v) { showPartyEverywhere = v; }
+
+    public int getMaxPartyMembers() { return maxPartyMembers; }
+
+    public void setMaxPartyMembers(int v) { maxPartyMembers = clamp(v, 1, 25); }
+
+    public boolean isShowAllActiveEvents() { return showAllActiveEvents; }
+
+    public void setShowAllActiveEvents(boolean v) { showAllActiveEvents = v; }
+
+    public boolean isHideWhenTab() { return hideWhenTab; }
+
+    public void setHideWhenTab(boolean v) { hideWhenTab = v; }
+
+    public boolean isHideInMenus() { return hideInMenus; }
+
+    public void setHideInMenus(boolean v) { hideInMenus = v; }
+
+    public boolean isHideWhenChat() { return hideWhenChat; }
+
+    public void setHideWhenChat(boolean v) { hideWhenChat = v; }
+
+    public OutsideSkyblockMode getOutsideSkyblockMode() { return outsideSkyblockMode; }
+
+    public void setOutsideSkyblockMode(OutsideSkyblockMode v) { outsideSkyblockMode = v; }
+
+    public boolean isCacheOnIslandSwitch() { return cacheOnIslandSwitch; }
+
+    public void setCacheOnIslandSwitch(boolean v) { cacheOnIslandSwitch = v; }
+
+    public boolean isUnknownLinesWarning() { return unknownLinesWarning; }
+
+    public void setUnknownLinesWarning(boolean v) { unknownLinesWarning = v; }
+
+    public boolean isLineActions() { return lineActions; }
+
+    public void setLineActions(boolean v) { lineActions = v; }
+
+    public boolean isShowNumberDifference() { return showNumberDifference; }
+
+    public void setShowNumberDifference(boolean v) { showNumberDifference = v; }
+
+    public boolean isDateInLobbyCode() { return dateInLobbyCode; }
+
+    public void setDateInLobbyCode(boolean v) { dateInLobbyCode = v; }
+
+    public DateFormat getDateFormat() { return dateFormat; }
+
+    public void setDateFormat(DateFormat v) { dateFormat = v; }
+
+    public boolean isTime24h() { return time24h; }
+
+    public void setTime24h(boolean v) { time24h = v; }
+
+    public boolean isShowMayorPerks() { return showMayorPerks; }
+
+    public void setShowMayorPerks(boolean v) { showMayorPerks = v; }
+
+    public boolean isShowMayorTime() { return showMayorTime; }
+
+    public void setShowMayorTime(boolean v) { showMayorTime = v; }
+
+    public boolean isShowMinister() { return showMinister; }
+
+    public void setShowMinister(boolean v) { showMinister = v; }
+
+    public boolean isShowMagicalPower() { return showMagicalPower; }
+
+    public void setShowMagicalPower(boolean v) { showMagicalPower = v; }
+
+    public boolean isCompactTuning() { return compactTuning; }
+
+    public void setCompactTuning(boolean v) { compactTuning = v; }
+
+    public int getTuningAmount() { return tuningAmount; }
+
+    public void setTuningAmount(int v) { tuningAmount = clamp(v, 1, 8); }
+
+    public ArrowDisplay getArrowDisplay() { return arrowDisplay; }
+
+    public void setArrowDisplay(ArrowDisplay v) { arrowDisplay = v; }
+
+    public boolean isColorArrowAmount() { return colorArrowAmount; }
+
+    public void setColorArrowAmount(boolean v) { colorArrowAmount = v; }
+
+    public boolean isShowMaxIslandPlayers() { return showMaxIslandPlayers; }
+
+    public void setShowMaxIslandPlayers(boolean v) { showMaxIslandPlayers = v; }
+
+    public boolean isShowPartyLeader() { return showPartyLeader; }
+
+    public void setShowPartyLeader(boolean v) { showPartyLeader = v; }
+
+    public int getStatsPerLine() { return statsPerLine; }
+
+    public void setStatsPerLine(int v) { statsPerLine = clamp(v, 1, 10); }
+
+    public boolean isBackgroundEnabled() { return backgroundEnabled; }
+
+    public void setBackgroundEnabled(boolean v) { backgroundEnabled = v; }
+
+    public int getBackgroundColor() { return backgroundColor; }
+
+    public void setBackgroundColor(int v) { backgroundColor = v; }
+
+    public int getPadding() { return padding; }
+
+    public void setPadding(int v) { padding = clamp(v, 0, 20); }
+
+    public boolean isRoundedCorners() { return roundedCorners; }
+
+    public void setRoundedCorners(boolean v) { roundedCorners = v; }
+
+    public int getCornerRadius() { return cornerRadius; }
+
+    public void setCornerRadius(int v) { cornerRadius = clamp(v, 1, 20); }
+
+    public boolean isBorderEnabled() { return borderEnabled; }
+
+    public void setBorderEnabled(boolean v) { borderEnabled = v; }
+
+    public BorderStyle getBorderStyle() { return borderStyle; }
+
+    public void setBorderStyle(BorderStyle v) { borderStyle = v == null ? BorderStyle.CUSTOM : v; }
+
+    public int getBorderColor() { return borderColor; }
+
+    public void setBorderColor(int v) { borderColor = v; }
+
+    public int getBorderThickness() { return borderThickness; }
+
+    public void setBorderThickness(int v) { borderThickness = clamp(v, 1, 5); }
+
+    public boolean isBorderGradient() { return borderGradient; }
+
+    public void setBorderGradient(boolean v) { borderGradient = v; }
+
+    public int getBorderColorBottom() { return borderColorBottom; }
+
+    public void setBorderColorBottom(int v) { borderColorBottom = v; }
+
+    public boolean isChromaBorder() { return chromaBorder; }
+
+    public void setChromaBorder(boolean v) { chromaBorder = v; }
+
+    public int getChromaSpeed() { return chromaSpeed; }
+
+    public void setChromaSpeed(int v) { chromaSpeed = clamp(v, 1, 20); }
+
+    public boolean isImageBackground() { return imageBackground; }
+
+    public void setImageBackground(boolean v) { imageBackground = v; }
+
+    public int getImageOpacity() { return imageOpacity; }
+
+    public void setImageOpacity(int v) { imageOpacity = clamp(v, 5, 100); }
+
+    public String getCustomAlphaFooter() { return customAlphaFooter; }
+
+    public void setCustomAlphaFooter(String v) { customAlphaFooter = v == null ? "" : v; }
+
+    public boolean isUseCustomTitleOutsideSkyblock() { return useCustomTitleOutsideSkyblock; }
+
+    public void setUseCustomTitleOutsideSkyblock(boolean v) { useCustomTitleOutsideSkyblock = v; }
+
+    public boolean isTimeExactMinutes() { return timeExactMinutes; }
+
+    public void setTimeExactMinutes(boolean v) { timeExactMinutes = v; }
+
+    public boolean isSeparatorBetweenEvents() { return separatorBetweenEvents; }
+
+    public void setSeparatorBetweenEvents(boolean v) { separatorBetweenEvents = v; }
+
+    public boolean isShowJerryMayor() { return showJerryMayor; }
+
+    public void setShowJerryMayor(boolean v) { showJerryMayor = v; }
+
+    public boolean isShowUnclaimedBits() { return showUnclaimedBits; }
+
+    public void setShowUnclaimedBits(boolean v) { showUnclaimedBits = v; }
+
+    public PowderDisplay getPowderDisplay() { return powderDisplay; }
+
+    public void setPowderDisplay(PowderDisplay v) { powderDisplay = v; }
+
+    public boolean isHidePurseInDungeons() { return hidePurseInDungeons; }
+
+    public void setHidePurseInDungeons(boolean v) { hidePurseInDungeons = v; }
+
+    public int getMinWidth() { return minWidth; }
+
+    public void setMinWidth(int v) { minWidth = clamp(v, 0, 400); }
+
+    public int getMinHeight() { return minHeight; }
+
+    public void setMinHeight(int v) { minHeight = clamp(v, 0, 400); }
+
+    public int getBorderSoftness() { return borderSoftness; }
+
+    public void setBorderSoftness(int v) { borderSoftness = clamp(v, 0, 10); }
+
+    public boolean isBackgroundBlur() { return backgroundBlur; }
+
+    public void setBackgroundBlur(boolean v) { backgroundBlur = v; }
+
+    public int getBlurStrength() { return blurStrength; }
+
+    public void setBlurStrength(int v) { blurStrength = clamp(v, 1, 20); }
 }

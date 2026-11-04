@@ -18,25 +18,17 @@ import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
 public enum ChunkedStat {
     PURSE("Purse", ScoreboardEntry.PURSE) {
         @Override
-        String raw() {
-            return group(ScoreboardPattern.COINS, sidebar(), "coins");
-        }
+        String raw() { return group(ScoreboardPattern.COINS, sidebar(), "coins"); }
 
         @Override
-        String color() {
-            return "§6";
-        }
+        String color() { return "§6"; }
     },
     MOTES("Motes", ScoreboardEntry.MOTES) {
         @Override
-        String raw() {
-            return group(ScoreboardPattern.MOTES, sidebar(), "motes");
-        }
+        String raw() { return group(ScoreboardPattern.MOTES, sidebar(), "motes"); }
 
         @Override
-        String color() {
-            return "§d";
-        }
+        String color() { return "§d"; }
     },
     BANK("Bank", ScoreboardEntry.BANK) {
         @Override
@@ -55,20 +47,14 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§6";
-        }
+        String color() { return "§6"; }
     },
     BITS("Bits", ScoreboardEntry.BITS) {
         @Override
-        String raw() {
-            return group(ScoreboardPattern.BITS, sidebar(), "amount");
-        }
+        String raw() { return group(ScoreboardPattern.BITS, sidebar(), "amount"); }
 
         @Override
-        String color() {
-            return "§b";
-        }
+        String color() { return "§b"; }
     },
     COPPER("Copper", ScoreboardEntry.COPPER) {
         @Override
@@ -78,9 +64,7 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§c";
-        }
+        String color() { return "§c"; }
     },
     SOWDUST("Sowdust", ScoreboardEntry.SOWDUST) {
         @Override
@@ -90,9 +74,7 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§2";
-        }
+        String color() { return "§2"; }
     },
     GEMS("Gems", ScoreboardEntry.GEMS) {
         @Override
@@ -102,15 +84,11 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§a";
-        }
+        String color() { return "§a"; }
     },
     HEAT("Heat", ScoreboardEntry.HEAT) {
         @Override
-        String raw() {
-            return group(ScoreboardPattern.HEAT, sidebar(), "heat");
-        }
+        String raw() { return group(ScoreboardPattern.HEAT, sidebar(), "heat"); }
 
         @Override
         String display(CustomScoreboardConfig cfg) {
@@ -122,9 +100,7 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§c";
-        }
+        String color() { return "§c"; }
     },
     COLD("Cold", ScoreboardEntry.COLD) {
         @Override
@@ -150,20 +126,14 @@ public enum ChunkedStat {
         }
 
         @Override
-        String color() {
-            return "§b";
-        }
+        String color() { return "§b"; }
     },
     NORTH_STARS("North Stars", ScoreboardEntry.NORTH_STARS) {
         @Override
-        String raw() {
-            return group(ScoreboardPattern.NORTH_STARS, sidebar(), "northstars");
-        }
+        String raw() { return group(ScoreboardPattern.NORTH_STARS, sidebar(), "northstars"); }
 
         @Override
-        String color() {
-            return "§d";
-        }
+        String color() { return "§d"; }
     };
 
     public final String label;

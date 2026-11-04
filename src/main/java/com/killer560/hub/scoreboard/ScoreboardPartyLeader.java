@@ -39,9 +39,7 @@ final class ScoreboardPartyLeader {
     private ScoreboardPartyLeader() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(ScoreboardPartyLeader::onChat);
-    }
+    static void register() { ChatObserver.subscribe(ScoreboardPartyLeader::onChat); }
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
@@ -82,7 +80,5 @@ final class ScoreboardPartyLeader {
     }
 
     /** @return the known party leader's name, or null when unknown / not in a party. */
-    static String get() {
-        return leader;
-    }
+    static String get() { return leader; }
 }

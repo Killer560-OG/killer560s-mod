@@ -45,9 +45,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§6§lSKYBLOCK");
-        }
+        List<String> sample() { return List.of("§6§lSKYBLOCK"); }
     },
     LOBBY_CODE("Lobby Code", true, ScoreboardPattern.LOBBY_CODE) {
         @Override
@@ -69,9 +67,7 @@ public enum ScoreboardEntry {
     },
     EMPTY_LINE("Separator", true) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     DATE("Date", true, ScoreboardPattern.DATE) {
         @Override
@@ -80,9 +76,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("Late Summer 11th");
-        }
+        List<String> sample() { return List.of("Late Summer 11th"); }
     },
     TIME("Time", true, ScoreboardPattern.TIME) {
         @Override
@@ -95,9 +89,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§710:40pm §b☽");
-        }
+        List<String> sample() { return List.of("§710:40pm §b☽"); }
     },
     ISLAND("Island", true) {
         @Override
@@ -106,9 +98,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§7㋖ §aHub");
-        }
+        List<String> sample() { return List.of("§7㋖ §aHub"); }
     },
     PLAYER_AMOUNT("Player Amount", true) {
         @Override
@@ -143,9 +133,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§7⏣ §bVillage");
-        }
+        List<String> sample() { return List.of("§7⏣ §bVillage"); }
     },
     VISITING("Visiting", true, ScoreboardPattern.VISITING) {
         @Override
@@ -154,9 +142,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Private Island", "Garden");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Private Island", "Garden"); }
     },
     PROFILE("Profile", true, ScoreboardPattern.PROFILE_TYPE) {
         @Override
@@ -202,15 +188,11 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§7♲ Ironman");
-        }
+        List<String> sample() { return List.of("§7♲ Ironman"); }
     },
     EMPTY_LINE2("Separator", true) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     PURSE("Purse", true, ScoreboardPattern.COINS) {
         @Override
@@ -227,9 +209,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§fPurse: §652,763,737");
-        }
+        List<String> sample() { return List.of("§fPurse: §652,763,737"); }
     },
     MOTES("Motes", true, ScoreboardPattern.MOTES) {
         @Override
@@ -238,9 +218,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("The Rift");
-        }
+        boolean showIsland() { return inIslandOrUnknown("The Rift"); }
     },
     BANK("Bank", true) {
         @Override
@@ -259,9 +237,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
     },
     BITS("Bits", true, ScoreboardPattern.BITS) {
         @Override
@@ -286,9 +262,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("Catacombs", "Kuudra");
-        }
+        boolean showIsland() { return !inIsland("Catacombs", "Kuudra"); }
     },
     COPPER("Copper", true, ScoreboardPattern.COPPER) {
         @Override
@@ -297,9 +271,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Garden");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Garden"); }
     },
     SOWDUST("Sowdust", true, ScoreboardPattern.SOWDUST, ScoreboardPattern.SOWDUST_GAINED) {
         @Override
@@ -308,9 +280,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Garden");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Garden"); }
     },
     GEMS("Gems", true, ScoreboardPattern.GEMS) {
         @Override
@@ -319,9 +289,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift", "Catacombs", "Kuudra");
-        }
+        boolean showIsland() { return !inIsland("The Rift", "Catacombs", "Kuudra"); }
     },
     HEAT("Heat", true, ScoreboardPattern.HEAT) {
         @Override
@@ -338,9 +306,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Crystal Hollows");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Crystal Hollows"); }
     },
     COLD("Cold", true, ScoreboardPattern.COLD) {
         @Override
@@ -362,9 +328,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Dwarven Mines", "Mineshaft");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Dwarven Mines", "Mineshaft"); }
     },
     NORTH_STARS("North Stars", true, ScoreboardPattern.NORTH_STARS) {
         @Override
@@ -373,9 +337,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Jerry's Workshop");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Jerry's Workshop"); }
     },
     SOULFLOW("Soulflow", true) {
         @Override
@@ -384,15 +346,11 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
     },
     EMPTY_LINE3("Separator", true) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EVENTS("Events", true) {
         @Override
@@ -418,14 +376,10 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showWhen() {
-            return true;
-        }
+        boolean showWhen() { return true; }
 
         @Override
-        List<String> sample() {
-            return List.of("§7Time Elapsed: §a1m 12s", "§7Cleared: §c42% §8(143)");
-        }
+        List<String> sample() { return List.of("§7Time Elapsed: §a1m 12s", "§7Cleared: §c42% §8(143)"); }
     },
     COOKIE("Cookie Buff", true) {
         @Override
@@ -448,9 +402,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§dCookie Buff§f: 3d 17h");
-        }
+        List<String> sample() { return List.of("§dCookie Buff§f: 3d 17h"); }
     },
     QUIVER("Quiver", true) {
         @Override
@@ -476,19 +428,13 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showWhen() {
-            return ScoreboardExtraData.hasBow();
-        }
+        boolean showWhen() { return ScoreboardExtraData.hasBow(); }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
 
         @Override
-        List<String> sample() {
-            return List.of(formatNumberDisplay("Flint Arrow", "1,234", "§f"));
-        }
+        List<String> sample() { return List.of(formatNumberDisplay("Flint Arrow", "1,234", "§f")); }
     },
     POWER("Maxwell Power", true) {
         @Override
@@ -505,14 +451,10 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
 
         @Override
-        List<String> sample() {
-            return List.of(formatNumberDisplay("Power", "Sighted §7(§61,263§7)", "§a"));
-        }
+        List<String> sample() { return List.of(formatNumberDisplay("Power", "Sighted §7(§61,263§7)", "§a")); }
     },
     TUNING("Maxwell Tuning", true) {
         @Override
@@ -557,20 +499,14 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
 
         @Override
-        List<String> sample() {
-            return List.of("Tunings: §c❁34§7, §e⚔20§7, §9☣7");
-        }
+        List<String> sample() { return List.of("Tunings: §c❁34§7, §e⚔20§7, §9☣7"); }
     },
     EMPTY_LINE4("Separator", true) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     OBJECTIVE("Objective", true, ScoreboardPattern.OBJECTIVE, ScoreboardPattern.THIRD_OBJECTIVE_LINE,
             ScoreboardPattern.WTF_ARE_THOSE_LINES) {
@@ -596,9 +532,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("Objective", "§eTalk to the Goblin King");
-        }
+        List<String> sample() { return List.of("Objective", "§eTalk to the Goblin King"); }
     },
     SLAYER("Slayer", true, ScoreboardPattern.SLAYER_QUEST) {
         @Override
@@ -663,9 +597,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return inIslandOrUnknown("Dwarven Mines", "Crystal Hollows", "Mineshaft");
-        }
+        boolean showIsland() { return inIslandOrUnknown("Dwarven Mines", "Crystal Hollows", "Mineshaft"); }
     },
     MAYOR("Mayor", true) {
         @Override
@@ -707,9 +639,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
 
         @Override
         List<String> sample() {
@@ -762,9 +692,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("Catacombs");
-        }
+        boolean showIsland() { return !inIsland("Catacombs"); }
     },
     FOOTER("Footer", true, ScoreboardPattern.FOOTER) {
         @Override
@@ -777,9 +705,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§ewww.hypixel.net");
-        }
+        List<String> sample() { return List.of("§ewww.hypixel.net"); }
     },
     EXTRA("Unknown Lines", true) {
         @Override
@@ -825,20 +751,14 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        List<String> sample() {
-            return List.of("§652,763,737 §7| §d64,647 §7| §6249M", "§b59,264 §7| §c23,495 §7| §23,210,307");
-        }
+        List<String> sample() { return List.of("§652,763,737 §7| §d64,647 §7| §6249M", "§b59,264 §7| §c23,495 §7| §23,210,307"); }
     },
     IRL_TIME("IRL Time", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single(irlTime(cfg));
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(irlTime(cfg)); }
 
         @Override
-        List<String> sample() {
-            return List.of(irlTime(CustomScoreboardConfig.getInstance()));
-        }
+        List<String> sample() { return List.of(irlTime(CustomScoreboardConfig.getInstance())); }
     },
     PET("Pet", false) {
         @Override
@@ -867,80 +787,54 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() {
-            return !inIsland("The Rift");
-        }
+        boolean showIsland() { return !inIsland("The Rift"); }
 
         @Override
-        List<String> sample() {
-            return List.of(formatNumberDisplay("Pet", "§6[Lvl 100] Golden Dragon", "§f"), " §bMAX LEVEL");
-        }
+        List<String> sample() { return List.of(formatNumberDisplay("Pet", "§6[Lvl 100] Golden Dragon", "§f"), " §bMAX LEVEL"); }
     },
     EMPTY_LINE5("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE6("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE7("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE8("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE9("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE10("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE11("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE12("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE13("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE14("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     },
     EMPTY_LINE15("Separator", false) {
         @Override
-        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
-            return single("");
-        }
+        List<ScoreboardLine> lines(CustomScoreboardConfig cfg) { return single(""); }
     };
 
     public final String label;
@@ -955,26 +849,16 @@ public enum ScoreboardEntry {
 
     abstract List<ScoreboardLine> lines(CustomScoreboardConfig cfg);
 
-    boolean showIsland() {
-        return true;
-    }
+    boolean showIsland() { return true; }
 
-    boolean showWhen() {
-        return true;
-    }
+    boolean showWhen() { return true; }
 
     /** HUD-editor preview text when there's no live data. */
-    List<String> sample() {
-        return List.of();
-    }
+    List<String> sample() { return List.of(); }
 
-    boolean visible(CustomScoreboardConfig cfg) {
-        return showIsland() && (!cfg.isHideIrrelevantLines() || showWhen());
-    }
+    boolean visible(CustomScoreboardConfig cfg) { return showIsland() && (!cfg.isHideIrrelevantLines() || showWhen()); }
 
-    public boolean isSeparator() {
-        return name().startsWith("EMPTY_LINE");
-    }
+    public boolean isSeparator() { return name().startsWith("EMPTY_LINE"); }
 
     static final int MAX_ARROW_AMOUNT = 2880;
 
@@ -1090,9 +974,7 @@ public enum ScoreboardEntry {
     }
 
     /** SkyHanni {@code ElectionApi.mayorNameWithColorCode}. */
-    static String candidateName(String name) {
-        return candidateColor(name) + name;
-    }
+    static String candidateName(String name) { return candidateColor(name) + name; }
 
     private static String candidateColor(String name) {
         return switch (name) {
@@ -1154,13 +1036,9 @@ public enum ScoreboardEntry {
         return out;
     }
 
-    static List<ScoreboardLine> single(String text) {
-        return text == null ? List.of() : List.of(ScoreboardLine.of(text));
-    }
+    static List<ScoreboardLine> single(String text) { return text == null ? List.of() : List.of(ScoreboardLine.of(text)); }
 
-    static String trim(String s) {
-        return s == null ? null : s.trim();
-    }
+    static String trim(String s) { return s == null ? null : s.trim(); }
 
     private static int indexOf(String[] names, String name) {
         for (int i = 0; i < names.length; i++) {

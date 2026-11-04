@@ -79,9 +79,7 @@ public final class ScoreboardBlur {
         }
     }
 
-    public static boolean available() {
-        return pipeline != null && !failed;
-    }
+    public static boolean available() { return pipeline != null && !failed; }
 
     private static void fail(String what, Throwable e) {
         if (!failed) {

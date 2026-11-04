@@ -69,7 +69,5 @@ final class NumberChangeTracker {
         return left >= FADE_MS ? 255 : Math.max(16, (int) (255 * Math.max(0, left) / FADE_MS));
     }
 
-    static void clear() {
-        STATES.clear();
-    }
+    static void clear() { STATES.clear(); }
 }

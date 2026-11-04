@@ -92,7 +92,5 @@ public final class ScoreboardBackgroundImage {
         height = 0;
     }
 
-    static boolean fileExists() {
-        return Files.isRegularFile(FILE);
-    }
+    static boolean fileExists() { return Files.isRegularFile(FILE); }
 }

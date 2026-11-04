@@ -349,9 +349,7 @@ public final class ScoreboardData {
     }
 
 
-    public static List<String> sidebar() {
-        return sidebarLines;
-    }
+    public static List<String> sidebar() { return sidebarLines; }
 
     /**
      * The sidebar read right now, for callers that must not depend on the Custom Scoreboard: {@link #sidebar()} is
@@ -366,35 +364,21 @@ public final class ScoreboardData {
         return sidebarLines;
     }
 
-    public static String objectiveTitle() {
-        return objectiveTitle;
-    }
+    public static String objectiveTitle() { return objectiveTitle; }
 
-    public static List<String> tabPlain() {
-        return tabPlain;
-    }
+    public static List<String> tabPlain() { return tabPlain; }
 
-    public static List<String> tabFormatted() {
-        return tabFormatted;
-    }
+    public static List<String> tabFormatted() { return tabFormatted; }
 
-    public static String tabFooter() {
-        return tabFooterPlain;
-    }
+    public static String tabFooter() { return tabFooterPlain; }
 
     /** Latest action bar text, or "" if none arrived in the last 3 seconds. */
-    public static String actionBar() {
-        return System.currentTimeMillis() - actionBarAtMs < 3000L ? actionBarPlain : "";
-    }
+    public static String actionBar() { return System.currentTimeMillis() - actionBarAtMs < 3000L ? actionBarPlain : ""; }
 
     /** Island name from the tab list's "Area:"/"Dungeon:" line, or "" when unknown (e.g. p3sim). */
-    public static String island() {
-        return island;
-    }
+    public static String island() { return island; }
 
-    public static boolean islandKnown() {
-        return !island.isEmpty();
-    }
+    public static boolean islandKnown() { return !island.isEmpty(); }
 
     /** True when the island is known and equals one of {@code names}; always true when the island is unknown. */
     public static boolean inIslandOrUnknown(String... names) {
@@ -421,9 +405,7 @@ public final class ScoreboardData {
 
     // ---- list helpers (SkyHanni RegexUtils / CollectionUtils equivalents) ----
 
-    public static boolean matches(Pattern pattern, String line) {
-        return line != null && pattern.matcher(line).matches();
-    }
+    public static boolean matches(Pattern pattern, String line) { return line != null && pattern.matcher(line).matches(); }
 
     public static String firstMatches(Pattern pattern, List<String> lines) {
         for (String line : lines) {
