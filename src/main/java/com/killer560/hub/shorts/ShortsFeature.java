@@ -65,7 +65,6 @@ public final class ShortsFeature {
 
     private static final Object LOCK = new Object();
 
-    // ---- shared between the background thread and the client thread ----
     private static final AtomicInteger generation = new AtomicInteger();
     private static final AtomicBoolean shutdownDone = new AtomicBoolean();
     private static final AtomicBoolean measureScheduled = new AtomicBoolean();
@@ -78,7 +77,6 @@ public final class ShortsFeature {
     /** Window-rect pixels to crop off the browser window: left, top, right, bottom. */
     private static volatile int[] insets = {0, 0, 0, 0};
 
-    // ---- client thread only ----
     private static long attachedHwnd;
     private static boolean shown;
     private static int[] lastWindowRect;
@@ -110,9 +108,7 @@ public final class ShortsFeature {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdownNow("JVM shutdown"), "killer560smod-shorts-exit"));
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Support / status
-    // ------------------------------------------------------------------------------------------------
 
     /** Windows 64-bit with JNA's user32/gdi32 loadable. Cached after the first call. */
     public static synchronized boolean isSupported() {
@@ -161,9 +157,7 @@ public final class ShortsFeature {
         return isRunning() ? "Running (window not attached - try Relaunch)" : "Not running";
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Launch / close
-    // ------------------------------------------------------------------------------------------------
 
     /** Launches (or relaunches) the Shorts browser. Client thread. */
     public static void launch() {
@@ -582,9 +576,7 @@ public final class ShortsFeature {
         return 0;
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Client tick: attach, place, show/hide, keybinds
-    // ------------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         ShortsConfig cfg = ShortsConfig.getInstance();
@@ -639,10 +631,7 @@ public final class ShortsFeature {
 
     private static long currentMcHwnd(Minecraft client) {
         try {
-            if (client.getWindow() == null) {
-                return 0;
-            }
-            return com.killer560.hub.compat.McWindow.win32Handle(client.getWindow());
+            return client.getWindow() == null ? 0 : com.killer560.hub.compat.McWindow.win32Handle(client.getWindow());
         } catch (Throwable t) {
             return 0;
         }
@@ -952,10 +941,8 @@ public final class ShortsFeature {
         return new int[]{mcRect[0] + Math.round(dvdX), mcRect[1] + Math.round(dvdY), w, h};
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Edit Window (2026-09-21 expansion, killer560 item 8.8: "its own edit window (drag to resize,
     // scroll to zoom, drag to move)")
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * Drag-to-move and drag-to-resize are genuinely deliverable: this just gives the already-real Chrome
@@ -1023,9 +1010,7 @@ public final class ShortsFeature {
         return editMode;
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Title-bar crop measurement (background)
-    // ------------------------------------------------------------------------------------------------
 
     private static void scheduleInsetMeasure(long delayMs) {
         if (measureScheduled.compareAndSet(false, true)) {
@@ -1085,9 +1070,7 @@ public final class ShortsFeature {
         return new int[]{side, top, right, bottom};
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Playback commands
-    // ------------------------------------------------------------------------------------------------
 
     private interface CdpAction {
         String run(CdpClient client) throws Exception;
@@ -1196,10 +1179,8 @@ public final class ShortsFeature {
                 + "apply();return 'installed'})()";
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Site selection (2026-09-21 expansion, killer560 item 8.8: "TikTok, Reels, any site... normal
     // videos, Twitch")
-    // ------------------------------------------------------------------------------------------------
 
     /** @return the app-mode launch URL for the currently configured site, falling back to YouTube Shorts
      *  if CUSTOM has no usable URL typed in yet. */
@@ -1214,11 +1195,9 @@ public final class ShortsFeature {
         return cfg.getSite() == ShortsConfig.Site.CUSTOM ? ShortsConfig.Site.YOUTUBE_SHORTS.defaultUrl : cfg.getSite().defaultUrl;
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Sign-in (2026-09-20, killer560: "please implement the login through my mod by having me click a button
     // that says sign in to youtube shorts or sign into tictoc or reels once you finish implementing those" -
     // 2026-09-21: TikTok/Reels/Twitch/custom all now exist, so this follows whatever site is selected)
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * Opens a real, decorated sign-in/site page in an ordinary browser window on the Shorts profile, for
@@ -1315,10 +1294,8 @@ public final class ShortsFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Auto Scroll (killer560, 2026-11-01, to-do Doc "VIDEO BROWSER": "Add an auto scroll option where if it is something
     // like yt shorts itll scroll once the vid ends")
-    // ------------------------------------------------------------------------------------------------
 
     /**
      * In the page: counts each end of the playing video in {@code window.__k560Ended}. A Short never fires {@code ended}
@@ -1626,9 +1603,7 @@ public final class ShortsFeature {
         Minecraft.getInstance().execute(() -> ModChat.send(CHAT, parts));
     }
 
-    // ------------------------------------------------------------------------------------------------
     // Keybinds
-    // ------------------------------------------------------------------------------------------------
 
     private static void pollKeys(Minecraft client, ShortsConfig cfg) {
         int[] keys = {cfg.getToggleKey(), cfg.getNextKey(), cfg.getPreviousKey(), cfg.getPlayPauseKey(), cfg.getMuteKey()};
