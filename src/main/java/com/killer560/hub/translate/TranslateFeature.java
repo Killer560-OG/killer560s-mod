@@ -164,9 +164,7 @@ public final class TranslateFeature {
      * for anything that generates its own outgoing chat line rather than being typed (e.g. {@code
      * /cringe}), so those lines still get translated the same way real typed chat would.
      */
-    public static void sendGenerated(String message) {
-        sendGenerated(message, null);
-    }
+    public static void sendGenerated(String message) { sendGenerated(message, null); }
 
     /**
      * Same as {@link #sendGenerated(String)}, but routed to a specific Hypixel chat channel (e.g.
@@ -420,9 +418,7 @@ public final class TranslateFeature {
         return new TranslationResult(translated, detected);
     }
 
-    private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
+    private static String urlEncode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
 
     private TranslateFeature() {
     }
