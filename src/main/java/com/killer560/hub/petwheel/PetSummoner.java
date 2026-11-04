@@ -112,14 +112,10 @@ public final class PetSummoner {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PetSummoner.tick", PetSummoner::tick));
     }
 
-    public static boolean isBusy() {
-        return stage != Stage.IDLE;
-    }
+    public static boolean isBusy() { return stage != Stage.IDLE; }
 
     /** Read every input tick by {@code PetWheelInputMixin}: true while a summon is in flight. */
-    public static boolean suppressesMovement() {
-        return stage != Stage.IDLE;
-    }
+    public static boolean suppressesMovement() { return stage != Stage.IDLE; }
 
     /** Starts a summon. Refused (false, no side effects) while one is already running or another Hypixel
      *  container is already open - callers must not retry on false. */

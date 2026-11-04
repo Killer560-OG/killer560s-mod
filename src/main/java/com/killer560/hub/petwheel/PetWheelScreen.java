@@ -119,29 +119,19 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
                 cfg.getMode(), true, parent);
     }
 
-    public Screen editParent() {
-        return editParent;
-    }
+    public Screen editParent() { return editParent; }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     /** Edit mode always shows one more slot than there are real pets - see {@link #forEdit}'s doc. */
-    private int totalSlots() {
-        return editMode ? allPets.size() + 1 : allPets.size();
-    }
+    private int totalSlots() { return editMode ? allPets.size() + 1 : allPets.size(); }
 
     /** killer560, 2026-10-11: "remove the slices portion since you just add whatever pets you want and it auto
      *  updates where they go" - every pet on the wheel is one slice, so there is always exactly one page. */
-    private int sliceCount() {
-        return Math.max(1, totalSlots());
-    }
+    private int sliceCount() { return Math.max(1, totalSlots()); }
 
-    private int firstGlobalIndexOnPage(int p) {
-        return Math.min(p * sliceCount(), totalSlots());
-    }
+    private int firstGlobalIndexOnPage(int p) { return Math.min(p * sliceCount(), totalSlots()); }
 
     private int slotsOnPage(int p) {
         int from = firstGlobalIndexOnPage(p);
@@ -163,9 +153,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     private record Layout(float centerX, float centerY, float radius, float innerRadius, int count) {
-        float sliceAngle() {
-            return count == 0 ? 0f : (float) (Math.PI * 2.0 / count);
-        }
+        float sliceAngle() { return count == 0 ? 0f : (float) (Math.PI * 2.0 / count); }
     }
 
     /** Radius grows past the plain {@code BASE_RADIUS * scale} baseline once the tile itself (driven by Icon
@@ -359,14 +347,10 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return firstTile.clone();
-    }
+    public int[] themedPanelBounds() { return firstTile.clone(); }
 
     /** killer560: "add an option to hide their level and an option to hide the pets name" - each toggle is
      *  independent, so all four combinations (both shown, either alone, neither) are possible. */
