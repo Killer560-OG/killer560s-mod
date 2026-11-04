@@ -39,7 +39,6 @@ public final class WalkCamera {
     private static int packetsSeen;
     private static int framesWritten;
 
-    // ---- the current movement
     private static float velYaw;
     private static float velPitch;
     private static float peak = 20f;
@@ -268,10 +267,7 @@ public final class WalkCamera {
     /** The speed (degrees per tick) this error wants: up to the peak, and no more than stops in time at {@code a}. */
     private static float profile(float err, float peakSpeed, float a) {
         float mag = Math.abs(err);
-        if (mag < 0.02f) {
-            return 0f;
-        }
-        return Math.signum(err) * Math.min(peakSpeed, (float) Math.sqrt(2.0 * a * mag));
+        return mag < 0.02f ? 0f : Math.signum(err) * Math.min(peakSpeed, (float) Math.sqrt(2.0 * a * mag));
     }
 
     private static float approach(float v, float want, float a, double dt) {
@@ -281,9 +277,6 @@ public final class WalkCamera {
 
     /** Never step past the point the error aims at (the overshoot is aimed at, not integrated into). */
     private static float limit(float step, float err) {
-        if (Math.signum(step) == Math.signum(err) && Math.abs(step) > Math.abs(err)) {
-            return err;
-        }
-        return step;
+        return Math.signum(step) == Math.signum(err) && Math.abs(step) > Math.abs(err) ? err : step;
     }
 }

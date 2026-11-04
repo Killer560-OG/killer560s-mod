@@ -55,7 +55,6 @@ public final class FairySoulsFeature {
         ChatObserver.subscribe(FairySoulsFeature::onChat);
     }
 
-    // ------------------------------------------------------------------ state
 
     /** Auto Fairy Souls is running (cheat build): it uses this guide and the navigation whatever the Fairy Souls switch. */
     public static boolean autoRunning() {
@@ -127,7 +126,6 @@ public final class FairySoulsFeature {
         return record.menuTotal > 0 ? record : null;
     }
 
-    // ------------------------------------------------------------------ commands / actions
 
     public static void guideNearest() {
         start(PathfindingConfig.SoulMode.NEAREST);
@@ -358,7 +356,6 @@ public final class FairySoulsFeature {
                 ModChat.text(" souls as found on "), ModChat.value(IslandDetector.islandName()));
     }
 
-    // ------------------------------------------------------------------ ticking
 
     public static void tick(Minecraft client) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();

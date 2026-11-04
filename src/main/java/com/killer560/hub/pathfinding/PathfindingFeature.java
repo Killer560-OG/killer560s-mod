@@ -71,7 +71,6 @@ public final class PathfindingFeature {
                 (graphics, deltaTracker) -> drawHud(graphics));
     }
 
-    // ------------------------------------------------------------------ ticking
 
     private static Object lastLevel;
 
@@ -147,7 +146,6 @@ public final class PathfindingFeature {
         }
     }
 
-    // ------------------------------------------------------------------ command
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> command() {
         SuggestionProvider<FabricClientCommandSource> destinations = (context, builder) -> {
@@ -315,7 +313,6 @@ public final class PathfindingFeature {
         }
     }
 
-    // ------------------------------------------------------------------ HUD
 
     private static void drawHud(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();

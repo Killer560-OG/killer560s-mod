@@ -219,7 +219,6 @@ public final class PathfindingConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
     }
 
-    // ---- Fairy Souls ----
 
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();

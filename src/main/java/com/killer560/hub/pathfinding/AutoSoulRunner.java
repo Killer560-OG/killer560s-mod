@@ -209,7 +209,6 @@ public final class AutoSoulRunner {
         }
     }
 
-    // ------------------------------------------------------------------ ticking
 
     public static void tick(Minecraft client) {
         if (!active) {
@@ -289,7 +288,6 @@ public final class AutoSoulRunner {
         }
     }
 
-    // ------------------------------------------------------------------ the last blocks to the soul
 
     /**
      * The soul stand is out of reach or out of sight from here: walk to a spot it is in both from. On Hypixel the stand
@@ -583,7 +581,6 @@ public final class AutoSoulRunner {
         FairySoulsFeature.skipCurrent();
     }
 
-    // ------------------------------------------------------------------ warp back when stuck
 
     /** A warp back to the island's spawn is under way (the world change and the screen it brings are not failsafes). */
     public static boolean isWarping() {
@@ -870,7 +867,6 @@ public final class AutoSoulRunner {
         WalkCamera.clear();
     }
 
-    // ------------------------------------------------------------------ etherwarp helpers
 
     /** The soul's own landing spot when it is within range, else the furthest reachable spot along the path. */
     private static BlockPos chainGoal(LocalPlayer player, Vec3 soulCentre) {

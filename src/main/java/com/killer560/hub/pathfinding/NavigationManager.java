@@ -56,7 +56,6 @@ public final class NavigationManager {
     private NavigationManager() {
     }
 
-    // ------------------------------------------------------------------ public API
 
     public static boolean isActive() {
         return target != null;
@@ -117,7 +116,6 @@ public final class NavigationManager {
         return total;
     }
 
-    // ------------------------------------------------------------------ ticking
 
     public static void tick(Minecraft client) {
         LocalPlayer player = client.player;
@@ -251,7 +249,6 @@ public final class NavigationManager {
         path = List.copyOf(points);
     }
 
-    // ------------------------------------------------------------------ geometry helpers
 
     /** Feet-level center of a graph node's block (positions in the graph are the block a player stands on). */
     public static Vec3 centre(IslandGraph.Node node) {

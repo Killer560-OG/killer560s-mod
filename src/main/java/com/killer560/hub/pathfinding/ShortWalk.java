@@ -88,7 +88,6 @@ public final class ShortWalk {
     private ShortWalk() {
     }
 
-    // ------------------------------------------------------------------ planning
 
     /**
      * Plans a walk from where he stands to feet block {@code goalFeet} and estimates its ticks: {@link #START_TICKS},
@@ -143,7 +142,6 @@ public final class ShortWalk {
         return new Plan(List.copyOf(points), goalFeet, length, toDone, jumps, top, ticks, doneAt, doneAtEnd);
     }
 
-    // ------------------------------------------------------------------ the walk
 
     public static void start(Plan plan, String who) {
         active = plan;

@@ -112,7 +112,6 @@ public final class AutoWalker {
     /** Whether this session holds the camera (Auto Walk on). */
     private static boolean viewHeld;
 
-    // ---- the way back onto the route
     private static List<Vec3> rescuePath;
     private static int rescueIndex;
     private static String rescueWhy = "";
@@ -138,7 +137,6 @@ public final class AutoWalker {
     private AutoWalker() {
     }
 
-    // ------------------------------------------------------------------ session
 
     /** Starts watching for player input / damage; call before {@link #setWalking}. */
     public static void startSession() {
@@ -436,7 +434,6 @@ public final class AutoWalker {
         stop("failsafe: " + reason);
     }
 
-    // ------------------------------------------------------------------ ticking
 
     /** Per render frame: the body's turn (see {@link WalkCamera}). */
     public static void frame() {
@@ -830,7 +827,6 @@ public final class AutoWalker {
         wantSprint = bestSprint;
     }
 
-    // ------------------------------------------------------------------ the way back onto the route
 
     /** Why he is off the route right now, or null. */
     private static String offRouteReason(Level level, LocalPlayer player, Vec3 pos, Vec3 carrot, double jumpH) {
@@ -1614,7 +1610,6 @@ public final class AutoWalker {
                 : String.format(Locale.US, "no jump boost - jumps %.2f blocks", h);
     }
 
-    // ---- testkit read-outs
     public static int jumpsPressed() {
         return jumpsPressed;
     }
