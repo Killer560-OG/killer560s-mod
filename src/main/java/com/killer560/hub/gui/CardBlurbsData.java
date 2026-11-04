@@ -23,6 +23,12 @@ final class CardBlurbsData {
         d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
+        d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
+        d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
+        d.put("LockpickHelperTab", "Shows the chest side to click.");
+        d.put("PowderTrackerTab", "Powder and chests per hour.");
+        d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
+        d.put("ChestLootCompactTab", "One line per chest's loot.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");

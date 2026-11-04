@@ -44,6 +44,8 @@ public final class HudInGameRenderer {
             // The pre-2.0 mining HUDs (2026-11-01): missing at first, so testkit 1101-mining-commissions/-ability failed.
             "mining_commissions", "mining_ability_ready", "mining_ability_timer",
             "mining_powder_ghast",
+            // Treasure Chest Timer and Powder Tracker (powdermining, 2026-11-03).
+            "mining_treasure_chest", "mining_powder_tracker",
             // Armor HUD and the Wrong Armor Alert (2026-11-03).
             "armor_hud", "mining_wrong_armor");
 
