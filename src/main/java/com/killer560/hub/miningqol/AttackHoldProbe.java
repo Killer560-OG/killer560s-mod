@@ -128,6 +128,35 @@ public final class AttackHoldProbe {
                 });
     }
 
+    private static int directionDrops = 0;
+    /** Testkit: treat the connection as Hypixel for {@link #dropOnHypixel}. */
+    public static volatile boolean forceHypixelForTest = false;
+
+    /**
+     * On Hypixel, the dig's CHANGE_DESTROY_DIRECTION is not sent (MiningSendTapMixin cancels it). killer560's 2026-11-03
+     * 19:40 log: both real stalls began with it and, one ping later, Hypixel cleared the crack and dropped the dig.
+     */
+    public static boolean dropOnHypixel(Packet<?> packet) {
+        if (!(packet instanceof ServerboundPlayerActionPacket p) || !"CHANGE_DESTROY_DIRECTION".equals(p.getAction().name())) {
+            return false;
+        }
+        Minecraft client = Minecraft.getInstance();
+        net.minecraft.client.multiplayer.ServerData server = client.getCurrentServer();
+        boolean hypixel = forceHypixelForTest || server != null && server.ip != null
+                && server.ip.toLowerCase(java.util.Locale.ROOT).contains("hypixel.net");
+        if (!hypixel) {
+            return false;
+        }
+        if (directionDrops++ == 0) {
+            LOGGER.info("[AttackHold] not sending CHANGE_DESTROY_DIRECTION on Hypixel (it reset his digs)");
+        }
+        return true;
+    }
+
+    public static int directionDrops() {
+        return directionDrops;
+    }
+
     /** A packet this client is sending (MiningSendTapMixin, any thread that sends). */
     public static void onSend(Packet<?> packet) {
         Minecraft client = Minecraft.getInstance();
