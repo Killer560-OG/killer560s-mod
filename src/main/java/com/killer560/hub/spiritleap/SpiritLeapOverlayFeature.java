@@ -216,9 +216,7 @@ public final class SpiritLeapOverlayFeature {
         });
 
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-            if (!isHiding(s)) {
-                return true;
-            }
+            if (!isHiding(s)) return true;
             poll(containerScreen, state);
             if (mapStyleNow()) {
                 // Map style: only a click on a teammate's face (or a fallback box) leaps; the rooms are context.
@@ -245,9 +243,7 @@ public final class SpiritLeapOverlayFeature {
         ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> !isHiding(s));
 
         ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-            if (!isHiding(s)) {
-                return true;
-            }
+            if (!isHiding(s)) return true;
             int key = event.key();
             if (key >= InputConstants.KEY_1 && key <= InputConstants.KEY_4) {
                 poll(containerScreen, state);
@@ -286,22 +282,16 @@ public final class SpiritLeapOverlayFeature {
 
     private static LeapTarget byName(List<LeapTarget> targets, String name) {
         for (LeapTarget t : targets) {
-            if (t.name().equalsIgnoreCase(name)) {
-                return t;
-            }
+            if (t.name().equalsIgnoreCase(name)) return t;
         }
         return null;
     }
 
     private static void leap(Minecraft client, AbstractContainerScreen<?> screen, LeapTarget target, MenuState state,
                              String how, AtomicLong lastLeapAtMs) {
-        if (client.gameMode == null || client.player == null) {
-            return;
-        }
+        if (client.gameMode == null || client.player == null) return;
         long now = System.currentTimeMillis();
-        if (now - lastLeapAtMs.get() < LEAP_DEBOUNCE_MS) {
-            return;
-        }
+        if (now - lastLeapAtMs.get() < LEAP_DEBOUNCE_MS) return;
         lastLeapAtMs.set(now);
         state.frozenUntilMs = now + FREEZE_MS; // the head goes onto the cursor: keep everyone where they are
         client.gameMode.handleContainerInput(screen.getMenu().containerId, target.slotIndex(), 0,
@@ -357,14 +347,10 @@ public final class SpiritLeapOverlayFeature {
             state.pendingRead = anyHead;
             return;
         }
-        if (!state.pendingRead || now - state.stableSinceMs < SETTLE_MS) {
-            return;
-        }
+        if (!state.pendingRead || now - state.stableSinceMs < SETTLE_MS) return;
         state.pendingRead = false;
         List<LeapTarget> fresh = readTargets(containerScreen);
-        if (fresh.isEmpty()) {
-            return;
-        }
+        if (fresh.isEmpty()) return;
         accept(state, fresh);
     }
 
@@ -450,13 +436,9 @@ public final class SpiritLeapOverlayFeature {
         List<LeapTarget> targets = new ArrayList<>();
         for (int i = 0; i < containerSlotCount; i++) {
             ItemStack item = slots.get(i).getItem();
-            if (item.isEmpty() || !item.is(Items.PLAYER_HEAD)) {
-                continue;
-            }
+            if (item.isEmpty() || !item.is(Items.PLAYER_HEAD)) continue;
             String plain = ChatFormatting.stripFormatting(item.getHoverName().getString());
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher m = IGN.matcher(plain.trim());
             targets.add(new LeapTarget(m.find() ? m.group(1) : plain.trim(), slots.get(i).index));
         }
@@ -469,9 +451,7 @@ public final class SpiritLeapOverlayFeature {
         String[] arranged = LeapMenuFeature.layout(names, LeapMenuFeature.playingClass());
         LeapTarget[] out = new LeapTarget[4];
         for (int spot = 0; spot < 4; spot++) {
-            if (arranged[spot] == null) {
-                continue;
-            }
+            if (arranged[spot] == null) continue;
             for (LeapTarget t : targets) {
                 if (t.name().equals(arranged[spot])) {
                     out[spot] = t;
@@ -505,9 +485,7 @@ public final class SpiritLeapOverlayFeature {
 
         for (int spot = 0; spot < 4; spot++) {
             LeapTarget target = spots[spot];
-            if (target == null) {
-                continue;
-            }
+            if (target == null) continue;
             int x0 = spot % 2 == 0 ? centerX - gap - boxW : centerX + gap;
             int y0 = spot < 2 ? centerY - gap - boxH : centerY + gap;
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
