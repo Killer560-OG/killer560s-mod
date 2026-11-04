@@ -24,13 +24,9 @@ public final class MaxorCrystalsRenderer {
         // 2026-09-20 FPS pass: the crystal list comes from MaxorCrystalsFeature's client tick now. This used
         // to walk entitiesForRendering() here, i.e. once per FRAME, whenever the highlight was on.
         List<AABB> boxes = MaxorCrystalsFeature.highlightBoxes();
-        if (boxes.isEmpty()) {
-            return;
-        }
+        if (boxes.isEmpty()) return;
         MaxorConfig cfg = MaxorConfig.getInstance();
-        if (!cfg.isHighlightEnabled()) {
-            return;
-        }
+        if (!cfg.isHighlightEnabled()) return;
         float[] c = WorldRenderUtils.argbToFloats(cfg.getHighlightColor());
         for (int i = 0; i < boxes.size(); i++) {
             AABB box = boxes.get(i);
