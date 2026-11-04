@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.HeldKeys;
 import com.killer560.hub.util.ModChat;
 
 /**
@@ -1980,13 +1981,7 @@ public final class RouteExecutor {
         if (mixinApplied) {
             return;
         }
-        client.options.keyUp.setDown(wantForward);
-        client.options.keyDown.setDown(wantBackward);
-        client.options.keyLeft.setDown(wantLeft);
-        client.options.keyRight.setDown(wantRight);
-        client.options.keyJump.setDown(wantJump);
-        client.options.keyShift.setDown(wantSneak);
-        client.options.keySprint.setDown(wantSprint);
+        HeldKeys.set(client, wantForward, wantBackward, wantLeft, wantRight, wantJump, wantSneak, wantSprint);
         fallbackKeysHeld = true;
     }
 
@@ -1998,13 +1993,7 @@ public final class RouteExecutor {
         LOGGER.info("[AutoRoutes] fallback key mappings released (input mixin not applied)");
         fallbackKeysHeld = false;
         Minecraft client = Minecraft.getInstance();
-        client.options.keyUp.setDown(false);
-        client.options.keyDown.setDown(false);
-        client.options.keyLeft.setDown(false);
-        client.options.keyRight.setDown(false);
-        client.options.keyJump.setDown(false);
-        client.options.keyShift.setDown(false);
-        client.options.keySprint.setDown(false);
+        HeldKeys.releaseAll(client);
     }
 
     /**

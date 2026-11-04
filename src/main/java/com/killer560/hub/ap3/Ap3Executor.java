@@ -11,6 +11,7 @@ import com.killer560.hub.fastleap.PosmsgTargets;
 import com.killer560.hub.fastleap.Teammates;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.HeldKeys;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ServerCorrections;
 import net.minecraft.client.Minecraft;
@@ -5769,13 +5770,7 @@ public final class Ap3Executor {
             }
             return;
         }
-        client.options.keyUp.setDown(wantForward);
-        client.options.keyDown.setDown(wantBackward);
-        client.options.keyLeft.setDown(wantLeft);
-        client.options.keyRight.setDown(wantRight);
-        client.options.keyShift.setDown(wantSneak);
-        client.options.keySprint.setDown(wantSprint);
-        client.options.keyJump.setDown(wantJump);
+        HeldKeys.set(client, wantForward, wantBackward, wantLeft, wantRight, wantJump, wantSneak, wantSprint);
         fallbackKeysHeld = true;
     }
 
@@ -5786,13 +5781,7 @@ public final class Ap3Executor {
         }
         fallbackKeysHeld = false;
         Minecraft client = Minecraft.getInstance();
-        client.options.keyUp.setDown(false);
-        client.options.keyDown.setDown(false);
-        client.options.keyLeft.setDown(false);
-        client.options.keyRight.setDown(false);
-        client.options.keyJump.setDown(false);
-        client.options.keyShift.setDown(false);
-        client.options.keySprint.setDown(false);
+        HeldKeys.releaseAll(client);
     }
 
     /**
