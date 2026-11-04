@@ -77,9 +77,7 @@ public final class TeammatesConfig {
     }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -125,100 +123,58 @@ public final class TeammatesConfig {
     }
 
     /** Gated on Skyblock like every other feature ({@code SkyblockGate.allows()}). */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored value, ungated - for the settings tab label. */
-    public boolean getEnabledRaw() {
-        return enabled;
-    }
+    public boolean getEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
-    public void cycleStyle() {
-        cycleStyle(1);
-    }
+    public void cycleStyle() { cycleStyle(1); }
 
     public void cycleStyle(int dir) {
         Style[] all = Style.values();
         style = all[Math.floorMod(style.ordinal() + dir, all.length)];
     }
 
-    public float getLineWidth() {
-        return lineWidth;
-    }
+    public float getLineWidth() { return lineWidth; }
 
-    public void setLineWidth(float lineWidth) {
-        this.lineWidth = Math.max(MIN_LINE_WIDTH, Math.min(MAX_LINE_WIDTH, lineWidth));
-    }
+    public void setLineWidth(float lineWidth) { this.lineWidth = Math.max(MIN_LINE_WIDTH, Math.min(MAX_LINE_WIDTH, lineWidth)); }
 
-    public double getRange() {
-        return range;
-    }
+    public double getRange() { return range; }
 
-    public void setRange(double range) {
-        this.range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, range));
-    }
+    public void setRange(double range) { this.range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, range)); }
 
-    public boolean isHighlightSelf() {
-        return highlightSelf;
-    }
+    public boolean isHighlightSelf() { return highlightSelf; }
 
-    public void setHighlightSelf(boolean highlightSelf) {
-        this.highlightSelf = highlightSelf;
-    }
+    public void setHighlightSelf(boolean highlightSelf) { this.highlightSelf = highlightSelf; }
 
-    public boolean isShowName() {
-        return showName;
-    }
+    public boolean isShowName() { return showName; }
 
-    public void setShowName(boolean showName) {
-        this.showName = showName;
-    }
+    public void setShowName(boolean showName) { this.showName = showName; }
 
-    public boolean isShowDistance() {
-        return showDistance;
-    }
+    public boolean isShowDistance() { return showDistance; }
 
-    public void setShowDistance(boolean showDistance) {
-        this.showDistance = showDistance;
-    }
+    public void setShowDistance(boolean showDistance) { this.showDistance = showDistance; }
 
-    public int getUnknownColor() {
-        return unknownColor;
-    }
+    public int getUnknownColor() { return unknownColor; }
 
-    public void setUnknownColor(int unknownColor) {
-        this.unknownColor = unknownColor;
-    }
+    public void setUnknownColor(int unknownColor) { this.unknownColor = unknownColor; }
 
-    public boolean isSkipDead() {
-        return skipDead;
-    }
+    public boolean isSkipDead() { return skipDead; }
 
-    public void setSkipDead(boolean skipDead) {
-        this.skipDead = skipDead;
-    }
+    public void setSkipDead(boolean skipDead) { this.skipDead = skipDead; }
 
     /** Legit (false / legit jar): a teammate is only highlighted while there is a clear line of sight to them right
      *  now and boxes are depth-tested. True: no line-of-sight check, boxes drawn without depth test. Cheat build
      *  only, exactly like {@code MobEspConfig.isThroughWalls()}. */
-    public boolean isThroughWalls() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && throughWalls;
-    }
+    public boolean isThroughWalls() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && throughWalls; }
 
-    public boolean getThroughWallsRaw() {
-        return throughWalls;
-    }
+    public boolean getThroughWallsRaw() { return throughWalls; }
 
-    public void setThroughWalls(boolean throughWalls) {
-        this.throughWalls = throughWalls;
-    }
+    public void setThroughWalls(boolean throughWalls) { this.throughWalls = throughWalls; }
 }
