@@ -175,9 +175,7 @@ public final class TerminalAuraFeature {
         }
     }
 
-    private static String fmt(double d) {
-        return String.format(java.util.Locale.ROOT, "%.2f", d);
-    }
+    private static String fmt(double d) { return String.format(java.util.Locale.ROOT, "%.2f", d); }
 
     /** The click a body turn was made for, one tick later; retried for a few ticks if the ActionGate is busy. */
     private static void clickPending(Minecraft client, LocalPlayer player) {

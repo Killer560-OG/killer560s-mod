@@ -46,9 +46,7 @@ public final class TerminalStands {
     }
 
     /** The center of a stand's box - what both features aim their interact at. */
-    public static Vec3 center(ArmorStand stand) {
-        return stand.position().add(0, stand.getBbHeight() / 2.0, 0);
-    }
+    public static Vec3 center(ArmorStand stand) { return stand.position().add(0, stand.getBbHeight() / 2.0, 0); }
 
     /**
      * The nearest inactive terminal the player is actually looking at.

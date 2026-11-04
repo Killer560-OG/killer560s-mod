@@ -113,50 +113,28 @@ public final class TerminalAuraConfig {
     }
 
     /** The gate the feature itself checks - false on the legit jar and outside Skyblock, always. */
-    public boolean isEnabled() {
-        return enabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows(); }
 
     /** The raw stored value, for drawing the toggle's own ON/OFF label. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public double getRange() {
-        return Math.min(MAX_RANGE, Math.max(MIN_RANGE, range));
-    }
+    public double getRange() { return Math.min(MAX_RANGE, Math.max(MIN_RANGE, range)); }
 
-    public void setRange(double range) {
-        this.range = range;
-    }
+    public void setRange(double range) { this.range = range; }
 
-    public int getDelayMs() {
-        return Math.min(MAX_DELAY_MS, Math.max(0, delayMs));
-    }
+    public int getDelayMs() { return Math.min(MAX_DELAY_MS, Math.max(0, delayMs)); }
 
-    public void setDelayMs(int delayMs) {
-        this.delayMs = delayMs;
-    }
+    public void setDelayMs(int delayMs) { this.delayMs = delayMs; }
 
-    public boolean isGroundOnly() {
-        return groundOnly;
-    }
+    public boolean isGroundOnly() { return groundOnly; }
 
-    public void setGroundOnly(boolean groundOnly) {
-        this.groundOnly = groundOnly;
-    }
+    public void setGroundOnly(boolean groundOnly) { this.groundOnly = groundOnly; }
 
-    public boolean isLeapDelayEnabled() {
-        return leapDelayEnabled;
-    }
+    public boolean isLeapDelayEnabled() { return leapDelayEnabled; }
 
-    public void setLeapDelayEnabled(boolean leapDelayEnabled) {
-        this.leapDelayEnabled = leapDelayEnabled;
-    }
+    public void setLeapDelayEnabled(boolean leapDelayEnabled) { this.leapDelayEnabled = leapDelayEnabled; }
 
     /**
      * Whether holding a movement key stops the aura.
@@ -166,40 +144,24 @@ public final class TerminalAuraConfig {
      * KEY, not the velocity - see {@code TerminalAuraFeature.movementKeyHeld}. Ships off, so turning it on is
      * his choice rather than a behavior change he did not ask for on the next build.
      */
-    public boolean isPauseOnMovementKeys() {
-        return pauseOnMovementKeys;
-    }
+    public boolean isPauseOnMovementKeys() { return pauseOnMovementKeys; }
 
-    public void setPauseOnMovementKeys(boolean pauseOnMovementKeys) {
-        this.pauseOnMovementKeys = pauseOnMovementKeys;
-    }
+    public void setPauseOnMovementKeys(boolean pauseOnMovementKeys) { this.pauseOnMovementKeys = pauseOnMovementKeys; }
 
-    public double getLeapDelaySeconds() {
-        return Math.min(5.0, Math.max(0.1, leapDelaySeconds));
-    }
+    public double getLeapDelaySeconds() { return Math.min(5.0, Math.max(0.1, leapDelaySeconds)); }
 
-    public void setLeapDelaySeconds(double leapDelaySeconds) {
-        this.leapDelaySeconds = leapDelaySeconds;
-    }
+    public void setLeapDelaySeconds(double leapDelaySeconds) { this.leapDelaySeconds = leapDelaySeconds; }
 
     /** Only terminals within this cone around where you look count; 360 is every direction (QUOI's "Aura FOV"). */
-    public int getFovDegrees() {
-        return Math.min(MAX_FOV, Math.max(MIN_FOV, fovDegrees));
-    }
+    public int getFovDegrees() { return Math.min(MAX_FOV, Math.max(MIN_FOV, fovDegrees)); }
 
-    public void setFovDegrees(int fovDegrees) {
-        this.fovDegrees = fovDegrees;
-    }
+    public void setFovDegrees(int fovDegrees) { this.fovDegrees = fovDegrees; }
 
     /**
      * Turn the body (never the camera) to a terminal the look misses, for the click - see TerminalAuraFeature. On by
      * default: without it a terminal behind you draws GrimAC's Hitboxes flag (testkit 414, 2026-10-07).
      */
-    public boolean isTurnToTerminal() {
-        return turnToTerminal;
-    }
+    public boolean isTurnToTerminal() { return turnToTerminal; }
 
-    public void setTurnToTerminal(boolean turnToTerminal) {
-        this.turnToTerminal = turnToTerminal;
-    }
+    public void setTurnToTerminal(boolean turnToTerminal) { this.turnToTerminal = turnToTerminal; }
 }
