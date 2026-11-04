@@ -1,6 +1,5 @@
 package com.killer560.hub.itembrowser;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
