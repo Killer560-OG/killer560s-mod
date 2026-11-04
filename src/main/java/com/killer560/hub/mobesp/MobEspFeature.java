@@ -552,9 +552,7 @@ public final class MobEspFeature {
      * down to its mob, plus the named minibosses), whatever the ESP's own settings, range or room scope say. Auto Clear's
      * target list (killer560, 2026-10-06: "kills starred mobs only ... reuse" the ESP's detection). Client thread.
      */
-    public static List<Entity> starredMobs(Minecraft client) {
-        return starredMobs(client, null);
-    }
+    public static List<Entity> starredMobs(Minecraft client) { return starredMobs(client, null); }
 
     /**
      * {@link #starredMobs(Minecraft)}, also filling {@code tags} (when not null) with each mob's name tag as the client
@@ -916,21 +914,13 @@ public final class MobEspFeature {
     }
 
 
-    public static int lastOtherFelsDrawn() {
-        return lastOtherFelsDrawn;
-    }
+    public static int lastOtherFelsDrawn() { return lastOtherFelsDrawn; }
 
-    public static int rememberedDrawn() {
-        return rememberedDrawn;
-    }
+    public static int rememberedDrawn() { return rememberedDrawn; }
 
-    public static int lastMimicsDrawn() {
-        return lastMimicsDrawn;
-    }
+    public static int lastMimicsDrawn() { return lastMimicsDrawn; }
 
-    public static int chestTargetCount() {
-        return chestTargets.size();
-    }
+    public static int chestTargetCount() { return chestTargets.size(); }
 
     public static void setTestRoomCleared(double x, double z, boolean cleared) {
         long key = roomKey(x, z);
