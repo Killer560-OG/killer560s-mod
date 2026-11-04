@@ -8,7 +8,6 @@ import com.killer560.hub.util.BoxBatch;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -46,8 +45,6 @@ public final class CommissionRoute {
     public static final double ETHERWARP_RANGE = 57.0;
     /** Aspect of the End's Instant Transmission, before Transmission Tuners (hypixelskyblock wiki: 8 blocks). */
     public static final double AOTE_RANGE = 8.0;
-    private static final int MAX_HOPS = 64;
-    private static final int MIN_TICKS_BETWEEN = 5;
 
     private static volatile Vec3[] points = new Vec3[0];
     private static volatile List<BlockPos> hopBlocks = List.of();
