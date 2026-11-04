@@ -185,9 +185,7 @@ public final class MaxorCrystalsFeature {
     }
 
     /** True while a laser line waits for the next set (the add-entity packet hook asks this first). */
-    public static boolean awaitingNextSet() {
-        return nextSetTicks >= 0;
-    }
+    public static boolean awaitingNextSet() { return nextSetTicks >= 0; }
 
     /** Called from the add-entity packet hook ({@code WitherDragonsPackets.onAddEntity}) while {@link #awaitingNextSet()}. */
     public static void onEntityAdded(Entity entity) {
@@ -203,9 +201,7 @@ public final class MaxorCrystalsFeature {
         return MaxorConfig.getInstance().isActiveCounterEnabled() && totalCrystals > 0 && inP1();
     }
 
-    public static int[] activeCounter() {
-        return new int[]{activeCrystals, totalCrystals};
-    }
+    public static int[] activeCounter() { return new int[]{activeCrystals, totalCrystals}; }
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
@@ -306,9 +302,7 @@ public final class MaxorCrystalsFeature {
      */
     private static final java.util.List<net.minecraft.world.phys.AABB> HIGHLIGHT_BOXES = new java.util.ArrayList<>();
 
-    static java.util.List<net.minecraft.world.phys.AABB> highlightBoxes() {
-        return HIGHLIGHT_BOXES;
-    }
+    static java.util.List<net.minecraft.world.phys.AABB> highlightBoxes() { return HIGHLIGHT_BOXES; }
 
     private static void refreshHighlightBoxes(Minecraft client) {
         if (!MaxorConfig.getInstance().isHighlightEnabled() || !inP1()) {
@@ -417,19 +411,13 @@ public final class MaxorCrystalsFeature {
     private static final class CrystalsHud implements HudElement {
 
         @Override
-        public String id() {
-            return "maxor_crystals";
-        }
+        public String id() { return "maxor_crystals"; }
 
         @Override
-        public String displayName() {
-            return "Maxor's Crystals";
-        }
+        public String displayName() { return "Maxor's Crystals"; }
 
         @Override
-        public int defaultX() {
-            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS);
-        }
+        public int defaultX() { return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.MAXOR_CRYSTALS); }
 
         @Override
         public int defaultY() {
@@ -490,14 +478,10 @@ public final class MaxorCrystalsFeature {
         }
 
         @Override
-        public int width() {
-            return com.killer560.hub.hud.HudText.width(lines());
-        }
+        public int width() { return com.killer560.hub.hud.HudText.width(lines()); }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(lines().size(), 10);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(lines().size(), 10); }
 
         @Override
         public boolean isEnabledInSettings() {
