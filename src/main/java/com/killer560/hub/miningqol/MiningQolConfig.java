@@ -165,6 +165,10 @@ public final class MiningQolConfig {
     // Mithril As Stone. (A "universalAccess" switch lived here until mining-1103: a commission that counts everywhere has
     // no area in its name - "Mithril Miner" - and MiningState.wants already applies it everywhere, so the key is ignored.)
     private boolean mithrilStone = false;
+    // Dark Stone (killer560 2026-11-04): stone-type blocks drawn darker, level in percent
+    private boolean darkStone = false;
+    private int darkStoneLevel = 50;
+    private boolean darkStoneMithril = false;
     // Titanium Highlight
     private boolean titanium = false;
     private TitaniumMode titaniumMode = TitaniumMode.COMMISSION;
@@ -253,6 +257,9 @@ public final class MiningQolConfig {
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
+                cfg.darkStone = ConfigJson.getBool(o, "darkStone", cfg.darkStone);
+                cfg.darkStoneLevel = Math.max(10, Math.min(90, intOr(o, "darkStoneLevel", cfg.darkStoneLevel)));
+                cfg.darkStoneMithril = ConfigJson.getBool(o, "darkStoneMithril", cfg.darkStoneMithril);
                 cfg.titanium = ConfigJson.getBool(o, "titanium", cfg.titanium);
                 try {
                     if (o.has("titaniumMode")) {
@@ -339,6 +346,9 @@ public final class MiningQolConfig {
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
+            o.addProperty("darkStone", darkStone);
+            o.addProperty("darkStoneLevel", darkStoneLevel);
+            o.addProperty("darkStoneMithril", darkStoneMithril);
             o.addProperty("titanium", titanium);
             o.addProperty("titaniumMode", titaniumMode.name());
             o.addProperty("titaniumColor", titaniumColor);
@@ -709,6 +719,35 @@ public final class MiningQolConfig {
 
     public void setMithrilStone(boolean v) {
         mithrilStone = v;
+    }
+
+    // ---- Dark Stone
+    public boolean isDarkStone() {
+        return darkStone && sb();
+    }
+
+    public boolean isDarkStoneRaw() {
+        return darkStone;
+    }
+
+    public void setDarkStone(boolean v) {
+        darkStone = v;
+    }
+
+    public int getDarkStoneLevel() {
+        return darkStoneLevel;
+    }
+
+    public void setDarkStoneLevel(int v) {
+        darkStoneLevel = Math.max(10, Math.min(90, v));
+    }
+
+    public boolean isDarkStoneMithril() {
+        return darkStoneMithril;
+    }
+
+    public void setDarkStoneMithril(boolean v) {
+        darkStoneMithril = v;
     }
 
     // ---- Titanium Highlight

@@ -8,6 +8,8 @@
 		"MiningBlockUpdateMixin",
 		"MiningSendTapMixin",
 		"MiningTitleTapMixin",
+		"SpriteContentsMipsAccessor",
+		"TextureAtlasRedrawInvoker",
 		"MithrilStoneSectionMixin"
 	],
 	"injectors": {
