@@ -15,7 +15,7 @@ import java.util.ArrayDeque;
 import java.util.Iterator;
 
 /**
- * Lockpick Helper (cheat build only): shows exactly where to click on a treasure chest. Hypixel marks the side to click
+ * Lockpick Helper (legit, both builds): shows exactly where to click on a treasure chest. Hypixel marks the side to click
  * with {@code minecraft:crit} particles at the chest (Skyblocker CrystalsChestHighlighter: every crit within 0.8 blocks of
  * the chest's center, averaged); this draws a small box at that spot and fills the chest face it is on (the axis where the
  * spot sits furthest from the center). Draw-only: nothing aims or clicks for him.

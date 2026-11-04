@@ -201,7 +201,7 @@ public final class CommissionRoute {
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (!cfg.isCommissionRoute() || !MiningState.dwarvenMines()
+        if (!cfg.isCommissionRoute() || cfg.commissionsHiddenNow() || !MiningState.dwarvenMines()
                 || !MiningState.commissionsKnown() || client.player == null || client.level == null) {
             clear();
             return;

@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
 /**
  * The Crystal Hollows powder grinding features (killer560, 2026-11-03: "no macros or things i am just going to grind
- * chests"): Treasure Chest Highlight and Alert, Lockpick Helper (cheat), Powder Tracker, 2x Powder Alert and Chest Loot
+ * chests"): Treasure Chest Highlight and Alert, Lockpick Helper, Powder Tracker, 2x Powder Alert and Chest Loot
  * Compact. One registration, one tick, one world-render pass, beside {@code miningqol.MiningQolFeatures} (which runs
  * {@code MiningState.tick} and the through-walls init these use).
  */

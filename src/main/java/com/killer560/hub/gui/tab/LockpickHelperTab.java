@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lockpick Helper (Mining, cheat build only): see {@code com.killer560.hub.powdermining.LockpickHelper}. */
+/** Lockpick Helper (Mining, legit): see {@code com.killer560.hub.powdermining.LockpickHelper}. */
 public class LockpickHelperTab extends BaseTab {
 
     public LockpickHelperTab() {
@@ -14,16 +14,8 @@ public class LockpickHelperTab extends BaseTab {
     }
 
     @Override
-    public boolean isCheatOnly() {
-        return true;
-    }
-
-    @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return w;
-        }
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         int y = contentY;
         w.add(onOffButton("Lockpick Helper", cfg::isLockpickHelperRaw, cfg::setLockpickHelper, cfg::save,
