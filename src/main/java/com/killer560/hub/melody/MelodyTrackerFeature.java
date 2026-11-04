@@ -129,9 +129,7 @@ public final class MelodyTrackerFeature {
     }
 
     static void onChat(String plain) {
-        if (plain == null || plain.isEmpty() || !Floor7Tracker.inF7Boss()) {
-            return;
-        }
+        if (plain == null || plain.isEmpty() || !Floor7Tracker.inF7Boss()) return;
         java.util.regex.Matcher done = TERMINAL_DONE.matcher(plain);
         if (done.matches()) {
             String who = done.group(1);
@@ -147,28 +145,18 @@ public final class MelodyTrackerFeature {
             }
             return;
         }
-        if (!plain.startsWith("Party > ")) {
-            return;
-        }
+        if (!plain.startsWith("Party > ")) return;
         java.util.regex.Matcher party = PARTY_LINE.matcher(plain);
-        if (!party.matches()) {
-            return;
-        }
+        if (!party.matches()) return;
         String sender = party.group(1);
-        if (!PartyTracker.teammates().stream().anyMatch(sender::equalsIgnoreCase)) {
-            return;
-        }
+        if (!PartyTracker.teammates().stream().anyMatch(sender::equalsIgnoreCase)) return;
         java.util.regex.Matcher m = PROGRESS.matcher(party.group(2));
-        if (!m.find()) {
-            return;
-        }
+        if (!m.find()) return;
         int percent;
         if (m.group(1) != null) {
             int done2 = Integer.parseInt(m.group(1));
             int of = Integer.parseInt(m.group(2));
-            if (of <= 0 || done2 > of) {
-                return;
-            }
+            if (of <= 0 || done2 > of) return;
             percent = Math.round(done2 * 100f / of);
         } else {
             percent = Integer.parseInt(m.group(3));
@@ -211,13 +199,9 @@ public final class MelodyTrackerFeature {
         }
         int rows = Math.max(com.killer560.hub.terminals.TerminalLayouts.melodyRows(), clayRow);
         int done = clayRow - 1;
-        if (done <= lastSentDone || done >= rows) {
-            return;
-        }
+        if (done <= lastSentDone || done >= rows) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         lastSentDone = done;
         int pct = Math.round(done * 100f / rows);
         // No trailing ")": NoammAddons' MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
@@ -237,9 +221,7 @@ public final class MelodyTrackerFeature {
 
     private static void applySelf(MelodySlotReader.Result r) {
         String self = selfIgn();
-        if (self == null) {
-            return;
-        }
+        if (self == null) return;
         if (r.highestLitClayRow() != lastLitRow && r.highestLitClayRow() >= BridgeTables.MELODY_MIN_CLAY_ROW
                 && r.highestLitClayRow() <= BridgeTables.MELODY_MAX_CLAY_ROW) {
             lastLitRow = r.highestLitClayRow();
@@ -271,9 +253,7 @@ public final class MelodyTrackerFeature {
      *  account's own name, and only while it matches the in-world player's own profile name. */
     private static String selfIgn() {
         Minecraft client = Minecraft.getInstance();
-        if (client.getUser() == null || client.player == null || client.getUser().getName() == null) {
-            return null;
-        }
+        if (client.getUser() == null || client.player == null || client.getUser().getName() == null) return null;
         String name = client.getUser().getName();
         return name.equals(client.player.getGameProfile().name()) ? name : null;
     }
@@ -312,13 +292,9 @@ public final class MelodyTrackerFeature {
         }
         int n = 0;
         for (String mate : PartyTracker.teammates()) {
-            if (n >= ROWS.length) {
-                break;
-            }
+            if (n >= ROWS.length) break;
             MelodyIntel.Progress p = MelodyIntel.get(mate);
-            if (p == null) {
-                continue;
-            }
+            if (p == null) continue;
             Row row = ROWS[n++];
             int percent = p.percent();
             if (percent != row.percent || !mate.equals(row.name)) {
@@ -383,9 +359,7 @@ public final class MelodyTrackerFeature {
         public int width() {
             // What render() draws: the waiting line, or the widest of the shown rows' labels, bars and boards.
             Font font = Minecraft.getInstance().font;
-            if (rowCount == 0) {
-                return font.width(WAITING);
-            }
+            if (rowCount == 0) return font.width(WAITING);
             int w = BAR_WIDTH;
             for (int i = 0; i < Math.min(rowCount, VISIBLE_ROWS); i++) {
                 w = Math.max(w, font.width(ROWS[i].label));
@@ -398,9 +372,7 @@ public final class MelodyTrackerFeature {
 
         @Override
         public int height() {
-            if (rowCount == 0) {
-                return com.killer560.hub.hud.HudText.ROW;
-            }
+            if (rowCount == 0) return com.killer560.hub.hud.HudText.ROW;
             int h = 0;
             for (int i = 0; i < Math.min(rowCount, VISIBLE_ROWS); i++) {
                 h += rowHeight(ROWS[i]);
@@ -460,9 +432,7 @@ public final class MelodyTrackerFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MelodyHudConfig.getInstance().isHudEnabled() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!MelodyHudConfig.getInstance().isHudEnabled() || HudVisibility.hidesHud()) return;
             Font font = Minecraft.getInstance().font;
             // Both branches below draw something, and drawHudInGame is what applies the P3 gate before
             // calling this at all, so past this point the element really is on screen.

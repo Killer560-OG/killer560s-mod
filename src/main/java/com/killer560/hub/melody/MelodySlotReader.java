@@ -87,12 +87,8 @@ final class MelodySlotReader {
     private static boolean isEndpointColor(DyeColor pane) { return pane == DyeColor.MAGENTA || pane == DyeColor.PURPLE; }
 
     private static DyeColor paneDyeColor(ItemStack item) {
-        if (!(item.getItem() instanceof BlockItem blockItem)) {
-            return null;
-        }
-        if (!(blockItem.getBlock() instanceof StainedGlassPaneBlock pane)) {
-            return null;
-        }
+        if (!(item.getItem() instanceof BlockItem blockItem)) return null;
+        if (!(blockItem.getBlock() instanceof StainedGlassPaneBlock pane)) return null;
         return pane.getColor();
     }
 }
