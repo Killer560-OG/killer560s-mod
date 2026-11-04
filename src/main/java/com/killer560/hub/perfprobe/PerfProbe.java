@@ -79,9 +79,7 @@ public final class PerfProbe {
             return listener;
         }
         String cn = listener.getClass().getName();
-        if (!cn.startsWith(MOD_PREFIX) || cn.startsWith(SELF_PREFIX)) {
-            return listener;
-        }
+        if (!cn.startsWith(MOD_PREFIX) || cn.startsWith(SELF_PREFIX)) return listener;
         try {
             String event = eventName(iface);
             Stat stat = stat(owner(cn) + " " + event, kindOf(event));
@@ -142,9 +140,7 @@ public final class PerfProbe {
     }
 
     public static void exitHud(Object element, String id) {
-        if (!onRenderThread()) {
-            return;
-        }
+        if (!onRenderThread()) return;
         Stat stat = HUD.get(element);
         if (stat == null) {
             stat = stat(owner(element.getClass().getName()) + " HUD[" + id + "]", "frame");
@@ -167,9 +163,7 @@ public final class PerfProbe {
     /** Ends {@link #enterScreen()}: key {@code screen.<SimpleName> extract}, kind frame. Self time is the screen's own
      *  draw (vanilla's and every mod mixin inside it) minus probed listeners nested inside. */
     public static void exitScreen(Object screen) {
-        if (!onRenderThread()) {
-            return;
-        }
+        if (!onRenderThread()) return;
         Class<?> c = screen.getClass();
         Stat stat = SCREENS.get(c);
         if (stat == null) {
@@ -183,9 +177,7 @@ public final class PerfProbe {
     private static boolean onRenderThread() {
         Thread t = Thread.currentThread();
         Thread r = renderThread;
-        if (t == r) {
-            return true;
-        }
+        if (t == r) return true;
         if (r == null && "Render thread".equals(t.getName())) {
             renderThread = t;
             return true;
@@ -211,9 +203,7 @@ public final class PerfProbe {
             depth = 0;
             return;
         }
-        if (d >= MAX_DEPTH) {
-            return;
-        }
+        if (d >= MAX_DEPTH) return;
         long el = t1 - START_NS[d];
         long eb = b1 - START_B[d];
         long self = el - CHILD_NS[d];
@@ -279,9 +269,7 @@ public final class PerfProbe {
         }
         while (true) {
             int d = s.lastIndexOf('$');
-            if (d < 0 || d == s.length() - 1 || !Character.isDigit(s.charAt(d + 1))) {
-                break;
-            }
+            if (d < 0 || d == s.length() - 1 || !Character.isDigit(s.charAt(d + 1))) break;
             s = s.substring(0, d);
         }
         return s.startsWith(MOD_PREFIX) ? s.substring(MOD_PREFIX.length()) : s;
@@ -294,9 +282,7 @@ public final class PerfProbe {
     }
 
     static String kindOf(String event) {
-        if (event.contains("Tick")) {
-            return "tick";
-        }
+        if (event.contains("Tick")) return "tick";
         if (event.contains("Render") || event.contains("Extract") || event.contains("Hud") || event.contains("Submit")) {
             return "frame";
         }
@@ -321,9 +307,7 @@ public final class PerfProbe {
                 bytes = s.bytes;
                 max = s.maxNs;
             }
-            if (calls == 0) {
-                continue;
-            }
+            if (calls == 0) continue;
             lines.add(s.key + "\t" + s.kind + "\t" + calls + "\t" + ns + "\t" + bytes + "\t" + max);
         }
         lines.sort(null);
@@ -351,9 +335,7 @@ public final class PerfProbe {
      * self time carries on top of its own work, to subtract; "outer" is what the probe adds to the frame. Render thread.
      */
     public static String calibrate(int n) {
-        if (!ENABLED || !onRenderThread()) {
-            return "0\t0\t0";
-        }
+        if (!ENABLED || !onRenderThread()) return "0\t0\t0";
         Stat stat = new Stat("perfprobe.calibration", "event");
         Runnable empty = () -> { };
         Runnable wrapped = (Runnable) Proxy.newProxyInstance(Runnable.class.getClassLoader(),
