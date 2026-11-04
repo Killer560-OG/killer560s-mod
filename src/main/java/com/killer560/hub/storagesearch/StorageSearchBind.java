@@ -21,11 +21,6 @@ public record StorageSearchBind(int mods, int code) {
     public static final int MOD_SHIFT = 2;
     public static final int MOD_ALT = 4;
 
-    /** @return true when {@code key} is itself a modifier key, which can only be part of a combination. */
-    public static boolean isModifierKey(int key) {
-        return modBitFor(key) != 0;
-    }
-
     /** @return the {@code mods} bit this key contributes, or 0 when it is not a modifier key. */
     public static int modBitFor(int key) {
         return switch (key) {
