@@ -56,9 +56,7 @@ public final class QuiverDisplayConfig {
     }
 
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -104,49 +102,29 @@ public final class QuiverDisplayConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isShowName() {
-        return showName;
-    }
+    public boolean isShowName() { return showName; }
 
-    public void setShowName(boolean showName) {
-        this.showName = showName;
-    }
+    public void setShowName(boolean showName) { this.showName = showName; }
 
-    public int getTextColor() {
-        return textColor;
-    }
+    public int getTextColor() { return textColor; }
 
-    public void setTextColor(int textColor) {
-        this.textColor = textColor;
-    }
+    public void setTextColor(int textColor) { this.textColor = textColor; }
 
-    public boolean isAlertEnabled() {
-        return alertEnabled;
-    }
+    public boolean isAlertEnabled() { return alertEnabled; }
 
-    public void setAlertEnabled(boolean alertEnabled) {
-        this.alertEnabled = alertEnabled;
-    }
+    public void setAlertEnabled(boolean alertEnabled) { this.alertEnabled = alertEnabled; }
 
-    public boolean isAlertSound() {
-        return alertSound;
-    }
+    public boolean isAlertSound() { return alertSound; }
 
-    public void setAlertSound(boolean alertSound) {
-        this.alertSound = alertSound;
-    }
+    public void setAlertSound(boolean alertSound) { this.alertSound = alertSound; }
 
-    public int getAlertThreshold() {
-        return alertThreshold;
-    }
+    public int getAlertThreshold() { return alertThreshold; }
 
     /** Snapped to the slider's 20-step grid and clamped to 20..200. */
     public void setAlertThreshold(int threshold) {
@@ -154,11 +132,7 @@ public final class QuiverDisplayConfig {
         this.alertThreshold = Math.max(MIN_THRESHOLD, Math.min(MAX_THRESHOLD, snapped));
     }
 
-    public String getAlertText() {
-        return alertText;
-    }
+    public String getAlertText() { return alertText; }
 
-    public void setAlertText(String alertText) {
-        this.alertText = alertText == null ? "" : alertText;
-    }
+    public void setAlertText(String alertText) { this.alertText = alertText == null ? "" : alertText; }
 }

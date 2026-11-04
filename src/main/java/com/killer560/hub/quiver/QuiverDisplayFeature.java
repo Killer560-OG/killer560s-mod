@@ -121,13 +121,9 @@ public final class QuiverDisplayFeature {
         }
     }
 
-    public static int alertsFired() {
-        return alertsFired;
-    }
+    public static int alertsFired() { return alertsFired; }
 
-    public static String lastAlertTitle() {
-        return lastAlertTitle;
-    }
+    public static String lastAlertTitle() { return lastAlertTitle; }
 
     private static boolean isQuiverItem(ItemStack stack) {
         return !stack.isEmpty() && (stack.is(Items.FEATHER) || stack.is(Items.ARROW));
@@ -149,24 +145,16 @@ public final class QuiverDisplayFeature {
 
     public static final class QuiverHudElement implements HudElement {
         @Override
-        public String id() {
-            return "quiver_display";
-        }
+        public String id() { return "quiver_display"; }
 
         @Override
-        public String displayName() {
-            return "Quiver Display";
-        }
+        public String displayName() { return "Quiver Display"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 420;
-        }
+        public int defaultY() { return 420; }
 
         @Override
         public int width() {
@@ -190,9 +178,7 @@ public final class QuiverDisplayFeature {
         private static boolean builtShowName = false;
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.ROW;
-        }
+        public int height() { return com.killer560.hub.hud.HudText.ROW; }
 
         /** What render() draws, or null before the quiver count is known. */
         private static String text() {
@@ -215,9 +201,7 @@ public final class QuiverDisplayFeature {
         }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return QuiverDisplayConfig.getInstance().isEnabled();
-        }
+        public boolean isEnabledInSettings() { return QuiverDisplayConfig.getInstance().isEnabled(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
