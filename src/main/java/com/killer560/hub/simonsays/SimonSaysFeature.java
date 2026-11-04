@@ -2643,10 +2643,9 @@ public final class SimonSaysFeature {
 
         Vec3 eyePos = player.getEyePosition();
         Vec3 target = realBlockCenter(client, buttonPos);
-        Vec3 diff = target.subtract(eyePos);
-        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
-        float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
-        float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
+        float[] rawTarget = yawPitchTo(eyePos, target);
+        float rawTargetYaw = rawTarget[0];
+        float rawTargetPitch = rawTarget[1];
 
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();
@@ -2901,10 +2900,9 @@ public final class SimonSaysFeature {
         var player = client.player;
         Vec3 eyePos = player.getEyePosition();
         Vec3 target = rememberedFirstButton != null ? realBlockCenter(client, rememberedFirstButton) : GRID_CENTER_LOOK;
-        Vec3 diff = target.subtract(eyePos);
-        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
-        float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
-        float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
+        float[] rawTarget = yawPitchTo(eyePos, target);
+        float rawTargetYaw = rawTarget[0];
+        float rawTargetPitch = rawTarget[1];
 
         float currentYaw = player.getYRot();
         float currentPitch = player.getXRot();
