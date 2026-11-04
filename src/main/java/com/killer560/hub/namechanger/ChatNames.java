@@ -78,9 +78,7 @@ public final class ChatNames {
     private ChatNames() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(ChatNames::onChat);
-    }
+    static void register() { ChatObserver.subscribe(ChatNames::onChat); }
 
     private static void onChat(Component message) {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
@@ -127,12 +125,8 @@ public final class ChatNames {
     }
 
     /** Chat lines that named a player (testkit evidence). */
-    public static int linesRead() {
-        return linesRead;
-    }
+    public static int linesRead() { return linesRead; }
 
     /** Names chat added to the Nickhider's seen players (testkit evidence). */
-    public static int namesAdded() {
-        return namesAdded;
-    }
+    public static int namesAdded() { return namesAdded; }
 }

@@ -67,9 +67,7 @@ public final class NameAnimation {
         }
 
         /** {@code null} for {@link Mode#OFF} or no mode. */
-        public static Spec of(Mode mode, double speed) {
-            return mode == null || mode == Mode.OFF ? null : new Spec(mode, speed);
-        }
+        public static Spec of(Mode mode, double speed) { return mode == null || mode == Mode.OFF ? null : new Spec(mode, speed); }
     }
 
     public static final double MIN_SPEED = 0.25;
@@ -164,9 +162,7 @@ public final class NameAnimation {
     }
 
     /** Testkit only: freezes the animation clock at {@code epochMs} (so two screenshots are exact), -1 to unfreeze. */
-    public static void freezeClockForTest(long epochMs) {
-        frozenMs = epochMs;
-    }
+    public static void freezeClockForTest(long epochMs) { frozenMs = epochMs; }
 
     static double nowSec() {
         long f = frozenMs;

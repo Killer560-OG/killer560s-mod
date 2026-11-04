@@ -79,9 +79,7 @@ public final class NameColor {
     }
 
     /** "" for {@link #NONE}, otherwise the "§x" prefix to put in front of a display name. */
-    public static String prefix(int argb) {
-        return argb == NONE ? "" : "§" + codeFor(argb);
-    }
+    public static String prefix(int argb) { return argb == NONE ? "" : "§" + codeFor(argb); }
 
     /** A display name split into its plain text and the color it was typed with. */
     public record Migrated(String text, int argb) {

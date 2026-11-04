@@ -47,15 +47,11 @@ final class IdentityResolver {
      */
     record Resolution(String realIgn, String collisionRealIgn, String typedText) {
 
-        boolean isCollision() {
-            return collisionRealIgn != null;
-        }
+        boolean isCollision() { return collisionRealIgn != null; }
 
         /** @return true if this should be rewritten to {@link #realIgn} before sending - a unique nickname
          *  match that actually differs from what was typed. */
-        boolean isRewrite() {
-            return realIgn != null && collisionRealIgn == null && !realIgn.equalsIgnoreCase(typedText);
-        }
+        boolean isRewrite() { return realIgn != null && collisionRealIgn == null && !realIgn.equalsIgnoreCase(typedText); }
     }
 
     static Resolution resolve(String typedName) {

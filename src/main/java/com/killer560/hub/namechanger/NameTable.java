@@ -89,9 +89,7 @@ final class NameTable {
         size = n;
     }
 
-    boolean isEmpty() {
-        return size == 0;
-    }
+    boolean isEmpty() { return size == 0; }
 
     /** @param hash {@link #step}-accumulated hash of the lowercased chars in {@code buf[0..len)}. */
     Entry lookup(char[] buf, int len, int hash) {
@@ -122,13 +120,9 @@ final class NameTable {
         return true;
     }
 
-    static char lower(char c) {
-        return (c >= 'A' && c <= 'Z') ? (char) (c + 32) : c;
-    }
+    static char lower(char c) { return (c >= 'A' && c <= 'Z') ? (char) (c + 32) : c; }
 
-    static int step(int hash, char c) {
-        return hash * 31 + lower(c);
-    }
+    static int step(int hash, char c) { return hash * 31 + lower(c); }
 
     static int hashOf(char[] lowerChars, int len) {
         int h = 0;

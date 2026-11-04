@@ -112,7 +112,5 @@ public final class NameRank {
     }
 
     /** Whether {@code c} can be part of a Hypixel rank's own text ({@code MVP}, {@code YOUTUBE}, {@code +}). */
-    static boolean isRankChar(int c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '+';
-    }
+    static boolean isRankChar(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '+'; }
 }

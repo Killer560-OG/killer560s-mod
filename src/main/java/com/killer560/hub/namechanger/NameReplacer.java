@@ -75,9 +75,7 @@ public final class NameReplacer {
     private static final Map<String, String> STRING_CACHE = Collections.synchronizedMap(
             new LinkedHashMap<>(STRING_CACHE_SIZE, 0.75f, true) {
                 @Override
-                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
-                    return size() > STRING_CACHE_SIZE;
-                }
+                protected boolean removeEldestEntry(Map.Entry<String, String> eldest) { return size() > STRING_CACHE_SIZE; }
             });
 
     /** Sequence-cache value for a sequence that holds no name to replace. */
@@ -90,9 +88,7 @@ public final class NameReplacer {
 
     // ------------------------------------------------------------------ suppression (edit boxes)
 
-    public static void pushSuppress() {
-        suppressDepth++;
-    }
+    public static void pushSuppress() { suppressDepth++; }
 
     public static void popSuppress() {
         if (suppressDepth > 0) {
@@ -281,9 +277,7 @@ public final class NameReplacer {
     /** Marker: text that must be drawn exactly as-is (edit box contents). */
     public record Skip(FormattedCharSequence inner) implements FormattedCharSequence {
         @Override
-        public boolean accept(FormattedCharSink sink) {
-            return inner.accept(sink);
-        }
+        public boolean accept(FormattedCharSink sink) { return inner.accept(sink); }
     }
 
     /** A flattened, already-replaced sequence (never re-processed, so A=B + B=C mappings don't chain). */

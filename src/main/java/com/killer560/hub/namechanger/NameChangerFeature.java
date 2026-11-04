@@ -216,9 +216,7 @@ public final class NameChangerFeature {
 
     /** A display name with its picked color applied as a legacy code prefix (see {@link NameColor}) - the
      *  name itself may still carry {@code &} format codes, which {@link #colorize} converts as before. */
-    static String styled(String display, int argb) {
-        return NameColor.prefix(argb) + colorize(display);
-    }
+    static String styled(String display, int argb) { return NameColor.prefix(argb) + colorize(display); }
 
     /** Cosmetics tab's own display name specifically - same as {@link #styled}, except when "Fade Color" is
      *  on, in which case a per-letter gradient ({@link NameColor#buildFade}) is built instead of one flat
@@ -285,9 +283,7 @@ public final class NameChangerFeature {
 
     /** What Share if Supporter sends as {@code animation}: {@link #ownAnimation} when {@link #ownShareColours} sends a
      *  color list for it to animate, else {@code null}. */
-    public static NameAnimation.Spec ownShareAnimation() {
-        return ownShareColours() == null ? null : ownAnimation();
-    }
+    public static NameAnimation.Spec ownShareAnimation() { return ownShareColours() == null ? null : ownAnimation(); }
 
     /** The Name Changer tab's preview: your display name exactly as {@link #ownStyled} paints it (color, fade, letter
      *  colors), or your real IGN when no display name is typed, as a styled Component. */
