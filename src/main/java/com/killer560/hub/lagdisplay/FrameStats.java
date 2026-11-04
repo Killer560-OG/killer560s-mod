@@ -573,7 +573,6 @@ public final class FrameStats {
         return lowFps;
     }
 
-    /** Stutters in the last minute. */
     public static int stuttersLastMinute() {
         return stuttersLastMinute;
     }

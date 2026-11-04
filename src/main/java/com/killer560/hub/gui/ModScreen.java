@@ -400,7 +400,6 @@ public class ModScreen extends Screen {
         return openFeature;
     }
 
-    /** Closes the drawer. */
     public void closeDrawer() {
         if (openFeature != null) {
             FeatureCards.refresh(openFeature);
