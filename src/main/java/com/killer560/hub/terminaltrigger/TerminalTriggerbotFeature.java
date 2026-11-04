@@ -51,9 +51,7 @@ public final class TerminalTriggerbotFeature {
     }
 
     public static void register() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return;
         TerminalTriggerbotConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalTriggerbotFeature.tick", TerminalTriggerbotFeature::tick));
         LOGGER.debug("[TerminalTriggerbot] Registered (default OFF)");
@@ -71,9 +69,7 @@ public final class TerminalTriggerbotFeature {
             return;
         }
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || client.gameMode == null) {
-            return;
-        }
+        if (player == null || client.level == null || client.gameMode == null) return;
         if (McCompat.screen(client) != null || player.isDeadOrDying()
                 || !Floor7Tracker.inF7Boss() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {
             // A screen being open is the normal case right after a successful click - drop the pending
@@ -82,9 +78,7 @@ public final class TerminalTriggerbotFeature {
             return;
         }
         long now = ActionGate.currentTick();
-        if (now - lastClickTick < ActionGate.delayTicks(cfg.getCooldownMs())) {
-            return;
-        }
+        if (now - lastClickTick < ActionGate.delayTicks(cfg.getCooldownMs())) return;
 
         TerminalStands.Hit hit = TerminalStands.raycast(client.level, player, cfg.getRange(),
                 1.0f);
@@ -99,15 +93,11 @@ public final class TerminalTriggerbotFeature {
             pendingEntityId = id;
             triggerAtTick = now + ActionGate.delayTicks(cfg.getDelayMs());
         }
-        if (now < triggerAtTick) {
-            return;
-        }
+        if (now < triggerAtTick) return;
         // Mod-wide one-interaction-per-tick gate, checked after the delay has elapsed but before anything is
         // sent and before `clicked`/lastClickMs move: a denied tick leaves pendingEntityId armed and the
         // trigger simply fires on the next tick the gate lets it through.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) return;
         client.gameMode.interact(player, hit.stand(), new EntityHitResult(hit.stand(), hit.point()),
                 InteractionHand.MAIN_HAND);
         com.killer560.hub.compat.McCompat.swingUse(player);
