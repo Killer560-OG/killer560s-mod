@@ -112,6 +112,7 @@ public final class PerTickServerClock {
     private static void onPing() {
         boolean advanced;
         synchronized (PerTickServerClock.class) {
+            rawPings++;
             windowPings++;
             pingsThisTick++;
             advanced = trusted;
@@ -240,6 +241,13 @@ public final class PerTickServerClock {
         }
         return Math.max(0L, (trustedTicks - mark[1]) - (trustedPings - mark[0]));
     }
+
+    /** Every non-zero ping seen since launch, trusted or not (Tick Timers' proc log compares it with the clock). */
+    public static long rawPings() {
+        return rawPings;
+    }
+
+    private static volatile long rawPings;
 
     public static boolean trusted() {
         return trusted;

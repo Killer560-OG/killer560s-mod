@@ -37,6 +37,20 @@ import java.util.Map;
  *       as does a hit that lands on two or more players at once. A stray hit (a mob, a fall) moves nothing.</li>
  * </ul>
  * The line reads 0 at the hit's tick and 59 ticks (2.95 s) the tick after.
+ * <p>
+ * <b>2026-11-04 (killer560: "the timers are still going off wrong for tick timers ... i mainly notice it during goldor").</b>
+ * On Hypixel (a trusted per-tick clock: one tick per ping, as Odin and NoammAddons count) the period is exact in clock
+ * ticks, so once the phase is locked an observed hit has nothing to correct: the 8-tick snap above (sized for the testkit's
+ * GrimAC server, whose clock wobbles) instead let every stray hit near the prediction walk the phase. His 2026-11-03 log
+ * (23:55:05-11) shows it: Spirit Mask, Phoenix and Bonzo procs exactly 3 s apart, the first locked the phase, and the third
+ * read 16 ticks off it. Odin and NoammAddons never resync at all. So, while trusted: a hit within {@link #TRUSTED_FIT}
+ * ticks confirms and moves nothing, a hit outside it moves nothing by itself (two players hurt at once included), and only
+ * hits a whole number of periods apart within {@link #TRUSTED_PAIR} ticks re-lock: a pair if one of them is a mask proc or
+ * a multi-player hit, three in a row if they are all your own health. Untrusted (no per-tick pings) keeps the old rules.
+ * Every hit and every predicted hit is logged ({@code [TickTimers] Goldor ...}) with the ticks since Storm's death and
+ * Goldor's line, the wall time and the pings, so the next real run shows which of the clock, the start phase or a hit
+ * is off: his four 2026-11-03/04 runs locked their first mask proc 9, 2, 21 and 25 ticks (mod 60) after Goldor's line,
+ * not at one fixed place.
  */
 public final class GoldorTick {
 
@@ -55,6 +69,22 @@ public final class GoldorTick {
     static final int FIRST_HIT = PERIOD - 18;
     /** Before the phase has been locked, a hit sooner than this after the line is not Goldor's first (fall damage, a mob). */
     static final int MIN_FIRST_HIT = 20;
+    /** Trusted clock: a hit this close to the prediction is the predicted hit (a client tick can carry two or three server
+     *  ticks' packets, and a health drop is read at the end of it). */
+    static final int TRUSTED_FIT = 3;
+    /** Trusted clock: two unexplained hits this close to a whole number of periods apart are in phase with each other. */
+    static final int TRUSTED_PAIR = 2;
+
+    /** What showed the hit: a mask/Phoenix proc line, two or more players hurt in one tick, or your own health only. */
+    enum Kind { PROC, MULTI, SELF }
+
+    private record Unexplained(long t, Kind kind) {
+    }
+
+    private static final List<Unexplained> UNEXPLAINED = new ArrayList<>();
+    private static TimerMark lineMark;
+    private static long stormDeathTick = Long.MIN_VALUE;
+    private static long lastLoggedZero = Long.MIN_VALUE;
 
     private static boolean active;
     /** Clock tick of a Goldor hit, real or (until the first one is seen) predicted. */
@@ -99,11 +129,37 @@ public final class GoldorTick {
         lastHealth = Float.NaN;
         HURT.clear();
         OFFSETS_AT_HITS.clear();
+        UNEXPLAINED.clear();
         relocks = 0;
+        lineMark = TimerMark.now();
+        lastLoggedZero = Long.MIN_VALUE;
+        LOGGER.info("[TickTimers] Goldor line: {} ticks after Storm's death line, first hit predicted at line+{}, clock {}",
+                stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(startReadAt - stormDeathTick), FIRST_HIT,
+                PerTickServerClock.trusted() ? "trusted" : "untrusted");
+    }
+
+    /** Storm's death line: remembered only for the log (is Goldor's phase tied to it rather than to his own line?). */
+    static synchronized void stormDeath() {
+        stormDeathTick = now();
+    }
+
+    /** Once per clock tick: one log line on every tick the line reads 0 (the predicted hit). */
+    static synchronized void serverTick() {
+        if (!active) {
+            return;
+        }
+        long t = now();
+        if (remaining() == 0 && t != lastLoggedZero) {
+            lastLoggedZero = t;
+            LOGGER.info("[TickTimers] Goldor tick 0 (predicted{}): line+{} / storm+{}, {}", locked ? "" : ", not yet locked",
+                    t - startTick, stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(t - stormDeathTick),
+                    lineMark == null ? "" : lineMark.since());
+        }
     }
 
     static synchronized void stop() {
         active = false;
+        UNEXPLAINED.clear();
         startReadAt = Long.MIN_VALUE;
         procPending = false;
         lastHealth = Float.NaN;
@@ -134,6 +190,10 @@ public final class GoldorTick {
 
     /** A hit seen at server tick {@code t}; {@code strong} = it landed on two or more players in the same tick. */
     static synchronized void onHit(long t, boolean strong, String why) {
+        onHit(t, strong ? Kind.MULTI : Kind.SELF, why);
+    }
+
+    static synchronized void onHit(long t, Kind kind, String why) {
         if (!active) {
             return;
         }
@@ -145,6 +205,60 @@ public final class GoldorTick {
         if (OFFSETS_AT_HITS.size() > 32) {
             OFFSETS_AT_HITS.remove(0);
         }
+        if (locked && PerTickServerClock.trusted()) {
+            String result = trustedLockedHit(t, kind, off);
+            logHit(t, why, off, result);
+            return;
+        }
+        String result = untrustedOrFirstHit(t, kind == Kind.MULTI, off, why);
+        logHit(t, why, off, result);
+    }
+
+    private static void logHit(long t, String why, int off, String result) {
+        LOGGER.info("[TickTimers] Goldor hit ({}): {} off -> {}; line+{} / storm+{}, {}", why, off, result, t - startTick,
+                stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(t - stormDeathTick),
+                lineMark == null ? "" : lineMark.since());
+    }
+
+    /** Trusted clock, phase locked: confirm, or remember; re-lock only on hits in phase with each other (see class doc). */
+    private static String trustedLockedHit(long t, Kind kind, int off) {
+        if (Math.abs(off) <= TRUSTED_FIT) {
+            lastAccepted = t;
+            UNEXPLAINED.clear();
+            return "confirmed";
+        }
+        UNEXPLAINED.removeIf(u -> t - u.t() > 3L * PERIOD + TRUSTED_PAIR || t - u.t() < 0);
+        List<Unexplained> inPhase = new ArrayList<>();
+        for (Unexplained u : UNEXPLAINED) {
+            if (inPhase(t - u.t())) {
+                inPhase.add(u);
+            }
+        }
+        boolean reliable = kind != Kind.SELF || inPhase.stream().anyMatch(u -> u.kind() != Kind.SELF);
+        boolean relock = !inPhase.isEmpty() && (reliable || inPhase.size() >= 2);
+        if (relock) {
+            relocks++;
+            anchor = t;
+            lastAccepted = t;
+            UNEXPLAINED.clear();
+            return "re-locked (" + (inPhase.size() + 1) + " hits a whole number of periods apart)";
+        }
+        UNEXPLAINED.add(new Unexplained(t, kind));
+        if (UNEXPLAINED.size() > 12) {
+            UNEXPLAINED.remove(0);
+        }
+        return "stray (remembered)";
+    }
+
+    private static boolean inPhase(long gap) {
+        if (gap < PERIOD - TRUSTED_PAIR) {
+            return false;
+        }
+        return Math.floorMod(gap + TRUSTED_PAIR, (long) PERIOD) <= 2L * TRUSTED_PAIR;
+    }
+
+    /** The rules before the phase is locked, and every rule off a trusted clock (unchanged since 2026-11-03). */
+    private static String untrustedOrFirstHit(long t, boolean strong, int off, String why) {
         boolean fits = Math.abs(off) <= SNAP;
         // The first hit after the line: Goldor's, wherever it lands (the start phase is only a prediction).
         boolean first = !locked && t - startTick >= MIN_FIRST_HIT;
@@ -157,6 +271,7 @@ public final class GoldorTick {
         }
         if (fits || strong || pair || first) {
             boolean wasLockedBefore = locked;
+            String result = fits ? (wasLockedBefore ? "fits" : "first hit, fits the start phase") : "re-locked";
             if (!fits) {
                 relocks++;
                 LOGGER.info("[TickTimers] Goldor tick re-locked by {} ({} ticks off the old phase{})", why, off,
@@ -172,9 +287,10 @@ public final class GoldorTick {
             locked = true;
             lastAccepted = t;
             unexplained = Long.MIN_VALUE;
-        } else {
-            unexplained = t;
+            return result;
         }
+        unexplained = t;
+        return "stray";
     }
 
     /** Client tick: your own health dropping, and other players' hurt animations starting, are hits. */
@@ -199,8 +315,8 @@ public final class GoldorTick {
         int hit = (self ? 1 : 0) + others;
         // A lone teammate's hurt could be anything; your own health drop, or two players at once, is a hit.
         if (self || hit >= 2) {
-            onHit(now(), hit >= 2, self ? (others > 0 ? "your health and " + others + " teammate(s)" : "your health")
-                    : others + " players hurt at once");
+            onHit(now(), hit >= 2 ? Kind.MULTI : Kind.SELF, self ? (others > 0 ? "your health and " + others
+                    + " teammate(s)" : "your health") : others + " players hurt at once");
         }
     }
 
@@ -224,7 +340,7 @@ public final class GoldorTick {
         }
         if (procPending) {
             procPending = false;
-            onHit(now(), false, "a mask proc");
+            onHit(now(), Kind.PROC, "a mask proc");
         }
     }
 
@@ -245,5 +361,10 @@ public final class GoldorTick {
     /** Testkit: a hit at the clock's current tick, as the client would observe it. */
     public static void testHitNow(boolean strong) {
         onHit(now(), strong, "the testkit");
+    }
+
+    /** Testkit: a hit of one kind ("PROC", "MULTI", "SELF") at the clock's current tick. */
+    public static void testHitKindNow(String kind) {
+        onHit(now(), Kind.valueOf(kind), "the testkit (" + kind + ")");
     }
 }

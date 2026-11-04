@@ -45,6 +45,24 @@ public final class StormLine {
         startTick = now;
         lightningAt = now + LIGHTNING_TICKS;
         startReadAt = now;
+        startMark = TimerMark.now();
+        lightningLogged = false;
+    }
+
+    private static TimerMark startMark;
+    private static TimerMark purpleMark;
+    private static boolean lightningLogged;
+    private static boolean purpleLogged;
+
+    /** Once per server tick: one log line when the lightning countdown and the purple countdown each reach 0. */
+    static void serverTick() {
+        if (phase == Phase.LIGHTNING && !lightningLogged && remaining() == 0) {
+            lightningLogged = true;
+            TimerMark.proc("Storm Lightning", startMark);
+        } else if (phase == Phase.PURPLE && !purpleLogged && remaining() == 0) {
+            purpleLogged = true;
+            TimerMark.proc("Storm Purple", purpleMark);
+        }
     }
 
     /** As in {@link GoldorTick#endOfTick}: the opening line was read before the clock's end-of-tick step. */
@@ -71,9 +89,12 @@ public final class StormLine {
     /** Storm's Giga Lightning went off (his lightning line). */
     static void onLightning() {
         if (phase == Phase.LIGHTNING) {
+            TimerMark.proc("Storm lightning line (" + remaining() + " ticks left on Lightning)", startMark);
             phase = Phase.PURPLE;
             purpleReadAt = PerTickServerClock.now();
             purpleAt = purpleReadAt + PURPLE_TICKS;
+            purpleMark = TimerMark.now();
+            purpleLogged = false;
         }
     }
 
