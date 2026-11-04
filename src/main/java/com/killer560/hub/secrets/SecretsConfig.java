@@ -217,14 +217,6 @@ public final class SecretsConfig {
     public int getEssenceLengthPct() { return essenceLengthPct; }
     public void setEssenceLengthPct(int v) { essenceLengthPct = clampPct(v); }
 
-    public boolean isButtonsFullBox() {
-        return buttonsFullBox;
-    }
-
-    public void setButtonsFullBox(boolean buttonsFullBox) {
-        this.buttonsFullBox = buttonsFullBox;
-    }
-
     public boolean isChestsEnabled() {
         return chestsEnabled;
     }
