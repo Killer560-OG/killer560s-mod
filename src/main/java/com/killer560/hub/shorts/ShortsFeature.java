@@ -144,10 +144,6 @@ public final class ShortsFeature {
         return unsupportedReason;
     }
 
-    public static boolean isLaunching() {
-        return launching;
-    }
-
     public static boolean isRunning() {
         ProcessHandle ph = browserProcess;
         return browserHwnd != 0 || (ph != null && ph.isAlive());
