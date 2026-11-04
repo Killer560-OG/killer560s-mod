@@ -253,9 +253,7 @@ public final class PartyFinderOverlayConfig {
 
     /** A style name: control characters and edges stripped, at most {@link #MAX_STYLE_NAME} long; null when nothing is left. */
     public static String cleanStyleName(String raw) {
-        if (raw == null) {
-            return null;
-        }
+        if (raw == null) return null;
         String t = raw.replaceAll("\\p{Cntrl}", "").strip();
         if (t.length() > MAX_STYLE_NAME) {
             t = t.substring(0, MAX_STYLE_NAME).strip();
@@ -264,22 +262,16 @@ public final class PartyFinderOverlayConfig {
     }
 
     private String findSavedName(String name) {
-        if (name == null) {
-            return null;
-        }
+        if (name == null) return null;
         for (String n : savedStyles.keySet()) {
-            if (n.equalsIgnoreCase(name.strip())) {
-                return n;
-            }
+            if (n.equalsIgnoreCase(name.strip())) return n;
         }
         return null;
     }
 
     private void putSaved(String rawName, String text) {
         String name = cleanStyleName(rawName);
-        if (name == null || text == null || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(name) == null) {
-            return;
-        }
+        if (name == null || text == null || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(name) == null) return;
         String existing = findSavedName(name);
         savedStyles.put(existing != null ? existing : name,
                 text.length() > MAX_STYLE_LENGTH ? text.substring(0, MAX_STYLE_LENGTH) : text);
@@ -314,9 +306,7 @@ public final class PartyFinderOverlayConfig {
     /** Makes the style saved as {@code name} the current custom text and selects Custom. @return false when none. */
     public boolean loadStyle(String name) {
         String n = findSavedName(name);
-        if (n == null) {
-            return false;
-        }
+        if (n == null) return false;
         activeStyle = n;
         setCustomStyle(savedStyles.get(n));
         compactMode = CompactMode.CUSTOM;
@@ -326,9 +316,7 @@ public final class PartyFinderOverlayConfig {
     /** Forgets the style saved as {@code name}; the current text stays. @return false when there was none. */
     public boolean deleteStyle(String name) {
         String n = findSavedName(name);
-        if (n == null) {
-            return false;
-        }
+        if (n == null) return false;
         savedStyles.remove(n);
         if (n.equals(activeStyle)) {
             activeStyle = "";
@@ -344,9 +332,7 @@ public final class PartyFinderOverlayConfig {
 
     /** Copies a built-in style's template into the custom text (the editor's "Load Built-in"), selecting Custom. */
     public void startFromBuiltIn(CompactMode mode) {
-        if (mode == null || mode.template == null) {
-            return;
-        }
+        if (mode == null || mode.template == null) return;
         activeStyle = "";
         setCustomStyle(mode.template);
         compactMode = CompactMode.CUSTOM;
