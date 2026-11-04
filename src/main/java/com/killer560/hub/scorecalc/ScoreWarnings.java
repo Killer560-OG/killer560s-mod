@@ -55,7 +55,6 @@ public final class ScoreWarnings {
     static final int PORTAL_GREEN = 0xFF30FF30;
     private static volatile int portalColor = 0;
     private static volatile java.util.List<net.minecraft.core.BlockPos> portalBlocks = java.util.List.of();
-    private static final com.killer560.hub.util.BoxBatch PORTAL_FILL = new com.killer560.hub.util.BoxBatch();
     private static int portalFrames = 0;
 
     public static int portalColorFor(int score) {
@@ -96,7 +95,6 @@ public final class ScoreWarnings {
             return;
         }
         float[] k = com.killer560.hub.util.WorldRenderUtils.argbToFloats(color);
-        PORTAL_FILL.clear();
         // One flat pane per connected portal, not a box per block (killer560, 2026-11-03: "dont have those block things in
         // between ... it should be one static color throughout"): the inner faces of per-block boxes drew as lines.
         java.util.Set<net.minecraft.core.BlockPos> left = new java.util.HashSet<>(blocks);
@@ -119,15 +117,21 @@ public final class ScoreWarnings {
             }
             // The portal's thin axis: the one it spans a single block on (its pane sits in the block's middle).
             boolean thinX = x0 == x1 && z1 > z0;
-            boolean thinZ = !thinX;
             // A hair OUTSIDE the portal's own faces (0.375 / 0.625): exactly on them the portal texture z-fought the pane
             // (owner 2026-11-03: half the portal tinted, split on a diagonal).
+            // Only the slab's two big faces are drawn, not its four rim faces: those lay exactly on the obsidian frame's inner
+            // faces and z-fought them, so the edges changed with the view angle (owner 2026-11-03 23:13, "on the very edges it
+            // changes a lot if I change how I am looking"; testkit 1103-preboss-portal-pixels' rim check). The faces run to the
+            // frame: a face edge meeting a frame face at a right angle cannot z-fight, and an inset showed as an obsidian sliver
+            // at grazing angles.
             double m = 0.03;
-            double ax0 = thinX ? x0 + 0.375 - m : x0, ax1 = thinX ? x0 + 0.625 + m : x1 + 1;
-            double az0 = thinZ && z0 == z1 ? z0 + 0.375 - m : z0, az1 = thinZ && z0 == z1 ? z0 + 0.625 + m : z1 + 1;
-            PORTAL_FILL.add(ax0, y0, az0, ax1, y1 + 1, az1, k[0], k[1], k[2], 0.55f);
+            net.minecraft.world.phys.AABB slab = thinX
+                    ? new net.minecraft.world.phys.AABB(x0 + 0.375 - m, y0, z0, x0 + 0.625 + m, y1 + 1, z1 + 1)
+                    : new net.minecraft.world.phys.AABB(x0, y0, z0 + 0.375 - m, x1 + 1, y1 + 1, z0 + 0.625 + m);
+            net.minecraft.core.Direction a = thinX ? net.minecraft.core.Direction.WEST : net.minecraft.core.Direction.NORTH;
+            com.killer560.hub.util.WorldRenderUtils.renderFilledFace(context, slab, a, k[0], k[1], k[2], 0.55f);
+            com.killer560.hub.util.WorldRenderUtils.renderFilledFace(context, slab, a.getOpposite(), k[0], k[1], k[2], 0.55f);
         }
-        PORTAL_FILL.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
         portalFrames++;
     }
 
