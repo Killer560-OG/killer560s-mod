@@ -56,14 +56,10 @@ public final class TitleScreenLooks {
             this(group, name, theme, amber, green, gradient, variant, note, false);
         }
 
-        public boolean vanilla() {
-            return theme == null;
-        }
+        public boolean vanilla() { return theme == null; }
 
         /** "Amber · Embers", "Vanilla". */
-        public String label() {
-            return name.isEmpty() ? group : group + " · " + name;
-        }
+        public String label() { return name.isEmpty() ? group : group + " · " + name; }
     }
 
     private static final List<Look> LOOKS;
@@ -154,14 +150,10 @@ public final class TitleScreenLooks {
         }
     }
 
-    public static List<Look> looks() {
-        return LOOKS;
-    }
+    public static List<Look> looks() { return LOOKS; }
 
     /** The picked look, or null when none is (the saved look shows). */
-    public static Look current() {
-        return enabled() ? current : null;
-    }
+    public static Look current() { return enabled() ? current : null; }
 
     /** The index of the look on screen in {@link #looks()}: the picked one, else the one the saved settings give. */
     public static int currentIndex() {
@@ -189,9 +181,7 @@ public final class TitleScreenLooks {
     }
 
     /** Bumped on every pick, so {@link MainMenuLook#current()} re-resolves. */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /** Shows {@code look} live. Writes no setting. */
     public static void apply(Look look) {
@@ -276,17 +266,13 @@ public final class TitleScreenLooks {
         }
 
         /** Steps through values (the testkit's 806 rule: every cycling control says so). */
-        public boolean isCycling() {
-            return true;
-        }
+        public boolean isCycling() { return true; }
     }
 
     private static java.lang.ref.WeakReference<CornerButton> corner = new java.lang.ref.WeakReference<>(null);
 
     /** The corner switcher on the open title screen, or null (testkit 1574). */
-    public static CornerButton cornerButton() {
-        return corner.get();
-    }
+    public static CornerButton cornerButton() { return corner.get(); }
 
     /** "Look: Amber · Embers" for the corner button. */
     public static String cornerLabel() {

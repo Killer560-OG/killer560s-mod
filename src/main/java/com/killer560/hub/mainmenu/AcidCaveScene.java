@@ -148,9 +148,7 @@ final class AcidCaveScene {
         steps++;
     }
 
-    private static double h(int i, int salt) {
-        return MainMenuScenes.hash(i, salt + 400);
-    }
+    private static double h(int i, int salt) { return MainMenuScenes.hash(i, salt + 400); }
 
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, float density) {
@@ -555,9 +553,7 @@ final class AcidCaveScene {
         }
     }
 
-    private static double ease(double x) {
-        return x * x * (3 - 2 * x);
-    }
+    private static double ease(double x) { return x * x * (3 - 2 * x); }
 
     /**
      * The player at {@code px}, feet on {@code feet}, facing right, every part grown by {@code e} pixels (the rim pass).

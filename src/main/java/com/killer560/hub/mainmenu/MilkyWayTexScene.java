@@ -60,15 +60,11 @@ final class MilkyWayTexScene {
         return s;
     }
 
-    private static int px(double v1920) {
-        return (int) Math.round(v1920 * K);
-    }
+    private static int px(double v1920) { return (int) Math.round(v1920 * K); }
 
     /** With the character, and without her. */
     static final PictureScene HERO = build(true);
     static final PictureScene PLAIN = build(false);
 
-    static PictureScene scene(boolean hero) {
-        return hero ? HERO : PLAIN;
-    }
+    static PictureScene scene(boolean hero) { return hero ? HERO : PLAIN; }
 }

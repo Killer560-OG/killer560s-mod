@@ -37,9 +37,7 @@ public final class MenuChrome {
     public static int SCROLL_DISABLED_EDGE = 0xFF3A2C22;
 
     /** Palette sync for callers that read these fields directly (MenuListMixin). */
-    public static void sync() {
-        MenuWidgets.sync();
-    }
+    public static void sync() { MenuWidgets.sync(); }
 
     static void derive(boolean light) {
         ACCENT = MenuWidgets.ACCENT;

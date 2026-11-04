@@ -139,9 +139,7 @@ public final class MainMenuTitleLayout {
      *  {@link MainMenuTheme#active()}: if a later error flips the theme off while this screen is open, the Realms
      *  button is still physically gone until the next init (which resets {@link #appliedTo}), so its
      *  notification icons must stay hidden too instead of reappearing next to Swap Accounts. */
-    public static boolean isAppliedTo(Screen screen) {
-        return screen != null && appliedTo.get() == screen;
-    }
+    public static boolean isAppliedTo(Screen screen) { return screen != null && appliedTo.get() == screen; }
 
 
     /** Marker subclass so the layout can find our button without matching on its label. A plain vanilla
@@ -170,9 +168,7 @@ public final class MainMenuTitleLayout {
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
-    static int ruleY(Screen screen) {
-        return isAppliedTo(screen) ? ruleY : 0;
-    }
+    static int ruleY(Screen screen) { return isAppliedTo(screen) ? ruleY : 0; }
 
     /** Themed-mode Swap Accounts button. Starts at the old top-left bounds with the old long label, so if the
      *  layout never runs (listener missing, or it failed) the button is still where users know it. */
@@ -189,9 +185,7 @@ public final class MainMenuTitleLayout {
         }
     }
 
-    private static String fallbackLabel() {
-        return "Swap Accounts - Playing as " + playerName();
-    }
+    private static String fallbackLabel() { return "Swap Accounts - Playing as " + playerName(); }
 
 
     private static void apply(Screen screen) {
@@ -476,9 +470,7 @@ public final class MainMenuTitleLayout {
     /** Where the chip was put (testkit). */
     private static volatile int playingAsY = -1;
 
-    public static int playingAsY() {
-        return playingAsY;
-    }
+    public static int playingAsY() { return playingAsY; }
 
 
     private static String translationKey(AbstractWidget w) {

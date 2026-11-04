@@ -12,13 +12,9 @@ interface Px {
     /** A vertical gradient, {@code top} at y0. */
     void gradient(int x0, int y0, int x1, int y1, int top, int bottom);
 
-    static int alpha(int argb, int a) {
-        return (Math.max(0, Math.min(255, a)) << 24) | (argb & 0x00FFFFFF);
-    }
+    static int alpha(int argb, int a) { return (Math.max(0, Math.min(255, a)) << 24) | (argb & 0x00FFFFFF); }
 
-    static int alpha(int argb, double a) {
-        return alpha(argb, (int) Math.round(a * 255.0));
-    }
+    static int alpha(int argb, double a) { return alpha(argb, (int) Math.round(a * 255.0)); }
 
     /** Channel-wise mix of two ARGB colors (alpha too). */
     static int mix(int a, int b, double t) {
@@ -32,25 +28,15 @@ interface Px {
     }
 
     /** An opaque color from 0..1 channels (clamped). */
-    static int rgb(double r, double g, double b) {
-        return 0xFF000000 | (ch(r) << 16) | (ch(g) << 8) | ch(b);
-    }
+    static int rgb(double r, double g, double b) { return 0xFF000000 | (ch(r) << 16) | (ch(g) << 8) | ch(b); }
 
-    static int ch(double v) {
-        return Math.max(0, Math.min(255, (int) Math.round(v * 255.0)));
-    }
+    static int ch(double v) { return Math.max(0, Math.min(255, (int) Math.round(v * 255.0))); }
 
-    static double r(int c) {
-        return ((c >> 16) & 0xFF) / 255.0;
-    }
+    static double r(int c) { return ((c >> 16) & 0xFF) / 255.0; }
 
-    static double g(int c) {
-        return ((c >> 8) & 0xFF) / 255.0;
-    }
+    static double g(int c) { return ((c >> 8) & 0xFF) / 255.0; }
 
-    static double b(int c) {
-        return (c & 0xFF) / 255.0;
-    }
+    static double b(int c) { return (c & 0xFF) / 255.0; }
 
     /** 0..1 from an integer and a salt; the same function the older scenes use. */
     static double hash(int i, int salt) {

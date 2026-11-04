@@ -34,25 +34,15 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
         return calm;
     }
 
-    public int accent() {
-        return colours[0];
-    }
+    public int accent() { return colours[0]; }
 
-    public int panelColour() {
-        return colours[1];
-    }
+    public int panelColour() { return colours[1]; }
 
-    public int card() {
-        return colours[2];
-    }
+    public int card() { return colours[2]; }
 
-    public int text() {
-        return colours[3];
-    }
+    public int text() { return colours[3]; }
 
-    public int switchOn() {
-        return colours[4];
-    }
+    public int switchOn() { return colours[4]; }
 
     public static synchronized MainMenuLook current() {
         int main = MainMenuThemeConfig.version();
@@ -111,9 +101,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     }
 
     /** Each theme's own Fancy background (see {@link #sceneFor(MenuTheme, boolean)}). */
-    public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme) {
-        return sceneFor(theme, false);
-    }
+    public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme) { return sceneFor(theme, false); }
 
     /**
      * Each theme's own background in the Main Menu Scene mode (killer560, 2026-10-16). Fancy: Amber's aurora picture, Ocean's

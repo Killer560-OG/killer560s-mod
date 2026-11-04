@@ -114,9 +114,7 @@ final class SmoothSilhouette {
     private static final int LIT_EDGE = 4;
 
     /** Rectangles the last frame drew (for the testkit's note). */
-    static int rects() {
-        return n;
-    }
+    static int rects() { return n; }
 
     private static void build(int w, int h, int scale) {
         builtW = w;

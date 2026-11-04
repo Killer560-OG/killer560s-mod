@@ -111,9 +111,7 @@ public final class SceneShaders {
                 .build());
     }
 
-    static boolean available() {
-        return enabledForTest && softLight != null && !failed;
-    }
+    static boolean available() { return enabledForTest && softLight != null && !failed; }
 
     static void fail(String what, Throwable e) {
         if (!failed) {
@@ -177,9 +175,7 @@ public final class SceneShaders {
         }
     }
 
-    static TextureSetup textureSetup() {
-        return setup;
-    }
+    static TextureSetup textureSetup() { return setup; }
 
 
     /** A run of textured quads (x0 y0 x1 y1 u0 v0 u1 v1 color) in one pose, submitted as one element. */
@@ -274,19 +270,13 @@ public final class SceneShaders {
         }
 
         @Override
-        public RenderPipeline pipeline() {
-            return pipeline;
-        }
+        public RenderPipeline pipeline() { return pipeline; }
 
         @Override
-        public TextureSetup textureSetup() {
-            return tex;
-        }
+        public TextureSetup textureSetup() { return tex; }
 
         @Override
-        public ScreenRectangle scissorArea() {
-            return scissor;
-        }
+        public ScreenRectangle scissorArea() { return scissor; }
     }
 
 

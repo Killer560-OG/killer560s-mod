@@ -42,9 +42,7 @@ public final class MainMenuChrome {
         cardH = h;
     }
 
-    static void clearCard() {
-        cardScreen = new WeakReference<>(null);
-    }
+    static void clearCard() { cardScreen = new WeakReference<>(null); }
 
     /** The panel's box on {@code screen}, or null when the layout did not place one (testkit reads it). */
     public static int[] cardBox(Screen screen) {
@@ -56,9 +54,7 @@ public final class MainMenuChrome {
         return w == null ? 1f : Math.max(0f, Math.min(1f, w.getAlpha()));
     }
 
-    private static int f(int argb, float a) {
-        return MainMenuTheme.fade(argb, a);
-    }
+    private static int f(int argb, float a) { return MainMenuTheme.fade(argb, a); }
 
     /** Applies the main menu's palette to {@link MenuStyle}'s statics; the next {@code MenuStyle.use()} restores the
      *  mod menu's. */

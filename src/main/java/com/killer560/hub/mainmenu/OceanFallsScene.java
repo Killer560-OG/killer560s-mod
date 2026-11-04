@@ -133,9 +133,7 @@ final class OceanFallsScene {
     }
 
     /** Whether the shader is in use (testkit 1690). */
-    public static boolean shaderActive() {
-        return pipeline != null && !failed;
-    }
+    public static boolean shaderActive() { return pipeline != null && !failed; }
 
     /** The picture through the shader (or still), before the frame's batch. */
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
@@ -163,9 +161,7 @@ final class OceanFallsScene {
         stillFrames++;
     }
 
-    static void drawOverlays(GuiRects r, int w, int h, double t, float density) {
-        SCENE.drawOverlays(r, w, h, t, density);
-    }
+    static void drawOverlays(GuiRects r, int w, int h, double t, float density) { SCENE.drawOverlays(r, w, h, t, density); }
 
 
     /**
@@ -287,17 +283,11 @@ final class OceanFallsScene {
         pose.popMatrix();
     }
 
-    static double ease(double v) {
-        return PictureScene.ease(v);
-    }
+    static double ease(double v) { return PictureScene.ease(v); }
 
-    static double hash(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    static double hash(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 
-    static double lerp(double a, double b, double t) {
-        return a + (b - a) * t;
-    }
+    static double lerp(double a, double b, double t) { return a + (b - a) * t; }
 
     /** Linear interpolation through (x, y) pairs sorted by x, clamped at the ends. */
     static double through(double[] pts, double x) {
@@ -478,9 +468,7 @@ final class OceanFallsScene {
         private static final double HORIZON = 926;
 
         /** Not on the rocks at the lower left. */
-        private static double shoreX(double y) {
-            return y > 1000 ? 912 : y > 948 ? 832 : 690;
-        }
+        private static double shoreX(double y) { return y > 1000 ? 912 : y > 948 ? 832 : 690; }
 
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {

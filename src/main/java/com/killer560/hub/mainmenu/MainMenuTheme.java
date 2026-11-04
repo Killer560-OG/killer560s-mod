@@ -72,9 +72,7 @@ public final class MainMenuTheme {
 
     /** Background scope: {@link #activeOnMenus()} and no world loaded, so in-game menus keep the blurred
      *  world behind them and only out-of-world menus swap the panorama for the themed background. */
-    public static boolean activeOnMenuBackground() {
-        return activeOnMenus() && Minecraft.getInstance().level == null;
-    }
+    public static boolean activeOnMenuBackground() { return activeOnMenus() && Minecraft.getInstance().level == null; }
 
     public static void fail(String where, Throwable t) {
         if (!failed) {
@@ -85,9 +83,7 @@ public final class MainMenuTheme {
 
 
     /** rgb (0xRRGGBB) with an explicit 0..255 alpha. */
-    public static int argb(int rgb, int alpha) {
-        return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0xFFFFFF);
-    }
+    public static int argb(int rgb, int alpha) { return (Math.max(0, Math.min(255, alpha)) << 24) | (rgb & 0xFFFFFF); }
 
     /** Multiplies an ARGB color's own alpha by {@code factor} (0..1). */
     public static int fade(int argb, float factor) {

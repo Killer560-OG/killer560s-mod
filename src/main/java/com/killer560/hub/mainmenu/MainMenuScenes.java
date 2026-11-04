@@ -59,9 +59,7 @@ public final class MainMenuScenes {
     }
 
     /** Draws {@code scene} for Dark this session (the Title Screen Switcher); null goes back to the default. */
-    public static void setDarkScene(DarkScene scene) {
-        darkScene = scene;
-    }
+    public static void setDarkScene(DarkScene scene) { darkScene = scene; }
 
     /** Test hook (testkit 1680-1683): the named Dark scene; null or empty goes back to the default. */
     public static void setDarkSceneForTest(String name) {
@@ -84,9 +82,7 @@ public final class MainMenuScenes {
     }
 
     /** Draws {@code scene} for Ocean this session (the Title Screen Switcher); null goes back to the default. */
-    public static void setOceanScene(OceanScene scene) {
-        oceanScene = scene;
-    }
+    public static void setOceanScene(OceanScene scene) { oceanScene = scene; }
 
     /** Test hook (testkit 1690-1693): the named Ocean scene; null or empty goes back to the default. */
     public static void setOceanSceneForTest(String name) {
@@ -137,14 +133,10 @@ public final class MainMenuScenes {
 
     /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to the default
      *  ({@link #amberScene()}). Changes no setting. */
-    public static void setAmberScene(AmberScene scene) {
-        amberScene = scene;
-    }
+    public static void setAmberScene(AmberScene scene) { amberScene = scene; }
 
     /** Draws {@code scene} for Green this session (the Title Screen Switcher); null goes back to {@link #GREEN_SCENE}. */
-    public static void setGreenScene(GreenScene scene) {
-        greenScene = scene;
-    }
+    public static void setGreenScene(GreenScene scene) { greenScene = scene; }
 
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
     public static void setClockForTest(double ms) {

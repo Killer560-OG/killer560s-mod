@@ -191,9 +191,7 @@ final class MainMenuFireflies {
         lobes++;
     }
 
-    private static double h(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    private static double h(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, int text, float density) {

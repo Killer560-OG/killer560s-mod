@@ -73,9 +73,7 @@ public final class MainMenuThemeConfig {
         }
 
         /** One of the Simple scenes (floating particles in the theme's colors). */
-        public boolean simple() {
-            return SimpleScenes.flavour(this) != null;
-        }
+        public boolean simple() { return SimpleScenes.flavour(this) != null; }
     }
 
     /** Main Menu Scene (killer560, 2026-10-16: "on the real mod they should have a toggle for fancy main screen or simple"):
@@ -159,9 +157,7 @@ public final class MainMenuThemeConfig {
         version++;
     }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     private static int clampSpeed(int s) {
         int best = 100;
@@ -193,9 +189,7 @@ public final class MainMenuThemeConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
@@ -203,93 +197,69 @@ public final class MainMenuThemeConfig {
     }
 
     /** Drifting ember particles on the themed background (no UI toggle yet; hand-editable). */
-    public boolean isParticles() {
-        return particles;
-    }
+    public boolean isParticles() { return particles; }
 
     public void setParticles(boolean particles) {
         this.particles = particles;
         version++;
     }
 
-    public boolean isOtherMenus() {
-        return otherMenus;
-    }
+    public boolean isOtherMenus() { return otherMenus; }
 
     public void setOtherMenus(boolean otherMenus) {
         this.otherMenus = otherMenus;
         version++;
     }
 
-    public boolean isHidePauseIcons() {
-        return hidePauseIcons;
-    }
+    public boolean isHidePauseIcons() { return hidePauseIcons; }
 
-    public void setHidePauseIcons(boolean hidePauseIcons) {
-        this.hidePauseIcons = hidePauseIcons;
-    }
+    public void setHidePauseIcons(boolean hidePauseIcons) { this.hidePauseIcons = hidePauseIcons; }
 
-    public Style getStyle() {
-        return style;
-    }
+    public Style getStyle() { return style; }
 
     public void setStyle(Style style) {
         this.style = style == null ? Style.MATCH : style;
         version++;
     }
 
-    public com.killer560.hub.gui.MenuTheme getTheme() {
-        return theme;
-    }
+    public com.killer560.hub.gui.MenuTheme getTheme() { return theme; }
 
     public void setTheme(com.killer560.hub.gui.MenuTheme theme) {
         this.theme = theme == null ? com.killer560.hub.gui.MenuTheme.OCEAN : theme;
         version++;
     }
 
-    public Scene getScene() {
-        return scene;
-    }
+    public Scene getScene() { return scene; }
 
     public void setScene(Scene scene) {
         this.scene = scene == null ? Scene.AUTO : scene;
         version++;
     }
 
-    public SceneMode getSceneMode() {
-        return sceneMode;
-    }
+    public SceneMode getSceneMode() { return sceneMode; }
 
     public void setSceneMode(SceneMode sceneMode) {
         this.sceneMode = sceneMode == null ? SceneMode.FANCY : sceneMode;
         version++;
     }
 
-    public boolean isSimple() {
-        return sceneMode == SceneMode.SIMPLE;
-    }
+    public boolean isSimple() { return sceneMode == SceneMode.SIMPLE; }
 
-    public Density getDensity() {
-        return density;
-    }
+    public Density getDensity() { return density; }
 
     public void setDensity(Density density) {
         this.density = density == null ? Density.NORMAL : density;
         version++;
     }
 
-    public int getSpeed() {
-        return speed;
-    }
+    public int getSpeed() { return speed; }
 
     public void setSpeed(int speed) {
         this.speed = clampSpeed(speed);
         version++;
     }
 
-    public boolean isPanel() {
-        return panel;
-    }
+    public boolean isPanel() { return panel; }
 
     public void setPanel(boolean panel) {
         this.panel = panel;

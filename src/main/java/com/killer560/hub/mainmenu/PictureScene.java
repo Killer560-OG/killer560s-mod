@@ -116,13 +116,9 @@ final class PictureScene {
         pose.popMatrix();
     }
 
-    static double clamp(double v) {
-        return v < 0 ? 0 : v > 1 ? 1 : v;
-    }
+    static double clamp(double v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-    static double hash(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    static double hash(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 
 
     record Patch(Identifier texture, int x, int y, int w, int h) {
@@ -243,9 +239,7 @@ final class PictureScene {
         }
     }
 
-    static Ripple ripple(int x0, int y0, int x1, int y1) {
-        return new Ripple(x0, y0, x1, y1);
-    }
+    static Ripple ripple(int x0, int y0, int x1, int y1) { return new Ripple(x0, y0, x1, y1); }
 
     /** Something drawn over the picture each frame, in the picture's space. */
     interface Overlay {

@@ -77,16 +77,12 @@ public final class MenuWidgets {
     }
 
     /** Widget scope - exactly {@link MainMenuTheme#activeOnMenus()}. */
-    public static boolean active() {
-        return MainMenuTheme.activeOnMenus();
-    }
+    public static boolean active() { return MainMenuTheme.activeOnMenus(); }
 
     /** Tooltip scope: exactly {@link #active()} - chat screens (whose hover tooltips are server item/entity
      *  hover events) are already excluded by {@link MainMenuTheme#activeOnMenus()}, same as the in-world HUD
      *  and container screens. */
-    public static boolean tooltipsActive() {
-        return MainMenuTheme.activeOnMenus();
-    }
+    public static boolean tooltipsActive() { return MainMenuTheme.activeOnMenus(); }
 
 
     /** Bordered EditBox / multi-line text area frame: dark field, dim orange border, full orange when focused. */

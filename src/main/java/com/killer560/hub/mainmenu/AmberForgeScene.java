@@ -166,7 +166,5 @@ final class AmberForgeScene {
         }
     }
 
-    private static double hash(int i, int salt) {
-        return MainMenuScenes.hash(i, salt);
-    }
+    private static double hash(int i, int salt) { return MainMenuScenes.hash(i, salt); }
 }
