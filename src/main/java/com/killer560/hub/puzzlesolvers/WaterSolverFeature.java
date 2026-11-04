@@ -69,9 +69,7 @@ public final class WaterSolverFeature {
         }
 
         /** Room-relative z of this color's column, for the sim's practice copy of the board. */
-        public int relZ() {
-            return z;
-        }
+        public int relZ() { return z; }
     }
 
     public enum LeverBlock {
@@ -98,21 +96,13 @@ public final class WaterSolverFeature {
         }
 
         /** Room-relative position, for the sim's practice copy of the board. */
-        public int relX() {
-            return x;
-        }
+        public int relX() { return x; }
 
-        public int relY() {
-            return y;
-        }
+        public int relY() { return y; }
 
-        public int relZ() {
-            return z;
-        }
+        public int relZ() { return z; }
 
-        public String solutionKey() {
-            return solutionKey;
-        }
+        public String solutionKey() { return solutionKey; }
     }
 
     /**
@@ -206,9 +196,7 @@ public final class WaterSolverFeature {
         }
     }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
@@ -458,13 +446,9 @@ public final class WaterSolverFeature {
         return aZero ? Integer.compare(a.ordinal(), b.ordinal()) : Double.compare(ta, tb);
     }
 
-    public static long getOpenedWaterTick() {
-        return openedWaterTick;
-    }
+    public static long getOpenedWaterTick() { return openedWaterTick; }
 
-    public static long getTickCounter() {
-        return tickCounter;
-    }
+    public static long getTickCounter() { return tickCounter; }
 
     /** Total lever clicks counted so far this room (lets the auto confirm its click registered). */
     public static int getCountedClicks() {

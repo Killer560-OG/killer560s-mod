@@ -83,35 +83,21 @@ public final class TeleportMazeSolverFeature {
                 com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver render", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::onWorldRender));
     }
 
-    public static Set<BlockPos> getTpPads() {
-        return Collections.unmodifiableSet(tpPads);
-    }
+    public static Set<BlockPos> getTpPads() { return Collections.unmodifiableSet(tpPads); }
 
-    public static List<Set<BlockPos>> getRealCells() {
-        return Collections.unmodifiableList(realCells);
-    }
+    public static List<Set<BlockPos>> getRealCells() { return Collections.unmodifiableList(realCells); }
 
-    public static Set<BlockPos> getVisited() {
-        return Collections.unmodifiableSet(visited);
-    }
+    public static Set<BlockPos> getVisited() { return Collections.unmodifiableSet(visited); }
 
-    public static Set<BlockPos> getCorrectPortals() {
-        return Collections.unmodifiableSet(correctPortals);
-    }
+    public static Set<BlockPos> getCorrectPortals() { return Collections.unmodifiableSet(correctPortals); }
 
-    public static BlockPos getBest() {
-        return best;
-    }
+    public static BlockPos getBest() { return best; }
 
     /** The links learned this visit: pad stepped on -> pad landed on (the way back assumed, see onPlayerPosition). */
-    public static java.util.Map<BlockPos, BlockPos> getLinks() {
-        return Collections.unmodifiableMap(links);
-    }
+    public static java.util.Map<BlockPos, BlockPos> getLinks() { return Collections.unmodifiableMap(links); }
 
     /** Incremented on every maze teleport handled - lets the auto react once per teleport. */
-    public static int getTeleportSeq() {
-        return teleportSeq;
-    }
+    public static int getTeleportSeq() { return teleportSeq; }
 
     private static void tick(Minecraft client) {
         if (!TeleportMazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
@@ -333,13 +319,9 @@ public final class TeleportMazeSolverFeature {
                 Math.cos(-yaw * 0.017453292f - 3.1415927f) * f2);
     }
 
-    private static boolean isVecInX(Vec3 vec, AABB box) {
-        return vec != null && vec.x >= box.minX && vec.x <= box.maxX;
-    }
+    private static boolean isVecInX(Vec3 vec, AABB box) { return vec != null && vec.x >= box.minX && vec.x <= box.maxX; }
 
-    private static boolean isVecInZ(Vec3 vec, AABB box) {
-        return vec != null && vec.z >= box.minZ && vec.z <= box.maxZ;
-    }
+    private static boolean isVecInZ(Vec3 vec, AABB box) { return vec != null && vec.z >= box.minZ && vec.z <= box.maxZ; }
 
     private static Vec3 intermediateX(Vec3 from, Vec3 goal, double x) {
         double dx = goal.x - from.x;

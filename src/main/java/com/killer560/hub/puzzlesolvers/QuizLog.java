@@ -91,9 +91,7 @@ public final class QuizLog {
         });
     }
 
-    private static String now() {
-        return "server tick " + PerTickServerClock.now() + ", " + LocalTime.now().format(TIME);
-    }
+    private static String now() { return "server tick " + PerTickServerClock.now() + ", " + LocalTime.now().format(TIME); }
 
     private static void tick(Minecraft client) {
         clientTick++;
@@ -241,7 +239,5 @@ public final class QuizLog {
         return "none";
     }
 
-    private static String fmt(double v) {
-        return String.format(Locale.US, "%.2f", v);
-    }
+    private static String fmt(double v) { return String.format(Locale.US, "%.2f", v); }
 }

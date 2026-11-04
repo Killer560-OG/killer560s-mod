@@ -79,49 +79,29 @@ public final class TeleportMazeSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public int getTracerColor() {
-        return tracerColor;
-    }
+    public int getTracerColor() { return tracerColor; }
 
-    public void setTracerColor(int tracerColor) {
-        this.tracerColor = tracerColor;
-    }
+    public void setTracerColor(int tracerColor) { this.tracerColor = tracerColor; }
 
-    public boolean isCurrentCellOnly() {
-        return currentCellOnly;
-    }
+    public boolean isCurrentCellOnly() { return currentCellOnly; }
 
-    public void setCurrentCellOnly(boolean currentCellOnly) {
-        this.currentCellOnly = currentCellOnly;
-    }
+    public void setCurrentCellOnly(boolean currentCellOnly) { this.currentCellOnly = currentCellOnly; }
 
-    public boolean isBestPadOnly() {
-        return bestPadOnly;
-    }
+    public boolean isBestPadOnly() { return bestPadOnly; }
 
-    public void setBestPadOnly(boolean bestPadOnly) {
-        this.bestPadOnly = bestPadOnly;
-    }
+    public void setBestPadOnly(boolean bestPadOnly) { this.bestPadOnly = bestPadOnly; }
 
-    public boolean isShowTracer() {
-        return showTracer;
-    }
+    public boolean isShowTracer() { return showTracer; }
 
-    public void setShowTracer(boolean showTracer) {
-        this.showTracer = showTracer;
-    }
+    public void setShowTracer(boolean showTracer) { this.showTracer = showTracer; }
 }

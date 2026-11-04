@@ -145,9 +145,7 @@ public final class BeamsSolverFeature {
         }
     }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
@@ -305,9 +303,7 @@ public final class BeamsSolverFeature {
     }
 
     /** For the testkit: the color (r, g, b) of palette index {@code i}. */
-    public static float[] paletteColor(int i) {
-        return COLORS[i].clone();
-    }
+    public static float[] paletteColor(int i) { return COLORS[i].clone(); }
 
     /** Logging only: one line when the set of lit / misaligned pairs changes. */
     private static void logScan(List<ActivePair> found) {

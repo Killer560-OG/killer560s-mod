@@ -93,23 +93,15 @@ public final class TicTacToeSolverFeature {
     }
 
     /** The cell to place in right now (player's turn), or null. */
-    public static BlockPos getBestMove() {
-        return bestMove;
-    }
+    public static BlockPos getBestMove() { return bestMove; }
 
     /** True once the game in this room has ended (win, loss or a full board), until he leaves the room. */
-    public static boolean isGameOver() {
-        return gameOver;
-    }
+    public static boolean isGameOver() { return gameOver; }
 
     /** The world position of board square {@code i} (0..8, row by row from the top) for a room's clay/rotation. */
-    public static BlockPos cellPos(int i, int[] clayAndRotation) {
-        return indexToPos(i, clayAndRotation);
-    }
+    public static BlockPos cellPos(int i, int[] clayAndRotation) { return indexToPos(i, clayAndRotation); }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         if (!TicTacToeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
@@ -333,9 +325,7 @@ public final class TicTacToeSolverFeature {
     }
 
     /** For the testkit: the prediction on a board given as 9 chars ('X', 'O', anything else empty), row by row. */
-    public static Integer predictionFor(String cells) {
-        return safePrediction(parse(cells));
-    }
+    public static Integer predictionFor(String cells) { return safePrediction(parse(cells)); }
 
     private static char[] parse(String cells) {
         char[] board = new char[9];
@@ -400,13 +390,9 @@ public final class TicTacToeSolverFeature {
     }
 
     /** How many clicks Prevent Misclicks has stopped (the testkit reads it). */
-    public static int blockedClicks() {
-        return blockedClicks;
-    }
+    public static int blockedClicks() { return blockedClicks; }
 
-    private static BlockPos indexToPos(int i, int[] cr) {
-        return PuzzleCoords.real(8, 72 - (i / 3), 17 - (i % 3), cr);
-    }
+    private static BlockPos indexToPos(int i, int[] cr) { return PuzzleCoords.real(8, 72 - (i / 3), 17 - (i % 3), cr); }
 
     /**
      * The dungeon sim's board, read off the nine cells themselves.

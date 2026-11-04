@@ -54,9 +54,7 @@ public final class QuizSolverFeature {
         LOGGER.info("[QuizSolver] {}", detail);
     }
 
-    private static String letterOf(int index) {
-        return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?";
-    }
+    private static String letterOf(int index) { return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?"; }
 
     private QuizSolverFeature() {
     }
@@ -417,14 +415,10 @@ public final class QuizSolverFeature {
     private static int wrongAnswers = 0;
 
     /** For the testkit: how many wrong-answer lines have cleared the highlight. */
-    public static int wrongAnswers() {
-        return wrongAnswers;
-    }
+    public static int wrongAnswers() { return wrongAnswers; }
 
     /** For the testkit: how many clicks Block Wrong Answers has dropped. */
-    public static int blockedClicks() {
-        return blockedClicks;
-    }
+    public static int blockedClicks() { return blockedClicks; }
 
 
     /** The text the Quiz Timer shows now, or null when there is nothing to time (no Quiz in progress). */
@@ -454,24 +448,16 @@ public final class QuizSolverFeature {
         }
 
         @Override
-        public String id() {
-            return "quiz_timer";
-        }
+        public String id() { return "quiz_timer"; }
 
         @Override
-        public String displayName() {
-            return "Quiz Timer";
-        }
+        public String displayName() { return "Quiz Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 180;
-        }
+        public int defaultY() { return 180; }
 
         @Override
         public int width() {
@@ -480,9 +466,7 @@ public final class QuizSolverFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.ROW;
-        }
+        public int height() { return com.killer560.hub.hud.HudText.ROW; }
 
         @Override
         public boolean isEnabledInSettings() {
@@ -511,14 +495,10 @@ public final class QuizSolverFeature {
     private static String lastTimerText = null;
 
     /** For the testkit: how many frames the Quiz Timer has drawn. */
-    public static int timerDraws() {
-        return timerDraws;
-    }
+    public static int timerDraws() { return timerDraws; }
 
     /** For the testkit: the text the Quiz Timer last drew. */
-    public static String lastTimerText() {
-        return lastTimerText;
-    }
+    public static String lastTimerText() { return lastTimerText; }
 
     private static void reset() {
         for (TriviaOption option : options) {

@@ -134,29 +134,19 @@ public final class QuizState {
     }
 
     /** Oruo has begun (his first line was seen), this world. */
-    public static boolean started() {
-        return question > 0;
-    }
+    public static boolean started() { return question > 0; }
 
     /** Every question answered. */
-    public static boolean done() {
-        return question >= 4;
-    }
+    public static boolean done() { return question >= 4; }
 
     /** Started and not done. */
-    public static boolean inProgress() {
-        return question > 0 && question < 4;
-    }
+    public static boolean inProgress() { return question > 0 && question < 4; }
 
     /** 1-3: the question asked or about to be (after an answer, the one answered until the next line); 0/4 outside. */
-    public static int question() {
-        return question;
-    }
+    public static int question() { return question; }
 
     /** The question the next answer is for: the one asked, or after an answer the one coming (1-3; 0/4 outside). */
-    public static int nextQuestion() {
-        return inProgress() && answered ? question + 1 : question;
-    }
+    public static int nextQuestion() { return inProgress() && answered ? question + 1 : question; }
 
     /** Questions answered so far (0-3). */
     public static int answeredCount() {
@@ -167,14 +157,10 @@ public final class QuizState {
     }
 
     /** The current question waits for its cooldown or is open: not yet answered, its lock line seen. */
-    public static boolean awaitingAnswer() {
-        return inProgress() && !answered && answerAt >= 0;
-    }
+    public static boolean awaitingAnswer() { return inProgress() && !answered && answerAt >= 0; }
 
     /** The current question can be answered now. */
-    public static boolean answerable() {
-        return awaitingAnswer() && PerTickServerClock.now() >= answerAt;
-    }
+    public static boolean answerable() { return awaitingAnswer() && PerTickServerClock.now() >= answerAt; }
 
     /**
      * Server ticks until the current question can be answered: 0 when it can now; for a question just answered, until
@@ -197,14 +183,10 @@ public final class QuizState {
     public static final int NEXT_LINE_TICKS = 40;
 
     /** {@link ServerTickClock#now()} the current question opens at (-1 when none waits). */
-    public static long answerAtTick() {
-        return answerAt;
-    }
+    public static long answerAtTick() { return answerAt; }
 
     /** {@link ServerTickClock#now()} of the last line that moved the state, for the testkit. */
-    public static long lastLineTick() {
-        return lastLineAt;
-    }
+    public static long lastLineTick() { return lastLineAt; }
 
     /** One line for HUDs and logs: "Quiz 2/3: 3.4s" or "Quiz 2/3: answer now". */
     public static String describe() {

@@ -91,9 +91,7 @@ public final class BlazeSolverFeature {
         });
     }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
@@ -212,9 +210,7 @@ public final class BlazeSolverFeature {
      *  dungeon and enabled checks, so a pixel test can put highlights anywhere. Null goes back to the real state. */
     private static volatile List<Entity> forcedForTest = null;
 
-    public static void setForcedBlazesForTest(List<Entity> blazes) {
-        forcedForTest = blazes;
-    }
+    public static void setForcedBlazesForTest(List<Entity> blazes) { forcedForTest = blazes; }
 
     private static void onWorldRender(LevelRenderContext context) {
         BlazeSolverConfig cfg = BlazeSolverConfig.getInstance();

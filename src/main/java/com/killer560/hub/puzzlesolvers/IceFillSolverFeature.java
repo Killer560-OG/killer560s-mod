@@ -65,9 +65,7 @@ public final class IceFillSolverFeature {
     }
 
     /** Copy of the drawn path (block center x/z, floor y + 0.1) - for AutoPuzzles. Empty until all 3 floors scan. */
-    public static List<Vec3> getCurrentPath() {
-        return new ArrayList<>(currentPath);
-    }
+    public static List<Vec3> getCurrentPath() { return new ArrayList<>(currentPath); }
 
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
@@ -98,9 +96,7 @@ public final class IceFillSolverFeature {
         }
     }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
@@ -380,11 +376,7 @@ public final class IceFillSolverFeature {
     }
 
     /** For the testkit: warps Etherwarp Protection has dropped, and its last verdict. */
-    public static int blockedWarps() {
-        return blockedWarps;
-    }
+    public static int blockedWarps() { return blockedWarps; }
 
-    public static String lastVerdict() {
-        return lastVerdict;
-    }
+    public static String lastVerdict() { return lastVerdict; }
 }

@@ -72,34 +72,22 @@ public final class BlazeSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isShowLines() {
-        return showLines;
-    }
+    public boolean isShowLines() { return showLines; }
 
-    public void setShowLines(boolean showLines) {
-        this.showLines = showLines;
-    }
+    public void setShowLines(boolean showLines) { this.showLines = showLines; }
 
     /** killer560, 2026-09-20: "add a fill-box option". OFF (default) keeps the existing outline look. */
-    public boolean isFillBox() {
-        return fillBox;
-    }
+    public boolean isFillBox() { return fillBox; }
 
-    public void setFillBox(boolean fillBox) {
-        this.fillBox = fillBox;
-    }
+    public void setFillBox(boolean fillBox) { this.fillBox = fillBox; }
 }

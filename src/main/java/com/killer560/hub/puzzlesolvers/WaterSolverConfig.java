@@ -72,14 +72,10 @@ public final class WaterSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
@@ -88,19 +84,11 @@ public final class WaterSolverConfig {
 
     /** Odin's real "optimized" lever-timing set - a different, real, equally-valid solve than the
      *  default set, same style-not-correctness distinction as Ice Fill's "hard" path. */
-    public boolean isOptimizedPath() {
-        return optimizedPath;
-    }
+    public boolean isOptimizedPath() { return optimizedPath; }
 
-    public void setOptimizedPath(boolean optimizedPath) {
-        this.optimizedPath = optimizedPath;
-    }
+    public void setOptimizedPath(boolean optimizedPath) { this.optimizedPath = optimizedPath; }
 
-    public boolean isShowTracer() {
-        return showTracer;
-    }
+    public boolean isShowTracer() { return showTracer; }
 
-    public void setShowTracer(boolean showTracer) {
-        this.showTracer = showTracer;
-    }
+    public void setShowTracer(boolean showTracer) { this.showTracer = showTracer; }
 }

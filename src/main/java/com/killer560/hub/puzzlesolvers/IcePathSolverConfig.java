@@ -66,25 +66,17 @@ public final class IcePathSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isShowNextBox() {
-        return showNextBox;
-    }
+    public boolean isShowNextBox() { return showNextBox; }
 
-    public void setShowNextBox(boolean showNextBox) {
-        this.showNextBox = showNextBox;
-    }
+    public void setShowNextBox(boolean showNextBox) { this.showNextBox = showNextBox; }
 }

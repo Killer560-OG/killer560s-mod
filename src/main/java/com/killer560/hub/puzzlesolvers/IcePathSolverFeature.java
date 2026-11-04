@@ -68,21 +68,13 @@ public final class IcePathSolverFeature {
     }
 
     /** Real block positions (corner vectors, y=66) of the solution, starting at the silverfish's cell. */
-    public static List<Vec3> getPath() {
-        return Collections.unmodifiableList(path);
-    }
+    public static List<Vec3> getPath() { return Collections.unmodifiableList(path); }
 
-    public static Silverfish getSilverfish() {
-        return silverfish;
-    }
+    public static Silverfish getSilverfish() { return silverfish; }
 
-    public static boolean isSilverfishMoving() {
-        return moving;
-    }
+    public static boolean isSilverfishMoving() { return moving; }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     /**
      * One line per reason, per room, so a solver that draws nothing says why.

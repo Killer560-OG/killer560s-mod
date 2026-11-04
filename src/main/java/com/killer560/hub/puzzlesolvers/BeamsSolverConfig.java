@@ -84,33 +84,21 @@ public final class BeamsSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public ShowMode getShowMode() {
-        return showMode;
-    }
+    public ShowMode getShowMode() { return showMode; }
 
-    public void setShowMode(ShowMode showMode) {
-        this.showMode = showMode == null ? ShowMode.ALL : showMode;
-    }
+    public void setShowMode(ShowMode showMode) { this.showMode = showMode == null ? ShowMode.ALL : showMode; }
 
-    public boolean isShowTracer() {
-        return showTracer;
-    }
+    public boolean isShowTracer() { return showTracer; }
 
-    public void setShowTracer(boolean showTracer) {
-        this.showTracer = showTracer;
-    }
+    public void setShowTracer(boolean showTracer) { this.showTracer = showTracer; }
 }

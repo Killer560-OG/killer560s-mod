@@ -78,38 +78,22 @@ public final class QuizSolverConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public boolean isBlockWrongAnswers() {
-        return blockWrongAnswers;
-    }
+    public boolean isBlockWrongAnswers() { return blockWrongAnswers; }
 
-    public void setBlockWrongAnswers(boolean blockWrongAnswers) {
-        this.blockWrongAnswers = blockWrongAnswers;
-    }
+    public void setBlockWrongAnswers(boolean blockWrongAnswers) { this.blockWrongAnswers = blockWrongAnswers; }
 
-    public boolean isSneakOverride() {
-        return sneakOverride;
-    }
+    public boolean isSneakOverride() { return sneakOverride; }
 
-    public void setSneakOverride(boolean sneakOverride) {
-        this.sneakOverride = sneakOverride;
-    }
+    public void setSneakOverride(boolean sneakOverride) { this.sneakOverride = sneakOverride; }
 
-    public boolean isShowTimer() {
-        return showTimer;
-    }
+    public boolean isShowTimer() { return showTimer; }
 
-    public void setShowTimer(boolean showTimer) {
-        this.showTimer = showTimer;
-    }
+    public void setShowTimer(boolean showTimer) { this.showTimer = showTimer; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;

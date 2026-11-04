@@ -363,23 +363,15 @@ public final class WeirdosSolverFeature {
         return (stripped != null ? stripped : name).trim();
     }
 
-    public static BlockPos getCorrectChestPos() {
-        return correctPos;
-    }
+    public static BlockPos getCorrectChestPos() { return correctPos; }
 
-    public static int getWrongChestCount() {
-        return wrongPositions.size();
-    }
+    public static int getWrongChestCount() { return wrongPositions.size(); }
 
     /** How many different weirdos have said their line in this room (Hypixel opens no chest before all three). */
-    public static int getHeardCount() {
-        return heardNpcs.size();
-    }
+    public static int getHeardCount() { return heardNpcs.size(); }
 
     /** How many times a weirdo has said "Talk to all of us first!" in this room (a refused chest click each). */
-    public static int getRefusalCount() {
-        return refusals;
-    }
+    public static int getRefusalCount() { return refusals; }
 
     /**
      * Forgets this room's answer so a fresh set of three lines can be read.

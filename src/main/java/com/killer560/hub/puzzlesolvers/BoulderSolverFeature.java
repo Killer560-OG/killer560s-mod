@@ -74,9 +74,7 @@ public final class BoulderSolverFeature {
         return positions.isEmpty() ? null : positions.get(0).click();
     }
 
-    public static int getRemainingClicks() {
-        return currentPositions.size();
-    }
+    public static int getRemainingClicks() { return currentPositions.size(); }
 
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
@@ -109,9 +107,7 @@ public final class BoulderSolverFeature {
         }
     }
 
-    private static void tick(Minecraft client) {
-        tickInner(client);
-    }
+    private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
