@@ -1,6 +1,5 @@
 package com.killer560.hub.trail;
 
-import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.world.phys.AABB;
 
