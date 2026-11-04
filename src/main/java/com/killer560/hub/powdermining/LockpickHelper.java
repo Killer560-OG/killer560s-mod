@@ -136,7 +136,6 @@ public final class LockpickHelper {
         frames++;
     }
 
-    // ---- testkit hooks
 
     public static int samples() {
         return samples;

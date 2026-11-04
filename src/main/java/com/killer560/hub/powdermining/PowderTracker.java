@@ -87,17 +87,11 @@ public final class PowderTracker {
         if (n >= 1_000_000L) {
             return String.format(Locale.US, "%.2fM", n / 1_000_000.0);
         }
-        if (n >= 10_000L) {
-            return String.format(Locale.US, "%.1fk", n / 1000.0);
-        }
-        return String.format(Locale.US, "%,d", n);
+        return n >= 10_000L ? String.format(Locale.US, "%.1fk", n / 1000.0) : String.format(Locale.US, "%,d", n);
     }
 
     private static String perHour(long n) {
-        if (activeMs < 30_000L) {
-            return "";
-        }
-        return " §7(" + compact(Math.round(n * 3_600_000.0 / activeMs)) + "/h)";
+        return activeMs < 30_000L ? "" : " §7(" + compact(Math.round(n * 3_600_000.0 / activeMs)) + "/h)";
     }
 
     private static String uptime() {
@@ -130,7 +124,6 @@ public final class PowderTracker {
         return out;
     }
 
-    // ---- testkit hooks
 
     public static int chests() {
         return chests;

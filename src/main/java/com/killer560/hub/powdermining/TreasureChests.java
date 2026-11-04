@@ -275,7 +275,6 @@ public final class TreasureChests {
         return "§6Treasure Chest" + (n > 1 ? " §7(" + n + ")" : "") + "§7: " + color + s + "s";
     }
 
-    // ---- testkit hooks
 
     public static int claims() {
         return claims;
@@ -320,10 +319,7 @@ public final class TreasureChests {
 
         private String shown() {
             String s = hudLine();
-            if (s == null && HudVisibility.editorOpen()) {
-                return SAMPLE;
-            }
-            return s;
+            return s == null && HudVisibility.editorOpen() ? SAMPLE : s;
         }
 
         @Override

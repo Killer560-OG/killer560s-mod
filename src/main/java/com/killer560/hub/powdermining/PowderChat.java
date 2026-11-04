@@ -380,7 +380,6 @@ public final class PowderChat {
         return doublePowder;
     }
 
-    // ---- testkit hooks
 
     public static int hiddenLines() {
         return hidden;

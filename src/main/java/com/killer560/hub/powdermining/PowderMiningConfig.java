@@ -171,7 +171,6 @@ public final class PowderMiningConfig {
         return SkyblockGate.allows();
     }
 
-    // ---- Treasure Chest Highlight
     public boolean isTreasureChest() {
         return treasureChest && sb();
     }
@@ -217,7 +216,6 @@ public final class PowderMiningConfig {
         treasureChestEsp = v;
     }
 
-    // ---- Treasure Chest Alert
     public boolean isChestAlert() {
         return chestAlert && sb();
     }
@@ -267,7 +265,6 @@ public final class PowderMiningConfig {
         lockpickColor = v;
     }
 
-    // ---- Powder Tracker
     public boolean isPowderTracker() {
         return powderTracker && sb();
     }
@@ -317,7 +314,6 @@ public final class PowderMiningConfig {
         doublePowderSound = v;
     }
 
-    // ---- Chest Loot Compact
     /** Hide "You uncovered a treasure chest!" from the chat window (display time, after every reader saw it). */
     public boolean isHideTreasureUncovered() {
         return hideTreasureUncovered && sb();
