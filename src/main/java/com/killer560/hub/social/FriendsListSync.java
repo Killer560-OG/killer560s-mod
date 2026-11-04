@@ -128,16 +128,6 @@ public final class FriendsListSync {
         return walking;
     }
 
-    /** The page whose header was read last (Hypixel's "Friends (Page X of Y)"), 0 before the first arrives. */
-    public static int syncPage() {
-        return walking ? currentPage : 0;
-    }
-
-    /** Y from the same header, 0 before the first arrives. */
-    public static int syncTotalPages() {
-        return walking ? totalPages : 0;
-    }
-
     /** The screen's progress line while a sync walks the pages: "Syncing... page 3/7" (killer560, 2026-10-08:
      *  "make the 'already syncing' show how many pages it is through"), empty when not syncing. */
     public static String syncProgress() {
