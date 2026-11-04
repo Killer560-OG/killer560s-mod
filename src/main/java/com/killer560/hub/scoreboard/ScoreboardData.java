@@ -42,7 +42,6 @@ public final class ScoreboardData {
     private static final Comparator<PlayerScoreEntry> SCORE_DISPLAY_ORDER = Comparator
             .comparing(PlayerScoreEntry::value).reversed()
             .thenComparing(PlayerScoreEntry::owner, String.CASE_INSENSITIVE_ORDER);
-    private static final Pattern COLOR_CODES = Pattern.compile("(?:§[0-9a-fk-orA-FK-OR])+");
     private static final Pattern RESETS = Pattern.compile("(?:§f)*?(?<!§)§r");
     private static final Map<Integer, ChatFormatting> COLOR_LUT = new HashMap<>();
 
