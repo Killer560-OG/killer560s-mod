@@ -266,17 +266,14 @@ elements, Superpairs, Instant Transmission, item identity, gametest, `AttackBloc
 range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD and rendering ones are in **[docs/LESSONS-GUI.md](docs/LESSONS-GUI.md)**. Sim lessons (the sim answers as the server, solver scans, heights, room answers, sim RNG) are in **[docs/LESSONS-SIM.md](docs/LESSONS-SIM.md)**. The Room Recorder was removed on 2026-10-04 and lives at git tag
 `room-recorder-last`; the last section of docs/SIM.md says how to restore it.
 
+- **Code lessons live in `.claude/rules/code-lessons.md`** (split out 2026-11-03 to save tokens): they load
+  automatically when a file under `src/` is read. Before editing source without having read one, read that file.
 - **Nothing in this mod ever stops, pauses or disables on a server correction** (killer560, 2026-10-06): it calls
   `util/ServerCorrections.report` (chat line + `ModSounds.playCorrectionAlarm()`) and carries on from the corrected position.
 - `LOGGER.debug` never reaches his log. Minecraft's root log4j2 level is INFO, and a real client log
   (`26.1.2 (Dungeons)`, 29,596 lines, 2026-09-29) contains zero DEBUG lines. So a `.debug` call is not the
   spam and deleting one buys nothing; when hunting log noise, hunt `.info`. That is where it all was: the
   2026-09-29 trim cut INFO call sites from 783 to 273 and left WARN (276) and ERROR (86) alone.
-- A reach check belongs at the one place the interaction is SENT, not in each caller. Simon Says had four
-  callers and a check in one of them; three paths sent clicks from up to 30 blocks away for months.
-- `"^(?:.*something.*|...)$"` is NOT anchored. The leading `^` buys nothing when the alternative starts with
-  `.*`, and the Blood Key split read that way for months. Anchor on the real line shape, with a
-  `[A-Za-z0-9_]{1,16}` name group, and check with `matches()`.
 - Switching variants needs `build/classes` cleared too, not just the generated `BuildVariant` source. After a
   cheat compile, deleting only `build/generated/sources/buildVariant` and compiling legit produced a wall of
   `error: cannot access Ap3FreezeState` / `Ap3EditScreen` / `Ap3RouteCache` - stale class files, not a real
@@ -290,181 +287,11 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   `8e95469d`=cheat+dev, `31a271c1`=legit+dev, `9d814aa3`=legit+release, `3a71edd5`=cheat+release (same on 26.3 and 26.2, checked 2026-11-01), `8193ef73`/`84d195e7`=cheat/legit testing
   (since `BuildVariant.TESTING`, 2026-10-07; before it `c7d5d8f5`/`1d821df5`/`f8fc20a1`). `javap -constants` on that class is
   the unambiguous check if a hash ever disagrees - it prints the booleans directly.
-- Mixin config uses `defaultRequire: 0`, so a wrong target signature fails **silently** and the feature
-  just never runs. Verify targets with `javap` against the mapped jar in `.gradle/loom-cache/` before
-  trusting a new mixin. A probe that silently counts nothing reports zeroes that read as findings.
-- **Two Minecraft versions, one source tree.** `build.gradle` derives a compat directory from
-  `minecraft_version` and puts exactly ONE of `src/mc26_3/java` / `src/mc26_2/java` on the source path (it
-  prints "compatibility layer mcXX_Y" every build and throws for a version with no directory). 26.3 is the main version
-  and 26.1.2 is dropped (2026-11-01). `src/main/java` is written in 26.3's CLASS names; a class 26.3 moved or renamed
-  (the GPU API's `com.mojang.renderpearl.api.*`, `Enderman`, `RedstoneWireBlock`, `ServerboundPunchPacket`, authlib's
-  `services.ProfileResult`) is listed in `src/mc26_2/remap.txt`, and a 26.2 build compiles a copy of src/main/java with
-  those names rewritten (`remapMainSources`; its errors point into build/generated/sources/remapped/mc26_2/, same path and
-  line). Only class names go there; a changed METHOD still goes behind a facade. Version-specific
-  API lives in `com.killer560.hub.compat` - `McCompat`, `McBlocks`, `McItems`, `McEntities`, `McRender`, `McPackets`,
-  `McInput`, `McWindow`, `McSoundInstance` - and
-  **every version's copy must have identical public signatures**, or one version stops compiling. Nothing under
-  `src/main/java` may touch an API that differs between versions. Build 26.2 with
-  `-Pminecraft_version=26.2 -Pfabric_api_version=0.160.0+26.2 -Pmodmenu_version=20.0.2`.
-  A mixin is the one thing the facade cannot cover, because `@Mixin(X.class)` is an annotation constant: a
-  mixin whose target **class** moved gets one copy per version directory under the same name (eight do), while
-  one where only the **method** name changed just lists both - `method = {"renderFire", "submitFire"}`. Mixin
-  accepts a handler taking only `CallbackInfo` for any target (checked in `CallbackInjector$Callback.
-  checkDescriptor`: the full descriptor OR `(LCallbackInfo;)V`, all-or-nothing, never a prefix), which is how a
-  single mixin survives a target whose argument TYPES changed.
-- **26.3 shaders need SPIR-V-ready GLSL** (2026-11-01): explicit `layout(location)` on every in/out, the separate-shader
-  extension, `#include` for `#moj_import`, and DynamicTransforms in its new order; one bad shader takes down the whole
-  resource reload and the client crashes at the first particle. Shaders live per version in `src/mc26_X/resources`
-  (docs/LESSONS-GUI.md "The mod's GLSL shaders on 26.3").
 - The testkit's synthetic clicks must use `InputConstants.MOUSE_BUTTON_LEFT` (1 on 26.3, 0 on 26.2), never a literal 0:
   with GLFW's 0, 26.3 smoke 303/304 failed "presses not landing" while the mod was fine (2026-11-01).
-- **26.3 split the arm swing** (2026-11-01): no ServerboundSwingPacket; a left click sends `ServerboundPunchPacket` after the
-  animation, a right click sends no swing at all. Swing through `McCompat.swingAttack` (left-click actions) or
-  `McCompat.swingUse` (right-click actions), never `player.swing`. Packet getters became record accessors (`McPackets`).
-  Details: docs/LESSONS-MINECRAFT.md "Packets, swings and entities on 26.3".
-- **26.3 key and mouse codes are SDL, stored codes stay GLFW** (2026-11-01). On 26.3 `KeyEvent.key()`, `KeyMapping`
-  values and `InputConstants.KEY_*` are SDL scancodes and mouse buttons are 1-based (left 1, right 3), and wrong numbers
-  still compile. Configs keep GLFW numbers (`util/Keys`); read keys with `McInput.key(event)`, buttons with
-  `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. A key capture
-  stores `McInput.key(event)` too (Inventory Sorter's stored the scancode, saved as "none", UI 584). Full rules
-  in docs/LESSONS-MINECRAFT.md "Input and window on 26.3".
 - Run gradle through Bash, not PowerShell: PowerShell wraps native stderr in ErrorRecords and splits compiler
   messages mid-line, so error counts and file paths become unreadable. Gradle also prints compiler output
   TWICE, so `grep -c "error:"` is double - the `N errors` line javac prints is the authoritative number.
-- **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
-  block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
-  `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
-  structural errors without the Minecraft jar: [docs/COMPILING.md](docs/COMPILING.md).
-- **26.3 moved the player's packets out of `LocalPlayer.tick`.** On 26.2 the tick sends the input, sprint and move packets
-  (sendPosition); on 26.3 `Minecraft.tick` calls the public `LocalPlayer.sendChanges()` after `ClientLevel.tickEntities` (javap
-  26.3). Code that runs his tick by hand (Blink's shot, BlinkCharge's spent ticks) must call `McCompat.sendPlayerChanges(player)`
-  right after `player.tick()`; without it every Blink shot on 26.3 moved him on the client only and the server set it back
-  (63-ap3 26.3 76/21 -> 87/2, same 2 as 26.2; 2026-11-01). It also fixed ZPEW Aimed Warps n>=3 and Auto Routes' Charged
-  Chain on 26.3 (BadPacketsJ: the spent ticks' tick-ends went with no move to report the use's look).
-- **Blink Charge's banked turns leave vanilla's "last sent look" wrong.** A hand-run tick whose look equals it sends no
-  move, so the server keeps the pre-turn look; `BlinkCharge.spendTick` sends the look itself when the wire one differs
-  (zpew263-1101: one BadPacketsJ per aimed burst at 0 ms on 26.2 and 26.3 before it). Find such faults with the testkit's
-  `WireCapture` (encoder-level, after Blink's holds), not `PacketTrace` (hand-off level, before them).
-- **A mixin that compiles on 26.2 can still crash 26.2 at startup.** Mixin descriptors are only checked when the
-  game loads, so `@Inject(method = "extractRenderState")` on `Gui` with 26.1.2's `(GuiGraphicsExtractor, DeltaTracker)`
-  built fine and crashed every 26.2 launch (26.2's is `(DeltaTracker, boolean, boolean)`). Seven overlays did it until
-  2026-10-04; they are now Fabric HUD layers in `hud/GuiOverlays`. A 26.2 change is not done until a 26.2 boot ran:
-  the testkit's `run-scenario.ps1 -Scenario smoke -Minecraft 26.2` does it unattended.
-- 26.3 removed `ItemInHandRenderer` (now `FirstPersonHandsAndItemsRenderer` + `FirstPersonHandsAndItems`), the
-  `RenderSystem.output*TextureOverride` fields and `precompilePipeline`; the hand mixins have one copy per version dir
-  and the GPU differences sit behind `McRender` (drawHandMask, pipelineCompiles, swingProgress, copySwing). Details and
-  the replacement call sequences: docs/LESSONS-GUI.md "First-person hands and the GPU API on 26.3".
-- remap.txt does not touch mixin STRINGS: a slash descriptor naming a moved class (RenderPipeline, GpuSurface) needs both
-  versions' forms listed, and a handler whose arguments changed crashes at load whatever `require` says. Run
-  `tools/mixin-descriptor-check.py` and `tools/mixin-handler-check.py` against each version after a port (LESSONS-GUI).
-- A mixin class that is not listed in its `*.mixins.json` compiles, ships in the jar and never runs - no warning at all.
-  On 2026-10-26 a Bash heredoc that should have added six FrameStats mixins to `killer560smod-lagdisplay.mixins.json` aborted
-  on a quoting error and the jar measured nothing; testkit 1026-stutter-hooks caught it by asserting every hook fired.
-  After adding a mixin, check the json in the built jar (`unzip -p <jar> <name>.mixins.json`) or a test that it acted.
-- A class placed inside a mixin-owned package throws `IllegalClassLoadError` and crashes the game at boot.
-  Keep helper classes out of `mixin` packages.
-- **No `@Redirect`, `@Overwrite` or `@ModifyConstant` in this mod unless nothing else can do it** (killer560, 2026-11-01:
-  "fix this cause it seems like a universal problem"). They take a call, method or constant for ONE mod: a second mod
-  hooking the same spot either loses silently or, if its injector is require 1, crashes the game at boot. Use the forms
-  that chain: `@WrapOperation` (call `original.call(...)` to keep the vanilla call), `@ModifyExpressionValue` (a call's
-  result or a CONSTANT), `@ModifyReturnValue`, `@WrapWithCondition`, plain `@Inject`. Seen: Lunar Client's own chat mod
-  `@Redirect`s ChatScreen's input-bar fill (require 1, priority 200) and our Peek Chat redirect won, so Lunar aborted with
-  "Lunar Client Startup Error" (`Critical injection failure: Redirector lunar$chatMod$render$fill`; reproduced on Lunar 26.3
-  as Guest, fixed by WrapOperation); Skysoft, Unlimited Chat History and Better Chat History hook ChatComponent's history
-  constant 100 with require-1 `@ModifyConstant`s, and our `@ModifyConstant` there was the "chat history crash" (the
-  first-applied one takes the constant, the later one is skipped: "@ModifyConstant conflict. Skipping ..."). All 32 were
-  converted on branch mixincompat-1101. Lunar specifics: real Fabric Loader 0.19.5 inside Lunar's "Genesis/Ichor" launcher;
-  `tools/lunar/lunar-mixin-scan.py` + `lunar-redirect-collide.py` list Lunar's redirects that collide with ours (jars in
-  `%USERPROFILE%\.lunarclient\offline\multiver`). Lunar game log: `%USERPROFILE%\.lunarclient\profiles\<major>\logs\latest.log`
-  and `ichor-boot.log`; launcher log `%USERPROFILE%\.lunarclient\logs\launcher\main.log`. Lunar boots as Guest (no login).
-- A rule over OUTGOING commands needs two hooks: Fabric's `ClientSendMessageEvents.ALLOW_COMMAND` sees only typed ones,
-  and the mod's own sends (`ServerCommands.toServer`: /f7 shortcuts, Party Commands, requeues) leave below it. Creation
-  Cooldown's /joininstance block checks in both (doc-extras-1101). Chat filtering goes through vanilla's
-  `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
-- Forwarding a self-registered client command name to the server recurses through Fabric's command API and
-  StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
-- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (or
-  `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
-  refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
-  every leap (2026-11-02). The queue spaces lines 500 ms apart and sends at once when idle (docs/LESSONS.md).
-- When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
-  feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
-  Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
-  of them and the gap only surfaced as `Post` violations in a later test.
-- Reach must be measured to the block's **box**, not its center — the center reads up to half a block
-  further and makes a module look out of range when it is not.
-- **A throw in a RAW chat listener disconnects him from Hypixel.** `ClientReceiveMessageEvents` runs on the
-  packet path, and `ClientCommonPacketListenerImpl.onPacketError` logs "Failed to handle packet, disconnecting"
-  and drops the connection. `util/ChatObserver` catches per listener; the raw events do not. On 2026-09-29 the
-  Simon Says party tracker matched `SS (\d+)/(\d+)` with unbounded digits straight into `Integer.parseInt`, so
-  ANY player typing `SS 99999999999/5` in party, guild or all chat ended his run - and that tracker is on by
-  default. Reproduced and fixed, with scenario 86 as the control: on the broken jar it disconnects with
-  "Network Protocol Error"; on the fixed one it survives. Bound every quantifier that parses another player's
-  text, and wrap the parse anyway.
-  Since 2026-11-02 (noammcrash-1102) `packetguard/PacketGuard` is the backstop: `onPacketError` skips the disconnect when
-  the root cause's first non-JDK/library frame is ours (`com.killer560.` or a `killer560smod$` mixin handler), logs each
-  site once, and lets a flood (>40 in 10 s) through; testkit 996 proves it. Only `Exception` reaches `onPacketError`
-  (`PacketProcessor$ListenerAndPacket.handle` catches nothing else, javap 26.1.2/26.2/26.3): an `Error` out of a packet
-  hook still crashes the game. That disconnect also writes a disconnection report listing every mixin on the classes in
-  the trace (ours and NoammAddons' on `ClientPacketListener`), so "the log names a killer560smod mixin" does not mean we
-  threw. NoammAddons wraps `Packet.handle` inside that same try (`MixinPacketProcessorListener`, WrapOperation) and can
-  cancel a packet before any of our hooks see it, both on the main thread (Pre event) and on netty (`channelRead0`).
-- A block scan over a room's volume is almost always a chunk-section scan in disguise. Secret Waypoints read
-  44,649 blocks for a 1x1 room (173,000 for a 1x4) every second looking for levers; asking each section's
-  palette first (`section.maybeHas(...)`, plus `hasOnlyAir()`) does the same job in 0.7% of the reads -
-  10,240 against 1,527,209 over a whole floor, verified equivalent by scenario 77 which runs BOTH algorithms
-  and requires identical results. Also hoist `isLoaded`/`getChunk` out of the y loop: they depend only on x,z.
-- An early-out that reads "not enabled AND no key bound" is not an early-out when the key has a DEFAULT
-  binding. Breaker Aura's render callback ran in every world, including the lobby, because its select key
-  defaults to semicolon. Gate on the state the feature needs (in a dungeon), not on whether it is configured.
-- **Anchor every chat pattern that gates an ACTION.** Other players' messages arrive on the same listeners as
-  the server's. An unanchored `find()` on Maxor's opening line let anyone set the boss phase for a whole run
-  (2026-09-29), and `contains("has obtained Wither Key")` let anyone make the client right-click a door. Even
-  an anchored `^(.{1,16}) completed a terminal!` is forgeable, because `[VIP] Bob: a` is sixteen characters -
-  a name group must be `[A-Za-z0-9_]{1,16}`, which no chat prefix can be.
-- Nickhider renames by WORD wherever text is drawn (`NameReplacer`), so any name added to its seen set is replaced in
-  every string on screen. `namechanger/ChatNames` (2026-11-01) feeds it names from chat (friend/guild joins, party/guild
-  chat, PMs, notices); each of its patterns is a whole anchored Hypixel line with a `[A-Za-z0-9_]{3,16}` group, because a
-  loose one would turn an ordinary word ("Party", "Maxor") into a fake name everywhere. Testkit 1101-ds-nickhider.
-- `/f7`, `/m7` and the rest are THIS MOD'S client-side shortcuts, not Hypixel commands - they expand to
-  `/joininstance catacombs_floor_seven` etc. in `CommandShortcutsFeature.Shortcut`. So automation must send the
-  `joininstance` form: `ServerCommands.toServer` deliberately sends below the client dispatcher, so it hands
-  Hypixel the literal "/f7" and nothing is queued (found 2026-09-28).
-  `/dh` and `/skyblock` ARE real Hypixel commands. Read the id off the enum rather than writing it out again.
-- An "any key stops it" guard must ignore keys while `client.screen != null`. Otherwise the Return that submits
-  the command starting the feature, and the Escape that closes the settings tab starting it, each stop it
-  immediately - which reads as "I turn it on and it auto turns off". Name the key in the stop message too; "key
-  pressed" cannot tell a walk from the feature killing itself.
-  Since 2026-11-01 (killer560) no macro stops on "any key": every macro registers with `macrostop/MacroStop` (click
-  macros: Escape or the Emergency Cancel Key; movement macros: also W/A/S/D/jump or the chat key, no screen open), which
-  owns the one raw key/mouse hook. A new macro registers there; it does not get a key mixin of its own. The Emergency
-  Cancel Key stops EVERYTHING automatic (killer560, 2026-11-01): automation with its own stop rules registers as
-  `Kind.EMERGENCY`, and anything that acts by itself is held by `MacroStop.emergencyHeld()` (checked in `ActionGate`,
-  the puzzle dispatcher, Auto Routes/AP3 starts, Auto I4). New automation must honor one of the two.
-- **A fix applied to one of a set is the thing to go looking for.** The 2026-09-30 audit found four, all of
-  the same shape: the Wither Key line was anchored and the Blood Key line beside it left on `contains()`;
-  `Floor7Tracker` and `LeverAura` got the `[A-Za-z0-9_]{1,16}` name group and `Ap3Feature`'s copy of the same
-  line kept `(.{1,16})`; three reach CONSTANTS were tightened to 4.5/3.0 and the MEASURES under them left on
-  center/feet (the javadoc describing the fault sat directly above the code still doing it); the cooldown
-  setter above. When fixing one instance, grep the sibling call sites and fix the set, and update the comment
-  that claims they match - two of these said "the same regex as X" after they had stopped being that.
-  Again 2026-11-01: the terminal Custom GUI's "hidden slots never hover" fix was never given to the Storage Overlay, so
-  a click on blank overlay space picked his Spirit Sceptre out of the hidden slot under it. Any GUI drawn over a
-  container now registers with `containercover.ContainerCover` (full screen or a per-frame panel rect); docs/LESSONS-GUI.md.
-- `RouteExecutor.stop()` is already a real cancel - it drops the step machine, `releaseKeys()` zeroes the
-  want-flags the input mixin reads, `RouteRotation.clear()` releases the camera, and every per-node buildup
-  (breaker queue, boom snapshot, swap/await state) is rebuilt by `beginAction`. BOOM and BREAKER send their
-  START and ABORT in the same tick, so nothing is left open server-side either. What it does NOT clear is
-  `stoppedByUser`/`justFinished`, and both make `AutoRoutesFeature` latch instead of arming *while the player
-  stands inside a node* - which is exactly where a map warp puts him. Clear them whenever something other than
-  the player cancels a route. Anything that fires a node on its own (the breaker re-fire) must honor `stoppedByUser`
-  too: counting it as a mere latch restarted a breaker the tick after his strafe stopped it (96-ar-breakerwait, 2026-10-12).
-- A movement key held when an Auto Routes node fires is the walk that got him there, not a takeover. The input
-  mixin used to return before installing the route's input whenever any movement key was down, so walking onto
-  an `/ar add ew start` node never got the etherwarp's sneak out and timed out (and a driven route stopped on its
-  first tick) - traced in the code 2026-10-04. `RouteExecutor.onInputTick` now overrides keys held since the route took over and treats only a
-  press after a release as "you moved" - AP3's align rule. (His sim etherwarps not firing was a different cause - the
-  sim ignored raw use packets - and is fixed by the rule below, not by a branch.)
 - Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
@@ -474,24 +301,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A run's output piped through `| tr -d '\r' > file` never ends: the Gradle daemon run-scenario starts inherits the pipe,
   so `tr` waits forever and the script never reaches its next line (2026-10-27). Redirect straight to the file instead.
   A menu case is selected with its session first: `-Scenario '200-menu-session:,2783-menu-...'`; without it 0 cases run.
-- **Fabric's `ClientPlayConnectionEvents.DISCONNECT` runs on the NETTY thread** (`Connection.channelInactive`, both
-  Fabric API versions), concurrently with the render thread's `clearLevel`, where Fabric walks every loaded chunk's
-  block-entity map. The Chunk Cache released chunks from that listener and crashed 26.2 on leaving the sim (NPE "this.wrapped
-  is null" in fastutil's iterator, about one full sim run in two). Anything a DISCONNECT listener does to the world or
-  client state goes to the render thread (fixed 2026-10-05, 3f3fa8ad). But a `client.execute` task from DISCONNECT can be
-  DROPPED: a pause-menu leave closes the channel, then `Minecraft.disconnect` begins with `dropAllTasks()` (javap 26.1.2).
-  SimWorld leaves a flag its END_CLIENT_TICK drains (5a1afa62; 97-sim-leave-build lost 5 of 5 resets to the task alone).
-- On 26.3 the world render events (AFTER_TRANSLUCENT_*) run inside an open render pass, so a first-time glyph bake from
-  `font.width` there throws and FeatureGuard disables the feature (Auto Routes, AP3, 2026-11-01). Measure world text with
-  `McRender.textWidth`, never `font.width`; no texture uploads in those events. docs/LESSONS-GUI.md has the detail.
-- 26.3's `RenderPipelines.LINES_SNIPPET` has no color target, so a mod pipeline built from it crashed the game on its first
-  draw (Secret Waypoints, 2026-11-01). Build it as `McRender.linesColorTarget(RenderPipeline.builder(LINES_SNIPPET))`.
-- A new movable HUD element draws in game only if its id is in `HudInGameRenderer.UNDRAWN_ELEMENT_IDS`; registering it only
-  lists it in the HUD editor (missed for Advanced Position, Blink and the mining HUDs; docs/LESSONS-HUD.md).
-- A spelling sweep can merge map keys: six British/American tooltip key pairs ("color", "border color", ...) became one key
-  each and the later entry silently replaced the earlier (a92e0357). After renaming text, check keyed maps for duplicates.
-  A branch can do it too: aafast-1027 added a new "arrow align/aura clicks per tick" tooltip (1-7) above the old one (1-4),
-  and the old one, later in `SettingTooltipsData`, won (2026-10-27). After a merge: `grep -o 'd\.put("[^"]*"' | sort | uniq -d`.
 - Merging branches that each edit `docs/FEATURES.md` left 11 features listed twice, each copy holding a change the other
   lacked (2026-10-24, fixed in 8dcac505). After such a merge, check FEATURES.md for a feature named twice before the Doc regen.
 - **Never open or sign into another mod's own server unless its owner is fine with it.** NoammAddons' owner asked us to
@@ -506,59 +315,15 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   embedded-key code, user paths) gates every deploy and release; CI also runs gitleaks with `.gitleaks.toml` and fails on a hit
   (a reviewed false positive goes in `.gitleaksignore` by fingerprint). Native libraries inside Jar-in-Jar jars carry their
   own builders' paths (JNA): reported as warnings only.
-- A relay challenge and a relay bearer token must never verify with the same key: they did until 2026-10-27, and
-  `GET /challenge?uuid=<anyone>` was a two-minute token for that player (relay `security-1027`, test/token-domain.test.mjs).
-- The shared record store's account must be read on the client thread: testkit 75 asked from its test thread and got
-  no account, so its seed went to `accounts/unknown` and the run list stayed empty (2026-11-01). `SharedRecords.accountId`
-  is read at client init and remembered; a testkit case that needs a record's path asks for it in `computeOnClient`.
-- The shared store was first at `%APPDATA%\killer560smod\shared`, and the combine run from the Claude desktop app wrote it
-  there - but Windows virtualizes a packaged app's writes to a NEW %APPDATA% folder into
-  `AppData\Local\Packages\Claude_*\LocalCache\Roaming`, so every tool here saw the store and the real game saw nothing:
-  /profit was empty in 26.3 Mod Only Test (2026-11-01). The store moved to `%USERPROFILE%\.killer560smod\shared` (not
-  virtualized); the mod folds a real %APPDATA% store into it once. Never put data a game must read under a new %APPDATA% folder
-  from an agent tool; existing folders (PrismLauncher) are written in place.
-- A Hypixel menu's slot layout is on the wiki's `<Menu>/UI` page, but only in the raw wikitext (the rendered page loses
-  row/column positions): `Equipment_Menu/UI` gave "Your Equipment and Stats", necklace/cloak/belt/gloves in slots
-  10/19/28/37 and armor in 11/20/29/38 (armorhud-1103). Set item ids are in each set page's raw infobox; some are written
-  lowercase (glacite_*, mineral_*, armor_of_yog_*), so match ids case-insensitively.
-- hypixelskyblock.minecraft.wiki answers `/w/<Page>?action=raw` with a "Please wait" bot-check page, but
-  `index.php?title=<Page>&action=raw` (curl) returns the wikitext, and its slayer/loot tables are structured templates
-  (2026-11-01). How Lucky Are You's drop table (`assets/killer560smod/rngtracker/drop-table.json`) is built from that by
-  `tools/rng-table/fetch.sh`; rebuild it there, never hand-edit chances. Dungeon chest odds are the `/Loot` and
-  `/Master_Mode_Loot` subpages' per-chest averages; Revenant's page has weights only (chance = weight/(token+main)).
-- How Lucky Are You never counts a dungeon chest itself: chest attempts and drops are derived from the Croesus claim log
-  (`CroesusProfitLog.allClaims`, resets ignored), so a new chest-counting hook would double count. Its own record
-  (`RecordCatalog.LUCK`, `luck.json`) holds slayer and mob kills, Kuudra / Nucleus / Superpairs claims, drop lines, dye
-  pickups, and per profile the slayer levels and slayer RNG Meters it read (luck2-1101). A claim with floor "Unknown" is
-  given the one floor its items fit (`LuckStore.inferFloor`), else counted under `chest:Unknown:<chest>` with no odds.
-- `tools/rng-table/fetch_mobs.py` gets every page using a wiki template in one request per 50 pages: `api.php?action=query&
-  generator=embeddedin&geititle=Template:Mob_Drops_Table&prop=revisions&rvprop=content&rvslots=main` (590 mob and sea
-  creature pages, 2026-11-02; api.php has no bot check either). Mob drop odds: Looting x(1+0.15L) first, then Magic Find
-  only if the looted chance is under 5% (wiki Looting and Magic Find pages); Looting never applies to slayers or pets.
-- ChatObserver drops a line equal to (or a 12+ character prefix of) one seen in the last 250 ms, so a Hypixel message that
-  opens and closes with the same ▬ bar never hands its closing bar to subscribers. How Lucky Are You's Nucleus reader also
-  ends the block 1.5 s after its header (luck2-1101, testkit 1102-luck-nucleus); any block parser keyed on a repeated
-  closing line needs the same.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",
   00-smoke fails, 2026-11-01). Leave that file out of a seed.
-- Whether the relay connects, and to which room, is decided in ONE place, `ModChatFeature.onTick`. A feature that sends or
-  reads relay `data` must be named there, or nothing connects for it: Song Tag never was, so no song was ever shared with
-  Mod Chat off and no party (fixed 2026-11-01, lobby room; testkit 2866/2867). Testing the receiver by feeding it packets
-  does not prove the socket opens.
 - A `try { ... } catch { }` around a PowerShell helper step hides a binding failure for good: the Spotify cover never showed
   because `AsStreamForRead` could not take a WinRT COM object (2026-11-01, docs/LESSONS.md). Run a helper script's step outside
   the game against a real or file-backed input before trusting it.
-- `ServerLag`/`ServerTickClock` take ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone
-  reach: on a Grim server they read jitter as stalls. Anything that must count exact server ticks uses `util.PerTickServerClock`
-  (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md). A repeating timer keeps the
-  server tick of one real event and works the rest out from it, never a counter decremented per `ServerTickClock` event:
-  Goldor's Tick drifted 1.5 s that way (f7hud-1102, `ticktimers/GoldorTick`, resynced on observed hits).
 - `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
   there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
   tracked file (2026-11-01).
-- The sim's F7 boss (`bosssim/`, docs/SIM-BOSS.md): reference mod ADM is All-Rights-Reserved - facts only, never its code
-  or its arena.bin capture.
 - GrimAC 2.3.74's EXPERIMENTAL checks (gridexp-1102; the owner's rule counts them): never two digs on one tick
   (MultiBreak - Multi Break was removed for it), a dig goes at once only when the look the server already HEARD strikes the
   block (`util/DigAim`), else the body turns and the dig goes at the head of that tick's `sendPosition` (`util/BeforeMove`;
@@ -570,122 +335,16 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Post-2.0 staging (2026-10-25): farming, mining, slayer, rift, fishing and island work lives on unpushed `staging-*` branches
   (`staging-combined` merges them). Automation is cheat-block only, default OFF. `ModPaths.settingFiles()` also lists `other/`,
   and import keeps the locked update and sharing keys (testkit 981).
-- A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
-  Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
-  client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
-  (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
-- A reference mod's feature can already be here under another name: OdinClient's "Secret Hitboxes" is this mod's Full Block
-  (Secrets folder, cheat build, testkit 62-full-block-reach / 1025-fullblock-*), though reference-mods-1018 said "no
-  equivalent" and a duplicate was half built on 2026-10-25. Grep docs/FEATURES.md for the behavior, not the name, first.
-- Menu tabs share `BaseTab.onOff`/`onOffButton` (cleanup-gui, 2026-10-25): a tab with its own `private static onOff` no longer
-  compiles ("cannot override ... in BaseTab"); three tabs written on main beside the cleanup broke the merge that way. Use BaseTab's.
-  The cleanup also dropped imports a tab no longer needed (`SettingsButtonWidget` in QuizSolverTab, `DungeonChestValuer` in
-  CroesusTab), so an older branch adding a row there fails with "cannot find symbol" after a clean text merge (batch-1026,
-  clickguards-1025). Write such rows with `onOffButton` and compile every variant after the merge.
 - Docs are split by topic since docs-condense (2026-10-25): LESSONS.md, LESSONS-AUTOMATION.md, LESSONS-GUI.md and SIM.md are
   indexes to LESSONS-{AUTOCLEAR,ROUTES,AUTOMATION-PUZZLES,DUNGEONS,HUD,MENU,MINECRAFT,PERF}.md and SIM-*.md. Add a lesson to the
   topic file; a branch that appends to an old monolith conflicts on merge.
-- Titles and subtitles have ONE hook: `terminals/mixin/TerminalQolTitleMixin` (Gui.setTitle/setSubtitle on 26.1.2, Hud on 26.2, one
-  copy per version). Terminal QoL's Hide Completion and P3 Status both run there; add to it, never a second title mixin. A
-  test reads the shown text from the private `title`/`subtitle` fields of Gui (26.1.2) / Hud (26.2) (testkit 2141).
-  The dungeon-gaps survey called subtitles unhandled because it grepped for the packet class (2026-10-25).
-- Blink's keys are read under a container menu (a terminal) since 2026-10-26; before, opening one mid-hold read as the
-  key coming up and released the hold. Rework Grim findings (banked turns, Post on dropped releases, the in-place
-  teleport conflict) are in docs/LESSONS-AUTOMATION.md, Blink section.
-- Blink logs every event as one `[Blink]` INFO line through `blink/BlinkLog` (logger `killer560smod-blink`, last 40 kept
-  for `BlinkCommands.debugLines`, the testkit's readout; /blink itself was removed 2026-11-01). A release jar (`-Prelease=true`, the GitHub builds) drops INFO, so that logger is
-  `ModLog.keptWhen(...)`: it logs in a release only while Blink's Debug Log setting is on (testkit 1026-blink-release-log).
-  His own jars (deploy-to-instances.py, built without -Prelease) always log. Stress-pass lessons (burst skipping Charge,
-  settling after a teleport, latches across a rejoin): docs/LESSONS-AUTOMATION.md, Blink section.
-- `ModPaths.config()` made the parent folder on every lookup, and most features look up from a static initializer, so
-  each boot made ~85 empty folders (cheat ones in legit instances). Since layout-fixes-1026 only a write makes a folder;
-  a new writer must create its parent, and an "Open Folder" button gets it from `ExternalOpen.path` (testkit 1026-layout-empty).
 - A failure that "fails the same on merge-train" is not proof the mod is right: of the 2026-10-26 pre-existing list, two
   were real mod bugs (Profile Viewer name box 94 px for a 96 px name; a Custom Scoreboard row with no tooltip) and the
   96-ar run turned up a third (a path arrival ranked as an etherwarp in a stack); the rest were tests left behind by the
   owner's redesigns or measuring under load. Two testkit fixes (91af48ec, 7d854287) had sat unmerged on old branches for a
   week. Report: killer560s-mod-logs/preexisting-1026-report.md.
-- Blink Charge keeps its bank through every teleport by the owner's decision (2026-10-27); do not revert. Since
-  campaign-blink-1027 a teleport's confirm waits behind the answer to the ping GrimAC sent with it (else GrimAC ignored every
-  move after it), and a shot GrimAC would not cover yet (after a teleport, during or after a hold) waits for cover on its own (~2 s after a
-  leap standing still) - the owner's choice, 2026-10-27. Wider (same day): "it should never drop blink if possible except if i release it" - Charge also survives
-  respawns, dimension changes, a configuration phase, a hold starting, the Skyblock gate flipping, screens (keys keep their
-  state under chat/pause/death/mod screens) and AP3 stopping (handed back to his Charge key with AP3's cap). Ends left: his
-  release, Hold Ticks, a disconnect, Blink switched off, a server refusal. Testkit expects the flags (runExpectingFlags,
-  `Rows.addKept`).
-- A Fairy Soul's stand sits up to 3.6 blocks from its SkyHanni graph node (NEU fairy_souls.json vs the graph), so "arrived at
-  the node" is not "in reach": Auto Fairy Souls walks to a cell the stand is in reach and sight from (doc-fairy-1101; walker
-  lessons in docs/LESSONS-AUTOMATION.md "Walking, fairy souls").
-- Sim mobs burned in daylight ("onFire, by nothing") and cleared key rooms at GO with nobody near, despite their
-  `isInvulnerableTo`; `SimMobs` refuses environmental damage in Fabric ALLOW_DAMAGE (2026-11-01, docs/SIM-SERVER.md).
 - `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
   add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
   deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
-- `DisconnectedScreen`'s constructors chain into each other, so a mixin on each of them (accounts/DisconnectedScreenMixin)
-  runs up to three times for ONE screen (testkit 4101, 2026-11-01). Anything that must act once per screen keys on the
-  screen object (`BanReportFeature.onDisconnectScreen(this, ...)`), not on the call.
-- 26.3's move-entity packet can carry a position with a zero step (`McPackets.moveEntityMoves` is only `hasPosition()`
-  there; 26.2's checks xa/ya/za). Blood Camp took those as moves and restarted trips (UI 392/552); it now drops a zero
-  `moveEntityDelta`. Any other move-packet reader must do the same.
-- The sim has NO held map during a run's countdown (`HeldMap.emulated()` is false until `SimRun` reaches GO, since doc-map-1101),
-  as Hypixel gives the map only at Mort's first line. A feature that reads `HeldMap` must cope with `available() == false` in
-  the green room; a sim test that needs the stand-in waits for `SimRun.hasStarted()` (or re-arms with `SimRun.begin` to stay pre-run).
-- Inventory Sorter clicks come from `invsort/InvSortPlanner`, which is proven minimal (docs/INVSORT-OPTIMALITY.md). After any
-  change to it, rerun `tools/invsort-optimality` (javac both files, ~5 min, every instance must print "exactly minimal"); its
-  first run found a case the hand argument had missed (a hotbar slot already holding a matching copy is a free swap pivot).
-- Five features cancel `ContainerScreen.extractBackground` at HEAD (Inventory Theme, Storage Overlay, AH/Bazaar reskins,
-  Spirit Leap), so nothing may read per-frame state from a hook there: the Terminal Solver did, and with Inventory Theme on
-  no terminal was ever tracked (2026-11-01, doc-terms-1101). Use the HEAD of `Screen.extractRenderStateWithTooltipAndSubtitles`.
-- The Modrinth App starts the game through `com.modrinth.theseus.MinecraftLaunch` (so `sun.java.command` names it) and keeps
-  its signed-in accounts in `%APPDATA%\ModrinthApp\app.db`, SQLite in WAL mode: table `minecraft_users` (uuid, active,
-  username, access_token, refresh_token, expires in Unix seconds), recent rows often only in `app.db-wal`. Its refresh token
-  is bound to the app's Xbox device key, so the mod uses the app's current token (`accounts/core/LauncherAccounts`,
-  `SqliteReader`, read only; 2026-11-01). Inspect a COPY of app.db, never the live file, and never print a token.
-- The first-launch tour (`intro/`, 2026-11-01) opens over the title screen once per instance (fresh or updated; `seen` in killer560smod-intro.json, saved as it opens); in a client gametest
-  run it never opens unless `-Dkiller560.test.intro=show` (docs/TESTING-HOOKS.md), so title-screen cases are not
-  interrupted. A GUI picture-in-picture (`g.skin`, entity, item models) ignores the pose: transform its box yourself
-  under Auto Scale (docs/LESSONS-GUI.md).
-- Etherwarp passability: carpets are SOLID in both tables (EtherwarpOverlayFeature, TeleportUtils) and in the testkit's
-  HxAbilities (killer560, 2026-11-02: the carpet trouble was only on the sim; doc-routes 419fd24c's passable carpets were
-  reverted in 65199074 and stay out). Change the tables together or the overlay, the sim and Auto Routes/ZPEW disagree
-  (LESSONS-AUTOMATION). The sim's etherwarp must land where they predict: testkit 1102-sim-ew-carpet.
-  Trap-room Auto Routes rules are tested without a trap capture through `AutoTrap.testTrapRoom` (testkit 62-argrim-1101-trap*).
-- A cheat setting goes under the legit ones even when the owner asks for a legit block "at the bottom" (testkit 512 checks
-  every tab): the Etherwarp tab puts Works For last among legit rows and its cheat rows under it (2026-11-01).
-- Anything that BUYS sizes by Hypixel's stacking, never the vanilla material's (2026-11-01: Kaleidoscopic Mineral is PAPER,
-  stacks to 1, and the Bazaar Flipper typed 254): `bazaarflip/BazaarStackSizes` (catalog `unstackable`/`has_uuid`, reforge
-  stones, books, the live "Fill my inventory!"); docs/LESSONS.md "Bazaar and Croesus".
-- A sim change to the world's SHAPE can silently blind a scanner: the 2026-10-12 seam fill walled the door's middle seam
-  column up to the roofs, so every QUOI-rule door scanner (top block 73/74/81/82) found no doors in the sim, and the 538/678
-  failures were later blamed on 26.3 (doors263-1101: they had failed on 26.1.2 since 2026-10-15). Before blaming a port,
-  find the last PASS of the case in killer560s-mod-logs and bisect from it. docs/SIM-DOORS.md has the seam rule.
-- A Brigadier node with children and no `.executes` answers the bare command with "Unknown or incomplete command", which
-  reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
-  word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
-- Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
-  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
-  What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
-  State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
-  the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own
-  keybind already"); do not add menu rows for them. Testkit 1101-cmdclean-gone fails if any command comes back.
-- A SkyBlock menu button that "looks different" after a version move is usually vanilla, not Hypixel: 26.3 redrew only
-  `map.png`/`filled_map.png` among item textures (Bazaar Create Sell Offer became a folded map); Hypixel's pack has no menu
-  models. Pack Disabler's table refresh (NEU snapshots, coverage report, skin check) is in docs/LESSONS.md, Items (2026-11-03).
-
-- Inventory Sorter locks inventory index 8 (bottom-right hotbar: Skyblock Menu, map or arrows; killer560, 2026-11-03) via `InventoryLayout.LOCKED_SLOT`: `isFree(8)` is always true and a layout never stores it. A testkit sort/fetch case must put an item in slot 8 first, because a vanilla shift-click from a storage page lands in an EMPTY slot 8 first and the sorter now leaves it there. A storage sort within 4 s of a world change waits (`InventorySorterExecutor.LOBBY_WAIT_MS`, his measurement; no Hypixel message for it was found in his logs).
-- Fast Leap on a cooldown (killer560, 2026-11-03: "freezes my movement even though it cant even open the menu"): Hypixel answers a leap item used on cooldown with "This ability is on cooldown for Ns." and opens no menu, and the leap used to hold movement for the whole Leap Timeout (2 s) waiting for it. `LeapManager.onChat` now ends the leap on that line (and takes the cooldown from it), "You have teleported to X!" starts the cooldown for a leap done by hand too, and the menu wait is capped at `menuWaitCapTicks()` (2 x ping + 6 ticks, min 8, max Leap Timeout). Storm's Purple is NoammAddons' PY: 62 ticks from the lightning line, once. Diorite Glass swaps in `ClientLevel.setServerVerifiedBlockState` (mixin) as well as by rescan. Tick Timers' HUD box is center-anchored through `layoutPosition`/`storeEditorPosition` (config `hudCenterX`).
-- Mining (2026-11-03, mining2-1103): Commission Route's Etherwarp/AOTE modes search the walking graph plus warp edges (one Dijkstra,
-  `CommissionRoute.plan`); an AOTE always travels its full 8 blocks along the look unless a block stops it, so its edge goes to the
-  graph node nearest where the aim LANDS, never to the aimed node (aiming at a node 6 blocks away overshoots it). Mithril As Stone judges
-  a block by its own area only: a node-less block takes the nearest area node within 64, and the player's area is used only while the map
-  is not loaded. Carpet Highlighter retextures through the same `SectionCompiler` hook as Mithril As Stone (`MiningHighlights.carpetReplace`),
-  marking just the changed sections dirty; it draws no box any more. Mining Spread blocks are told from other changes by the ore snapshot
-  taken around each newly dug block (`CommissionProgress.NEIGHBOURS`).
-- Server-time countdowns (timerlag-1103, killer560 2026-11-03: "all timers seem to go off sometimes"): anything Hypixel runs on SERVER ticks (Tick Timers' Maxor/Necron/Goldor Start, dragon spawn, King Relics, Maxor crystal backstop, Quiz waits, mask cooldowns, Powder Ghast minute, Terracotta, Spirit Bear, Livid) counts on `util/PerTickServerClock`: `subscribe(Runnable)` runs once per server tick (a stall runs it zero times, a catch-up burst several), `new PerTickServerClock.Step().take()` gives the ticks since the last call for a loop that already runs per client tick (call it every tick, idle or not). `ServerTickClock` counts CLIENT ticks in any second the server sent under 15 pings, so a laggy server ran those timers ahead; it stays only for lag MEASURING (LagDisplay, SplitLagClock, ServerLag, InfoReplies). Wall clock stays right for ability cooldowns resynced from the tab, Split Timers (with their lagless/Lag Lost lines), personal stopwatches (Maxor place time, terminal time) and automation pacing. Testkit 1103-logic-timer-lag.
-- A testkit `hx` case runs only through its session filter, `100-hx-session:,2843-,2852-`; a bare `2843-hx-spotify-f5` in the scenario list runs nothing and the gate still prints "N passed" from the other entries (2026-11-03, the first f5lyrics gate never ran the Spotify cases). Check the case names appear in `build/testkit-report/summary.md`.
-- World export (2026-11-03, `worldexport/`, docs/SIM.md "World export"): `/k560worldexport` exists only in cheat DEV builds; its
-  output is a private copy of a server's world and never goes in a jar, a commit or an upload. `compat/McChunkExport` has one
-  copy per MC version (SerializableChunkData's constructor differs). Testkit cases `1103-worldexport-*`.
-- Tick timers and split timers, the references' way (timers2-1103, killer560 2026-11-03: "they count down then randomly jump back up"): Odin (`ConnectionMixin.channelRead0`) and NoammAddons (`MixinConnection.channelRead0`) post one server tick per `ClientboundPingPacket` with id != 0 and nothing else; a countdown is set by a chat line and decremented once per tick, never re-anchored (Odin `TickTimers`: Goldor 60, Start 64, Pad 20, PY 55; Noamm `TickTimers.kt`: PY 62). Their splits keep wall time AND a tick count side by side (Odin `SplitsManager`: `System.currentTimeMillis` + `tickCounter` reset at "Starting in 1 second."; Noamm `DualTime(ticks, real)`, lag lost = real - ticks*50 shown from 1 s). Ours jumped back up because `PerTickServerClock` DROPPED trust after two failing windows (a lag spike), so the clock ran on client ticks through the stall and the Goldor hit then re-anchored the line upward; also a backwards set-time correction lowered the untrusted clock, and every Goldor hit moved the anchor by its observation noise. Now on hypixel.net trust, once earned, is sticky (never granted by the address alone: the testkit labels Grim connections mc.hypixel.net, and 1016-hx-stale-split-timers before 1102-hx-goldor-tick failed that way; elsewhere two failing windows still end it, so Grim's ~15 pings a second never counts: a first all-servers sticky version failed 1102-hx-goldor-tick), the clock never goes down, a locked Goldor hit within 1 tick moves nothing, and `SplitLagClock` is `wall - 50 ms * server ticks` on `PerTickServerClock`, so lagless = tick time and only climbs. Testkit 1103-logic-timer-monotonic.
