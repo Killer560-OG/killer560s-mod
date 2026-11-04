@@ -35,15 +35,11 @@ public final class CrushTimer {
 
     /** Outlines the pads while you're in P2 (purple only unless "Show All Pads" is on). */
     static void renderPads(LevelRenderContext context) {
-        if (currentPhase() != Floor7Tracker.Phase.P2) {
-            return;
-        }
+        if (currentPhase() != Floor7Tracker.Phase.P2) return;
         TickTimersConfig cfg = TickTimersConfig.getInstance();
         float[] c = WorldRenderUtils.argbToFloats(cfg.getCrushPadColor());
         WorldRenderUtils.renderOutlineBox(context, PURPLE_PAD, c[0], c[1], c[2], 1f, 2f);
-        if (!cfg.isCrushAllPads()) {
-            return;
-        }
+        if (!cfg.isCrushAllPads()) return;
         WorldRenderUtils.renderOutlineBox(context, GREEN_PAD, c[0], c[1], c[2], 0.7f, 2f);
         WorldRenderUtils.renderOutlineBox(context, YELLOW_PAD, c[0], c[1], c[2], 0.7f, 2f);
     }

@@ -168,9 +168,7 @@ public final class TickTimersConfig {
      *  @return true if the old file existed and was read (the caller then persists the result immediately). */
     private boolean migrateFromGoldorFrenzy() {
         JsonObject o = read(OLD_GOLDOR_FRENZY_PATH);
-        if (o == null) {
-            return false;
-        }
+        if (o == null) return false;
         boolean oldEnabled = ConfigJson.getBool(o, "enabled", false);
         enabled = enabled || oldEnabled;
         goldorTimer = goldorTimer || oldEnabled;
@@ -203,9 +201,7 @@ public final class TickTimersConfig {
      *  @return true if the old file existed and was read (the caller then persists the result immediately). */
     private boolean migrateFromF7SpotsCrush() {
         JsonObject o = read(OLD_F7SPOTS_PATH);
-        if (o == null) {
-            return false;
-        }
+        if (o == null) return false;
         // Since 2026-11-02 only the pad outlines and the pad line (now part of the Storm line) are carried over.
         crushPadHighlight = ConfigJson.getBool(o, "crushPadHighlight", crushPadHighlight);
         crushAllPads = ConfigJson.getBool(o, "crushAllPads", crushAllPads);
@@ -218,9 +214,7 @@ public final class TickTimersConfig {
 
     private static JsonObject read(Path path) {
         try {
-            if (!Files.exists(path)) {
-                return null;
-            }
+            if (!Files.exists(path)) return null;
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
             LOGGER.warn("[TickTimers] Failed to read {}, skipping migration", path.getFileName(), e);

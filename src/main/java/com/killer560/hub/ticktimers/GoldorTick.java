@@ -141,9 +141,7 @@ public final class GoldorTick {
 
     /** Once per clock tick: one log line on every tick the line reads 0 (the predicted hit). */
     static synchronized void serverTick() {
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         long t = now();
         if (remaining() == 0 && t != lastLoggedZero) {
             lastLoggedZero = t;
@@ -179,12 +177,8 @@ public final class GoldorTick {
     static synchronized void onHit(long t, boolean strong, String why) { onHit(t, strong ? Kind.MULTI : Kind.SELF, why); }
 
     static synchronized void onHit(long t, Kind kind, String why) {
-        if (!active) {
-            return;
-        }
-        if (lastAccepted != Long.MIN_VALUE && t - lastAccepted >= 0 && t - lastAccepted <= DEBOUNCE) {
-            return;
-        }
+        if (!active) return;
+        if (lastAccepted != Long.MIN_VALUE && t - lastAccepted >= 0 && t - lastAccepted <= DEBOUNCE) return;
         int off = offset(t);
         OFFSETS_AT_HITS.add(off);
         if (OFFSETS_AT_HITS.size() > 32) {
@@ -236,9 +230,7 @@ public final class GoldorTick {
     }
 
     private static boolean inPhase(long gap) {
-        if (gap < PERIOD - TRUSTED_PAIR) {
-            return false;
-        }
+        if (gap < PERIOD - TRUSTED_PAIR) return false;
         return Math.floorMod(gap + TRUSTED_PAIR, (long) PERIOD) <= 2L * TRUSTED_PAIR;
     }
 
@@ -289,9 +281,7 @@ public final class GoldorTick {
         lastHealth = h;
         int others = 0;
         for (AbstractClientPlayer p : client.level.players()) {
-            if (p == client.player) {
-                continue;
-            }
+            if (p == client.player) continue;
             Integer prev = HURT.put(p.getId(), p.hurtTime);
             if (prev != null && p.hurtTime > prev) {
                 others++;
