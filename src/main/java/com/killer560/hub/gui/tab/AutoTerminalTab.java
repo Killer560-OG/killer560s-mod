@@ -41,12 +41,8 @@ public class AutoTerminalTab extends BaseTab {
         int y = contentY;
 
         // Ban-risk warning already covered by the "Auto Terminals" tooltip on the toggle right below.
-        widgets.add(SettingsButtonWidget.builder(autoEnabledText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setAutoTerminalsEnabled(!cfg.isAutoTerminalsEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Auto Terminals", () -> cfg().isAutoTerminalsEnabled(), v -> cfg().setAutoTerminalsEnabled(v), () -> cfg().save(),
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         // Auto Terminals' own section collapses when its master toggle is off, but everything below it
@@ -103,52 +99,28 @@ public class AutoTerminalTab extends BaseTab {
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));
             y += 16;
 
-            widgets.add(SettingsButtonWidget.builder(autoPanesText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoPanesEnabled(!cfg.isAutoPanesEnabled());
-                        cfg.save();
-                        btn.setMessage(autoPanesText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Panes", () -> cfg().isAutoPanesEnabled(), v -> cfg().setAutoPanesEnabled(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 24;
 
-            widgets.add(SettingsButtonWidget.builder(autoRubixText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoRubixEnabled(!cfg.isAutoRubixEnabled());
-                        cfg.save();
-                        btn.setMessage(autoRubixText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Rubix", () -> cfg().isAutoRubixEnabled(), v -> cfg().setAutoRubixEnabled(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 24;
 
-            widgets.add(SettingsButtonWidget.builder(autoNumbersText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoNumbersEnabled(!cfg.isAutoNumbersEnabled());
-                        cfg.save();
-                        btn.setMessage(autoNumbersText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Numbers", () -> cfg().isAutoNumbersEnabled(), v -> cfg().setAutoNumbersEnabled(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 24;
 
-            widgets.add(SettingsButtonWidget.builder(autoStartsWithText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoStartsWithEnabled(!cfg.isAutoStartsWithEnabled());
-                        cfg.save();
-                        btn.setMessage(autoStartsWithText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Starts With", () -> cfg().isAutoStartsWithEnabled(), v -> cfg().setAutoStartsWithEnabled(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 24;
 
-            widgets.add(SettingsButtonWidget.builder(autoSelectText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoSelectEnabled(!cfg.isAutoSelectEnabled());
-                        cfg.save();
-                        btn.setMessage(autoSelectText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Select", () -> cfg().isAutoSelectEnabled(), v -> cfg().setAutoSelectEnabled(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 24;
 
-            widgets.add(SettingsButtonWidget.builder(autoMelodyText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setAutoMelodyEnabled(!cfg.isAutoMelodyEnabled());
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Auto Melody", () -> cfg().isAutoMelodyEnabled(), v -> cfg().setAutoMelodyEnabled(v), () -> cfg().save(),
+                    requestRebuild, contentX, y, 220, 20));
             y += 30;
 
             int half = (contentWidth - 8) / 2;
@@ -191,12 +163,8 @@ public class AutoTerminalTab extends BaseTab {
                 y += 26;
             }
 
-            widgets.add(SettingsButtonWidget.builder(blockInputText(), btn -> {
-                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                        cfg.setBlockInputWhileAutoClicking(!cfg.isBlockInputWhileAutoClicking());
-                        cfg.save();
-                        btn.setMessage(blockInputText());
-                    }).bounds(contentX, y, 220, 20).build());
+            widgets.add(onOffButton("Block Input While Auto-Clicking", () -> cfg().isBlockInputWhileAutoClicking(), v -> cfg().setBlockInputWhileAutoClicking(v), () -> cfg().save(),
+                    null, contentX, y, 220, 20));
             y += 26;
 
             if (TerminalSolverConfig.getInstance().isAutoMelodyEnabled()) {
@@ -245,12 +213,8 @@ public class AutoTerminalTab extends BaseTab {
         y += 16;
         // Description already covered by the "Hover Terminals" tooltip.
 
-        widgets.add(SettingsButtonWidget.builder(hoverEnabledText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setHoverTerminalsEnabled(!cfg.isHoverTerminalsEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Hover Terminals", () -> cfg().isHoverTerminalsEnabledRaw(), v -> cfg().setHoverTerminalsEnabled(v), () -> cfg().save(),
+                requestRebuild, contentX, y, 220, 20));
         y += 26;
 
         if (TerminalSolverConfig.getInstance().isHoverTerminalsEnabledRaw()) {
@@ -314,44 +278,16 @@ public class AutoTerminalTab extends BaseTab {
         });
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(hoverMelodyText(), btn -> {
-                    TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-                    cfg.setHoverMelodyEnabled(!cfg.isHoverMelodyEnabled());
-                    cfg.save();
-                    btn.setMessage(hoverMelodyText());
-                }).bounds(contentX, y, 220, 20).build());
+        widgets.add(onOffButton("Hover Melody", () -> cfg().isHoverMelodyEnabled(), v -> cfg().setHoverMelodyEnabled(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         y += 24;
 
         // Already covered by the "Hover Melody" tooltip.
         return y;
     }
 
-    private static Component autoEnabledText() {
-        return Component.literal("Auto Terminals: " + (TerminalSolverConfig.getInstance().isAutoTerminalsEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoPanesText() {
-        return Component.literal("Auto Panes: " + (TerminalSolverConfig.getInstance().isAutoPanesEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoRubixText() {
-        return Component.literal("Auto Rubix: " + (TerminalSolverConfig.getInstance().isAutoRubixEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoNumbersText() {
-        return Component.literal("Auto Numbers: " + (TerminalSolverConfig.getInstance().isAutoNumbersEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoStartsWithText() {
-        return Component.literal("Auto Starts With: " + (TerminalSolverConfig.getInstance().isAutoStartsWithEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoSelectText() {
-        return Component.literal("Auto Select: " + (TerminalSolverConfig.getInstance().isAutoSelectEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component autoMelodyText() {
-        return Component.literal("Auto Melody: " + (TerminalSolverConfig.getInstance().isAutoMelodyEnabled() ? "§aON" : "§cOFF"));
+    private static TerminalSolverConfig cfg() {
+        return TerminalSolverConfig.getInstance();
     }
 
     private static Component minDelayText() {
@@ -362,17 +298,9 @@ public class AutoTerminalTab extends BaseTab {
         return Component.literal("Max Delay: " + TerminalSolverConfig.getInstance().getAutoClickMaxDelayMs() + "ms");
     }
 
-    private static Component blockInputText() {
-        return Component.literal("Block Input While Auto-Clicking: " + (TerminalSolverConfig.getInstance().isBlockInputWhileAutoClicking() ? "§aON" : "§cOFF"));
-    }
-
     private static Component melodyLookaheadText() {
         int extra = TerminalSolverConfig.getInstance().getMelodyLookaheadClicks();
         return Component.literal("Melody Lookahead: " + extra + " (clicks " + (extra + 1) + ")");
-    }
-
-    private static Component hoverEnabledText() {
-        return Component.literal("Hover Terminals: " + (TerminalSolverConfig.getInstance().isHoverTerminalsEnabledRaw() ? "§aON" : "§cOFF"));
     }
 
     private static Component hoverDelayText() {
@@ -382,10 +310,6 @@ public class AutoTerminalTab extends BaseTab {
     private static Component hoverJitterText() {
         int jitter = TerminalSolverConfig.getInstance().getHoverJitterMs();
         return Component.literal("Hover Jitter: " + (jitter == 0 ? "Off" : "+0-" + jitter + "ms"));
-    }
-
-    private static Component hoverMelodyText() {
-        return Component.literal("Hover Melody: " + (TerminalSolverConfig.getInstance().isHoverMelodyEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component melodySkipModeText() {
