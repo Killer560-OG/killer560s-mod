@@ -94,6 +94,13 @@ public final class ChunkCacheStore {
         return all;
     }
 
+    /** Copies every cached chunk into {@code out} by packed position (world export). Does not touch LRU order. */
+    public synchronized void snapshotInto(java.util.Map<Long, LevelChunk> out) {
+        for (it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry<Entry> e : entries.long2ObjectEntrySet()) {
+            out.put(e.getLongKey(), e.getValue().chunk());
+        }
+    }
+
     public synchronized int size() {
         return entries.size();
     }
