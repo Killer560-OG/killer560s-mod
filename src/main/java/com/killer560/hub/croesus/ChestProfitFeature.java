@@ -312,7 +312,7 @@ public final class ChestProfitFeature {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) -> {
             try {
                 render(containerScreen, graphics);
             } catch (Exception e) {

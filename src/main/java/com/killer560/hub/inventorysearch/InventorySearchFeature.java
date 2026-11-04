@@ -202,7 +202,7 @@ public final class InventorySearchFeature {
             return true;
         });
 
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) ->
                 render(containerScreen, graphics));
     }
 

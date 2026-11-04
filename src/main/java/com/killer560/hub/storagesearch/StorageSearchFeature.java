@@ -475,7 +475,7 @@ public final class StorageSearchFeature {
             return;
         }
         long shownAt = System.currentTimeMillis();
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) -> {
             if (System.currentTimeMillis() - shownAt < HIGHLIGHT_DURATION_MS) {
                 drawSlotHighlight(container, graphics, target);
             }
