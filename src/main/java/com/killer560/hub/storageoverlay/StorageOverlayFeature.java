@@ -96,9 +96,7 @@ public final class StorageOverlayFeature {
     private StorageOverlayFeature() {
     }
 
-    public static void setSearchOpener(Runnable opener) {
-        searchOpener = opener;
-    }
+    public static void setSearchOpener(Runnable opener) { searchOpener = opener; }
 
     /**
      * Points the grid at one cached slot and scrolls to it - killer560 (2026-09-21): "when it opens my storage
@@ -121,9 +119,7 @@ public final class StorageOverlayFeature {
     }
 
     /** Narrows the grid to one storage (null clears it). */
-    public static void setFocus(String key) {
-        focusKey = key;
-    }
+    public static void setFocus(String key) { focusKey = key; }
 
     public static void register() {
         // Every real slot of a storage page or the overview is hidden under the overlay: blank overlay space must not
@@ -132,14 +128,10 @@ public final class StorageOverlayFeature {
                 && s instanceof AbstractContainerScreen<?> && shouldHideVanilla(s.getTitle()));
         HudElementRegistry.register(new HudElement() {
             @Override
-            public String id() {
-                return ELEMENT_ID;
-            }
+            public String id() { return ELEMENT_ID; }
 
             @Override
-            public String displayName() {
-                return "Storage Overlay";
-            }
+            public String displayName() { return "Storage Overlay"; }
 
             // Real mistake found and fixed (2026-09-08): every earlier attempt here was moving the
             // WRONG element. killer560's actual, original request was "make the menu start at the top
@@ -171,9 +163,7 @@ public final class StorageOverlayFeature {
             }
 
             @Override
-            public int defaultY() {
-                return 20;
-            }
+            public int defaultY() { return 20; }
 
             // Third time (2026-10-07, "my storage overlay isn't centered again"): his HUD config held a SAVED
             // storage_overlay position {x: 0, y: 20}, written by the HUD editor at 20:26 that day. A saved position
@@ -1052,9 +1042,7 @@ public final class StorageOverlayFeature {
 
     /** The relocated "Inventory" panel's LOCAL (pre-scale) height - always 4 rows (36 slots), styled
      *  identically to every other panel in the grid. */
-    private static int inventoryPanelHeight() {
-        return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6;
-    }
+    private static int inventoryPanelHeight() { return 4 * SLOT_SIZE + Minecraft.getInstance().font.lineHeight + 6; }
 
     /** The relocated "Inventory" panel's real on-screen top Y, AFTER scale - per killer560's "move the
      *  inventory portion all the way to the bottom" request (2026-09-08), pinned to the bottom of the
@@ -1279,9 +1267,7 @@ public final class StorageOverlayFeature {
         renamingScreen = null;
     }
 
-    public static boolean isRenamePending() {
-        return renamingKey != null;
-    }
+    public static boolean isRenamePending() { return renamingKey != null; }
 
     /** Manually forward a key press to the active rename box - real bug found and fixed (2026-09-08),
      *  per killer560's report that typing a movement key (e.g. "w") while renaming also made him walk.
@@ -1367,9 +1353,7 @@ public final class StorageOverlayFeature {
         return scale > 0f ? scale : StorageOverlayConfig.getInstance().getScale();
     }
 
-    private static int columnsWidthLocal(int columns) {
-        return PANEL_WIDTH * columns + PADDING * (columns - 1);
-    }
+    private static int columnsWidthLocal(int columns) { return PANEL_WIDTH * columns + PADDING * (columns - 1); }
 
     /**
      * killer560's configured column count, reduced until the grid actually fits the screen it is drawn
@@ -1405,9 +1389,7 @@ public final class StorageOverlayFeature {
      *  (2026-09-08), shared by {@code width()}, the viewport calculation, and {@link #layoutPanels} so
      *  all three always agree (and, since 2026-09-30, so all three drop the same column when the
      *  configured count does not fit - see {@link #effectiveColumns()}). */
-    private static int gridWidthLocal() {
-        return columnsWidthLocal(effectiveColumns());
-    }
+    private static int gridWidthLocal() { return columnsWidthLocal(effectiveColumns()); }
 
     /** Lays out every known storage into the grid (column count from
      *  {@link StorageOverlayConfig#getColumns()}), top to bottom - pure layout math, no drawing, so it
@@ -1704,9 +1686,7 @@ public final class StorageOverlayFeature {
     /** Composite cache key: account UUID + SkyBlock profile + this storage's own local id - see the
      *  class doc on {@link StorageOverlayCache} for why embedding both directly in the key is what
      *  actually guarantees no cross-account/cross-profile leakage. */
-    private static String storageKey(String localId) {
-        return accountProfilePrefix() + "|" + localId;
-    }
+    private static String storageKey(String localId) { return accountProfilePrefix() + "|" + localId; }
 
     /** The account+profile portion of {@link #storageKey} alone, for listing/renaming just the
      *  current account/profile's own storages in the settings tab. */

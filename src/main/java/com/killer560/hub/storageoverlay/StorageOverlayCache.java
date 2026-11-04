@@ -166,9 +166,7 @@ public final class StorageOverlayCache {
 
     /** Bumped by every change to what {@link #knownKeysFor} / {@link #get} return, so a caller can keep what it built
      *  from them until this number moves. */
-    public int version() {
-        return version;
-    }
+    public int version() { return version; }
 
     /** Registers a storage as known to exist (a real icon on the "Storage" overview screen) without
      *  real contents yet - a no-op if we already have real contents for this key, or if it was
@@ -304,9 +302,7 @@ public final class StorageOverlayCache {
 
     /** Whether this key has real logged contents (as opposed to only being known-to-exist via the
      *  overview screen). */
-    public boolean hasContents(String key) {
-        return encoded.containsKey(key);
-    }
+    public boolean hasContents(String key) { return encoded.containsKey(key); }
 
     private static RegistryAccess registryAccess() {
         Minecraft client = Minecraft.getInstance();

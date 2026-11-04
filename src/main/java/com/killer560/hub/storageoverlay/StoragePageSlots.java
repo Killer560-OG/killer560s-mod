@@ -95,17 +95,11 @@ public final class StoragePageSlots {
         return cap(sb.toString());
     }
 
-    private static String cap(String s) {
-        return s.length() > MAX_TEXT ? s.substring(0, MAX_TEXT) : s;
-    }
+    private static String cap(String s) { return s.length() > MAX_TEXT ? s.substring(0, MAX_TEXT) : s; }
 
     /** Overview slot of Ender Chest page {@code page} (1-9): slots 9-17. */
-    public static int enderChestSlot(int page) {
-        return 8 + page;
-    }
+    public static int enderChestSlot(int page) { return 8 + page; }
 
     /** Overview slot of backpack {@code n} (1-18): slots 27-44. */
-    public static int backpackSlot(int n) {
-        return 26 + n;
-    }
+    public static int backpackSlot(int n) { return 26 + n; }
 }

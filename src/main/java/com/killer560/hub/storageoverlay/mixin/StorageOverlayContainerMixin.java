@@ -21,9 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractContainerScreen.class)
 public abstract class StorageOverlayContainerMixin extends Screen {
 
-    protected StorageOverlayContainerMixin(Component title) {
-        super(title);
-    }
+    protected StorageOverlayContainerMixin(Component title) { super(title); }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void killer560smod$renderStorageOverlay(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
