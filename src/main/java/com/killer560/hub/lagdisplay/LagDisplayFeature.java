@@ -226,11 +226,7 @@ public final class LagDisplayFeature {
         public int width() {
             // The widest drawn line (it was a fixed 110 around about 45 units of text).
             Font font = Minecraft.getInstance().font;
-            int w = 1;
-            for (Line line : lines()) {
-                w = Math.max(w, font.width(line.text()));
-            }
-            return w;
+            return lines().stream().mapToInt(line -> font.width(line.text())).max().orElse(1);
         }
 
         @Override
@@ -378,11 +374,7 @@ public final class LagDisplayFeature {
 
         /** The lines as drawn, for the testkit (render thread). */
         public static List<String> currentLines() {
-            List<String> out = new ArrayList<>();
-            for (Line l : lines()) {
-                out.add(l.text());
-            }
-            return out;
+            return lines().stream().map(Line::text).toList();
         }
 
         private static int fpsColor(int fps) {
