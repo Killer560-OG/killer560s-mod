@@ -1,6 +1,5 @@
 package com.killer560.hub.banreport;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -106,7 +105,6 @@ public final class BanReportFeature {
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
     private static int tick;
 
-    // ---- test hooks --------------------------------------------------------------------------------------------------
     private static final List<String> ATTEMPTS = new ArrayList<>();
     private static final List<String> DECISIONS = new ArrayList<>();
     private static volatile String lastResult = "";
@@ -243,8 +241,6 @@ public final class BanReportFeature {
             DECISIONS.add(what);
         }
     }
-
-    // ---- the report ------------------------------------------------------------------------------------------------
 
     static JsonObject buildPayload(BanDetector.Ban ban, String key, String selfName, String selfUuid, String kind) {
         Set<String> names = otherNames(selfName);
@@ -433,8 +429,6 @@ public final class BanReportFeature {
         return String.join("\n", out);
     }
 
-    // ---- sending ---------------------------------------------------------------------------------------------------
-
     private static void send(String key, String body) {
         String base = RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL);
         if (!RelayEndpoint.isUsable(base)) {
@@ -497,8 +491,6 @@ public final class BanReportFeature {
         LOGGER.info("[BanReport] relay answered {}", lastResult);
     }
 
-    // ---- test hooks ------------------------------------------------------------------------------------------------
-
     /** Test hook: every report body built (before the network), oldest first. */
     public static List<String> attemptsForTest() {
         synchronized (ATTEMPTS) {
@@ -511,10 +503,6 @@ public final class BanReportFeature {
         synchronized (DECISIONS) {
             return List.copyOf(DECISIONS);
         }
-    }
-
-    public static String lastResultForTest() {
-        return lastResult;
     }
 
     /** Test hook: forget attempts, decisions, history, names seen and the last connection. */

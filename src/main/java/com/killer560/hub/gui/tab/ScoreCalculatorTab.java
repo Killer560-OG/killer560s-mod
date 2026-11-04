@@ -12,7 +12,6 @@ import com.killer560.hub.scorecalc.ScoreCalculatorConfig;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -72,7 +71,6 @@ public class ScoreCalculatorTab extends BaseTab {
             return widgets;
         }
 
-        // ---- HUD ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "HUD", false));
         y += 16;
         widgets.add(toggle("Show Breakdown", cfg.isShowBreakdown(), v -> cfg.setShowBreakdown(v), cfg, contentX, y, colW));
@@ -94,7 +92,6 @@ public class ScoreCalculatorTab extends BaseTab {
         widgets.add(colorButton("Bad Color", cfg::getBadColor, cfg::setBadColor, ModChat.BAD, cfg, contentX, y, colW));
         y += 28;
 
-        // ---- Formula ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Formula", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(paulLabel(cfg), (btn, dir) -> {
@@ -119,7 +116,6 @@ public class ScoreCalculatorTab extends BaseTab {
                 cfg.getBatAlertMessage(), cfg::setBatAlertMessage);
         y += 6;
 
-        // ---- 270 ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "270 Score Alert", false));
         y += 16;
         widgets.add(toggle("270 Title", cfg.isTitle270(), v -> cfg.setTitle270(v), cfg, contentX, y, colW));
@@ -134,7 +130,6 @@ public class ScoreCalculatorTab extends BaseTab {
         y = textBox(widgets, "270 party message", cfg.getParty270Message(), v -> cfg.setParty270Message(v), cfg, contentX, y, contentWidth);
         y += 6;
 
-        // ---- 300 ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "300 Score Alert", false));
         y += 16;
         widgets.add(toggle("300 Title", cfg.isTitle300(), v -> cfg.setTitle300(v), cfg, contentX, y, colW));

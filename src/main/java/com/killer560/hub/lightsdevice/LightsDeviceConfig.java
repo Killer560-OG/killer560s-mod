@@ -45,7 +45,6 @@ public final class LightsDeviceConfig {
 
     private static LightsDeviceConfig instance;
 
-    // ---- Aura ----
     private boolean auraEnabled = false;
     /** Flick every unlit lever (4 corners + 2 middle) while S2 isn't open yet. */
     private boolean preFlick = true;
@@ -56,7 +55,6 @@ public final class LightsDeviceConfig {
     private boolean auraSwingHand = true;
     private boolean chatFeedback = true;
 
-    // ---- Triggerbot ----
     private boolean triggerEnabled = false;
     private int triggerDelayMs = 0;
     private int triggerCooldownMs = 250;
@@ -140,8 +138,6 @@ public final class LightsDeviceConfig {
         return BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows();
     }
 
-    // ---- Aura ----
-
     /** The legit jar can never report true here, even from a copied cheat-build config file. */
     public boolean isAuraEnabled() { return auraEnabled && allowed(); }
     public boolean isAuraEnabledRaw() { return auraEnabled; }
@@ -165,8 +161,6 @@ public final class LightsDeviceConfig {
 
     public boolean isChatFeedback() { return chatFeedback; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
-
-    // ---- Triggerbot ----
 
     public boolean isTriggerEnabled() { return triggerEnabled && allowed(); }
     public boolean isTriggerEnabledRaw() { return triggerEnabled; }

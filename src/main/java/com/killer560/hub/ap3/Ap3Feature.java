@@ -1,7 +1,6 @@
 package com.killer560.hub.ap3;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;
@@ -152,8 +151,6 @@ public final class Ap3Feature {
         LOGGER.debug("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
-    // ------------------------------------------------------------------------------------------- gate
-
     /**
      * The BOSS-ONLY gate, for every phase - killer560 (2026-09-20): "For ap3 it should work in p1 and p2 and p3 and
      * p4 and p5. Any part of boss phase it should work in." True while {@code Floor7Tracker.inF7Boss()} - the same
@@ -230,8 +227,6 @@ public final class Ap3Feature {
     public static DungeonClass selfClass() {
         return PartyTracker.selfClass();
     }
-
-    // ------------------------------------------------------------------------------------------- public API
 
     /** The chain nodes are added to / listed from: the area you stand in + the tab's edit class filter. The
      *  live list, or an empty list when there is no such chain yet. */
@@ -524,16 +519,6 @@ public final class Ap3Feature {
         }
     }
 
-    /** Deletes the last node of the current chain. */
-    public static boolean deleteLastNode() {
-        List<Ap3Node> nodes = currentChainNodes();
-        if (nodes.isEmpty()) {
-            chatBad("No nodes in " + currentChainLabel() + ".");
-            return false;
-        }
-        return deleteNode(nodes.size() - 1);
-    }
-
     // ---- in-place editing (killer560: "make it easier to edit them") ----
     // All 0-BASED indices here, like deleteNode; the command layer and the tab convert from the 1-based number
     // the player sees. Every one of these stops a running chain (the executor holds a node index) and saves.
@@ -697,8 +682,6 @@ public final class Ap3Feature {
         suppressAutoArm();
     }
 
-    // ------------------------------------------------------------------------------------------- node capture
-
     private static Ap3Node captureNode(Ap3Node.Type type, boolean precise) {
         Ap3Config cfg = Ap3Config.getInstance();
         if (!cfg.isEnabled()) {
@@ -795,8 +778,6 @@ public final class Ap3Feature {
         }
         return true;
     }
-
-    // ------------------------------------------------------------------------------------------- ticking
 
     private static void tick(Minecraft client) {
         // Frozen: AP3's time stands still with the character and moves on only with it - one executor tick per
@@ -979,8 +960,6 @@ public final class Ap3Feature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- stopwatch HUD
-
     /** The stopped time stays on the HUD this long, then it hides until the next start. */
     static final long STOPWATCH_HUD_TIMEOUT_MS = 10_000L;
 
@@ -1099,8 +1078,6 @@ public final class Ap3Feature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- helpers
-
     private static void resetForWorld(String reason) {
         Ap3Executor.disarm(reason);
         renderFailed = false;
@@ -1124,13 +1101,4 @@ public final class Ap3Feature {
         ModChat.send(CHAT, ModChat.bad(text));
     }
 
-    /** {@code /ap3 list} body: one line per node, 1-based. */
-    public static List<String> describeCurrentChain() {
-        List<Ap3Node> nodes = currentChainNodes();
-        List<String> out = new java.util.ArrayList<>(nodes.size());
-        for (int i = 0; i < nodes.size(); i++) {
-            out.add(String.format(Locale.US, "#%d %s", i + 1, nodes.get(i).describe()));
-        }
-        return out;
-    }
 }

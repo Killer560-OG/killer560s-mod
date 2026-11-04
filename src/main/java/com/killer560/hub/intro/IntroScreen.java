@@ -112,8 +112,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         scenes.add(Scene.COMMUNITY);
     }
 
-    // ---- scenes ----------------------------------------------------------------------------------------------------
-
     private Scene scene() {
         return scenes.get(index);
     }
@@ -178,8 +176,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             default -> false;
         };
     }
-
-    // ---- layout ----------------------------------------------------------------------------------------------------
 
     private float spotX(Spot s) {
         return switch (s) {
@@ -426,8 +422,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- actions ---------------------------------------------------------------------------------------------------
-
     /** Goes to the next scene, or finishes after the last. Does nothing while the scene waits for an answer. */
     public void next() {
         if (nextBlocked()) {
@@ -581,8 +575,6 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ---- drawing ---------------------------------------------------------------------------------------------------
 
     @Override
     public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -814,21 +806,13 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         return preview;
     }
 
-    // ---- MenuThemedScreen ------------------------------------------------------------------------------------------
-
     @Override
     public int[] themedPanelBounds() {
         return new int[]{Math.round(bubble.x()), Math.round(bubble.y()), Math.round(bubble.w()), Math.round(bubble.h())};
     }
 
-    // ---- read by the testkit ---------------------------------------------------------------------------------------
-
     public Scene currentScene() {
         return scene();
-    }
-
-    public int sceneIndex() {
-        return index;
     }
 
     public int sceneCount() {

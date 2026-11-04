@@ -90,14 +90,6 @@ public final class MapPainter {
         return rooms * (ROOM_UNITS + GAP_UNITS) - GAP_UNITS;
     }
 
-    /**
-     * The grid being drawn, in map units: {@code {unitsX, unitsZ}} - the size half of {@link #gridExtent}.
-     */
-    static int[] gridUnits(java.util.List<LiveMapFeature.RoomGroup> groups) {
-        int[] e = gridExtent(groups);
-        return new int[]{e[2], e[3]};
-    }
-
     /** Room slots {@code {across, down}} of the floor being played - {@link #floorRooms} of the current floor. */
     static int[] currentFloorRooms() {
         return floorRooms(com.killer560.hub.secrets.DungeonState.getFloor());
@@ -329,8 +321,6 @@ public final class MapPainter {
                 && LiveMapFeature.groupIdAt(idx) == LiveMapFeature.groupIdAt(standing);
     }
 
-    // ------------------------------------------------------------------------------------------- the room he is in
-
     /**
      * killer560, 2026-10-19: "sometimes, after entering a room, it takes a while for the map to fill in the new
      * split-off part of that room." The map drew a room's tiles only as the map item showed them, and Hypixel redraws the
@@ -459,8 +449,6 @@ public final class MapPainter {
         return !hideUnrevealed() || state != DungeonMapScanner.STATE_UNOPENED;
     }
 
-    // ------------------------------------------------------------------------------------------- geometry
-
     /** Unit offset of grid index {@code g} (even = room, odd = gap). */
     static int cellPos(int g) {
         return (g / 2) * (ROOM_UNITS + GAP_UNITS) + (g % 2 == 1 ? ROOM_UNITS : 0);
@@ -573,8 +561,6 @@ public final class MapPainter {
     private static int px(float origin, double units, float ppu) {
         return Math.round(origin + (float) units * ppu);
     }
-
-    // ------------------------------------------------------------------------------------------- colors
 
     static int multiply(int argb, float f) {
         int a = (argb >>> 24) & 0xFF;
@@ -1131,8 +1117,6 @@ public final class MapPainter {
         return null;
     }
 
-    // ------------------------------------------------------------------------------------------- rooms
-
     static void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
                          float ox, float oy, float ppu) {
         com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
@@ -1241,26 +1225,6 @@ public final class MapPainter {
                 && LiveMapFeature.groupIdAt(gx + (gz - 1) * g) == gid && LiveMapFeature.groupIdAt(gx + (gz + 1) * g) == gid;
     }
 
-    static void outlineGroup(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, int color,
-                             float ox, float oy, float ppu) {
-        int g = LiveMapFeature.GRID;
-        for (int c : group.cells) {
-            int gx = c % g;
-            int gz = c / g;
-            if (gx % 2 == 1 && gz % 2 == 1 && !centreOfSquare(gid, gx, gz)) {
-                continue;
-            }
-            int x0 = px(ox, cellPos(gx), ppu);
-            int y0 = px(oy, cellPos(gz), ppu);
-            int x1 = px(ox, cellPos(gx) + cellSize(gx), ppu);
-            int y1 = px(oy, cellPos(gz) + cellSize(gz), ppu);
-            if (!sameRoom(gid, gx - 1, gz)) graphics.fill(x0 - 1, y0 - 1, x0, y1 + 1, color);
-            if (!sameRoom(gid, gx + 1, gz)) graphics.fill(x1, y0 - 1, x1 + 1, y1 + 1, color);
-            if (!sameRoom(gid, gx, gz - 1)) graphics.fill(x0 - 1, y0 - 1, x1 + 1, y0, color);
-            if (!sameRoom(gid, gx, gz + 1)) graphics.fill(x0 - 1, y1, x1 + 1, y1 + 1, color);
-        }
-    }
-
     static boolean sameRoom(int gid, int gx, int gz) {
         int g = LiveMapFeature.GRID;
         if (gx < 0 || gz < 0 || gx >= g || gz >= g || LiveMapFeature.groupIdAt(gx + gz * g) != gid) {
@@ -1271,8 +1235,6 @@ public final class MapPainter {
         }
         return true;
     }
-
-    // ------------------------------------------------------------------------------------------- doors
 
     /** Fill color a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
      *  is on - "subtly", per killer560s-mod-relay task (2026-09-21): still readable as its real color, just
@@ -1297,8 +1259,6 @@ public final class MapPainter {
 
     /** Map units from one room's origin to the next: the room plus the gap after it. */
     public static final int ROOM_PITCH_UNITS = ROOM_UNITS + GAP_UNITS;
-    /** Map units a room is wide; the rest of a pitch is the gap a doorway crosses. */
-    public static final int ROOM_SIZE_UNITS = ROOM_UNITS;
 
     /**
      * NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
@@ -1455,8 +1415,6 @@ public final class MapPainter {
                 || t == LiveMapFeature.Tile.DOOR_BLOOD || t == LiveMapFeature.Tile.DOOR_ENTRANCE;
     }
 
-    // ------------------------------------------------------------------------------------------- checkmarks
-
     // The real map draws bitmap sprites, not font glyphs (killer560's screenshot: fat white/green checks, a red
     // cross, a black '?'). These are the same shapes drawn as run-length filled rows so no texture is needed.
     private static final String[] CHECK = {
@@ -1548,8 +1506,6 @@ public final class MapPainter {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- labels
 
     /**
      * Room text size per map unit at Font Scale 1, and the smallest it is ever shrunk to: NoammAddons' "Map Text Scale"
@@ -1841,8 +1797,6 @@ public final class MapPainter {
         return lastMarkSource;
     }
 
-    // ------------------------------------------------------------------------------------------- players
-
     /** How opaque a teammate head's class-color ring is: faint, so it reads as a tint around the head, not a frame. */
     static final int CLASS_RING_ALPHA = 0x90;
     /** Test hook: the last class ring drawn around a head (ARGB), 0 for none yet. */
@@ -2011,8 +1965,6 @@ public final class MapPainter {
         float luma = (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f;
         return luma < 0.4f ? 0xFFFFFFFF : 0xFF000000;
     }
-
-    // ------------------------------------------------------------------------------------------- etherwarp path
 
     /** killer560, 2026-09-27: "if i click on a room to etherwarp to it ... it shows a small circle at each
      *  etherwarp spot that it is going to take to get to the next room, and a line from one spot to another.

@@ -12,7 +12,6 @@ import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 

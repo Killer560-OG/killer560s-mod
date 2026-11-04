@@ -939,8 +939,6 @@ public final class BloodRushHelperFeature {
         return x * x + y * y + z * z;
     }
 
-    // ---- drawing -------------------------------------------------------------------------------------------------------
-
     private static void render(LevelRenderContext context) {
         List<Spot> spots = CACHED;
         if (spots.isEmpty()) {
@@ -999,8 +997,6 @@ public final class BloodRushHelperFeature {
             }
         }
     }
-
-    // ---- test hooks ----------------------------------------------------------------------------------------------------
 
     /** Each box drawn now: "room|order|look|x0,y0,z0,x1,y1,z1|mobs|alive|learnedOnly|next|label|role". */
     public static List<String> spotsForTest() {

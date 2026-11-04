@@ -36,8 +36,6 @@ public final class EtherwarpPathfinder {
     private EtherwarpPathfinder() {
     }
 
-    // ------------------------------------------------------------------------------------------- precomputed trips
-
     /** Set on the planner thread for the length of one {@link #planForCache}. */
     private static final ThreadLocal<boolean[]> PRECOMPUTE = ThreadLocal.withInitial(() -> new boolean[1]);
 
@@ -150,8 +148,6 @@ public final class EtherwarpPathfinder {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- public API
-
     /** QUOI {@code findPath}: a single search, no room chaining. {@code layout} is unused and may be null. */
     public static List<Node> findPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean withLast,
                                       DungeonLayout layout) {
@@ -178,8 +174,6 @@ public final class EtherwarpPathfinder {
         }
         return toNodes(search.smooth(path, dist, withLast));
     }
-
-    // ------------------------------------------------------------------------------------------- the floor graph
 
     /**
      * Fewest warps to one block, over the whole floor at once ({@link WarpGraph}). When the graph finds nothing
@@ -1061,8 +1055,6 @@ public final class EtherwarpPathfinder {
         return false;
     }
 
-    // ------------------------------------------------------------------------------------------- warming
-
     private static volatile boolean warmInFlight;
     private static java.util.concurrent.ExecutorService workers;
     private static int workerCount;
@@ -1377,8 +1369,6 @@ public final class EtherwarpPathfinder {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static String ms(long nanos) {
         return String.format(java.util.Locale.ROOT, "%.2f", nanos / 1e6);

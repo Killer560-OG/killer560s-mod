@@ -84,8 +84,6 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    // ---- data ------------------------------------------------------------------------------------------------------
-
     private String profileFilter() {
         return scope == Scope.PROFILE ? ProfitScope.currentSkyblockProfile() : null;
     }
@@ -137,8 +135,6 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         }
         return d.chance();
     }
-
-    // ---- layout ----------------------------------------------------------------------------------------------------
 
     @Override
     protected void init() {
@@ -255,8 +251,6 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
             rebuildWidgets();
         }).bounds(detailX + 8 + half + 4, by + 20, half, 16).build());
     }
-
-    // ---- drawing ---------------------------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -493,8 +487,6 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- input -----------------------------------------------------------------------------------------------------
-
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (McInput.button(event) == 0 && event.x() >= listX && event.x() < listX + listW && event.y() >= listY + 18
@@ -547,11 +539,4 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         return "profit";
     }
 
-    // Test hooks
-    void selectForTest(String key) {
-        selected = key;
-        calcAttempts = -1;
-        calcMf = -1;
-        rebuildWidgets();
-    }
 }

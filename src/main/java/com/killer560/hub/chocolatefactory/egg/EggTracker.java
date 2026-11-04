@@ -3,18 +3,11 @@ package com.killer560.hub.chocolatefactory.egg;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
-import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +29,6 @@ public final class EggTracker {
     }
 
     private static final int KEEP_HUNTS = 50;
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final List<Hunt> HUNTS = new ArrayList<>();
     private static boolean loaded;

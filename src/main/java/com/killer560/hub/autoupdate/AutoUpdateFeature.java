@@ -77,8 +77,6 @@ public final class AutoUpdateFeature {
         checkAsync(null);
     }
 
-    // ---- state the menu shows -------------------------------------------------------------------------------------
-
     public static boolean isChecking() {
         return checking.get();
     }
@@ -86,8 +84,6 @@ public final class AutoUpdateFeature {
     public static AutoUpdater.Outcome lastOutcome() {
         return lastOutcome;
     }
-
-    // ---- gates ---------------------------------------------------------------------------------------------------
 
     static AutoUpdater.Request currentRequest() {
         return new AutoUpdater.Request(AutoUpdateConfig.getInstance().effectiveChannel(), BuildVariant.TESTING,
@@ -147,8 +143,6 @@ public final class AutoUpdateFeature {
         return out;
     }
 
-    // ---- checking ------------------------------------------------------------------------------------------------
-
     /**
      * Runs a check on its own thread ("Check Now" and the launch check). {@code callback}, when given, runs on the
      * render thread with the outcome. Gated exactly like the launch check.
@@ -193,8 +187,6 @@ public final class AutoUpdateFeature {
         ModChat.send("Auto Update", ModChat.text("Update "), ModChat.value(what),
                 ModChat.text(" is ready. It installs when you close the game."));
     }
-
-    // ---- installing ----------------------------------------------------------------------------------------------
 
     /** CLIENT_STOPPING: hands a verified staged jar to {@link SwapHelper}. Never throws. */
     static void installOnExit() {
@@ -300,8 +292,6 @@ public final class AutoUpdateFeature {
         }
         return cmd != null ? cmd : "java";
     }
-
-    // ---- after an install ----------------------------------------------------------------------------------------
 
     /** installed.json, written by SwapHelper: shown once as a popup when it names this jar's commit. */
     private static void readInstalledNote() {

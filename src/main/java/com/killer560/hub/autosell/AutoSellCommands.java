@@ -1,6 +1,5 @@
 package com.killer560.hub.autosell;
 
-import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -71,8 +70,6 @@ public final class AutoSellCommands {
                                             return 1;
                                         })))));
     }
-
-    // ---- actions -----------------------------------------------------------------------------------
 
     private static boolean ready() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

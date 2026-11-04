@@ -141,8 +141,6 @@ public final class DropTable {
         return o.has(k) && o.get(k).isJsonPrimitive() ? o.get(k).getAsDouble() : Double.NaN;
     }
 
-    // ---- lookups ---------------------------------------------------------------------------------------------------
-
     public List<Drop> drops() {
         return drops;
     }

@@ -133,8 +133,6 @@ public final class Ap3Store {
         Ap3Feature.onChainsReloaded();
     }
 
-    // ------------------------------------------------------------------------------------------- choosing a file
-
     /** Every chains file in the folder by name ({@code *.json}, the broken backups left out), sorted, and always
      *  including the one in use even when it is not on disk yet (it is written on the first save). */
     public static List<String> listConfigNames() {
@@ -385,8 +383,6 @@ public final class Ap3Store {
         return stem + BROKEN_SUFFIX;
     }
 
-    // ------------------------------------------------------------------------------------------- access
-
     /** Every chain, in file order (unmodifiable). Mutate through {@link #forAreaOrCreate}/{@link #remove}. */
     public List<Ap3Chain> chains() {
         return Collections.unmodifiableList(new ArrayList<>(chains.values()));
@@ -411,23 +407,6 @@ public final class Ap3Store {
     /** Exactly the chain keyed (area, classFilter), or null. */
     public Ap3Chain exact(Ap3Area area, DungeonClass classFilter) {
         return area == null ? null : chains.get(Ap3Chain.key(area, classFilter));
-    }
-
-    /** Every chain for an area (class-less first, then per class), for the tab. */
-    public List<Ap3Chain> chainsFor(Ap3Area area) {
-        List<Ap3Chain> out = new ArrayList<>();
-        for (Ap3Chain c : chains.values()) {
-            if (c.area().equals(area)) {
-                out.add(c);
-            }
-        }
-        out.sort((a, b) -> {
-            if (a.classFilter() == null) {
-                return b.classFilter() == null ? 0 : -1;
-            }
-            return b.classFilter() == null ? 1 : a.classFilter().compareTo(b.classFilter());
-        });
-        return out;
     }
 
     /** The chain keyed (area, classFilter), created empty if missing (not saved until {@link #save()}). */
@@ -483,8 +462,6 @@ public final class Ap3Store {
         migrationNotes.clear();
         return out;
     }
-
-    // ------------------------------------------------------------------------------------------- codec
 
     private Ap3Chain readChain(String key, JsonObject obj, int version) {
         // The area is no longer a choice: there is one, the boss room. Any key a per-area file used ("S3",
@@ -753,8 +730,6 @@ public final class Ap3Store {
         }
         return o;
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static boolean finiteCoord(double v) {
         return Double.isFinite(v) && Math.abs(v) <= MAX_ABS_COORD;

@@ -5,7 +5,6 @@ import com.killer560.hub.auction.AuctionHouseApi;
 import com.killer560.hub.auction.AuctionHouseConfig;
 import com.killer560.hub.auction.AuctionHouseFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 

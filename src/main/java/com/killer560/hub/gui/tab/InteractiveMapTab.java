@@ -4,7 +4,6 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -144,7 +143,6 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                     cfg, colB, y, colW));
             y += 24;
 
-            // ---------------------------------------------------------------- etherwarp path preview
             widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Etherwarp Path", true));
             y += 16;
             widgets.add(LiveMapTab.toggle("Show Etherwarp Path", cfg::isShowEtherwarpPathRaw, cfg::setShowEtherwarpPath,

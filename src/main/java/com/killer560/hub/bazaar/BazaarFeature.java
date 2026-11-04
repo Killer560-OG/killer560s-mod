@@ -92,21 +92,6 @@ public final class BazaarFeature {
         openDeferred();
     }
 
-    /** The settings tab's "Open Manage Orders": with a Booster Cookie, Hypixel's Bazaar opens and its Manage Orders
-     *  button is pressed as the follow-up to this click (Follow-up Click on); otherwise chat says why not. */
-    public static void openManageOrders() {
-        if (!AuctionConfig.getInstance().isBazaarEnabled()) {
-            ModChat.send("Bazaar", ModChat.bad("Turn on the Bazaar Browser in the Items tab first."));
-            return;
-        }
-        if (BoosterCookie.state(Minecraft.getInstance()) != BoosterCookie.State.ACTIVE) {
-            ModChat.send("Bazaar", ModChat.bad("You need an active Booster Cookie to open Manage Orders remotely."),
-                    ModChat.dim(" At the Bazaar NPC it is the button at the bottom."));
-            return;
-        }
-        BazaarView.bottomActionFromSettings("Manage Orders");
-    }
-
     public static void openDeferred() {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> client.setScreenAndShow(new BazaarScreen(McCompat.screen(client))));

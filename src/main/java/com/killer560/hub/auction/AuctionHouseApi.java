@@ -556,8 +556,6 @@ public final class AuctionHouseApi {
         }
     }
 
-    // ---------------------------------------------------------------- testkit
-
     /**
      * Page 0 of {@code /v2/skyblock/auctions} decoded (the newest listings come first; the AH Flipper polls it between full
      * scans), or null when the fetch failed. Blocking: call it off the render thread. Listings the last full scan already
@@ -581,11 +579,6 @@ public final class AuctionHouseApi {
         collectPage(page, out, byUuid);
         long updated = page.has("lastUpdated") ? page.get("lastUpdated").getAsLong() : 0L;
         return new PageZero(updated, out);
-    }
-
-    /** Whether the last full scan holds this auction. */
-    public static boolean inLastScan(UUID uuid) {
-        return uuid != null && byUuid.containsKey(uuid);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.killer560.hub.autosell;
 
-import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;

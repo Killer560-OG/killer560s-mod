@@ -127,8 +127,6 @@ public final class AhReskin {
         ScreenEvents.AFTER_INIT.register(DRAW_PHASE, AhReskin::onInitDraw);
     }
 
-    // ---- lifecycle ------------------------------------------------------------------------------------------------
-
     private static String plainTitle(Screen screen) {
         String s = ChatFormatting.stripFormatting(screen.getTitle().getString());
         return s == null ? "" : s.trim();
@@ -286,8 +284,6 @@ public final class AhReskin {
         }
     }
 
-    // ---- input ----------------------------------------------------------------------------------------------------
-
     private static boolean onPress(State st, double x, double y, int button, boolean shift) {
         poll(st);
         if (!hiding(st)) {
@@ -334,8 +330,6 @@ public final class AhReskin {
         st.clicksSent++;
         st.lastClick = h.slot() + " " + button + " " + input.name() + " " + h.label();
     }
-
-    // ---- drawing --------------------------------------------------------------------------------------------------
 
     private static ItemStack stack(List<ItemStack> stacks, int slot) {
         return slot >= 0 && slot < stacks.size() ? stacks.get(slot) : ItemStack.EMPTY;
@@ -749,8 +743,6 @@ public final class AhReskin {
         int ty = top + (int) ((long) (hgt - thumb) * scroll / Math.max(1, maxScroll));
         ui.g.fill(x, ty, x + 2, ty + thumb, ui.t.accent());
     }
-
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
 
     /** The reskinned page's kind ("VIEW"...), "LOADING"/"CARRIED"/"OPENING" before it settles, "NONE" for Hypixel's GUI. */
     public static String kindForTest() {

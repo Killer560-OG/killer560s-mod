@@ -171,8 +171,6 @@ public final class EnchantColorsFeature {
         return m;
     }
 
-    // ---------------------------------------------------------------- entry point
-
     /**
      * Called from the tooltip mixin with the lines vanilla is about to show. Returns {@code lines} itself
      * when nothing changed, so a non-Skyblock item costs one map lookup.
@@ -213,8 +211,6 @@ public final class EnchantColorsFeature {
     public static ChromaWave.Spec perfectChroma() {
         return PERFECT_CHROMA;
     }
-
-    // ---------------------------------------------------------------- the work
 
     /** @return the recolored lines, or null when nothing on this item needed recoloring. */
     private static List<Component> apply(EnchantColorsConfig cfg, CustomData data, List<Component> lines) {

@@ -92,8 +92,6 @@ public final class AhMarket {
     private AhMarket() {
     }
 
-    // ---- reading --------------------------------------------------------------------------------------------------
-
     public static Stats stats(String skyblockId) {
         return skyblockId == null || skyblockId.isEmpty() ? null : stats.get(skyblockId);
     }
@@ -112,8 +110,6 @@ public final class AhMarket {
         ArrayDeque<Point> d = skyblockId == null ? null : SALES.get(skyblockId);
         return d == null ? List.of() : List.copyOf(d);
     }
-
-    // ---- writing --------------------------------------------------------------------------------------------------
 
     /** A finished scan (worker thread): rebuild lowest BIN per id and add this hour's history point. */
     public static void onScan(List<AuctionListing> listings) {
@@ -247,8 +243,6 @@ public final class AhMarket {
             return null;
         }
     }
-
-    // ---- persistence ----------------------------------------------------------------------------------------------
 
     private static synchronized void ensureLoaded() {
         if (loaded) {

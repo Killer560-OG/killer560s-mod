@@ -129,8 +129,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         resetToInventory();
     }
 
-    // ------------------------------------------------------------------------------------------- model
-
     /** Fills the grid from the real inventory right now, every slot back in the layout. Public for tests. */
     public void resetToInventory() {
         Minecraft mc = Minecraft.getInstance();
@@ -448,8 +446,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         return new int[]{listX, listY, listW, LIST_ROW, LIST_ROWS, PREVIEW};
     }
 
-    // ------------------------------------------------------------------------------------------- actions
-
     /** Saves the grid under the typed name. A new layout starts with Fetch From Storage ON (killer560, 2026-11-03: "by
      *  default have fetch from storage on"); saving over one keeps its storage mode. Public for tests. */
     public void saveTyped() {
@@ -504,17 +500,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         this.minecraft.setScreenAndShow(null);
         InventorySorterExecutor.applyByName(layout.name());
-    }
-
-    /** Applies the selected layout to the real inventory. Public for tests. */
-    public void applySelected() {
-        if (selected == null) {
-            say("Pick a saved layout on the right first.", true);
-            return;
-        }
-        String name = selected;
-        this.minecraft.setScreenAndShow(null);
-        InventorySorterExecutor.applyByName(name);
     }
 
     /** Renames the selected layout to the typed name. Public for tests. */
@@ -661,8 +646,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- previews
-
     /** The row preview for {@code name}: its hotbar slots 0-8 (or, for a layout with no hotbar slot, its first nine
      *  slots), each the very item from the inventory if it is there, else the saved icon. */
     private Preview preview(String name) {
@@ -713,8 +696,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         previews.put(name, p);
         return p;
     }
-
-    // ------------------------------------------------------------------------------------------- layout
 
     @Override
     protected void init() {
@@ -824,8 +805,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         int c = (i - 9) % 9;
         return new int[]{gridX + c * SLOT, gridY + r * SLOT};
     }
-
-    // ------------------------------------------------------------------------------------------- drawing
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -1009,8 +988,6 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                     Optional.empty(), mouseX, mouseY);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- input
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {

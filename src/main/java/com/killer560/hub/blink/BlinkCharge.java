@@ -417,8 +417,6 @@ public final class BlinkCharge {
     private BlinkCharge() {
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
-
     /** Blink's send hook, before its own hold. True when the packet is not to be sent now. Any thread. */
     static boolean onSend(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
         if (!active) {
@@ -1004,9 +1002,6 @@ public final class BlinkCharge {
     /** How far short of the bank's ticks the oldest answer may be and still cover it (the shot is a tick later at least). */
     private static final long TP_BATCH_SLACK_MS = 120L;
 
-    public static long teleportBatches() {
-        return tpBatches;
-    }
     private static boolean flushingTp;
     private static long tpHolds;
     private static long tpHeldTotal;
@@ -1021,10 +1016,6 @@ public final class BlinkCharge {
 
     public static long teleportHolds() {
         return tpHolds;
-    }
-
-    public static long teleportHoldMsMax() {
-        return tpHoldMsMax;
     }
 
     /** An answer just went: the teleports waiting for it go right behind it. Under LOCK. */
@@ -1161,8 +1152,6 @@ public final class BlinkCharge {
             passing = false;
         }
     }
-
-    // ---------------------------------------------------------------------------------------------------------------
 
     /**
      * Blink's START_CLIENT_TICK. Reads the Charge key (Toggle: a press starts charging, the next fires the bank, a press with
@@ -1678,23 +1667,6 @@ public final class BlinkCharge {
     }
 
     /**
-     * Sends every waiting ping answer now, in order (Blink's own hold is starting: it holds what comes next, so these must
-     * go first or the server sees answers out of order - GrimAC TransactionOrder, testkit 1025-blink-charge-double). The
-     * bank starts again.
-     */
-    public static void flushAnswers(String why) {
-        int n;
-        synchronized (LOCK) {
-            if (answers.isEmpty()) {
-                return;
-            }
-            n = releaseAnswersLocked();
-            banked = 0;
-        }
-        BlinkLog.event("charge: %d waiting ping answer(s) sent (%s)", n, why);
-    }
-
-    /**
      * A hold is starting: the waiting answers go first, in order (TransactionOrder, testkit 1025-blink-charge-double), and
      * the bank is dropped even when none were waiting (before 2026-10-26 it was kept then, so a shot after the hold sent
      * the bank's ticks on top of the hold's). Returns a note for the hold's log line ("" when not charging).
@@ -1856,8 +1828,6 @@ public final class BlinkCharge {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
-
     /**
      * The most ticks Charge banks: Charge Ticks, 1-20 (killer560, 2026-10-25: set to 20 it must bank 20, and past 20
      * Hypixel sets the shot back). The firing tick goes out with the burst, so a full shot is 21 ticks of movement: 1050 ms,
@@ -1876,7 +1846,6 @@ public final class BlinkCharge {
     /** The most a charge banks whoever drives it (Hypixel sets a longer shot back, killer560 2026-10-25). */
     public static final int MAX_TICKS = 20;
 
-    // ---------------------------------------------------------------------------------------------------------------
     // A feature driving Charge instead of the key (AP3's Blink Charge / Blink Release nodes, killer560 2026-10-26: "if i
     // do /ap3 add blinkcharge 3 it should charge 3 packets while frozen then /blinkrelease 3 would release 3. if no number
     // have it go to the max")
@@ -1988,14 +1957,6 @@ public final class BlinkCharge {
         net.minecraft.world.phys.Vec3 from = requestFrom;
         net.minecraft.world.phys.Vec3 to = lastShotTo;
         return from == null || to == null || p == null ? 0 : from.distanceTo(to);
-    }
-
-    public static net.minecraft.world.phys.Vec3 lastReleaseFrom() {
-        return requestFrom;
-    }
-
-    public static net.minecraft.world.phys.Vec3 lastReleaseTo() {
-        return lastShotTo;
     }
 
     /** Who drives Charge now, or null (his key). */

@@ -128,12 +128,6 @@ public final class DiscordRpcConfig {
         this.applicationId = applicationId == null ? "" : applicationId.trim();
     }
 
-    /** @return whether the id looks like a Discord snowflake (17-20 digits). Only used for a GUI hint. */
-    public boolean hasPlausibleApplicationId() {
-        String id = getApplicationId();
-        return id.length() >= 17 && id.length() <= 20 && id.chars().allMatch(Character::isDigit);
-    }
-
     public boolean isShowArea() {
         return showArea;
     }

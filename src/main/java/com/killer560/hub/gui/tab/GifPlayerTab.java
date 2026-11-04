@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 

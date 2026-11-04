@@ -39,8 +39,6 @@ public final class DevonianCodec {
     private DevonianCodec() {
     }
 
-    // ------------------------------------------------------------------ auth
-
     /**
      * Spec 1.2 step 3 ({@code WebsocketClient.kt:208-214}): {@code BigInteger(1, SHA1(UTF-8("devonianwebsocket" +
      * r))).toString(16)} - UNSIGNED (the two-argument constructor), unlike vanilla's signed server hash, and not
@@ -65,8 +63,6 @@ public final class DevonianCodec {
         return "Authenticate[" + ign + ", " + r + "]";
     }
 
-    // ------------------------------------------------------------------ party
-
     /**
      * Spec 1.3: {@code Party.partyHash = members.keys.sumOf { it.hashCode() }} ({@code Party.kt:72}), members =
      * the Hypixel party's member UUIDs INCLUDING the local player. Plain int addition, so it wraps and is
@@ -85,8 +81,6 @@ public final class DevonianCodec {
         return "Party[" + partyHash + "]";
     }
 
-    // ------------------------------------------------------------------ data
-
     /** Spec 1.4 ({@code DungeonScanner.kt:238}). {@code null} if out of range - Devonian's own receiver would
      *  drop it anyway ({@code current !in 0..room.totalSecrets}). */
     public static String roomSecrets(int found, int total, int devonianRoomId) {
@@ -96,18 +90,6 @@ public final class DevonianCodec {
         }
         return "RoomSecrets[" + found + "/" + total + ", " + devonianRoomId + "]";
     }
-
-    /** Spec 1.4 ({@code TeamSecretsStats.kt:44}). Encoded for completeness and the test harness; the bridge
-     *  never sends it because this mod has no SELF "secrets I personally found" fact (see
-     *  {@code PartyDataFeature}'s class doc). */
-    public static String secretTracker(String ign, int secrets) {
-        if (ign == null || !IGN.matcher(ign).matches() || secrets < 0 || secrets > MAX_SECRETS) {
-            return null;
-        }
-        return "SecretTracker[" + ign + ", " + secrets + "]";
-    }
-
-    // ------------------------------------------------------------------ decode
 
     /** Everything Devonian's server can send that we understand. */
     public sealed interface Message permits Reannounce, RoomSecrets, SecretTracker {

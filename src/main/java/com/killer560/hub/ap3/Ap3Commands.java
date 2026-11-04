@@ -198,8 +198,6 @@ public final class Ap3Commands {
         return offset.buildFuture();
     }
 
-    // ---- registration ----
-
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
         // /freezestate and /rewind were removed (killer560, 2026-11-01): Freeze State runs from its three keys.
@@ -599,8 +597,6 @@ public final class Ap3Commands {
                 + " leapcounter:<n> (wait for n leaps; only aligns run meanwhile)."));
         ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
-
-    // ---- actions ----
 
     private static void add(Ap3Node.Type type) {
         // The core owns where the node lands (block-center snap, current yaw for walk/run, held class for leap...)

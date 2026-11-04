@@ -150,10 +150,6 @@ public final class BatLog {
             return done;
         }
 
-        public boolean batSeen() {
-            return batId >= 0;
-        }
-
         /** Ticks from the use to the bat going (-1: no bat). */
         public int flightTicks() {
             return batId < 0 || endTick < 0 ? -1 : (int) (endTick - useTick);
@@ -244,8 +240,6 @@ public final class BatLog {
         return BY_NO.get(no);
     }
 
-    // ------------------------------------------------------------------------------------------- the use packet
-
     /** From {@code RightClickSendMixin}, client thread, as a use packet leaves. Logs a shot when the hand holds a sceptre. */
     public static void onUseSent(LocalPlayer player, ServerboundUseItemPacket p) {
         if (player == null || !ItemIdentity.matches(player.getItemInHand(McPackets.useItemHand(p)),
@@ -307,8 +301,6 @@ public final class BatLog {
         }
         return best;
     }
-
-    // ------------------------------------------------------------------------------------------- every tick
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -526,8 +518,6 @@ public final class BatLog {
         }
         return String.format(Locale.US, "straight but %.1f deg off the look (bow %.2f)%s", s.flightOffDeg, bow, towardText);
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     /** Perpendicular distance of {@code p} from the ray {@code from + t * dir} (t >= 0; behind the start: the start). */
     static double offRay(Vec3 from, Vec3 dir, Vec3 p) {

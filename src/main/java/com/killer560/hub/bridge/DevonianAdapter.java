@@ -219,8 +219,6 @@ final class DevonianAdapter extends SocketAdapter {
         }
     }
 
-    // ------------------------------------------------------------------ helpers
-
     private static Integer hashOf(String target) {
         if (target == null || !target.startsWith(TARGET_PREFIX)) {
             return null;

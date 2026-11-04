@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.hud.HudConfig;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.SectionHeaders;

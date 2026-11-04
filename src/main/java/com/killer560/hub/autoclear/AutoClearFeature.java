@@ -144,11 +144,9 @@ public final class AutoClearFeature {
     private static boolean bodyWanted = false;
     private static final BodyAim BODY = new BodyAim(() -> { });
 
-    // ---- input ----
     private static final boolean[] wasDown = new boolean[6];
     private static boolean toggleKeyWasDown = false;
 
-    // ---- corrections ----
     private static volatile int positionPackets = 0;
     private static volatile Vec3 posBeforePacket = null;
     private static int positionPacketsSeen = 0;
@@ -161,7 +159,6 @@ public final class AutoClearFeature {
     private static WeaponReach.Aim cachedAttack = null;
     private static int cachedHops = -1;
 
-    // ---- HUD / last reason ----
     private static String lastReason = null;
     private static long lastReasonMs = 0L;
     /** The run {@link #lastReason} ended was one he started (not a room handed over by Auto Secret / Autopilot). */
@@ -246,8 +243,6 @@ public final class AutoClearFeature {
             say(ModChat.dim("Canceled"));
         }
     }
-
-    // =========================================================================================== toggle
 
     public static void toggle() {
         if (running) {
@@ -397,8 +392,6 @@ public final class AutoClearFeature {
         onGiveUp = null;
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR);
     }
-
-    // =========================================================================================== ticking
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -680,7 +673,6 @@ public final class AutoClearFeature {
             return;
         }
 
-        // ---- the room ----
         int room = AutoClearTargets.roomByName(layout, roomName);
         if (room >= 0 && AutoClearTargets.isCleared(layout, room)) {
             roomsCleared++;
@@ -724,7 +716,6 @@ public final class AutoClearFeature {
             return;
         }
 
-        // ---- the mob ----
         if (targetId >= 0) {
             Entity previous = client.level.getEntity(targetId);
             if (previous == null || !previous.isAlive()) {
@@ -858,8 +849,6 @@ public final class AutoClearFeature {
         }
         attack(client, player, target, cfg);
     }
-
-    // ---- Fels -------------------------------------------------------------------------------------------------------------
 
     /**
      * Blocks from a sleeping Fel within which it wakes: 4, and 5 more since SkyBlock 0.27.2 (hypixel.net patch notes, as the
@@ -2483,8 +2472,6 @@ public final class AutoClearFeature {
         releaseUse(Minecraft.getInstance());
     }
 
-    // =========================================================================================== King Midas altar
-
     /** Superbooms on the altar that changed nothing before the room is given up. */
     static final int MIDAS_MAX_BOOMS = 3;
     /** The room the altar state below belongs to (its name), or null. */
@@ -2705,8 +2692,6 @@ public final class AutoClearFeature {
         }
         return best;
     }
-
-    // =========================================================================================== attacking
 
     private static void attack(Minecraft client, LocalPlayer player, Entity target, AutoClearConfig cfg) {
         AutoClearConfig.Weapon weapon = cfg.getWeapon();
@@ -3266,8 +3251,6 @@ public final class AutoClearFeature {
         }
         return null;
     }
-
-    // ---- leading a moving mob ----
 
     private static final Set<Integer> leadLogged = new HashSet<>();
 
@@ -4322,8 +4305,6 @@ public final class AutoClearFeature {
         return running && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
     }
 
-    // =========================================================================================== corrections
-
     /** From {@code LiveMapPacketListenerMixin}, on the client thread, before vanilla applies the position. */
     public static void onServerPositionPacket() {
         Minecraft client = Minecraft.getInstance();
@@ -4394,8 +4375,6 @@ public final class AutoClearFeature {
         return dx * dx + dz * dz <= 1.6 * 1.6;
     }
 
-    // =========================================================================================== helpers
-
     private static List<Entity> starredIn(Minecraft client, DungeonLayout layout, int room) {
         List<Entity> out = new java.util.ArrayList<>();
         for (Entity mob : MobEspFeature.starredMobs(client)) {
@@ -4408,8 +4387,6 @@ public final class AutoClearFeature {
         }
         return out;
     }
-
-    // =========================================================================================== fewest repositions
 
     /** The room's plan: the standing blocks to take, in order, and which mob ids each reaches. */
     private static String coverKey = null;

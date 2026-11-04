@@ -102,8 +102,6 @@ public final class DoorHelpersConfig {
         }
     }
 
-    // ---- Auto Door Opener ----
-
     public boolean isAutoDoorEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoDoorEnabled
                 && com.killer560.hub.util.SkyblockGate.allows();

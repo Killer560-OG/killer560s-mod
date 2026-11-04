@@ -5,7 +5,6 @@ import com.killer560.hub.cape.CustomCapeTexture;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;

@@ -7,14 +7,12 @@ import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -82,7 +79,6 @@ public final class InstaClearTracker {
     /** A stand that disappears within this many blocks of him is a kill; farther, it may only have left his view. */
     private static final double KILL_SEEN_RANGE = 40.0;
     private static final int SCAN_EVERY_TICKS = 2;
-    private static final String FEATURE = "Insta Clear";
     /** Leaving a room sooner than this after entering it, with no flip, is a pass-through, not a stop. */
     static final long STOP_MS = 3000;
     /** A flip this soon after he left (map updates lag) still belongs to the entry; later, it is someone else's. */
@@ -140,8 +136,6 @@ public final class InstaClearTracker {
             this.startMs = startMs;
         }
     }
-
-    // ============================================================================================== public API
 
     /** Hooks the recorder up: client tick and the position-packet hook (via {@code LiveMapPacketListenerMixin}). Its
      *  readout and settings are rows in the Auto Clear tab (they were {@code /autosecret instaclear} until killer560
@@ -223,8 +217,6 @@ public final class InstaClearTracker {
         return "from=" + fromPart + ";land=" + land;
     }
 
-    // ============================================================================================== extras
-
     /** The real world block an entry key lands on in this run's copy of {@code roomName}, or null (walk-in key, room
      *  not on the map, or not a key this class made). The inverse of the {@code land} half of {@link #entryKeyFor}. */
     public static BlockPos realLandingFor(String roomName, String entryKey) {
@@ -281,8 +273,6 @@ public final class InstaClearTracker {
         boolean mapPath = "interactivemap".equals(teleportDriver);
         teleportMethod = etherItem && (player.isShiftKeyDown() || mapPath) ? "etherwarp" : "teleport";
     }
-
-    // ============================================================================================== recording
 
     private static void tick(Minecraft client) {
         tick++;
@@ -553,8 +543,6 @@ public final class InstaClearTracker {
         return alive;
     }
 
-    // ============================================================================================== helpers
-
     private static double sq(double v) {
         return v * v;
     }
@@ -671,8 +659,6 @@ public final class InstaClearTracker {
         return "manual";
     }
 
-    // ============================================================================================== persistence
-
     private static Path path() {
         if (file == null) {
             file = ModPaths.config("killer560smod-autosecret/insta-clear.json");
@@ -730,8 +716,6 @@ public final class InstaClearTracker {
         }
     }
 
-    // ============================================================================================== readout
-
     private static List<String> summaryLines() {
         ensureLoaded();
         List<String> out = new ArrayList<>();
@@ -760,7 +744,6 @@ public final class InstaClearTracker {
         return out;
     }
 
-    // ============================================================================================== test hooks
     // For the testkit's logic and sim cases (reflection). None of these is used by the mod itself.
 
     /** Points the store at {@code path} (any file) and loads it; null goes back to the real file. */
@@ -847,11 +830,6 @@ public final class InstaClearTracker {
     public static int[] testCounts(String room, String key) {
         ensureLoaded();
         return STORE.counts(room, key);
-    }
-
-    public static String testLast() {
-        InstaClearStore.Obs o = STORE.last();
-        return o == null ? null : STORE.lastRoom() + "|" + STORE.lastKey() + "|" + o.toJson();
     }
 
     /** The newest observation for one room as {@code room|key|json}, or null. */

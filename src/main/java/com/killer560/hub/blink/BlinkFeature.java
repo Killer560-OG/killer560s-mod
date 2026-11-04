@@ -15,12 +15,8 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.network.protocol.game.ServerboundAttackPacket;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
-import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
@@ -57,7 +53,6 @@ import java.util.List;
  * it would without Blink. Other features can drive a hold through {@link #begin} / {@link #release}.
  */
 public final class BlinkFeature {
-
 
     /** A hold that sends no tick-end at all (the game frozen, a world loading) is released after this long. */
     public static final long MAX_HOLD_MS = 15_000L;
@@ -123,7 +118,6 @@ public final class BlinkFeature {
         BlinkRender.register();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // The send hook
 
     /**
@@ -227,7 +221,6 @@ public final class BlinkFeature {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // The tick
 
     static void tick(Minecraft client) {
@@ -350,7 +343,6 @@ public final class BlinkFeature {
         return screen == null || screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // Starting and releasing
 
     private static void start(Connection connection, String owner) {
@@ -485,7 +477,6 @@ public final class BlinkFeature {
         release(why);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // Server packets
 
     /**
@@ -651,7 +642,6 @@ public final class BlinkFeature {
         serverPos = null;
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // State, for the HUD, the box, other features and the testkit
 
     public static boolean isHolding() {

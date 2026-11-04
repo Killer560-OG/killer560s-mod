@@ -271,8 +271,6 @@ public final class ItemProtectConfig {
         }
     }
 
-    // --- master ---
-
     /** Master toggle, gated by "Skyblock Only" like every other feature's own enabled getter. */
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -286,8 +284,6 @@ public final class ItemProtectConfig {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
-
-    // --- protect item ---
 
     public boolean isProtectItemEnabled() {
         return isEnabled() && protectItemEnabled;
@@ -371,22 +367,6 @@ public final class ItemProtectConfig {
         return protectedNames;
     }
 
-    public void addProtectedName(String name) {
-        if (name == null) {
-            return;
-        }
-        String trimmed = name.trim();
-        if (trimmed.isEmpty()) {
-            return;
-        }
-        for (String existing : protectedNames) {
-            if (existing.equalsIgnoreCase(trimmed)) {
-                return;
-            }
-        }
-        protectedNames.add(trimmed);
-    }
-
     public void removeProtectedName(String name) {
         protectedNames.removeIf(s -> s.equalsIgnoreCase(name == null ? "" : name.trim()));
     }
@@ -409,8 +389,6 @@ public final class ItemProtectConfig {
         return false;
     }
 
-    // --- slot lock migration ---
-
     /** Old locked slot indices still waiting to be carried over; a copy. */
     public List<Integer> getPendingSlotMigration() {
         return new ArrayList<>(pendingSlotMigration);
@@ -419,8 +397,6 @@ public final class ItemProtectConfig {
     public void clearPendingSlotMigration() {
         pendingSlotMigration.clear();
     }
-
-    // --- starred ---
 
     public boolean isProtectStarredEnabled() {
         return isEnabled() && protectStarredEnabled;
@@ -433,8 +409,6 @@ public final class ItemProtectConfig {
     public void setProtectStarredEnabled(boolean value) {
         this.protectStarredEnabled = value;
     }
-
-    // --- hotbar drops ---
 
     public boolean isPreventHotbarDropEnabled() {
         return isEnabled() && preventHotbarDropEnabled;
@@ -471,8 +445,6 @@ public final class ItemProtectConfig {
     public void setForceDrops(int value) {
         this.forceDrops = Math.max(MIN_FORCE_DROPS, Math.min(MAX_FORCE_DROPS, value));
     }
-
-    // --- feedback ---
 
     public boolean isBlockSound() {
         return blockSound;

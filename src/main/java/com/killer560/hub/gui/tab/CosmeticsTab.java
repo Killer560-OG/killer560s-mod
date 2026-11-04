@@ -183,7 +183,6 @@ public class CosmeticsTab extends BaseTab {
             widgets.addAll(f5);
         }
 
-        // --- Custom Names
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Custom Names", false, customNamesOpen,
                 () -> {
                     customNamesOpen = !customNamesOpen;
@@ -198,7 +197,6 @@ public class CosmeticsTab extends BaseTab {
             y = bottomOf(built, y) + 6;
         }
 
-        // --- Player Size
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Player Size", false, playerSizeOpen,
                 () -> {
                     playerSizeOpen = !playerSizeOpen;

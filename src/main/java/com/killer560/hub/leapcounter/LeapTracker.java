@@ -158,8 +158,6 @@ public final class LeapTracker {
         return pending;
     }
 
-    // ---- inputs ----
-
     /** Every real chat line, already stripped of formatting. */
     static void onChat(String plain) {
         if (plain == null || !SELF_LEAP.matcher(plain).matches()) {
@@ -293,8 +291,6 @@ public final class LeapTracker {
             completionPending = true;
         }
     }
-
-    // ---- helpers ----
 
     /** NoammAddons' {@code min(dungeonTeammatesNoSelf.size, maxCount)} - a 4-man party must not wait for a 5th leap.
      *  Only alive teammates can leap. With no party known at all (p3sim.net, or the tab list not parsed yet) the

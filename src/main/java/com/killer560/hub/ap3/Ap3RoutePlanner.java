@@ -183,7 +183,6 @@ final class Ap3RoutePlanner {
         /** Can the player's box stand here, feet at the route's floor height? */
         boolean walkable(double x, double z);
 
-
         /**
          * Is the only thing holding you up here a block an AP3 Block node is going to place? killer560 (2026-09-22):
          * "make it always assume that block is going to be a bottom half slab at most. It should be able to get two
@@ -340,8 +339,6 @@ final class Ap3RoutePlanner {
          */
         boolean unreachable;
     }
-
-    // ---- the search --------------------------------------------------------------------------------------------
 
     private static final class Node {
         Ap3RouteMath.RouteState s;
@@ -1116,7 +1113,6 @@ final class Ap3RoutePlanner {
         out.add(c);
     }
 
-
     /**
      * Close enough to the gate that how fast he arrives decides whether he lands on it. Kept deliberately tight:
      * offering the walking variant of every press doubles the branching wherever it applies, and at top * 16 - some
@@ -1740,8 +1736,6 @@ final class Ap3RoutePlanner {
         return h * 2048L + ((group * 64L + mask * 4L + air) % 2048L);
     }
 
-    // ---- the answer --------------------------------------------------------------------------------------------
-
     private static Plan finish(Node end, List<Gate> gates, List<Blocked> blocked, Ap3DiscretePlanner.Model m,
                                Options o, Terrain terrain, Plan plan) {
         List<Node> chain = new ArrayList<>();
@@ -1938,8 +1932,6 @@ final class Ap3RoutePlanner {
         r[1] = s.z - tz;
         return r[0] * r[0] + r[1] * r[1];
     }
-
-    // ---- shared little things ---------------------------------------------------------------------------------
 
     private static final Ap3DiscretePlanner.Action SNEAK_ONLY = new Ap3DiscretePlanner.Action(0, 0, true);
     /** Shapes worth trying when the only thing that matters is getting there: both keep sprint (fw > 0). */

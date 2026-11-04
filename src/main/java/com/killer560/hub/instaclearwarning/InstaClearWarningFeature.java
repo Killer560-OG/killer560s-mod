@@ -122,7 +122,6 @@ public final class InstaClearWarningFeature {
     private static String pendingFloor = null;
     private static long pendingSince = 0;
 
-    // ---- testkit ----
     private static Snapshot testSnapshot = null;
     private static int warnings = 0;
     private static String lastWarnedRoom = null;
@@ -482,10 +481,6 @@ public final class InstaClearWarningFeature {
     public static void testClear(String room) {
         FAKE.guards.remove(room);
         FAKE.cleared.add(room);
-    }
-
-    public static void testOpenDoor(int door) {
-        FAKE.lockedOpen.add(door);
     }
 
     public static void testKeys(int wither, int blood, boolean onGround, boolean near) {

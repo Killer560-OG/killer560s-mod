@@ -74,8 +74,6 @@ public final class FloorGraphs {
         return full.warmDone() && (quick == null || quick.warmDone());
     }
 
-    // ------------------------------------------------------------------------------------------- what the last plan did
-
     /** The graph the returned path (or the last search) was planned on. */
     public WarpGraph used;
     /** "full", "quick", "full, not warm" (the cold budget) - for the log. */

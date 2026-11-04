@@ -79,8 +79,6 @@ public final class BloodCampStats {
         ChatObserver.subscribe(BloodCampStats::onChat);
     }
 
-    // ---- inputs ----------------------------------------------------------------------------------------------------
-
     static void onGreeting() {
         reset("greeting");
         phase = Phase.WAITING_KILL;
@@ -210,8 +208,6 @@ public final class BloodCampStats {
         return s;
     }
 
-    // ---- testkit ---------------------------------------------------------------------------------------------------
-
     public static long ticksLost() {
         return ticksLost;
     }
@@ -244,8 +240,6 @@ public final class BloodCampStats {
     public static void endOfRunForTest() {
         endOfRun();
     }
-
-    // ---- HUD -------------------------------------------------------------------------------------------------------
 
     /** The lines the HUD shows now (empty outside a camp). */
     static List<String> lines(boolean preview) {

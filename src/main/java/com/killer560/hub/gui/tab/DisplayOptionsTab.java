@@ -6,9 +6,7 @@ import com.killer560.hub.mainmenu.MainMenuThemeConfig;
 import com.killer560.hub.window.ConfineMouseConfig;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;

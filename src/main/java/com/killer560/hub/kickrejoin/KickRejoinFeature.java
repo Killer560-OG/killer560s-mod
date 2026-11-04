@@ -89,7 +89,6 @@ public final class KickRejoinFeature {
     private static boolean readyFired = false;
     private static boolean partyDone = false;
 
-    // ---- testkit ----
     private static volatile String lastTitle = null;
     private static volatile String lastHudText = null;
     private static volatile int sounds = 0;
@@ -314,8 +313,6 @@ public final class KickRejoinFeature {
         return "Kicked from SkyBlock " + seconds(now - kickedAtMs) + " ago - "
                 + (left > 0 ? "rejoin in " + seconds(left + 999) : "rejoin now!");
     }
-
-    // ---- testkit -------------------------------------------------------------------------------------------------
 
     public static String lastTitle() {
         return lastTitle;

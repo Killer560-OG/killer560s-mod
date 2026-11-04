@@ -138,8 +138,6 @@ public final class RoutePath {
         return i;
     }
 
-    // ------------------------------------------------------------------------------------------- file format
-
     public String encode() {
         StringBuilder sb = new StringBuilder(samples.size() * 40);
         for (int i = 0; i < samples.size(); i++) {

@@ -124,7 +124,6 @@ public class F7SpotsTab extends BaseTab {
                 }).bounds(col2X, y, colW, 18).build());
         y += 28;
 
-        // ---- Aim spots ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Last Breath Aim Spots", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Aim Spots", cfg::getAimSpotsRaw, cfg::setAimSpots));

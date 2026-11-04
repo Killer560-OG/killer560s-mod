@@ -2,21 +2,15 @@ package com.killer560.hub.chocolatefactory.egg;
 
 import com.killer560.hub.compat.McRender;
 import com.killer560.hub.util.SkyblockGate;
-import com.mojang.renderpearl.api.pipeline.DepthStencilState;
-import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3fc;
 
-import java.util.Optional;
 
 /**
  * Draws the Egglocator's guess on both builds, as SkyHanni's drawGuessLocations does: a filled waypoint on the egg's block,

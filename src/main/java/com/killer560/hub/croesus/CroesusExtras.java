@@ -145,8 +145,6 @@ public final class CroesusExtras {
         }
     }
 
-    // ---- Reroll Protection -------------------------------------------------------------------------------------
-
     /** From {@code croesus/mixin/CroesusRerollMixin} at HEAD of {@code AbstractContainerScreen#slotClicked}: his clicks
      *  only (Auto Croesus sends through the game mode directly and never passes here). */
     public static boolean shouldBlockSlotClick(AbstractContainerScreen<?> screen, Slot slot, int slotId, ContainerInput input) {
@@ -228,8 +226,6 @@ public final class CroesusExtras {
     public static int unclaimed() {
         return unclaimed;
     }
-
-    // ---- Croesus Chests HUD ----------------------------------------------------------------------------------------
 
     public static final class ChestCountHudElement implements HudElement {
         public static final String ID = "croesus_chests";

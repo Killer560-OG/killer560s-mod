@@ -3,20 +3,13 @@ package com.killer560.hub.bazaarflip;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.gui.profit.ProfitScope;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +32,6 @@ import java.util.Locale;
 public final class BazaarFlipProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     /** Oldest records are dropped past this, so the file stays small. */
     private static final int MAX_RECORDS = 5000;
 

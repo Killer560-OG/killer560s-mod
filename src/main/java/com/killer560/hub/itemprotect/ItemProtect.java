@@ -61,8 +61,6 @@ public final class ItemProtect {
     private ItemProtect() {
     }
 
-    // ------------------------------------------------------------------ item identity
-
     /** Hypixel Skyblock {@code ExtraAttributes.uuid} (per-item, survives renaming/reforging), or null. */
     public static String itemUuid(ItemStack stack) {
         CompoundTag tag = extraAttributes(stack);
@@ -204,8 +202,6 @@ public final class ItemProtect {
         return null;
     }
 
-    // ------------------------------------------------------------------ slots
-
     public static Inventory playerInventory() {
         LocalPlayer player = Minecraft.getInstance().player;
         return player == null ? null : player.getInventory();
@@ -216,8 +212,6 @@ public final class ItemProtect {
         Inventory inv = playerInventory();
         return slot != null && inv != null && slot.container == inv;
     }
-
-    // ------------------------------------------------------------------ screens that lose items
 
     /** Screens where clicking one of your own items hands it away. Ported from Devonian's {@code BadScreen}
      *  (Salvage / Trade / Sell) plus the anvil and auction-creation menus named in this feature's brief. */
@@ -281,8 +275,6 @@ public final class ItemProtect {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------ the decisions
 
     /**
      * Single decision for every container interaction. Returns true to cancel the click before any packet is
@@ -428,8 +420,6 @@ public final class ItemProtect {
         }
         return player.containerMenu.getCarried();
     }
-
-    // ------------------------------------------------------------------ feedback
 
     public static String displayName(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

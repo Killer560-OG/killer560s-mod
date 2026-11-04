@@ -234,11 +234,6 @@ public final class BloodCampMoveTimer {
         return FAST_WATCHER_MOVE_TICKS;
     }
 
-    /** Testkit: {@link #fastWatcherMoveTicks}. */
-    public static int fastWatcherMoveTicksForTest(String floor) {
-        return fastWatcherMoveTicks(floor);
-    }
-
     /** "That will be enough for now." - the Watcher's last summon (NoammAddons' DungeonListener reads the same line). */
     private static final Pattern SPAWNING_DONE =
             Pattern.compile("^\\[BOSS] The Watcher: That will be enough for now\\.$");
@@ -301,11 +296,6 @@ public final class BloodCampMoveTimer {
     /** Whether the kill timer ("KILL") has gone off: what Blood Camp Stats counts lost ticks from. */
     static boolean killReached() {
         return ticksUntilKillOpen(0) <= 0 && moveAtElapsed >= 0;
-    }
-
-    /** Testkit: {@link #killShownTick()}. */
-    public static long killShownTickForTest() {
-        return killShownTick();
     }
 
     /** Ticks until the Watcher is predicted to move, or {@link Double#NaN} while there is no prediction. */

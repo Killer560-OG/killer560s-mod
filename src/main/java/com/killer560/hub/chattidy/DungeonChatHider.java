@@ -143,9 +143,4 @@ public final class DungeonChatHider {
         }
     }
 
-    /** Test hook: the family a line would fall in (as {@link #family}), or "" for none. */
-    public static String testFamily(String plain, String self) {
-        Family f = family(plain, self);
-        return f == null ? "" : f.name();
-    }
 }

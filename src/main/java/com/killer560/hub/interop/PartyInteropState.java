@@ -102,8 +102,6 @@ public final class PartyInteropState {
     private PartyInteropState() {
     }
 
-    // ------------------------------------------------------------------ writes
-
     /** @return true if this actually changed what we believe. Only {@code true} values are ever accepted. */
     public static boolean offerFlag(Flag flag, InteropSource source, String reporter) {
         if (flag == null || source == null) {
@@ -227,8 +225,6 @@ public final class PartyInteropState {
         }
     }
 
-    // ------------------------------------------------------------------ reads
-
     public static boolean flag(Flag flag) {
         synchronized (LOCK) {
             return FLAGS.containsKey(flag);
@@ -275,8 +271,6 @@ public final class PartyInteropState {
         }
     }
 
-    // ------------------------------------------------------------------ lifecycle
-
     /** New dungeon run (or left the dungeon) - everything here is per-run. */
     public static void reset() {
         synchronized (LOCK) {
@@ -289,8 +283,6 @@ public final class PartyInteropState {
             DRAGONS.clear();
         }
     }
-
-    // ------------------------------------------------------------------ internals
 
     private static boolean isSectionCounter(Counter counter) {
         return counter == Counter.TERMINALS_DONE || counter == Counter.DEVICES_DONE || counter == Counter.LEVERS_DONE;

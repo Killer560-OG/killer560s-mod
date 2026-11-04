@@ -3,14 +3,10 @@ package com.killer560.hub.experiments;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
 
-import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.gui.profit.ProfitScope;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.rngmeter.HypixelMarketPrices;
 import com.killer560.hub.rngmeter.RngItem;
 import com.killer560.hub.rngmeter.RngItemNames;
@@ -28,9 +24,6 @@ import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,7 +62,6 @@ import com.killer560.hub.compat.McCompat;
 public final class ExperimentsProfitTracker {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-experiments-profit");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CHAT_FEATURE = "Experiments";
     private static final int MAX_LOGGED_SESSIONS = 1000;
     /** A reward-screen snapshot older than this when the claim message arrives is treated as stale
@@ -203,9 +195,7 @@ public final class ExperimentsProfitTracker {
     private ExperimentsProfitTracker() {
     }
 
-    // ------------------------------------------------------------------------------------------
     // Hooks (registered from ExperimentsFeature.register())
-    // ------------------------------------------------------------------------------------------
 
     static void tick(Minecraft client) {
         if (!ExperimentsConfig.getInstance().isProfitTrackerEnabled()) {
@@ -299,9 +289,7 @@ public final class ExperimentsProfitTracker {
         return m.find() ? Integer.parseInt(m.group(1)) : -1;
     }
 
-    // ------------------------------------------------------------------------------------------
     // Session tracking
-    // ------------------------------------------------------------------------------------------
 
     private static void onPuzzleScreen(String game, String tier, ChestMenu menu) {
         if (pending == null || !pending.game.equals(game)) {
@@ -565,9 +553,7 @@ public final class ExperimentsProfitTracker {
         return pending != null ? pending.game : (claimed == null ? "Unknown" : claimed);
     }
 
-    // ------------------------------------------------------------------------------------------
     // Reward parsing / pricing
-    // ------------------------------------------------------------------------------------------
 
     private static Reward parseReward(String rawLine) {
         Matcher m = REWARD_LINE.matcher(rawLine);
@@ -760,9 +746,7 @@ public final class ExperimentsProfitTracker {
         return String.format(Locale.US, "%.0f", value);
     }
 
-    // ------------------------------------------------------------------------------------------
     // Totals accessors (for ExperimentsTab) + persistence
-    // ------------------------------------------------------------------------------------------
 
     /** The buckets a filter selects. */
     private static List<Bucket> selected(ProfitScope.Filter f) {

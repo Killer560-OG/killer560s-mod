@@ -91,8 +91,6 @@ public final class SqliteReader implements Closeable {
         }
     }
 
-    // ---- WAL ----------------------------------------------------------------------------------------------------------
-
     private void loadWal() throws IOException {
         ByteBuffer h = read(this.wal, 0, 32);
         int magic = h.getInt(0);
@@ -140,8 +138,6 @@ public final class SqliteReader implements Closeable {
         return new int[] {s0, s1};
     }
 
-    // ---- pages --------------------------------------------------------------------------------------------------------
-
     private ByteBuffer page(int number) throws IOException {
         if (number < 1) {
             throw new IOException("bad page number " + number);
@@ -164,8 +160,6 @@ public final class SqliteReader implements Closeable {
         buf.flip();
         return buf.order(ByteOrder.BIG_ENDIAN);
     }
-
-    // ---- tables -------------------------------------------------------------------------------------------------------
 
     /**
      * Every row of the rowid table {@code table}, as column name -> value (Long, Double, String, byte[] or null), in

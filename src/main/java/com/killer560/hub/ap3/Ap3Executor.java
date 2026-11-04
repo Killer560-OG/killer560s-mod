@@ -155,7 +155,6 @@ public final class Ap3Executor {
      *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
     private static final double WALL_TOUCH = 0.02;
-    private static final int LOOK_TIMEOUT = 80;
     private static final long LOOK_TIMEOUT_MS = 3000L;
     /** At most one camera step per 2 ms of wall time, whatever fires the render hook. */
     private static final long MIN_FRAME_STEP_NANOS = 2_000_000L;
@@ -217,7 +216,6 @@ public final class Ap3Executor {
     /** GATE = waiting for the close modifier; the rest are the per-type phases. */
     private enum Step { GATE, PREP, SWAP, AIM, DO, CONFIRM }
 
-    // ---- the armed node set ----
     /** The nodes of the area you stand in, all armed; null between sections / outside the boss. */
     private static Ap3Chain chain;
     /** Nodes whose box you were inside last tick (identity) - the edge detector's memory. */
@@ -247,7 +245,6 @@ public final class Ap3Executor {
     private static final List<Ap3Node> triggeredThisTick = new ArrayList<>();
     private static Vec3 lastSelfPos;
 
-    // ---- the node being performed ----
     private static Ap3Node activeNode;
     private static Step step;
     private static int stepTicks;
@@ -263,7 +260,6 @@ public final class Ap3Executor {
     private static Vec3 holdDir;
     private static boolean holdSprint;
 
-    // ---- modifiers ----
     private static long waitUntilMs;
     private static boolean gateSawScreen;
 
@@ -275,7 +271,6 @@ public final class Ap3Executor {
     private static final boolean[] keyWasDown = new boolean[GLFW_LAST_KEY + 1];
     private static final boolean[] mouseWasDown = new boolean[com.killer560.hub.util.Keys.MOUSE_LAST + 1];
 
-    // ---- terminal ----
     private static int selfCompletions;
     private static int terminalBaseline;
 
@@ -288,10 +283,8 @@ public final class Ap3Executor {
     private static boolean lookHeld;
     private static float lookYaw;
     private static float lookPitch;
-    private static long lookStartMs;
     private static long lastFrameStepNanos;
 
-    // ---- boom ----
     private static BlockPos boomTarget;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
     /** Set by {@link #onGateDestroyed()} from the chat hook: Hypixel's own confirmation that a boom worked. */
@@ -306,12 +299,10 @@ public final class Ap3Executor {
     private static long lastStopwatchMs = -1L;
     private static long stopwatchStoppedAtMs = -1L;
 
-    // ---- alignment progress ----
     private static int settleTicks;
     /** The sneak flag of the record installed THIS tick (= the crouch multiplier the NEXT travel uses). */
     private static boolean lastSneakSent;
 
-    // ---- input ----
     private static boolean mixinApplied;
     private static boolean fallbackKeysHeld;
     private static boolean warnedFallback;
@@ -328,8 +319,6 @@ public final class Ap3Executor {
     private Ap3Executor() {
     }
 
-    // ------------------------------------------------------------------------------------------- public API
-
     /** True while AP3 is doing something: performing a node, holding a walk, or holding triggered nodes in the
      *  queue. Nodes stay ARMED regardless - this is "busy", not "armed". */
     public static boolean isRunning() {
@@ -341,11 +330,6 @@ public final class Ap3Executor {
     /** True while an area's nodes are armed (you are in a boss area that has nodes). */
     public static boolean isArmed() {
         return chain != null && !chain.isEmpty();
-    }
-
-    /** Triggered nodes waiting their turn behind the active one. */
-    public static int queuedCount() {
-        return queue.size();
     }
 
     public static boolean isTestMode() {
@@ -475,8 +459,6 @@ public final class Ap3Executor {
         return stopwatchStoppedAtMs;
     }
 
-    // ------------------------------------------------------------------------------------------- arming
-
     /**
      * Arms {@code nodes} (the area you just entered, or the freshly reloaded file). {@code seedFromPosition} = the
      * boxes you are standing in right now count as already entered, so nothing fires until you step out and back
@@ -519,8 +501,6 @@ public final class Ap3Executor {
         triggeredThisTick.clear();
         lastSelfPos = null;
     }
-
-    // ------------------------------------------------------------------------------------------- input hooks
 
     /** The input mixin asks this before touching anything. */
     public static boolean isSessionActive() {
@@ -778,8 +758,6 @@ public final class Ap3Executor {
         }
         pollClick(Minecraft.getInstance());
     }
-
-    // ------------------------------------------------------------------------------------------- ticking
 
     /**
      * Call at the END of every client tick while AP3 is enabled and the boss gate is open (the feature applies both
@@ -1226,8 +1204,6 @@ public final class Ap3Executor {
         }
         return termAuraScreen != null;
     }
-
-    // ------------------------------------------------------------------------------------------- nodes
 
     private static void beginNode(Ap3Node node, LocalPlayer player) {
         if (node.type == Ap3Node.Type.STOP || node.type == Ap3Node.Type.TERM_AURA) {
@@ -2389,8 +2365,6 @@ public final class Ap3Executor {
     /** How far a USE node's ray looks for a block before treating the use as "at the air". */
     private static final double USE_REACH = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
-    // ---- JUMP / EDGE ------------------------------------------------------------------------------------------
-
     /** A JUMP waits this long for the ground before giving up (a node hit mid-air). */
     private static final int JUMP_WAIT_TICKS = 20;
     /** An EDGE stays armed this long waiting for the edge. */
@@ -3424,8 +3398,6 @@ public final class Ap3Executor {
         }
     }
 
-    // ---- the discrete drive ----
-
     /** The game's own trig table, so the planner's directions are the ones {@code getInputVector} produces. */
     private static final Ap3DiscretePlanner.Trig MTH = new Ap3DiscretePlanner.Trig() {
         @Override
@@ -3523,7 +3495,6 @@ public final class Ap3Executor {
         return player.isSprinting() || (client.options != null && client.options.keySprint.isDown());
     }
 
-    // ---- the measured push scale -------------------------------------------------------------------------------
     /** What the model's push has to be multiplied by to match what the game really did; 1 until something differs. */
     private static double pushScale = 1.0;
     private static final double PUSH_SCALE_MIN = 0.5;
@@ -3641,7 +3612,6 @@ public final class Ap3Executor {
     /** The tolerance of the align being performed; set at the top of every align tick, read by {@link #modelFor}. */
     private static double alignTolerance = Ap3Config.DEFAULT_ALIGN_TOLERANCE;
 
-    // ---- Camera Planner view freeze ---------------------------------------------------------------------------
     //
     // killer560 (2026-09-21): "for that camera change one, do the same freecam style we used for walk nodes so client
     // side I stay looking the same way." The walk lock's way - sending the server a yaw that is not the player's -
@@ -4094,8 +4064,6 @@ public final class Ap3Executor {
         }
         return null;
     }
-
-    // ---- LEAP -----------------------------------------------------------------------------------------------
 
     /**
      * killer560: "it should stop all movement when it goes to leap, so that tick it would look like drops all
@@ -5089,14 +5057,6 @@ public final class Ap3Executor {
     private static final int[][] AIM_KEYS = {
             {1, 1, -45}, {1, -1, 45}, {1, 0, 0}, {0, 1, -90}, {0, -1, 90}, {-1, 1, -135}, {-1, -1, 135}, {-1, 0, 180}};
 
-    static float aimYawFor(Ap3Node node) {
-        return aimNode == node ? aimYaw : node.yaw;
-    }
-
-    static float aimPitchFor(Ap3Node node) {
-        return aimNode == node ? aimPitch : node.pitch;
-    }
-
     private static void chooseAim(LocalPlayer player, Ap3Node node) {
         aimNode = node;
         aimYaw = node.yaw;
@@ -5367,8 +5327,6 @@ public final class Ap3Executor {
         return new Vec3(-Math.sin(yr) * cp, -Math.sin(pr), Math.cos(yr) * cp);
     }
 
-    // ---- STOPWATCH ------------------------------------------------------------------------------------------
-
     /** How long after a stopwatch node fires before it can fire again (killer560, 2026-10-22: one second). */
     static final long STOPWATCH_REFIRE_LOCK_MS = 1000L;
 
@@ -5403,8 +5361,6 @@ public final class Ap3Executor {
     public static String formatStopwatch(long ms) {
         return String.format(Locale.US, "%.3fs", ms / 1000.0);
     }
-
-    // ------------------------------------------------------------------------------------------- movement
 
     /**
      * The held walk (WALK / RUN) when no node wrote its own input this tick. DISCRETE: the movement is exactly the
@@ -5902,8 +5858,6 @@ public final class Ap3Executor {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- manual click / any button
-
     /** Edge-triggered poll of the physical left mouse button. Clicks inside a GUI (a terminal being solved) are
      *  the player working, not an override, so a screen being open masks them. */
     private static void pollClick(Minecraft client) {
@@ -5962,8 +5916,6 @@ public final class Ap3Executor {
             return false;
         }
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     /** 1-BASED, to match /ap3 list, /ap3 delete, the world labels and the tab. */
     private static int number(Ap3Node node) {

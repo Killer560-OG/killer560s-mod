@@ -80,8 +80,6 @@ public final class TripCache {
     private TripCache() {
     }
 
-    // ------------------------------------------------------------------------------------------- the trips
-
     /** A goal as a press asks for it: a tile ({@code tileIdx >= 0}, {@code to} its fallback) or a block. */
     record Goal(BlockPos to, int tileIdx, boolean exact) {
         String key() {
@@ -184,8 +182,6 @@ public final class TripCache {
         return (int) Math.floor(v.x) + "," + (int) Math.floor(v.y) + "," + (int) Math.floor(v.z);
     }
 
-    // ------------------------------------------------------------------------------------------- lookups
-
     /**
      * The trip for this goal from where he stands, or null: the one starting nearest him within {@link #MATCH_XZ}; for an
      * exact goal only one whose last hop lands ON the block. Client thread (any thread is safe).
@@ -282,8 +278,6 @@ public final class TripCache {
         return lastRejectWhy;
     }
 
-    // ------------------------------------------------------------------------------------------- block changes
-
     /** Test hook (testkit): corridor drops off, so only the check at use stands between a stale trip and a warp. */
     public static volatile boolean testNoCorridorDrop;
 
@@ -361,8 +355,6 @@ public final class TripCache {
         }
         return true;
     }
-
-    // ------------------------------------------------------------------------------------------- the schedule
 
     /** One trip wanted: from a spot to a goal, its phase (1 from where he stands, 2 from a route's end), its order. */
     private record Want(Vec3 from, Goal goal, int phase, double priority, String fromKey, String goalKey, String key) {

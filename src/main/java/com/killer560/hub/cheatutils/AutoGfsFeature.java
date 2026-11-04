@@ -2,7 +2,6 @@ package com.killer560.hub.cheatutils;
 
 import com.killer560.hub.scoreboard.ScoreboardData;
 import com.killer560.hub.util.ActionGate;
-import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SackCommands;
 import net.minecraft.client.Minecraft;

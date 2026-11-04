@@ -347,8 +347,6 @@ final class Ap3RouteCache {
         return n;
     }
 
-    // ---- on disk -------------------------------------------------------------------------------------------------
-
     private static Path file() {
         return com.killer560.hub.util.ModPaths.config("killer560smod/ap3-routes.json");
     }

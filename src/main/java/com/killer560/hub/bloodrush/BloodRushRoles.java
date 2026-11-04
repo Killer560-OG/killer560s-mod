@@ -253,8 +253,6 @@ public final class BloodRushRoles {
         return String.join(", ", parts) + (chatCount != null ? " (" + chatCount + " killing)" : "");
     }
 
-    // ---- test hooks ----
-
     /** "count=N mine=R door=b playing=P seen=b summary=..." as the run reads it now (a room before fairy). */
     public static String stateForTest() {
         BloodRushConfig cfg = BloodRushConfig.getInstance();

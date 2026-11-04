@@ -104,11 +104,6 @@ public final class InvSortDump {
         return running != null;
     }
 
-    /** Items moved by the last/current run. For tests. */
-    public static int movedForTest() {
-        return moved;
-    }
-
     /** Whether a screen is a container the dump may fill. */
     public static boolean eligible(Screen screen) {
         if (!(screen instanceof AbstractContainerScreen<?> acs) || screen instanceof SortingInventoryScreen

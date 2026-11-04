@@ -197,8 +197,6 @@ final class Ap3DiscretePlanner {
         return Math.min(len * d, 1.0);
     }
 
-    // ------------------------------------------------------------------------------------------- the exact model
-
     /** One vanilla tick applied to {@code s} in place: aiStep zeroing, the keys at {@code yaw}, travel, friction. */
     static void step(State s, Action a, float yaw, Model m) {
         boolean zeroed = Ap3AlignMath.horizontalZeroed(s.vx, s.vz);
@@ -276,8 +274,6 @@ final class Ap3DiscretePlanner {
         return (float) d;
     }
 
-    // ------------------------------------------------------------------------------------------- tap sequences
-
     /**
      * A straight-key tap of one size in world direction {@code dirDeg} (the yaw a W press would need): the nearest of
      * W/A/S/D is chosen so the turn from {@code fromYaw} is at most 45 degrees; the yaw ramps there in equal steps no
@@ -329,8 +325,6 @@ final class Ap3DiscretePlanner {
         double a = STRAIGHT * (sneak ? m.sneakMul : 1.0) * m.tickSpeed(false);
         return a / (1.0 - m.friction());
     }
-
-    // ------------------------------------------------------------------------------------------- solvers
 
     /** Zero taps: where the current slide ends. */
     private static Plan settlePlan(State s, Model m) {
@@ -514,8 +508,6 @@ final class Ap3DiscretePlanner {
         return p;
     }
 
-    // ------------------------------------------------------------------------------------------- coarse
-
     static final Action[] ACTIONS;
 
     static {
@@ -564,8 +556,6 @@ final class Ap3DiscretePlanner {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- keys only
-
     /** The nine sneak-held combinations (no keys ... diagonals), for the keys-only fine search. */
     private static final Action[] SNEAK_ACTIONS;
 
@@ -609,8 +599,6 @@ final class Ap3DiscretePlanner {
             keysFineSearch(n, m, depth, k + 1, first == null ? a : first, out);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- the plan
 
     /**
      * The keys and yaw for this tick. Order: the current slide already ends inside the tolerance -> no keys; one tap

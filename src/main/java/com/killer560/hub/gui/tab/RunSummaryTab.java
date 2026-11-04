@@ -54,8 +54,6 @@ public class RunSummaryTab extends BaseTab {
         return buildList(contentX, contentY, contentWidth, requestRebuild);
     }
 
-    // ---------------------------------------------------------------- list view
-
     private List<AbstractWidget> buildList(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         RunSummaryConfig cfg = RunSummaryConfig.getInstance();
@@ -167,8 +165,6 @@ public class RunSummaryTab extends BaseTab {
         return widgets;
     }
 
-    // ---------------------------------------------------------------- one run's summary
-
     private List<AbstractWidget> buildDetail(RunRecord run, int contentX, int contentY, int contentWidth,
                                              Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -193,8 +189,6 @@ public class RunSummaryTab extends BaseTab {
         }
         return widgets;
     }
-
-    // ---------------------------------------------------------------- helpers
 
     private static String statusText(int stored) {
         if (RunSummaryFeature.isTrackingRun()) {

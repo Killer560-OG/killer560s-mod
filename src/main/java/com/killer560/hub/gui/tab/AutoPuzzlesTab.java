@@ -103,7 +103,6 @@ public class AutoPuzzlesTab extends BaseTab {
             y += ROW_STEP;
         }
 
-        // ---- click puzzles ----
         y = header(widgets, contentX, y, contentWidth, "Click Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Boulder", cfg.isAutoBoulderEnabled(),
                 () -> cfg.setAutoBoulderEnabled(!cfg.isAutoBoulderEnabled()), cfg, requestRebuild);
@@ -127,7 +126,6 @@ public class AutoPuzzlesTab extends BaseTab {
             y += ROW_STEP;
         }
 
-        // ---- movement puzzles ----
         y = header(widgets, contentX, y, contentWidth, "Movement Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Teleport Maze", cfg.isAutoTeleportMazeEnabled(),
                 () -> cfg.setAutoTeleportMazeEnabled(!cfg.isAutoTeleportMazeEnabled()), cfg, requestRebuild);

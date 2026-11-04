@@ -21,10 +21,6 @@ public enum LfgCategory {
     /** Any party that fits none of the others (killer560, 2026-10-18); its activity is typed, not picked. */
     MISC("misc", "Misc", 5, List.of("Misc"), List.of());
 
-    /** Entrance was a floor choice until 2026-10-18; no new listing may pick it now. Existing listings that say it still
-     *  parse and show (the listing check takes any activity text), they just are not offered in the floor dropdown. */
-    public static final String RETIRED_ENTRANCE = "Entrance";
-
     /** The PB requirement's key: the floor's S+ personal best, in whole seconds, at most this fast (lower is harder). */
     public static final String PB = "pb";
     /** What a typed activity may hold (the relay's own rule). */

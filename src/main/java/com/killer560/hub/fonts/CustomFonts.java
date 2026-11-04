@@ -86,8 +86,6 @@ public final class CustomFonts {
         });
     }
 
-    // ------------------------------------------------------------------ the hook
-
     /** Called by the Font mixin for every glyph-source lookup; returns {@code original} unless the font applies. */
     public static GlyphSource replace(Font font, GlyphSource original, FontDescription description) {
         GlyphSource any = anyGlyphs;
@@ -118,11 +116,6 @@ public final class CustomFonts {
         return anyGlyphs != null;
     }
 
-    /** Whether Mod Menu Only scoping is wanted (a font built and its scope is the mod's screens). */
-    static boolean menuScoped() {
-        return anyGlyphs != null && !everywhere;
-    }
-
     public static String lastError() {
         return lastError;
     }
@@ -139,8 +132,6 @@ public final class CustomFonts {
     public static boolean isModScreen(Screen screen) {
         return screen != null && screen.getClass().getName().startsWith("com.killer560.hub.");
     }
-
-    // ------------------------------------------------------------------ lifecycle
 
     /** The font manager is about to reload: the default providers this set borrows are about to be closed. */
     public static void dropForReload() {

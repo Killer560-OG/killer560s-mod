@@ -10,7 +10,6 @@ import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.namechanger.NameRank;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -49,7 +48,6 @@ public class NameChangerTab extends BaseTab {
             return widgets;
         }
 
-        // --- own name
         widgets.add(onOffButton("Change My Name", cfg::isOwnNameEnabled, cfg::setOwnNameEnabled, cfg::save,
                 null, contentX, y, halfW, 18));
         widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Name to Default"), btn -> {
@@ -184,7 +182,6 @@ public class NameChangerTab extends BaseTab {
 
         y = buildLetterColours(widgets, cfg, contentX, y, contentWidth, font, requestRebuild);
 
-        // --- manual mappings
         widgets.add(onOffButton("Custom Renames", cfg::isMappingsEnabled, cfg::setMappingsEnabled, cfg::save,
                 null, contentX, y, halfW, 18));
         widgets.add(SettingsButtonWidget.builder(Component.literal("+ Add Rename"), btn -> {

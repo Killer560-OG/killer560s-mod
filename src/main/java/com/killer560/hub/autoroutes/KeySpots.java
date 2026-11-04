@@ -172,9 +172,4 @@ public final class KeySpots {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    /** For the testkit: what the rule says for a node standing at {@code feet} in the room he is in now. */
-    public static List<BlockPos> emptyInReachForTest(Vec3 feet) {
-        Minecraft client = Minecraft.getInstance();
-        return emptyInReach(client, RouteCoords.Frame.current(), feet);
-    }
 }

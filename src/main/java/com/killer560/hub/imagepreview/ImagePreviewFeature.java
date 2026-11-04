@@ -149,8 +149,6 @@ public final class ImagePreviewFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ImagePreviewFeature.tick", c -> tick()));
     }
 
-    // ------------------------------------------------------------------------------------------------- hovering
-
     private static void onExtract(GuiGraphicsExtractor g, int mx, int my) {
         ImagePreviewConfig cfg = ImagePreviewConfig.getInstance();
         if (!cfg.isEnabled()) {
@@ -302,8 +300,6 @@ public final class ImagePreviewFeature {
         return sb.toString();
     }
 
-    // ------------------------------------------------------------------------------------------------- loading
-
     /** The entry for {@code link}, starting its resolve the first time it is hovered. Render thread. */
     static Entry entry(String link) {
         Entry e = ENTRIES.get(link);
@@ -385,8 +381,6 @@ public final class ImagePreviewFeature {
             LOGGER.info("[ImagePreview] {}: {}", p.url, t.toString());
         }
     }
-
-    // ------------------------------------------------------------------------------------------------- drawing
 
     private static final int PAD = 3;
     private static final int BG = 0xE0101010;
@@ -555,8 +549,6 @@ public final class ImagePreviewFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- input
-
     /** Mouse wheel over an album: the next or previous picture. True when consumed. */
     private static boolean onScroll(double amount) {
         if (!ImagePreviewConfig.getInstance().isEnabled() || hoveredLink == null || amount == 0) {
@@ -586,8 +578,6 @@ public final class ImagePreviewFeature {
         McCompat.setScreen(Minecraft.getInstance(), new ImageViewerScreen(screen, e));
         return true;
     }
-
-    // ------------------------------------------------------------------------------------------------- upkeep
 
     private static void tick() {
         long now = System.currentTimeMillis();
@@ -628,8 +618,6 @@ public final class ImagePreviewFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- test hooks
-
     /** The last frame's preview (null when none drew since {@link #resetForTest}). */
     public static Drawn lastDrawnForTest() {
         return lastDrawn;
@@ -637,10 +625,6 @@ public final class ImagePreviewFeature {
 
     public static void clearLastDrawnForTest() {
         lastDrawn = null;
-    }
-
-    public static long framesDrawnForTest() {
-        return framesDrawn;
     }
 
     /** HTTP requests actually sent since start (a cache hit leaves it alone). */
@@ -719,11 +703,6 @@ public final class ImagePreviewFeature {
             }
         }
         return n;
-    }
-
-    /** Empties the disk cache (worker-safe). */
-    public static void clearDiskCacheForTest() {
-        ImageFetcher.trimCache(0);
     }
 
     static Pic currentPic(Entry e) {

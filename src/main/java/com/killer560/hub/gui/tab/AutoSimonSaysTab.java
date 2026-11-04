@@ -4,7 +4,6 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.simonsays.SimonSaysConfig;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -66,7 +65,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         // Auto Start -> Auto Solve; each is cheat-only so each gets its own red divider (SectionHeaders,
         // cheatOnly=true), same convention MaskInvincibilityTab/ObjectHiderTab use for cheat-only content.
 
-        // --- Trigger Bot ---
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Trigger Bot", true));
         y += 16;
 

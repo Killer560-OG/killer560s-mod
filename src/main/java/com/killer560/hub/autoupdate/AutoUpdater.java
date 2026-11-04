@@ -99,8 +99,6 @@ public final class AutoUpdater {
     private AutoUpdater() {
     }
 
-    // ---- gates -------------------------------------------------------------------------------------------------
-
     /** Why this request must not touch the network at all, or {@code null} when it may. */
     public static String blockedReason(Request r) {
         if (r.testingBuild()) {
@@ -120,8 +118,6 @@ public final class AutoUpdater {
         }
         return null;
     }
-
-    // ---- URLs ----------------------------------------------------------------------------------------------------
 
     static String releaseApiUrl(Channel channel) {
         String path = channel == Channel.BETA ? "/releases/tags/" + BETA_TAG : "/releases/latest";
@@ -150,8 +146,6 @@ public final class AutoUpdater {
         int n = Math.min(a.length(), b.length());
         return n >= 7 && a.substring(0, n).equals(b.substring(0, n));
     }
-
-    // ---- the check -------------------------------------------------------------------------------------------------
 
     private static HttpClient client() {
         return HttpClient.newBuilder()
@@ -299,8 +293,6 @@ public final class AutoUpdater {
         LOGGER.info("[AutoUpdate] staged {} ({}, {}), SHA-256 verified", assetName, shortOf(remoteCommit), tag);
         return new Outcome(Status.STAGED, "verified", assetName, remoteCommit, tag, notes, target);
     }
-
-    // ---- helpers -------------------------------------------------------------------------------------------------
 
     static String shortOf(String commit) {
         return commit != null && commit.length() > 7 ? commit.substring(0, 7) : commit;

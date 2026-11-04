@@ -49,7 +49,6 @@ public class P3NavTab extends BaseTab {
         // No switch over the whole tab (killer560, 2026-10-14): the gate, terminal and device highlights are independent,
         // each has its own switch, and the card is ON while any is.
 
-        // ---- Gate Highlight ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Gate Highlight", false));
         y += 16;
 

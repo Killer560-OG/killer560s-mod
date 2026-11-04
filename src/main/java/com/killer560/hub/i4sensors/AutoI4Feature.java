@@ -225,9 +225,7 @@ public final class AutoI4Feature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Tick - gating, wall tracking, shot planning, No Rotate firing
-    // ------------------------------------------------------------------
 
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
@@ -498,9 +496,7 @@ public final class AutoI4Feature {
         abilityUsedThisAttempt = false;
     }
 
-    // ------------------------------------------------------------------
     // Weapon: auto swap + Machine Gun Shortbow ability
-    // ------------------------------------------------------------------
 
     static boolean isWeapon(ItemStack stack, Weapon weapon) {
         if (stack == null || stack.isEmpty()) {
@@ -583,9 +579,7 @@ public final class AutoI4Feature {
         abilityHoldUntilMs = now + RAPID_FIRE_DURATION_MS;
     }
 
-    // ------------------------------------------------------------------
     // Aiming and firing
-    // ------------------------------------------------------------------
 
     /** Terminator: Noamm's getTargetVector - aim between columns so the 3-arrow spread covers the neighbor too.
      *  Machine Gun Shortbow (one arrow): the block's own x center, same drop-compensated y and z as Noamm. */

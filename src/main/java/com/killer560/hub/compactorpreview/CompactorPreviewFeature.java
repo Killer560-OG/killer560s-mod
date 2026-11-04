@@ -95,8 +95,6 @@ public final class CompactorPreviewFeature {
         return new Contents(deletor, tier, size[0], size[1], slots, active);
     }
 
-    // ------------------------------------------------------------------ gating
-
     /** Whether the grid should be added to a tooltip this frame: feature on, Skyblock gate, mode/key rule. */
     public static boolean visible() {
         CompactorPreviewConfig cfg = CompactorPreviewConfig.getInstance();
@@ -122,8 +120,6 @@ public final class CompactorPreviewFeature {
     public static boolean modeAllows(CompactorPreviewConfig.Mode mode, boolean keyHeld) {
         return mode == CompactorPreviewConfig.Mode.ON_HOVER || keyHeld;
     }
-
-    // ------------------------------------------------------------------ tooltip hook
 
     /** The container slot under the cursor, or null. */
     private static ItemStack hoveredStack() {

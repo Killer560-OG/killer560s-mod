@@ -112,8 +112,6 @@ public final class InventoryLayoutStore {
         load();
     }
 
-    // ------------------------------------------------------------------------------------------- access
-
     /** Every layout name in the menu's order: the order he dragged them into ({@link InventorySorterConfig}), then any
      *  not placed yet, alphabetically - the {@code /invsort list} order too. */
     public List<String> listNames() {
@@ -236,8 +234,6 @@ public final class InventoryLayoutStore {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------------------------------- codec
 
     private static InventoryLayout readLayout(String stem, JsonObject root) {
         String name = ConfigJson.getString(root, "name", stem);

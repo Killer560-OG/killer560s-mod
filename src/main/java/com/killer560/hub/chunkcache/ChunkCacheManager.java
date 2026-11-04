@@ -140,8 +140,6 @@ public final class ChunkCacheManager {
         onLevelChanged(null);
     }
 
-    // ---------------------------------------------------------------- state
-
     /** True when the feature (or the Live Map's "Keep Chunks Loaded", which defers to it) is currently on. */
     public static boolean isActive() {
         return active;
@@ -202,8 +200,6 @@ public final class ChunkCacheManager {
         lastLevel = new WeakReference<>(level);
     }
 
-    // ---------------------------------------------------------------- store access
-
     public static ChunkCacheStore storeOf(ClientLevel level) {
         if (level == null) {
             return null;
@@ -228,8 +224,6 @@ public final class ChunkCacheManager {
     public static void clearCache() {
         releaseAll(storeOf(Minecraft.getInstance().level));
     }
-
-    // ---------------------------------------------------------------- mixin entry points
 
     /** {@code ClientChunkCache.replaceWithPacketData} returned: this object is now the newest copy of that chunk. */
     public static void onChunkReceived(ChunkCacheStore store, int x, int z, LevelChunk chunk) {
@@ -441,8 +435,6 @@ public final class ChunkCacheManager {
         ChunkPos pos = chunk.getPos();
         return vanillaGetChunk(clientLevel, pos.x(), pos.z(), ChunkStatus.FULL, false) == chunk;
     }
-
-    // ---------------------------------------------------------------- memory
 
     private static void trim(ChunkCacheStore store) {
         for (LevelChunk evicted : store.trim(maxChunks)) {

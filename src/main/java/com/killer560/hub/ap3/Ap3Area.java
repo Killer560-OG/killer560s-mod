@@ -37,11 +37,6 @@ public enum Ap3Area {
         return "Boss";
     }
 
-    /** Longer form for status lines. */
-    public String longLabel() {
-        return "Boss Room";
-    }
-
     /**
      * The area a chain key names, or null when it is not one.
      * <p>

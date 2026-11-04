@@ -85,8 +85,6 @@ public final class AhRelistMacro {
     static final int ITEM_SLOT = 13;
     static final int CREATE_SLOT = 29;
     static final int PRICE_SLOT = 31;
-    /** NEU / Hypixel confirm pages: Confirm on the left. */
-    static final int CONFIRM_SLOT = 11;
 
     /** "Status: Sold!", "Status: Expired!" (SkyHanni), "Status: Ended!" on a bid page. Anchored, on stripped lore. */
     static final Pattern CLAIMABLE_LORE = Pattern.compile("^Status: (Sold|Expired|Ended)!?$", Pattern.CASE_INSENSITIVE);
@@ -248,8 +246,6 @@ public final class AhRelistMacro {
         // Another screen (chat, the pause menu): wait; Escape already stopped it through MacroStop.
     }
 
-    // ---- starting ---------------------------------------------------------------------------------------------------
-
     private static void maybeStart(Minecraft client, Screen screen, long now) {
         if (halted || screen != null || com.killer560.hub.secrets.DungeonState.isInDungeon() || AhFlipMacro.isBusy()) {
             return;
@@ -317,8 +313,6 @@ public final class AhRelistMacro {
         pace(now);
         LOGGER.info("[AhRelist] /ah ({}), phase {}", reopens, phase);
     }
-
-    // ---- pages ------------------------------------------------------------------------------------------------------
 
     private static void onPage(Minecraft client, AbstractContainerScreen<?> c, long now) {
         String title = BazaarFlipMenus.titleOf(c);
@@ -706,8 +700,6 @@ public final class AhRelistMacro {
         clickedAtMs = now;
     }
 
-    // ---- the price sign ---------------------------------------------------------------------------------------------
-
     private static void fillSign(AbstractSignEditScreen sign, long now) {
         String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
         if (!lines[0].isEmpty()) {
@@ -745,8 +737,6 @@ public final class AhRelistMacro {
         progressAtMs = now;
         pace(now);
     }
-
-    // ---- clicks -----------------------------------------------------------------------------------------------------
 
     /** First menu slot whose name contains {@code needle}, ignoring case, or -1. */
     static int find(AbstractContainerScreen<?> c, String needle) {
@@ -795,8 +785,6 @@ public final class AhRelistMacro {
         nextActionAtMs = now + ThreadLocalRandom.current().nextLong(250, 501);
     }
 
-    // ---- ending -----------------------------------------------------------------------------------------------------
-
     private static void finish(Minecraft client, long now) {
         failsInARow = 0;
         claimedTotal += claimedThisCycle;
@@ -844,8 +832,6 @@ public final class AhRelistMacro {
         nextCycleAtMs = System.currentTimeMillis() + CYCLE_COOLDOWN_MS;
     }
 
-    // ---- testkit ----------------------------------------------------------------------------------------------------
-
     /** listed total|claimed total|halted|state|phase|last reason. */
     public static String statusForTest() {
         return listedTotal + "|" + claimedTotal + "|" + halted + "|" + state + "|" + phase + "|" + lastReason;
@@ -872,7 +858,4 @@ public final class AhRelistMacro {
         nextCycleAtMs = 0L;
     }
 
-    static List<String> toListForTest() {
-        return List.copyOf(TO_LIST.keySet());
-    }
 }

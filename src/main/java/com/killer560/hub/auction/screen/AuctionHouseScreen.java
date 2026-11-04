@@ -109,8 +109,6 @@ public final class AuctionHouseScreen extends Screen {
         McCompat.setScreen(this.minecraft, parent);
     }
 
-    // ---- filtering ------------------------------------------------------------------------------------------------
-
     /** The browser's whole filter: category tab, search, rarity, BIN/auction, price range, then the sort. */
     public static List<AuctionListing> filter(List<AuctionListing> all, String category, String query, String rarity,
             AuctionHouseConfig.TypeFilter type, long minPrice, long maxPrice, AuctionConfig.SortMode sort) {
@@ -187,8 +185,6 @@ public final class AuctionHouseScreen extends Screen {
             scroll = 0;
         }
     }
-
-    // ---- drawing --------------------------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -378,8 +374,6 @@ public final class AuctionHouseScreen extends Screen {
         return sb.toString();
     }
 
-    // ---- actions --------------------------------------------------------------------------------------------------
-
     private void open(AuctionListing l) {
         commitSearch();
         opening = l;
@@ -484,8 +478,6 @@ public final class AuctionHouseScreen extends Screen {
         }
     }
 
-    // ---- input ----------------------------------------------------------------------------------------------------
-
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         int button = com.killer560.hub.compat.McInput.button(event);
@@ -585,8 +577,6 @@ public final class AuctionHouseScreen extends Screen {
         typed();
         commitSearch();
     }
-
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
 
     /** Every region, text and hotspot of the last frame ({@link AhUi}'s format). */
     public List<String> layoutReport() {

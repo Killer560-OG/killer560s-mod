@@ -1,6 +1,5 @@
 package com.killer560.hub.autosell;
 
-import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
@@ -9,7 +8,6 @@ import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;

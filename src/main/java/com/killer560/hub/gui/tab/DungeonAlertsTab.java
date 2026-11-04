@@ -46,7 +46,6 @@ public class DungeonAlertsTab extends BaseTab {
 
         // No switch over the whole tab (killer560, 2026-10-14): the two alerts are independent, each has its own switch,
         // and the card is ON while either is.
-        // --- Shadow Assassin Alert ---
         header(w, contentX, y, contentWidth, "Shadow Assassin Alert");
         master(w, contentX, y, contentWidth, "Shadow Assassin Alert", () -> cfg.shadowAssassinEnabled,
                 v -> cfg.shadowAssassinEnabled = v, requestRebuild);

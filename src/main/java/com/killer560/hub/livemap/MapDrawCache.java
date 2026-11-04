@@ -126,8 +126,6 @@ public final class MapDrawCache {
         VERIFY = on;
     }
 
-    // ------------------------------------------------------------------------------------------------ keys
-
     /** The inputs a segment was painted from, compared value for value. Reused: {@link #begin} then the adds. */
     static final class Key {
         private long[] values = new long[64];
@@ -225,8 +223,6 @@ public final class MapDrawCache {
         k.add(com.killer560.hub.namechanger.NameChangerConfig.getInstance().isActive());
         return k;
     }
-
-    // ------------------------------------------------------------------------------------------------ segments
 
     /** One recorded part of the map: its elements in order, and the key and tick it was painted for. */
     static final class Segment {
@@ -361,8 +357,6 @@ public final class MapDrawCache {
     public static String lastMismatch() {
         return lastMismatch;
     }
-
-    // ------------------------------------------------------------------------------------------------ verify
 
     private static boolean sameElements(Segment a, Segment b) {
         if (a.count != b.count) {

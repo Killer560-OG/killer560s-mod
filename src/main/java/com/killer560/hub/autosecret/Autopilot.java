@@ -95,7 +95,6 @@ final class Autopilot {
     private static int currentNodes;
     private static long currentStartMs;
 
-    // ---- HUD ----
     private static String hudAction = "-";
     private static String hudWhy = "";
     private static String hudScore = "";
@@ -176,8 +175,6 @@ final class Autopilot {
         }
     }
 
-    // =========================================================================================== deciding
-
     static Order decide(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
                         Set<String> secreted, Set<String> clearsDone, Set<String> puzzlesDone) {
         closeCurrent();
@@ -199,7 +196,6 @@ final class Autopilot {
                 hudScore, AutopilotScore.usefulSecrets(s), AutopilotScore.roomValue(s), AutopilotScore.secretValue(s),
                 clearSeconds, routeSecondsPerNode);
 
-        // ---- Blood First ----
         if (cfg.isBloodFirst() && !bloodOpened) {
             AutopilotPlanner.Choice rush = AutopilotPlanner.chooseBloodFirst(cands);
             if (rush != null) {
@@ -394,8 +390,6 @@ final class Autopilot {
         currentFailed = false;
     }
 
-    // =========================================================================================== keys
-
     /** Keys on the ground it has given up on (twice not picked up from as close as it could stand), by entity id. */
     private static final Set<Integer> keysGivenUp = new HashSet<>();
     private static final java.util.Map<Integer, Integer> keyTries = new java.util.HashMap<>();
@@ -580,8 +574,6 @@ final class Autopilot {
     static void closeAction() {
         closeCurrent();
     }
-
-    // =========================================================================================== candidates
 
     /** Each candidate room's travel estimate from the last decision, by {@link #keyOf}. */
     private static final Map<String, Double> travelByKey = new java.util.HashMap<>();

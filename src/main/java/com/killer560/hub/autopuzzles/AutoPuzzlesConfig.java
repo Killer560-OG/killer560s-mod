@@ -197,8 +197,6 @@ public final class AutoPuzzlesConfig {
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    // ---- master toggle ----
-
     /** "Add an overall toggle to this section as well" (killer560, 2026-09-27) - every individual auto below is
      *  additionally gated on this being on, same {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED}
      *  gate as the rest of the section. */
@@ -214,8 +212,6 @@ public final class AutoPuzzlesConfig {
     public void setAutoPuzzlesMasterEnabled(boolean enabled) {
         this.autoPuzzlesMasterEnabled = enabled;
     }
-
-    // ---- Quiz / Three Weirdos ----
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and the master toggle - real automation. */
     public boolean isAutoQuizEnabled() {

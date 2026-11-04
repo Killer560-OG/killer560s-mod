@@ -204,8 +204,6 @@ public final class AutoRoutesCommands {
         return offset.buildFuture();
     }
 
-    // ---- registration ----
-
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
         // "/ar and /autoroutes, both are the exact same, just different wording" (killer560, 2026-10-04). The same
@@ -795,9 +793,6 @@ public final class AutoRoutesCommands {
             ModChat.send(FEATURE, ModChat.dim("No routes file yet - it's written the first time you save a route."));
         }
     }
-
-    /** Name of the single shareable routes file inside {@link RouteStore#routesDirectory()}. Must match the store. */
-    public static final String ROUTES_FILE_NAME = "killer560smod-autoroutes.json";
 
     /** The one routes file - {@link RouteStore#routesDirectory()} is the folder the "Open Routes Folder" button opens. */
     public static Path routesFile() {

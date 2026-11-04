@@ -71,7 +71,6 @@ public final class LiveMapFeature {
         return namesShown;
     }
 
-
     static final int GRID = 11;
     public static final int START_X = -185;
     public static final int START_Z = -185;
@@ -654,9 +653,7 @@ public final class LiveMapFeature {
         return -1;
     }
 
-    // ---------------------------------------------------------------------------------------------
     // Grouping
-    // ---------------------------------------------------------------------------------------------
 
     private static void ensureGroups() {
         if (groupsDirty) {
@@ -955,8 +952,6 @@ public final class LiveMapFeature {
         return gid >= 0 ? groups.get(gid) : null;
     }
 
-    // ---------------------------------------------------------------------------------------------
-
     /** NoammAddons {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
      *  only trusted when y matches the room's database secret total. */
     private static void onActionBar(String text) {
@@ -992,11 +987,6 @@ public final class LiveMapFeature {
             }
         } catch (NumberFormatException ignored) {
         }
-    }
-
-    /** {@link #getHighestY} for callers outside this class - the roof probe that decides a cell holds a room. */
-    public static int roofAt(net.minecraft.client.Minecraft client, int worldX, int worldZ) {
-        return getHighestY(client, worldX, worldZ);
     }
 
     /**
@@ -1308,9 +1298,7 @@ public final class LiveMapFeature {
         return new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
-    // ---------------------------------------------------------------------------------------------
     // Interactive map / pathing accessors (package-private, main thread)
-    // ---------------------------------------------------------------------------------------------
 
     public static int resetGeneration() {
         return resetGeneration;

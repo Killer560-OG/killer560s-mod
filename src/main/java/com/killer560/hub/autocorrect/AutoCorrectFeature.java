@@ -99,7 +99,6 @@ public final class AutoCorrectFeature {
         return found;
     }
 
-    // ------------------------------------------------------------------------------------------
     // Command-name correction (2026-09-15 roadmap: "Extend Auto Correct to also fix typos in
     // commands"), behind AutoCorrectConfig#isCorrectCommands (default OFF). Hooked from
     // experiments.mixin.AutoCorrectCommandMixin, a @ModifyArg on the sendCommand(String) call inside
@@ -107,7 +106,6 @@ public final class AutoCorrectFeature {
     // normalizes, adds to history, then calls ClientPacketListener.sendCommand(message.substring(1))
     // for a leading "/") - so only commands the player actually TYPES are ever touched, never ones
     // this mod or other mods send programmatically.
-    // ------------------------------------------------------------------------------------------
 
     /** Common Hypixel commands the client's brigadier tree might not list (Hypixel's server tree
      *  isn't guaranteed complete). Only names confirmed in real use - an extra wrong name here would

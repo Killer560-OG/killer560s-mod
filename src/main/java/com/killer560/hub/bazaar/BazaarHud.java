@@ -123,8 +123,6 @@ public final class BazaarHud {
         return recording;
     }
 
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
-
     /** Starts (clearing the log) or stops (keeping it for {@link #framesForTest}) recording one line per frame. */
     public static void recordFramesForTest(boolean on) {
         if (on) {

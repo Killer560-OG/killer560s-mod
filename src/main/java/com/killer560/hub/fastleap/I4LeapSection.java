@@ -2,7 +2,6 @@ package com.killer560.hub.fastleap;
 
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.fastleap.I4LeapConfig.BackupType;
-import com.killer560.hub.fastleap.I4LeapConfig.TargetType;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;

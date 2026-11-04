@@ -314,7 +314,4 @@ public final class KeyRooms {
         return out;
     }
 
-    public static List<String> testStoodIn() {
-        return new ArrayList<>(STOOD_IN);
-    }
 }

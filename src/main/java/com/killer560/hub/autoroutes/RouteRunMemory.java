@@ -105,8 +105,6 @@ public final class RouteRunMemory {
         generation = LiveMapFeature.resetGeneration();
     }
 
-    // ------------------------------------------------------------------------------------------- secrets
-
     /** A secret of his, by {@link AwaitEvents}' key ("block 123", "item 45", "bat 67", "mimic 89"). Once per key. */
     static void gotSecret(String key, Vec3 pos, String what) {
         check();
@@ -214,18 +212,6 @@ public final class RouteRunMemory {
         return g.what() != null && (g.what().startsWith("lever") || g.what().startsWith(AwaitEvents.KEY_PICKUP_WHAT));
     }
 
-    /** What {@link #gotSince} counts, one entry per secret ("chest at x, y, z"), for log lines. */
-    public static List<String> whatSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
-        check();
-        List<String> out = new ArrayList<>();
-        for (Got g : got.values()) {
-            if (g.tick() >= sinceTick && g.pos() != null && where.test(g.pos())) {
-                out.add(g.what());
-            }
-        }
-        return out;
-    }
-
     /** Whether he got a secret of this kind ({@code "item"}, {@code "block"}, {@code "bat"}) within {@code range} blocks
      *  of {@code pos} this run. */
     public static boolean gotNear(String kind, Vec3 pos, double range) {
@@ -318,8 +304,6 @@ public final class RouteRunMemory {
         LOGGER.info("[RouteMemory] await met for {} ({}) with {} - {} secret(s) claimed this run", nodeKey,
                 newNode ? "first time" : "again", keys, claimed.size());
     }
-
-    // ------------------------------------------------------------------------------------------- rooms
 
     /** A route ran to its end in {@code room}. */
     static void routeCompleted(String room) {

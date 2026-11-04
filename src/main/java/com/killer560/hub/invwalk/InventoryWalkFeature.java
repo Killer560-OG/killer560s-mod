@@ -2,7 +2,6 @@ package com.killer560.hub.invwalk;
 
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SkyblockGate;
 import com.mojang.blaze3d.platform.InputConstants;

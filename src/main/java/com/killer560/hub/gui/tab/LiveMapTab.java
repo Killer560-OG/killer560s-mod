@@ -11,7 +11,6 @@ import com.killer560.hub.livemap.MapSchemeEditorScreen;
 import com.killer560.hub.livemap.MapThemes;
 import com.killer560.hub.livemap.predict.PredictiveRoomsConfig;
 import com.killer560.hub.mapping.MappingConfig;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -108,7 +107,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             y += 24;
         }
 
-        // ---------------------------------------------------------------- how both maps look
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Appearance", false));
         y += 16;
         widgets.add(toggle("Color Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
@@ -153,7 +151,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         }
         y += 4;
 
-        // ---------------------------------------------------------------- theme
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Theme", false));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
@@ -194,7 +191,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                 cfg, colB, y, colW));
         y += 24;
 
-        // ---------------------------------------------------------------- extras
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Map Extras", false));
         y += 16;
         widgets.add(mappingToggle("Extra Info Overlay", mapping::isExtraInfoEnabled, mapping::setExtraInfoEnabled, mapping,
@@ -238,8 +234,6 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         Minecraft client = Minecraft.getInstance();
         McCompat.setScreen(client, new MapSchemeEditorScreen(McCompat.screen(client), scheme));
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     interface BoolGetter {
         boolean get();

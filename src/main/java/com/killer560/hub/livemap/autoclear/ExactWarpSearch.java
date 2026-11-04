@@ -65,8 +65,6 @@ public final class ExactWarpSearch {
     private final int maxY;
     private final EtherSearch own;
 
-    // ------------------------------------------------------------------------------------------- results
-
     /** Set from any thread: the search stops at its next check, as if its deadline had passed. */
     public volatile boolean cancelled;
     /** The search ended at its deadline: {@link #fewerThan} is what it proved. */
@@ -104,8 +102,6 @@ public final class ExactWarpSearch {
         this.maxY = maxY;
         this.own = new EtherSearch(grid);
     }
-
-    // ------------------------------------------------------------------------------------------- nodes
 
     private int n;
     private int[] nx = new int[1024];
@@ -291,8 +287,6 @@ public final class ExactWarpSearch {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- the goal
-
     /** What the search is for: one block (which may be a blacklisted block - the goal is never refused for that), or
      *  any landing a region accepts inside its box. */
     public static final class Goal {
@@ -309,8 +303,6 @@ public final class ExactWarpSearch {
         public double preferX = Double.NaN;
         public double preferZ = Double.NaN;
     }
-
-    // ------------------------------------------------------------------------------------------- the search
 
     /**
      * The fewest-warp route from {@code start} to the goal with at most {@code maxWarps} warps, or null: then
@@ -428,8 +420,6 @@ public final class ExactWarpSearch {
         }
         return (int) Math.floor(Math.max(Math.abs(nx[t] + 0.5 - preferX), Math.abs(nz[t] + 0.5 - preferZ)));
     }
-
-    // ------------------------------------------------------------------------------------------- one round
 
     /** Per pair round: the best pair found so far, its key and its aim. */
     private final Object bestLock = new Object();
@@ -666,8 +656,6 @@ public final class ExactWarpSearch {
         }
         return new EtherSearch.Hop(sx[node], sy[node], sz[node], nx[node], ny[node], nz[node], yaw, pitch);
     }
-
-    // ------------------------------------------------------------------------------------------- threads
 
     private interface Job {
         void run(EtherSearch search, int index);

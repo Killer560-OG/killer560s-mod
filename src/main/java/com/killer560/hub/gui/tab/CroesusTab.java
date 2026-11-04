@@ -44,7 +44,6 @@ public class CroesusTab extends BaseTab {
         int y = contentY;
         int half = (contentWidth - GAP) / 2;
 
-        // ---- Chest Profit ----
         widgets.add(onOffButton("Chest Profit", cfg::isChestProfitEnabled, cfg::setChestProfitEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 22;
@@ -166,7 +165,6 @@ public class CroesusTab extends BaseTab {
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("croesus", contentX, y, contentWidth, 18));
         y += 24;
 
-        // ---- Profit Logger ----
         widgets.add(onOffButton("Croesus Profit Logger", cfg::isLoggerEnabled, cfg::setLoggerEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 22;

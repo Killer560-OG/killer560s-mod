@@ -6,7 +6,6 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 

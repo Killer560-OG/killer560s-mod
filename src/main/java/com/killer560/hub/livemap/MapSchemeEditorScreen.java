@@ -142,8 +142,6 @@ public class MapSchemeEditorScreen extends Screen implements MenuThemedScreen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
-    // ------------------------------------------------------------------------------------------- the sample floor
-
     /** {col, row, slot} per sample room tile; a slot below 0 is an unexplored room. Two rooms span two tiles. */
     private static final int[][] TILES = {
             {0, 0, MapThemes.ENTRANCE}, {1, 0, MapThemes.NORMAL}, {2, 0, MapThemes.NORMAL}, {3, 0, MapThemes.PUZZLE},

@@ -135,7 +135,6 @@ public final class EnchantColorsDefaults {
 
     private static Map<String, int[]> buildTiers() {
         Map<String, int[]> t = new LinkedHashMap<>();
-        // ---- Normal
         t.put("angler", new int[]{5, 6});
         // Checked against SkyHanni's own Enchants.json (2026-09-28), which is where its tier coloring gets
         // goodLevel/maxLevel from - killer560: "somehow skyhanni knows which enchants are what tier so you can

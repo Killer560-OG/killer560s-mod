@@ -106,8 +106,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         // QUOI opens the map with background = false: keep the world visible, no blur or dim.
     }
 
-    // ------------------------------------------------------------------------------------------- geometry
-
     private boolean legendBeside() {
         return width >= 320;
     }
@@ -198,8 +196,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         }
         return cellAt(cursorX, cursorY);
     }
-
-    // ------------------------------------------------------------------------------------------- rendering
 
     /** The Interactive Map (cheat) always paints the whole scanned floor: Funny Map is the Dungeon Map HUD's setting.
      *  Its pathing needs every room, and a click on a room it does not draw could not be aimed. */
@@ -493,7 +489,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         };
     }
 
-    // ------------------------------------------------------------------------------------------- legend
     //
     // killer560 (2026-10-05, screenshot): "See how cluttered that right side is, clean it up a bit." The panel was
     // a single column of seventeen swatch/control rows, its height a hand-written constant, and the S+ row drew its
@@ -752,7 +747,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         return new float[]{zoom, panX, panY};
     }
 
-    // ------------------------------------------------------------------------------------------- input
     //
     // killer560 (2026-10-05): "in interactive map if i hold left click and drag around it moves the map and it
     // shouldnt", and (2026-10-14) "I should never be able to drag the map around inside of interactive map it should

@@ -76,9 +76,7 @@ public final class I4SensorsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("I4SensorsFeature", client -> tick()));
     }
 
-    // ------------------------------------------------------------------
     // Chat
-    // ------------------------------------------------------------------
 
     private static void onChatMessage(Component message, boolean overlay) {
         if (overlay) {
@@ -100,9 +98,7 @@ public final class I4SensorsFeature {
         }
     }
 
-    // ------------------------------------------------------------------
     // Tick
-    // ------------------------------------------------------------------
 
     private static void tick() {
         clientTick++;
@@ -121,9 +117,7 @@ public final class I4SensorsFeature {
         near = nowNear;
     }
 
-    // ------------------------------------------------------------------
     // Helpers
-    // ------------------------------------------------------------------
 
     /** Whether the always-on sensors' session is active: on hypixel.net/p3sim.net and inside the area around i4. */
     static boolean isNearDevice() {

@@ -45,7 +45,6 @@ public final class LeapCounterConfig {
     private int countCore = 4;
     private int countRelic = 4;
 
-    // ---- detection ----
     /** How close (blocks) a teammate must land to you to count. Devonian's spots use 1-3 blocks; 3 is the loosest
      *  of its P3 entries and leaves room for a leaper being nudged off you on landing. */
     private float radius = 3f;
@@ -54,12 +53,10 @@ public final class LeapCounterConfig {
      *  ticks is unreachable on foot. */
     private float jumpDistance = 8f;
 
-    // ---- alert ----
     private boolean alert = true;
     private String alertText = DEFAULT_ALERT_TEXT;
     private boolean sound = true;
 
-    // ---- HUD ----
     private boolean hud = true;
     /** Show "0/4 Leaped" as soon as you're on a countable section, instead of only once the first leap lands. */
     private boolean hudShowAtZero = false;
@@ -132,12 +129,10 @@ public final class LeapCounterConfig {
         }
     }
 
-    // ---- master ----
     public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
     public boolean getEnabledRaw() { return enabled; }
     public void setEnabled(boolean v) { enabled = v; com.killer560.hub.util.FeatureBits.changed(); }
 
-    // ---- expected leaps ----
     public int getCountS1() { return countS1; }
     public void setCountS1(int v) { countS1 = clampCount(v); }
 
@@ -175,7 +170,6 @@ public final class LeapCounterConfig {
         return Math.max(0, Math.min(MAX_COUNT, v));
     }
 
-    // ---- detection ----
     public float getRadius() { return radius; }
     public void setRadius(float v) {
         radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, Math.round(v * 2f) / 2f));
@@ -186,7 +180,6 @@ public final class LeapCounterConfig {
         jumpDistance = Math.max(MIN_JUMP_DISTANCE, Math.min(MAX_JUMP_DISTANCE, Math.round(v)));
     }
 
-    // ---- alert ----
     public boolean isAlert() { return alert; }
     public void setAlert(boolean v) { alert = v; }
 
@@ -196,7 +189,6 @@ public final class LeapCounterConfig {
     public boolean isSound() { return sound; }
     public void setSound(boolean v) { sound = v; }
 
-    // ---- HUD ----
     public boolean isHud() { return hud; }
     public void setHud(boolean v) { hud = v; }
 

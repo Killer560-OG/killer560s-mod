@@ -494,8 +494,6 @@ public final class Ap3Config {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- master
-
     /** The legit jar can never report true here, even from a copied cheat-build config file. Force Dungeon
      *  ({@link Ap3Feature#isForceDungeon()}, session only) opens AP3's own Skyblock / p3sim gate - and only AP3's. */
     public boolean isEnabled() {
@@ -570,8 +568,6 @@ public final class Ap3Config {
     public void setStopwatchToParty(boolean v) { stopwatchToParty = v; }
     public void setStopwatchHud(boolean v) { stopwatchHud = v; }
 
-    // ------------------------------------------------------------------------------------------- colors
-
     public boolean isUniformColor() { return uniformColor; }
     public void setUniformColor(boolean v) { uniformColor = v; }
 
@@ -602,8 +598,6 @@ public final class Ap3Config {
         }
         return getNodeColorArgb(node == null ? null : node.type);
     }
-
-    // ------------------------------------------------------------------------------------------- rendering
 
     public float getThickness() { return thickness; }
     public void setThickness(float v) {
@@ -658,8 +652,6 @@ public final class Ap3Config {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- executor
-
     /** Fixed (killer560, 2026-09-21: "No longer have the align method"): every align is the combined planner - the
      *  real camera turns, any key combination, sneak - which is the Camera Planner path. The other two stay in the
      *  code only as history; nothing selects them. */
@@ -711,8 +703,6 @@ public final class Ap3Config {
             leapDetectRadius = Math.max(MIN_LEAP_RADIUS, Math.min(MAX_LEAP_RADIUS, Math.round(v * 2.0) / 2.0));
         }
     }
-
-    // ------------------------------------------------------------------------------------------- keybinds
 
     /** GLFW key code for a command's keybind ({@link KeyUtil#NONE} when unbound). Ids are matched
      *  case-insensitively so {@code "addLine"} and {@code "addline"} are the same bind. */

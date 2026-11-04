@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -142,8 +141,6 @@ public final class LfgFeature {
         ChatObserver.subscribe(LfgFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LfgFeature", LfgFeature::tick));
     }
-
-    // ---- state for the screen ----------------------------------------------------------------------------------------
 
     public static int version() {
         return version;
@@ -267,8 +264,6 @@ public final class LfgFeature {
         return client.player == null ? null : client.player.getGameProfile().name();
     }
 
-    // ---- listing ---------------------------------------------------------------------------------------------------
-
     /** The relay body for a listing. Size is filled in at send time from the party tracker. */
     public static JsonObject spec(LfgCategory category, String activity, String note, Map<String, Integer> reqs, int max,
                                   boolean fromHypixel) {
@@ -375,8 +370,6 @@ public final class LfgFeature {
         }
     }
 
-    // ---- joining ---------------------------------------------------------------------------------------------------
-
     /** The Join button. @return null when the request went to the relay, else why not. */
     public static String requestJoin(LfgListing listing) {
         LfgConfig cfg = LfgConfig.getInstance();
@@ -441,8 +434,6 @@ public final class LfgFeature {
         changed("Asked " + listing.leader() + " to join - waiting for them to accept.");
     }
 
-    // ---- the leader's inbox ----------------------------------------------------------------------------------------
-
     /** The leader's Accept button. @return null when the invite went, else why not. */
     public static String accept(String requestId) {
         LfgListing.Request req = null;
@@ -483,8 +474,6 @@ public final class LfgFeature {
             }
         }
     }
-
-    // ---- relay answers ---------------------------------------------------------------------------------------------
 
     /** A {@code /lfg/me} answer: the leader's inbox and the state of this player's own requests. */
     static void onMe(JsonObject body) {
@@ -585,8 +574,6 @@ public final class LfgFeature {
         changed(null);
     }
 
-    // ---- accepting the leader's invite ------------------------------------------------------------------------------
-
     private static void arm(String leader) {
         String key = leader.toLowerCase(Locale.ROOT);
         long now = System.currentTimeMillis();
@@ -623,8 +610,6 @@ public final class LfgFeature {
         ModChat.send(CHAT, ModChat.text("Joining "), ModChat.value(leader), ModChat.text("'s party."));
         changed("Joining " + leader + "'s party.");
     }
-
-    // ---- chat ------------------------------------------------------------------------------------------------------
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
@@ -672,8 +657,6 @@ public final class LfgFeature {
         }
     }
 
-    // ---- dual listing ----------------------------------------------------------------------------------------------
-
     /** Called by {@code autokick.QueuedFloorDetector} when Hypixel says the party was queued in the dungeon finder;
      *  {@code activity} is "F7", "M4" or "Entrance". Lists the same party here (default requirements from the Create
      *  form's saved Dungeons values, merged with what the Group Builder showed - see {@link #groupBuilderRequirements}). */
@@ -697,8 +680,6 @@ public final class LfgFeature {
     static Map<String, Integer> groupBuilderRequirements() {
         return Map.of();
     }
-
-    // ---- tick ------------------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         if (client.player == null) {
@@ -801,16 +782,9 @@ public final class LfgFeature {
         }
     }
 
-    /** Test hook: one pass of the leader's inbox judging, as the tick does it. */
-    public static void judgeInboxForTest() {
-        judgeInbox(System.currentTimeMillis());
-    }
-
     private static void onClient(Runnable r) {
         Minecraft.getInstance().execute(r);
     }
-
-    // ---- test hooks ------------------------------------------------------------------------------------------------
 
     /** Feeds a {@code /lfg/me} body as if the relay had answered (testkit 1018-pf-*). */
     public static void onMeForTest(String json) {

@@ -10,10 +10,8 @@ import com.killer560.hub.routes.RouteStore;
 import com.killer560.hub.routes.SkyblockArea;
 import com.killer560.hub.routes.WaypointRoutesConfig;
 import com.killer560.hub.routes.WaypointRoutesFeature;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -61,7 +59,6 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                 client.font));
         y += 16;
 
-        // --- routes ---
         widgets.add(SettingsButtonWidget.builder(Component.literal("New Route"), btn -> {
                     Route route = RouteStore.create("Route");
                     RouteStore.save();
@@ -191,7 +188,6 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             y += 28;
         }
 
-        // --- display ---
         widgets.add(onOffButton("Line To Next", cfg::isLineToNext, cfg::setLineToNext, cfg::save,
                 null, contentX, y, col2W, 18));
         widgets.add(onOffButton("Route Lines", cfg::isRouteLines, cfg::setRouteLines, cfg::save,
@@ -241,7 +237,6 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
         });
         y += 28;
 
-        // --- keybinds ---
         for (int i = 0; i < WaypointRoutesConfig.KEY_NAMES.length; i++) {
             final int which = i;
             int x = i % 2 == 0 ? contentX : col2bX;

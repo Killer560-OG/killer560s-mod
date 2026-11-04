@@ -42,8 +42,6 @@ public final class MenuSearch {
     public record Hit(BaseTab tab, String label, boolean feature, double score) {
     }
 
-    // ---- synonyms -----------------------------------------------------------------------------------------------------
-
     /** Words a player types for the same thing. Each group is equivalent both ways; words are matched stemmed. */
     private static final String[][] SYNONYMS = {
             {"esp", "highlight", "hitbox", "glow", "outline", "box", "wallhack", "xray", "chams"},
@@ -107,8 +105,6 @@ public final class MenuSearch {
             }
         }
     }
-
-    // ---- words ----------------------------------------------------------------------------------------------------------
 
     /** Lower case, plural and -ed/-ing endings off, a doubled last letter undone ("starred" -> "star"). */
     static String stem(String w) {
@@ -215,8 +211,6 @@ public final class MenuSearch {
         }
         return best;
     }
-
-    // ---- the index ------------------------------------------------------------------------------------------------------
 
     private record Row(String label, String labelNorm, String[][] labelWords, String[][] tipWords) {
     }
@@ -361,8 +355,6 @@ public final class MenuSearch {
             sb.append(' ').append(s);
         }
     }
-
-    // ---- matching -------------------------------------------------------------------------------------------------------
 
     /**
      * Every hit for {@code query} among {@code leaves} (skipping those {@code hidden} says to), features first, best first.

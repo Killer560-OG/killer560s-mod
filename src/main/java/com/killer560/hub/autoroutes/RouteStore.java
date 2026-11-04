@@ -209,8 +209,6 @@ public final class RouteStore {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- access
-
     /** Routes by room name (unmodifiable view). Mutate through {@link #put}/{@link #remove}/{@link #forRoom}. */
     public Map<String, Route> routes() {
         return Collections.unmodifiableMap(routes);
@@ -329,8 +327,6 @@ public final class RouteStore {
     public boolean lastLoadFailed() {
         return parseFailed;
     }
-
-    // ------------------------------------------------------------------------------------------- codec
 
     private static Route readRoute(String name, JsonObject obj) {
         Route route = new Route(name);
@@ -728,8 +724,6 @@ public final class RouteStore {
         }
         return o;
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static boolean finiteCoord(double v) {
         return Double.isFinite(v) && Math.abs(v) <= MAX_ABS_COORD;

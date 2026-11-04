@@ -5,7 +5,6 @@ import com.killer560.hub.autosecret.AutoSecretFeature;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -73,8 +72,6 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         return true;
     }
 
-    // ---- KeyCaptureTab ----
-
     @Override
     public boolean isListeningForKey() {
         return capturing || com.killer560.hub.autoclear.AutoClearSettings.isCapturing();
@@ -132,8 +129,6 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         capturing = false;
         capturingPilot = false;
     }
-
-    // ---- layout ----
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
@@ -245,8 +240,6 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }
         return w;
     }
-
-    // ---- helpers ----
 
     private static Component pilotRunText() {
         return Component.literal("Autopilot: " + (AutoSecretFeature.isAutopilot() ? "§aRunning" : "§cStopped"));

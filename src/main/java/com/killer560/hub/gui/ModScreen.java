@@ -28,7 +28,6 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -91,7 +90,6 @@ public class ModScreen extends Screen {
     /** The drawer's Basic / Advanced strip: the "▶ Advanced" header row it opens and closes, or null. */
     private SettingsButtonWidget advancedHeader;
 
-    // ---- grid ------------------------------------------------------------------------------------------------------
     private enum ItemKind { CARD, HEADER, BLOCK }
 
     /** One thing in the center grid, positioned in grid-content coordinates (before {@link #gridScroll}). */
@@ -134,7 +132,6 @@ public class ModScreen extends Screen {
     private static final int GAP = 6;
     private static final int GRID_PAD = 6;
 
-    // ---- sidebar ---------------------------------------------------------------------------------------------------
     private record SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h,
                              Item jump) {
         SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h) {
@@ -154,7 +151,6 @@ public class ModScreen extends Screen {
     private final List<SideEntry> side = new ArrayList<>();
     private final List<Integer> sideSeparators = new ArrayList<>();
 
-    // ---- search palette --------------------------------------------------------------------------------------------
     /** One search hit: a feature (its name matched) or a setting inside one. */
     public record Result(BaseTab tab, String label, boolean feature, String where) {
     }
@@ -361,8 +357,6 @@ public class ModScreen extends Screen {
         rebuild();
     }
 
-    // ---- navigation ------------------------------------------------------------------------------------------------
-
     private void selectCategory(int index) {
         selectedTab = index;
         favouritesSelected = false;
@@ -406,7 +400,6 @@ public class ModScreen extends Screen {
         return openFeature;
     }
 
-    /** Closes the drawer. */
     public void closeDrawer() {
         if (openFeature != null) {
             FeatureCards.refresh(openFeature);
@@ -459,12 +452,6 @@ public class ModScreen extends Screen {
         }
     }
 
-    private static List<BaseTab> leavesOf(BaseTab t) {
-        List<BaseTab> out = new ArrayList<>();
-        collectLeaves(t, out, java.util.Collections.newSetFromMap(new IdentityHashMap<>()));
-        return out;
-    }
-
     private BaseTab selected() {
         return tabs.get(selectedTab);
     }
@@ -473,8 +460,6 @@ public class ModScreen extends Screen {
     private boolean pageMode() {
         return !favouritesSelected && !(selected() instanceof FolderTab);
     }
-
-    // ---- layout ----------------------------------------------------------------------------------------------------
 
     private void layout() {
         layoutPanels();
@@ -1353,8 +1338,6 @@ public class ModScreen extends Screen {
         }
     }
 
-    // ---- input -----------------------------------------------------------------------------------------------------
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         MenuAnim.input();
@@ -1962,17 +1945,6 @@ public class ModScreen extends Screen {
         return out;
     }
 
-    /** The grid's section headers on the current page as "text" or "!text" for a red one, in order. */
-    public List<String> gridHeaders() {
-        List<String> out = new ArrayList<>();
-        for (Item it : items) {
-            if (it.kind == ItemKind.HEADER) {
-                out.add((it.red ? "!" : "") + it.text);
-            }
-        }
-        return out;
-    }
-
     /** True while a tab waits for a key ("Press any key..."): that key is his, not a shortcut (util/TypingDetector). */
     public boolean isCapturingKey() {
         return findListeningKeyCaptureTab() != null;
@@ -2000,8 +1972,6 @@ public class ModScreen extends Screen {
         return null;
     }
 
-    // ---- search ----------------------------------------------------------------------------------------------------
-
     /** The search hits for the text in the box (features first, then settings). For the testkit too. */
     public List<Result> searchResults() {
         return new ArrayList<>(results);
@@ -2012,7 +1982,7 @@ public class ModScreen extends Screen {
         if (searchQuery.isBlank()) {
             return tabs;
         }
-        Set<BaseTab> out = new LinkedHashSet<>();
+        Set<BaseTab> out = new java.util.LinkedHashSet<>();
         for (Result r : results) {
             out.add(MenuCategories.category(r.tab()));
         }
@@ -2087,8 +2057,6 @@ public class ModScreen extends Screen {
         }
         return true;
     }
-
-    // ---- rendering -------------------------------------------------------------------------------------------------
 
     /** Testkit: when set, the bytes the render thread allocates inside each menu frame are added up (1594). */
     public static boolean allocProbe;
@@ -3083,8 +3051,6 @@ public class ModScreen extends Screen {
         }
         return tabs == null || tabs.isEmpty() ? null : tabs.get(Math.max(0, Math.min(selectedTab, tabs.size() - 1))).name;
     }
-
-    // ---- Home page blocks ------------------------------------------------------------------------------------------
 
     /** A plain line of text across the grid (Favorites with nothing starred). */
     private final class HintBlock implements Block {

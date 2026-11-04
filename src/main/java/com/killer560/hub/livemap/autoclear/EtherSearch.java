@@ -98,8 +98,6 @@ public final class EtherSearch {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- statistics
-
     /** Nodes expanded and rays cast by the last search on this instance, for the timing log. */
     public int expanded;
     public long rays;
@@ -118,8 +116,6 @@ public final class EtherSearch {
     public EtherSearch(Grid grid) {
         this.grid = grid;
     }
-
-    // ------------------------------------------------------------------------------------------- geometry
 
     /** {@link TeleportUtils#getLook}, float arithmetic and all, into {@code out}. */
     public static void look(float yaw, float pitch, double[] out) {
@@ -516,8 +512,6 @@ public final class EtherSearch {
         return t[0] < t[1];
     }
 
-    // ------------------------------------------------------------------------------------------- the exact aim
-
     /**
      * How finely {@link #aimExact} looks at each face: a face is split into quarters this many times, so its smallest
      * cells are {@code 1 / 2^depth} of a block across (4: a sixteenth, 256 cells a face). Every cell that is not
@@ -672,8 +666,6 @@ public final class EtherSearch {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------------------------------- A*
 
     /** What one leg is searching for. */
     public static final class Leg {

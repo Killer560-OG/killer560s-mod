@@ -135,8 +135,6 @@ public final class Ap3FreezeState {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- actions
-
     /** The Freeze State key. */
     public static void toggle() {
         LocalPlayer player = Minecraft.getInstance().player;
@@ -279,8 +277,6 @@ public final class Ap3FreezeState {
         player.fallDistance = s.fallDistance;
         player.setOldPosAndRot();
     }
-
-    // ------------------------------------------------------------------------------------------- Hypixel guard
 
     static boolean onHypixel() {
         ServerData server = Minecraft.getInstance().getCurrentServer();

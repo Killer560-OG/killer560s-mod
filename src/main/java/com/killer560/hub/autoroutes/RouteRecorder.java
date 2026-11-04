@@ -204,8 +204,6 @@ public final class RouteRecorder {
         breakerBeingBuilt = null;
     }
 
-    // ------------------------------------------------------------------------------------------- per tick
-
     /** Called by {@link AutoRoutesFeature} every client tick while {@link #isRecording()}. */
     static void tick(Minecraft client) {
         LocalPlayer player = client.player;
@@ -389,8 +387,6 @@ public final class RouteRecorder {
         return new RouteNode(RouteNode.Type.WALK, rel.x, rel.y, rel.z,
                 RouteCoords.toRelativeYaw(frame, player.getYRot()), player.getXRot(), Math.max(0, sampleIndex));
     }
-
-    // ------------------------------------------------------------------------------------------- /ar add
 
     /**
      * The {@code start} / {@code await:<n>} modifiers of {@code /ar add <type> [start] [await:<n>]}

@@ -126,8 +126,6 @@ public final class AhUi {
         contentW = panelX + panelW - 5 - contentX;
     }
 
-    // ---- frame ----------------------------------------------------------------------------------------------------
-
     public void frame() {
         layout.add("frame " + w + " " + h);
         g.fill(0, 0, w, h, t.backdrop());
@@ -404,8 +402,6 @@ public final class AhUi {
             text("bar", s, rx - 4 - font.width(s), y + 6, t.faint());
         }
     }
-
-    // ---- rail -----------------------------------------------------------------------------------------------------
 
     /** The recents rail: recent searches and recently viewed items. Does nothing when the panel is too narrow. */
     public void recentsRail(IntConsumerString onSearch, java.util.function.Consumer<AuctionHouseConfig.Viewed> onViewed,
@@ -727,8 +723,6 @@ public final class AhUi {
             g.fill(bx, y + sh - bh, bx + Math.max(1, barW - 1), y + sh, i == n - 1 ? t.accentBright() : t.borderStrong());
         }
     }
-
-    // ---- helpers --------------------------------------------------------------------------------------------------
 
     public boolean in(int x, int y, int bw, int bh) {
         return mx >= x && mx < x + bw && my >= y && my < y + bh && my >= clipY0 && my < clipY1;

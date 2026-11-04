@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 
 import java.util.List;
@@ -222,8 +221,4 @@ public final class AbilityCooldownFeature {
         AbilityCooldownState.onSoundPacket(packet);
     }
 
-    /** Small convenience for the settings tab's summary line. */
-    public static Component describeTable() {
-        return Component.literal("§7" + ItemAbility.values().length + " abilities, cooldowns ported from SkyHanni");
-    }
 }

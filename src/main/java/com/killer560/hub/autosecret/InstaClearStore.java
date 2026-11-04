@@ -357,8 +357,6 @@ final class InstaClearStore {
         return n % 2 == 1 ? times.get(n / 2) : (times.get(n / 2 - 1) + times.get(n / 2)) / 2;
     }
 
-    // ------------------------------------------------------------------------------------------- persistence
-
     synchronized JsonObject toJson() {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);

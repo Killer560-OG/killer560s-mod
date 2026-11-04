@@ -1633,7 +1633,6 @@ final class SettingTooltipsData {
         d.put("cheat build - auto walking", "Cheat build: below this line the mod walks your character along the path itself.");
         d.put("cheat build - thorn", "Cheat build: Thorn extras below this line - highlights through blocks and Thorn Triggerbot.");
 
-        // ---- Custom Scoreboard ----
         scoreboardEditor(d);
         d.put("chunked stats", "Page for the stats in the combined Chunked Stats line: drag into order, trash, Add.");
         d.put("hide with tab list", "Hides the custom scoreboard while you hold the player-list key.");
@@ -1668,7 +1667,6 @@ final class SettingTooltipsData {
         d.put("reload image (no background.png)", "No background.png yet - use Open Image Folder and drop one in first.");
         d.put("open image folder", "Opens the folder the scoreboard background image is read from.");
 
-        // ---- Live Map / Interactive Map ----
         d.put("interactive map", "Cheat build: full-screen dungeon map; click a room to etherwarp to it or start its secret route.");
         d.put("extra info", "Adds Crypts, bonus kills and secrets still needed for S+ to the map legend. Works with Score Calculator off.");
         d.put("open from hud click", "Click the small HUD map (with chat open) to open the full map.");
@@ -1745,7 +1743,6 @@ final class SettingTooltipsData {
         d.put("retry delay", "Cheat build: how often Auto Door Opener retries after a key pickup, 100-2000 ms.");
         d.put("triggerbot delay", "Cheat build: how long your crosshair must stay on the door before Auto Door Opener's Triggerbot clicks it, 0-1000 ms (0 = at once).");
 
-        // ---- Score Calculator ----
         d.put("hud", "Options for what the Score Calculator HUD shows.");
         d.put("formula", "Adjusts the score estimate for things the client cannot read, like Paul's EZPZ or a Spirit pet.");
         d.put("270 score alert", "Choose what happens when the estimated score first reaches 270: title, party message or chat note.");
@@ -1753,7 +1750,6 @@ final class SettingTooltipsData {
         d.put("270 title text", "The title shown at 270 score; use & color codes (e.g. &a).");
         d.put("300 title text", "The title shown at 300 score; use & color codes (e.g. &a).");
 
-        // ---- small solvers ----
         d.put("tic tac toe solver", "Outlines the best Tic Tac Toe square in green on your turn.");
         d.put("architect's first draft/click message on puzzle fail", "Posts a clickable chat line to get an Architect's First Draft from your sack when a puzzle fails.");
         d.put("architect's first draft/auto get from sack", "Cheat build: gets an Architect's First Draft from your sack straight away when a puzzle fails on you.");
@@ -1780,7 +1776,6 @@ final class SettingTooltipsData {
         d.put("spirit mob", "Color of the spirit mob highlights.");
         d.put("spirit bow", "Color of the Spirit Bow drop highlight.");
 
-        // ---- F7 Spots ----
         d.put("walk-to waypoints", "Draws your saved standing spots for F7/M7 in the world.");
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
 
@@ -1791,16 +1786,13 @@ final class SettingTooltipsData {
         d.put("section levers", "Also flicks the levers that open each P3 section (cheat build only).");
         d.put("timing & range", "Sets how far the boss-lever flicking reaches and how long it waits between flicks (cheat build only).");
 
-        // ---- Cheat Utils ----
         d.put("secret aura (dungeons)", "Clicks nearby secret chests, levers and Wither Essence for you in dungeons (cheat build only).");
 
-        // ---- Rag Axe ----
         d.put("cast", "Alerts when you start, cancel or finish casting the Ragnarock Axe.");
         d.put("timers", "Shows countdowns for the axe's channel, strength buff and cooldown.");
         d.put("rag prompts", "Tells you when to start casting so the channel finishes on a boss moment.");
         d.put("prompt text", "Sets the text the rag prompts show; supports color codes.");
 
-        // ---- misc single settings ----
         d.put("dragon alerts", "Shows chat messages about the M7 dragons; only you see them.");
         d.put("starred mob", "Color of the starred-mob highlights.");
         d.put("bat", "Color of the secret-bat highlights.");

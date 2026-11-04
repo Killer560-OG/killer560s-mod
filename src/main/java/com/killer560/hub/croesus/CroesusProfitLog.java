@@ -4,19 +4,12 @@ import com.killer560.hub.gui.profit.ProfitScope;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
-import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -49,7 +42,6 @@ import java.util.concurrent.Executors;
 public final class CroesusProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-croesus-log-writer");
         t.setDaemon(true);
@@ -297,7 +289,6 @@ public final class CroesusProfitLog {
         return entries.size();
     }
 
-    // ---- claim history / item log ------------------------------------------------------------------
     // killer560, 2026-09-20: "make sure it separates things by floors and keeps a running log of all items.
     // I should be able to open a menu that shows how many of each item from how many floors". Everything
     // below is DERIVED from the entries already in killer560smod-croesus-log.json - no second store, no new

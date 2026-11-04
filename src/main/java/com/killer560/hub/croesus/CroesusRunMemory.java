@@ -1,16 +1,13 @@
 package com.killer560.hub.croesus;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
-import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
@@ -539,8 +536,6 @@ final class CroesusRunMemory {
         }
         return new int[]{u, c, seen, pageCount, k, q};
     }
-
-    // ---- persistence ----------------------------------------------------------------------------------------------
 
     private static void ensureLoaded() {
         if (!loaded) {

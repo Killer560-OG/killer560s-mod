@@ -74,8 +74,6 @@ public class FastLeapTab extends BaseTab {
         }
     }
 
-    // ---------------------------------------------------------------- search
-
     /** Search sees every page and the rows the switch or Block Inputs hide, by building them off screen. Only ever run
      *  from the search field's responder, never per frame. */
     @Override

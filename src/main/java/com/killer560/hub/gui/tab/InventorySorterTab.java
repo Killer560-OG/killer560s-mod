@@ -6,7 +6,6 @@ import com.killer560.hub.invsort.InventoryLayoutStore;
 import com.killer560.hub.invsort.InventorySorterConfig;
 import com.killer560.hub.invsort.InventorySorterScreen;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;

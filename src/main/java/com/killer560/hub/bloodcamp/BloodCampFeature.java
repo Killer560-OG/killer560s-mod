@@ -219,9 +219,7 @@ public final class BloodCampFeature {
                 && !com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
-    // ------------------------------------------------------------------
     // Real packet hooks - called from BloodCampPacketMixin
-    // ------------------------------------------------------------------
 
     /** Detects the real Watcher (a real {@code Zombie} wearing one of the real watcher skull textures) -
      *  ported from Noamm's own real {@code ClientboundSetEquipmentPacket} check. */
@@ -647,9 +645,7 @@ public final class BloodCampFeature {
         return it.hasNext() ? it.next().value() : null;
     }
 
-    // ------------------------------------------------------------------
     // Tick: countdown/trigger bot/aura
-    // ------------------------------------------------------------------
 
     private static void tick() {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
@@ -890,7 +886,6 @@ public final class BloodCampFeature {
         lastAttackOpen = attackOpen;
         trackFloorClicks(client, now);
 
-        // ---- Trigger Bot ------------------------------------------------------------------------------------------
         // (Trigger Offset's sign: since 2026-11-01 positive is LATE, the slider's right - see BloodCampConfig.)
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
         // other on the next tick". Pick the most-due mob here and send at most one click below.
@@ -995,7 +990,6 @@ public final class BloodCampFeature {
             }
         }
 
-        // ---- Aura's own attack -------------------------------------------------------------------------------------
         // The Aura kills what it aims at: a floor mob at once, a mob on its way once it is killable (the Trigger Bot's
         // moment, or with Never Miss the tick it is really there), at the weapon's pace, until it dies. At ANY range
         // (killer560, 2026-10-15: "It should always attack with whatever weapon I am holding even if they are out of
@@ -2718,9 +2712,7 @@ public final class BloodCampFeature {
         return com.killer560.hub.util.PingTracker.automationMsLagFree() / 50.0;
     }
 
-    // ------------------------------------------------------------------
     // Rendering - real box/line/timer overlay, ported from Noamm's own real render layout
-    // ------------------------------------------------------------------
 
     private static void onWorldRender(LevelRenderContext context) {
         BloodCampConfig cfg = BloodCampConfig.getInstance();

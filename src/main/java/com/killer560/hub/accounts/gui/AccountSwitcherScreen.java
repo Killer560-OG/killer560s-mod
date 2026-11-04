@@ -130,8 +130,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    // ---- layout -------------------------------------------------------------------------------------------------------
-
     @Override
     protected void init() {
         if (this.accounts.isEmpty() && this.statusMessage == null) {
@@ -390,8 +388,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- the rows' entrance ------------------------------------------------------------------------------------------
-
     /** The row's fade-in (0..1) on the screen's first frames, staggered down the list. */
     private float entrance(int i) {
         if (this.openNanos == Long.MIN_VALUE) {
@@ -410,8 +406,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         float p = MenuAnim.progress(this.openNanos + Math.min(slot, 12) * STAGGER_NANOS, MenuAnim.OPEN_MS, true);
         return Math.round((1f - p) * 8f);
     }
-
-    // ---- state read each tick ----------------------------------------------------------------------------------------
 
     /** Keeps the Universal label and each row's proxy line current: expires the "Set Universal Proxy first" hint and
      *  picks up another instance toggling the shared file (ProxyConfig.universal() re-reads it when its mtime changes). */
@@ -488,8 +482,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         String cleaned = s.replaceAll("\\s+", " ").trim();
         return cleaned.length() > max ? cleaned.substring(0, max - 1) + "…" : cleaned;
     }
-
-    // ---- input --------------------------------------------------------------------------------------------------------
 
     private boolean inList(double x, double y) {
         return x >= this.listX && x < this.listX + this.listW && y >= this.listY && y < this.listY + this.listH;
@@ -618,8 +610,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         return super.keyPressed(event);
     }
 
-    // ---- universal switch ---------------------------------------------------------------------------------------------
-
     /** ON -> OFF disables the shared universal file; OFF -> ON publishes this instance's proxy into it. With no proxy
      *  address set there's nothing to publish, so it stays OFF and the switch briefly says so (no menu is opened;
      *  ModChat isn't usable on the title screen). */
@@ -719,8 +709,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             defaultButtonNarrationText(output);
         }
     }
-
-    // ---- drawing ------------------------------------------------------------------------------------------------------
 
     /** Title-screen animated background (2026-09-15, killer560: "make this menu have the same moving background")
      *  when the main-menu theme is on and no world is loaded - see {@link AccountScreenBackground}. Otherwise
@@ -848,8 +836,6 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         String s = MenuStyle.ellipsize(playingAs(), w - 18);
         ScreenChrome.text(g, s, x + 14, y + 5, MenuStyle.TXT);
     }
-
-    // ---- actions ------------------------------------------------------------------------------------------------------
 
     private void setStatus(String message, Kind kind) {
         this.statusMessage = message;

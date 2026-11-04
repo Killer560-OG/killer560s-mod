@@ -1,7 +1,6 @@
 package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.ColorPickerScreen;
-import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
@@ -77,8 +76,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         super(Component.literal("Custom Items"));
         this.parent = parent;
     }
-
-    // ------------------------------------------------------------------------------------------- model
 
     static ArmourDyeConfig cfg() {
         return ArmourDyeConfig.getInstance();
@@ -348,16 +345,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    private static String shortId(String id) {
-        if (id == null || id.isBlank()) {
-            return "§8Off";
-        }
-        int colon = id.indexOf(':');
-        return colon < 0 ? id : id.substring(colon + 1);
-    }
-
-    // ------------------------------------------------------------------------------------------- layout
-
     @Override
     protected void init() {
         panelW = Math.min(MAX_W, this.width - 8);
@@ -465,8 +452,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return -1;
     }
 
-    // ------------------------------------------------------------------------------------------- drawing
-
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         ScreenChrome.backdrop(graphics, this.width, this.height);
@@ -517,8 +502,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                     Optional.empty(), mouseX, mouseY);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- input
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {

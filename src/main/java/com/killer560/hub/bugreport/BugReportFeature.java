@@ -11,13 +11,11 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -217,8 +215,6 @@ public final class BugReportFeature {
                 .orElse("unknown");
     }
 
-    // ------------------------------------------------------------------ configs
-
     public static List<Path> listConfigFiles() {
         List<Path> files = new ArrayList<>();
         try {
@@ -304,8 +300,6 @@ public final class BugReportFeature {
         return false;
     }
 
-    // ------------------------------------------------------------------ log
-
     /** @return the redacted contents of {@code logs/latest.log} from the run directory, or {@code null}
      *  if it doesn't exist / can't be read - never throws. */
     private static String readRedactedLog() {
@@ -349,8 +343,6 @@ public final class BugReportFeature {
         }
         return redacted;
     }
-
-    // ------------------------------------------------------------------ open folder
 
     private static void tryOpenContainingFolder(Path zipPath) {
         try {

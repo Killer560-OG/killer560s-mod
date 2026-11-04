@@ -410,8 +410,6 @@ public final class Ap3Node {
         // pulls you in from ALIGN_REACH once it fires, so a small box does not mean it is easy to miss.
     }
 
-    // ---- snapping -------------------------------------------------------------------------------------------
-
     /** The nearest half-block line: a block center ({@code n.5}) - killer560's ".5/.5 on the block" - or, when you
      *  stand closer to it, the seam between two blocks ({@code n.0}) (2026-09-21: "if I am closer to being halfway
      *  between blocks then the node snaps there as well. So it could snap in the middle of 4 blocks, or just 2").
@@ -688,14 +686,6 @@ public final class Ap3Node {
     /** Unit world vector of the AXIS_ALIGN wall side, or null when none was recorded. */
     public Vec3 wallVector() {
         return wallDir == null ? null : new Vec3(wallDir.getStepX(), 0.0, wallDir.getStepZ());
-    }
-
-    /** The world axis an AXIS_ALIGN corrects on besides the wall: perpendicular to the wall side, horizontal. */
-    public Vec3 wallPerpendicular() {
-        if (wallDir == null) {
-            return null;
-        }
-        return wallDir.getAxis() == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
     }
 
     /** The nearest horizontal world direction to the node's yaw ("front"), for migrating old FRONT/LEFT/RIGHT walls. */

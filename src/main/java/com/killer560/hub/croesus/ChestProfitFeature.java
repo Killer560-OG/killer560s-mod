@@ -189,8 +189,6 @@ public final class ChestProfitFeature {
         return cfg.isChestProfitEnabled() || cfg.isLoggerEnabled() || cfg.isAutoCroesusEnabled() || cfg.isHideOpenedRuns();
     }
 
-    // ---- public API used by AutoCroesusFeature --------------------------------------------------
-
     public static List<ChestValue> currentRunViewChests() {
         return runViewChests;
     }
@@ -305,8 +303,6 @@ public final class ChestProfitFeature {
         pending = new PendingClaim(value, floor, screen.getMenu().containerId, System.currentTimeMillis(), source);
         pendingFailed = false;
     }
-
-    // ---- screen hooks ----------------------------------------------------------------------------
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
@@ -778,8 +774,6 @@ public final class ChestProfitFeature {
         runHeadScreen = null;
     }
 
-    // ---- run heads drawn by croesus/mixin/CroesusSlotMixin ------------------------------------------------------
-
     /** The RUN_* state of a slot of {@code screen} (only the Croesus menu it was read from; RUN_NONE otherwise). */
     private static int runState(AbstractContainerScreen<?> screen, Slot slot) {
         byte[] state = statesFor(screen);
@@ -962,8 +956,6 @@ public final class ChestProfitFeature {
         String text = (profit >= 0 ? "+" : "") + DungeonChestValuer.formatCoins(profit);
         return profit >= 0 ? ModChat.good(text) : ModChat.bad(text);
     }
-
-    // ---- rendering -------------------------------------------------------------------------------
 
     private record Line(String text, int color, String right, int rightColor, Component rich) {
         Line(String text, int color, String right, int rightColor) {

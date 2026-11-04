@@ -13,7 +13,6 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -95,8 +94,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         return true;
     }
 
-    // ---- KeyCaptureTab ----
-
     @Override
     public boolean isListeningForKey() {
         return capturing != null;
@@ -120,8 +117,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         cfg.save();
         capturing = null;
     }
-
-    // ---- layout ----
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
@@ -443,8 +438,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         }
         return false;
     }
-
-    // ---- text helpers ----
 
     private static Component modeText(AutoRoutesConfig cfg) {
         return Component.literal("Mode: " + (cfg.isLegitMode() ? "§aLegit" : "§cObvious"));

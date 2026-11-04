@@ -76,8 +76,6 @@ public final class ItemProtectFeature {
                 ItemProtectFeature::tickMigration));
     }
 
-    // ------------------------------------------------------------------ Slot Lock migration
-
     /**
      * Carries the removed Slot Lock's locked slots over to protected UUIDs, once, the first time the inventory has
      * something in it that carries a Skyblock UUID (a lobby or a still-loading join reads as empty, and judging then
@@ -130,8 +128,6 @@ public final class ItemProtectFeature {
                 skipped.isEmpty() ? ModChat.text("") : ModChat.dim(" Not carried over: slot " + skipped + "."));
         return carried;
     }
-
-    // ------------------------------------------------------------------ screens
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {

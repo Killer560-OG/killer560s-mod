@@ -10,7 +10,6 @@ import com.killer560.hub.gifplayer.GifPlayerFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
@@ -69,8 +68,6 @@ public class DvdTab extends BaseTab {
         return buildList(contentX, contentY, contentWidth, requestRebuild);
     }
 
-    // ---------------------------------------------------------------- list page
-
     private List<AbstractWidget> buildList(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
@@ -126,8 +123,6 @@ public class DvdTab extends BaseTab {
 
         return widgets;
     }
-
-    // ---------------------------------------------------------------- wizard steps
 
     private List<AbstractWidget> buildStep(DvdEntry e, int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         return switch (step) {

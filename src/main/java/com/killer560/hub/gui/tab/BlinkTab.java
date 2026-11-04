@@ -5,10 +5,8 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.KeyUtil;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -107,7 +105,6 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         y = toggle(w, contentX, y, contentWidth, "Debug Log", cfg::isDebugLog, v -> cfg.setDebugLog(v), cfg);
         y += 6;
 
-        // ---- Charge
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Charge", true));
         y += 16;
         w.add(SettingsButtonWidget.builder(keyText("Charge Key", cfg.getChargeKeyCode(), capturing == 1), btn -> {
@@ -124,7 +121,6 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         y = slider(w, contentX, y, contentWidth, "Charge Ticks", cfg::getChargeTicks, cfg::setChargeTicks, cfg);
         y += 6;
 
-        // ---- Hold
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Hold", true));
         y += 16;
         w.add(SettingsButtonWidget.builder(keyText("Hold Key", cfg.getHoldKeyCode(), capturing == 2), btn -> {

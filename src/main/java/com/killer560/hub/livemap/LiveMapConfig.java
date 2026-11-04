@@ -30,7 +30,6 @@ public final class LiveMapConfig {
 
     private static LiveMapConfig instance;
 
-    // ---- HUD dungeon map ----
     private boolean enabled = false;
     private boolean showTeammates = true;
     /** Teammates' names by their markers on this map while he holds a Spirit Leap or Infinileap (killer560, 2026-10-13:
@@ -423,8 +422,6 @@ public final class LiveMapConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    // ---------------------------------------------------------------- HUD live map
-
     public boolean isEnabled() {
         return enabled && gate();
     }
@@ -511,8 +508,6 @@ public final class LiveMapConfig {
     public void setPeekScale(float peekScale) {
         this.peekScale = clamp(peekScale, 1.25f, 4f);
     }
-
-    // ---------------------------------------------------------------- shared map appearance
 
     public boolean isColourByType() {
         return colourByType;
@@ -656,8 +651,6 @@ public final class LiveMapConfig {
     public void setMimicColor(int v) {
         this.mimicColor = v;
     }
-
-    // ---------------------------------------------------------------- map themes
 
     public MapThemes.Theme getMapTheme() {
         return mapTheme;
@@ -813,7 +806,6 @@ public final class LiveMapConfig {
             cfg.mapTheme = MapThemes.Theme.REAL;
         }
     }
-    // ---------------------------------------------------------------- interactive map
 
     public boolean isInteractiveMapEnabled() {
         return interactiveMapEnabled && cheatGate();

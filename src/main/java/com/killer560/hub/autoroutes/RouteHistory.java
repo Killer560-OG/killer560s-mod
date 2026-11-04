@@ -175,10 +175,6 @@ final class RouteHistory {
         return null;
     }
 
-    static boolean canRedo() {
-        return !redo.isEmpty();
-    }
-
     private static Undone step(Deque<Entry> from, Deque<Entry> to, boolean redoing) {
         while (!from.isEmpty()) {
             Entry e = from.pop();

@@ -6,7 +6,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.secrets.SecretsFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
@@ -940,8 +939,6 @@ public final class SecretAuraFeature {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- Shadow Assassin leap
 
     /** Secrets given up this session (attempts spent, never taken) - read by Auto Routes' await as "no click is coming". */
     private static int gaveUpCount;

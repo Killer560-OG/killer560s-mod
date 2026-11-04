@@ -64,8 +64,4 @@ public class SortingInventoryScreen extends InventoryScreen
         return closes(event) ? super.keyPressed(event) : true;
     }
 
-    /** For the testkit: whether a click would reach the inventory (always false). */
-    public static boolean blocksClicks() {
-        return true;
-    }
 }

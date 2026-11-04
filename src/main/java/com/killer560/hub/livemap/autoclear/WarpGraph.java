@@ -56,8 +56,6 @@ import java.util.function.Supplier;
  */
 public final class WarpGraph {
 
-    // ------------------------------------------------------------------------------------------- settings
-
     /** Hop range: the ray length, as the executor casts it. */
     public final double range;
     /** Feet above the landing block: EtherwarpPathfinder.STAND_OFFSET. */
@@ -87,8 +85,6 @@ public final class WarpGraph {
         Arrays.fill(mapKeys, EMPTY);
         owner = new Expander();
     }
-
-    // ------------------------------------------------------------------------------------------- statistics
 
     /** Nodes whose edges had to be worked out during the last call. */
     public int expandedCold;
@@ -125,26 +121,6 @@ public final class WarpGraph {
     public int nodeCount() {
         return count;
     }
-
-    /** How many edges are stored, over every node whose edges are worked out. */
-    public long edgeCount() {
-        long n = 0;
-        for (int i = 0; i < count; i++) {
-            n += eTo[i] != null ? eTo[i].length : 0;
-        }
-        return n;
-    }
-
-    /** How many nodes currently have their edges worked out. */
-    public int expandedCount() {
-        int n = 0;
-        for (int i = 0; i < count; i++) {
-            n += eTo[i] != null ? 1 : 0;
-        }
-        return n;
-    }
-
-    // ------------------------------------------------------------------------------------------- keys
 
     private static final long EMPTY = Long.MIN_VALUE;
 
@@ -184,8 +160,6 @@ public final class WarpGraph {
         return k;
     }
 
-    // ------------------------------------------------------------------------------------------- landings
-
     /**
      * Representatives per chunk column (the buckets whose first column lies in it), packed positions. Written
      * only by the owning thread; workers only read it, and every column a batch needs is filled before it goes.
@@ -215,8 +189,6 @@ public final class WarpGraph {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- expansion
 
     /**
      * One thread's ray caster: its own grid wrapper (which records the 16^3 sections the rays read), its own
@@ -536,8 +508,6 @@ public final class WarpGraph {
         r.columns = Arrays.copyOf(x.usedColumns, x.usedColumnCount);
         return r;
     }
-
-    // ------------------------------------------------------------------------------------------- changes
 
     /** {@code {sx, sy, sz}} for a section, {@code {cx, Integer.MIN_VALUE, cz}} for a whole column. */
     private final ConcurrentLinkedQueue<int[]> changes = new ConcurrentLinkedQueue<>();
@@ -1274,8 +1244,6 @@ public final class WarpGraph {
         ePitch[node] = null;
     }
 
-    // ------------------------------------------------------------------------------------------- nodes
-
     private long[] mapKeys = new long[4096];
     private int[] mapVals = new int[4096];
     private int count;
@@ -1392,8 +1360,6 @@ public final class WarpGraph {
             byRepColumn.computeIfAbsent(col, q -> new IntList()).add(node);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- tile fields
 
     /** Which map tile's click region a landing is in, for the distance fields. */
     public interface Tiles {
@@ -1558,8 +1524,6 @@ public final class WarpGraph {
         }
         return f;
     }
-
-    // ------------------------------------------------------------------------------------------- the search
 
     /** What a click is looking for. */
     public static final class Goal {
@@ -2620,8 +2584,6 @@ public final class WarpGraph {
     /** For the path {@link #reconstruct} returned last: the node each hop lands on, or -1 for an exact goal block. */
     private final ArrayList<Integer> lastLands = new ArrayList<>();
 
-    // ------------------------------------------------------------------------------------------- warming
-
     private boolean[] warmQueued = new boolean[1024];
     private int[] warmQueue = new int[1024];
     private int warmHead;
@@ -2850,54 +2812,6 @@ public final class WarpGraph {
             warmQueue = Arrays.copyOf(warmQueue, warmQueue.length * 2);
         }
         warmQueue[warmTail++] = v;
-    }
-
-    // ------------------------------------------------------------------------------------------- bench access
-
-    /** The graph's own aim test, for the bench to compare against {@link EtherSearch#aim}. */
-    public boolean fastAimForBench(EtherSearch.Grid grid, double ex, double ey, double ez, int x, int y, int z) {
-        owner.inner = grid;
-        return owner.fastAim(ex, ey, ez, x, y, z);
-    }
-
-    /**
-     * For the bench: every node with edges is expanded again from scratch, and its target set compared with the one
-     * the graph holds. Returns the number of nodes that differ (the first few are printed with what differs).
-     */
-    public int verifyEdges(EtherSearch.Grid grid, int print) {
-        Expander x = new Expander();
-        x.inner = grid;
-        int bad = 0;
-        for (int u = 0; u < count; u++) {
-            int[] to = eTo[u];
-            if (to == null) {
-                continue;
-            }
-            long self = EtherSearch.pack(nx[u], ny[u], nz[u]);
-            x.expandFrom(standX(u), standY(u), standZ(u), self, false);
-            java.util.HashSet<Long> want = new java.util.HashSet<>();
-            for (int k = 0; k < x.outN; k++) {
-                want.add(x.outPos[k]);
-            }
-            java.util.HashSet<Long> have = new java.util.HashSet<>();
-            for (int t : to) {
-                have.add(EtherSearch.pack(nx[t], ny[t], nz[t]));
-            }
-            if (!want.equals(have) || have.size() != to.length) {
-                bad++;
-                if (bad <= print) {
-                    java.util.HashSet<Long> extra = new java.util.HashSet<>(have);
-                    extra.removeAll(want);
-                    java.util.HashSet<Long> missing = new java.util.HashSet<>(want);
-                    missing.removeAll(have);
-                    System.out.println("  EDGE CHECK node " + nx[u] + "," + ny[u] + "," + nz[u] + ": " + to.length
-                            + " held (" + have.size() + " distinct), " + x.outN + " fresh; " + extra.size()
-                            + " extra, " + missing.size() + " missing; extra e.g. " + extra.stream().limit(3)
-                            .map(k -> unpackX(k) + "," + unpackY(k) + "," + unpackZ(k)).toList());
-                }
-            }
-        }
-        return bad;
     }
 
     /** The owner's search over this graph's grid, for checking a path hop by hop. */
