@@ -656,14 +656,17 @@ final class ExperimentSolver {
         }
     }
 
+    /** Whether the wait since the round became ready (the first click) or since the last click has passed. */
+    private static boolean clickDue(boolean firstOfRound, long now, long roundReadyAtMs, long lastClickMillis, long delayMillis,
+                                    long firstClickDelayMs) {
+        return firstOfRound ? now - roundReadyAtMs >= firstClickDelayMs : now - lastClickMillis >= delayMillis;
+    }
+
     private OptionalInt decideChronomatronClick(long now, long lastClickMillis, long delayMillis, long firstClickDelayMs) {
         if (!chronomatronRevealLatched || chronomatronClickIndex >= chronomatron.size()) {
             return OptionalInt.empty();
         }
-        boolean firstOfRound = chronomatronClickIndex == 0;
-        long required = firstOfRound ? firstClickDelayMs : delayMillis;
-        long elapsed = firstOfRound ? (now - chronomatronRoundReadyAtMs) : (now - lastClickMillis);
-        if (elapsed < required) return OptionalInt.empty();
+        if (!clickDue(chronomatronClickIndex == 0, now, chronomatronRoundReadyAtMs, lastClickMillis, delayMillis, firstClickDelayMs)) return OptionalInt.empty();
         return OptionalInt.of(chronomatron.get(chronomatronClickIndex++));
     }
 
@@ -699,10 +702,7 @@ final class ExperimentSolver {
         if (!ultrasequencer.containsKey(ultrasequencerClickIndex)) {
             return OptionalInt.empty();
         }
-        boolean firstOfRound = ultrasequencerClickIndex == 0;
-        long required = firstOfRound ? firstClickDelayMs : delayMillis;
-        long elapsed = firstOfRound ? (now - ultrasequencerRoundReadyAtMs) : (now - lastClickMillis);
-        if (elapsed < required) return OptionalInt.empty();
+        if (!clickDue(ultrasequencerClickIndex == 0, now, ultrasequencerRoundReadyAtMs, lastClickMillis, delayMillis, firstClickDelayMs)) return OptionalInt.empty();
         return OptionalInt.of(ultrasequencer.get(ultrasequencerClickIndex++));
     }
 

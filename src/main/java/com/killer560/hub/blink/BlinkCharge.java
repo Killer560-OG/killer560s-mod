@@ -322,29 +322,27 @@ public final class BlinkCharge {
     }
 
     private static String shotPauseReason(Minecraft client) {
-        for (java.util.function.Function<Minecraft, String> pause : SHOT_PAUSES) {
-            try {
-                String r = pause.apply(client);
-                if (r != null) {
-                    return r;
-                }
-            } catch (RuntimeException e) {
-                LOGGER.error("[Blink] a shot pause threw", e);
-            }
-        }
-        return null;
+        return firstReason(SHOT_PAUSES, client, "pause", null);
     }
 
     private static String shotGuardReason(Minecraft client) {
-        for (java.util.function.Function<Minecraft, String> guard : SHOT_GUARDS) {
+        return firstReason(SHOT_GUARDS, client, "guard", "a shot guard threw");
+    }
+
+    /** The first non-null answer of {@code checks}; one that throws is logged, and answers {@code onThrow} when that is set. */
+    private static String firstReason(java.util.List<java.util.function.Function<Minecraft, String>> checks, Minecraft client,
+                                      String what, String onThrow) {
+        for (java.util.function.Function<Minecraft, String> check : checks) {
             try {
-                String r = guard.apply(client);
+                String r = check.apply(client);
                 if (r != null) {
                     return r;
                 }
             } catch (RuntimeException e) {
-                LOGGER.error("[Blink] a shot guard threw", e);
-                return "a shot guard threw";
+                LOGGER.error("[Blink] a shot " + what + " threw", e);
+                if (onThrow != null) {
+                    return onThrow;
+                }
             }
         }
         return null;

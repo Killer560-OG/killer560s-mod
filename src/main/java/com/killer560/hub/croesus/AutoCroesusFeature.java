@@ -563,21 +563,10 @@ public final class AutoCroesusFeature {
                 }
                 finish(client);
             }
-            case WAIT_RUN_VIEW -> {
-                if (inRunView) {
-                    setState(State.RUN_VIEW, now);
-                } else if (!(inMenu && inState < TRANSITION_TIMEOUT_MS)) {
-                    stop(inMenu ? "run view never opened" : describe(client, title), true);
-                }
-            }
+            case WAIT_RUN_VIEW -> awaitPage(client, title, now, inState, inRunView, State.RUN_VIEW, inMenu, "run view never opened");
             case RUN_VIEW -> runView(client, screen, title, inRunView, now, inState);
-            case WAIT_CHEST -> {
-                if (chestTitle != null && chestTitle == targetType) {
-                    setState(State.CHEST, now);
-                } else if (!(inRunView && inState < TRANSITION_TIMEOUT_MS)) {
-                    stop(inRunView ? "chest never opened" : describe(client, title), true);
-                }
-            }
+            case WAIT_CHEST -> awaitPage(client, title, now, inState, chestTitle != null && chestTitle == targetType, State.CHEST,
+                    inRunView, "chest never opened");
             case CHEST -> chest(client, screen, title, chestTitle, now, inState);
             case WAIT_REROLL -> {
                 if (inMenu) {
@@ -1216,6 +1205,16 @@ public final class AutoCroesusFeature {
         armed = false;
         if (client.player != null && McCompat.screen(client) != null) {
             client.player.closeContainer();
+        }
+    }
+
+    /** Moves to {@code next} once its page is up; gives up when the page it left is gone or the transition times out. */
+    private static void awaitPage(Minecraft client, String title, long now, long inState, boolean arrived, State next,
+                                  boolean onPreviousPage, String neverText) {
+        if (arrived) {
+            setState(next, now);
+        } else if (!(onPreviousPage && inState < TRANSITION_TIMEOUT_MS)) {
+            stop(onPreviousPage ? neverText : describe(client, title), true);
         }
     }
 

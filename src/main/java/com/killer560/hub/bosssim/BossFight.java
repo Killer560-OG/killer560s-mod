@@ -1252,36 +1252,22 @@ public final class BossFight {
 
     /** Crush 1 to the enrage with no Mage beam: median 10, about 40% at 0-4, a bump at 21-25 (24 most), a tail to 60. */
     private static int stormPinLength() {
-        double r = RNG.nextDouble();
-        if (r < 0.40) {
-            return RNG.nextInt(5);
-        } else if (r < 0.50) {
-            return 5 + RNG.nextInt(5);
-        } else if (r < 0.72) {
-            return 10 + RNG.nextInt(11);
-        } else if (r < 0.80) {
-            return 24;
-        } else if (r < 0.90) {
-            return 21 + RNG.nextInt(5);
-        }
-        return 26 + RNG.nextInt(35);
+        return banded(new double[] {0.40, 0.50, 0.72, 0.80, 0.90}, new int[] {0, 5, 10, 24, 21, 26}, new int[] {5, 5, 11, 0, 5, 35});
     }
 
     /** Crush 2 to the death line: 0-30, median 6. */
     private static int stormDeathDelay() {
+        return banded(new double[] {0.10, 0.55, 0.70, 0.85, 0.92}, new int[] {0, 3, 8, 11, 22, 25}, new int[] {3, 5, 3, 11, 3, 6});
+    }
+
+    /** One roll: the first band whose cutoff it is under (the last band takes the rest) gives base + nextInt(span). */
+    private static int banded(double[] cutoffs, int[] base, int[] span) {
         double r = RNG.nextDouble();
-        if (r < 0.10) {
-            return RNG.nextInt(3);
-        } else if (r < 0.55) {
-            return 3 + RNG.nextInt(5);
-        } else if (r < 0.70) {
-            return 8 + RNG.nextInt(3);
-        } else if (r < 0.85) {
-            return 11 + RNG.nextInt(11);
-        } else if (r < 0.92) {
-            return 22 + RNG.nextInt(3);
+        int i = 0;
+        while (i < cutoffs.length && r >= cutoffs[i]) {
+            i++;
         }
-        return 25 + RNG.nextInt(6);
+        return base[i] + (span[i] > 0 ? RNG.nextInt(span[i]) : 0);
     }
 
     /** Giga Lightning: every player not under a pillar's square takes it (the line only; the sim does no damage). */

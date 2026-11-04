@@ -661,12 +661,7 @@ public final class BazaarView {
                 boolean whole = ry >= top && ry + RAIL_ROW_H <= bottom;
                 boolean sel = id.equals(targetId);
                 boolean hover = in(railX, Math.max(ry, top), railW, Math.min(ry + RAIL_ROW_H, bottom) - Math.max(ry, top));
-                if (sel) {
-                    g.fill(railX + 1, ry, railX + railW - 1, ry + RAIL_ROW_H, t.selectedBg());
-                    g.fill(railX + 1, ry, railX + 3, ry + RAIL_ROW_H, t.accent());
-                } else if (hover) {
-                    g.fill(railX + 1, ry, railX + railW - 1, ry + RAIL_ROW_H, t.rowHover());
-                }
+                rowBackground(railX, railW, ry, RAIL_ROW_H, sel, hover, false);
                 g.item(BazaarIcons.icon(id), railX + 4, ry + 1);
                 BazaarProduct p = BazaarFormat.byId(id);
                 String name = fit(BazaarFormat.displayName(id), railW - 28);
@@ -1610,14 +1605,7 @@ public final class BazaarView {
                 int hh = Math.min(ry + rowH, bottom) - hy;
                 boolean hover = in(x, hy, w - 6, hh);
                 boolean sel = target != null && it.name().equalsIgnoreCase(target);
-                if (sel) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.selectedBg());
-                    g.fill(x + 1, ry, x + 3, ry + rowH, t.accent());
-                } else if (hover) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowHover());
-                } else if (i % 2 == 1) {
-                    g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowAlt());
-                }
+                rowBackground(x, w, ry, rowH, sel, hover, i % 2 == 1);
                 if (hover) {
                     hoveredStack = stack;
                 }
@@ -1791,6 +1779,18 @@ public final class BazaarView {
         searchFocused = false;
         BazaarFollowUp.disarm("command search");
         setQuery(term);
+    }
+
+    /** A list row's background: the selected stripe, else the hover tint, else (when {@code alt}) the alternate tint. */
+    private static void rowBackground(int x, int w, int ry, int rowH, boolean sel, boolean hover, boolean alt) {
+        if (sel) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.selectedBg());
+            g.fill(x + 1, ry, x + 3, ry + rowH, t.accent());
+        } else if (hover) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowHover());
+        } else if (alt) {
+            g.fill(x + 1, ry, x + w - 1, ry + rowH, t.rowAlt());
+        }
     }
 
     private static boolean in(int x, int y, int w, int h) {

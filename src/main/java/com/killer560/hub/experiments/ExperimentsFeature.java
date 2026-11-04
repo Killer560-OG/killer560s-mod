@@ -1255,13 +1255,18 @@ public final class ExperimentsFeature {
             // pendingActions timer this class already uses for jittered clicks (just with fixed delays
             // instead of random jitter), reads as a clear, deliberate alert rather than a single blip
             // easy to miss.
-            long now = System.currentTimeMillis();
-            for (int i = 0; i < 3; i++) {
-                pendingActions.add(new PendingAction(
-                        () -> Minecraft.getInstance().getSoundManager()
-                                .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
-                        now + i * 220L));
-            }
+            queueTripleDing();
+        }
+    }
+
+    /** Three orb pings 220 ms apart, through the same pendingActions timer as the jittered clicks. */
+    private static void queueTripleDing() {
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < 3; i++) {
+            pendingActions.add(new PendingAction(
+                    () -> Minecraft.getInstance().getSoundManager()
+                            .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
+                    now + i * 220L));
         }
     }
 
@@ -1326,13 +1331,7 @@ public final class ExperimentsFeature {
                 ModChat.text("You've used all your Superpairs clicks ("),
                 ModChat.value(superpairsMaxRemainingClicksSeen + "/" + superpairsMaxRemainingClicksSeen),
                 ModChat.text(").")));
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < 3; i++) {
-            pendingActions.add(new PendingAction(
-                    () -> Minecraft.getInstance().getSoundManager()
-                            .play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f)),
-                    now + i * 220L));
-        }
+        queueTripleDing();
     }
 
     /** Whether killer560's own mouse/keyboard input to a container screen should be swallowed right
