@@ -105,6 +105,18 @@ final class WalkTerrain {
         return false;
     }
 
+    /** The highest step up in the two cells ahead along the heading {@code (hx, hz)}. */
+    static double riseAhead(Level level, Vec3 pos, double hx, double hz) {
+        return Math.max(rise(level, pos.x + hx * 0.45, pos.z + hz * 0.45, pos.y),
+                rise(level, pos.x + hx * 0.85, pos.z + hz * 0.85, pos.y));
+    }
+
+    /** True when {@code riseAhead} is above a plain step, within this jump's height, and has room for the head. */
+    static boolean jumpable(Level level, LocalPlayer player, Vec3 pos, double hx, double hz, double riseAhead, double jumpH) {
+        return riseAhead > player.maxUpStep() + 0.01 && riseAhead <= jumpH - 0.05
+                && headroom(level, pos.x + hx * 0.85, pos.z + hz * 0.85, pos.y + riseAhead);
+    }
+
     /** Room for a 1.8-tall player standing at {@code feetY} in that column. */
     static boolean headroom(Level level, double x, double z, double feetY) {
         int bx = (int) Math.floor(x);

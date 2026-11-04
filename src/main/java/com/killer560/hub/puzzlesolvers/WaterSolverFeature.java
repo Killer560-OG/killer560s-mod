@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -9,7 +8,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -19,11 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -143,21 +137,7 @@ public final class WaterSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan refusal logged, so lines are written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-    private static String scanLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        scanLogKey = null;
-        LOGGER.info("[WaterSolver] {}", detail);
-    }
-
-    private static void logScan(String key, String detail) {
-        if (key.equals(scanLogKey)) return;
-        scanLogKey = key;
-        LOGGER.info("[WaterSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[WaterSolver]");
 
     private WaterSolverFeature() {
     }
@@ -166,30 +146,12 @@ public final class WaterSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("WaterSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Water Solver tick", () -> WaterSolverConfig.getInstance().isEnabledRaw()), WaterSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Water Solver render", () -> WaterSolverConfig.getInstance().isEnabledRaw()), WaterSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Water Solver", () -> WaterSolverConfig.getInstance().isEnabledRaw(), WaterSolverFeature::onWorldRender);
     }
 
     private static Map<String, Map<String, Map<String, Map<String, List<Double>>>>> loadSolutions() {
-        try (InputStream stream = WaterSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/water-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[WaterSolver] solutions resource missing - no board will ever get timings");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Map<String, Map<String, Map<String, Map<String, List<Double>>>>> parsed =
-                        new Gson().fromJson(reader, SOLUTIONS_TYPE);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[WaterSolver] Failed to load solutions", e);
-            return Map.of();
-        }
+        return SolverData.load("water-solutions.json", SOLUTIONS_TYPE, Map.of(), "killer560smod-puzzles", "[WaterSolver]",
+                "solutions resource missing - no board will ever get timings", "solutions");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }
@@ -197,8 +159,8 @@ public final class WaterSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + WaterSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + WaterSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - timings and click counts cleared (" + getCountedClicks() + " clicks counted)");
             }
@@ -216,8 +178,8 @@ public final class WaterSolverFeature {
             lastRoomEntry = current;
             reset();
         }
-        if ((current == null || !"Water Board".equals(current.name)) && !"none".equals(roomLogKey)) {
-            logRoomState("none", "left Water Board: now in " + (current == null ? "no known room" : current.name));
+        if ((current == null || !"Water Board".equals(current.name)) && !"none".equals(LOG.roomKey)) {
+            LOG.room("none", "left Water Board: now in " + (current == null ? "no known room" : current.name));
         }
         if (current == null || !"Water Board".equals(current.name) || patternIdentifier != -1) return;
         scan(client);
@@ -227,13 +189,13 @@ public final class WaterSolverFeature {
         Level level = client.level;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (level == null || clayAndRotation == null) {
-            logRoomState("wait", "in Water Board but not scanning: clay/rotation known=" + (clayAndRotation != null)
+            LOG.room("wait", "in Water Board but not scanning: clay/rotation known=" + (clayAndRotation != null)
                     + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Water Board detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Water Board detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " optimizedPath="
                     + WaterSolverConfig.getInstance().isOptimizedPath());
         }
@@ -248,7 +210,7 @@ public final class WaterSolverFeature {
             }
         }
         if (extendedSlots.length() != 3) {
-            logScan("slots " + extendedSlots, "scan waiting: " + extendedSlots.length() + " wool column(s) pushed out"
+            LOG.scan("slots " + extendedSlots, "scan waiting: " + extendedSlots.length() + " wool column(s) pushed out"
                     + " (slots \"" + extendedSlots + "\" of purple/orange/blue/green/red), need exactly 3 - retrying every tick");
             return;
         }
@@ -262,7 +224,7 @@ public final class WaterSolverFeature {
             }
         }
         if (identifier == -1) {
-            logScan("noid " + extendedSlots, "scan waiting: wool slots " + extendedSlots + " found but none of the "
+            LOG.scan("noid " + extendedSlots, "scan waiting: wool slots " + extendedSlots + " found but none of the "
                     + IDENTIFIER_MARKERS.size() + " layout marker blocks is present (first marker at "
                     + realPos(IDENTIFIER_MARKERS.get(0).x(), IDENTIFIER_MARKERS.get(0).y(), IDENTIFIER_MARKERS.get(0).z(),
                     clayAndRotation).toShortString() + ") - retrying every tick");
@@ -272,7 +234,7 @@ public final class WaterSolverFeature {
         Map<String, List<Double>> leverTimes = bundledSolution(
                 WaterSolverConfig.getInstance().isOptimizedPath(), identifier, extendedSlots.toString());
         if (leverTimes == null) {
-            logScan("nosol " + identifier + " " + extendedSlots, "solution failed: board " + identifier + " slots "
+            LOG.scan("nosol " + identifier + " " + extendedSlots, "solution failed: board " + identifier + " slots "
                     + extendedSlots + " optimizedPath=" + WaterSolverConfig.getInstance().isOptimizedPath()
                     + " is not in the bundled solutions - nothing will be highlighted");
             return;

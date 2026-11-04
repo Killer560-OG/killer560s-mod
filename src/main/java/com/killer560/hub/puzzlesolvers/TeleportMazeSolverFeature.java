@@ -7,7 +7,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -60,13 +59,7 @@ public final class TeleportMazeSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state logged, so entry / exit / waiting lines are written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        LOGGER.info("[TeleportMaze] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[TeleportMaze]");
 
     private TeleportMazeSolverFeature() {
     }
@@ -75,10 +68,7 @@ public final class TeleportMazeSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TeleportMazeSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver tick", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver render", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("TeleportMaze Solver", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw(), TeleportMazeSolverFeature::onWorldRender);
     }
 
     public static Set<BlockPos> getTpPads() { return Collections.unmodifiableSet(tpPads); }
@@ -100,8 +90,8 @@ public final class TeleportMazeSolverFeature {
     private static void tick(Minecraft client) {
         if (!TeleportMazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (lastRoomEntry != null || !tpPads.isEmpty()) {
-                if (!"none".equals(roomLogKey)) {
-                    logRoomState("none", "solver idle: enabled=" + TeleportMazeSolverConfig.getInstance().isEnabled()
+                if (!"none".equals(LOG.roomKey)) {
+                    LOG.room("none", "solver idle: enabled=" + TeleportMazeSolverConfig.getInstance().isEnabled()
                             + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                             + " - pads, visited and links cleared (" + visited.size() + " visited, " + links.size()
                             + " links)");
@@ -117,7 +107,7 @@ public final class TeleportMazeSolverFeature {
         if (current == lastRoomEntry && (current == null || !ROOM.equals(current.name) || !tpPads.isEmpty())) return;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (current != null && ROOM.equals(current.name) && cr == null) {
-            logRoomState("wait", "in Teleport Maze but clay/rotation not known yet - pads not placed, retrying every tick");
+            LOG.room("wait", "in Teleport Maze but clay/rotation not known yet - pads not placed, retrying every tick");
             return; // rotation not known yet - retry next tick
         }
         lastRoomEntry = current;
@@ -129,8 +119,8 @@ public final class TeleportMazeSolverFeature {
         tpPads = new LinkedHashSet<>();
         realCells = new ArrayList<>();
         if (current == null || !ROOM.equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Teleport Maze: now in " + (current == null ? "no known room" : current.name));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Teleport Maze: now in " + (current == null ? "no known room" : current.name));
             }
             return;
         }
@@ -145,7 +135,7 @@ public final class TeleportMazeSolverFeature {
             }
             realCells.add(cell);
         }
-        roomLogKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
+        LOG.roomKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
         LOGGER.info("[TeleportMaze] Teleport Maze detected: clay={},{} rotation={} pads={} cells={} start={} end={}",
                 cr[0], cr[1], cr[2], tpPads.size(), realCells.size(),
                 PuzzleCoords.real(PADS[29][0], PADS[29][1], PADS[29][2], cr).toShortString(),

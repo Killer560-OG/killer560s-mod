@@ -45,6 +45,15 @@ public final class SolverEspRender {
         unused = Depth.LINES;
     }
 
+    /** Registers a solver's world drawing after translucent TERRAIN, not features: water is drawn after the features pass,
+     *  so a highlight drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21). */
+    static void registerRender(String name, java.util.function.BooleanSupplier rawEnabled,
+                               net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain listener) {
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS.register(
+                com.killer560.hub.util.FeatureGuard.collectTerrain(
+                        com.killer560.hub.util.FeatureBits.register(name + " render", rawEnabled), listener));
+    }
+
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
         // killer560, 2026-09-20 (Blaze report): "lines look weird if there is water behind them - they

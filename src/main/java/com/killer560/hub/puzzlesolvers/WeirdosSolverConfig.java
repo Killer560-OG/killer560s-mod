@@ -1,28 +1,21 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Weirdos Solver settings - see {@link WeirdosSolverFeature}'s class doc for the real
  *  Odin-ported dialogue-matching logic this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
-public final class WeirdosSolverConfig {
+public final class WeirdosSolverConfig extends SolverConfigBase {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-weirdossolver.json");
 
     private static WeirdosSolverConfig instance;
 
-    private boolean enabled = false;
     private boolean showWrongChests = true;
 
     private WeirdosSolverConfig() {
@@ -35,48 +28,22 @@ public final class WeirdosSolverConfig {
         return instance;
     }
 
-    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
-        load0();
-        com.killer560.hub.util.FeatureBits.changed();
-    }
-
-    private static void load0() {
-        if (!Files.exists(CONFIG_PATH)) {
-            instance = new WeirdosSolverConfig();
-            return;
-        }
-        try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            WeirdosSolverConfig cfg = new WeirdosSolverConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        WeirdosSolverConfig cfg = new WeirdosSolverConfig();
+        if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showWrongChests = ConfigJson.getBool(obj, "showWrongChests", true);
-            instance = cfg;
-        } catch (Exception e) {
-            instance = new WeirdosSolverConfig();
         }
+        instance = cfg;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showWrongChests", showWrongChests);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
-    }
-
-    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
-
-    /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() { return enabled; }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-        com.killer560.hub.util.FeatureBits.changed();
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showWrongChests", showWrongChests);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isShowWrongChests() { return showWrongChests; }

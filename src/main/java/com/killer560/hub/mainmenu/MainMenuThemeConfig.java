@@ -1,8 +1,6 @@
 package com.killer560.hub.mainmenu;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -16,7 +14,6 @@ import java.nio.file.Path;
  *  white/yellow text. Not gated by SkyblockGate: the title screen is never "in Skyblock". */
 public final class MainMenuThemeConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-mainmenu.json");
 
@@ -170,23 +167,19 @@ public final class MainMenuThemeConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("particles", particles);
-            obj.addProperty("otherMenus", otherMenus);
-            obj.addProperty("hidePauseIcons", hidePauseIcons);
-            obj.addProperty("style", style.name());
-            obj.addProperty("theme", theme.name());
-            obj.addProperty("scene", scene.name());
-            obj.addProperty("sceneMode", sceneMode.name());
-            obj.addProperty("density", density.name());
-            obj.addProperty("speed", speed);
-            obj.addProperty("panel", panel);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("particles", particles);
+        obj.addProperty("otherMenus", otherMenus);
+        obj.addProperty("hidePauseIcons", hidePauseIcons);
+        obj.addProperty("style", style.name());
+        obj.addProperty("theme", theme.name());
+        obj.addProperty("scene", scene.name());
+        obj.addProperty("sceneMode", sceneMode.name());
+        obj.addProperty("density", density.name());
+        obj.addProperty("speed", speed);
+        obj.addProperty("panel", panel);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled; }

@@ -1,20 +1,15 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Ice Fill Solver settings - see {@link IceFillSolverFeature}'s class doc for the real
  *  Odin-ported path database this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
-public final class IceFillSolverConfig {
+public final class IceFillSolverConfig extends SolverConfigBase {
 
     /** The pre-2026-11-01 presets, kept only so an old file's "lineColor" loads as its color.
      *  killer560, 2026-09-20: "ice fill's line shouldn't be blue, its hard to see - make it configurable".
@@ -38,13 +33,11 @@ public final class IceFillSolverConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-icefillsolver.json");
 
     private static IceFillSolverConfig instance;
 
-    private boolean enabled = false;
     private boolean optimizedPath = false;
     /** Default line color: the old LIME preset. */
     public static final int DEFAULT_LINE_COLOR = argbOf(LineColor.LIME);
@@ -64,56 +57,30 @@ public final class IceFillSolverConfig {
         return instance;
     }
 
-    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
-        load0();
-        com.killer560.hub.util.FeatureBits.changed();
-    }
-
-    private static void load0() {
-        if (!Files.exists(CONFIG_PATH)) {
-            instance = new IceFillSolverConfig();
-            return;
-        }
-        try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            IceFillSolverConfig cfg = new IceFillSolverConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        IceFillSolverConfig cfg = new IceFillSolverConfig();
+        if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.optimizedPath = ConfigJson.getBool(obj, "optimizedPath", false);
             if (obj.has("lineColorArgb")) {
-                cfg.lineColorArgb = (int) obj.get("lineColorArgb").getAsLong();
+                cfg.lineColorArgb = (int) ConfigJson.getLong(obj, "lineColorArgb", DEFAULT_LINE_COLOR);
             } else {
                 cfg.lineColorArgb = argbOf(ConfigJson.getEnum(obj, "lineColor", LineColor.class, LineColor.LIME));
             }
             cfg.etherwarpProtection = ConfigJson.getBool(obj, "etherwarpProtection", false);
-            instance = cfg;
-        } catch (Exception e) {
-            instance = new IceFillSolverConfig();
         }
+        instance = cfg;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("optimizedPath", optimizedPath);
-            obj.addProperty("lineColorArgb", lineColorArgb);
-            obj.addProperty("etherwarpProtection", etherwarpProtection);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
-    }
-
-    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
-
-    /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() { return enabled; }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-        com.killer560.hub.util.FeatureBits.changed();
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("optimizedPath", optimizedPath);
+        obj.addProperty("lineColorArgb", lineColorArgb);
+        obj.addProperty("etherwarpProtection", etherwarpProtection);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Odin's "hard" path set - a real, different (usually shorter/riskier) valid route than the default

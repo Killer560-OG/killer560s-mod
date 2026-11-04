@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -9,16 +8,10 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -44,13 +37,7 @@ public final class QuizSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
     /** Logging only: last room state logged ("none" outside the Quiz room), so lines are written on CHANGE. */
-    private static String roomLogKey = "none";
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        LOGGER.info("[QuizSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[QuizSolver]");
 
     private static String letterOf(int index) { return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?"; }
 
@@ -68,31 +55,13 @@ public final class QuizSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", com.killer560.hub.util.FeatureBits.register("Quiz Solver tick", () -> QuizSolverConfig.getInstance().isEnabledRaw()), client -> {
             onTick();
         }));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Quiz Solver render", () -> QuizSolverConfig.getInstance().isEnabledRaw()), QuizSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Quiz Solver", () -> QuizSolverConfig.getInstance().isEnabledRaw(), QuizSolverFeature::onWorldRender);
     }
 
     private static Map<String, List<String>> loadAnswers() {
-        try (InputStream stream = QuizSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn(
-                        "[QuizSolver] answers resource missing - no question will ever be recognized");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<Map<String, List<String>>>() {
-                }.getType();
-                Map<String, List<String>> parsed = new Gson().fromJson(reader, type);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn("[QuizSolver] Failed to load answers", e);
-            return Map.of();
-        }
+        return SolverData.load("quiz-answers.json", new TypeToken<Map<String, List<String>>>() {
+        }.getType(), Map.of(), "killer560smod-puzzlesolvers", "[QuizSolver]",
+                "answers resource missing - no question will ever be recognized", "answers");
     }
 
     private static void onTick() {
@@ -101,7 +70,7 @@ public final class QuizSolverFeature {
             if (lastRoomEntry != null || triviaAnswers != null || options[0].blockPos != null) {
                 LOGGER.info("[QuizSolver] solver idle: enabled={} inDungeon={} inBoss={} - question and positions cleared",
                         QuizSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), LiveMapFeature.isInBoss());
-                roomLogKey = "none";
+                LOG.roomKey = "none";
                 lastRoomEntry = null;
                 reset();
             }
@@ -117,7 +86,7 @@ public final class QuizSolverFeature {
                 for (TriviaOption option : options) {
                     option.blockPos = null;
                 }
-                if (!"none".equals(roomLogKey) || (current != null && "Quiz".equals(current.name))) {
+                if (!"none".equals(LOG.roomKey) || (current != null && "Quiz".equals(current.name))) {
                     LOGGER.info("[QuizSolver] room changed to {} while the quiz is in progress ({}): keeping the question"
                                     + " (answers known={}), recomputing pillar positions",
                             current == null ? "no known room" : current.name, QuizState.describe(), triviaAnswers != null);
@@ -126,19 +95,19 @@ public final class QuizSolverFeature {
                 reset();
             }
         }
-        if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(roomLogKey)) {
-            logRoomState("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
+        if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(LOG.roomKey)) {
+            LOG.room("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
         }
         if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
-            logRoomState("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
+            LOG.room("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
             return;
         }
         options[0].blockPos = realPos(20, 70, 6, clayAndRotation);
         options[1].blockPos = realPos(15, 70, 9, clayAndRotation);
         options[2].blockPos = realPos(10, 70, 6, clayAndRotation);
-        roomLogKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        LOG.roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
         LOGGER.info("[QuizSolver] Quiz detected: clay={},{} rotation={} pillars a={} b={} c={} ({}, answers known={})",
                 clayAndRotation[0], clayAndRotation[1], clayAndRotation[2], options[0].blockPos.toShortString(),
                 options[1].blockPos.toShortString(), options[2].blockPos.toShortString(), QuizState.describe(),

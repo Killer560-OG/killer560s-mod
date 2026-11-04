@@ -1,25 +1,18 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,15 +46,8 @@ public final class BoulderSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last unmatched floor pattern logged, so lines are written on CHANGE. */
-    private static String roomLogKey = "none";
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[BoulderSolver]");
     private static String missLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        missLogKey = null;
-        LOGGER.info("[BoulderSolver] {}", detail);
-    }
 
     private BoulderSolverFeature() {
     }
@@ -78,31 +64,13 @@ public final class BoulderSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BoulderSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Boulder Solver tick", () -> BoulderSolverConfig.getInstance().isEnabledRaw()), BoulderSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Boulder Solver render", () -> BoulderSolverConfig.getInstance().isEnabledRaw()), BoulderSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Boulder Solver", () -> BoulderSolverConfig.getInstance().isEnabledRaw(), BoulderSolverFeature::onWorldRender);
     }
 
     private static Map<String, List<List<Integer>>> loadSolutions() {
-        try (InputStream stream = BoulderSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[BoulderSolver] solutions resource missing - no floor pattern will ever match");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<Map<String, List<List<Integer>>>>() {
-                }.getType();
-                Map<String, List<List<Integer>>> parsed = new Gson().fromJson(reader, type);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[BoulderSolver] Failed to load solutions", e);
-            return Map.of();
-        }
+        return SolverData.load("boulder-solutions.json", new TypeToken<Map<String, List<List<Integer>>>>() {
+        }.getType(), Map.of(), "killer560smod-puzzles", "[BoulderSolver]",
+                "solutions resource missing - no floor pattern will ever match", "solutions");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }
@@ -110,8 +78,8 @@ public final class BoulderSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - solution cleared");
             }
@@ -126,19 +94,19 @@ public final class BoulderSolverFeature {
             currentPositions = new ArrayList<>();
         }
         if (current == null || !"Boulder".equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
             }
         }
         if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) return;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
-            logRoomState("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
+            LOG.room("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Boulder detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Boulder detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " knownPatterns=" + SOLUTIONS.size());
         }
         // Real bug found and fixed (2026-09-14, code review): scannedThisRoom used to be set true even

@@ -1,28 +1,21 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Creeper Beams Solver settings - see {@link BeamsSolverFeature}'s class doc for the real
  *  Odin-ported lantern-pair database this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
-public final class BeamsSolverConfig {
+public final class BeamsSolverConfig extends SolverConfigBase {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-beamssolver.json");
 
     private static BeamsSolverConfig instance;
 
-    private boolean enabled = false;
     private boolean showTracer = true;
 
     /** Which lit pairs are drawn (killer560, 2026-11-01): every one, one at a time, or the current one and the next. */
@@ -48,50 +41,24 @@ public final class BeamsSolverConfig {
         return instance;
     }
 
-    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
-        load0();
-        com.killer560.hub.util.FeatureBits.changed();
-    }
-
-    private static void load0() {
-        if (!Files.exists(CONFIG_PATH)) {
-            instance = new BeamsSolverConfig();
-            return;
-        }
-        try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            BeamsSolverConfig cfg = new BeamsSolverConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        BeamsSolverConfig cfg = new BeamsSolverConfig();
+        if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showTracer = ConfigJson.getBool(obj, "showTracer", true);
             cfg.showMode = ConfigJson.getEnum(obj, "showMode", ShowMode.class, ShowMode.ALL);
-            instance = cfg;
-        } catch (Exception e) {
-            instance = new BeamsSolverConfig();
         }
+        instance = cfg;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showTracer", showTracer);
-            obj.addProperty("showMode", showMode.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
-    }
-
-    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
-
-    /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() { return enabled; }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-        com.killer560.hub.util.FeatureBits.changed();
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showTracer", showTracer);
+        obj.addProperty("showMode", showMode.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public ShowMode getShowMode() { return showMode; }

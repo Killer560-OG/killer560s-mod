@@ -1,14 +1,12 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -16,11 +14,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,15 +70,7 @@ public final class BeamsSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan result logged, so a line is written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-    private static String scanLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        scanLogKey = null;
-        LOGGER.info("[BeamsSolver] {}", detail);
-    }
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[BeamsSolver]");
 
     private BeamsSolverFeature() {
     }
@@ -105,40 +90,23 @@ public final class BeamsSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeamsSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Beams Solver tick", () -> BeamsSolverConfig.getInstance().isEnabledRaw()), BeamsSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Beams Solver render", () -> BeamsSolverConfig.getInstance().isEnabledRaw()), BeamsSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Beams Solver", () -> BeamsSolverConfig.getInstance().isEnabledRaw(), BeamsSolverFeature::onWorldRender);
     }
 
     private static List<CandidatePair> loadCandidates() {
-        try (InputStream stream = BeamsSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/creeper-beams-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[BeamsSolver] candidate list resource missing - the solver will never highlight anything");
-                return List.of();
+        List<int[]> raw = SolverData.load("creeper-beams-solutions.json", new TypeToken<List<int[]>>() {
+        }.getType(), null, "killer560smod-puzzles", "[BeamsSolver]",
+                "candidate list resource missing - the solver will never highlight anything", "candidates");
+        if (raw == null) return List.of();
+        List<CandidatePair> pairs = new ArrayList<>();
+        for (int[] entry : raw) {
+            if (entry.length == 6) {
+                pairs.add(new CandidatePair(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]));
             }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<List<int[]>>() {
-                }.getType();
-                List<int[]> raw = new Gson().fromJson(reader, type);
-                if (raw == null) return List.of();
-                List<CandidatePair> pairs = new ArrayList<>();
-                for (int[] entry : raw) {
-                    if (entry.length == 6) {
-                        pairs.add(new CandidatePair(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]));
-                    }
-                }
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
-                        "[BeamsSolver] loaded {} candidate pairs ({} raw entries)", pairs.size(), raw.size());
-                return pairs;
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[BeamsSolver] Failed to load candidates", e);
-            return List.of();
         }
+        com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                "[BeamsSolver] loaded {} candidate pairs ({} raw entries)", pairs.size(), raw.size());
+        return pairs;
     }
 
     private static void tick(Minecraft client) { tickInner(client); }
@@ -146,8 +114,8 @@ public final class BeamsSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - highlights cleared");
             }
@@ -165,21 +133,21 @@ public final class BeamsSolverFeature {
             shownOrder.clear();
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "left Creeper Beams: now in " + (current == null ? "no known room" : current.name));
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "left Creeper Beams: now in " + (current == null ? "no known room" : current.name));
             }
             return;
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         Level level = client.level;
         if (clayAndRotation == null || level == null) {
-            logRoomState("wait", "in Creeper Beams but not solving: clay/rotation known=" + (clayAndRotation != null)
+            LOG.room("wait", "in Creeper Beams but not solving: clay/rotation known=" + (clayAndRotation != null)
                     + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Creeper Beams detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Creeper Beams detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " candidatePairs=" + CANDIDATES.size());
         }
         rescan(level, clayAndRotation);
@@ -308,9 +276,9 @@ public final class BeamsSolverFeature {
                     .append(pair.b().toShortString()).append(';');
         }
         String k = key.toString();
-        if (k.equals(scanLogKey)) return;
-        boolean first = scanLogKey == null;
-        scanLogKey = k;
+        if (k.equals(LOG.scanKey)) return;
+        boolean first = LOG.scanKey == null;
+        LOG.scanKey = k;
         LOGGER.info("[BeamsSolver] {}: litPairs={} misalignedPairs={} of {} candidates:{}",
                 first ? "scan" : "solution changed", lit, misaligned, CANDIDATES.size(), k.isEmpty() ? " none" : k);
     }

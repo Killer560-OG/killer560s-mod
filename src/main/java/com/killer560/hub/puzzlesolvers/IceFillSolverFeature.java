@@ -1,22 +1,16 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,16 +42,8 @@ public final class IceFillSolverFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan failure logged, so lines are written on CHANGE, never per tick. */
-    private static String roomLogKey = "none";
-    private static String scanLogKey = null;
+    private static final SolverLog LOG = new SolverLog(LOGGER, "[IceFillSolver]");
     private static String noPathLogKey = null;
-
-    private static void logRoomState(String key, String detail) {
-        if (key.equals(roomLogKey)) return;
-        roomLogKey = key;
-        scanLogKey = null;
-        LOGGER.info("[IceFillSolver] {}", detail);
-    }
 
     private IceFillSolverFeature() {
     }
@@ -69,29 +55,13 @@ public final class IceFillSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("IceFillSolverFeature", com.killer560.hub.util.FeatureBits.register("IceFill Solver tick", () -> IceFillSolverConfig.getInstance().isEnabledRaw()), client -> tick(client)));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("IceFill Solver render", () -> IceFillSolverConfig.getInstance().isEnabledRaw()), IceFillSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("IceFill Solver", () -> IceFillSolverConfig.getInstance().isEnabledRaw(), IceFillSolverFeature::onWorldRender);
     }
 
     private static IceFillData loadData() {
-        try (InputStream stream = IceFillSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/ice-fill-floors.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[IceFillSolver] floors resource missing - no floor will ever be identified");
-                return new IceFillData(List.of(), List.of(), List.of());
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                IceFillData parsed = new Gson().fromJson(reader, IceFillData.class);
-                return parsed != null ? parsed : new IceFillData(List.of(), List.of(), List.of());
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[IceFillSolver] Failed to load floors data", e);
-            return new IceFillData(List.of(), List.of(), List.of());
-        }
+        return SolverData.load("ice-fill-floors.json", IceFillData.class, new IceFillData(List.of(), List.of(), List.of()),
+                "killer560smod-puzzles", "[IceFillSolver]", "floors resource missing - no floor will ever be identified",
+                "floors data");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }
@@ -99,8 +69,8 @@ public final class IceFillSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!IceFillSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
-            if (!"none".equals(roomLogKey)) {
-                logRoomState("none", "solver idle: enabled=" + IceFillSolverConfig.getInstance().isEnabled()
+            if (!"none".equals(LOG.roomKey)) {
+                LOG.room("none", "solver idle: enabled=" + IceFillSolverConfig.getInstance().isEnabled()
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - path cleared");
             }
@@ -113,8 +83,8 @@ public final class IceFillSolverFeature {
             lastRoomEntry = current;
             currentPath.clear();
         }
-        if ((current == null || !"Ice Fill".equals(current.name)) && !"none".equals(roomLogKey)) {
-            logRoomState("none", "left Ice Fill: now in " + (current == null ? "no known room" : current.name));
+        if ((current == null || !"Ice Fill".equals(current.name)) && !"none".equals(LOG.roomKey)) {
+            LOG.room("none", "left Ice Fill: now in " + (current == null ? "no known room" : current.name));
         }
         if (!currentPath.isEmpty() && pathOptimized != IceFillSolverConfig.getInstance().isOptimizedPath()) {
             currentPath.clear();
@@ -123,13 +93,13 @@ public final class IceFillSolverFeature {
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         Level level = client.level;
         if (clayAndRotation == null || level == null) {
-            logRoomState("wait", "in Ice Fill but not scanning: clay/rotation known=" + (clayAndRotation != null)
+            LOG.room("wait", "in Ice Fill but not scanning: clay/rotation known=" + (clayAndRotation != null)
                     + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
         }
         String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
-        if (!roomKey.equals(roomLogKey)) {
-            logRoomState(roomKey, "Ice Fill detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+        if (!roomKey.equals(LOG.roomKey)) {
+            LOG.room(roomKey, "Ice Fill detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
                     + " rotation=" + clayAndRotation[2] + " floors=" + DATA.identifier().size()
                     + " optimizedPath=" + IceFillSolverConfig.getInstance().isOptimizedPath());
         }
@@ -170,7 +140,7 @@ public final class IceFillSolverFeature {
                 // Odin logs a per-floor failure and still draws whatever floors DID identify; simplified
                 // here to retry the whole scan next tick instead - self-healing once the real ice finishes
                 // spawning, and avoids ever showing a path that's missing a floor in the middle.
-                logScan("miss " + floorIndex, "scan failed: floor " + (floorIndex + 1) + " matched none of its "
+                LOG.scan("miss " + floorIndex, "scan failed: floor " + (floorIndex + 1) + " matched none of its "
                         + floorIdentifiers.size() + " layouts (floors matched so far:" + patterns
                         + ") - ice not spawned/loaded yet or wrong clay/rotation; retrying every tick");
                 currentPath.clear();
@@ -178,19 +148,13 @@ public final class IceFillSolverFeature {
             }
         }
         // Keyed: an all-empty path leaves currentPath empty and the scan runs again next tick.
-        logScan("solved" + patterns, "solution computed: layouts" + patterns + " -> path of " + currentPath.size()
+        LOG.scan("solved" + patterns, "solution computed: layouts" + patterns + " -> path of " + currentPath.size()
                 + " points, " + (IceFillSolverConfig.getInstance().isOptimizedPath() ? "optimized" : "easy")
                 + " path, starts at " + (currentPath.isEmpty() ? "none" : String.format(java.util.Locale.ROOT,
                 "%.1f,%.1f,%.1f", currentPath.get(0).x, currentPath.get(0).y, currentPath.get(0).z)));
     }
 
     /** Logging only: a scan line, once per distinct reason until the room state changes. */
-    private static void logScan(String key, String detail) {
-        if (key.equals(scanLogKey)) return;
-        scanLogKey = key;
-        LOGGER.info("[IceFillSolver] {}", detail);
-    }
-
     /** Delegating to {@link PuzzleCoords#real} - see the note there about the sim's floor shift. */
     private static BlockPos realPos(Pos pos, int[] clayAndRotation) {
         return PuzzleCoords.real(pos.x(), pos.y(), pos.z(), clayAndRotation);

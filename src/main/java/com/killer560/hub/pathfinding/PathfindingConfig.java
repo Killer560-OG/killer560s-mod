@@ -1,8 +1,6 @@
 package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -61,7 +59,6 @@ public final class PathfindingConfig {
     public static final int DEFAULT_TARGET_COLOR = 0xFFFFA040;
     static final int FILE_VERSION = 2;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-pathfinding.json");
 
@@ -199,11 +196,7 @@ public final class PathfindingConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            Files.writeString(CONFIG_PATH, GSON.toJson(toJson()), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        ConfigJson.write(CONFIG_PATH, toJson());
     }
 
     /** The settings file (the testkit's save-and-reload case reads it). */

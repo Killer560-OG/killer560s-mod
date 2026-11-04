@@ -143,4 +143,25 @@ public final class ConfigJson {
         JsonElement el = obj.get(key);
         return el != null && el.isJsonArray() ? el.getAsJsonArray() : null;
     }
+
+    private static final com.google.gson.Gson PRETTY = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
+
+    /** The file's JSON object, or null when it is missing or cannot be read (the caller then keeps its defaults). */
+    public static JsonObject read(java.nio.file.Path file) {
+        if (!java.nio.file.Files.exists(file)) return null;
+        try {
+            return com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Writes the object pretty-printed, creating the folder first; a failure is ignored. */
+    public static void write(java.nio.file.Path file, JsonObject obj) {
+        try {
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, PRETTY.toJson(obj), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+        }
+    }
 }
