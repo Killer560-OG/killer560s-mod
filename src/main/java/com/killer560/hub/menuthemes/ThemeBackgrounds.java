@@ -56,15 +56,15 @@ public final class ThemeBackgrounds {
     /** A GIF over this many decoded bytes is converted like a video instead (GifDecoder keeps every frame whole). */
     static final long MAX_GIF_DECODED = 128L * 1024 * 1024;
 
-    private static final ExecutorService IMPORTER = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "killer560smod-themebg-import");
-        t.setDaemon(true);
-        return t;
-    });
-
-    private static volatile boolean importing;
-    private static volatile String lastImport;
     private static volatile int imports;
+
+    private static final ThemeImporter IMP = new ThemeImporter("killer560smod-themebg-import", LOGGER, "ThemeBackground",
+            "background", "Copy a video or GIF file's path first (Shift + right click it, Copy as path).", source -> {
+                String id = importFile(source);
+                imports++;
+                return id;
+            }, ThemeBackgrounds::label);
+
 
     private ThemeBackgrounds() {
     }
@@ -144,10 +144,10 @@ public final class ThemeBackgrounds {
     }
 
 
-    public static boolean importing() { return importing; }
+    public static boolean importing() { return IMP.importing(); }
 
     /** The last import's message (green on success, red on refusal), or null before any. */
-    public static String lastImport() { return lastImport; }
+    public static String lastImport() { return IMP.lastImport(); }
 
     public static int imports() { return imports; }
 
@@ -156,39 +156,11 @@ public final class ThemeBackgrounds {
      * (null on failure) on that thread; {@link #lastImport()} holds the message to show.
      */
     public static void importClipboardAsync(String clip, Consumer<String> done) {
-        Path path;
-        try {
-            path = ClickSounds.clipboardPath(clip, "Copy a video or GIF file's path first (Shift + right click it, Copy as path).");
-        } catch (IOException e) {
-            lastImport = "§c" + e.getMessage();
-            done.accept(null);
-            return;
-        }
-        importAsync(path, done);
+        IMP.importClipboardAsync(clip, done);
     }
 
     public static void importAsync(Path source, Consumer<String> done) {
-        if (importing) {
-            lastImport = "§cAn import is already running.";
-            done.accept(null);
-            return;
-        }
-        importing = true;
-        lastImport = "§7Importing " + source.getFileName() + "...";
-        IMPORTER.execute(() -> {
-            String id = null;
-            try {
-                id = importFile(source);
-                imports++;
-                lastImport = "§aImported " + label(id) + " and set it as this theme's background.";
-            } catch (IOException | RuntimeException e) {
-                lastImport = "§c" + e.getMessage();
-                LOGGER.warn("[ThemeBackground] import of {} failed: {}", source, e.getMessage());
-            } finally {
-                importing = false;
-            }
-            done.accept(id);
-        });
+        IMP.importAsync(source, done);
     }
 
     /** Copies a GIF in, or turns a video (or a huge GIF) into a frames folder. Blocking: the import thread only. */
@@ -251,29 +223,14 @@ public final class ThemeBackgrounds {
 
     private static String convertVideo(Path source, String name, Path dir, String folderName, Path work) throws IOException {
         Path log = work.resolve("ffmpeg.log");
-        Process p;
-        try {
-            p = new ProcessBuilder("ffmpeg", "-y", "-hide_banner", "-v", "error", "-i", source.toAbsolutePath().toString(),
-                    "-t", String.valueOf(MAX_SECONDS), "-an",
-                    // Scaled DOWN to fit MAX_W x MAX_H, never up: a smaller video keeps its own size (less to read and upload).
-                    "-vf", "fps=" + FPS + ",scale=w='min(" + MAX_W + ",iw)':h='min(" + MAX_H + ",ih)'"
-                            + ":force_original_aspect_ratio=decrease",
-                    "-q:v", "5", work.resolve("f%05d.jpg").toAbsolutePath().toString())
-                    .redirectErrorStream(true).redirectOutput(log.toFile()).start();
-        } catch (IOException e) {
-            throw new IOException(name + " needs ffmpeg to import (videos, and GIFs too big to play as they are). ffmpeg was"
-                    + " not found: install it, then restart Minecraft. A GIF imports without it.");
-        }
-        try {
-            if (!p.waitFor(10, TimeUnit.MINUTES)) {
-                p.destroyForcibly();
-                throw new IOException("ffmpeg took too long on " + name + ".");
-            }
-        } catch (InterruptedException e) {
-            p.destroyForcibly();
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted.");
-        }
+        Process p = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error", "-i", source.toAbsolutePath().toString(),
+                "-t", String.valueOf(MAX_SECONDS), "-an",
+                // Scaled DOWN to fit MAX_W x MAX_H, never up: a smaller video keeps its own size (less to read and upload).
+                "-vf", "fps=" + FPS + ",scale=w='min(" + MAX_W + ",iw)':h='min(" + MAX_H + ",ih)'"
+                        + ":force_original_aspect_ratio=decrease",
+                "-q:v", "5", work.resolve("f%05d.jpg").toAbsolutePath().toString()), log, name,
+                " needs ffmpeg to import (videos, and GIFs too big to play as they are). ffmpeg was"
+                        + " not found: install it, then restart Minecraft. A GIF imports without it.");
         List<Path> frames;
         try (Stream<Path> s = Files.list(work)) {
             frames = s.filter(f -> f.getFileName().toString().endsWith(".jpg")).sorted().toList();
