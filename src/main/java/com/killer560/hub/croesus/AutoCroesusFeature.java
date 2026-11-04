@@ -420,13 +420,8 @@ public final class AutoCroesusFeature {
         // whole feed is done once per feed: BazaarApi replaces its list wholesale on every refresh.
         List<BazaarProduct> feed = BazaarApi.getProducts();
         if (feed != keyFeed) {
-            BazaarProduct found = null;
-            for (BazaarProduct product : feed) {
-                if (product.productId().equals(DungeonChestValuer.DUNGEON_CHEST_KEY_ID)) {
-                    found = product;
-                    break;
-                }
-            }
+            BazaarProduct found = feed.stream().filter(product -> product.productId().equals(DungeonChestValuer.DUNGEON_CHEST_KEY_ID))
+                    .findFirst().orElse(null);
             keyInstaBuy = found == null ? null : Math.round(found.buyPrice());
             keyBuyOffer = found == null ? null : Math.round(found.sellPrice());
             keyFeed = feed;
@@ -549,16 +544,10 @@ public final class AutoCroesusFeature {
                     setState(State.WAIT_RUN_VIEW, now);
                     return;
                 }
-                ItemStack next = stacks.size() > NEXT_PAGE_SLOT ? stacks.get(NEXT_PAGE_SLOT) : ItemStack.EMPTY;
-                if (next.is(Items.ARROW)) {
-                    if (!click(client, screen, NEXT_PAGE_SLOT)) {
-                        // Gate denied: lastPageClickedFrom stays -1, so the page-transition watchdog isn't
-                        // armed for a click that never went out. Retried next tick.
-                        return;
-                    }
-                    lastPageClickedFrom = page;
-                    lastPageClickAtMs = now;
-                    nextActionAtMs = now + randomDelay();
+                if (hasNextPage(stacks)) {
+                    // A gate denial leaves lastPageClickedFrom at -1, so the page-transition watchdog isn't
+                    // armed for a click that never went out. Retried next tick.
+                    clickNextPage(client, screen, page, now);
                     return;
                 }
                 finish(client);
@@ -643,14 +632,8 @@ public final class AutoCroesusFeature {
         // Only a Bedrock chest, once per run, while a Kismet Feather is on you, on a selected floor (2026-09-20 rules).
         if (cfg.isAutoUseKismets() && kismetAvailable && !rerolledThisRun && !claimedThisRun
                 && (cfg.isRerollFloor(currentRunFloor) || (currentRunFloor == null && cfg.isRerollEveryFloor()))) {
-            ChestValue bedrock = null;
-            for (ChestValue c : chests) {
-                if (!c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK
-                        && !refusedChests.contains(chestKey(c.slot()))) {
-                    bedrock = c;
-                    break;
-                }
-            }
+            ChestValue bedrock = chests.stream().filter(c -> !c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK
+                    && !refusedChests.contains(chestKey(c.slot()))).findFirst().orElse(null);
             long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
             if (bedrock != null && !bedrock.requiresKey() && bedrock.profit() < rerollBelow) {
                 if (!click(client, screen, bedrock.slot())) {
@@ -666,24 +649,12 @@ public final class AutoCroesusFeature {
             }
         }
 
-        ChestValue target = null;
-        for (ChestValue c : chests) {
-            if (c.opened() || c.slot() < 0 || refusedChests.contains(chestKey(c.slot()))) {
-                continue;
-            }
-            if (c.requiresKey()) {
-                // The lore only lists "Dungeon Chest Key" once a chest in this run has already been claimed,
-                // so this branch IS the "second chest" case - its own, higher threshold applies, and the key's
-                // Bazaar price is already inside c.profit() (DungeonChestValuer.fromLore).
-                if (!cfg.isAutoUseChestKeys() || c.profit() < keyFloor(cfg)) {
-                    continue;
-                }
-            } else if (c.profit() < minProfit) {
-                continue;
-            }
-            target = c;
-            break;
-        }
+        // The lore only lists "Dungeon Chest Key" once a chest in this run has already been claimed, so a
+        // requiresKey chest IS the "second chest" case - its own, higher threshold applies, and the key's
+        // Bazaar price is already inside c.profit() (DungeonChestValuer.fromLore).
+        ChestValue target = chests.stream().filter(c -> !c.opened() && c.slot() >= 0 && !refusedChests.contains(chestKey(c.slot()))
+                && (c.requiresKey() ? cfg.isAutoUseChestKeys() && c.profit() >= keyFloor(cfg) : c.profit() >= minProfit))
+                .findFirst().orElse(null);
         if (target != null) {
             if (!click(client, screen, target.slot())) {
                 // Gate denied: targetType stays as it was and the state machine doesn't advance, so
@@ -784,7 +755,7 @@ public final class AutoCroesusFeature {
             // rerolling in the mix a chest legitimately lands here (a reroll that made things worse), so it
             // walks back to the run view and refuses this one chest instead of ending the run.
             refuseCurrentChest();
-            if (!value.requiresKey() && currentRunKey != null && currentRunKey.equals(revisitRunKey)) {
+            if (!value.requiresKey() && onRevisitRun()) {
                 clearRevisit(); // the first chest was not taken, so there is no second one to come back for
             }
             goBack(client, screen, now);
@@ -801,7 +772,7 @@ public final class AutoCroesusFeature {
         claimedThisRun = true;
         claimedProfit += value.profit();
         refuseCurrentChest();
-        if (value.requiresKey() && currentRunKey != null && currentRunKey.equals(revisitRunKey)) {
+        if (value.requiresKey() && onRevisitRun()) {
             clearRevisit(); // the keyed chest came straight from the run view Hypixel left open: nothing to come back for
         }
         if (currentRunKey != null && !currentRunKey.equals(revisitRunKey)) {
@@ -817,6 +788,10 @@ public final class AutoCroesusFeature {
         if (targetSlot >= 0) {
             refusedChests.add(chestKey(targetSlot));
         }
+    }
+
+    private static boolean onRevisitRun() {
+        return currentRunKey != null && currentRunKey.equals(revisitRunKey);
     }
 
     private static String chestKey(int chestSlot) {
@@ -1097,17 +1072,11 @@ public final class AutoCroesusFeature {
     private static boolean revisit(Minecraft client, AbstractContainerScreen<?> screen, List<ItemStack> stacks, int page,
                                    long now) {
         if (page < revisitPage) {
-            ItemStack next = stacks.size() > NEXT_PAGE_SLOT ? stacks.get(NEXT_PAGE_SLOT) : ItemStack.EMPTY;
-            if (!next.is(Items.ARROW)) {
+            if (!hasNextPage(stacks)) {
                 clearRevisit();
                 return false;
             }
-            if (!click(client, screen, NEXT_PAGE_SLOT)) {
-                return true;
-            }
-            lastPageClickedFrom = page;
-            lastPageClickAtMs = now;
-            nextActionAtMs = now + randomDelay();
+            clickNextPage(client, screen, page, now);
             return true;
         }
         if (page != revisitPage || revisitSlot >= stacks.size()) {
@@ -1140,6 +1109,18 @@ public final class AutoCroesusFeature {
         skippedRuns.add(currentRunKey);
         setState(State.WAIT_RUN_VIEW, now);
         return true;
+    }
+
+    private static boolean hasNextPage(List<ItemStack> stacks) {
+        return stacks.size() > NEXT_PAGE_SLOT && stacks.get(NEXT_PAGE_SLOT).is(Items.ARROW);
+    }
+
+    private static void clickNextPage(Minecraft client, AbstractContainerScreen<?> screen, int page, long now) {
+        if (click(client, screen, NEXT_PAGE_SLOT)) {
+            lastPageClickedFrom = page;
+            lastPageClickAtMs = now;
+            nextActionAtMs = now + randomDelay();
+        }
     }
 
     private static void clearRevisit() {
@@ -1227,10 +1208,8 @@ public final class AutoCroesusFeature {
     }
 
     private static void setState(State newState, long now) {
-        if (state != newState) {
-            if (newState == State.MENU) {
-                lastPageClickedFrom = -1;
-            }
+        if (state != newState && newState == State.MENU) {
+            lastPageClickedFrom = -1;
         }
         state = newState;
         stateSinceMs = now;
