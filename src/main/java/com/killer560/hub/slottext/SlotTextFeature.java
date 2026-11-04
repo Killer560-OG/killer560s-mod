@@ -71,7 +71,6 @@ public final class SlotTextFeature {
         generation++;
     }
 
-    // ------------------------------------------------------------------ gating
 
     /** Whether text should be drawn this frame: feature on, Skyblock gate, and the key rule of the chosen mode. */
     public static boolean visible() {
@@ -110,7 +109,6 @@ public final class SlotTextFeature {
         return mc != null && KeyUtil.isBindDown(mc.getWindow(), code);
     }
 
-    // ------------------------------------------------------------------ rendering
 
     /** Called from the slot mixin after the item and its count are drawn. {@code x}/{@code y} are slot-local. */
     public static void draw(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
@@ -220,7 +218,6 @@ public final class SlotTextFeature {
                           String title, List<Entry> entries) {
     }
 
-    // ------------------------------------------------------------------ the text itself
 
     /**
      * Every piece of slot text for {@code stack}. {@code title} is the open menu's title; {@code playerSlot} is true for a
@@ -364,7 +361,6 @@ public final class SlotTextFeature {
         }
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static List<String> loreLines(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
