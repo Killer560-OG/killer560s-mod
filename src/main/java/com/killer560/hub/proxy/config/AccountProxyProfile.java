@@ -35,9 +35,7 @@ public final class AccountProxyProfile {
 
     /** Same "host:port", split-on-last-colon parsing {@link ProxyConfig#parseAndSetAddress} uses. */
     public void parseAndSetAddress(String input) {
-        if (input == null) {
-            return;
-        }
+        if (input == null) return;
         String trimmed = input.trim();
         int colon = trimmed.lastIndexOf(':');
         if (colon < 0) {

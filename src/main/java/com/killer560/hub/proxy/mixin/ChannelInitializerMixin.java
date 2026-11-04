@@ -32,13 +32,9 @@ public class ChannelInitializerMixin {
     private void killer560smod$injectProxy(Channel channel, CallbackInfo ci) {
         // Universal proxy (shared by every instance) wins when it's on; otherwise this instance's own proxy.
         ProxyConfig config = ProxyConfig.effective();
-        if (!config.isEnabled()) {
-            return;
-        }
+        if (!config.isEnabled()) return;
         ProxyHandler handler = config.createHandler();
-        if (handler == null) {
-            return;
-        }
+        if (handler == null) return;
         // Insert before Minecraft's own handlers so the SOCKS handshake runs first.
         channel.pipeline().addFirst("killer560smod:socks", handler);
     }

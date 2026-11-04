@@ -55,9 +55,7 @@ public final class AccountProxyStore {
 
     private static Map<String, AccountProxyProfile> load() {
         Map<String, AccountProxyProfile> result = new HashMap<>();
-        if (!Files.exists(STORE_PATH)) {
-            return result;
-        }
+        if (!Files.exists(STORE_PATH)) return result;
         try {
             String json = Files.readString(STORE_PATH, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
@@ -66,9 +64,7 @@ public final class AccountProxyStore {
                 // of the whole loop, return an empty map, and the next set/remove then wrote that empty
                 // map over EVERY account's saved proxy. Now just that one entry is skipped.
                 try {
-                    if (entry.getValue() == null || !entry.getValue().isJsonObject()) {
-                        continue;
-                    }
+                    if (entry.getValue() == null || !entry.getValue().isJsonObject()) continue;
                     JsonObject obj = entry.getValue().getAsJsonObject();
                     AccountProxyProfile profile = new AccountProxyProfile();
                     profile.setType(ConfigJson.getEnum(obj, "type", ProxyType.class, ProxyType.SOCKS5));

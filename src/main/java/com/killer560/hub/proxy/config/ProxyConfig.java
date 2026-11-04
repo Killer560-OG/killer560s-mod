@@ -40,9 +40,7 @@ public final class ProxyConfig {
      *  shared file every instance reads). */
     private static Path universalPath() {
         String override = System.getProperty("prismaccountswitcher.universalProxyFile");
-        if (override != null && !override.isBlank()) {
-            return java.nio.file.Paths.get(override);
-        }
+        if (override != null && !override.isBlank()) return java.nio.file.Paths.get(override);
         return com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
                 .resolve("prismaccountswitcher").resolve("universal-proxy.json");
     }
@@ -119,9 +117,7 @@ public final class ProxyConfig {
      */
     public static synchronized boolean enableUniversalFromInstance() {
         ProxyConfig inst = getInstance();
-        if (!inst.hasValidAddress()) {
-            return false;
-        }
+        if (!inst.hasValidAddress()) return false;
         ProxyConfig u = universal();
         u.copyConnectionFrom(inst);
         u.setEnabled(true);
@@ -144,9 +140,7 @@ public final class ProxyConfig {
      */
     public static synchronized void syncUniversalFromInstance() {
         ProxyConfig u = universal();
-        if (!u.isEnabled()) {
-            return;
-        }
+        if (!u.isEnabled()) return;
         u.copyConnectionFrom(getInstance());
         u.setEnabled(u.hasValidAddress());
         u.save();
@@ -167,9 +161,7 @@ public final class ProxyConfig {
     private static ProxyConfig readFrom(Path file) {
         ProxyConfig fallback = new ProxyConfig();
         fallback.path = file;
-        if (!Files.exists(file)) {
-            return fallback;
-        }
+        if (!Files.exists(file)) return fallback;
         try {
             String json = Files.readString(file, StandardCharsets.UTF_8);
             // Per-key reads (2026-09-15 persistence audit) instead of GSON.fromJson(whole class): one
@@ -223,9 +215,7 @@ public final class ProxyConfig {
      * connection because Netty handlers are not shareable across channels.
      */
     public ProxyHandler createHandler() {
-        if (host == null || host.isBlank()) {
-            return null;
-        }
+        if (host == null || host.isBlank()) return null;
         // Resolved locally; this is the proxy server address, not the game server.
         InetSocketAddress proxyAddress = new InetSocketAddress(host, port);
         boolean hasAuth = username != null && !username.isBlank();
@@ -249,9 +239,7 @@ public final class ProxyConfig {
      * invalid port defaults to 1080.
      */
     public void parseAndSetAddress(String input) {
-        if (input == null) {
-            return;
-        }
+        if (input == null) return;
         String trimmed = input.trim();
         int colon = trimmed.lastIndexOf(':');
         if (colon < 0) {
