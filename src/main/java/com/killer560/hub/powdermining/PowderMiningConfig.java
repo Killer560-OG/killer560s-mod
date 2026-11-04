@@ -41,6 +41,12 @@ public final class PowderMiningConfig {
     private boolean chestAlert = true;
     private boolean chestAlertSound = true;
     private boolean chestAlertTitle = false;
+    private boolean breakSound = false;
+    private boolean breakSoundMute = true;
+    private com.killer560.hub.dungeonalerts.SecretSound.SoundChoice breakSoundChoice =
+            com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING;
+    private int breakSoundVolumeTenths = 10;
+    private int breakSoundPitchTenths = 10;
 
     private boolean lockpickHelper = true;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
@@ -117,6 +123,14 @@ public final class PowderMiningConfig {
                 cfg.chestAlert = ConfigJson.getBool(o, "chestAlert", cfg.chestAlert);
                 cfg.chestAlertSound = ConfigJson.getBool(o, "chestAlertSound", cfg.chestAlertSound);
                 cfg.chestAlertTitle = ConfigJson.getBool(o, "chestAlertTitle", cfg.chestAlertTitle);
+                cfg.breakSound = ConfigJson.getBool(o, "breakSound", cfg.breakSound);
+                cfg.breakSoundMute = ConfigJson.getBool(o, "breakSoundMute", cfg.breakSoundMute);
+                cfg.breakSoundChoice = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(
+                        ConfigJson.getString(o, "breakSoundChoice", cfg.breakSoundChoice.name()));
+                cfg.breakSoundVolumeTenths = Math.max(1, Math.min(20,
+                        ConfigJson.getInt(o, "breakSoundVolumeTenths", cfg.breakSoundVolumeTenths)));
+                cfg.breakSoundPitchTenths = Math.max(5, Math.min(20,
+                        ConfigJson.getInt(o, "breakSoundPitchTenths", cfg.breakSoundPitchTenths)));
                 cfg.lockpickHelper = ConfigJson.getBool(o, "lockpickHelper", cfg.lockpickHelper);
                 cfg.lockpickColor = intOr(o, "lockpickColor", cfg.lockpickColor);
                 cfg.powderTracker = ConfigJson.getBool(o, "powderTracker", cfg.powderTracker);
@@ -154,6 +168,11 @@ public final class PowderMiningConfig {
             o.addProperty("chestAlert", chestAlert);
             o.addProperty("chestAlertSound", chestAlertSound);
             o.addProperty("chestAlertTitle", chestAlertTitle);
+            o.addProperty("breakSound", breakSound);
+            o.addProperty("breakSoundMute", breakSoundMute);
+            o.addProperty("breakSoundChoice", breakSoundChoice.name());
+            o.addProperty("breakSoundVolumeTenths", breakSoundVolumeTenths);
+            o.addProperty("breakSoundPitchTenths", breakSoundPitchTenths);
             o.addProperty("lockpickHelper", lockpickHelper);
             o.addProperty("lockpickColor", lockpickColor);
             o.addProperty("powderTracker", powderTracker);
@@ -232,6 +251,60 @@ public final class PowderMiningConfig {
 
     public void setChestAlert(boolean v) {
         chestAlert = v;
+    }
+
+    // ---- Powder Break Sounds (killer560, 2026-11-03): the local player's own block breaks while powder mining
+    public boolean isBreakSound() {
+        return breakSound && sb();
+    }
+
+    public boolean isBreakSoundRaw() {
+        return breakSound;
+    }
+
+    public void setBreakSound(boolean v) {
+        breakSound = v;
+    }
+
+    /** True: Mute; false: Custom (the selector has no Normal value, the switch is Normal when OFF). */
+    public boolean isBreakSoundMute() {
+        return breakSoundMute;
+    }
+
+    public void setBreakSoundMute(boolean v) {
+        breakSoundMute = v;
+    }
+
+    public com.killer560.hub.dungeonalerts.SecretSound.SoundChoice getBreakSoundChoice() {
+        return breakSoundChoice;
+    }
+
+    public void setBreakSoundChoice(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice v) {
+        breakSoundChoice = v == null ? com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING : v;
+    }
+
+    public float getBreakSoundVolume() {
+        return breakSoundVolumeTenths / 10.0f;
+    }
+
+    public int getBreakSoundVolumeTenths() {
+        return breakSoundVolumeTenths;
+    }
+
+    public void stepBreakSoundVolume(int dir) {
+        breakSoundVolumeTenths = com.killer560.hub.gui.SettingsButtonWidget.step(breakSoundVolumeTenths - 1, dir, 20) + 1;
+    }
+
+    public float getBreakSoundPitch() {
+        return breakSoundPitchTenths / 10.0f;
+    }
+
+    public int getBreakSoundPitchTenths() {
+        return breakSoundPitchTenths;
+    }
+
+    public void stepBreakSoundPitch(int dir) {
+        breakSoundPitchTenths = com.killer560.hub.gui.SettingsButtonWidget.step(breakSoundPitchTenths - 5, dir, 16) + 5;
     }
 
     public boolean isChestAlertSound() {

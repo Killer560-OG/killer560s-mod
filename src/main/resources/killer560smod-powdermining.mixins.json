@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.powdermining.mixin",
 	"client": [
+		"PowderBreakSoundMixin",
 		"PowderPacketMixin"
 	],
 	"injectors": {
