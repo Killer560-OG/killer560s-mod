@@ -131,9 +131,7 @@ public final class NameReplacer {
         String name = screen.getClass().getName();
         // The main menu and the Swap Accounts screens show the account's real name (killer560, 2026-10-15: "Do not have
         // the custom ign color work on this page").
-        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
-            return true;
-        }
+        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen) return true;
         return name.startsWith("com.killer560.hub.gui.") || name.startsWith("com.killer560.hub.accounts.gui.")
                 || name.startsWith("com.killer560.hub.hud.HudEditorScreen")
                 || name.startsWith("com.killer560.hub.scoreboard.ScoreboardEditorScreen");
@@ -145,9 +143,7 @@ public final class NameReplacer {
      * unwraps without replacing.
      */
     public static FormattedCharSequence markIfSuppressed(FormattedCharSequence seq) {
-        if (suppressDepth <= 0 || seq == null || seq instanceof Skip || !NameChangerConfig.getInstance().isActive()) {
-            return seq;
-        }
+        if (suppressDepth <= 0 || seq == null || seq instanceof Skip || !NameChangerConfig.getInstance().isActive()) return seq;
         return new Skip(seq);
     }
 
@@ -170,23 +166,13 @@ public final class NameReplacer {
     }
 
     private static FormattedCharSequence replaceSeq(FormattedCharSequence seq) {
-        if (seq == null || seq instanceof Replaced) {
-            return seq;
-        }
-        if (seq instanceof Skip skip) {
-            return skip.inner();
-        }
-        if (suppressDepth > 0) {
-            return seq;
-        }
+        if (seq == null || seq instanceof Replaced) return seq;
+        if (seq instanceof Skip skip) return skip.inner();
+        if (suppressDepth > 0) return seq;
         NameTable table = NameChangerFeature.currentTable();
-        if (table == null) {
-            return seq;
-        }
+        if (table == null) return seq;
         FormattedCharSequence cached = seqCacheGet(seq);
-        if (cached != null) {
-            return cached == NO_MATCH ? seq : cached;
-        }
+        if (cached != null) return cached == NO_MATCH ? seq : cached;
         Scanner sc = SCANNER.get();
         sc.begin(table);
         seq.accept(sc);
@@ -214,17 +200,11 @@ public final class NameReplacer {
     }
 
     private static String replaceString(String s) {
-        if (s == null || s.isEmpty() || suppressDepth > 0) {
-            return s;
-        }
+        if (s == null || s.isEmpty() || suppressDepth > 0) return s;
         NameTable table = NameChangerFeature.currentTable();
-        if (table == null) {
-            return s;
-        }
+        if (table == null) return s;
         String cached = STRING_CACHE.get(s);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         Scanner sc = SCANNER.get();
         sc.begin(table);
         sc.feedLegacyString(s, true);
@@ -251,22 +231,16 @@ public final class NameReplacer {
     }
 
     private static FormattedCharSequence replaceForWidthInternal(FormattedText text) {
-        if (text == null || suppressDepth > 0) {
-            return null;
-        }
+        if (text == null || suppressDepth > 0) return null;
         NameTable table = NameChangerFeature.currentTable();
-        if (table == null) {
-            return null;
-        }
+        if (table == null) return null;
         Scanner sc = SCANNER.get();
         sc.begin(table);
         // The unstyled visit: the same content strings in the same order, without merging a Style per part (the scan
         // never reads styles) - this ran for every tab row and nametag width each frame.
         text.visit(sc.contents);
         sc.flush();
-        if (sc.matchCount == 0) {
-            return null;
-        }
+        if (sc.matchCount == 0) return null;
         FormattedCharSequence seq = text instanceof Component c ? c.getVisualOrderText()
                 : Language.getInstance().getVisualOrder(text);
         FormattedCharSequence out = replaceSeq(seq);
@@ -293,9 +267,7 @@ public final class NameReplacer {
         @Override
         public boolean accept(FormattedCharSink sink) {
             for (int i = 0; i < codepoints.length; i++) {
-                if (!sink.accept(i, styles[i], codepoints[i])) {
-                    return false;
-                }
+                if (!sink.accept(i, styles[i], codepoints[i])) return false;
             }
             return true;
         }
@@ -482,9 +454,7 @@ public final class NameReplacer {
 
         private static String updateActiveFormatting(String active, String s, int from, int to) {
             for (int j = from; j < to - 1; j++) {
-                if (s.charAt(j) != '§') {
-                    continue;
-                }
+                if (s.charAt(j) != '§') continue;
                 char f = Character.toLowerCase(s.charAt(j + 1));
                 if ((f >= '0' && f <= '9') || (f >= 'a' && f <= 'f')) {
                     active = "§" + f;

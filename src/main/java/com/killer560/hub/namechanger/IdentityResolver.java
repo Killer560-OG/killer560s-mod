@@ -55,18 +55,14 @@ final class IdentityResolver {
     }
 
     static Resolution resolve(String typedName) {
-        if (typedName == null || typedName.isBlank()) {
-            return new Resolution(null, null, typedName);
-        }
+        if (typedName == null || typedName.isBlank()) return new Resolution(null, null, typedName);
         String nicknameReal = mappingReal(typedName);
         boolean fromSupporter = false;
         if (nicknameReal == null) {
             nicknameReal = SupportersFeature.realIgnForDisplayName(typedName);
             fromSupporter = nicknameReal != null;
         }
-        if (nicknameReal == null) {
-            return new Resolution(null, null, typedName);
-        }
+        if (nicknameReal == null) return new Resolution(null, null, typedName);
         // Is there ALSO a different, currently-known real account with this exact literal name? Cache-only
         // (PlayerNames.uuidFor never blocks on the network) - this has to answer synchronously, right now.
         UUID literalUuid = PlayerNames.uuidFor(typedName);
@@ -90,14 +86,10 @@ final class IdentityResolver {
      *  {@link NameTable} uses for render-time lookups. */
     private static String mappingReal(String typedName) {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isMappingsEnabled()) {
-            return null;
-        }
+        if (!cfg.isEnabled() || !cfg.isMappingsEnabled()) return null;
         for (NameChangerConfig.Mapping m : cfg.mappings()) {
             String plain = plainOf(m.display);
-            if (plain != null && plain.equalsIgnoreCase(typedName) && m.real != null && !m.real.isBlank()) {
-                return m.real.trim();
-            }
+            if (plain != null && plain.equalsIgnoreCase(typedName) && m.real != null && !m.real.isBlank()) return m.real.trim();
         }
         return null;
     }

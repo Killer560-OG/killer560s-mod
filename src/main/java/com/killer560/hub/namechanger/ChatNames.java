@@ -82,13 +82,9 @@ public final class ChatNames {
 
     private static void onChat(Component message) {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
-        if (!cfg.isActive() || !cfg.isRandomizeOthers()) {
-            return;
-        }
+        if (!cfg.isActive() || !cfg.isRandomizeOthers()) return;
         List<String> names = namesIn(ChatObserver.strip(message));
-        if (names.isEmpty()) {
-            return;
-        }
+        if (names.isEmpty()) return;
         linesRead++;
         for (String n : names) {
             if (NameChangerFeature.noteChatName(n)) {
@@ -100,9 +96,7 @@ public final class ChatNames {
     /** The player names a chat line (plain text, no color codes) shows, in order; empty for any other line. */
     public static List<String> namesIn(String plain) {
         List<String> out = new ArrayList<>();
-        if (plain == null || plain.isEmpty() || plain.length() > 600) {
-            return out;
-        }
+        if (plain == null || plain.isEmpty() || plain.length() > 600) return out;
         String line = plain.strip();
         for (Pattern p : LINES) {
             Matcher m = p.matcher(line);

@@ -114,9 +114,7 @@ public final class NameChangerConfig {
     public static int version() { return version; }
 
     private static JsonObject readObject(Path path) {
-        if (!Files.exists(path)) {
-            return null;
-        }
+        if (!Files.exists(path)) return null;
         try {
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
@@ -210,18 +208,14 @@ public final class NameChangerConfig {
                 } catch (Exception ignored) {
                     ownCharColors.add(NameColor.NONE);
                 }
-                if (ownCharColors.size() >= MAX_CHAR_COLORS) {
-                    break;
-                }
+                if (ownCharColors.size() >= MAX_CHAR_COLORS) break;
             }
         }
         JsonArray arr = ConfigJson.getArray(obj, "mappings");
         if (arr != null) {
             for (JsonElement el : arr) {
                 try {
-                    if (el == null || !el.isJsonObject()) {
-                        continue;
-                    }
+                    if (el == null || !el.isJsonObject()) continue;
                     JsonObject m = el.getAsJsonObject();
                     String display = ConfigJson.getString(m, "display", "");
                     int color = ConfigJson.getInt(m, "color", NameColor.NONE);
@@ -440,17 +434,13 @@ public final class NameChangerConfig {
 
     /** {@link NameColor#NONE} when letter {@code index} has no color of its own. */
     public int getOwnCharColor(int index) {
-        if (index < 0 || index >= ownCharColors.size()) {
-            return NameColor.NONE;
-        }
+        if (index < 0 || index >= ownCharColors.size()) return NameColor.NONE;
         Integer c = ownCharColors.get(index);
         return c == null ? NameColor.NONE : c;
     }
 
     public void setOwnCharColor(int index, int argb) {
-        if (index < 0 || index >= MAX_CHAR_COLORS) {
-            return;
-        }
+        if (index < 0 || index >= MAX_CHAR_COLORS) return;
         while (ownCharColors.size() <= index) {
             ownCharColors.add(NameColor.NONE);
         }
@@ -460,9 +450,7 @@ public final class NameChangerConfig {
 
     public boolean hasOwnCharColors() {
         for (Integer c : ownCharColors) {
-            if (c != null && c != NameColor.NONE) {
-                return true;
-            }
+            if (c != null && c != NameColor.NONE) return true;
         }
         return false;
     }

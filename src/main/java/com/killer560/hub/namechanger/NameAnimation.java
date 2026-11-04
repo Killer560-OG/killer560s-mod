@@ -51,9 +51,7 @@ public final class NameAnimation {
         public static Mode fromWire(String s) {
             if (s != null) {
                 for (Mode m : values()) {
-                    if (m.wire.equals(s.trim().toLowerCase(Locale.ROOT))) {
-                        return m;
-                    }
+                    if (m.wire.equals(s.trim().toLowerCase(Locale.ROOT))) return m;
                 }
             }
             return OFF;
@@ -83,9 +81,7 @@ public final class NameAnimation {
 
     /** {@code speed} snapped onto the {@link #SPEED_STEP} grid inside the bounds; {@link #DEFAULT_SPEED} for NaN. */
     public static double clampSpeed(double speed) {
-        if (!Double.isFinite(speed)) {
-            return DEFAULT_SPEED;
-        }
+        if (!Double.isFinite(speed)) return DEFAULT_SPEED;
         double c = Math.max(MIN_SPEED, Math.min(MAX_SPEED, speed));
         return Math.round(c / SPEED_STEP) * SPEED_STEP;
     }
@@ -132,9 +128,7 @@ public final class NameAnimation {
                 return scale(rgb[letter], k);
             }
             int len = palette.length;
-            if (len < 2) {
-                return rgb[letter];
-            }
+            if (len < 2) return rgb[letter];
             double x = letter - tSec * speed * WAVE_LETTERS_PER_SEC;
             x = x - Math.floor(x / len) * len;
             int j = (int) Math.floor(x);
@@ -186,19 +180,13 @@ public final class NameAnimation {
     }
 
     private static Entry entryFor(String painted, Spec spec) {
-        if (painted == null || spec == null || spec.mode() == Mode.OFF) {
-            return null;
-        }
+        if (painted == null || spec == null || spec.mode() == Mode.OFF) return null;
         String plain = NameColor.plain(painted);
         int[] cps = plain.codePoints().toArray();
         int[] rgb = NameColor.letterColours(painted);
-        if (cps.length == 0 || cps.length != rgb.length) {
-            return null;
-        }
+        if (cps.length == 0 || cps.length != rgb.length) return null;
         for (int c : rgb) {
-            if (c < 0) {
-                return null;
-            }
+            if (c < 0) return null;
         }
         return new Entry(cps, rgb, spec.mode(), spec.speed());
     }
@@ -206,9 +194,7 @@ public final class NameAnimation {
     /** Re-reads your own name's animation when the Name Changer config changed. Cheap when it did not. */
     private static void refreshOwn() {
         int v = NameChangerConfig.version();
-        if (v == builtOwnVersion) {
-            return;
-        }
+        if (v == builtOwnVersion) return;
         builtOwnVersion = v;
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         Spec spec = NameChangerFeature.ownAnimation();
@@ -250,39 +236,27 @@ public final class NameAnimation {
 
     /** {@code seq} with every animated name in it recolored for now, or {@code seq} itself when there is none. */
     public static FormattedCharSequence animate(FormattedCharSequence seq) {
-        if (seq == null) {
-            return null;
-        }
+        if (seq == null) return null;
         Entry[] reg = registry();
-        if (reg.length == 0) {
-            return seq;
-        }
+        if (reg.length == 0) return seq;
         Buf b = BUF.get();
-        if (b.busy) {
-            return seq;
-        }
+        if (b.busy) return seq;
         b.busy = true;
         try {
             // Fast reject first: nearly no text holds a glyph in a registered starting color, and finding that out
             // needs no buffer - one color test per change of Style, stopping at the first hit.
             int[] startCols = starts;
-            if (!b.probe.anyStart(seq, startCols)) {
-                return seq;
-            }
+            if (!b.probe.anyStart(seq, startCols)) return seq;
             b.reset(startCols);
             seq.accept(b);
-            if (!b.candidate || !b.recolour(reg, nowSec())) {
-                return seq;
-            }
+            if (!b.candidate || !b.recolour(reg, nowSec())) return seq;
             int n = b.count;
             int[] pos = Arrays.copyOf(b.pos, n);
             int[] cps = Arrays.copyOf(b.cps, n);
             Style[] st = Arrays.copyOf(b.styles, n);
             return sink -> {
                 for (int i = 0; i < n; i++) {
-                    if (!sink.accept(pos[i], st[i], cps[i])) {
-                        return false;
-                    }
+                    if (!sink.accept(pos[i], st[i], cps[i])) return false;
                 }
                 return true;
             };
@@ -296,13 +270,9 @@ public final class NameAnimation {
     /** {@link NameColor#iterateFormatted} with every animated name recolored for now (the String path of the Font). */
     public static boolean iterate(String text, Style base, FormattedCharSink sink) {
         Entry[] reg = registry();
-        if (reg.length == 0 || text == null) {
-            return NameColor.iterateFormatted(text, base, sink);
-        }
+        if (reg.length == 0 || text == null) return NameColor.iterateFormatted(text, base, sink);
         Buf b = BUF.get();
-        if (b.busy) {
-            return NameColor.iterateFormatted(text, base, sink);
-        }
+        if (b.busy) return NameColor.iterateFormatted(text, base, sink);
         boolean replay;
         b.busy = true;
         try {
@@ -317,9 +287,7 @@ public final class NameAnimation {
             if (replay) {
                 int n = b.count;
                 for (int i = 0; i < n; i++) {
-                    if (!sink.accept(b.pos[i], b.styles[i], b.cps[i])) {
-                        return false;
-                    }
+                    if (!sink.accept(b.pos[i], b.styles[i], b.cps[i])) return false;
                 }
                 return true;
             }
@@ -375,9 +343,7 @@ public final class NameAnimation {
 
         @Override
         public boolean accept(int position, Style style, int codepoint) {
-            if (style == lastStyle) {
-                return true;
-            }
+            if (style == lastStyle) return true;
             lastStyle = style;
             TextColor c = style.getColor();
             if (c != null && Arrays.binarySearch(startColours, c.getValue() & 0xFFFFFF) >= 0) {
@@ -451,17 +417,11 @@ public final class NameAnimation {
 
         private boolean matches(Entry e, int at) {
             int m = e.cps.length;
-            if (at + m > count) {
-                return false;
-            }
+            if (at + m > count) return false;
             for (int k = 0; k < m; k++) {
-                if (cps[at + k] != e.cps[k]) {
-                    return false;
-                }
+                if (cps[at + k] != e.cps[k]) return false;
                 TextColor c = styles[at + k].getColor();
-                if (c == null || (c.getValue() & 0xFFFFFF) != e.rgb[k]) {
-                    return false;
-                }
+                if (c == null || (c.getValue() & 0xFFFFFF) != e.rgb[k]) return false;
             }
             return true;
         }

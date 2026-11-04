@@ -45,9 +45,7 @@ public final class NameColor {
     public static int argbForCode(char code) {
         char lower = Character.toLowerCase(code);
         for (ChatFormatting f : COLORS) {
-            if (ChatColors.code(f) == lower) {
-                return 0xFF000000 | ChatColors.color(f);
-            }
+            if (ChatColors.code(f) == lower) return 0xFF000000 | ChatColors.color(f);
         }
         return NONE;
     }
@@ -88,9 +86,7 @@ public final class NameColor {
     /** Pulls the first {@code &}/{@code §} color code out of {@code display} and removes every color code
      *  from the text, leaving the non-color format codes (bold, italic, ...) alone so those keep working. */
     public static Migrated migrate(String display) {
-        if (display == null || display.isEmpty()) {
-            return new Migrated("", NONE);
-        }
+        if (display == null || display.isEmpty()) return new Migrated("", NONE);
         StringBuilder text = new StringBuilder(display.length());
         int argb = NONE;
         for (int i = 0; i < display.length(); i++) {
@@ -138,9 +134,7 @@ public final class NameColor {
      * {@code base}, a legacy color or format goes through {@code Style.applyLegacyFormat}, an unknown code is skipped.
      */
     public static boolean iterateFormatted(String s, Style base, FormattedCharSink sink) {
-        if (s == null) {
-            return true;
-        }
+        if (s == null) return true;
         int n = s.length();
         Style style = base;
         boolean shadow = false;
@@ -148,9 +142,7 @@ public final class NameColor {
         while (i < n) {
             char c = s.charAt(i);
             if (c == '§') {
-                if (i + 1 >= n) {
-                    break;
-                }
+                if (i + 1 >= n) break;
                 char code = s.charAt(i + 1);
                 if (code == SHADOW_CODE) {
                     shadow = true;
@@ -176,9 +168,7 @@ public final class NameColor {
                 continue;
             }
             int cp = s.codePointAt(i);
-            if (!sink.accept(i, shadow ? withShadow(style) : style, cp)) {
-                return false;
-            }
+            if (!sink.accept(i, shadow ? withShadow(style) : style, cp)) return false;
             i += Character.charCount(cp);
         }
         return true;
@@ -204,9 +194,7 @@ public final class NameColor {
     /** {@code text} with a shadow all through: {@code §y} at the start and after every legacy color code and {@code §r},
      *  the same places {@link #bold} puts its {@code §l}. */
     public static String shadow(String text) {
-        if (text == null || text.isEmpty()) {
-            return text == null ? "" : text;
-        }
+        if (text == null || text.isEmpty()) return text == null ? "" : text;
         StringBuilder sb = new StringBuilder(text.length() + 8).append('§').append(SHADOW_CODE);
         int i = 0;
         while (i < text.length()) {
@@ -236,13 +224,9 @@ public final class NameColor {
         int rgb = 0;
         for (int k = 0; k < 6; k++) {
             int at = from + 2 * k;
-            if (s.charAt(at) != '§') {
-                return -1;
-            }
+            if (s.charAt(at) != '§') return -1;
             int d = Character.digit(s.charAt(at + 1), 16);
-            if (d < 0) {
-                return -1;
-            }
+            if (d < 0) return -1;
             rgb = (rgb << 4) | d;
         }
         return rgb;
@@ -276,9 +260,7 @@ public final class NameColor {
     /** A legacy-coded string (hex escapes included) as a {@link Component} with real styles, one run per style. */
     public static Component toComponent(String s) {
         MutableComponent out = Component.empty();
-        if (s == null || s.isEmpty()) {
-            return out;
-        }
+        if (s == null || s.isEmpty()) return out;
         StringBuilder run = new StringBuilder();
         Style[] runStyle = {null};
         iterateFormatted(s, Style.EMPTY, (pos, style, cp) -> {
@@ -304,9 +286,7 @@ public final class NameColor {
      */
     public static String buildPerChar(String text, int fromArgb, int toArgb,
                                       java.util.function.IntUnaryOperator perChar) {
-        if (text == null || text.isEmpty()) {
-            return text == null ? "" : text;
-        }
+        if (text == null || text.isEmpty()) return text == null ? "" : text;
         int letters = visibleLetters(text);
         StringBuilder sb = new StringBuilder(text.length() * 15);
         int idx = 0;
@@ -336,9 +316,7 @@ public final class NameColor {
      * so it is copied whole and untouched.
      */
     public static String bold(String text) {
-        if (text == null || text.isEmpty()) {
-            return text == null ? "" : text;
-        }
+        if (text == null || text.isEmpty()) return text == null ? "" : text;
         StringBuilder sb = new StringBuilder(text.length() + 8).append("§l");
         int i = 0;
         while (i < text.length()) {
@@ -365,9 +343,7 @@ public final class NameColor {
 
     /** Letters a player sees in {@code text}: code points, not counting {@code §x} format pairs. */
     public static int visibleLetters(String text) {
-        if (text == null) {
-            return 0;
-        }
+        if (text == null) return 0;
         int n = 0;
         int i = 0;
         while (i < text.length()) {
@@ -404,14 +380,10 @@ public final class NameColor {
 
     /** Human-readable name of the nearest legacy color, for the settings tab. */
     public static String label(int argb) {
-        if (argb == NONE) {
-            return "Default";
-        }
+        if (argb == NONE) return "Default";
         char code = codeFor(argb);
         for (ChatFormatting f : COLORS) {
-            if (ChatColors.code(f) == code) {
-                return ChatColors.name(f).replace('_', ' ').toLowerCase(Locale.US);
-            }
+            if (ChatColors.code(f) == code) return ChatColors.name(f).replace('_', ' ').toLowerCase(Locale.US);
         }
         return "Default";
     }
