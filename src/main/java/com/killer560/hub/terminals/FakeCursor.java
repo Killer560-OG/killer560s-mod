@@ -172,9 +172,7 @@ public final class FakeCursor {
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FakeCursor::tick);
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-            if (!hosts(screen)) {
-                return;
-            }
+            if (!hosts(screen)) return;
             ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
                 try {
                     render(graphics);
@@ -230,13 +228,9 @@ public final class FakeCursor {
     }
 
     private static void ensurePlaced() {
-        if (placed) {
-            return;
-        }
+        if (placed) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.getWindow() == null) {
-            return;
-        }
+        if (client.getWindow() == null) return;
         curX = client.getWindow().getWidth() / 2f;
         curY = client.getWindow().getHeight() / 2f;
         segCount = 0;
@@ -256,9 +250,7 @@ public final class FakeCursor {
     static void aimQuick(AbstractContainerScreen<?> screen, int slot) { aim(screen, slot, true); }
 
     private static void aim(AbstractContainerScreen<?> screen, int slot, boolean quick) {
-        if (!showing || slot == aimedSlot) {
-            return;
-        }
+        if (!showing || slot == aimedSlot) return;
         aim((s, out) -> TerminalSolverFeature.slotCenterGui(screen, s, out), slot, quick);
     }
 
@@ -269,12 +261,8 @@ public final class FakeCursor {
     static void aimQuick(SlotLocator locator, int slot) { aim(locator, slot, true); }
 
     private static void aim(SlotLocator locator, int slot, boolean quick) {
-        if (!showing || slot == aimedSlot) {
-            return;
-        }
-        if (!locator.locate(slot, SCRATCH)) {
-            return;
-        }
+        if (!showing || slot == aimedSlot) return;
+        if (!locator.locate(slot, SCRATCH)) return;
         ensurePlaced();
         long now = System.currentTimeMillis();
         // Where the hand is and how fast it is going right now: a new target bends the motion already under way into an
@@ -389,18 +377,14 @@ public final class FakeCursor {
      *  (the click may still be on its way, and a Rubix pane's second click needs the hand still on it). */
     private static void followThrough(ThreadLocalRandom r) {
         float v = (float) Math.hypot(bvx, bvy);
-        if (v < 0.01f) {
-            return;
-        }
+        if (v < 0.01f) return;
         float ms = 60f + 70f * r.nextFloat();
         float limit = aimedHalf * 0.85f;
         float k = 1f;
         for (int i = 0; i < 8; i++) {
             float ex = bx + bvx * k * ms / 2f;
             float ey = by + bvy * k * ms / 2f;
-            if (Math.hypot(ex - aimedX, ey - aimedY) <= limit) {
-                break;
-            }
+            if (Math.hypot(ex - aimedX, ey - aimedY) <= limit) break;
             k *= 0.5f;
         }
         float ex = bx + bvx * k * ms / 2f;
@@ -419,17 +403,13 @@ public final class FakeCursor {
      *  pixels on it, not the stop), never later than the end of the glide. */
     private static long pressTime(int approach, long landMs, ThreadLocalRandom r) {
         long press = (long) (10f + 35f * r.nextFloat());
-        if (approach < 0) {
-            return Math.min(bt, landMs + press + 20);
-        }
+        if (approach < 0) return Math.min(bt, landMs + press + 20);
         long t0 = SEG_START[approach];
         long t1 = t0 + (long) Math.ceil(SEG_DUR[approach]);
         long enter = t1;
         for (long t = t1; t >= t0; t -= 2) {
             evalAt(t, SCRATCH2);
-            if (!insideAimed(SCRATCH2[0], SCRATCH2[1], 0.8f)) {
-                break;
-            }
+            if (!insideAimed(SCRATCH2[0], SCRATCH2[1], 0.8f)) break;
             enter = t;
         }
         return Math.min(Math.max(enter + press, t0), bt);
@@ -459,9 +439,7 @@ public final class FakeCursor {
         float dx = tx - bx;
         float dy = ty - by;
         float dist = (float) Math.sqrt(dx * dx + dy * dy);
-        if (dist < 0.5f) {
-            return -1;
-        }
+        if (dist < 0.5f) return -1;
         float fitts = FITTS_A_MS + FITTS_B_MS * (float) (Math.log(dist / Math.max(4f, cell) + 1.0) / Math.log(2.0));
         float variance = clamp(1f + 0.12f * (float) r.nextGaussian(), 0.75f, 1.35f);
         float dur = Math.max(MIN_MOVE_MS / Math.max(1f, speed), fitts * variance * sessionSpeed * durScale / speed);
@@ -499,9 +477,7 @@ public final class FakeCursor {
 
     private static int add(float sx, float sy, float c1x, float c1y, float c2x, float c2y, float ex, float ey, float ms,
                            float startSpeed, float endSpeed) {
-        if (segCount >= MAX_SEGMENTS) {
-            return -1;
-        }
+        if (segCount >= MAX_SEGMENTS) return -1;
         int i = segCount++;
         SEG_START[i] = bt;
         SEG_DUR[i] = ms;
@@ -524,9 +500,7 @@ public final class FakeCursor {
 
     /** @return true when the cursor is on {@code slot} and its press is due - the click may go out now. */
     static boolean ready(int slot) {
-        if (!showing) {
-            return true;
-        }
+        if (!showing) return true;
         long now = System.currentTimeMillis();
         boolean arrived = slot == aimedSlot && placed && now >= clickAtMs;
         if (arrived) {
@@ -544,9 +518,7 @@ public final class FakeCursor {
 
     /** A click on {@code slot} went out. The hand keeps gliding; a repeat on the same slot waits for a fresh press gap. */
     static void clicked(int slot) {
-        if (!showing) {
-            return;
-        }
+        if (!showing) return;
         long now = System.currentTimeMillis();
         position(now);
         int i = clickCount % CLICK_SLOT.length;
@@ -605,9 +577,7 @@ public final class FakeCursor {
 
     /** Sets {@link #curX}/{@link #curY} for {@code now} from the plan. */
     private static void position(long now) {
-        if (!placed || segCount == 0) {
-            return;
-        }
+        if (!placed || segCount == 0) return;
         evalAt(now, SCRATCH2);
         curX = SCRATCH2[0];
         curY = SCRATCH2[1];
@@ -627,9 +597,7 @@ public final class FakeCursor {
         // Hide Mouse Cursor on, while auto clicks are landing.
         boolean wantHidden = inTerminal && (showing || (cfg.isHideMouseCursor() && cfg.isAutoTerminalsEnabled()
                 && TerminalSolverFeature.autoClickedRecently(now)));
-        if (client.getWindow() == null) {
-            return;
-        }
+        if (client.getWindow() == null) return;
         com.mojang.blaze3d.platform.Window window = client.getWindow();
         if (wantHidden) {
             // Re-asserted every tick: the game sets its own cursor mode when a screen opens or closes.
@@ -648,9 +616,7 @@ public final class FakeCursor {
     static boolean realPointerHidden() { return hidden; }
 
     private static void render(GuiGraphicsExtractor g) {
-        if (!showing || !placed) {
-            return;
-        }
+        if (!showing || !placed) return;
         Minecraft client = Minecraft.getInstance();
         long now = System.currentTimeMillis();
         position(now);

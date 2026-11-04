@@ -130,28 +130,20 @@ public final class HoverTerminalFeature {
             hoveredSlot = slot;
             hoverStartedAtMs = now;
         }
-        if (slot < 0) {
-            return;
-        }
+        if (slot < 0) return;
 
         if (type == TerminalType.MELODY) {
             // Melody keeps the rest on the button as its arming (the delay, then the click fires on the row's match): a
             // click the instant the pointer reached the next row's button read a board the last click had not finished
             // changing and was wrong (testkit 271 on 26.2, doc-terms-1101: row 3 judged wrong 2 ticks after the move).
-            if (now - hoverStartedAtMs < Math.max(MELODY_MIN_REST_MS, cfg.getHoverDelayMs())) {
-                return;
-            }
+            if (now - hoverStartedAtMs < Math.max(MELODY_MIN_REST_MS, cfg.getHoverDelayMs())) return;
             tickMelody(screen, items, slot, now, cfg);
             return;
         }
-        if (lastHoverClickAtMs != 0 && now - lastHoverClickAtMs < armedDelayMs) {
-            return;
-        }
+        if (lastHoverClickAtMs != 0 && now - lastHoverClickAtMs < armedDelayMs) return;
 
         TerminalSolverFeature.SlotHighlight highlight = highlights.get(slot);
-        if (highlight == null) {
-            return;
-        }
+        if (highlight == null) return;
         // Single-entry map on purpose: this asks "is THIS slot clickable right now?" rather than "what
         // would you click next?". For Numbers that means a hovered slot which isn't the next one in
         // order returns null (its primary() check fails) and nothing is sent - exactly the ordered-type
@@ -159,26 +151,20 @@ public final class HoverTerminalFeature {
         // encodes, so a hover sends the same left/right click a manual click on it would.
         TerminalSolverFeature.AutoClickTarget target =
                 TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         // Dedupe: one click per slot in flight, ever. A slot already sent and not yet confirmed by the
         // server is never clicked again (Panes would toggle straight back to wrong), and once it IS
         // confirmed the solver simply stops highlighting it, so a solved slot can't be re-clicked either.
         // Rubix is the one type where the same slot legitimately needs several clicks - it stays
         // highlighted with a lower remaining count after each confirm, and the dwell restart below paces
         // those at the configured delay instead of one per frame.
-        if (TerminalSolverFeature.isHoverClickBlocked(slot, now)) {
-            return;
-        }
+        if (TerminalSolverFeature.isHoverClickBlocked(slot, now)) return;
 
         // Mod-wide one-interaction-per-tick gate. This runs per RENDER FRAME, so at high FPS the dwell can
         // come due on several frames inside one client tick; the gate is checked before the click is
         // registered and before the dwell is re-armed, so a denied frame changes nothing and the same hover
         // simply clicks on a later tick.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
@@ -194,20 +180,12 @@ public final class HoverTerminalFeature {
      *  lines up - never on a timer, which would miss by definition. */
     private static void tickMelody(ContainerScreen screen, List<ItemStack> items, int slot, long now,
                                    TerminalSolverConfig cfg) {
-        if (!cfg.isHoverMelodyEnabled()) {
-            return;
-        }
-        if (TerminalSolverFeature.melodyMatchedButtonSlot(items) != slot) {
-            return;
-        }
-        if (melodyGuardBlocks(slot, now)) {
-            return;
-        }
+        if (!cfg.isHoverMelodyEnabled()) return;
+        if (TerminalSolverFeature.melodyMatchedButtonSlot(items) != slot) return;
+        if (melodyGuardBlocks(slot, now)) return;
         // Gate before the same-row guard fields move - a denied frame must not consume this row's one
         // allowed click, or the indicator would move past the match while the guard says "already clicked".
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         noteMelodyClick(slot, now);
         TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
         lastHoverClickAtMs = now;
@@ -235,15 +213,11 @@ public final class HoverTerminalFeature {
      *  {@code [0, terminalSlotCount)} and the player's own 36 slots are all above it. */
     static int resolveHoveredSlot(AbstractContainerScreen<?> screen) {
         int terminalSlots = TerminalSolverFeature.getCurrentTerminalSlotCount();
-        if (terminalSlots <= 0) {
-            return -1;
-        }
+        if (terminalSlots <= 0) return -1;
         int index;
         if (TerminalSolverFeature.isCustomGuiActive()) {
             Minecraft client = Minecraft.getInstance();
-            if (client.getWindow() == null) {
-                return -1;
-            }
+            if (client.getWindow() == null) return -1;
             index = TerminalSolverFeature.customGuiSlotAt(screen,
                     client.mouseHandler.getScaledXPos(client.getWindow()),
                     client.mouseHandler.getScaledYPos(client.getWindow()));

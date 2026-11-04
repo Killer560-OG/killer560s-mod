@@ -136,9 +136,7 @@ public final class TerminalSolverConfig {
 
         /** See {@link TerminalSolverConfig#MIN_OVERLAY_ALPHA} and {@link #PANEL_BACKGROUND}. */
         public int sanitize(int argb) {
-            if (forceOpaque) {
-                return argb | 0xFF000000;
-            }
+            if (forceOpaque) return argb | 0xFF000000;
             int alpha = (argb >>> 24) & 0xFF;
             return alpha >= MIN_OVERLAY_ALPHA ? argb : (MIN_OVERLAY_ALPHA << 24) | (argb & 0x00FFFFFF);
         }
@@ -538,9 +536,7 @@ public final class TerminalSolverConfig {
      *  two" request, a new value each time this is called (i.e. once per click), not a value fixed for
      *  the whole session. */
     public int rollAutoClickDelayMs() {
-        if (autoClickMinDelayMs >= autoClickMaxDelayMs) {
-            return autoClickMinDelayMs;
-        }
+        if (autoClickMinDelayMs >= autoClickMaxDelayMs) return autoClickMinDelayMs;
         return autoClickMinDelayMs + RANDOM.nextInt(autoClickMaxDelayMs - autoClickMinDelayMs + 1);
     }
 
@@ -645,9 +641,7 @@ public final class TerminalSolverConfig {
     /** @return the live ARGB for {@code key}, already sanitized (see {@link OverlayColor#sanitize}).
      *  Falls back to the default if the map somehow has no entry, so a draw call can never NPE. */
     public int getOverlayColor(OverlayColor key) {
-        if (key == null) {
-            return 0xFFFFFFFF;
-        }
+        if (key == null) return 0xFFFFFFFF;
         Integer v = overlayColors.get(key);
         return v == null ? key.defaultArgb() : v;
     }
@@ -670,9 +664,7 @@ public final class TerminalSolverConfig {
      *  own enabled/disabled look in {@code TerminalSolverTab}. */
     public boolean isOverlayColorsDefault() {
         for (OverlayColor c : OverlayColor.values()) {
-            if (getOverlayColor(c) != c.defaultArgb()) {
-                return false;
-            }
+            if (getOverlayColor(c) != c.defaultArgb()) return false;
         }
         return true;
     }

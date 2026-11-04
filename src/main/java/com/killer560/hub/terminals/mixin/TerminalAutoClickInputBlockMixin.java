@@ -55,9 +55,7 @@ public abstract class TerminalAutoClickInputBlockMixin {
         // AutoTerminal exempts both Escape and the player's own Inventory keybind from this exact same
         // kind of input block), so closing/backing out of the menu is never trapped behind Auto
         // Terminals' input block.
-        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
-            return;
-        }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) return;
         if (TerminalSolverFeature.shouldBlockInput()) {
             cir.setReturnValue(true);
         }

@@ -83,9 +83,7 @@ public final class TerminalLayouts {
 
     /** Records how many button rows a live Melody board showed (only call with a board that has terracotta). */
     public static void noteMelodyRows(int rows) {
-        if (rows <= 0 || rows == seenMelodyRows) {
-            return;
-        }
+        if (rows <= 0 || rows == seenMelodyRows) return;
         LOGGER.info("[Terminals] Melody board has {} button rows ({} layout)", rows, describe(rows, OLD_MELODY_ROWS, NEW_MELODY_ROWS));
         seenMelodyRows = rows;
     }
@@ -96,9 +94,7 @@ public final class TerminalLayouts {
     }
 
     public static boolean isTerracotta(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return false;
-        }
+        if (stack.isEmpty()) return false;
         String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
         return path.equals("terracotta") || path.endsWith("_terracotta");
     }
@@ -106,9 +102,7 @@ public final class TerminalLayouts {
 
     /** Records how many numbered panes a live "Click in order!" board showed when it settled. */
     static void noteNumbersCount(int count) {
-        if (count <= 0 || count == seenNumbersCount) {
-            return;
-        }
+        if (count <= 0 || count == seenNumbersCount) return;
         LOGGER.info("[Terminals] Click in order board has {} numbers ({} layout)", count, describe(count, OLD_NUMBERS_COUNT, NEW_NUMBERS_COUNT));
         seenNumbersCount = count;
     }
@@ -144,9 +138,7 @@ public final class TerminalLayouts {
     public static void noteSimonRounds(int rounds, String why) {
         String server = serverKey();
         Integer seen = seenSimonRoundsByServer.get(server);
-        if (rounds <= 0 || (seen != null && seen == rounds)) {
-            return;
-        }
+        if (rounds <= 0 || (seen != null && seen == rounds)) return;
         LOGGER.info("[SimonSays] Device has {} rounds ({} layout) on {}: {}", rounds,
                 describe(rounds, OLD_SIMON_ROUNDS, NEW_SIMON_ROUNDS), server, why);
         seenSimonRoundsByServer.put(server, rounds);
@@ -160,9 +152,7 @@ public final class TerminalLayouts {
     public static int simonRounds() {
         String server = serverKey();
         Integer seen = seenSimonRoundsByServer.get(server);
-        if (seen != null) {
-            return seen;
-        }
+        if (seen != null) return seen;
         int known = knownSimonRounds(server);
         return known > 0 ? known : ASSUME_NEW_LAYOUT ? NEW_SIMON_ROUNDS : OLD_SIMON_ROUNDS;
     }

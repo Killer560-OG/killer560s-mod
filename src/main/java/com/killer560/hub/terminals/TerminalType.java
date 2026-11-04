@@ -39,9 +39,7 @@ public enum TerminalType {
      * trimmed. Plain text is returned unchanged.
      */
     public static String normalizeTitle(String raw) {
-        if (raw == null) {
-            return "";
-        }
+        if (raw == null) return "";
         StringBuilder out = null;
         for (int i = 0; i < raw.length(); i++) {
             char c = raw.charAt(i);
@@ -75,9 +73,7 @@ public enum TerminalType {
     public static TerminalType match(String title) {
         String plain = normalizeTitle(title);
         for (TerminalType type : values()) {
-            if (type.titlePattern.matcher(plain).matches()) {
-                return type;
-            }
+            if (type.titlePattern.matcher(plain).matches()) return type;
         }
         return null;
     }

@@ -193,13 +193,9 @@ public final class TerminalSolverFeature {
     /** Called BEFORE a click that may predict locally; remembers what the server last said about the slot. */
     static void notePredictedPickup(AbstractContainerScreen<?> screen, int slotIndex, long now) {
         List<Slot> slots = screen.getMenu().slots;
-        if (slotIndex < 0 || slotIndex >= slots.size()) {
-            return;
-        }
+        if (slotIndex < 0 || slotIndex >= slots.size()) return;
         ItemStack stack = slots.get(slotIndex).getItem();
-        if (stack.isEmpty()) {
-            return;
-        }
+        if (stack.isEmpty()) return;
         PredictedSlot old = predictedSlots.get(slotIndex);
         predictedSlots.put(slotIndex, new PredictedSlot(old != null ? old.before() : stack.copy(), now));
     }
@@ -211,9 +207,7 @@ public final class TerminalSolverFeature {
 
     /** Per frame: drops entries the server has answered, restores the overdue ones. */
     private static void resyncPredictedSlots(AbstractContainerScreen<?> screen, long now) {
-        if (predictedSlots.isEmpty()) {
-            return;
-        }
+        if (predictedSlots.isEmpty()) return;
         List<Slot> slots = screen.getMenu().slots;
         long timeout = predictionTimeoutMs();
         var it = predictedSlots.entrySet().iterator();
@@ -355,9 +349,7 @@ public final class TerminalSolverFeature {
      *  non-empty, unchanged slot the solver no longer highlights at all is released too (nothing left to
      *  click there), so it can never pin the pending set forever. */
     private static void checkPendingClicks(List<ItemStack> items, long now) {
-        if (pendingClicks.isEmpty()) {
-            return;
-        }
+        if (pendingClicks.isEmpty()) return;
         var it = pendingClicks.values().iterator();
         while (it.hasNext()) {
             PendingClick pending = it.next();
@@ -366,17 +358,11 @@ public final class TerminalSolverFeature {
                 continue;
             }
             ItemStack current = items.get(pending.slot());
-            if (current.isEmpty()) {
-                continue;
-            }
+            if (current.isEmpty()) continue;
             boolean changed = !ItemStack.matches(current, pending.snapshot());
-            if (!changed && currentHighlights.containsKey(pending.slot())) {
-                continue;
-            }
+            if (!changed && currentHighlights.containsKey(pending.slot())) continue;
             it.remove();
-            if (!changed) {
-                continue;
-            }
+            if (!changed) continue;
             long latency = now - pending.sentAtMs();
             confirmLatencyEmaMs = confirmLatencyEmaMs < 0 ? latency : confirmLatencyEmaMs * 0.7 + latency * 0.3;
         }
@@ -393,9 +379,7 @@ public final class TerminalSolverFeature {
      *  reported time by however long that took - now posted on the first client tick after the close,
      *  see {@link #ensureCloseWatcherRegistered}. */
     private static void reportTerminalCompletion() {
-        if (currentType == null || terminalOpenedAtMs <= 0) {
-            return;
-        }
+        if (currentType == null || terminalOpenedAtMs <= 0) return;
         double seconds = (System.currentTimeMillis() - terminalOpenedAtMs) / 1000.0;
         // Reset unconditionally (even if the toggle below is off) so a stale opened-at timestamp from
         // before the toggle was turned off never leaks into a bogus duration if it's turned back on later.
@@ -417,9 +401,7 @@ public final class TerminalSolverFeature {
      *  consecutive ticks - debounced so a close+reopen pair landing across a tick boundary (Hypixel's
      *  real double-open, round 31) is still handled as a quick reopen, never a bogus "took 0.1s". */
     private static void ensureCloseWatcherRegistered() {
-        if (closeWatcherRegistered) {
-            return;
-        }
+        if (closeWatcherRegistered) return;
         closeWatcherRegistered = true;
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalSolverFeature", client -> {
             if (currentType == null || McCompat.screen(client) != null) {
@@ -473,18 +455,12 @@ public final class TerminalSolverFeature {
 
     private static void maybeSendMelodyCoords() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (!cfg.isMelodySendCoordsOnOpen()) {
-            return;
-        }
+        if (!cfg.isMelodySendCoordsOnOpen()) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || !com.killer560.hub.util.SkyblockGate.allows()) {
-            return;
-        }
+        if (client.player == null || client.level == null || !com.killer560.hub.util.SkyblockGate.allows()) return;
         // Melody only exists in the F7/M7 boss fight - same gate Posmsg uses, so nothing can leak into
         // party chat from a container that merely shares the title somewhere else.
-        if (!com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()) {
-            return;
-        }
+        if (!com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()) return;
         net.minecraft.world.phys.Vec3 pos = client.player.position();
         if (lastMelodySendLevel == client.level && lastMelodySendPos != null
                 && lastMelodySendPos.distanceTo(pos) <= MELODY_RESEND_RADIUS) {
@@ -650,9 +626,7 @@ public final class TerminalSolverFeature {
      *  opens. */
     private static boolean hasRealContent(List<ItemStack> items) {
         for (ItemStack stack : items) {
-            if (!stack.isEmpty() && stack.getItem() != McItems.BLACK_STAINED_GLASS_PANE) {
-                return true;
-            }
+            if (!stack.isEmpty() && stack.getItem() != McItems.BLACK_STAINED_GLASS_PANE) return true;
         }
         return false;
     }
@@ -681,9 +655,7 @@ public final class TerminalSolverFeature {
             // Mod-wide one-interaction-per-tick gate. Returning WITHOUT updating wasHoldingCarriedItem is
             // the point: the carried item is still there next frame, so the clear is simply re-attempted
             // until the gate lets it through rather than being marked as done and never sent.
-            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-                return;
-            }
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
             client.gameMode.handleContainerInput(screen.getMenu().containerId, -999, 0, ContainerInput.PICKUP, client.player);
         }
         wasHoldingCarriedItem = holdingNow;
@@ -739,9 +711,7 @@ public final class TerminalSolverFeature {
      *  later click out of order. */
     private static void tickAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (!cfg.isAutoTerminalsEnabled()) {
-            return;
-        }
+        if (!cfg.isAutoTerminalsEnabled()) return;
         // First Click Delay (2026-11-03): the owner's wait REPLACES the fixed 500 ms settle for Auto Terminals' first click
         // (still timed from stabilizedAtMs, which a container-id or screen change re-arms, so a double-open is re-stabilized).
         if (System.currentTimeMillis() - stabilizedAtMs < cfg.getFirstClickDelayMs()) {
@@ -760,27 +730,21 @@ public final class TerminalSolverFeature {
             }
             return;
         }
-        if (!isAutoTypeEnabled(type, cfg)) {
-            return;
-        }
+        if (!isAutoTypeEnabled(type, cfg)) return;
         if (foreignClickFailed) {
             // See #invokeSlotClicked - the shared click path itself is broken for this terminal, so every
             // further attempt would throw in exactly the same place. Standing down clicks LESS, never
             // more, and never blind.
             return;
         }
-        if (currentHighlights.isEmpty()) {
-            return;
-        }
+        if (currentHighlights.isEmpty()) return;
         if (cfg.isAutoStreamSafe()) {
             // Stream Safe (2026-10-27): the human cursor is the clock; the Min/Max delays do not apply.
             tickHumanAutoClick(screen, type, items, cfg);
             return;
         }
         long now = System.currentTimeMillis();
-        if (now < nextAutoClickAllowedAtMs) {
-            return;
-        }
+        if (now < nextAutoClickAllowedAtMs) return;
         long retryTimeout = retryTimeoutMs(cfg);
         AutoClickTarget target = null;
         PendingClick retryOf = null;
@@ -809,9 +773,7 @@ public final class TerminalSolverFeature {
             // in-order slot is). Only an overdue one gets re-sent - the oldest, if several are.
             for (PendingClick pending : pendingClicks.values()) {
                 SlotHighlight highlight = currentHighlights.get(pending.slot());
-                if (highlight == null || now - pending.sentAtMs() < retryTimeout) {
-                    continue;
-                }
+                if (highlight == null || now - pending.sentAtMs() < retryTimeout) continue;
                 AutoClickTarget candidate = pickAutoClickTarget(type, Map.of(pending.slot(), highlight), Set.of());
                 if (candidate != null && (retryOf == null || pending.sentAtMs() < retryOf.sentAtMs())) {
                     retryOf = pending;
@@ -819,17 +781,13 @@ public final class TerminalSolverFeature {
                 }
             }
         }
-        if (target == null) {
-            return;
-        }
+        if (target == null) return;
         // Mod-wide one-interaction-per-tick gate. tickAutoClick runs per RENDER FRAME (see refreshState), so
         // without this a 200+ FPS client could send several clicks inside one client tick once the rolled
         // delay is short. Checked after the target is picked but before ANY state moves - the rolled delay
         // (nextAutoClickAllowedAtMs) and the pendingClicks entry - so a denied
         // frame costs nothing and the identical target is simply re-picked next frame.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = target.slot() >= 0 && target.slot() < items.size() ? items.get(target.slot()).copy() : ItemStack.EMPTY;
         int rolledDelay = cfg.rollAutoClickDelayMs();
         nextAutoClickAllowedAtMs = now + rolledDelay;
@@ -858,9 +816,7 @@ public final class TerminalSolverFeature {
             }
             return;
         }
-        if (currentHighlights.isEmpty()) {
-            return;
-        }
+        if (currentHighlights.isEmpty()) return;
         int slot = HumanClickOrder.next(type, currentHighlights, s -> false);
         if (slot >= 0) {
             FakeCursor.aim(screen, slot);
@@ -873,9 +829,7 @@ public final class TerminalSolverFeature {
     /** @return whether {@code highlight}'s slot needs another click after the one about to be sent: a Rubix pane whose
      *  remaining count is 2 or more. Every other type takes one click per slot. */
     static boolean needsMoreClicks(TerminalType type, SlotHighlight highlight) {
-        if (type != TerminalType.RUBIX || highlight == null || highlight.label() == null) {
-            return false;
-        }
+        if (type != TerminalType.RUBIX || highlight == null || highlight.label() == null) return false;
         try {
             return Math.abs(Integer.parseInt(highlight.label().trim())) > 1;
         } catch (NumberFormatException e) {
@@ -897,29 +851,19 @@ public final class TerminalSolverFeature {
             PendingClick p = pendingClicks.get(s);
             return p != null && now - p.sentAtMs() < retryTimeout;
         });
-        if (slot < 0) {
-            return;
-        }
+        if (slot < 0) return;
         FakeCursor.aim(screen, slot);
         SlotHighlight highlight = currentHighlights.get(slot);
-        if (highlight == null) {
-            return;
-        }
+        if (highlight == null) return;
         AutoClickTarget target = pickAutoClickTarget(type, Map.of(slot, highlight), Set.of());
         if (target == null) {
             // Numbers: the cursor is reading ahead to the next number while the current one's click is answered.
             return;
         }
         PendingClick waiting = pendingClicks.get(slot);
-        if (waiting != null && now - waiting.sentAtMs() < retryTimeout) {
-            return;
-        }
-        if (!FakeCursor.ready(slot)) {
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (waiting != null && now - waiting.sentAtMs() < retryTimeout) return;
+        if (!FakeCursor.ready(slot)) return;
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         pendingClicks.put(slot, waiting != null
                 ? new PendingClick(slot, waiting.firstSentAtMs(), now, waiting.snapshot(), waiting.attempt() + 1)
@@ -986,9 +930,7 @@ public final class TerminalSolverFeature {
             return null;
         }
         for (Map.Entry<Integer, SlotHighlight> entry : highlights.entrySet()) {
-            if (awaitingConfirm.contains(entry.getKey())) {
-                continue;
-            }
+            if (awaitingConfirm.contains(entry.getKey())) continue;
             if (type == TerminalType.RUBIX) {
                 boolean needsRightClick = entry.getValue().label() != null && entry.getValue().label().startsWith("-");
                 return new AutoClickTarget(entry.getKey(), needsRightClick ? 1 : 0, ContainerInput.PICKUP);
@@ -1160,9 +1102,7 @@ public final class TerminalSolverFeature {
             return;
         }
         int buttonRow = melodyButtonRow;
-        if (buttonRow < 0 || buttonRow >= melodyButtons.length) {
-            return;
-        }
+        if (buttonRow < 0 || buttonRow >= melodyButtons.length) return;
         if (limeSlot != null && buttonRow < melodyClickedColumn.length && (melodyRowsClicked & (1 << buttonRow)) != 0) {
             int seen = melodyClickedColumn[buttonRow];
             if (seen == MELODY_UNSEEN) {
@@ -1180,9 +1120,7 @@ public final class TerminalSolverFeature {
             // or not (2026-11-01).
             FakeCursor.aimQuick(screen, melodyButtons[buttonRow]);
         }
-        if (!melodyCurrentColumn.equals(melodyCorrectColumn)) {
-            return;
-        }
+        if (!melodyCurrentColumn.equals(melodyCorrectColumn)) return;
         for (ScheduledMelodyClick queued : scheduledMelodyClicks) {
             if (queued.row() == buttonRow) {
                 // A lookahead click for this row is already on its way (due within a tick or two): clicking it live too
@@ -1194,13 +1132,9 @@ public final class TerminalSolverFeature {
             // Already clicked (live or lookahead) and not seen missed: one click per row.
             return;
         }
-        if (!FakeCursor.ready(melodyButtons[buttonRow])) {
-            return;
-        }
+        if (!FakeCursor.ready(melodyButtons[buttonRow])) return;
         long now = System.currentTimeMillis();
-        if (buttonRow == lastMelodyClickedRow && now - lastMelodyClickAtMs < 250) {
-            return;
-        }
+        if (buttonRow == lastMelodyClickedRow && now - lastMelodyClickAtMs < 250) return;
         if (!melodyPingDemand) {
             melodyPingDemand = true;
             com.killer560.hub.util.PingTracker.addDemand(() -> currentType == TerminalType.MELODY);
@@ -1224,9 +1158,7 @@ public final class TerminalSolverFeature {
         }
         // Mod-wide one-interaction-per-tick gate, before the same-row guard fields move. A denied frame must
         // not arm the 250ms guard, or the live match would be swallowed for a click that never happened.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
         melodyRowsClicked |= 1 << buttonRow;
@@ -1244,9 +1176,7 @@ public final class TerminalSolverFeature {
     /** @return the index into {@link #melodyButtons} of the button on chest row {@code chestRow}, or -1. */
     private static int melodyButtonIndexForChestRow(int chestRow) {
         for (int i = 0; i < melodyButtons.length; i++) {
-            if (melodyButtons[i] / GRID_COLUMNS == chestRow) {
-                return i;
-            }
+            if (melodyButtons[i] / GRID_COLUMNS == chestRow) return i;
         }
         return -1;
     }
@@ -1270,9 +1200,7 @@ public final class TerminalSolverFeature {
      *  bursting every remaining row down to the last one. */
     private static void queueMelodyLookaheadClicks(int matchedRow, int matchedColumn) {
         int extraRows = melodyLookaheadRows(matchedRow, matchedColumn, melodyButtons.length - 1);
-        if (extraRows <= 0) {
-            return;
-        }
+        if (extraRows <= 0) return;
         long now = System.currentTimeMillis();
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
@@ -1283,12 +1211,8 @@ public final class TerminalSolverFeature {
      *  Lookahead (see {@link #queueMelodyLookaheadClicks}); Termism's practice Melody asks the same rule. */
     static int melodyLookaheadRows(int matchedRow, int matchedColumn, int lastRow) {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) {
-            return Math.max(0, lastRow - matchedRow);
-        }
-        if (!isMelodyEdgeSlot(matchedColumn)) {
-            return 0;
-        }
+        if (cfg.getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL) return Math.max(0, lastRow - matchedRow);
+        if (!isMelodyEdgeSlot(matchedColumn)) return 0;
         // Lookahead N = the proper click plus N more rows (2026-10-26), so N is the extra row count itself.
         int lookahead = cfg.getMelodyLookaheadClicks();
         return lookahead <= 0 ? 0 : Math.max(0, Math.min(lookahead, lastRow - matchedRow));
@@ -1313,9 +1237,7 @@ public final class TerminalSolverFeature {
     /** The board's pane step time (median of the last few seen on one row), or 0 before two steps were seen. */
     private static long melodyStepMs() {
         int n = Math.min(melodyStepCount, melodyStepSamples.length);
-        if (n == 0) {
-            return 0;
-        }
+        if (n == 0) return 0;
         long[] sorted = java.util.Arrays.copyOf(melodyStepSamples, n);
         java.util.Arrays.sort(sorted);
         return sorted[n / 2];
@@ -1331,9 +1253,7 @@ public final class TerminalSolverFeature {
     }
 
     private static void fireDueMelodyLookaheadClicks(ContainerScreen screen) {
-        if (scheduledMelodyClicks.isEmpty()) {
-            return;
-        }
+        if (scheduledMelodyClicks.isEmpty()) return;
         long now = System.currentTimeMillis();
         while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
             ScheduledMelodyClick due = scheduledMelodyClicks.peekFirst();
@@ -1344,9 +1264,7 @@ public final class TerminalSolverFeature {
                 continue;
             }
             FakeCursor.aimQuick(screen, melodyButtons[due.row()]);
-            if (!FakeCursor.ready(melodyButtons[due.row()])) {
-                break;
-            }
+            if (!FakeCursor.ready(melodyButtons[due.row()])) break;
             if (melodyTooLate(now) || melodyCurrentColumn == null || !melodyCurrentColumn.equals(melodyCorrectColumn)) {
                 // The gamble only wins while the server's pane is still on the target column (and the column is the one
                 // the client sees now: a pane already seen stepping off it has lost the gamble, 2026-11-02 loop 3): a lookahead click that
@@ -1365,9 +1283,7 @@ public final class TerminalSolverFeature {
             // interactions in one tick by design. The entry is only removed from the queue once the gate has
             // accepted it, so a denial leaves the whole burst queued and it resumes on a later tick; and
             // after a successful send we break, so this fires at most one click per call.
-            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-                break;
-            }
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) break;
             scheduledMelodyClicks.pollFirst();
             lastMelodyClickedRow = due.row();
             lastMelodyClickAtMs = now;
@@ -1416,12 +1332,8 @@ public final class TerminalSolverFeature {
 
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
         melodyDrawnMovingSlot = -1;
-        if (currentType == null) {
-            return;
-        }
-        if (!(McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
+        if (currentType == null) return;
+        if (!(McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?> screen)) return;
         if (!isCustomGuiActive()) {
             // Melody has nothing to show outside Custom GUI mode - no solving logic means no
             // vanilla-overlay outlines to draw either.
@@ -1430,9 +1342,7 @@ public final class TerminalSolverFeature {
             }
             return;
         }
-        if (withinOpenGracePeriod()) {
-            return;
-        }
+        if (withinOpenGracePeriod()) return;
         if (currentType == TerminalType.MELODY) {
             renderMelodyCustomGui(graphics, screen);
         } else {
@@ -1459,9 +1369,7 @@ public final class TerminalSolverFeature {
      *  the narrower "just hide inventory" special case round 5 had. */
     private static void renderMelodyCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        if (layout == null) {
-            return;
-        }
+        if (layout == null) return;
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -1477,14 +1385,10 @@ public final class TerminalSolverFeature {
         int movingSlot = findMelodyMovingSlot(slots, currentTerminalSlotCount);
         for (int slotIndex = 0; slotIndex < currentTerminalSlotCount && slotIndex < slots.size(); slotIndex++) {
             ItemStack stack = slots.get(slotIndex).getItem();
-            if (!isMelodyButtonSlot(stack)) {
-                continue;
-            }
+            if (!isMelodyButtonSlot(stack)) continue;
             int col = slotIndex % GRID_COLUMNS - layout.minCol();
             int row = slotIndex / GRID_COLUMNS - layout.minRow();
-            if (col < 0 || row < 0) {
-                continue;
-            }
+            if (col < 0 || row < 0) continue;
             int x0 = col * CELL_SIZE;
             int y0 = row * CELL_SIZE;
             boolean moving = slotIndex == movingSlot;
@@ -1531,12 +1435,8 @@ public final class TerminalSolverFeature {
         }
         int lastLime = -1;
         for (int slotIndex = 0; slotIndex < limit; slotIndex++) {
-            if (slots.get(slotIndex).getItem().getItem() != McItems.LIME_STAINED_GLASS_PANE) {
-                continue;
-            }
-            if (activeRow >= 0 && slotIndex / GRID_COLUMNS == activeRow) {
-                return slotIndex;
-            }
+            if (slots.get(slotIndex).getItem().getItem() != McItems.LIME_STAINED_GLASS_PANE) continue;
+            if (activeRow >= 0 && slotIndex / GRID_COLUMNS == activeRow) return slotIndex;
             lastLime = slotIndex;
         }
         return lastLime;
@@ -1558,15 +1458,9 @@ public final class TerminalSolverFeature {
      *  </ul> */
     private static int melodySlotColor(ItemStack stack, boolean moving) {
         DyeColor pane = paneDyeColor(stack);
-        if (pane == null) {
-            return color(TerminalSolverConfig.OverlayColor.MELODY_BUTTON);
-        }
-        if (isMelodyEndpointColor(pane)) {
-            return color(TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
-        }
-        if (moving) {
-            return color(TerminalSolverConfig.OverlayColor.MELODY_MOVING);
-        }
+        if (pane == null) return color(TerminalSolverConfig.OverlayColor.MELODY_BUTTON);
+        if (isMelodyEndpointColor(pane)) return color(TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT);
+        if (moving) return color(TerminalSolverConfig.OverlayColor.MELODY_MOVING);
         return color(TerminalSolverConfig.OverlayColor.MELODY_TRACK);
     }
 
@@ -1588,9 +1482,7 @@ public final class TerminalSolverFeature {
         graphics.nextStratum();
         for (Slot slot : screen.getMenu().slots) {
             SlotHighlight highlight = currentHighlights.get(slot.index);
-            if (highlight == null) {
-                continue;
-            }
+            if (highlight == null) continue;
             int x0 = left + slot.x;
             int y0 = top + slot.y;
             graphics.outline(x0 - inflate, y0 - inflate, SLOT_SIZE + inflate * 2, SLOT_SIZE + inflate * 2, highlight.color());
@@ -1616,9 +1508,7 @@ public final class TerminalSolverFeature {
      *  index via {@link SlotClickInvoker}, the same trick Storage Overlay's own custom grid uses. */
     private static void renderCustomGui(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        if (layout == null) {
-            return;
-        }
+        if (layout == null) return;
 
         graphics.nextStratum();
         graphics.pose().pushMatrix();
@@ -1633,9 +1523,7 @@ public final class TerminalSolverFeature {
         List<Slot> slots = screen.getMenu().slots;
         for (Map.Entry<Integer, SlotHighlight> entry : currentHighlights.entrySet()) {
             int slotIndex = entry.getKey();
-            if (slotIndex >= slots.size()) {
-                continue;
-            }
+            if (slotIndex >= slots.size()) continue;
             SlotHighlight highlight = entry.getValue();
             int x0 = (slotIndex % GRID_COLUMNS - layout.minCol()) * CELL_SIZE;
             int y0 = (slotIndex / GRID_COLUMNS - layout.minRow()) * CELL_SIZE;
@@ -1666,9 +1554,7 @@ public final class TerminalSolverFeature {
      *  slots underneath are hidden and shouldn't be reachable by an unrelated click landing on empty
      *  panel background. */
     public static boolean handleCustomGuiClick(AbstractContainerScreen<?> screen, double mouseX, double mouseY, int button) {
-        if (!isCustomGuiActive()) {
-            return false;
-        }
+        if (!isCustomGuiActive()) return false;
         if (withinOpenGracePeriod()) {
             // Nothing is even drawn yet (see #renderOverlay) - still swallow the click rather than let
             // it fall through to the hidden real slots underneath.
@@ -1677,9 +1563,7 @@ public final class TerminalSolverFeature {
         // Clicks landing outside the (now cropped-to-content) panel grid have nothing to redirect to -
         // still consumed below, same as a click on empty panel padding always was.
         int slotIndex = customGuiSlotAt(screen, mouseX, mouseY);
-        if (slotIndex < 0) {
-            return true;
-        }
+        if (slotIndex < 0) return true;
 
         List<Slot> slots = screen.getMenu().slots;
         // Melody has no solved/correct set to check against - any real button cell is fair game (matches
@@ -1709,9 +1593,7 @@ public final class TerminalSolverFeature {
                 SlotHighlight highlight = currentHighlights.get(slotIndex);
                 boolean needsRightClick = highlight != null && highlight.label() != null && highlight.label().startsWith("-");
                 int expectedButton = needsRightClick ? 1 : 0;
-                if (button != expectedButton) {
-                    return true;
-                }
+                if (button != expectedButton) return true;
             }
             ContainerInput clickType = needsRealClick ? ContainerInput.PICKUP : ContainerInput.CLONE;
             int effectiveButton = needsRealClick ? button : 0;
@@ -1746,18 +1628,14 @@ public final class TerminalSolverFeature {
      *  (cropped-to-content) grid. */
     static int customGuiSlotAt(AbstractContainerScreen<?> screen, double mouseX, double mouseY) {
         CustomGuiLayout layout = computeCustomGuiLayout(screen);
-        if (layout == null) {
-            return -1;
-        }
+        if (layout == null) return -1;
         double localX = (mouseX - layout.originX) / layout.scale;
         double localY = (mouseY - layout.originY) / layout.scale;
         int localCol = (int) Math.floor(localX / CELL_SIZE);
         int localRow = (int) Math.floor(localY / CELL_SIZE);
         int panelColumns = layout.panelWidth / CELL_SIZE;
         int panelRows = layout.panelHeight / CELL_SIZE;
-        if (localCol < 0 || localCol >= panelColumns || localRow < 0 || localRow >= panelRows) {
-            return -1;
-        }
+        if (localCol < 0 || localCol >= panelColumns || localRow < 0 || localRow >= panelRows) return -1;
         return (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
     }
 
@@ -1815,16 +1693,12 @@ public final class TerminalSolverFeature {
             hoverMelodyCorrectColumn = targetSlot % 9 - 1;
         }
         melodyLastLimeSlot = limeSlot == null ? -1 : limeSlot;
-        if (limeSlot == null || hoverMelodyCorrectColumn == null) {
-            return -1;
-        }
+        if (limeSlot == null || hoverMelodyCorrectColumn == null) return -1;
         // The button on the lime pane's own chest row, from this board's buttons (3 or 4 rows, see melodyButtons).
         int[] buttons = TerminalLayouts.melodyButtonSlots(items);
         int chestRow = limeSlot / 9;
         for (int button : buttons) {
-            if (button / 9 == chestRow) {
-                return limeSlot % 9 - 1 == hoverMelodyCorrectColumn ? button : -1;
-            }
+            if (button / 9 == chestRow) return limeSlot % 9 - 1 == hoverMelodyCorrectColumn ? button : -1;
         }
         return -1;
     }
@@ -1851,9 +1725,7 @@ public final class TerminalSolverFeature {
     static boolean slotCenterGui(AbstractContainerScreen<?> screen, int slotIndex, float[] out) {
         if (isCustomGuiActive()) {
             CustomGuiLayout layout = computeCustomGuiLayout(screen);
-            if (layout == null) {
-                return false;
-            }
+            if (layout == null) return false;
             int col = slotIndex % GRID_COLUMNS - layout.minCol();
             int row = slotIndex / GRID_COLUMNS - layout.minRow();
             out[0] = layout.originX() + (col * CELL_SIZE + SLOT_SIZE / 2f) * layout.scale();
@@ -1862,9 +1734,7 @@ public final class TerminalSolverFeature {
             return true;
         }
         List<Slot> slots = screen.getMenu().slots;
-        if (slotIndex < 0 || slotIndex >= slots.size()) {
-            return false;
-        }
+        if (slotIndex < 0 || slotIndex >= slots.size()) return false;
         AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
         Slot slot = slots.get(slotIndex);
         out[0] = acc.killer560smod$getLeftPos() + slot.x + 8f;
@@ -1885,9 +1755,7 @@ public final class TerminalSolverFeature {
      *  skip Select's own background panes) - applies to every type uniformly, Melody included. */
     private static CustomGuiLayout computeCustomGuiLayout(AbstractContainerScreen<?> screen) {
         GridBounds bounds = computeGridBounds(screen);
-        if (bounds == null) {
-            return null;
-        }
+        if (bounds == null) return null;
         float scale = TerminalSolverConfig.getInstance().getScale();
         int panelWidth = bounds.columns() * CELL_SIZE;
         int panelHeight = bounds.rows() * CELL_SIZE;
@@ -1909,9 +1777,7 @@ public final class TerminalSolverFeature {
         int maxRow = -1;
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack.isEmpty() || stack.getItem() == McItems.BLACK_STAINED_GLASS_PANE) {
-                continue;
-            }
+            if (stack.isEmpty() || stack.getItem() == McItems.BLACK_STAINED_GLASS_PANE) continue;
             int col = i % GRID_COLUMNS;
             int row = i / GRID_COLUMNS;
             minCol = Math.min(minCol, col);
@@ -1948,9 +1814,7 @@ public final class TerminalSolverFeature {
     private static Object lastHighlightScreen;
 
     private static void noteUnmatchedTerminalTitle(String rawTitle, String normalized) {
-        if (rawTitle.equals(lastUnmatchedTitle)) {
-            return;
-        }
+        if (rawTitle.equals(lastUnmatchedTitle)) return;
         for (String phrase : TERMINAL_PHRASES) {
             if (normalized.contains(phrase)) {
                 lastUnmatchedTitle = rawTitle;
@@ -1966,16 +1830,12 @@ public final class TerminalSolverFeature {
     /** A settled, non-Melody board the solver found nothing to click on: logs the board once per screen. */
     private static void noteEmptySolve(TerminalType type, String rawTitle, List<ItemStack> items) {
         Object screen = McCompat.screen(Minecraft.getInstance());
-        if (screen == null || screen == lastEmptySolveScreen) {
-            return;
-        }
+        if (screen == null || screen == lastEmptySolveScreen) return;
         lastEmptySolveScreen = screen;
         StringBuilder board = new StringBuilder();
         for (int i = 0; i < items.size() && i < 54; i++) {
             ItemStack stack = items.get(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
+            if (stack.isEmpty()) continue;
             board.append(i).append('=').append(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath())
                     .append('x').append(stack.getCount()).append(stack.hasFoil() ? "*" : "")
                     .append('|').append(stripColor(stack.getHoverName().getString())).append("; ");
@@ -2004,12 +1864,8 @@ public final class TerminalSolverFeature {
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
         for (TerminalType type : TYPES) {
-            if (!isTypeEnabled(type, cfg)) {
-                continue;
-            }
-            if (type.titlePattern().matcher(title).matches()) {
-                return type;
-            }
+            if (!isTypeEnabled(type, cfg)) continue;
+            if (type.titlePattern().matcher(title).matches()) return type;
         }
         return null;
     }
@@ -2118,23 +1974,15 @@ public final class TerminalSolverFeature {
      *  Apple allowlist for the one common item that glints but is still a valid answer. */
     private static Map<Integer, SlotHighlight> solveStartsWith(TerminalType type, String title, List<ItemStack> items) {
         Matcher matcher = type.titlePattern().matcher(title);
-        if (!matcher.matches()) {
-            return Map.of();
-        }
+        if (!matcher.matches()) return Map.of();
         String letter = matcher.group(1);
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
             ItemStack item = items.get(i);
-            if (item.isEmpty()) {
-                continue;
-            }
-            if (item.hasFoil() && item.getItem() != Items.GOLDEN_APPLE) {
-                continue;
-            }
+            if (item.isEmpty()) continue;
+            if (item.hasFoil() && item.getItem() != Items.GOLDEN_APPLE) continue;
             String name = stripColor(item.getHoverName().getString());
-            if (name.isEmpty()) {
-                continue;
-            }
+            if (name.isEmpty()) continue;
             if (name.regionMatches(true, 0, letter, 0, letter.length())) {
                 result.put(i, new SlotHighlight(color(TerminalSolverConfig.OverlayColor.STARTS_WITH), null));
             }
@@ -2150,9 +1998,7 @@ public final class TerminalSolverFeature {
      *  explicitly asked (round 5, 2026-09-09) for orange regardless of the real target color. */
     private static Map<Integer, SlotHighlight> solveSelect(TerminalType type, String title, List<ItemStack> items) {
         Matcher matcher = type.titlePattern().matcher(title);
-        if (!matcher.matches()) {
-            return Map.of();
-        }
+        if (!matcher.matches()) return Map.of();
         String colorText = matcher.group(1).trim().toLowerCase(Locale.ROOT);
         DyeColor color = parseSelectColor(colorText);
         // Not getOrDefault: its default is evaluated eagerly, so the one-element List.of was allocated on every
@@ -2164,9 +2010,7 @@ public final class TerminalSolverFeature {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
             ItemStack item = items.get(i);
-            if (item.isEmpty() || item.hasFoil() || item.getItem() == McItems.BLACK_STAINED_GLASS_PANE) {
-                continue;
-            }
+            if (item.isEmpty() || item.hasFoil() || item.getItem() == McItems.BLACK_STAINED_GLASS_PANE) continue;
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
             for (String prefix : prefixes) {
                 if (name.startsWith(prefix)) {
@@ -2181,9 +2025,7 @@ public final class TerminalSolverFeature {
     // Hypixel's terminal title says "SILVER" (Minecraft's old wool-color name) for what DyeColor calls
     // LIGHT_GRAY - same special case Odin's own TerminalTypes.openHandler handles.
     private static DyeColor parseSelectColor(String lowerCaseText) {
-        if (lowerCaseText.equals("silver")) {
-            return DyeColor.LIGHT_GRAY;
-        }
+        if (lowerCaseText.equals("silver")) return DyeColor.LIGHT_GRAY;
         try {
             return DyeColor.valueOf(lowerCaseText.replace(' ', '_').toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
@@ -2213,18 +2055,12 @@ public final class TerminalSolverFeature {
         List<int[]> panes = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             DyeColor color = paneDyeColor(items.get(i));
-            if (color == null || color == DyeColor.BLACK) {
-                continue;
-            }
+            if (color == null || color == DyeColor.BLACK) continue;
             int colorIndex = RUBIX_COLOR_ORDER.indexOf(color);
-            if (colorIndex < 0) {
-                continue;
-            }
+            if (colorIndex < 0) continue;
             panes.add(new int[]{i, colorIndex});
         }
-        if (panes.isEmpty()) {
-            return Map.of();
-        }
+        if (panes.isEmpty()) return Map.of();
 
         int cycleLength = RUBIX_COLOR_ORDER.size();
         int target = rubixTargetColorIndex;
@@ -2236,9 +2072,7 @@ public final class TerminalSolverFeature {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int[] pane : panes) {
             int forward = Math.floorMod(target - pane[1], cycleLength);
-            if (forward == 0) {
-                continue;
-            }
+            if (forward == 0) continue;
             int clicksRequired = forward <= 2 ? forward : forward - cycleLength;
             result.put(pane[0], new SlotHighlight(rubixColorFor(clicksRequired), String.valueOf(clicksRequired)));
         }
@@ -2252,9 +2086,7 @@ public final class TerminalSolverFeature {
             int cost = 0;
             for (int[] pane : panes) {
                 int forward = Math.floorMod(target - pane[1], cycleLength);
-                if (forward == 0) {
-                    continue;
-                }
+                if (forward == 0) continue;
                 int clicksRequired = forward <= 2 ? forward : forward - cycleLength;
                 cost += Math.abs(clicksRequired);
             }
@@ -2279,12 +2111,8 @@ public final class TerminalSolverFeature {
     }
 
     private static DyeColor paneDyeColor(ItemStack item) {
-        if (!(item.getItem() instanceof BlockItem blockItem)) {
-            return null;
-        }
-        if (!(blockItem.getBlock() instanceof StainedGlassPaneBlock pane)) {
-            return null;
-        }
+        if (!(item.getItem() instanceof BlockItem blockItem)) return null;
+        if (!(blockItem.getBlock() instanceof StainedGlassPaneBlock pane)) return null;
         return pane.getColor();
     }
 
@@ -2296,12 +2124,8 @@ public final class TerminalSolverFeature {
      * for the common case of a string with no codes in it.
      */
     private static String stripColor(String s) {
-        if (s == null || s.isEmpty()) {
-            return "";
-        }
-        if (s.indexOf('§') < 0) {
-            return s.trim();
-        }
+        if (s == null || s.isEmpty()) return "";
+        if (s.indexOf('§') < 0) return s.trim();
         StringBuilder out = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

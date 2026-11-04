@@ -48,9 +48,7 @@ public final class HoldToClickFeature {
      *  the screen sees the click, so another feature canceling the click at the screen does not hide the press. */
     public static void register() {
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) {
-                return;
-            }
+            if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) return;
             leftDown = false;
             net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
                 if (com.killer560.hub.compat.McInput.button(event) == 0) {
@@ -97,36 +95,24 @@ public final class HoldToClickFeature {
             }
             return;
         }
-        if (now < nextRepeatAtMs || TerminalQolFeature.withinProtectionWindow()) {
-            return;
-        }
+        if (now < nextRepeatAtMs || TerminalQolFeature.withinProtectionWindow()) return;
         int slot = HoverTerminalFeature.resolveHoveredSlot(screen);
-        if (slot < 0) {
-            return;
-        }
+        if (slot < 0) return;
         if (type == TerminalType.MELODY) {
             if (TerminalSolverFeature.melodyMatchedButtonSlot(items) != slot || HoverTerminalFeature.melodyGuardBlocks(slot, now)) {
                 return;
             }
-            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-                return;
-            }
+            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
             HoverTerminalFeature.noteMelodyClick(slot, now);
             TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
             nextRepeatAtMs = now + cfg.getHoldToClickRepeatMs();
             return;
         }
         TerminalSolverFeature.SlotHighlight highlight = highlights.get(slot);
-        if (highlight == null) {
-            return;
-        }
+        if (highlight == null) return;
         TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
-        if (target == null || TerminalSolverFeature.isHoverClickBlocked(slot, now)) {
-            return;
-        }
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) {
-            return;
-        }
+        if (target == null || TerminalSolverFeature.isHoverClickBlocked(slot, now)) return;
+        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         if (TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType())) {

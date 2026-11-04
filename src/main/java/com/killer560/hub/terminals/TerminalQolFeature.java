@@ -91,9 +91,7 @@ public final class TerminalQolFeature {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
@@ -152,20 +150,14 @@ public final class TerminalQolFeature {
     public static boolean shouldSwallowClick() {
         syncScreen();
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
-        if (!cfg.isProtectionEnabled() || currentType == null || terminalOpenedAtMs < 0) {
-            return false;
-        }
+        if (!cfg.isProtectionEnabled() || currentType == null || terminalOpenedAtMs < 0) return false;
         long threshold = cfg.getProtectionThresholdMs();
         if (cfg.isProtectionSubtractPing()) {
             threshold -= ping();
         }
-        if (threshold <= 0) {
-            return false;
-        }
+        if (threshold <= 0) return false;
         long elapsed = System.currentTimeMillis() - terminalOpenedAtMs;
-        if (elapsed > threshold) {
-            return false;
-        }
+        if (elapsed > threshold) return false;
         terminalOpenedAtMs = -1L;
         playBlockedSound();
         return true;
@@ -181,9 +173,7 @@ public final class TerminalQolFeature {
     public static boolean withinProtectionWindow() {
         syncScreen();
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
-        if (!cfg.isProtectionEnabled() || currentType == null || terminalOpenedAtMs < 0) {
-            return false;
-        }
+        if (!cfg.isProtectionEnabled() || currentType == null || terminalOpenedAtMs < 0) return false;
         long threshold = cfg.getProtectionThresholdMs();
         if (cfg.isProtectionSubtractPing()) {
             threshold -= ping();
@@ -213,9 +203,7 @@ public final class TerminalQolFeature {
     public static boolean handleMelodyKey(AbstractContainerScreen<?> screen, int keyCode) {
         syncScreen();
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
-        if (!cfg.isMelodyKeysEnabled() || currentType != TerminalType.MELODY || screen == null) {
-            return false;
-        }
+        if (!cfg.isMelodyKeysEnabled() || currentType != TerminalType.MELODY || screen == null) return false;
         int row = -1;
         for (int i = 0; i < MELODY_KEYS.length; i++) {
             if (keyCode == MELODY_KEYS[i] || keyCode == MELODY_NUMPAD_KEYS[i]) {
@@ -223,9 +211,7 @@ public final class TerminalQolFeature {
                 break;
             }
         }
-        if (row < 0) {
-            return false;
-        }
+        if (row < 0) return false;
         // The board's own buttons, top row first (TerminalLayouts.melodyButtonSlots): four on the old layout, three
         // since the 2026-10-06 update. Key N is the N-th button that is actually there.
         List<ItemStack> all = screen.getMenu().getItems();
@@ -276,17 +262,11 @@ public final class TerminalQolFeature {
     }
 
     private static boolean matchesHiddenCompletion(Component text) {
-        if (text == null) {
-            return false;
-        }
+        if (text == null) return false;
         String plain = ChatObserver.strip(text);
         var match = COMPLETION_REGEX.matcher(plain);
-        if (!match.matches()) {
-            return false;
-        }
-        if (!TerminalQolConfig.getInstance().isHideCompletionOnlyOthers()) {
-            return true;
-        }
+        if (!match.matches()) return false;
+        if (!TerminalQolConfig.getInstance().isHideCompletionOnlyOthers()) return true;
         Minecraft client = Minecraft.getInstance();
         return client.player == null || !match.group(1).equals(client.player.getName().getString());
     }
@@ -309,9 +289,7 @@ public final class TerminalQolFeature {
     private static void tickDropKey() {
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (client.options == null) {
-            return;
-        }
+        if (client.options == null) return;
         boolean wanted = cfg.isDropKeyEnabled() && currentType != null;
         if (wanted && !dropKeySwapped) {
             String realKey = client.options.keyDrop.saveString();
@@ -346,9 +324,7 @@ public final class TerminalQolFeature {
     private static void restoreDropKeyAfterCrash() {
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         String saved = cfg.getSavedDropKeyName();
-        if (saved.isEmpty()) {
-            return;
-        }
+        if (saved.isEmpty()) return;
         Minecraft client = Minecraft.getInstance();
         if (client.options != null) {
             client.options.keyDrop.setKey(InputConstants.getKey(saved));
@@ -406,9 +382,7 @@ public final class TerminalQolFeature {
     private static void tickGuiScale() {
         Minecraft client = Minecraft.getInstance();
         Window window = client.getWindow();
-        if (window == null || client.options == null) {
-            return;
-        }
+        if (window == null || client.options == null) return;
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         int wanted = currentType == null ? 0
                 : currentType == TerminalType.MELODY ? cfg.getMelodyGuiScale() : cfg.getTerminalGuiScale();
