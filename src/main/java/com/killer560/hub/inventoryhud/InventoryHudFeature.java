@@ -123,12 +123,7 @@ public final class InventoryHudFeature {
     }
 
     private static boolean isMainInventoryEmpty(Inventory inventory) {
-        for (int i = MAIN_START; i < MAIN_START + ROWS * COLS; i++) {
-            if (!inventory.getItem(i).isEmpty()) {
-                return false;
-            }
-        }
-        return true;
+        return java.util.stream.IntStream.range(MAIN_START, MAIN_START + ROWS * COLS).allMatch(i -> inventory.getItem(i).isEmpty());
     }
 
     static int cellSize(InventoryHudConfig cfg) {
