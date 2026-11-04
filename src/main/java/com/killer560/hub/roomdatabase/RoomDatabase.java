@@ -79,9 +79,7 @@ public final class RoomDatabase {
     private RoomDatabase() {
     }
 
-    public static boolean isReady() {
-        return byCoreHash != null;
-    }
+    public static boolean isReady() { return byCoreHash != null; }
 
     /** Kicks off a background load if one isn't already running/done - safe to call every tick, it
      *  no-ops once loaded.
@@ -115,9 +113,7 @@ public final class RoomDatabase {
         return map == null || name == null ? null : map.get(name);
     }
 
-    private static Path dataDir() {
-        return ModPaths.config("killer560smod-roomdata");
-    }
+    private static Path dataDir() { return ModPaths.config("killer560smod-roomdata"); }
 
     private static void loadBlocking() {
         try {
@@ -250,9 +246,7 @@ public final class RoomDatabase {
         return hash;
     }
 
-    private static int computeTokenHash(Block block) {
-        return tokenHashOf(BuiltInRegistries.BLOCK.getKey(block).toString());
-    }
+    private static int computeTokenHash(Block block) { return tokenHashOf(BuiltInRegistries.BLOCK.getKey(block).toString()); }
 
     /** One block's share of a core hash, from its id ({@code minecraft:stone}); block-state properties are ignored. */
     private static int tokenHashOf(String id) {
