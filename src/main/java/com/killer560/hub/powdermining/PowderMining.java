@@ -18,9 +18,7 @@ public final class PowderMining {
     }
 
     /** A treasure chest was uncovered or looted. */
-    static void markChest() {
-        lastChestAt = System.currentTimeMillis();
-    }
+    static void markChest() { lastChestAt = System.currentTimeMillis(); }
 
     public static boolean activeRecently() {
         Boolean f = forced;

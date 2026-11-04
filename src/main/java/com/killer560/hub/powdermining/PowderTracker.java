@@ -125,48 +125,30 @@ public final class PowderTracker {
     }
 
 
-    public static int chests() {
-        return chests;
-    }
+    public static int chests() { return chests; }
 
-    public static long gemstone() {
-        return gemstone;
-    }
+    public static long gemstone() { return gemstone; }
 
-    public static long mithril() {
-        return mithril;
-    }
+    public static long mithril() { return mithril; }
 
-    public static long item(String name) {
-        return ITEMS.getOrDefault(name, 0L);
-    }
+    public static long item(String name) { return ITEMS.getOrDefault(name, 0L); }
 
-    public static long activeMs() {
-        return activeMs;
-    }
+    public static long activeMs() { return activeMs; }
 
     /** The movable tracker. */
     public static final class Hud implements HudElement {
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Powder Tracker";
-        }
+        public String displayName() { return "Powder Tracker"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 100;
-        }
+        public int defaultY() { return 100; }
 
         @Override
         public int width() {
@@ -178,14 +160,10 @@ public final class PowderTracker {
         }
 
         @Override
-        public int height() {
-            return lines().size() * 10;
-        }
+        public int height() { return lines().size() * 10; }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return PowderMiningConfig.getInstance().isPowderTrackerRaw();
-        }
+        public boolean isEnabledInSettings() { return PowderMiningConfig.getInstance().isPowderTrackerRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {

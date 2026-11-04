@@ -218,9 +218,7 @@ public final class TreasureChests {
                 p.getX() + 0.9375, p.getY() + 0.875, p.getZ() + 0.9375);
     }
 
-    static Map<BlockPos, Long> chests() {
-        return CHESTS;
-    }
+    static Map<BlockPos, Long> chests() { return CHESTS; }
 
     static void render(LevelRenderContext context) {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
@@ -276,33 +274,19 @@ public final class TreasureChests {
     }
 
 
-    public static int claims() {
-        return claims;
-    }
+    public static int claims() { return claims; }
 
-    public static int alerts() {
-        return alerts;
-    }
+    public static int alerts() { return alerts; }
 
-    public static int boxFrames() {
-        return boxFrames;
-    }
+    public static int boxFrames() { return boxFrames; }
 
-    public static int count() {
-        return CHESTS.size();
-    }
+    public static int count() { return CHESTS.size(); }
 
-    public static boolean throughWalls() {
-        return throughWallsNow;
-    }
+    public static boolean throughWalls() { return throughWallsNow; }
 
-    public static boolean tracked(int x, int y, int z) {
-        return CHESTS.containsKey(new BlockPos(x, y, z));
-    }
+    public static boolean tracked(int x, int y, int z) { return CHESTS.containsKey(new BlockPos(x, y, z)); }
 
-    public static String hudLineNow() {
-        return hudLine();
-    }
+    public static String hudLineNow() { return hudLine(); }
 
     public static List<int[]> positions() {
         List<int[]> out = new ArrayList<>();
@@ -323,24 +307,16 @@ public final class TreasureChests {
         }
 
         @Override
-        public String id() {
-            return TIMER_ID;
-        }
+        public String id() { return TIMER_ID; }
 
         @Override
-        public String displayName() {
-            return "Treasure Chest Timer";
-        }
+        public String displayName() { return "Treasure Chest Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 232;
-        }
+        public int defaultY() { return 232; }
 
         @Override
         public int width() {
@@ -349,9 +325,7 @@ public final class TreasureChests {
         }
 
         @Override
-        public int height() {
-            return 10;
-        }
+        public int height() { return 10; }
 
         @Override
         public boolean isEnabledInSettings() {

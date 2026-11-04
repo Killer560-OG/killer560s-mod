@@ -66,9 +66,7 @@ public final class PowderMiningConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
         static LootShow byName(String n) {
             for (LootShow v : values()) {
@@ -80,9 +78,7 @@ public final class PowderMiningConfig {
         }
     }
 
-    public LootShow getLootShow() {
-        return lootShow;
-    }
+    public LootShow getLootShow() { return lootShow; }
 
     public void stepLootShow(int dir) {
         LootShow[] all = LootShow.values();
@@ -167,175 +163,91 @@ public final class PowderMiningConfig {
         }
     }
 
-    private static boolean sb() {
-        return SkyblockGate.allows();
-    }
+    private static boolean sb() { return SkyblockGate.allows(); }
 
-    public boolean isTreasureChest() {
-        return treasureChest && sb();
-    }
+    public boolean isTreasureChest() { return treasureChest && sb(); }
 
-    public boolean isTreasureChestRaw() {
-        return treasureChest;
-    }
+    public boolean isTreasureChestRaw() { return treasureChest; }
 
-    public void setTreasureChest(boolean v) {
-        treasureChest = v;
-    }
+    public void setTreasureChest(boolean v) { treasureChest = v; }
 
-    public int getTreasureChestColor() {
-        return treasureChestColor;
-    }
+    public int getTreasureChestColor() { return treasureChestColor; }
 
-    public void setTreasureChestColor(int v) {
-        treasureChestColor = v;
-    }
+    public void setTreasureChestColor(int v) { treasureChestColor = v; }
 
-    public boolean isTreasureChestTimer() {
-        return treasureChestTimer;
-    }
+    public boolean isTreasureChestTimer() { return treasureChestTimer; }
 
-    public void setTreasureChestTimer(boolean v) {
-        treasureChestTimer = v;
-    }
+    public void setTreasureChestTimer(boolean v) { treasureChestTimer = v; }
 
-    public boolean isTreasureChestFade() {
-        return treasureChestFade;
-    }
+    public boolean isTreasureChestFade() { return treasureChestFade; }
 
-    public void setTreasureChestFade(boolean v) {
-        treasureChestFade = v;
-    }
+    public void setTreasureChestFade(boolean v) { treasureChestFade = v; }
 
     /** Through walls: cheat build only. */
-    public boolean isTreasureChestEsp() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && treasureChestEsp;
-    }
+    public boolean isTreasureChestEsp() { return BuildVariant.CHEAT_FEATURES_ENABLED && treasureChestEsp; }
 
-    public void setTreasureChestEsp(boolean v) {
-        treasureChestEsp = v;
-    }
+    public void setTreasureChestEsp(boolean v) { treasureChestEsp = v; }
 
-    public boolean isChestAlert() {
-        return chestAlert && sb();
-    }
+    public boolean isChestAlert() { return chestAlert && sb(); }
 
-    public boolean isChestAlertRaw() {
-        return chestAlert;
-    }
+    public boolean isChestAlertRaw() { return chestAlert; }
 
-    public void setChestAlert(boolean v) {
-        chestAlert = v;
-    }
+    public void setChestAlert(boolean v) { chestAlert = v; }
 
-    public boolean isChestAlertSound() {
-        return chestAlertSound;
-    }
+    public boolean isChestAlertSound() { return chestAlertSound; }
 
-    public void setChestAlertSound(boolean v) {
-        chestAlertSound = v;
-    }
+    public void setChestAlertSound(boolean v) { chestAlertSound = v; }
 
-    public boolean isChestAlertTitle() {
-        return chestAlertTitle;
-    }
+    public boolean isChestAlertTitle() { return chestAlertTitle; }
 
-    public void setChestAlertTitle(boolean v) {
-        chestAlertTitle = v;
-    }
+    public void setChestAlertTitle(boolean v) { chestAlertTitle = v; }
 
     // ---- Lockpick Helper (legit, both builds; killer560, 2026-11-03)
-    public boolean isLockpickHelper() {
-        return lockpickHelper && sb();
-    }
+    public boolean isLockpickHelper() { return lockpickHelper && sb(); }
 
-    public boolean isLockpickHelperRaw() {
-        return lockpickHelper;
-    }
+    public boolean isLockpickHelperRaw() { return lockpickHelper; }
 
-    public void setLockpickHelper(boolean v) {
-        lockpickHelper = v;
-    }
+    public void setLockpickHelper(boolean v) { lockpickHelper = v; }
 
-    public int getLockpickColor() {
-        return lockpickColor;
-    }
+    public int getLockpickColor() { return lockpickColor; }
 
-    public void setLockpickColor(int v) {
-        lockpickColor = v;
-    }
+    public void setLockpickColor(int v) { lockpickColor = v; }
 
-    public boolean isPowderTracker() {
-        return powderTracker && sb();
-    }
+    public boolean isPowderTracker() { return powderTracker && sb(); }
 
-    public boolean isPowderTrackerRaw() {
-        return powderTracker;
-    }
+    public boolean isPowderTrackerRaw() { return powderTracker; }
 
-    public void setPowderTracker(boolean v) {
-        powderTracker = v;
-    }
+    public void setPowderTracker(boolean v) { powderTracker = v; }
 
-    public boolean isPowderTrackerMithril() {
-        return powderTrackerMithril;
-    }
+    public boolean isPowderTrackerMithril() { return powderTrackerMithril; }
 
-    public void setPowderTrackerMithril(boolean v) {
-        powderTrackerMithril = v;
-    }
+    public void setPowderTrackerMithril(boolean v) { powderTrackerMithril = v; }
 
-    public boolean isPowderTrackerItems() {
-        return powderTrackerItems;
-    }
+    public boolean isPowderTrackerItems() { return powderTrackerItems; }
 
-    public void setPowderTrackerItems(boolean v) {
-        powderTrackerItems = v;
-    }
+    public void setPowderTrackerItems(boolean v) { powderTrackerItems = v; }
 
     // ---- 2x Powder Alert
-    public boolean isDoublePowder() {
-        return doublePowder && sb();
-    }
+    public boolean isDoublePowder() { return doublePowder && sb(); }
 
-    public boolean isDoublePowderRaw() {
-        return doublePowder;
-    }
+    public boolean isDoublePowderRaw() { return doublePowder; }
 
-    public void setDoublePowder(boolean v) {
-        doublePowder = v;
-    }
+    public void setDoublePowder(boolean v) { doublePowder = v; }
 
-    public boolean isDoublePowderSound() {
-        return doublePowderSound;
-    }
+    public boolean isDoublePowderSound() { return doublePowderSound; }
 
-    public void setDoublePowderSound(boolean v) {
-        doublePowderSound = v;
-    }
+    public void setDoublePowderSound(boolean v) { doublePowderSound = v; }
 
     /** Hide "You uncovered a treasure chest!" from the chat window (display time, after every reader saw it). */
-    public boolean isHideTreasureUncovered() {
-        return hideTreasureUncovered && sb();
-    }
+    public boolean isHideTreasureUncovered() { return hideTreasureUncovered && sb(); }
 
-    public boolean isHideTreasureUncoveredRaw() {
-        return hideTreasureUncovered;
-    }
+    public boolean isHideTreasureUncoveredRaw() { return hideTreasureUncovered; }
 
-    public void setHideTreasureUncovered(boolean v) {
-        hideTreasureUncovered = v;
-    }
+    public void setHideTreasureUncovered(boolean v) { hideTreasureUncovered = v; }
 
-    public boolean isLootCompact() {
-        return lootCompact && sb();
-    }
+    public boolean isLootCompact() { return lootCompact && sb(); }
 
-    public boolean isLootCompactRaw() {
-        return lootCompact;
-    }
+    public boolean isLootCompactRaw() { return lootCompact; }
 
-    public void setLootCompact(boolean v) {
-        lootCompact = v;
-    }
+    public void setLootCompact(boolean v) { lootCompact = v; }
 }

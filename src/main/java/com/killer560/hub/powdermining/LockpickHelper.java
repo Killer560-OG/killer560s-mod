@@ -137,12 +137,8 @@ public final class LockpickHelper {
     }
 
 
-    public static int samples() {
-        return samples;
-    }
+    public static int samples() { return samples; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
 }

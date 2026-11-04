@@ -70,9 +70,7 @@ public final class PowderChat {
     private PowderChat() {
     }
 
-    static void register() {
-        ClientReceiveMessageEvents.ALLOW_GAME.register(PowderChat::allow);
-    }
+    static void register() { ClientReceiveMessageEvents.ALLOW_GAME.register(PowderChat::allow); }
 
     private static boolean allow(Component message, boolean overlay) {
         if (overlay || message == null || flushing) {
@@ -376,24 +374,14 @@ public final class PowderChat {
         }
     }
 
-    public static boolean doublePowderActive() {
-        return doublePowder;
-    }
+    public static boolean doublePowderActive() { return doublePowder; }
 
 
-    public static int hiddenLines() {
-        return hidden;
-    }
+    public static int hiddenLines() { return hidden; }
 
-    public static int compactLines() {
-        return compactLines;
-    }
+    public static int compactLines() { return compactLines; }
 
-    public static int doubleAlerts() {
-        return doubleAlerts;
-    }
+    public static int doubleAlerts() { return doubleAlerts; }
 
-    public static String lastCompact() {
-        return lastCompact;
-    }
+    public static String lastCompact() { return lastCompact; }
 }
