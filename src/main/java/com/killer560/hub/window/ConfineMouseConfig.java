@@ -85,8 +85,4 @@ public final class ConfineMouseConfig {
         onlyInDungeons = v;
     }
 
-    /** Whether he has set it himself (so the default no longer follows the window mode). */
-    public boolean isExplicitlySet() {
-        return enabled != null;
-    }
 }
