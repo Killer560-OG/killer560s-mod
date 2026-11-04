@@ -344,6 +344,37 @@ public final class DungeonLayout {
         return idx >= 0 && idx < roomOf.length ? roomOf[idx] : -1;
     }
 
+    /** Whether {@code old}'s room indices mean the same rooms here: a snapshot numbers its rooms afresh (rebuildGroups
+     *  walks a HashMap), so an index kept across ticks is good only while this holds; else map it with
+     *  {@link #sameRoom} or keep a cell instead (fairydoor-1104, roomidx-1104). */
+    public boolean numbersLike(DungeonLayout old) {
+        return old == null || old.names == names;
+    }
+
+    /** Room {@code room} of the snapshot {@code old} in this one, by one of its cells; -1 when it is gone. */
+    public int sameRoom(DungeonLayout old, int room) {
+        if (numbersLike(old) || room < 0) {
+            return room;
+        }
+        int[] t = room < old.tiles.length ? old.tiles[room] : null;
+        return t == null || t.length == 0 ? -1 : roomOfCell(t[0]);
+    }
+
+    /** {@link #sameRoom} for each room in {@code rooms}, in place and in order; rooms gone are dropped. */
+    public void sameRooms(DungeonLayout old, java.util.Collection<Integer> rooms) {
+        if (numbersLike(old) || rooms.isEmpty()) {
+            return;
+        }
+        List<Integer> was = new java.util.ArrayList<>(rooms);
+        rooms.clear();
+        for (int r : was) {
+            int now = sameRoom(old, r);
+            if (now >= 0) {
+                rooms.add(now);
+            }
+        }
+    }
+
     /** QUOI {@code ScanUtils.getRoomFromPos}: clamped grid tile under a world position, or -1. */
     public int roomAtWorld(double x, double z) {
         // Math.floor, not a cast.
