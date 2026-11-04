@@ -53,12 +53,8 @@ public final class MobSkins {
 
     /** {@code id} when it is on the allowlist, else null (blank, unknown, a boss, anything with a namespace). */
     public static String sanitize(String id) {
-        if (id == null || id.isEmpty()) {
-            return null;
-        }
-        if (isPet(id)) {
-            return petFor(id) == null ? null : id;
-        }
+        if (id == null || id.isEmpty()) return null;
+        if (isPet(id)) return petFor(id) == null ? null : id;
         String lower = id.toLowerCase(Locale.ROOT);
         return lower.equals(id) && IDS.contains(id) ? id : null;
     }
@@ -72,13 +68,9 @@ public final class MobSkins {
         }
         // Asked per swapped player per frame by the renderer (fps pass 2026-10-19). The built-in entity registry is
         // frozen before any of this runs, so the answer for an id never changes: remembered per id (bounded).
-        if (id == null) {
-            return typeUncached(null);
-        }
+        if (id == null) return typeUncached(null);
         Object known = TYPES.get(id);
-        if (known != null) {
-            return known == NO_TYPE ? null : (EntityType<?>) known;
-        }
+        if (known != null) return known == NO_TYPE ? null : (EntityType<?>) known;
         EntityType<?> type = typeUncached(id);
         if (TYPES.size() < 256) {
             TYPES.put(id, type == null ? NO_TYPE : type);
@@ -91,9 +83,7 @@ public final class MobSkins {
 
     private static EntityType<?> typeUncached(String id) {
         String ok = sanitize(id);
-        if (ok == null) {
-            return null;
-        }
+        if (ok == null) return null;
         Identifier key = Identifier.withDefaultNamespace(ok);
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(key).orElse(null);
         // ENTITY_TYPE is a defaulted registry: never accept its default standing in for a missing id.
@@ -133,14 +123,10 @@ public final class MobSkins {
 
     /** The seen pet behind a {@code pet:} id, or null when there is no such pet or it has no captured head texture. */
     public static PetEntry petFor(String id) {
-        if (!isPet(id)) {
-            return null;
-        }
+        if (!isPet(id)) return null;
         String uuid = id.substring(PET_PREFIX.length());
         for (PetEntry pet : PetWheelConfig.getInstance().getKnownPets()) {
-            if (uuid.equals(pet.uuid()) && pet.skinValue() != null) {
-                return pet;
-            }
+            if (uuid.equals(pet.uuid()) && pet.skinValue() != null) return pet;
         }
         return null;
     }

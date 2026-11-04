@@ -77,9 +77,7 @@ public final class MobSkinRender {
 
     /** The mob {@code entity} is drawn as right now (an allowed id), or null for the normal player. */
     public static String mobFor(Entity entity) {
-        if (!(entity instanceof AbstractClientPlayer player)) {
-            return null;
-        }
+        if (!(entity instanceof AbstractClientPlayer player)) return null;
         String id;
         if (player == Minecraft.getInstance().player) {
             id = SupportersConfig.getInstance().getActiveOwnMob();
@@ -101,22 +99,14 @@ public final class MobSkinRender {
      */
     public static EntityRenderState swap(EntityRenderDispatcher dispatcher, Entity entity, EntityRenderState playerState,
                                          float partialTick) {
-        if (!(playerState instanceof LivingEntityRenderState ps) || !(entity instanceof AbstractClientPlayer)) {
-            return playerState;
-        }
-        if (extractingOwnState && entity == Minecraft.getInstance().player) {
-            return playerState;
-        }
+        if (!(playerState instanceof LivingEntityRenderState ps) || !(entity instanceof AbstractClientPlayer)) return playerState;
+        if (extractingOwnState && entity == Minecraft.getInstance().player) return playerState;
         String id = null;
         try {
             id = mobFor(entity);
-            if (id == null) {
-                return playerState;
-            }
+            if (id == null) return playerState;
             LivingEntity standIn = standInFor(entity.getUUID(), id, entity.level());
-            if (standIn == null) {
-                return playerState;
-            }
+            if (standIn == null) return playerState;
             EntityRenderer<? super LivingEntity, ?> renderer = dispatcher.getRenderer(standIn);
             EntityRenderState made = renderer.createRenderState(standIn, partialTick);
             if (!(made instanceof LivingEntityRenderState ms)) {
@@ -151,13 +141,9 @@ public final class MobSkinRender {
     /** One stand-in per player, remade when his mob or the level changes. */
     private static LivingEntity standInFor(UUID owner, String id, Level level) {
         EntityType<?> type = MobSkins.type(id);
-        if (type == null || level == null) {
-            return null;
-        }
+        if (type == null || level == null) return null;
         StandIn s = STAND_INS.get(owner);
-        if (s != null && s.type() == type && s.level() == level) {
-            return dressPet(id, s.entity());
-        }
+        if (s != null && s.type() == type && s.level() == level) return dressPet(id, s.entity());
         if (STAND_INS.size() >= MAX_STAND_INS) {
             STAND_INS.clear();
         }
