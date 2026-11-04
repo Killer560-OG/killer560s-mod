@@ -122,7 +122,6 @@ public final class SceneShaders {
         }
     }
 
-    // ---- the data texture ---------------------------------------------------------------------------------------------
 
     private static final float[] SLOT = new float[SLOT_FLOATS];
 
@@ -182,7 +181,6 @@ public final class SceneShaders {
         return setup;
     }
 
-    // ---- elements -----------------------------------------------------------------------------------------------------
 
     /** A run of textured quads (x0 y0 x1 y1 u0 v0 u1 v1 color) in one pose, submitted as one element. */
     static final class Quads implements GuiElementRenderState {
@@ -291,7 +289,6 @@ public final class SceneShaders {
         }
     }
 
-    // ---- blue noise ---------------------------------------------------------------------------------------------------
 
     /**
      * A {@code n} x {@code n} tileable blue-noise threshold map by Ulichney's void-and-cluster (Gaussian energy, sigma 1.5,

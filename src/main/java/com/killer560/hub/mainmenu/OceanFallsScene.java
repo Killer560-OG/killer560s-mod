@@ -167,7 +167,6 @@ final class OceanFallsScene {
         SCENE.drawOverlays(r, w, h, t, density);
     }
 
-    // ---- shapes --------------------------------------------------------------------------------------------------------
 
     /**
      * A soft falling streak from {@code yTail} (clear) to {@code yHead} (brightest) centered on x, {@code w} wide: a faint
@@ -314,7 +313,6 @@ final class OceanFallsScene {
         return pts[pts.length - 1];
     }
 
-    // ---- overlays ------------------------------------------------------------------------------------------------------
 
     /** Glows breathing between two strengths, each on its own slow eased clock. Seven numbers each (see SCENE). */
     record Pulse(double[] g, int rgb) implements PictureScene.Overlay {

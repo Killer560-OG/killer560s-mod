@@ -124,7 +124,6 @@ final class PictureScene {
         return MainMenuScenes.hash(i, salt);
     }
 
-    // ---- pieces --------------------------------------------------------------------------------------------------------
 
     record Patch(Identifier texture, int x, int y, int w, int h) {
     }

@@ -331,7 +331,6 @@ public final class MainMenuScenes {
         }
     }
 
-    // ---------------------------------------------------------------- shared pieces
 
     private static void base(GuiRects r, int w, int h, int accent, int panel, boolean light) {
         r.gradient(0, 0, w, h, baseTop(accent, panel, light), baseBottom(accent, panel, light));

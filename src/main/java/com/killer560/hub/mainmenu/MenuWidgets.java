@@ -88,7 +88,6 @@ public final class MenuWidgets {
         return MainMenuTheme.activeOnMenus();
     }
 
-    // ---------------------------------------------------------------- text fields
 
     /** Bordered EditBox / multi-line text area frame: dark field, dim orange border, full orange when focused. */
     public static void drawTextField(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean focused) {
@@ -102,7 +101,6 @@ public final class MenuWidgets {
         g.outline(x, y, w, h, border);
     }
 
-    // ---------------------------------------------------------------- sliders
 
     /** Slider track: the themed button box plus a warm "filled" strip from the left edge up to the handle. */
     public static void drawSliderTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
@@ -136,7 +134,6 @@ public final class MenuWidgets {
         }
     }
 
-    // ---------------------------------------------------------------- checkboxes
 
     /** Checkbox square with an orange 2px check mark when selected. */
     public static void drawCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean active,
@@ -186,7 +183,6 @@ public final class MenuWidgets {
         }
     }
 
-    // ---------------------------------------------------------------- tabs
 
     /** Tab button: the selected tab is full height, warm dark, orange top/sides and open at the bottom so it
      *  merges with the content; unselected tabs sit 2px lower as closed boxes whose bottom edge lines up with
@@ -226,7 +222,6 @@ public final class MenuWidgets {
         g.fill(x, y + h - 1, x + w, y + h, BORDER);
     }
 
-    // ---------------------------------------------------------------- difficulty lock button
 
     /** Themed box plus a small padlock glyph: closed and orange when locked, open and dim when unlocked. */
     public static void drawLockButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
@@ -258,7 +253,6 @@ public final class MenuWidgets {
         g.fill(cx + 2, topY + 1, cx + 3, locked ? cy - 1 : topY + 3, color);
     }
 
-    // ---------------------------------------------------------------- tooltips
 
     /** Tooltip background for content at (x, y, w, h): same 4px footprint as vanilla's frame, warm near-black
      *  fill and a 1px orange border (matches ModScreen's setting tooltips). */

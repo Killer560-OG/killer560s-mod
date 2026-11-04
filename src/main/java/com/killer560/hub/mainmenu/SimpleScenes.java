@@ -415,7 +415,6 @@ public final class SimpleScenes {
         }
     }
 
-    // ---------------------------------------------------------------- drawing
 
     /**
      * Draws {@code f} through the scene shaders. Returns false (having drawn nothing) when they are unavailable; the

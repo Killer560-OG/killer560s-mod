@@ -243,7 +243,6 @@ public final class TitleScreenLooks {
         return MainMenuLook.coloursOf(c.theme(), MenuConfig.getInstance());
     }
 
-    // ---------------------------------------------------------------- the title screen's buttons
 
     /** The Multiplayer slot's replacement: a plain vanilla Button, so it is themed like the rest of the column. */
     public static final class LooksButton extends Button.Plain {

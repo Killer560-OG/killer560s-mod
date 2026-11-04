@@ -83,7 +83,6 @@ public final class MainMenuTheme {
         }
     }
 
-    // ---------------------------------------------------------------- color helpers
 
     /** rgb (0xRRGGBB) with an explicit 0..255 alpha. */
     public static int argb(int rgb, int alpha) {
@@ -96,7 +95,6 @@ public final class MainMenuTheme {
         return argb(argb, Math.round(a * Math.max(0f, Math.min(1f, factor))));
     }
 
-    // ---------------------------------------------------------------- buttons
 
     public static void drawButtonBox(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                      boolean active, boolean highlighted, float alpha) {
@@ -167,7 +165,6 @@ public final class MainMenuTheme {
     private static final int LABEL_LIMIT = 512;
     private static final java.util.Map<Component, Label> LABELS = new java.util.IdentityHashMap<>();
 
-    // ---------------------------------------------------------------- footer
 
     public static String modTag() {
         String tag = modTag;
@@ -184,7 +181,6 @@ public final class MainMenuTheme {
         return tag;
     }
 
-    // ---------------------------------------------------------------- background
 
     /** The main menu's animated background in its own theme (see {@link MainMenuLook}, {@link MainMenuScenes}): Amber's
      *  embers, Ocean's waterfall, Dark's starfield, Light's soft light, Custom's aurora, or the Custom style's pick.

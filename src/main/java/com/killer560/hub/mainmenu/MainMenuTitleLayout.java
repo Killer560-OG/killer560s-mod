@@ -143,7 +143,6 @@ public final class MainMenuTitleLayout {
         return screen != null && appliedTo.get() == screen;
     }
 
-    // ---------------------------------------------------------------- swap accounts button
 
     /** Marker subclass so the layout can find our button without matching on its label. A plain vanilla
      *  Button, so MainMenuButtonMixin themes it exactly like Singleplayer/Multiplayer. */
@@ -194,7 +193,6 @@ public final class MainMenuTitleLayout {
         return "Swap Accounts - Playing as " + playerName();
     }
 
-    // ---------------------------------------------------------------- layout
 
     private static void apply(Screen screen) {
         appliedTo = new WeakReference<>(null);
@@ -482,7 +480,6 @@ public final class MainMenuTitleLayout {
         return playingAsY;
     }
 
-    // ---------------------------------------------------------------- identification
 
     private static String translationKey(AbstractWidget w) {
         Component message = w.getMessage();

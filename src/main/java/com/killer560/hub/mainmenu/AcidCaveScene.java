@@ -152,7 +152,6 @@ final class AcidCaveScene {
         return MainMenuScenes.hash(i, salt + 400);
     }
 
-    // ---- drawing --------------------------------------------------------------------------------------------------
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, float density) {
         draw(r, w, h, t, accent, panel, density, false);
@@ -200,7 +199,6 @@ final class AcidCaveScene {
             SlimeBossScene.boss(r, w, h, acid, hot, lakeY, s);
         }
 
-        // ---- green fog over the lake and up the sides
         for (int k = 0; k < 3; k++) {
             double span = w * 1.6;
             double fx = ((t * (6 + k * 3) * s + h(k, 17) * span) % span) - w * 0.3;
@@ -233,7 +231,6 @@ final class AcidCaveScene {
             }
         }
 
-        // ---- the ledge and the fight
         int lip = MenuStyle.alpha(hot, 0x60);
         for (int i = 0; i < (boss ? 0 : steps); i++) {
             fill(r, stepX0[i], stepTop[i], stepX1[i], h, rockNear);
@@ -253,7 +250,6 @@ final class AcidCaveScene {
             fight(r, w, t, acid, hot);
         }
 
-        // ---- the green tint over everything
         r.fill(0, 0, w, h, MenuStyle.alpha(acid, 0x0A));
     }
 
@@ -263,7 +259,6 @@ final class AcidCaveScene {
         }
     }
 
-    // ---- the waterfall ---------------------------------------------------------------------------------------------
 
     private static void waterfall(GuiRects r, int w, int h, double t, int acid, int hot, float density) {
         double cx = w * 0.80;
@@ -342,7 +337,6 @@ final class AcidCaveScene {
         }
     }
 
-    // ---- the lake --------------------------------------------------------------------------------------------------
 
     private static void lake(GuiRects r, int w, int h, double t, int acid, int hot, float density) {
         int surface = MenuStyle.mix(acid, BLACK, 0.38f);
@@ -407,7 +401,6 @@ final class AcidCaveScene {
         }
     }
 
-    // ---- motes and drips -------------------------------------------------------------------------------------------
 
     private static void motes(GuiRects r, int w, int h, double t, int hot, float density) {
         int n = scaled(26, density, 8, 36);
@@ -454,7 +447,6 @@ final class AcidCaveScene {
         }
     }
 
-    // ---- the fight -------------------------------------------------------------------------------------------------
 
     /** Seconds per sword swing (and per slime hop). */
     private static final double PERIOD = 1.6;

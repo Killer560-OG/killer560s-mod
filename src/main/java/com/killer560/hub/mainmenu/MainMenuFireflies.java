@@ -195,7 +195,6 @@ final class MainMenuFireflies {
         return MainMenuScenes.hash(i, salt);
     }
 
-    // ---- drawing --------------------------------------------------------------------------------------------------
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, int text, float density) {
         if (w != builtW || h != builtH) {
@@ -221,7 +220,6 @@ final class MainMenuFireflies {
         // Light from above through the canopy.
         MainMenuScenes.glow(r, w / 2, -10, w * 0.55, h * 0.30, mint, 0x1C, 5);
 
-        // ---- far layer, half lost in fog
         drawTrunks(r, FAR, farDx, farTrunk, 0, s);
         drawLobes(r, FAR, farDx, farLeaf, t, 0.6f * s);
         r.gradient(0, (int) (h * 0.72), w, (int) (h * 0.84), MenuStyle.alpha(fog, 0), MenuStyle.alpha(fog, 0xC0));
@@ -252,14 +250,12 @@ final class MainMenuFireflies {
         // ---- fireflies behind the mid trees (dim, small)
         fireflies(r, w, h, t, accent, mint, text, density, 0);
 
-        // ---- mid layer
         drawTrunks(r, MID, midDx, midTrunk, MenuStyle.alpha(mint, 0x14), s);
         drawLobes(r, MID, midDx, midLeaf, t, 1.0f * s);
         // The forest floor: a mossy band the undergrowth stands out against.
         int floor = MenuStyle.mix(panel, accent, 0.16f);
         r.gradient(0, (int) (h * 0.86), w, h, MenuStyle.alpha(floor, 0xB0), MenuStyle.alpha(MenuStyle.mix(floor, BLACK, 0.3f), 0xFF));
 
-        // ---- mist along the ground
         for (int k = 0; k < 3; k++) {
             double md = Math.sin(t * (0.05 + k * 0.02) + k * 2.0) * w * 0.15;
             int cy = h - (int) (14 * s) - k * Math.max(12, h / 10);
@@ -267,7 +263,6 @@ final class MainMenuFireflies {
             MainMenuScenes.glow(r, (int) (w / 2 + md), cy, w * 0.7, h * 0.07, mint, a, 3);
         }
 
-        // ---- fireflies between the mid and near layers
         fireflies(r, w, h, t, accent, mint, text, density, 1);
 
         // ---- near layer: framing trunks, canopy overhead, undergrowth
@@ -277,7 +272,6 @@ final class MainMenuFireflies {
         drawFerns(r, h, t, nearDx, MenuStyle.mix(panel, accent, 0.22f), MenuStyle.mix(panel, accent, 0.50f), s);
         drawTufts(r, h, t, nearDx, MenuStyle.mix(panel, accent, 0.40f));
 
-        // ---- falling leaves and the bright near fireflies
         leaves(r, w, h, t, accent, density);
         fireflies(r, w, h, t, accent, mint, text, density, 2);
     }

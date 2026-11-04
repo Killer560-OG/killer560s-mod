@@ -69,7 +69,6 @@ public final class MenuChrome {
     private MenuChrome() {
     }
 
-    // ---------------------------------------------------------------- texture classification
 
     /** Cheap classification of a {@code blit} texture id - reference checks against Screen's public
      *  separator constants (every vanilla / ModMenu caller passes those exact objects), plus a path check
@@ -150,7 +149,6 @@ public final class MenuChrome {
         }
     }
 
-    // ---------------------------------------------------------------- screen background
 
     /** Toned-down sibling of {@link MainMenuTheme#drawBackground} for every non-title out-of-world menu:
      *  same warm gradient, bottom glow, vignette and hairlines, but no logo glow and dimmer/fewer embers
@@ -176,7 +174,6 @@ public final class MenuChrome {
         g.fill(x, y, x + w, y + h, com.killer560.hub.gui.MenuStyle.alpha(LIST_BG, 0x40));
     }
 
-    // ---------------------------------------------------------------- lists
 
     /** Replaces menu_list_background / inworld_menu_list_background: a translucent warm-dark panel. In world
      *  it stays lighter so the blurred world still reads through. */
@@ -212,7 +209,6 @@ public final class MenuChrome {
         g.outline(x, y, w, h, ROW_HOVER_EDGE);
     }
 
-    // ---------------------------------------------------------------- scrollbars
 
     public static void drawScrollTrack(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         MenuWidgets.sync();
