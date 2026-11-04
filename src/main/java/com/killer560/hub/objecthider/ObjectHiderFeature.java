@@ -471,6 +471,9 @@ public final class ObjectHiderFeature {
         if (particle == null) {
             return false;
         }
+        if (com.killer560.hub.scorecalc.ScoreWarnings.hidesPortalParticle(particle)) {
+            return true;
+        }
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         if (cfg.isCleanEnd() && bossDone && DungeonState.isInDungeon()) {
             return true;

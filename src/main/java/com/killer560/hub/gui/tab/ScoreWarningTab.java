@@ -52,8 +52,13 @@ public class ScoreWarningTab extends BaseTab {
                 y += 22;
             }
             w.add(onOffButton("Color Portal", cfg::isPreBossPortalColor, cfg::setPreBossPortalColor, cfg::save,
-                    null, contentX, y, contentWidth, 18));
+                    requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
+            if (cfg.isPreBossPortalColor() || isSearchScan()) {
+                w.add(onOffButton("Hide Portal Particles", cfg::isPreBossHidePortalParticles, cfg::setPreBossHidePortalParticles,
+                        cfg::save, null, contentX, y, contentWidth, 18));
+                y += 22;
+            }
         }
         y += 2;
 

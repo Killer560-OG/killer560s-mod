@@ -46,6 +46,7 @@ public final class ScoreWarnings {
         cryptReminded = false;
         portalColor = 0;
         portalBlocks = java.util.List.of();
+        portalBox = null;
     }
 
     // ---- Color Portal (killer560, 2026-11-03: "make it red if you shouldnt enter, yellow if it is 270 and green if it is
@@ -64,6 +65,7 @@ public final class ScoreWarnings {
     private static void updatePortal(ScoreCalculatorConfig cfg, ScoreCalculator.Result result) {
         if (!cfg.isPreBossWarning() || !cfg.isPreBossPortalColor() || watcherDoneTick < 0) {
             portalColor = 0;
+            portalBox = null;
             return;
         }
         portalScore = result.total();
@@ -86,6 +88,36 @@ public final class ScoreWarnings {
             }
         }
         portalBlocks = java.util.List.copyOf(found);
+        // Hide Portal Particles: the found blocks' box plus 2 blocks (portal particles drift a block or so), built once here.
+        if (!cfg.isPreBossHidePortalParticles() || found.isEmpty()) {
+            portalBox = null;
+            return;
+        }
+        double[] b = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+        for (net.minecraft.core.BlockPos q : found) {
+            b[0] = Math.min(b[0], q.getX() - 2);
+            b[1] = Math.min(b[1], q.getY() - 2);
+            b[2] = Math.min(b[2], q.getZ() - 2);
+            b[3] = Math.max(b[3], q.getX() + 3);
+            b[4] = Math.max(b[4], q.getY() + 3);
+            b[5] = Math.max(b[5], q.getZ() + 3);
+        }
+        portalBox = b;
+    }
+
+    private static volatile double[] portalBox = null;
+
+    /** Hide Portal Particles: true for a portal particle inside the colored portal's box (only while it is being colored). */
+    public static boolean hidesPortalParticle(net.minecraft.client.particle.Particle particle) {
+        double[] b = portalBox;
+        if (b == null || !(particle instanceof net.minecraft.client.particle.PortalParticle)) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB a = particle.getBoundingBox();
+        double x = (a.minX + a.maxX) * 0.5;
+        double y = (a.minY + a.maxY) * 0.5;
+        double z = (a.minZ + a.maxZ) * 0.5;
+        return x >= b[0] && x <= b[3] && y >= b[1] && y <= b[4] && z >= b[2] && z <= b[5];
     }
 
     static void renderPortal(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
