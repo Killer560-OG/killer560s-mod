@@ -104,6 +104,9 @@ public final class WorldExporter {
     public static Result export(ClientLevel level, String name) throws IOException {
         Minecraft mc = Minecraft.getInstance();
         Map<Long, LevelChunk> chunks = collect(level);
+        int outsideArea = chunks.size();
+        chunks.keySet().removeIf(k -> !CaptureGuide.inArea(ChunkPos.getX(k), ChunkPos.getZ(k)));
+        outsideArea -= chunks.size();
         if (chunks.isEmpty()) {
             throw new IOException("no chunks are loaded or cached");
         }
@@ -170,6 +173,7 @@ public final class WorldExporter {
         meta.addProperty("minY", level.getMinY());
         meta.addProperty("height", level.getHeight());
         meta.addProperty("chunks", chunks.size());
+        meta.addProperty("droppedOutsideArea", outsideArea);
         meta.addProperty("blockEntities", blockEntityCount);
         JsonArray box = new JsonArray();
         box.add(minX);
