@@ -188,10 +188,7 @@ public final class SecretAuraFeature {
         if (block == Blocks.TRAPPED_CHEST) {
             return "trappedChest";
         }
-        if (block == Blocks.LEVER) {
-            return "lever";
-        }
-        return block instanceof AbstractSkullBlock ? "skull" : "block";
+        return block == Blocks.LEVER ? "lever" : block instanceof AbstractSkullBlock ? "skull" : "block";
     }
 
     /** Why classify() answered null for a chest, lever or skull (pure; for the log only). */

@@ -128,10 +128,7 @@ public final class CheatUtils {
             return null;
         }
         CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only, no deep copy (held item, every tick)
-        if (tag == null) {
-            return null;
-        }
-        return tag.contains("id") ? tag.getStringOr("id", null) : null;
+        return tag == null ? null : tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 
     /** Formatting-stripped lore lines (empty list if none). */
