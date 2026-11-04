@@ -110,6 +110,9 @@ public final class CommissionMobs {
         return List.copyOf(out);
     }
 
+    /** A plain (codes stripped) name tag naming one of {@code mobs}: the name as whole words, after "[LvN]". */
+    static Pattern tagPattern(List<String> mobs) { return compile(mobs); }
+
     private static Pattern compile(List<String> mobs) {
         StringBuilder sb = new StringBuilder("(?:^|[\\s\\]])(?:");
         for (int i = 0; i < mobs.size(); i++) {

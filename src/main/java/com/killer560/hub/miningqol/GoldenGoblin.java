@@ -24,7 +24,7 @@ import java.util.Map;
  * option"): a box and a tracer on the Golden and Diamond Goblins on a mining island.
  *
  * <p>The mob is found by its name tag, which Hypixel puts on the mob or on an armor stand just above it ("[Lv?] Golden Goblin
- * 1,500/1,500"): the name is matched as whole words ({@link CommissionMobs#tagMatches}), a stand is mapped to the mob under
+ * 1,500/1,500"): the name is matched as whole words ({@link CommissionMobs#tagPattern}), a stand is mapped to the mob under
  * it, and a real player (v4 UUID) is never it. A goblin once identified is remembered by entity id while it stays loaded
  * and alive, because the server stops sending a stand at range (as Commission Mobs does). Nothing is matched by entity type.
  *
@@ -34,6 +34,7 @@ import java.util.Map;
 public final class GoldenGoblin {
 
     static final List<String> NAMES = List.of("Golden Goblin", "Diamond Goblin");
+    private static final java.util.regex.Pattern NAME_TAG = CommissionMobs.tagPattern(NAMES);
     private static final int REFRESH_TICKS = 4;
     private static final int MAX_KNOWN = 64;
 
@@ -66,7 +67,7 @@ public final class GoldenGoblin {
                 continue;
             }
             String plain = ChatObserver.stripCodes(e.getCustomName().getString());
-            if (plain == null || !CommissionMobs.tagMatches(plain, NAMES)) {
+            if (plain == null || !NAME_TAG.matcher(plain).find()) {
                 continue;
             }
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
