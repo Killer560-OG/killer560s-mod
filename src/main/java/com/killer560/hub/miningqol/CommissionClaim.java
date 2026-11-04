@@ -24,7 +24,9 @@ import java.util.regex.Pattern;
  */
 public final class CommissionClaim {
 
-    private static final Pattern COMPLETE = Pattern.compile("^.{1,60} Commission Complete! Visit the King to claim your rewards!$");
+    /** Hypixel's line. The name is capitals, digits, spaces and apostrophes only, so no chat line ("Name: ...", "[VIP] ...") matches. */
+    private static final Pattern COMPLETE = Pattern.compile(
+            "^([A-Z0-9\' ]{3,50}) Commission Complete! Visit the King to claim your rewards!$");
     /** The chat line bridges only until the tab next updates its commission list, and never longer than this. */
     private static final long CHAT_HOLD_MS = 10_000;
     /** After the Commissions menu closes, a stale DONE in the tab is ignored this long (or until the tab updates). */
@@ -59,9 +61,12 @@ public final class CommissionClaim {
 
     /** A chat line (any thread). */
     static void handle(String raw, long now) {
-        if (raw.length() <= 100 && COMPLETE.matcher(raw).matches()) {
+        java.util.regex.Matcher m = raw.length() <= 100 ? COMPLETE.matcher(raw) : null;
+        if (m != null && m.matches()) {
             chatUntil = now + CHAT_HOLD_MS;
             chatVersion = MiningState.version();
+            // The commission is DONE on the HUD at once, not at the tab's next refresh.
+            MiningState.markDone(m.group(1), now);
         }
     }
 
@@ -72,6 +77,7 @@ public final class CommissionClaim {
                 && CommissionMenuHighlight.isMenu(acs);
         if (wasMenu && !menu) {
             chatUntil = 0;
+            MiningState.clearDoneOverrides();
             quietUntil = now + MENU_QUIET_MS;
             quietVersion = MiningState.version();
         }
@@ -172,6 +178,7 @@ public final class CommissionClaim {
 
     public static void resetForTest() {
         chatUntil = 0;
+        MiningState.clearDoneOverrides();
         quietUntil = 0;
         wasMenu = false;
         wasDone = false;
