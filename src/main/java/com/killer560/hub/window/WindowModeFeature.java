@@ -3,7 +3,6 @@ package com.killer560.hub.window;
 import com.killer560.hub.windowlayout.WindowMonitors;
 import com.mojang.blaze3d.platform.Monitor;
 import com.mojang.blaze3d.platform.VideoMode;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
