@@ -129,14 +129,10 @@ public final class FriendsListConfig {
     }
 
     private static Friend fromJson(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return null;
-        }
+        if (element == null || !element.isJsonObject()) return null;
         JsonObject obj = element.getAsJsonObject();
         String name = ConfigJson.getString(obj, "name", null);
-        if (name == null || name.isBlank()) {
-            return null;
-        }
+        if (name == null || name.isBlank()) return null;
         Friend f = new Friend(name);
         f.note = ConfigJson.getString(obj, "note", "");
         f.firstSeenAtMs = ConfigJson.getLong(obj, "firstSeenAtMs", 0L);
@@ -221,9 +217,7 @@ public final class FriendsListConfig {
         List<Friend> out = new ArrayList<>(namesInOrder.size());
         long now = System.currentTimeMillis();
         for (String name : namesInOrder) {
-            if (name == null || name.isBlank()) {
-                continue;
-            }
+            if (name == null || name.isBlank()) continue;
             String key = name.toLowerCase(Locale.US);
             Friend f = friends.get(key);
             if (f == null) {

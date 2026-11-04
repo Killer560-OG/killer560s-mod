@@ -136,14 +136,10 @@ public final class BestFriendsStore {
     }
 
     private static Record fromJson(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return null;
-        }
+        if (element == null || !element.isJsonObject()) return null;
         JsonObject obj = element.getAsJsonObject();
         String uuidStr = ConfigJson.getString(obj, "uuid", null);
-        if (uuidStr == null) {
-            return null;
-        }
+        if (uuidStr == null) return null;
         UUID uuid;
         try {
             uuid = UUID.fromString(uuidStr);
@@ -220,9 +216,7 @@ public final class BestFriendsStore {
     /** Writes now only if something changed since the last save - called on the periodic flush timer and
      *  on disconnect. Safe to call often; a no-op write costs nothing but a boolean check. */
     public static synchronized void saveIfDirty() {
-        if (!dirty) {
-            return;
-        }
+        if (!dirty) return;
         dirty = false;
         saveAsync();
     }

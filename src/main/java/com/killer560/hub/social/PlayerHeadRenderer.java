@@ -74,9 +74,7 @@ public final class PlayerHeadRenderer {
 
     /** {@code id} if known, else whatever {@link PlayerNames} has cached for the name (starting one lookup). */
     public static UUID resolveId(UUID id, String name) {
-        if (id != null || name == null || name.isBlank()) {
-            return id;
-        }
+        if (id != null || name == null || name.isBlank()) return id;
         UUID known = PlayerNames.uuidFor(name);
         if (known == null && NAME_LOOKUPS.add(name.toLowerCase(Locale.US))) {
             PlayerNames.resolveAsync(name, resolved -> {
@@ -86,41 +84,29 @@ public final class PlayerHeadRenderer {
     }
 
     private static PlayerSkin skinFor(UUID id) {
-        if (id == null) {
-            return DefaultPlayerSkin.getDefaultSkin();
-        }
+        if (id == null) return DefaultPlayerSkin.getDefaultSkin();
         Supplier<PlayerSkin> resolved = RESOLVED.get(id);
         if (resolved != null) {
             PlayerSkin skin = resolved.get();
-            if (skin != null) {
-                return skin;
-            }
+            if (skin != null) return skin;
         }
         // On the tab list right now: the server already sent this player's signed textures.
         Minecraft client = Minecraft.getInstance();
         ClientPacketListener connection = client.getConnection();
         if (connection != null) {
             PlayerInfo info = connection.getPlayerInfo(id);
-            if (info != null) {
-                return info.getSkin();
-            }
+            if (info != null) return info.getSkin();
         }
         startFetch(id);
         return DefaultPlayerSkin.get(id);
     }
 
     private static void startFetch(UUID id) {
-        if (ModNet.offline() || IN_FLIGHT.contains(id)) {
-            return;
-        }
+        if (ModNet.offline() || IN_FLIGHT.contains(id)) return;
         long now = System.currentTimeMillis();
         Long last = FETCH_AT.get(id);
-        if (last != null && now - last < RETRY_MS) {
-            return;
-        }
-        if (!IN_FLIGHT.add(id)) {
-            return;
-        }
+        if (last != null && now - last < RETRY_MS) return;
+        if (!IN_FLIGHT.add(id)) return;
         FETCH_AT.put(id, now);
         ProfileViewerApi.fetchSkinProfile(id).whenComplete((GameProfile profile, Throwable error) -> {
             IN_FLIGHT.remove(id);

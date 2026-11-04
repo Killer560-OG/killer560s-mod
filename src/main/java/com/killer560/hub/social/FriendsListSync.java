@@ -94,9 +94,7 @@ public final class FriendsListSync {
     static String activityOf(String rest) {
         String r = rest == null ? "" : rest.trim();
         String lower = r.toLowerCase(Locale.US);
-        if (lower.contains("offline")) {
-            return "Offline";
-        }
+        if (lower.contains("offline")) return "Offline";
         if (lower.startsWith("in ")) {
             r = r.substring(3).trim();
         }
@@ -109,9 +107,7 @@ public final class FriendsListSync {
     /** Call once from {@code Killer560ModClient#onInitializeClient}. */
     public static void register() {
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
-            if (overlay || message == null) {
-                return true;
-            }
+            if (overlay || message == null) return true;
             try {
                 return !onGameLine(message);
             } catch (RuntimeException e) {
@@ -129,9 +125,7 @@ public final class FriendsListSync {
     /** The screen's progress line while a sync walks the pages: "Syncing... page 3/7" (killer560, 2026-10-08:
      *  "make the 'already syncing' show how many pages it is through"), empty when not syncing. */
     public static String syncProgress() {
-        if (!walking) {
-            return "";
-        }
+        if (!walking) return "";
         return totalPages > 0 ? "Syncing... page " + currentPage + "/" + totalPages : "Syncing... waiting for page 1";
     }
 
@@ -141,9 +135,7 @@ public final class FriendsListSync {
             pendingFollowUpSyncAtMs = 0L;
             doSync(true);
         }
-        if (!walking) {
-            return;
-        }
+        if (!walking) return;
         if (Minecraft.getInstance().player == null) {
             abortWalk("disconnected");
             return;
@@ -171,9 +163,7 @@ public final class FriendsListSync {
 
     /** @return true to drop this message from chat. */
     private static boolean onGameLine(Component message) {
-        if (!walking || (awaitingSinceMs == 0L && !reading)) {
-            return false;
-        }
+        if (!walking || (awaitingSinceMs == 0L && !reading)) return false;
         String full = ChatObserver.strip(message);
         String[] lines = full.split("\n", 64);
         boolean suppress = false;
@@ -190,9 +180,7 @@ public final class FriendsListSync {
     }
 
     private static boolean handleLine(String plain, Component message) {
-        if (plain.isEmpty()) {
-            return reading || awaitingSinceMs != 0L;
-        }
+        if (plain.isEmpty()) return reading || awaitingSinceMs != 0L;
         if (SEPARATOR.matcher(plain).matches()) {
             if (reading) {
                 finishPage();
@@ -203,9 +191,7 @@ public final class FriendsListSync {
         }
         Matcher header = HEADER.matcher(plain);
         if (header.matches()) {
-            if (awaitingSinceMs == 0L) {
-                return false;
-            }
+            if (awaitingSinceMs == 0L) return false;
             reading = true;
             lastReadLineAtMs = System.currentTimeMillis();
             awaitingSinceMs = 0L;
@@ -220,9 +206,7 @@ public final class FriendsListSync {
             nextPageCommand = findNextPageCommand(message, page + 1);
             return true;
         }
-        if (!reading) {
-            return false;
-        }
+        if (!reading) return false;
         Matcher friend = FRIEND_LINE.matcher(plain);
         if (friend.matches()) {
             String name = friend.group(1);
@@ -340,21 +324,15 @@ public final class FriendsListSync {
     /** The screen's Refresh asks for a full sync - rate-limited, and refused while one is already walking.
      *  @return true if it actually started. */
     public static boolean requestSync(boolean quiet) {
-        if (walking || System.currentTimeMillis() - lastSyncAtMs < MIN_SYNC_INTERVAL_MS) {
-            return false;
-        }
+        if (walking || System.currentTimeMillis() - lastSyncAtMs < MIN_SYNC_INTERVAL_MS) return false;
         return doSync(quiet);
     }
 
     private static boolean doSync(boolean quiet) {
-        if (walking) {
-            return false;
-        }
+        if (walking) return false;
         lastSyncAtMs = System.currentTimeMillis();
         endWalk();
-        if (!ServerCommands.toServer("fl")) {
-            return false;
-        }
+        if (!ServerCommands.toServer("fl")) return false;
         walking = true;
         awaitingSinceMs = lastSyncAtMs;
         if (!quiet) {
@@ -377,25 +355,17 @@ public final class FriendsListSync {
      *  @return null when sent, else why not (for the screen's status line). */
     public static String requestPartyInvite(String name) {
         String trimmed = name == null ? "" : name.trim();
-        if (!VALID_NAME.matcher(trimmed).matches()) {
-            return "Not a valid player name.";
-        }
+        if (!VALID_NAME.matcher(trimmed).matches()) return "Not a valid player name.";
         long now = System.currentTimeMillis();
-        if (now - lastInviteAtMs < MIN_INVITE_INTERVAL_MS) {
-            return "Wait a moment before sending another invite.";
-        }
-        if (!ServerCommands.toServer("party invite " + trimmed)) {
-            return "Not connected - invite not sent.";
-        }
+        if (now - lastInviteAtMs < MIN_INVITE_INTERVAL_MS) return "Wait a moment before sending another invite.";
+        if (!ServerCommands.toServer("party invite " + trimmed)) return "Not connected - invite not sent.";
         lastInviteAtMs = now;
         return null;
     }
 
     private static boolean sendSocialCommand(String verb, String name) {
         String trimmed = name == null ? "" : name.trim();
-        if (trimmed.isEmpty()) {
-            return false;
-        }
+        if (trimmed.isEmpty()) return false;
         long now = System.currentTimeMillis();
         if (now - lastCommandAtMs < MIN_COMMAND_INTERVAL_MS) {
             ModChat.send(CHAT, ModChat.bad("Please wait a moment before sending another friend request/removal."));

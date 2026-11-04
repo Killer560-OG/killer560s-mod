@@ -140,9 +140,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     /** The label, cut to what fits inside a button {@code boxW} wide. */
     private Component fit(String label, int boxW) {
         int room = Math.max(0, boxW - LABEL_PAD);
-        if (this.font.width(label) <= room) {
-            return Component.literal(label);
-        }
+        if (this.font.width(label) <= room) return Component.literal(label);
         return Component.literal(this.font.plainSubstrByWidth(label, Math.max(0, room - this.font.width(".."))) + "..");
     }
 
@@ -151,13 +149,9 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         String query = searchBox == null ? "" : searchBox.getValue().trim().toLowerCase(Locale.US);
         List<BestFriendsStore.Record> out = new ArrayList<>();
         for (BestFriendsStore.Record record : BestFriendsStore.records()) {
-            if (cfg.isDungeonOnlyFilter() && record.totalDungeonRuns() == 0) {
-                continue;
-            }
+            if (cfg.isDungeonOnlyFilter() && record.totalDungeonRuns() == 0) continue;
             String name = record.lastKnownName == null ? "" : record.lastKnownName;
-            if (!query.isEmpty() && !name.toLowerCase(Locale.US).contains(query)) {
-                continue;
-            }
+            if (!query.isEmpty() && !name.toLowerCase(Locale.US).contains(query)) continue;
             out.add(record);
         }
         Comparator<BestFriendsStore.Record> comparator = switch (cfg.getSortMode()) {
@@ -195,9 +189,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     }
 
     private BestFriendsStore.Record rowAt(double mx, double my) {
-        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
@@ -268,9 +260,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         int first = Math.max(0, scroll / ROW_H);
         for (int i = first; i < visible.size(); i++) {
             int rowY = listY + i * ROW_H - scroll;
-            if (rowY > listY + listH) {
-                break;
-            }
+            if (rowY > listY + listH) break;
             BestFriendsStore.Record record = visible.get(i);
             GuiRects rr = GuiRects.begin(graphics);
             ScreenChrome.row(rr, listX, rowY, listW - 5, ROW_H, record == hovered, false, i % 2 == 0);
@@ -300,9 +290,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
 
         int y = listY + 6 - scroll + 38;
         for (String line : lines) {
-            if (y > listY + listH) {
-                break;
-            }
+            if (y > listY + listH) break;
             if (!line.isEmpty()) {
                 ScreenChrome.text(graphics, this.font.plainSubstrByWidth(line, listW - 16), listX + 6, y, MenuStyle.TXT);
             }
@@ -339,12 +327,8 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         long d = total / 86_400L;
         long h = (total % 86_400L) / 3600L;
         long m = (total % 3600L) / 60L;
-        if (d > 0) {
-            return d + "d " + h + "h " + m + "m";
-        }
-        if (h > 0) {
-            return h + "h " + m + "m";
-        }
+        if (d > 0) return d + "d " + h + "h " + m + "m";
+        if (h > 0) return h + "h " + m + "m";
         return m > 0 ? m + "m" : total + "s";
     }
 
@@ -355,19 +339,13 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         long h = (total % 86_400L) / 3600L;
         long m = (total % 3600L) / 60L;
         long sec = total % 60L;
-        if (d > 0) {
-            return d + "d " + h + "h " + m + "m " + sec + "s";
-        }
-        if (h > 0) {
-            return h + "h " + m + "m " + sec + "s";
-        }
+        if (d > 0) return d + "d " + h + "h " + m + "m " + sec + "s";
+        if (h > 0) return h + "h " + m + "m " + sec + "s";
         return m > 0 ? m + "m " + sec + "s" : sec + "s";
     }
 
     private static String formatDate(long epochMs) {
-        if (epochMs <= 0) {
-            return "-";
-        }
+        if (epochMs <= 0) return "-";
         return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.US)
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.ofEpochMilli(epochMs));

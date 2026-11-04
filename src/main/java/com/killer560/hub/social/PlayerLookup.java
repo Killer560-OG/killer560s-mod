@@ -26,9 +26,7 @@ final class PlayerLookup {
     }
 
     static boolean isOnlineNow(UUID id) {
-        if (id == null) {
-            return false;
-        }
+        if (id == null) return false;
         Minecraft client = Minecraft.getInstance();
         return client.getConnection() != null && client.getConnection().getPlayerInfo(id) != null;
     }

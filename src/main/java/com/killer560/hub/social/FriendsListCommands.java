@@ -62,9 +62,7 @@ public final class FriendsListCommands {
      *  chat would need quoting rules the brief never specifies). */
     private static int customSubcommand(String args) {
         String trimmed = args == null ? "" : args.trim();
-        if (trimmed.isEmpty()) {
-            return openCustomScreen();
-        }
+        if (trimmed.isEmpty()) return openCustomScreen();
         String[] parts = trimmed.split("\\s+", 2);
         String sub = parts[0].toLowerCase(Locale.US);
         String name = parts.length > 1 ? parts[1].trim() : "";
@@ -108,9 +106,7 @@ public final class FriendsListCommands {
 
     private static int forwardToHypixel(String args) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.player.connection == null) {
-            return 0;
-        }
+        if (client.player == null || client.player.connection == null) return 0;
         String trimmed = args == null ? "" : args.trim();
         // BELOW the client dispatcher - see ServerCommands. sendCommand is the method Fabric's command API hooks,
         // so forwarding "fl" from the /fl handler fed it straight back to itself until the stack ran out. This is
