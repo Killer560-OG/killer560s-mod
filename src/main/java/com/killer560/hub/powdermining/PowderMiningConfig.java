@@ -89,10 +89,6 @@ public final class PowderMiningConfig {
         lootShow = all[Math.floorMod(lootShow.ordinal() + dir, all.length)];
     }
 
-    public void setLootShow(LootShow v) {
-        lootShow = v == null ? LootShow.ALL : v;
-    }
-
     private PowderMiningConfig() {
     }
 

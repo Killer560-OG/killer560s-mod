@@ -34,8 +34,4 @@ public final class PowderMining {
         return at >= 0 && System.currentTimeMillis() - at <= RECENT_MS;
     }
 
-    /** Testkit: force the answer (null = real). */
-    public static void forceForTest(Boolean v) {
-        forced = v;
-    }
 }

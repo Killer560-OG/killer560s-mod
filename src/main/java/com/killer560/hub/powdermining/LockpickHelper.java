@@ -146,14 +146,4 @@ public final class LockpickHelper {
         return frames;
     }
 
-    /** The face to click ("EAST", ...), or null with no spot. */
-    public static String faceNow() {
-        Direction f = face;
-        return f == null ? null : f.name();
-    }
-
-    public static double[] spotNow() {
-        Vec3 s = spot;
-        return s == null ? null : new double[]{s.x, s.y, s.z};
-    }
 }
