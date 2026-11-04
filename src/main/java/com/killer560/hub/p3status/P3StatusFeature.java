@@ -126,9 +126,7 @@ public final class P3StatusFeature {
     }
 
     private static void onObjective(int section, String name, String kind, int current, int total) {
-        if (section < 1 || section > 4) {
-            return;
-        }
+        if (section < 1 || section > 4) return;
         syncRun();
         int s = section - 1;
         Vec3 at = playerPos(name);
@@ -151,9 +149,7 @@ public final class P3StatusFeature {
         int best = -1;
         double bestD = Double.MAX_VALUE;
         for (int i = 0; i < spots.length; i++) {
-            if (done[i]) {
-                continue;
-            }
+            if (done[i]) continue;
             double d = at == null ? i : spots[i].distanceToSqr(at);
             if (d < bestD) {
                 bestD = d;
@@ -167,13 +163,9 @@ public final class P3StatusFeature {
 
     private static Vec3 playerPos(String name) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return null;
-        }
+        if (client.level == null) return null;
         for (AbstractClientPlayer p : client.level.players()) {
-            if (name.equals(p.getGameProfile().name())) {
-                return p.position();
-            }
+            if (name.equals(p.getGameProfile().name())) return p.position();
         }
         return null;
     }
@@ -182,24 +174,16 @@ public final class P3StatusFeature {
         P3SectionTracker.poll(client);
         syncRun();
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isShowHud() || client.level == null || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) {
-            return;
-        }
+        if (!cfg.isShowHud() || client.level == null || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) return;
         int s = P3SectionTracker.section() - 1;
-        if (s < 0 || s > 3) {
-            return;
-        }
+        if (s < 0 || s > 3) return;
         // Terminal holograms are the truth wherever they are loaded.
         Vec3[] terms = TERMINALS[s];
         for (Entity e : client.level.entitiesForRendering()) {
-            if (!(e instanceof ArmorStand stand) || stand.getCustomName() == null) {
-                continue;
-            }
+            if (!(e instanceof ArmorStand stand) || stand.getCustomName() == null) continue;
             String n = ChatObserver.strip(stand.getCustomName());
             boolean inactive = "Inactive Terminal".equals(n);
-            if (!inactive && !"Terminal Active".equals(n)) {
-                continue;
-            }
+            if (!inactive && !"Terminal Active".equals(n)) continue;
             for (int i = 0; i < terms.length; i++) {
                 if (stand.position().distanceToSqr(terms[i]) <= STAND_MATCH_SQ) {
                     TERMINAL_DONE[s][i] = !inactive;
@@ -211,28 +195,18 @@ public final class P3StatusFeature {
 
     /** From the title mixin: true cancels Hypixel's title/subtitle (a replacement may already have been shown). */
     public static boolean onTitle(Component text, boolean subtitle) {
-        if (text == null) {
-            return false;
-        }
+        if (text == null) return false;
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isEnabled() || !DungeonState.isF7OrM7()) {
-            return false;
-        }
+        if (!cfg.isEnabled() || !DungeonState.isF7OrM7()) return false;
         String plain = ChatObserver.strip(text).trim();
-        if (plain.isEmpty() || plain.length() > 120) {
-            return false;
-        }
+        if (plain.isEmpty() || plain.length() > 120) return false;
         if (subtitle && cfg.isHideLaserSubtitle() && LASER_CHARGING.equals(plain)) {
             dropped++;
             return true;
         }
-        if (!cfg.isRewriteTitles()) {
-            return false;
-        }
+        if (!cfg.isRewriteTitles()) return false;
         Matcher m = COMPLETION.matcher(plain);
-        if (!m.matches()) {
-            return false;
-        }
+        if (!m.matches()) return false;
         Component line = shortTitle(m.group(1), m.group(2), parse(m.group(3)), parse(m.group(4)));
         Minecraft client = Minecraft.getInstance();
         if (!subtitle && System.currentTimeMillis() - bigTitleAtMs > 1500) {
@@ -289,14 +263,10 @@ public final class P3StatusFeature {
             return List.of("§fTerminals §e2§7/§a5", "§fDevice §a1§7/§a1", "§fLevers §e1§7/§a2", "§fGate §c✘");
         }
         P3StatusConfig cfg = P3StatusConfig.getInstance();
-        if (!cfg.isShowHud() || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) {
-            return List.of();
-        }
+        if (!cfg.isShowHud() || !DungeonState.isF7OrM7() || !P3SectionTracker.running()) return List.of();
         int section = P3SectionTracker.section();
         int s = section - 1;
-        if (s < 0 || s > 3) {
-            return List.of();
-        }
+        if (s < 0 || s > 3) return List.of();
         List<String> out = new ArrayList<>(4);
         out.add("§fTerminals " + count(TERMINAL_DONE[s]));
         out.add("§fDevice " + count(new boolean[]{DEVICE_DONE[s]}));
