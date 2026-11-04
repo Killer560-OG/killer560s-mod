@@ -50,6 +50,12 @@ public final class InventorySorterConfig {
     /** Instant (0-tick): every click of the sort in ONE client tick, without opening the inventory screen. Off by
      *  default; see docs/FEATURES.md for what it does to the packet pattern. */
     private boolean instant = false;
+    /** Dump Into Chest (killer560, 2026-11-04): show the button on chest screens. */
+    private boolean dumpButton = true;
+    /** Dump Into Chest also moves the hotbar (never slot 8). Off by default. */
+    private boolean dumpHotbar = false;
+    /** Key (or mouse button) code that dumps into the open chest, KeyUtil.NONE for none. */
+    private int dumpKey = KeyUtil.NONE;
 
     private InventorySorterConfig() {
     }
@@ -82,6 +88,9 @@ public final class InventorySorterConfig {
             }
             cfg.openMenuKey = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openMenuKey", KeyUtil.NONE));
             cfg.instant = ConfigJson.getBool(obj, "instant", cfg.instant);
+            cfg.dumpButton = ConfigJson.getBool(obj, "dumpButton", cfg.dumpButton);
+            cfg.dumpHotbar = ConfigJson.getBool(obj, "dumpHotbar", cfg.dumpHotbar);
+            cfg.dumpKey = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "dumpKey", KeyUtil.NONE));
             if (obj.has("layoutOrder") && obj.get("layoutOrder").isJsonArray()) {
                 for (com.google.gson.JsonElement el : obj.getAsJsonArray("layoutOrder")) {
                     if (el.isJsonPrimitive() && InventoryLayoutStore.validateName(el.getAsString()) == null
@@ -119,6 +128,9 @@ public final class InventorySorterConfig {
             obj.add("layoutKeys", keys);
             obj.addProperty("openMenuKey", openMenuKey);
             obj.addProperty("instant", instant);
+            obj.addProperty("dumpButton", dumpButton);
+            obj.addProperty("dumpHotbar", dumpHotbar);
+            obj.addProperty("dumpKey", dumpKey);
             com.google.gson.JsonArray order = new com.google.gson.JsonArray();
             for (String name : layoutOrder) {
                 order.add(name);
@@ -222,6 +234,30 @@ public final class InventorySorterConfig {
 
     public void setInstant(boolean instant) {
         this.instant = instant;
+    }
+
+    public boolean isDumpButton() {
+        return dumpButton;
+    }
+
+    public void setDumpButton(boolean v) {
+        this.dumpButton = v;
+    }
+
+    public boolean isDumpHotbar() {
+        return dumpHotbar;
+    }
+
+    public void setDumpHotbar(boolean v) {
+        this.dumpHotbar = v;
+    }
+
+    public int getDumpKey() {
+        return dumpKey;
+    }
+
+    public void setDumpKey(int code) {
+        this.dumpKey = KeyUtil.sanitizeBind(code);
     }
 
     /** A copy of the saved menu order (names). */
