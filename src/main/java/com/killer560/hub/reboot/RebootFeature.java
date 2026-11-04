@@ -53,9 +53,7 @@ public final class RebootFeature {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
                 ClientCommands.literal("reboot")
@@ -100,9 +98,7 @@ public final class RebootFeature {
             return new Detection(null, null, null, "this game was not started by Prism Launcher (it was started by "
                     + exe + ")");
         }
-        if (gameDir == null) {
-            return new Detection(null, launcherName, null, "the game folder is unknown");
-        }
+        if (gameDir == null) return new Detection(null, launcherName, null, "the game folder is unknown");
         Path dir = gameDir.toAbsolutePath().normalize();
         Path leaf = dir.getFileName();
         Path instance = dir.getParent();
@@ -113,9 +109,7 @@ public final class RebootFeature {
                     + " instance's minecraft folder");
         }
         String id = instance.getFileName().toString();
-        if (id.isBlank()) {
-            return new Detection(null, launcherName, null, "the instance folder has no name");
-        }
+        if (id.isBlank()) return new Detection(null, launcherName, null, "the instance folder has no name");
         return new Detection(parentCommand, launcherName, id, null);
     }
 

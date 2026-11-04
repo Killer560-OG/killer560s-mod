@@ -110,15 +110,11 @@ public final class RebootHelper {
     /** Polled rather than onExit(), for the same reason SwapHelper polls. True once {@code pid} is gone. */
     private static boolean waitForExit(long pid, long timeoutS, String what) throws InterruptedException {
         Optional<ProcessHandle> h = ProcessHandle.of(pid);
-        if (h.isEmpty() || !h.get().isAlive()) {
-            return true;
-        }
+        if (h.isEmpty() || !h.get().isAlive()) return true;
         log("waiting for " + what + " " + pid + " to exit (at most " + timeoutS + " s)");
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutS);
         while (h.get().isAlive()) {
-            if (System.nanoTime() > deadline) {
-                return false;
-            }
+            if (System.nanoTime() > deadline) return false;
             Thread.sleep(250);
         }
         return true;
