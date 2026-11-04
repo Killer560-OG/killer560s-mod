@@ -133,10 +133,11 @@ public final class ItemBrowserFeature {
                 return false;
             }
             ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
+            int button = com.killer560.hub.compat.McInput.button(event);
             // The sort button (right at the panel's bottom) responds to both buttons - left cycles the
             // mode forward, right goes back one, same repo-wide rule every other cycling button follows
             // (see SettingsButtonWidget). Everything else in the panel stays left-click only, unchanged.
-            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg) || (com.killer560.hub.compat.McInput.button(event) != 0 && com.killer560.hub.compat.McInput.button(event) != 1)) {
+            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg) || (button != 0 && button != 1)) {
                 return true;
             }
             PanelLayout layout = layout(containerScreen, cfg);
@@ -145,11 +146,11 @@ public final class ItemBrowserFeature {
             }
             double localY = (event.y() - layout.screenY()) / layout.scale();
             if (localY >= footerLocalY(layout)) {
-                cfg.setSortMode(com.killer560.hub.compat.McInput.button(event) == 1 ? cfg.getSortMode().previous() : cfg.getSortMode().next());
+                cfg.setSortMode(button == 1 ? cfg.getSortMode().previous() : cfg.getSortMode().next());
                 cfg.save();
                 return false;
             }
-            if (com.killer560.hub.compat.McInput.button(event) != 0) {
+            if (button != 0) {
                 return true; // right-click anywhere else in the panel is a no-op, same as before
             }
             SkyblockItemEntry clicked = entryAt(layout, cfg, event.x(), event.y());
@@ -173,7 +174,6 @@ public final class ItemBrowserFeature {
             }
             return true;
         });
-
     }
 
     /** Called from {@code ItemBrowserRenderMixin} at the TAIL of the container's {@code extractRenderState}, so the
@@ -213,15 +213,10 @@ public final class ItemBrowserFeature {
         cachedSourceRef = all;
         cachedSortMode = sortMode;
         cachedPriceStamp = stamp;
-        List<SkyblockItemEntry> filtered;
-        if (query.isBlank() || com.killer560.hub.inventorysearch.SearchCalculator.resultFor(query) != null) {
-            filtered = new ArrayList<>(all);
-        } else {
-            String needle = query.toLowerCase(Locale.ROOT);
-            filtered = all.stream()
-                    .filter(item -> item.name().toLowerCase(Locale.ROOT).contains(needle))
-                    .collect(Collectors.toList());
-        }
+        String needle = query.toLowerCase(Locale.ROOT);
+        List<SkyblockItemEntry> filtered = query.isBlank() || com.killer560.hub.inventorysearch.SearchCalculator.resultFor(query) != null
+                ? new ArrayList<>(all)
+                : all.stream().filter(item -> item.name().toLowerCase(Locale.ROOT).contains(needle)).collect(Collectors.toList());
         filtered = collapseMinions(filtered, all);
         sort(filtered, sortMode);
         cachedFiltered = filtered;
@@ -330,10 +325,9 @@ public final class ItemBrowserFeature {
         // The sort key is read once per entry, not inside the comparator (that lowercased a name, or built a price
         // key and looked it up, about 2 x n log n times on every keystroke of the search).
         boolean byValue = sortMode == ItemBrowserConfig.SortMode.VALUE_HIGH_LOW || sortMode == ItemBrowserConfig.SortMode.VALUE_LOW_HIGH;
-        List<Keyed> keyed = new ArrayList<>(filtered.size());
-        for (SkyblockItemEntry e : filtered) {
-            keyed.add(new Keyed(e, byValue ? null : e.name().toLowerCase(Locale.ROOT), byValue ? SkyblockItemValue.getValue(e.id()) : null));
-        }
+        List<Keyed> keyed = filtered.stream()
+                .map(e -> new Keyed(e, byValue ? null : e.name().toLowerCase(Locale.ROOT), byValue ? SkyblockItemValue.getValue(e.id()) : null))
+                .collect(Collectors.toCollection(ArrayList::new));
         java.util.Comparator<Keyed> byNameAz = java.util.Comparator.comparing(Keyed::lower);
         // Built separately (not one comparator plus .reversed()) so an unpriced item stays LAST in BOTH
         // directions - reversing a nullsLast comparator whole would flip it to sort first instead.
@@ -387,8 +381,6 @@ public final class ItemBrowserFeature {
         return cfg.isHorizontal() ? row * layout.columns() + col : col * layout.rows() + row;
     }
 
-    /** Local Y where the sort button's footer strip starts - right after the item grid, mirroring how
-     *  {@link #HEADER_HEIGHT} reserves the search header above it. */
     /** The sort footer's text, short enough to stay inside the panel: "Sort: Value: High-Low" ran past a 5-column panel's
      *  edge (killer560's 2026-11-02 screenshot), so a narrow panel drops "Sort: " and then cuts the label. */
     static String footerText(ItemBrowserConfig cfg, int room) {
@@ -404,6 +396,8 @@ public final class ItemBrowserFeature {
     /** The footer text drawn last frame (read by the testkit). */
     private static String lastFooterText = null;
 
+    /** Local Y where the sort button's footer strip starts - right after the item grid, mirroring how
+     *  {@link #HEADER_HEIGHT} reserves the search header above it. */
     private static int footerLocalY(PanelLayout layout) {
         return HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2;
     }
@@ -453,7 +447,7 @@ public final class ItemBrowserFeature {
         double localMouseY = (mouseY - layout.screenY()) / layout.scale();
 
         int localWidth = layout.columns() * CELL_SIZE + PADDING * 2;
-        int localHeight = HEADER_HEIGHT + layout.rows() * CELL_SIZE + PADDING * 2 + FOOTER_HEIGHT;
+        int localHeight = footerLocalY(layout) + FOOTER_HEIGHT;
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "itembrowser.panel", layout.screenX(), layout.screenY(),
                 layout.screenX() + localWidth * layout.scale(), layout.screenY() + localHeight * layout.scale());
 
@@ -575,9 +569,7 @@ public final class ItemBrowserFeature {
         } else if (neu != null && (neu.displayName() != null || !neu.lore().isEmpty())) {
             lines.add(Component.literal(neu.displayName() != null ? neu.displayName()
                     : SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name()));
-            for (String l : neu.lore()) {
-                lines.add(Component.literal(l));
-            }
+            neu.lore().forEach(l -> lines.add(Component.literal(l)));
         } else {
             lines.add(Component.literal(SkyblockItemStackFactory.tierColorCode(entry.tier()) + entry.name()));
             if (entry.tier() != null || entry.category() != null) {

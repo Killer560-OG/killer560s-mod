@@ -137,10 +137,7 @@ public final class SkyblockItemRepository {
         if (id == null) {
             return null;
         }
-        if (!triedCache) {
-            triedCache = true;
-            loadFromDisk();
-        }
+        loadCacheOnce();
         long now = System.currentTimeMillis();
         if (schemaStale && now - schemaRetryAtMs > SCHEMA_RETRY_MS) {
             schemaRetryAtMs = now;
@@ -152,11 +149,15 @@ public final class SkyblockItemRepository {
     /** Loads the on-disk cache (any age) on first real use so the panel has data immediately, then kicks
      *  off a background refresh if that cache is missing or stale. Safe to call every render frame -
      *  every real check here is a cheap volatile/AtomicBoolean read after the first call. */
-    private static void ensureLoaded() {
+    private static void loadCacheOnce() {
         if (!triedCache) {
             triedCache = true;
             loadFromDisk();
         }
+    }
+
+    private static void ensureLoaded() {
+        loadCacheOnce();
         // A failed refresh leaves lastFetchAtMs where it was, so without the attempt gate every frame after a failure
         // (offline, a 5xx, DNS) started another request and logged another warning.
         long now = System.currentTimeMillis();
@@ -323,24 +324,16 @@ public final class SkyblockItemRepository {
         // needing a second parser just for the cache file, and avoids losing this data to a cache
         // round-trip between real background refreshes.
         if (item.has("obtain_lines_cache") && item.get("obtain_lines_cache").isJsonArray()) {
-            List<String> cached = new ArrayList<>();
-            for (JsonElement el : item.getAsJsonArray("obtain_lines_cache")) {
-                cached.add(el.getAsString());
-            }
-            return cached;
+            return item.getAsJsonArray("obtain_lines_cache").asList().stream().map(JsonElement::getAsString)
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         }
         List<String> lines = new ArrayList<>();
-        if (item.has("requirements") && item.get("requirements").isJsonArray()) {
-            for (JsonElement el : item.getAsJsonArray("requirements")) {
-                if (el.isJsonObject()) {
-                    lines.add(humanizeRequirement(el.getAsJsonObject()));
-                }
-            }
-        }
-        if (item.has("catacombs_requirements") && item.get("catacombs_requirements").isJsonArray()) {
-            for (JsonElement el : item.getAsJsonArray("catacombs_requirements")) {
-                if (el.isJsonObject()) {
-                    lines.add(humanizeRequirement(el.getAsJsonObject()));
+        for (String key : new String[]{"requirements", "catacombs_requirements"}) {
+            if (item.has(key) && item.get(key).isJsonArray()) {
+                for (JsonElement el : item.getAsJsonArray(key)) {
+                    if (el.isJsonObject()) {
+                        lines.add(humanizeRequirement(el.getAsJsonObject()));
+                    }
                 }
             }
         }
@@ -428,10 +421,7 @@ public final class SkyblockItemRepository {
     }
 
     private static String formatNumber(double value) {
-        if (value == Math.floor(value)) {
-            return String.format(Locale.US, "%,d", (long) value);
-        }
-        return String.format(Locale.US, "%,.1f", value);
+        return value == Math.floor(value) ? String.format(Locale.US, "%,d", (long) value) : String.format(Locale.US, "%,.1f", value);
     }
 
     private static String titleCase(String raw) {
@@ -534,9 +524,6 @@ public final class SkyblockItemRepository {
                 if (UNSTACKABLE.contains(entry.id())) {
                     obj.addProperty("unstackable", true);
                 }
-                // Real description tokens were already converted to section-sign codes on first parse -
-                // re-wrapping them back in %%white%% keeps the cache round-trippable through the same
-                // parser without a second "already-cleaned" code path.
                 if (entry.description() != null) {
                     obj.addProperty("description", entry.description());
                 }
@@ -569,9 +556,7 @@ public final class SkyblockItemRepository {
                 }
                 if (!entry.obtainLines().isEmpty()) {
                     JsonArray obtainLines = new JsonArray();
-                    for (String line : entry.obtainLines()) {
-                        obtainLines.add(line);
-                    }
+                    entry.obtainLines().forEach(obtainLines::add);
                     obj.add("obtain_lines_cache", obtainLines);
                 }
                 array.add(obj);
