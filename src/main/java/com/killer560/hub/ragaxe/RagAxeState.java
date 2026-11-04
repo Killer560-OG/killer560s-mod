@@ -76,7 +76,6 @@ public final class RagAxeState {
         readyAlerted = false;
     }
 
-    // ------------------------------------------------------------------ detection
 
     /** From {@code DungeonAlertsPackets.onSound} (main thread, already Skyblock-gated). */
     static void onSoundPacket(ClientboundSoundPacket packet) {
@@ -125,7 +124,6 @@ public final class RagAxeState {
         }
     }
 
-    // ------------------------------------------------------------------ tick
 
     static void tick() {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
@@ -167,10 +165,7 @@ public final class RagAxeState {
 
     public static long buffRemainingMs() {
         long now = System.currentTimeMillis();
-        if (buffEndMs <= 0 || now < buffStartMs || now >= buffEndMs) {
-            return 0L;
-        }
-        return buffEndMs - now;
+        return buffEndMs <= 0 || now < buffStartMs || now >= buffEndMs ? 0L : buffEndMs - now;
     }
 
     public static long cooldownRemainingMs() {

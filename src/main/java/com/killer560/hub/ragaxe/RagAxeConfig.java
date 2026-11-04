@@ -197,7 +197,6 @@ public final class RagAxeConfig {
         }
     }
 
-    // ------------------------------------------------------------------ accessors
 
     /** Master. Skyblock Only gate lives here, so every sub-setting inherits it. */
     public boolean isEnabled() {

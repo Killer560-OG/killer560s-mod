@@ -119,7 +119,6 @@ public final class RagAxeFeature {
         RagAxeState.onSoundPacket(packet);
     }
 
-    // ------------------------------------------------------------------ output helpers
 
     static void showPrompt(String what, boolean sound, boolean title) {
         promptTicks = PROMPT_TICKS;
@@ -157,7 +156,6 @@ public final class RagAxeFeature {
         }
     }
 
-    // ------------------------------------------------------------------ HUD
 
     private static boolean editorOpen() {
         return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;

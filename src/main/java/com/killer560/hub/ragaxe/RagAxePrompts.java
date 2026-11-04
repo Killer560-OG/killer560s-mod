@@ -57,7 +57,6 @@ final class RagAxePrompts {
         java.util.Arrays.fill(DRAGON_PROMPTED, -1);
     }
 
-    // ------------------------------------------------------------------ triggers
 
     static void onChat(String plain) {
         if (LINE_WITHER_KING.equals(plain) && onFloor7()) {
@@ -124,7 +123,6 @@ final class RagAxePrompts {
         RagAxeFeature.showPrompt(prompt.label, cfg.isPromptSound(prompt), cfg.isPromptTitle());
     }
 
-    // ------------------------------------------------------------------ gates
 
     /** NoammAddons/Odin both skip the M7 dragon rag call for Tank and Healer (they don't rag for dragons). */
     private static boolean skippedForClass(RagAxePrompt prompt) {
