@@ -132,9 +132,7 @@ public final class SecretWaypointsFeature {
     }
 
     /** Forces the next client tick to rebuild the waypoint snapshot (config change, room toggle, world change). */
-    public static void invalidateCache() {
-        cacheStampMs = 0L;
-    }
+    public static void invalidateCache() { cacheStampMs = 0L; }
 
     public static void register() {
         SecretWaypointsRenderer.init();
@@ -220,9 +218,7 @@ public final class SecretWaypointsFeature {
      * essence is placed up to two blocks above its database position and the exact-block match would miss it -
      * hence the nearest WITHER waypoint within three blocks.
      */
-    public static void markSimEssenceCollected(BlockPos pos) {
-        markCollected(pos, Kind.WITHER, 3.0);
-    }
+    public static void markSimEssenceCollected(BlockPos pos) { markCollected(pos, Kind.WITHER, 3.0); }
 
     /** An item entity lying at an ITEM waypoint: which waypoint, and where the item was last seen. */
     private record WatchedItem(BlockPos waypoint, net.minecraft.world.phys.Vec3 lastPos) {
@@ -618,9 +614,7 @@ public final class SecretWaypointsFeature {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretwaypoints");
 
-    private static int sizeOf(List<?> list) {
-        return list == null ? 0 : list.size();
-    }
+    private static int sizeOf(List<?> list) { return list == null ? 0 : list.size(); }
 
     /** The room frame last logged, so the line is written once per room entry (and again if the frame changes). */
     private static String lastLoggedFrame;
@@ -861,9 +855,7 @@ public final class SecretWaypointsFeature {
      * for an item it stands by (an item secret appears only once he has been near it a moment, and is picked up a moment
      * after that). Client thread.
      */
-    public static List<BlockPos> currentRoomItemSecrets() {
-        return currentRoomSecrets(true);
-    }
+    public static List<BlockPos> currentRoomItemSecrets() { return currentRoomSecrets(true); }
 
     /**
      * The room database's CHEST secrets of the room he stands in, as world blocks (the same rooms, corner and rotation as
@@ -871,9 +863,7 @@ public final class SecretWaypointsFeature {
      * near it a moment (killer560, 2026-10-18: chests spawn in like bats), so at a route's end one in reach can still be
      * air. Client thread.
      */
-    public static List<BlockPos> currentRoomChestSecrets() {
-        return currentRoomSecrets(false);
-    }
+    public static List<BlockPos> currentRoomChestSecrets() { return currentRoomSecrets(false); }
 
     private static List<BlockPos> currentRoomSecrets(boolean items) {
         List<BlockPos> out = new ArrayList<>();

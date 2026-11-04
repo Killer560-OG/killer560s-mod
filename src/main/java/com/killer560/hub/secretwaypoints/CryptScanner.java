@@ -92,9 +92,7 @@ public final class CryptScanner {
     private static final java.util.Map<BlockPos, String> SCAN_VERDICT = new java.util.HashMap<>();
 
     /** Logs {@code detail} for a candidate at {@code anchor} when its {@code verdict} differs from the last one logged. */
-    private static void note(BlockPos anchor, String verdict, String detail) {
-        note(anchor, "", verdict, detail);
-    }
+    private static void note(BlockPos anchor, String verdict, String detail) { note(anchor, "", verdict, detail); }
 
     /** As {@link #note(BlockPos, String, String)}, with {@code slot} keeping two rules on one anchor apart. */
     private static void note(BlockPos anchor, String slot, String verdict, String detail) {

@@ -41,9 +41,7 @@ public final class SecretWaypointsRenderer {
 
     /** Called from {@link SecretWaypointsFeature#register()} so the pipelines exist before the renderer
      *  precompiles its pipeline list. */
-    static void init() {
-        RenderType unused = ThroughWalls.LINES;
-    }
+    static void init() { RenderType unused = ThroughWalls.LINES; }
 
     /** Holder idiom - built once, on {@link #init()}. */
     private static final class ThroughWalls {
