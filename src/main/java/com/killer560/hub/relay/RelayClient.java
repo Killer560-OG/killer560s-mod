@@ -157,10 +157,6 @@ public final class RelayClient {
         }
     }
 
-    public static void removeListener(RelayListener value) {
-        extraListeners.remove(value);
-    }
-
     /**
      * Tell the relay what it should be doing. Safe (and intended) to call from a client tick: it returns
      * immediately unless the answer actually changed, and all the real work happens on the relay's own thread.
