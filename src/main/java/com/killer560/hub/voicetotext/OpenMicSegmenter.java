@@ -67,9 +67,7 @@ public final class OpenMicSegmenter {
 
         if (!speaking) {
             keepPreRoll(buf, len);
-            if (!voice) {
-                return new Result(Action.CONTINUE, null, 0, 0);
-            }
+            if (!voice) return new Result(Action.CONTINUE, null, 0, 0);
             speaking = true;
             utterance.reset();
             for (byte[] b : preRoll) {
