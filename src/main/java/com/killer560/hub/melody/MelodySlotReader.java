@@ -48,9 +48,7 @@ final class MelodySlotReader {
     /** @param highestLitClayRow 1-4 (1-3 on the 3-row layout; Odin's own clay row numbering), or -1 if none is lit yet.
      *  @param target            0-4 target/purple column, or -1 if no target pane is visible this scan.
      *  @param current           0-4 moving/lime column, or -1 if no lime pane is visible this scan. */
-    record Result(int highestLitClayRow, int target, int current) {
-        static final Result EMPTY = new Result(-1, -1, -1);
-    }
+    record Result(int highestLitClayRow, int target, int current) { static final Result EMPTY = new Result(-1, -1, -1); }
 
     private MelodySlotReader() {
     }
@@ -86,9 +84,7 @@ final class MelodySlotReader {
     }
 
     /** Same ambiguity {@code TerminalSolverFeature#isMelodyEndpointColor} documents. */
-    private static boolean isEndpointColor(DyeColor pane) {
-        return pane == DyeColor.MAGENTA || pane == DyeColor.PURPLE;
-    }
+    private static boolean isEndpointColor(DyeColor pane) { return pane == DyeColor.MAGENTA || pane == DyeColor.PURPLE; }
 
     private static DyeColor paneDyeColor(ItemStack item) {
         if (!(item.getItem() instanceof BlockItem blockItem)) {

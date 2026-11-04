@@ -112,9 +112,7 @@ public final class MelodyTrackerFeature {
     private static boolean lastInP3;
 
     /** @return when our own Melody was finished, 0 if not recently; polled by {@code PartyDataFeature} to share it. */
-    public static long selfDoneAtMs() {
-        return selfDoneAtMs;
-    }
+    public static long selfDoneAtMs() { return selfDoneAtMs; }
 
     /** Section changes and staleness (killer560, 2026-11-01: "if a section ends then it removes it or at max it is there
      *  for 15s without an update"). */
@@ -286,9 +284,7 @@ public final class MelodyTrackerFeature {
     public record SelfMelody(int clayRow, int target, int current) {
     }
 
-    public static SelfMelody selfSnapshot() {
-        return open ? new SelfMelody(lastLitRow, lastTarget, lastCurrent) : null;
-    }
+    public static SelfMelody selfSnapshot() { return open ? new SelfMelody(lastLitRow, lastTarget, lastCurrent) : null; }
 
 
     /** One HUD row's already-formatted content - mutated in place by {@link #rebuildRows} (tick rate), never
@@ -370,19 +366,13 @@ public final class MelodyTrackerFeature {
         private static final int COLOR_BAR_FILL = 0xFFFF8C00;
 
         @Override
-        public String id() {
-            return "team_melody";
-        }
+        public String id() { return "team_melody"; }
 
         @Override
-        public String displayName() {
-            return "Team Melody";
-        }
+        public String displayName() { return "Team Melody"; }
 
         @Override
-        public int defaultX() {
-            return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY);
-        }
+        public int defaultX() { return com.killer560.hub.hud.F7HudSlots.x(com.killer560.hub.hud.F7HudSlots.TEAM_MELODY); }
 
         @Override
         public int defaultY() {
@@ -432,17 +422,11 @@ public final class MelodyTrackerFeature {
             return Math.max(1, Math.min(BridgeTables.MELODY_MAX_CLAY_ROW, com.killer560.hub.terminals.TerminalLayouts.melodyRows()));
         }
 
-        private static int boardWidth() {
-            return (COLUMNS + 1) * (CELL + GAP) + 2;
-        }
+        private static int boardWidth() { return (COLUMNS + 1) * (CELL + GAP) + 2; }
 
-        private static int boardHeight() {
-            return (boardRows() + 1) * (CELL + GAP);
-        }
+        private static int boardHeight() { return (boardRows() + 1) * (CELL + GAP); }
 
-        private static int rowHeight(Row row) {
-            return row.board ? 10 + boardHeight() + 3 : ROW_HEIGHT;
-        }
+        private static int rowHeight(Row row) { return row.board ? 10 + boardHeight() + 3 : ROW_HEIGHT; }
 
         /** Top strip: the target column (purple on the real board). Then one line per button row: rows already played are
          *  green, the active row shows the moving pane at its column and a lit button, later rows wait. */

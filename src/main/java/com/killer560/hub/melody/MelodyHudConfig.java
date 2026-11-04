@@ -80,25 +80,15 @@ public final class MelodyHudConfig {
         }
     }
 
-    public boolean isHudEnabled() {
-        return hudEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isHudEnabled() { return hudEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isHudEnabledRaw() {
-        return hudEnabled;
-    }
+    public boolean isHudEnabledRaw() { return hudEnabled; }
 
-    public void setHudEnabled(boolean hudEnabled) {
-        this.hudEnabled = hudEnabled;
-    }
+    public void setHudEnabled(boolean hudEnabled) { this.hudEnabled = hudEnabled; }
 
     /** Publish OUR own read-only tracker's progress (relay + Odin, when its own toggle/connection allow it).
      *  Never affects what we RECEIVE from teammates - that's always shown once known. */
-    public boolean isShareProgress() {
-        return shareProgress;
-    }
+    public boolean isShareProgress() { return shareProgress; }
 
-    public void setShareProgress(boolean shareProgress) {
-        this.shareProgress = shareProgress;
-    }
+    public void setShareProgress(boolean shareProgress) { this.shareProgress = shareProgress; }
 }
