@@ -105,9 +105,7 @@ public final class P4PlatformHighlightFeature {
         // player is standing in the core at all. Both are what let the highlight show up in a run where
         // the Core line never reached us (rejoin, dialogue-skipped/hidden chat, warp straight to the
         // platform - the one case in this repo's own logs) instead of the feature simply never firing.
-        if (++worldCheckCounter < 5) {
-            return;
-        }
+        if (++worldCheckCounter < 5) return;
         worldCheckCounter = 0;
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null || !DungeonState.isF7OrM7()) {
@@ -137,9 +135,7 @@ public final class P4PlatformHighlightFeature {
     private static void onWorldRender(LevelRenderContext context) {
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || !shouldShow() || !DungeonState.isF7OrM7() || client.level == null) {
-            return;
-        }
+        if (!cfg.isEnabled() || !shouldShow() || !DungeonState.isF7OrM7() || client.level == null) return;
         // Through SolverEspRender, not WorldRenderUtils: this box sits exactly on the faces of the very
         // blocks it outlines, so depth-tested it z-fights into nothing and is completely hidden the moment
         // you stand on the platform - which is the only time you want to see it. QUOI, the mod this was
