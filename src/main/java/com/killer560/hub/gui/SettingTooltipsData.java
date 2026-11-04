@@ -86,7 +86,8 @@ final class SettingTooltipsData {
         part1(d);
         part2(d);
         part3(d);
-        // mining(d): shelved until after 2.0 (shelved/mining/README.md).
+        mining(d);
+        SettingTooltipsMining3.register(d);
         invSortAndAutoSell(d);
         autoKick(d);
         customPartyFinder(d);
@@ -101,6 +102,65 @@ final class SettingTooltipsData {
         settingsSweep(d);
         blink(d);
         miningQol(d);
+    }
+
+    /** The Mining tabs pulled from staging-mining-3 (2026-11-04). */
+    private static void mining(Map<String, String> d) {
+        d.put("profit per hour/profit per hour tracker", "Tracks the items you gain while mining and their Bazaar or Auction House value, and shows coins per hour.");
+        d.put("profit per hour/mining islands only", "On, the clock only runs on mining islands. Off, it counts gains anywhere on Skyblock.");
+        d.put("profit per hour/refresh", "Reads the totals again.");
+        d.put("profit per hour/reset totals", "Clears the tracked items, value and time.");
+        d.put("profit per hour/open /profit", "Opens the profit trackers screen.");
+        d.put("nucleus run profit/nucleus run profit tracker", "Counts your Crystal Nucleus runs from Hypixel's loot bundle message and prices the rewards.");
+        d.put("nucleus run profit/refresh", "Reads the totals again.");
+        d.put("nucleus run profit/reset totals", "Clears the run count, value and time.");
+        d.put("nucleus run profit/open /profit", "Opens the profit trackers screen.");
+        d.put("crystal hollows map/crystal hollows map", "A top-down Crystal Hollows map showing you, the structures you have found and your waypoints.");
+        d.put("crystal hollows map/open map", "Opens the full map. Left click sets a travel target, right click clears it. It never moves you.");
+        d.put("crystal hollows map/map scale", "How far the map is zoomed in, 0.5x to 4x.");
+        d.put("crystal hollows map/show borders", "Draws a box around each structure you have found, covering the part you have walked.");
+        d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
+        d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");
+        d.put("crystal hollows map/receive others'", "Shows structures other mod users found in this lobby, with a dashed border.");
+        d.put("crystal hollows map/add waypoint here", "Saves where you stand as a Crystal Hollows waypoint.");
+        d.put("crystal hollows map/remove last", "Removes the waypoint you added last.");
+        d.put("metal detector/metal detector", "In the Mines of Divan, works out where the Metal Detector's treasure is from its readout and marks it, with a line to it. It never moves you or clicks.");
+        d.put("metal detector/line to treasure", "Draws a line from you to the treasure once one spot is left.");
+        d.put("metal detector/show possible spots", "Outlines every spot the treasure can still be while more than one is left.");
+        d.put("metal detector/chat updates", "Says in chat when the center is found and how many spots are left.");
+        d.put("metal detector/treasure color", "The color of the treasure's box and line.");
+        d.put("metal detector/spot color", "The color of the possible spots' outlines.");
+        d.put("mining events/mining events", "Alerts you when a Dwarven Mines or Crystal Hollows event is about to start, and shows a timer of the events running. Read from chat only.");
+        d.put("mining events/event title", "Shows a title 20 seconds before an event starts.");
+        d.put("mining events/event sound", "Plays a sound 20 seconds before an event starts.");
+        d.put("mining events/event sound choice", "Which sound plays for an event. Left click goes forward, right click back.");
+        d.put("mining events/ending soon", "Alerts again when a running event has 20 seconds left.");
+        d.put("mining events/event timer hud", "A HUD with each running event and the time it has left. Move it in the HUD editor.");
+        d.put("mining events/2x powder", "Alerts for 2x Powder.");
+        d.put("mining events/goblin raid", "Alerts for Goblin Raid.");
+        d.put("mining events/raffle", "Alerts for Raffle.");
+        d.put("mining events/mithril gourmand", "Alerts for Mithril Gourmand.");
+        d.put("mining events/better together", "Alerts for Better Together.");
+        d.put("mining events/gone with the wind", "Alerts for Gone With The Wind.");
+        d.put("lobby tracker/lobby tracker", "Remembers the mining lobbies you have been in, by the tab list's server id, and tells you when you join one again.");
+        d.put("lobby tracker/seen before message", "On joining a lobby you have been in, says how long ago and how many times.");
+        d.put("lobby tracker/lobby hud", "A HUD with this lobby's id and your visits. Move it in the HUD editor.");
+        d.put("lobby tracker/show world day", "Adds the world's day counter (its tick count divided by 24000) to the HUD. A low number means a young lobby.");
+        d.put("lobby tracker/forget lobbies", "Clears every remembered lobby.");
+        d.put("crystal tracker/crystal tracker", "In the Crystal Hollows, shows the tab list's Crystals widget on a HUD: placed green, found yellow, still needed red.");
+        d.put("crystal tracker/all found title", "Shows a title once every crystal is found or placed.");
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Mining's cheat block. Inside the constant, so a legit jar carries none of these strings.
+            d.put("structure scanner/structure scanner", "Cheat build only. Reads the loaded chunks around you for Crystal Hollows structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
+            d.put("structure scanner/structure waypoints", "Outlines each found structure's spot, through walls.");
+            d.put("structure scanner/chat on find", "Says in chat what was found and where.");
+            d.put("structure scanner/show on map", "Adds the finds to the Crystal Hollows Map as scanned. Scanned finds are never shared with other players.");
+            d.put("structure scanner/fairy grottos", "Also looks for Fairy Grottos (magenta glass).");
+            d.put("structure scanner/scan again", "Forgets what was scanned in this lobby and starts over.");
+            d.put("ghost esp/ghost esp", "Cheat build only. Outlines the invisible Ghosts in the Dwarven Mines' Mist. It only draws.");
+            d.put("ghost esp/ghosts through walls", "Shows the outlines through blocks.");
+            d.put("ghost esp/ghost color", "The color of the Ghost outlines.");
+        }
     }
 
     /** The pre-2.0 Mining category (miningqol/, to-do Doc 2026-11-01). */

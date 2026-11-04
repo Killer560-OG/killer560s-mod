@@ -19,9 +19,13 @@ public class MiningQolTab extends FolderTab {
     }
 
     private static List<BaseTab> tabs() {
-        List<BaseTab> t = new ArrayList<>(List.of(new CommissionsMithrilGroup(), new PowderMiningGroup(), new MiningGeneralGroup()));
+        List<BaseTab> t = new ArrayList<>(List.of(new CommissionsMithrilGroup(), new DwarvenGlaciteGroup(),
+                new PowderMiningGroup(), new CrystalHollowsGroup(), new MiningGeneralGroup()));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             t.add(new MiningPigeonDrillTab());
+            // From staging-mining-3 (2026-11-04): both draw through walls or read blocks no player could see.
+            t.add(new StructureScannerTab());
+            t.add(new GhostEspTab());
         }
         return t;
     }
@@ -41,11 +45,29 @@ public class MiningQolTab extends FolderTab {
         }
     }
 
+    /** Fetchur, Puzzler, the Glacite Tunnels' Cold and the Fossil Excavator (from staging-mining-3, 2026-11-04). */
+    static final class DwarvenGlaciteGroup extends FolderTab {
+        DwarvenGlaciteGroup() {
+            super("Dwarven Mines and Glacite", List.of(new FetchurSolverTab(), new PuzzlerSolverTab(),
+                    new ColdOverlayTab(), new FossilSolverTab()));
+        }
+    }
+
+    /** The Crystal Hollows: its map, crystals, solvers, worms, lobby and Nucleus runs (staging-mining-3, 2026-11-04). */
+    static final class CrystalHollowsGroup extends FolderTab {
+        CrystalHollowsGroup() {
+            super("Crystal Hollows", List.of(new CrystalHollowsMapTab(), new CrystalTrackerTab(),
+                    new WishingCompassTab(), new MetalDetectorTab(), new WormAlertTab(), new LobbyTrackerTab(),
+                    new NucleusRunProfitTab()));
+        }
+    }
+
     /** Everything that is not tied to one kind of mining. */
     static final class MiningGeneralGroup extends FolderTab {
         MiningGeneralGroup() {
             super("General", List.of(new MiningAbilityReadyTab(), new MiningPickobulusTab(), new MiningCarpetTab(),
-                    new MiningResumeBreakTab(), new MiningWrongArmorTab()));
+                    new MiningResumeBreakTab(), new MiningWrongArmorTab(), new MiningEventsTab(), new MiningProfitTab(),
+                    new SkyMallDisplayTab()));
         }
     }
 }

@@ -64,16 +64,16 @@ public final class ModChatFeature {
                 && com.killer560.hub.interop.InteropConfig.getInstance().isRelayData()
                 && com.killer560.hub.partydata.PartyDataConfig.getInstance().isShareEnabled())
                 || com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress();
-        // Crystal Hollows structure sharing (which forced a LOBBY room here) is shelved until after 2.0 - see
-        // shelved/mining/README.md. A "ch.v1.find" data packet from an older client still in our room reaches
-        // only listeners that switch on their own keys, so it is ignored.
+        // Crystal Hollows structure sharing ("ch.v1.find", the Crystal Hollows Map's sharing) needs a LOBBY room: a find
+        // only means anything to someone on the same server, since Hypixel lays that world out differently on each.
+        boolean chNeedsLobby = com.killer560.hub.mining.chmap.ChShare.wantsLobbyRoom();
         // Song Tag (killer560, 2026-11-01: "they arent being shared currently. I tested with another one of my accounts
         // and another persons"): its packets ride the relay, but nothing here ever connected for it, so with Mod Chat
         // off and no party the socket stayed shut and every song went nowhere; even partied, the two players had to be
         // in one Hypixel party. The line is drawn over players within 16 blocks, which is the LOBBY: so Share My Song or
         // Show Others' Songs on now keeps the relay up, in the lobby room when Mod Chat does not choose one.
         boolean songsOn = songTagWantsRelay();
-        boolean on = (chatOn || dataOn || songsOn)
+        boolean on = (chatOn || dataOn || songsOn || chNeedsLobby)
                 && client.getConnection() != null && client.player != null;
         // Party dungeon data only travels in a party room. In a dungeon the lobby IS the party (the instance only holds
         // your team), so while sharing is on, a dungeon always uses the party room even if Mod Chat is set to Lobby -
@@ -82,6 +82,9 @@ public final class ModChatFeature {
         RelayRoom.Mode mode;
         if (dataNeedsParty) {
             mode = RelayRoom.Mode.PARTY;
+        } else if (chNeedsLobby) {
+            // Crystal Hollows sharing only means anything in the lobby room (nobody is in a dungeon and the Hollows).
+            mode = RelayRoom.Mode.LOBBY;
         } else if (chatOn) {
             mode = cfg.getRoomMode();
         } else {

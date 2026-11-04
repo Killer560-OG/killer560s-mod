@@ -121,7 +121,7 @@ public final class HypixelLocation {
     /**
      * An opaque key for the lobby we are on, or null while Hypixel has not answered yet.
      *
-     * <p>Public because the Crystal Hollows map (shelved until after 2.0, shelved/mining/) threw its findings away
+     * <p>Public because the Crystal Hollows map (mining/chmap) threw its findings away
      * when the lobby changed - Hypixel lays that world out differently on every server. Same value
      * {@link #lobbyRoom} keys the relay room on.
      */

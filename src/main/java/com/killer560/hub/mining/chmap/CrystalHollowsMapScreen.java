@@ -300,7 +300,7 @@ public class CrystalHollowsMapScreen extends Screen {
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
-        pressButton = event.button();
+        pressButton = com.killer560.hub.compat.McInput.button(event);
         pressX = event.x();
         pressY = event.y();
         dragMoved = false;
@@ -324,9 +324,9 @@ public class CrystalHollowsMapScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == pressButton) {
+        if (com.killer560.hub.compat.McInput.button(event) == pressButton) {
             if (!dragMoved) {
-                onClick(event.button(), event.x(), event.y());
+                onClick(com.killer560.hub.compat.McInput.button(event), event.x(), event.y());
             }
             pressButton = -1;
             dragMoved = false;

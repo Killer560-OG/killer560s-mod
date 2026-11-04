@@ -46,9 +46,9 @@ public class CrystalHollowsMapTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 10,
-                    Component.literal("§7A top-down map centred on the Crystal Nucleus's real fixed coordinate,"
+                    Component.literal("§7A top-down map centered on the Crystal Nucleus's real fixed coordinate,"
                             + " your live position, your saved waypoints, and a click-to-set travel target."), font));
             return widgets;
         }
@@ -66,8 +66,9 @@ public class CrystalHollowsMapTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                cfg.setMapScale((float) (CrystalHollowsMapConfig.MIN_SCALE
-                        + this.value * (CrystalHollowsMapConfig.MAX_SCALE - CrystalHollowsMapConfig.MIN_SCALE)));
+                // Rounded to the label's 0.1x, so the knob snaps to the stops the label shows.
+                cfg.setMapScale(Math.round((CrystalHollowsMapConfig.MIN_SCALE + (float) this.value
+                        * (CrystalHollowsMapConfig.MAX_SCALE - CrystalHollowsMapConfig.MIN_SCALE)) * 10f) / 10f);
                 cfg.save();
             }
         });
@@ -182,7 +183,4 @@ public class CrystalHollowsMapTab extends BaseTab {
         return Component.literal(String.format(Locale.US, "Map Scale: %.1fx", cfg.getMapScale()));
     }
 
-    private static Component onOff(String label, boolean value) {
-        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
 }

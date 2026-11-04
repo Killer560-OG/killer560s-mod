@@ -180,12 +180,20 @@ public final class ModPaths {
         t.put("bazaarflip", "skyblock/bazaarflip");
         // AH Flipper and AH Price Buttons (killer560smod-ahflip.json, 2026-11-01).
         t.put("ahflip", "skyblock/ahflip");
-        // The three mining rows are KEPT although mining is shelved until after 2.0 (shelved/mining/README.md):
-        // they only name folders, and dropping them would make migrateAll move an old root mining file into
-        // other/, where the restored features would not find it. Nothing reads these files while shelved.
+        // The Mining category's features from staging-mining-3 (2026-11-04).
         t.put("mining-profit", "skyblock/mining-profit");
         t.put("nucleus-profit", "skyblock/nucleus-profit");
         t.put("chmap", "skyblock/chmap");
+        t.put("mining-metaldetector", "skyblock/mining-metaldetector");
+        t.put("mining-events", "skyblock/mining-events");
+        t.put("mining-lobby", "skyblock/mining-lobby");
+        t.put("mining-lobbies", "skyblock/mining-lobby");
+        t.put("mining-crystals", "skyblock/mining-crystals");
+        t.put("mining-scanner", "skyblock/mining-scanner");
+        t.put("mining-ghosts", "skyblock/mining-ghosts");
+        // Every other Mining feature's settings (killer560smod-mining-<feature>.json, islands/IslandConfig.of("mining",
+        // ...)) in one folder; the longer rows above still win for their own files.
+        t.put("mining-", "skyblock/mining");
         // The pre-2.0 mining features (miningqol/, 2026-11-01).
         t.put("miningqol", "skyblock/miningqol");
         // Crystal Hollows powder grinding (powdermining/, 2026-11-03), beside the other mining settings.

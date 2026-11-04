@@ -116,7 +116,9 @@ public final class ChShare {
         for (ChFind f : finds) {
             // Only what he actually established himself. Relaying a find that came from someone else would
             // turn one person's guess into everybody's consensus with no way back to who saw it.
-            if (f.source == ChFind.Source.SHARED) {
+            // A SCANNED find (the cheat-only Structure Scanner) is never sent either: it would hand other players
+            // information their own game did not give them, and say how it was got.
+            if (f.source == ChFind.Source.SHARED || f.source == ChFind.Source.SCANNED) {
                 continue;
             }
             RelayClient.sendData(KEY_FIND, encode(f));

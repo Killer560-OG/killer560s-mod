@@ -30,6 +30,23 @@ final class CardBlurbsData {
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");
+        // staging-mining-3 cards (2026-11-04).
+        d.put("CrystalHollowsMapTab", "Crystal Hollows map, shared finds.");
+        d.put("CrystalTrackerTab", "Your crystals on a HUD.");
+        d.put("WishingCompassTab", "Where a Wishing Compass points.");
+        d.put("MetalDetectorTab", "Finds Mines of Divan treasure.");
+        d.put("WormAlertTab", "Alert when a worm spawns.");
+        d.put("LobbyTrackerTab", "Remembers lobbies you've been in.");
+        d.put("NucleusRunProfitTab", "Profit of each Nucleus run.");
+        d.put("FetchurSolverTab", "Names Fetchur's item.");
+        d.put("PuzzlerSolverTab", "Marks the Puzzler's block.");
+        d.put("ColdOverlayTab", "Frost on screen as Cold rises.");
+        d.put("FossilSolverTab", "Where to dig for the fossil.");
+        d.put("MiningEventsTab", "Mining event alerts and timers.");
+        d.put("MiningProfitTab", "Mining profit per hour.");
+        d.put("SkyMallDisplayTab", "Today's Sky Mall buff.");
+        d.put("StructureScannerTab", "Finds Crystal Hollows structures.");
+        d.put("GhostEspTab", "Outlines the Mist's Ghosts.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");

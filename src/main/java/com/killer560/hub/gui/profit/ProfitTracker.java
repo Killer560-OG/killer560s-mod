@@ -39,9 +39,12 @@ public enum ProfitTracker {
             com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? List.of("bazaarflip", "bzflip") : List.of(""),
             com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? BazaarFlipProfitScreen::new : parent -> parent,
             com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? ProfitTracker::bazaarFlipSummary
-                    : () -> new Summary("", ProfitPanels.DIM));
-    // MINING ("Mining Profit") and NUCLEUS ("Nucleus Runs") are shelved until after 2.0 with the rest of the mining
-    // features - shelved/mining/README.md has both constants and their summary methods to put back.
+                    : () -> new Summary("", ProfitPanels.DIM)),
+    // The Mining category's Profit Per Hour tracker and Nucleus Run Profit (from staging-mining-3, 2026-11-04).
+    MINING("Mining Profit", "Items gained per hour", List.of("mining"),
+            com.killer560.hub.gui.profit.MiningProfitScreen::new, ProfitTracker::miningSummary),
+    NUCLEUS("Nucleus Runs", "Crystal Nucleus run loot", List.of("nucleus"),
+            com.killer560.hub.gui.profit.NucleusProfitScreen::new, ProfitTracker::nucleusSummary);
 
     /** One line under a card's name: the text, and the color it is drawn in. */
     public record Summary(String text, int color) {
@@ -143,6 +146,29 @@ public enum ProfitTracker {
         }
         return new Summary(ProfitPanels.signedCoins(profit) + " profit, " + chests + " chests",
                 profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD);
+    }
+
+    private static Summary miningSummary() {
+        boolean on = com.killer560.hub.mining.profit.MiningProfitConfig.getInstance().isEnabledRaw();
+        if (com.killer560.hub.mining.profit.MiningProfitTracker.getActiveMs() <= 0
+                && com.killer560.hub.mining.profit.MiningProfitTracker.getTotalValueCoins() <= 0) {
+            return new Summary(on ? "Nothing tracked yet" : "Tracker is off", ProfitPanels.DIM);
+        }
+        return new Summary(com.killer560.hub.mining.profit.MiningItemPricer.shortNumber(
+                com.killer560.hub.mining.profit.MiningProfitTracker.getCoinsPerHour()) + " coins/hour, "
+                + com.killer560.hub.mining.profit.MiningItemPricer.shortNumber(
+                        com.killer560.hub.mining.profit.MiningProfitTracker.getTotalValueCoins()) + " total",
+                ProfitPanels.GOOD);
+    }
+
+    private static Summary nucleusSummary() {
+        long runs = com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.getRunsCompleted();
+        if (runs == 0) {
+            return new Summary("No runs yet", ProfitPanels.DIM);
+        }
+        return new Summary(runs + " runs, " + com.killer560.hub.mining.profit.MiningItemPricer.shortNumber(
+                com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.getCoinsPerRun()) + " coins/run",
+                ProfitPanels.GOOD);
     }
 
     private static Summary luckSummary() {
