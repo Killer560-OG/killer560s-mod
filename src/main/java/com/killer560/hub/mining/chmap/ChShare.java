@@ -60,25 +60,6 @@ public final class ChShare {
                 && "CRYSTAL_HOLLOWS".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland());
     }
 
-    /** One line for the settings tab: is sharing actually able to work right now, and if not, why not. */
-    public static String status() {
-        CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
-        if (!cfg.isShareWaypoints() && !cfg.isReceiveWaypoints()) {
-            return "off";
-        }
-        if (!"CRYSTAL_HOLLOWS".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland())) {
-            return "waiting - not in the Crystal Hollows";
-        }
-        if (!RelayClient.isConnected()) {
-            return "waiting - the relay is not connected";
-        }
-        String room = RelayClient.room();
-        if (room == null || !room.startsWith("lobby:")) {
-            return "waiting - Hypixel has not said which lobby this is yet";
-        }
-        return "connected to this lobby";
-    }
-
     public static void register() {
         RelayClient.addListener(new Listener());
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
