@@ -15,8 +15,10 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * ServerLag read the gaps between them as stalls, and a Blood Camp countdown built on it fell 11-15 ticks a second instead
  * of 20 (testkit 177 on doc-blood-1101's first jar: "74.8 -> 62.8 -> 47.8 -> 33.8 ticks left" a second apart). Here a
  * server is trusted only after two 20-client-tick windows in a row in which at least {@link #TRUST_TICKS_WITH_PING}
- * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all, and stops being trusted after two windows in a
- * row that fail it (one failing window is what a stall itself looks like). The first rule, at 18 pings a window, still
+ * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all and, on hypixel.net, once trusted STAYS
+ * trusted (2026-11-03, timers2): a stall or a burst is just a window that fails that test, and dropping trust there ran the
+ * clock on client ticks through the stall. Odin (ConnectionMixin) and NoammAddons (MixinConnection) count every non-zero ping
+ * and nothing else, so a stall pauses their countdowns and a burst catches them up. The first rule, at 18 pings a window, still
  * trusted GrimAC now and then and ran testkit 792's first trip 31 ticks slow.
  * <p>
  * The clock is one count: each ping advances it while the server is trusted; while it is not, it follows the client's
@@ -71,12 +73,31 @@ public final class PerTickServerClock {
             }
             lastGameTime = gameTime;
             // Untrusted, the clock follows the client's game time, as Blood Camp always did: a tick a tick, plus the
-            // server's own time corrections (set-time packets). A wild jump (a /time command) counts as one tick.
-            onClientTick(Math.abs(delta) > 100L ? 1L : delta);
+            // server's own forward time corrections (set-time packets). A wild jump (a /time command) counts as one
+            // tick, and a correction BACKWARDS counts as none: the clock never goes down, or every countdown on it
+            // would jump back up (2026-11-03, timers2).
+            setHypixel(client);
+            onClientTick(Math.abs(delta) > 100L ? 1L : Math.max(0L, delta));
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> untrust());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> untrust());
     }
+
+    /** Whether the connection is labeled hypixel.net: only makes trust sticky, never earns it (the testkit labels a GrimAC
+     *  connection "mc.hypixel.net" in some cases, and Grim's ~15 pings a second are not ticks). */
+    private static synchronized void setHypixel(net.minecraft.client.Minecraft client) {
+        boolean h = forcedHypixel != null ? forcedHypixel : client.level != null && AttackCooldown.onHypixel(client);
+        hypixel = h;
+    }
+
+    private static Boolean forcedHypixel;
+
+    /** Testkit (logic suite): act as if connected to hypixel.net (true), not (false), or by the address (null). */
+    public static synchronized void hypixelForTest(Boolean on) {
+        forcedHypixel = on;
+        hypixel = on != null && on;
+    }
+    private static boolean hypixel;
 
     private static synchronized void untrust() {
         trusted = false;
@@ -179,7 +200,13 @@ public final class PerTickServerClock {
                 }
             } else {
                 goodWindows = 0;
-                if (trusted && ++shortWindows >= 2) {
+                // On hypixel.net trust is STICKY (2026-11-03, timers2): a lag spike, a stall or the burst after one is exactly
+                // a window that fails the test above, and dropping trust there ran the clock on client ticks through the
+                // stall while Hypixel stood still (Odin and NoammAddons count every non-zero ping and nothing else).
+                // Elsewhere (an anticheat server pinging ~15 a second) two failing windows in a row still end trust.
+                if (hypixel) {
+                    shortWindows = 0;
+                } else if (trusted && ++shortWindows >= 2) {
                     trusted = false;
                     shortWindows = 0;
                 }

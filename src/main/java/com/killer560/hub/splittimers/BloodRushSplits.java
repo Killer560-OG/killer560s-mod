@@ -345,7 +345,7 @@ public final class BloodRushSplits {
             return null;
         }
         long t = Math.max(0L, b.ms() - a.ms());
-        return new long[]{t, Math.max(0L, t - (b.lagMs() - a.lagMs()))};
+        return new long[]{t, Math.max(0L, t - Math.max(0L, b.lagMs() - a.lagMs()))};
     }
 
     /** The room's own key time: the door into it down (else its start) to the key in hand. */

@@ -322,7 +322,7 @@ public final class SplitTimersFeature {
             return;
         }
         long segment = now - run.timeMs[prev];
-        long segmentLagless = Math.max(0L, segment - (run.lagMs[index] - run.lagMs[prev]));
+        long segmentLagless = Math.max(0L, segment - Math.max(0L, run.lagMs[index] - run.lagMs[prev]));
         boolean last = index == run.splits.size() - 1;
 
         Minecraft client = Minecraft.getInstance();
@@ -439,7 +439,7 @@ public final class SplitTimersFeature {
     /** A span from boundary {@code from}'s time to {@code end}, as a row. */
     private static SplitRow span(String name, int from, long[] end) {
         long t = Math.max(0L, end[0] - run.timeMs[from]);
-        long lagless = Math.max(0L, t - (end[1] - run.lagMs[from]));
+        long lagless = Math.max(0L, t - Math.max(0L, end[1] - run.lagMs[from]));
         return SplitRow.segment(name, t, lagless);
     }
 
@@ -497,7 +497,7 @@ public final class SplitTimersFeature {
         out.add(new SplitRow(DIVIDER_TEXT, 0L, -1L, Kind.DIVIDER));
         out.add(span("§eTotal", first, runEnd));
         if (SplitLagClock.isTrustworthy()) {
-            out.add(new SplitRow("§cLag", Math.max(0L, runEnd[1] - run.lagMs[first]), -1L, Kind.LAG));
+            out.add(new SplitRow("§cLag", SplitLagClock.shownLag(runEnd[1] - run.lagMs[first]), -1L, Kind.LAG));
         }
         return out;
     }
