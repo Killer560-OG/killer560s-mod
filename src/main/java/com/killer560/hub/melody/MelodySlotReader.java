@@ -3,7 +3,6 @@ package com.killer560.hub.melody;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.StainedGlassPaneBlock;
 
 import java.util.List;
