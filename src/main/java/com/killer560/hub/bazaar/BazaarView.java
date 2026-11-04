@@ -1100,14 +1100,7 @@ public final class BazaarView {
                 int hy = Math.max(rowY, top);
                 int hh = Math.min(rowY + rh, bottom) - hy;
                 boolean hover = in(x, hy, w - 6, hh);
-                if (sel) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.selectedBg());
-                    g.fill(x + 1, rowY, x + 3, rowY + rh, t.accent());
-                } else if (hover) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.rowHover());
-                } else if (alt % 2 == 1) {
-                    g.fill(x + 1, rowY, x + w - 1, rowY + rh, t.rowAlt());
-                }
+                rowBackground(x, w, rowY, rh, sel, hover, alt % 2 == 1);
                 alt++;
                 productRow(p, x, rowY, c, whole, !query.isBlank());
                 if (hh > 0) {

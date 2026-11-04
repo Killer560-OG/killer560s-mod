@@ -321,6 +321,16 @@ public final class BlinkCharge {
         return shotPauses;
     }
 
+    /** Drops the held packet, owing the server its look when it carried one. */
+    private static void dropStash() {
+        if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
+            rotationOwed = true;
+            owedYaw = m.getYRot(0f);
+            owedPitch = m.getXRot(0f);
+        }
+        stash = null;
+    }
+
     private static String shotPauseReason(Minecraft client) {
         return firstReason(SHOT_PAUSES, client, "pause", null);
     }
@@ -617,12 +627,7 @@ public final class BlinkCharge {
                 // phase) are backed again first, by withholding still ticks without counting them (campaign-blink-1027).
                 boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling;
                 if (reback) {
-                    if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
-                        rotationOwed = true;
-                        owedYaw = m.getYRot(0f);
-                        owedPitch = m.getXRot(0f);
-                    }
-                    stash = null;
+                    dropStash();
                     busy = false;
                     frozenTick = false;
                     unbacked--;
@@ -643,12 +648,7 @@ public final class BlinkCharge {
                 }
                 busy = false;
                 if (bank) {
-                    if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
-                        rotationOwed = true;
-                        owedYaw = m.getYRot(0f);
-                        owedPitch = m.getXRot(0f);
-                    }
-                    stash = null;
+                    dropStash();
                     banked++;
                     bankedTotal++;
                     if (banked >= cap()) {

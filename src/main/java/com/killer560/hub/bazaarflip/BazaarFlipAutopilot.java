@@ -869,6 +869,17 @@ final class BazaarFlipAutopilot {
         done("skipped");
     }
 
+    /** Abandons the job, and says so, when the live price on {@code it} no longer sells at a profit. */
+    private static boolean abandonedUnprofitable(Minecraft client, String productId, BazaarPages.Item it, String what) {
+        double live = lorePerUnit(it.lore());
+        double sale = saleEach(client, productId);
+        if (live > 0 && sale > 0 && live >= sale) {
+            abandon(client, String.format(Locale.US, what + " (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+            return true;
+        }
+        return false;
+    }
+
     /** The job as {@code type}, or null after failing with "unknown menu" when it is another kind of job. */
     private static <T extends FlipAction> T actionAs(Class<T> type, AbstractContainerScreen<?> screen) {
         if (type.isInstance(action)) {
@@ -1207,10 +1218,7 @@ final class BazaarFlipAutopilot {
                 if (samePrice > 0 && ownBuyAt(b.productId(), samePrice)) {
                     it = same;
                 }
-                double live = lorePerUnit(it.lore());
-                double sale = saleEach(client, b.productId());
-                if (live > 0 && sale > 0 && live >= sale) {
-                    abandon(client, String.format(Locale.US, "the live bid (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+                if (abandonedUnprofitable(client, b.productId(), it, "the live bid")) {
                     return;
                 }
                 click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
@@ -1229,10 +1237,7 @@ final class BazaarFlipAutopilot {
                     fail("Confirm Buy Order says " + amount + ", not the " + b.amount() + " ordered - not confirming");
                     return;
                 }
-                double live = lorePerUnit(it.lore());
-                double sale = saleEach(client, b.productId());
-                if (live > 0 && sale > 0 && live >= sale) {
-                    abandon(client, String.format(Locale.US, "the order's price (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
+                if (abandonedUnprofitable(client, b.productId(), it, "the order's price")) {
                     return;
                 }
                 if (click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {

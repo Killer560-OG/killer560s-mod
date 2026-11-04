@@ -353,15 +353,7 @@ public final class BazaarFlipFeature {
             if (refusal != null) {
                 return refusal;
             }
-            target = null;
-            clicks = 0;
-            cycles = 0;
-            npcLimitHit = false;
-            lastStopReason = "";
-            startPurse = purse;
-            startedAtMs = System.currentTimeMillis();
-            startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
-                    && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
+            resetSession(client, cfg, purse);
             setState(State.AUTOPILOT);
             return null;
         }
@@ -369,22 +361,26 @@ public final class BazaarFlipFeature {
             return npcLimitText();
         }
         BazaarFlipScanner.clear();
-        target = null;
-        clicks = 0;
-        cycles = 0;
-        npcLimitHit = false;
-        lastStopReason = "";
+        resetSession(client, cfg, purse);
         rejected.clear();
         lastScanAtMs = 0L;
-        startPurse = purse;
-        startedAtMs = System.currentTimeMillis();
-        startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
-                && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
         beginScan(purse, "starting");
         ModChat.send("Bazaar Flip", ModChat.text("Scanning the Bazaar... purse "),
                 ModChat.value(String.format(Locale.US, "%,.0f", purse)),
                 ModChat.dim(", ranking by " + cfg.getRankingMode().display));
         return null;
+    }
+
+    private static void resetSession(Minecraft client, BazaarFlipConfig cfg, double purse) {
+        target = null;
+        clicks = 0;
+        cycles = 0;
+        npcLimitHit = false;
+        lastStopReason = "";
+        startPurse = purse;
+        startedAtMs = System.currentTimeMillis();
+        startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
+                && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
     }
 
     public static void requestStop() {
@@ -1407,16 +1403,16 @@ public final class BazaarFlipFeature {
 
     /** Pacing between two consecutive automated actions in the menus - the menu speed slider's only job. */
     static long randomDelay(BazaarFlipConfig cfg) {
-        int lo = cfg.getActionDelayMinMs();
-        int hi = Math.max(lo, cfg.getActionDelayMaxMs());
-        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+        return jitter(cfg.getActionDelayMinMs(), cfg.getActionDelayMaxMs());
     }
 
     /** Pacing between two consecutive sell shift-clicks - the sell speed slider's only job. */
     static long randomSellDelay(BazaarFlipConfig cfg) {
-        int lo = cfg.getSellDelayMinMs();
-        int hi = Math.max(lo, cfg.getSellDelayMaxMs());
-        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+        return jitter(cfg.getSellDelayMinMs(), cfg.getSellDelayMaxMs());
+    }
+
+    private static long jitter(int lo, int maxMs) {
+        return lo + ThreadLocalRandom.current().nextInt(Math.max(lo, maxMs) - lo + 1);
     }
 
     /** The Bazaar did not reopen after a Custom Amount buy. If the purse and free room still cover more of this cycle's
