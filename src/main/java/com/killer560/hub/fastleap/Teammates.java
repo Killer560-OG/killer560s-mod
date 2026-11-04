@@ -85,13 +85,7 @@ public final class Teammates {
      *  {@code 1 - 0.25 - floor(level / 2) / 100 * (only mage ? 2 : 1)}. Unknown class/level = the non-mage 1.0. */
     public static double mageCooldownMultiplier() {
         String self = selfName();
-        Teammate me = null;
-        for (Teammate t : TEAMMATES.values()) {
-            if (t.name().equalsIgnoreCase(self)) {
-                me = t;
-                break;
-            }
-        }
+        Teammate me = TEAMMATES.values().stream().filter(t -> t.name().equalsIgnoreCase(self)).findFirst().orElse(null);
         if (me == null || me.clazz() != DungeonClass.MAGE) {
             return 1.0;
         }
