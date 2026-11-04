@@ -2,6 +2,9 @@ package com.killer560.hub.leapcounter;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.leapmenu.PartyTracker;
+import com.killer560.hub.splittimers.CoreArea;
+import com.killer560.hub.util.ModLog;
+import org.slf4j.Logger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -57,6 +60,9 @@ import java.util.regex.Pattern;
  * moving more than {@code radius} from it means you left the spot and the count resets. Section changes and your
  * own leap also reset it. Section detection is {@link Floor7Tracker} only ({@code getPhaseAt()} / {@code
  * getStageAt()}, falling back to the chat-driven stage when you stand between section boxes).
+ * <h2>The core</h2>
+ * In the CORE section a teammate counts when a leap (same jump rule, from outside the core) lands them ANYWHERE in the
+ * core box, and walking about inside it does not reset the count; only leaving the core does.
  */
 public final class LeapTracker {
 
@@ -85,6 +91,8 @@ public final class LeapTracker {
     /** Own movement per tick above this = walking, not standing on a spot (sprint is ~0.28/tick). */
     private static final double STATIONARY_MAX_DELTA = 0.2;
 
+    private static final Logger LOGGER = ModLog.get("killer560smod-leapcounter");
+
     private record Sample(int tick, Vec3 pos) {
     }
 
@@ -101,6 +109,8 @@ public final class LeapTracker {
     private static long lastSelfLeapMs = 0L;
     private static Vec3 lastSelfPos = null;
     private static Vec3 anchor = null;
+    /** Entity ids whose dropped arrival was already logged at this spot (bounded by the 32 check in judge). */
+    private static final java.util.Set<Integer> LOGGED = new java.util.HashSet<>();
     private static boolean complete = false;
     private static boolean completionPending = false;
 
@@ -129,6 +139,7 @@ public final class LeapTracker {
      *  teammate who walked in before the reset still cannot be counted afterward. */
     public static void reset() {
         COUNTED.clear();
+        LOGGED.clear();
         complete = false;
         completionPending = false;
         anchor = null;
@@ -219,57 +230,24 @@ public final class LeapTracker {
         double radiusSq = radius * radius;
         double jumpSq = (double) cfg.getJumpDistance() * cfg.getJumpDistance();
 
-        // The anchor follows you until the first leap lands; after that, walking off the spot resets the count.
+        // The anchor follows you until the first leap lands; after that, walking off the spot resets the count
+        // (in the core: leaving the core, so walking about inside it keeps the count).
+        boolean core = section == Section.CORE;
         if (COUNTED.isEmpty()) {
             anchor = self;
-        } else if (anchor != null && anchor.distanceToSqr(self) > radiusSq) {
+        } else if (core ? !CoreArea.contains(self) : anchor != null && anchor.distanceToSqr(self) > radiusSq) {
             reset();
             anchor = self;
         }
 
         long nowMs = System.currentTimeMillis();
         boolean suppressed = lastSelfLeapMs != 0L && nowMs - lastSelfLeapMs < SELF_LEAP_SUPPRESS_MS;
-        // A nudge on the exact arrival tick doesn't lose the leap: the displacement check below compares against
-        // the OLDEST sample in the window, so the arrival stays visible for WINDOW_TICKS more ticks.
-        boolean canCount = !suppressed && !selfMoving && configured > 0;
-
         for (AbstractClientPlayer p : client.level.players()) {
             if (p == client.player || p.isRemoved() || !isTeammate(p, party)) {
                 continue;
             }
-            int id = p.getId();
-            Vec3 pos = p.position();
-            ArrayDeque<Sample> hist = HISTORY.computeIfAbsent(id, k -> new ArrayDeque<>());
-            // A gap longer than the window means the entity was out of tracking range (not in level.players()) -
-            // treat it as newly tracked rather than measuring a displacement against a stale sample.
-            Sample newest = hist.peekLast();
-            if (newest != null && tick - newest.tick() > WINDOW_TICKS) {
-                hist.clear();
-            }
-            boolean newlyTracked = hist.isEmpty();
-            boolean jumped = false;
-            if (!newlyTracked) {
-                Sample oldest = hist.peekFirst();
-                jumped = oldest.pos().distanceToSqr(pos) >= jumpSq && oldest.pos().distanceToSqr(self) > radiusSq;
-            }
-            hist.addLast(new Sample(tick, pos));
-            while (hist.size() > WINDOW_TICKS + 1) {
-                hist.pollFirst();
-            }
-
-            if (!canCount || COUNTED.containsKey(id) || pos.distanceToSqr(self) > radiusSq) {
-                continue;
-            }
-            String name = p.getGameProfile().name();
-            if (PartyTracker.isDead(name)) {
-                // A ghost can't leap, and spectator flight is fast enough to look like one.
-                continue;
-            }
-            boolean arrivedByJump = jumped || (newlyTracked && ticksInSection >= WARMUP_TICKS);
-            if (!arrivedByJump) {
-                continue;
-            }
-            COUNTED.put(id, nowMs);
+            judge(p.getId(), p.getGameProfile().name(), p.position(), self, core, radiusSq, jumpSq,
+                    selfMoving, suppressed, configured, nowMs);
         }
         // Stale entries (teammate left the party / disconnected) so the map can't grow across a long session.
         Iterator<Map.Entry<Integer, ArrayDeque<Sample>>> it = HISTORY.entrySet().iterator();
@@ -285,6 +263,85 @@ public final class LeapTracker {
             completionPending = true;
         }
     }
+
+    private static final int NONE = 0, JUMPED = 1, NEW = 2;
+
+    /** One teammate on one tick: update its sample ring, decide whether it arrived by a leap, count it if allowed.
+     *  Outside the core "arrived" means landed within {@code radius} of you from outside it; in the core, landed
+     *  ANYWHERE in the core from outside it (killer560, 2026-11-04: "any person who leaps into core anywhere").
+     *  A nudge on the arrival tick doesn't lose the leap: the displacement is measured against the OLDEST sample in
+     *  the window, so the arrival stays visible for WINDOW_TICKS more ticks. */
+    private static void judge(int id, String name, Vec3 pos, Vec3 self, boolean core, double radiusSq, double jumpSq,
+                              boolean selfMoving, boolean suppressed, int configured, long nowMs) {
+        ArrayDeque<Sample> hist = HISTORY.computeIfAbsent(id, k -> new ArrayDeque<>());
+        // A gap longer than the window means the entity was out of tracking range (not in level.players()) -
+        // treat it as newly tracked rather than measuring a displacement against a stale sample.
+        Sample newest = hist.peekLast();
+        if (newest != null && tick - newest.tick() > WINDOW_TICKS) {
+            hist.clear();
+        }
+        boolean here = core ? CoreArea.contains(pos) : pos.distanceToSqr(self) <= radiusSq;
+        int kind = NONE;
+        if (here) {
+            Sample oldest = hist.peekFirst();
+            if (oldest == null) {
+                kind = NEW;
+            } else if (oldest.pos().distanceToSqr(pos) >= jumpSq
+                    && (core ? !CoreArea.contains(oldest.pos()) : oldest.pos().distanceToSqr(self) > radiusSq)) {
+                kind = JUMPED;
+            }
+        }
+        hist.addLast(new Sample(tick, pos));
+        while (hist.size() > WINDOW_TICKS + 1) {
+            hist.pollFirst();
+        }
+        if (kind == NONE || COUNTED.containsKey(id)) {
+            return;
+        }
+        // Why an arrival was dropped is logged once per teammate per spot, so a miss shows its cause in the log.
+        String why = configured <= 0 ? null
+                : kind == NEW && ticksInSection < WARMUP_TICKS ? "warmup (" + ticksInSection + " ticks in section)"
+                : selfMoving && !core ? "you were moving"
+                : suppressed && kind == NEW ? "your own leap was under 3 s ago"
+                : name != null && PartyTracker.isDead(name) ? "marked dead" : "";
+        if (why == null) {
+            return;
+        }
+        if (why.isEmpty()) {
+            COUNTED.put(id, nowMs);
+            LOGGED.remove(id);
+            LOGGER.info("Leap counted: {} in {} ({}/{})", name, section, COUNTED.size(), target);
+        } else if (LOGGED.size() < 32 && LOGGED.add(id)) {
+            LOGGER.info("Leap not counted: {} arrived in {} ({}): {}", name, section, kind == NEW ? "tracked" : "jump", why);
+        }
+    }
+
+    /** Testkit hooks (logic suite): set the section and clear all state, then feed one tick at a time. */
+    static void testBegin(String sectionName) {
+        deactivate();
+        COUNTED.clear();
+        LOGGED.clear();
+        tick = 0;
+        section = Section.valueOf(sectionName);
+        ticksInSection = 100;
+        target = 4;
+    }
+
+    /** One tick; {@code mates} is id,x,y,z per teammate; returns the count. */
+    static int testStep(double sx, double sy, double sz, boolean selfMoving, boolean suppressed, double[] mates) {
+        tick++;
+        ticksInSection++;
+        Vec3 self = new Vec3(sx, sy, sz);
+        boolean core = section == Section.CORE;
+        double r = 6, j = 8;
+        for (int i = 0; i + 3 < mates.length; i += 4) {
+            judge((int) mates[i], null, new Vec3(mates[i + 1], mates[i + 2], mates[i + 3]), self, core, r * r, j * j,
+                    selfMoving, suppressed, 4, 1L);
+        }
+        return COUNTED.size();
+    }
+
+    // ---- helpers ----
 
     /** NoammAddons' {@code min(dungeonTeammatesNoSelf.size, maxCount)} - a 4-man party must not wait for a 5th leap.
      *  Only alive teammates can leap. With no party known at all (p3sim.net, or the tab list not parsed yet) the
