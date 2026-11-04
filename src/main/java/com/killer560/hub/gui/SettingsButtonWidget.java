@@ -379,10 +379,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         int labelMin = p.label().isEmpty() ? 0 : Math.min(font.width(p.label()), 40) + 12;
         int max = Math.max(24, getWidth() - 8 - labelMin);
         int want = font.width(p.value()) + (p.look() == Look.PILL ? 22 : 10);
-        if (p.label().isEmpty()) {
-            return getWidth() - 8;
-        }
-        return Math.min(max, Math.max(30, want));
+        return p.label().isEmpty() ? getWidth() - 8 : Math.min(max, Math.max(30, want));
     }
 
     private String boldFor;

@@ -178,10 +178,7 @@ public class DoorKeysTab extends BaseTab {
     }
 
     private static Component radiusText(DoorKeysConfig cfg) {
-        if (cfg.getRadius() == DoorKeysConfig.RADIUS_PICKUP) {
-            return Component.literal(String.format(Locale.US, "Radius: Pickup Range (%.1f)", cfg.drawnRadius()));
-        }
-        return Component.literal(String.format(Locale.US, "Radius: %.1f", cfg.getRadius()));
+        return cfg.getRadius() == DoorKeysConfig.RADIUS_PICKUP ? Component.literal(String.format(Locale.US, "Radius: Pickup Range (%.1f)", cfg.drawnRadius())) : Component.literal(String.format(Locale.US, "Radius: %.1f", cfg.getRadius()));
     }
 
     private static Component circleLiftText(DoorKeysConfig cfg) {

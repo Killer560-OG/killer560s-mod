@@ -55,10 +55,7 @@ public final class ProfitPanels {
         if (c == ACCENT) {
             return com.killer560.hub.gui.MenuStyle.OR;
         }
-        if (c == DIM) {
-            return com.killer560.hub.gui.MenuStyle.DIM;
-        }
-        return com.killer560.hub.gui.ScreenChrome.readable(c);
+        return c == DIM ? com.killer560.hub.gui.MenuStyle.DIM : com.killer560.hub.gui.ScreenChrome.readable(c);
     }
 
     /**
@@ -142,10 +139,7 @@ public final class ProfitPanels {
         if (a >= 1_000_000L) {
             return String.format(Locale.US, "%s%.2fM", sign, a / 1_000_000.0);
         }
-        if (a >= 1_000L) {
-            return String.format(Locale.US, "%s%.1fK", sign, a / 1_000.0);
-        }
-        return sign + a;
+        return a >= 1_000L ? String.format(Locale.US, "%s%.1fK", sign, a / 1_000.0) : sign + a;
     }
 
     /** Same, but always carrying an explicit + so a profit reads as one at a glance. */

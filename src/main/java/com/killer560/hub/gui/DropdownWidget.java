@@ -202,10 +202,7 @@ public final class DropdownWidget<T> extends AbstractWidget {
             return -1;
         }
         int row = (int) Math.floor((my - listY - 1) / ROW_H);
-        if (row < 0 || row >= visibleRows) {
-            return -1;
-        }
-        return scroll + row;
+        return row < 0 || row >= visibleRows ? -1 : scroll + row;
     }
 
     /** True while a list is open and the mouse is over it (the screen then draws its widgets as un-hovered). */
@@ -324,10 +321,7 @@ public final class DropdownWidget<T> extends AbstractWidget {
 
     private int faded(int argb) {
         float a = Math.max(0f, Math.min(1f, this.alpha));
-        if (a >= 1f) {
-            return argb;
-        }
-        return (Math.round(((argb >>> 24) & 0xFF) * a) << 24) | (argb & 0x00FFFFFF);
+        return a >= 1f ? argb : (Math.round(((argb >>> 24) & 0xFF) * a) << 24) | (argb & 0x00FFFFFF);
     }
 
     /** A left click on the closed button opens the list (an open one is closed by {@link #clickOpen}, or here when the

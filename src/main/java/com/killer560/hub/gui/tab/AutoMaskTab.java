@@ -180,10 +180,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component swapKeyLabel(MaskInvincibilityConfig cfg) {
-        if (capturing) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Swap Key: " + CommandKeybindsTab.bindName(cfg.getSwapKey()));
+        return capturing ? Component.literal("Press any key...") : Component.literal("Swap Key: " + CommandKeybindsTab.bindName(cfg.getSwapKey()));
     }
 
     private static Component swapOrderLabel(MaskInvincibilityConfig cfg) {

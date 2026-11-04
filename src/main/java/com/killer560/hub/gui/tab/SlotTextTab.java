@@ -96,9 +96,6 @@ public class SlotTextTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(SlotTextConfig cfg) {
-        if (capturing) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Key: " + CommandKeybindsTab.bindName(cfg.getKeyCode()));
+        return capturing ? Component.literal("Press any key...") : Component.literal("Key: " + CommandKeybindsTab.bindName(cfg.getKeyCode()));
     }
 }

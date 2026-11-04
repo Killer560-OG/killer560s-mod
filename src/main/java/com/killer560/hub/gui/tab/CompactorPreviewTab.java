@@ -85,9 +85,6 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(CompactorPreviewConfig cfg) {
-        if (capturing) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Key: " + CommandKeybindsTab.bindName(cfg.getKeyCode()));
+        return capturing ? Component.literal("Press any key...") : Component.literal("Key: " + CommandKeybindsTab.bindName(cfg.getKeyCode()));
     }
 }

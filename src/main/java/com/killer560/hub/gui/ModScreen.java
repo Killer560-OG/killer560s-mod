@@ -2007,10 +2007,7 @@ public class ModScreen extends Screen {
     private static String where(BaseTab leaf) {
         BaseTab parent = MenuCategories.parent(leaf);
         BaseTab cat = MenuCategories.category(leaf);
-        if (parent != null && parent != cat) {
-            return cat.name + " › " + parent.name;
-        }
-        return cat.name;
+        return parent != null && parent != cat ? cat.name + " › " + parent.name : cat.name;
     }
 
     /** Opens what a hit names: the feature's drawer, scrolled to the setting for a setting hit. */

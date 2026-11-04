@@ -139,10 +139,7 @@ public final class ScreenChrome {
             return argb;
         }
         float lum = MenuStyle.luminance(argb);
-        if (lum <= 0.55f) {
-            return argb;
-        }
-        return MenuStyle.shade(argb, 0.36f / lum);
+        return lum <= 0.55f ? argb : MenuStyle.shade(argb, 0.36f / lum);
     }
 
     /** Text in the theme: § colors swapped for readable partners and the base color darkened on Light; shadow only on

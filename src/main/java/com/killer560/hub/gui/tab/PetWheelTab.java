@@ -230,17 +230,11 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(PetWheelConfig cfg) {
-        if (capturing == Capturing.WHEEL) {
-            return Component.literal("Press any key/button...");
-        }
-        return Component.literal("Wheel Key: " + KeyUtil.bindDisplayName(cfg.getKeyCode()));
+        return capturing == Capturing.WHEEL ? Component.literal("Press any key/button...") : Component.literal("Wheel Key: " + KeyUtil.bindDisplayName(cfg.getKeyCode()));
     }
 
     private static Component pageKeyText(String label, int code, boolean capturingNow) {
-        if (capturingNow) {
-            return Component.literal("Press any key/button...");
-        }
-        return Component.literal(label + ": " + KeyUtil.bindDisplayName(code));
+        return capturingNow ? Component.literal("Press any key/button...") : Component.literal(label + ": " + KeyUtil.bindDisplayName(code));
     }
 
     private static Component modeText(PetWheelConfig cfg) {

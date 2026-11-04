@@ -85,9 +85,6 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(String label, int key, int index) {
-        if (capturing == index) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
+        return capturing == index ? Component.literal("Press any key...") : Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
     }
 }

@@ -326,10 +326,7 @@ public final class ProfitScope {
     /** The account switch's text. */
     public static String accountLabel() {
         ProfitConfig cfg = ProfitConfig.getInstance();
-        if (cfg.getPickedAccount() != null) {
-            return "Account: " + accountName(cfg.getPickedAccount());
-        }
-        return cfg.getShow().label;
+        return cfg.getPickedAccount() != null ? "Account: " + accountName(cfg.getPickedAccount()) : cfg.getShow().label;
     }
 
     /** A UUID's name when one is known; anything else as it is. */

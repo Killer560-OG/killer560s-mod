@@ -195,9 +195,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component keyLabel(String label, int key, boolean listening) {
-        if (listening) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
+        return listening ? Component.literal("Press any key...") : Component.literal(label + ": " + CommandKeybindsTab.bindName(key));
     }
 }

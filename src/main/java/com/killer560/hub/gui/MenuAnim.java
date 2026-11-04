@@ -120,10 +120,7 @@ public final class MenuAnim {
     }
 
     private static long clockNanos() {
-        if (testClockNanos >= 0) {
-            return testClockNanos;
-        }
-        return System.nanoTime();
+        return testClockNanos >= 0 ? testClockNanos : System.nanoTime();
     }
 
     /** The current frame's time in nanoseconds (only differences mean anything). */
@@ -243,10 +240,7 @@ public final class MenuAnim {
             if (duration <= 0L || e >= duration) {
                 return to;
             }
-            if (e <= 0L) {
-                return from;
-            }
-            return from + (to - from) * easeOut(e / (float) duration);
+            return e <= 0L ? from : from + (to - from) * easeOut(e / (float) duration);
         }
 
         public float target() {

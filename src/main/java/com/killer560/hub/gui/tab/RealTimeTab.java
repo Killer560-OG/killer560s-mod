@@ -226,10 +226,7 @@ public class RealTimeTab extends BaseTab {
     }
 
     private static Component zoneModeLabel(RealTimeConfig cfg) {
-        if (cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM) {
-            return Component.literal("Time Zone: §6Custom");
-        }
-        return Component.literal("Time Zone: §6System §7(" + ZoneId.systemDefault().getId() + ")");
+        return cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM ? Component.literal("Time Zone: §6Custom") : Component.literal("Time Zone: §6System §7(" + ZoneId.systemDefault().getId() + ")");
     }
 
     private static Component formatLabel(RealTimeConfig cfg) {

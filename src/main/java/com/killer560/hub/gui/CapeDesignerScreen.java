@@ -234,10 +234,7 @@ public class CapeDesignerScreen extends Screen {
     private int pixelAt(double mouseX, double mouseY) {
         int x = (int) Math.floor((mouseX - gridX) / cell);
         int y = (int) Math.floor((mouseY - gridY) / cell);
-        if (x < 0 || y < 0 || x >= CapeConfig.PANEL_W || y >= CapeConfig.PANEL_H) {
-            return -1;
-        }
-        return y * CapeConfig.PANEL_W + x;
+        return x < 0 || y < 0 || x >= CapeConfig.PANEL_W || y >= CapeConfig.PANEL_H ? -1 : y * CapeConfig.PANEL_W + x;
     }
 
     private void applyAt(double mouseX, double mouseY) {

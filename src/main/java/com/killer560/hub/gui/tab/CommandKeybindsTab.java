@@ -328,10 +328,7 @@ public class CommandKeybindsTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(Object row, int code) {
-        if (capturing == row) {
-            return Component.literal("Press any key...");
-        }
-        return Component.literal("Key: " + bindName(code));
+        return capturing == row ? Component.literal("Press any key...") : Component.literal("Key: " + bindName(code));
     }
 
     /** Display name for a keyboard code or a stored mouse code (see {@code CommandKeybindsConfig}). */
