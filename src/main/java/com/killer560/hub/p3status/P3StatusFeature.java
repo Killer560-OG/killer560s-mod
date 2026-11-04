@@ -396,11 +396,6 @@ public final class P3StatusFeature {
         return lastReplacementComponent;
     }
 
-    /** Builds the short title for a test without a title packet. */
-    public static Component testShortTitle(String name, String kind, int cur, int tot) {
-        return shortTitle(name, kind, cur, tot);
-    }
-
     public static String testLastReplacement() {
         return lastReplacement;
     }
