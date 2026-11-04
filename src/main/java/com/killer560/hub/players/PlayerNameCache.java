@@ -152,9 +152,7 @@ final class PlayerNameCache {
         return e == null ? 0L : e.updatedAtMs();
     }
 
-    UUID uuidOf(String name) {
-        return name == null ? null : byName.get(name.trim().toLowerCase(Locale.ROOT));
-    }
+    UUID uuidOf(String name) { return name == null ? null : byName.get(name.trim().toLowerCase(Locale.ROOT)); }
 
     /** Records/refreshes a resolved pair. Callers (tab-list scans, network resolves) batch several of these
      *  and save once rather than hitting disk per player - see {@link PlayerNames}'s debounced save. */
@@ -180,7 +178,5 @@ final class PlayerNameCache {
         dirty = true;
     }
 
-    boolean isDirty() {
-        return dirty;
-    }
+    boolean isDirty() { return dirty; }
 }
