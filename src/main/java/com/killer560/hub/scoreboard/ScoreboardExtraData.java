@@ -105,7 +105,7 @@ public final class ScoreboardExtraData {
     /** BitsApi.bitsAvailableMenuPattern (plain). */
     private static final Pattern BITS_AVAILABLE_LORE = Pattern.compile("\\s*Bits Available: (?<amount>[\\d,]+).*");
     /** BitsApi.bitsFromFameRankUpChatPattern (plain). */
-    private static final Pattern BITS_AVAILABLE_CHAT = Pattern.compile("You gained (?<amount>[\\d,]+) Bits Available compounded from all your previously eaten cookies!.*");
+    private static final Pattern BITS_AVAILABLE_CHAT = Pattern.compile("You gained (?<amount>[\\d,]{1,15}) Bits Available compounded from all your previously eaten cookies!.*");
     private static final Pattern FAME_RANK_MENU_TITLE = Pattern.compile("Community Shop|Booster Cookie");
     /** HotmData heart/reset item names and HotmApi.PowderType heartPattern/resetPattern (plain). */
     private static final Pattern HOTM_TITLE = Pattern.compile("Heart of the Mountain");

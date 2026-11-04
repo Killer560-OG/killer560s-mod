@@ -83,13 +83,13 @@ public final class ExperimentsProfitTracker {
     private static final Pattern REWARD_SCREEN_TITLE = Pattern.compile("Experiment [Oo]ver|Superpairs Rewards");
     private static final Pattern CLAIM_MESSAGE = Pattern.compile("You claimed the (\\S+) rewards!");
     private static final Pattern BONUS_CHARGE = Pattern.compile("You bought a bonus charge for the Experimentation Table! \\((\\d)/3\\)");
-    private static final Pattern REMAINING_CLICKS = Pattern.compile("Remaining Clicks: (\\d+)");
+    private static final Pattern REMAINING_CLICKS = Pattern.compile("Remaining Clicks: (\\d{1,9})");
     private static final Pattern STAKES_LORE = Pattern.compile("^\\s*Stakes: (.+?)\\s*$");
     private static final Pattern REWARD_LINE = Pattern.compile("^\\s*\\+\\s*(.+?)(?:\\s\\((?:Stakes|Pairs)\\))?\\s*$");
     private static final Pattern LEVEL_PREFIX = Pattern.compile("^\\[Lvl \\d+]\\s*");
-    private static final Pattern COUNT_PREFIX = Pattern.compile("^(\\d+)x\\s+(.+)$");
-    private static final Pattern COUNT_SUFFIX = Pattern.compile("^(.+?)\\s+x(\\d+)$");
-    private static final Pattern ENCHANTING_EXP = Pattern.compile("(\\d+(?:,\\d{3})*(?:\\.\\d+)?)([kKmMbB]?) Enchanting Exp");
+    private static final Pattern COUNT_PREFIX = Pattern.compile("^(\\d{1,9})x\\s+(.+)$");
+    private static final Pattern COUNT_SUFFIX = Pattern.compile("^(.+?)\\s+x(\\d{1,9})$");
+    private static final Pattern ENCHANTING_EXP = Pattern.compile("(\\d{1,12}(?:,\\d{3}){0,4}(?:\\.\\d{1,6})?)([kKmMbB]?) Enchanting Exp");
     private static final Pattern ROMAN_SUFFIX = Pattern.compile("^(.+?) ([IVXLC]+)$");
     private static final Pattern ENCHANTED_BOOK_WRAPPER = Pattern.compile("^Enchanted Book \\((.+)\\)$");
 

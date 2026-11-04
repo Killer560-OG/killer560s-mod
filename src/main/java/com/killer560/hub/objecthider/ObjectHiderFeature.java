@@ -182,10 +182,10 @@ public final class ObjectHiderFeature {
     /** "Hide useless messages" - Hypixel's own dungeon pathing spam and the debug profile-id line. */
     private static final Pattern USELESS_MESSAGE = Pattern.compile(
             "^\\s*(?:There are blocks in the way!|Profile ID:.*)\\s*$");
-    /** "Hide discord warnings" - Hypixel's standing Discord-impersonation broadcast. */
-    private static final Pattern DISCORD_WARNING = Pattern.compile("(?i).*discord.*staff.*|.*staff.*discord.*");
-    /** "Hide microsoft warnings" - Hypixel's standing Microsoft-account-phishing broadcast. */
-    private static final Pattern MICROSOFT_WARNING = Pattern.compile("(?i).*microsoft account.*password.*");
+    // "Hide discord warnings" (Hypixel's standing Discord-impersonation broadcast) and "Hide microsoft warnings" (the
+    // Microsoft-account-phishing one) were `(?i).*discord.*staff.*|...` matches() patterns: the same answer as the
+    // functions below (one line, both words, "password" after "microsoft account") but quadratic on a long line
+    // (scanaudit-1104: ~0.4 s for a 10,000-character line, on the packet path for every chat line).
     /** "Hide ban announcements" (killer560, 2026-10-18): the lines of Hypixel's Watchdog broadcast, each whole. */
     private static final Pattern BAN_ANNOUNCEMENT_LINE = Pattern.compile(
             "^\\s*(?:\\[WATCHDOG ANNOUNCEMENT\\]"
@@ -264,16 +264,64 @@ public final class ObjectHiderFeature {
         if (cfg.isHideUselessMessages() && USELESS_MESSAGE.matcher(text).matches()) {
             return false;
         }
-        if (cfg.isHideDiscordWarnings() && DISCORD_WARNING.matcher(text).matches()) {
+        if (cfg.isHideDiscordWarnings() && isDiscordWarning(text)) {
             return false;
         }
-        if (cfg.isHideMicrosoftWarnings() && MICROSOFT_WARNING.matcher(text).matches()) {
+        if (cfg.isHideMicrosoftWarnings() && isMicrosoftWarning(text)) {
             return false;
         }
         if (cfg.isHideBanAnnouncements() && isBanAnnouncement(text)) {
             return false;
         }
         return !cfg.isHideNonRankInvites() || !NON_RANK_INVITE.matcher(text.trim()).matches();
+    }
+
+    /** Same as {@code (?i).*discord.*staff.*|.*staff.*discord.*} with matches(), in one pass. */
+    public static boolean isDiscordWarning(String text) {
+        return singleLine(text) && indexOfAscii(text, "discord", 0) >= 0 && indexOfAscii(text, "staff", 0) >= 0;
+    }
+
+    /** Same as {@code (?i).*microsoft account.*password.*} with matches(), in one pass. */
+    public static boolean isMicrosoftWarning(String text) {
+        if (!singleLine(text)) {
+            return false;
+        }
+        int at = indexOfAscii(text, "microsoft account", 0);
+        return at >= 0 && indexOfAscii(text, "password", at + "microsoft account".length()) >= 0;
+    }
+
+    /** No line terminator in it: a regex dot does not cross one, so the old patterns never matched across lines. */
+    private static boolean singleLine(String text) {
+        if (text == null) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\n' || c == '\r' || c == '\u0085' || c == '\u2028' || c == '\u2029') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** ASCII case-insensitive indexOf, like the {@code (?i)} flag without UNICODE_CASE. */
+    private static int indexOfAscii(String text, String word, int from) {
+        int last = text.length() - word.length();
+        for (int i = from; i <= last; i++) {
+            int k = 0;
+            while (k < word.length()) {
+                char a = text.charAt(i + k);
+                char b = word.charAt(k);
+                if (a != b && !(a < 128 && Character.toLowerCase(a) == b)) {
+                    break;
+                }
+                k++;
+            }
+            if (k == word.length()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** True when every non-blank line of {@code text} is a line of the Watchdog announcement and at least one is. */

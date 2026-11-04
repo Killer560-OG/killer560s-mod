@@ -67,10 +67,10 @@ public final class RunSummaryFeature {
     /** Auto Requeue's own end-of-run trigger. */
     private static final Pattern EXTRA_STATS = Pattern.compile("(?m)^\\s*> EXTRA STATS <\\s*$");
     /** Same line ScoreCalculatorFeature matches (it only logs it). */
-    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: ([\\d,]+) \\(([A-DS+]+)\\)");
+    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: ([\\d,]{1,15}) \\(([A-DS+]+)\\)");
     /** Same completion line TerminalTimersFeature times, with its optional already-annotated suffix. */
     private static final Pattern DEVICE_COMPLETE =
-            Pattern.compile("^(\\w{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d+)/(\\d+)\\)(?:\\s.*)?$");
+            Pattern.compile("^(\\w{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d{1,9})/(\\d{1,9})\\)(?:\\s.*)?$");
 
     // Tab list - the same anchored lines ScoreCalculatorFeature reads.
     private static final Pattern TAB_SECRETS_COUNT = Pattern.compile("^\\s*Secrets Found: (\\d+)\\s*$");
