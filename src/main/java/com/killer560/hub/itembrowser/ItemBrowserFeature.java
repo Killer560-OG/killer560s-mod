@@ -594,7 +594,7 @@ public final class ItemBrowserFeature {
         return lines;
     }
 
-    private static List<String> wrap(Font font, String text, int maxWidth) {
+    static List<String> wrap(Font font, String text, int maxWidth) {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isBlank()) {
             return lines;

@@ -185,15 +185,11 @@ public final class ItemCraftView {
             gridCounts = null;
             outputCount = entry.recipeOutputCount();
         }
-        List<String> otherLines = new ArrayList<>();
-        if (neu != null) {
-            for (String line : neu.otherRecipes()) {
-                otherLines.addAll(wrap(font, "- " + line, contentWidth));
-            }
-        }
+        List<String> otherLines = neu == null ? List.of()
+                : neu.otherRecipes().stream().flatMap(line -> wrap(font, "- " + line, contentWidth).stream()).toList();
         boolean otherTruncated = otherLines.size() > MAX_OTHER_RECIPE_LINES;
         if (otherTruncated) {
-            otherLines = new ArrayList<>(otherLines.subList(0, MAX_OTHER_RECIPE_LINES));
+            otherLines = otherLines.subList(0, MAX_OTHER_RECIPE_LINES);
         }
         String noRecipe = !neuSettled ? "Loading recipe from the NEU item repo..."
                 : "No recipe in the NEU item repo or Hypixel's API for this item.";
@@ -352,11 +348,8 @@ public final class ItemCraftView {
             hoveredTooltip = ItemBrowserFeature.buildTooltipLines(entry);
         }
         if (hoveredTooltip instanceof List<?> lines) {
-            List<net.minecraft.network.chat.Component> components = new ArrayList<>();
-            for (Object o : lines) {
-                components.add(o instanceof net.minecraft.network.chat.Component c ? c
-                        : net.minecraft.network.chat.Component.literal(String.valueOf(o)));
-            }
+            List<net.minecraft.network.chat.Component> components = lines.stream().map(o -> o instanceof net.minecraft.network.chat.Component c ? c
+                    : net.minecraft.network.chat.Component.literal(String.valueOf(o))).toList();
             graphics.setTooltipForNextFrame(font, components, Optional.empty(), mouseX, mouseY);
         }
     }
@@ -421,25 +414,7 @@ public final class ItemCraftView {
     }
 
     private static List<String> wrap(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        if (text == null || text.isBlank()) {
-            return lines;
-        }
-        String[] words = text.split(" ");
-        StringBuilder cur = new StringBuilder();
-        for (String w : words) {
-            String candidate = cur.isEmpty() ? w : cur + " " + w;
-            if (font.width(candidate) > maxWidth && !cur.isEmpty()) {
-                lines.add(cur.toString());
-                cur = new StringBuilder(w);
-            } else {
-                cur = new StringBuilder(candidate);
-            }
-        }
-        if (!cur.isEmpty()) {
-            lines.add(cur.toString());
-        }
-        return lines;
+        return ItemBrowserFeature.wrap(font, text, maxWidth);
     }
 
     private static boolean inside(int[] rect, double x, double y) {
