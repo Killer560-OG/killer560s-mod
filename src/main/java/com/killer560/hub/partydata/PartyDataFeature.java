@@ -140,9 +140,7 @@ public final class PartyDataFeature {
         return com.killer560.hub.melody.MelodyHudConfig.getInstance().isShareProgress() && inPartyRoom();
     }
 
-    private static boolean inPartyRoom() {
-        return RelayClient.isConnected() && RelayClient.room().startsWith("party:");
-    }
+    private static boolean inPartyRoom() { return RelayClient.isConnected() && RelayClient.room().startsWith("party:"); }
 
     // ------------------------------------------------------------------ publish: what we know ourselves
 

@@ -83,11 +83,7 @@ public final class PartyDataConfig {
 
     /** Publish OUR observed dungeon facts to the party over the relay. Consuming others' facts is controlled
      *  separately by {@link InteropConfig#isRelayData()} - this only gates the send direction. */
-    public boolean isShareEnabled() {
-        return shareEnabled;
-    }
+    public boolean isShareEnabled() { return shareEnabled; }
 
-    public void setShareEnabled(boolean shareEnabled) {
-        this.shareEnabled = shareEnabled;
-    }
+    public void setShareEnabled(boolean shareEnabled) { this.shareEnabled = shareEnabled; }
 }
