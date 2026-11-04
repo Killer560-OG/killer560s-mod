@@ -38,7 +38,6 @@ import org.slf4j.Logger;
  */
 public final class PackDisabler {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-packdisabler");
     public static final String HYPIXEL_NAMESPACE = "hypixel_skyblock";
     private static boolean idleNoticeShown;
 
