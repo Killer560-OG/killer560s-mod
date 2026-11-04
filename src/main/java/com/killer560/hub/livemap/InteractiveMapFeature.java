@@ -20,7 +20,6 @@ import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -107,8 +106,7 @@ public final class InteractiveMapFeature {
         // that button as a real click, and polling it as well would count one press twice and turn every single
         // press into a double press.
         boolean pollMouseBinds = !mapOpen;
-        boolean startDown = hasWindow && bindPollable(cfg.getStartKeyCode(), pollMouseBinds)
-                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
+        boolean startDown = bindDown(client, hasWindow, cfg.getStartKeyCode(), pollMouseBinds);
         if (startDown && !startWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
             InteractiveMapScreen map = McCompat.screen(client) instanceof InteractiveMapScreen m ? m : null;
             double[] at = map == null ? null : map.unitsUnderCursor();
@@ -119,16 +117,14 @@ public final class InteractiveMapFeature {
             }
         }
         startWasDown = startDown;
-        boolean lockedDown = hasWindow && bindPollable(cfg.getLockedDoorKeyCode(), pollMouseBinds)
-                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getLockedDoorKeyCode());
+        boolean lockedDown = bindDown(client, hasWindow, cfg.getLockedDoorKeyCode(), pollMouseBinds);
         if (lockedDown && !lockedWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
             pathToLockedDoor();
         }
         lockedWasDown = lockedDown;
         // Go + Secret key: same polling rules as the two above (only with the map open, mouse binds left to the
         // screen's own click delivery), and the same dispatcher, told to take the start-node branch outright.
-        boolean goSecretDown = hasWindow && bindPollable(cfg.getGoSecretKeyCode(), pollMouseBinds)
-                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getGoSecretKeyCode());
+        boolean goSecretDown = bindDown(client, hasWindow, cfg.getGoSecretKeyCode(), pollMouseBinds);
         if (goSecretDown && !goSecretWasDown && mapOpen && inClear && cfg.isInteractiveMapEnabled() && !isDead(client)) {
             InteractiveMapScreen map = McCompat.screen(client) instanceof InteractiveMapScreen m ? m : null;
             double[] at = map == null ? null : map.unitsUnderCursor();
@@ -141,8 +137,7 @@ public final class InteractiveMapFeature {
         goSecretWasDown = goSecretDown;
         tickPendingGoal(client);
 
-        boolean bloodDown = hasWindow && cfg.getBloodRushKeyCode() != com.killer560.hub.util.KeyUtil.NONE
-                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), cfg.getBloodRushKeyCode());
+        boolean bloodDown = bindDown(client, hasWindow, cfg.getBloodRushKeyCode(), true);
         if (bloodDown && !bloodRushWasDown && (McCompat.screen(client) == null || mapOpen) && cfg.isBloodRushEnabled()) {
             BloodRush.toggle();
         }
@@ -154,6 +149,11 @@ public final class InteractiveMapFeature {
     private static boolean isDead(Minecraft client) {
         return client.player == null || client.player.isDeadOrDying()
                 || PartyTracker.isDead(client.player.getGameProfile().name());
+    }
+
+    private static boolean bindDown(Minecraft client, boolean hasWindow, int code, boolean pollMouseBinds) {
+        return hasWindow && bindPollable(code, pollMouseBinds)
+                && com.killer560.hub.util.KeyUtil.isBindDown(client.getWindow(), code);
     }
 
     /** A bind is polled here unless it is a mouse button the open map screen is already delivering as a click. */
@@ -372,8 +372,7 @@ public final class InteractiveMapFeature {
         // drop it silently rather than warping somewhere on a run he is no longer in.
         if (!DungeonState.isInDungeon() || LiveMapFeature.isInBoss() || isDead(client)
                 || !LiveMapConfig.getInstance().isInteractiveMapEnabled()) {
-            pendingGoal = null;
-            pendingGoalCell = -1;
+            clearPendingGoal();
             return;
         }
         DungeonLayout layout = DungeonLayout.capture();
@@ -382,16 +381,19 @@ public final class InteractiveMapFeature {
         if (!ClearExecutor.isBusy() && AutoClearUtils.canPath(layout)) {
             MapGoal goal = pendingGoal;
             int cell = pendingGoalCell;
-            pendingGoal = null;
-            pendingGoalCell = -1;
+            clearPendingGoal();
             goal.run(layout, layout.roomOfCell(cell), cell);
             return;
         }
         if (--pendingGoalTicks + com.killer560.hub.util.ServerLag.ticksSince(pendingGoalLag) <= 0) {
-            pendingGoal = null;
-            pendingGoalCell = -1;
+            clearPendingGoal();
             ModChat.send(CHAT, ModChat.bad("Could not start from here"));
         }
+    }
+
+    private static void clearPendingGoal() {
+        pendingGoal = null;
+        pendingGoalCell = -1;
     }
 
     /** The grid cell the cursor is over on the open map, or -1. No mouse events are needed for this: the
@@ -423,25 +425,22 @@ public final class InteractiveMapFeature {
     }
 
     static void pathToCurrentRoomStart() {
-        queue(-1, (layout, ignoredRoom, ignoredCell) -> {
-            int room = layout.currentRoom();
-            if (room < 0) {
-                ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
-                return;
-            }
-            activateRoom(layout, room, layout.tiles(room)[0]);
-        });
+        pathToCurrentRoom(InteractiveMapFeature::activateRoom);
     }
 
     /** The Go + Secret bind with the cursor off the map: the room you are standing in, start node first. */
     static void pathToCurrentRoomStartNode() {
+        pathToCurrentRoom(InteractiveMapFeature::startNodeGoal);
+    }
+
+    private static void pathToCurrentRoom(MapGoal goal) {
         queue(-1, (layout, ignoredRoom, ignoredCell) -> {
             int room = layout.currentRoom();
             if (room < 0) {
                 ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
                 return;
             }
-            startNodeGoal(layout, room, layout.tiles(room)[0]);
+            goal.run(layout, room, layout.tiles(room)[0]);
         });
     }
 
@@ -512,10 +511,7 @@ public final class InteractiveMapFeature {
             if (players == null) {
                 players = playersCached(client);
             }
-            Set<Integer> cells = new HashSet<>();
-            for (int c : group.cells) {
-                cells.add(c);
-            }
+            Set<Integer> cells = java.util.Arrays.stream(group.cells).boxed().collect(java.util.stream.Collectors.toSet());
             List<String> inside = new ArrayList<>();
             for (MapPlayer p : players) {
                 int[] cell = LiveMapFeature.gridCellFor(new net.minecraft.world.phys.Vec3(p.worldX(), 0.0, p.worldZ()));
@@ -590,12 +586,7 @@ public final class InteractiveMapFeature {
                 names.add(p.getGameProfile().name());
             }
         }
-        List<double[]> markers = new ArrayList<>();
-        for (double[] m : DungeonMapScanner.playerMarkers(client)) {
-            if (m[3] == 0) {
-                markers.add(m);
-            }
-        }
+        List<double[]> markers = DungeonMapScanner.playerMarkers(client).stream().filter(m -> m[3] == 0).toList();
         int markerIdx = 0;
         for (String name : names) {
             if (PartyTracker.isDead(name)) {
@@ -673,12 +664,7 @@ public final class InteractiveMapFeature {
             return false;
         }
         String name = player.getGameProfile().name();
-        for (String member : party) {
-            if (member.equalsIgnoreCase(name)) {
-                return true;
-            }
-        }
-        if (PartyTracker.classOf(name) != null) {
+        if (party.stream().anyMatch(name::equalsIgnoreCase) || PartyTracker.classOf(name) != null) {
             return true;
         }
         // Nothing known at all (p3sim.net's tab list has no class entries and there is no party) - in a real

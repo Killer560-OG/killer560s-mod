@@ -770,12 +770,13 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (com.killer560.hub.compat.McInput.button(event) == pressButton) {
+        int button = com.killer560.hub.compat.McInput.button(event);
+        if (button == pressButton) {
             pressButton = -1;
-            if (com.killer560.hub.compat.McInput.button(event) == 0 && legendClick(event.x(), event.y())) {
+            if (button == 0 && legendClick(event.x(), event.y())) {
                 return true;
             }
-            onClick(com.killer560.hub.compat.McInput.button(event), event.x(), event.y());
+            onClick(button, event.x(), event.y());
             return true;
         }
         return super.mouseReleased(event);
