@@ -435,6 +435,10 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   `tools/mixin-handler-check.py` every @Inject handler's arguments against the target's overloads (both read a jar or an
   extracted class dir; generic-erasure lines such as `Packet<?>` vs `Packet` and `AvatarlikeEntity` vs `Avatar` are noise,
   compare against the other version's run).
+- **Spamming a sword held it low in the lower right** (2026-11-04, blood camp). Every AIR swing runs `Player.resetAttackStrengthTicker()`,
+  which also zeroes the item swap ticker, and the hand height moves toward `getItemSwapScale(1)^3` each tick (26.3 `FirstPersonHandsAndItems.tick`,
+  26.2 `ItemInHandRenderer.tick`), so clicking every tick pinned it at ~0.22. Hypixel has no attack cooldown: `HeldItemEquipMixin` returns 1 for that
+  call on Skyblock or with Held Item on (item changes still drop/raise through vanilla's changed-item path). Testkit 1104-ui-helditem-stuck.
 
 ## The mod's GLSL shaders on 26.3 (2026-11-01)
 

@@ -402,3 +402,4 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   into the void (testkit 78: "[Sim] back to the middle of the room", then "icepath: built nothing"; 26.1.2 and 26.2
   alike, only when he stood on the arena). It now records the prior states on the server and restores them. Tic Tac
   Toe's reset still leaves 1-3 blocks fewer than before (78's "arena after reset"; not traced).
+- Hypixel's 1.8 `random.click` reaches 26.x as `block.lever.click`, and it is also the dungeon start countdown's tick ("Starting in N seconds.", played at the player). Mute Lever Sounds dropped every one (killer560, 2026-11-04: "the sounds to the 5 4 3 2 1 ... dont come through"). A sound mute keyed on a vanilla id must also check its SOURCE: the chest/lever mutes now drop a sound only when a chest/lever block is where it played (testkit 1104-alerts-countdown-sound).
