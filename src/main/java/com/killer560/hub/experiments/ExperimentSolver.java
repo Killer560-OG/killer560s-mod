@@ -1551,9 +1551,10 @@ final class ExperimentSolver {
     }
 
     /**
-     * A turn's first click under T7 Drops First: a known T7 pair is queued; a lone known T7 tile is turned over, so the
-     * turn's second click can only claim the T7 (its partner when known, else a new tile that may be it). Empty when the
-     * setting is off or no T7 is in play.
+     * A turn's first click under T7 Drops First: a known T7 pair is queued; while a lone T7's partner is hidden, a new
+     * tile is turned over (the second click claims the T7 if that was its partner, else explores again); only when no
+     * new tile is left (its partner deduced) is the lone T7 itself turned over. Empty when the setting is off or no T7
+     * is in play.
      */
     private OptionalInt t7FirstClick(BoardFacts board, Integer reveal) {
         Integer slot = activeT7(board, reveal);
@@ -1564,6 +1565,18 @@ final class ExperimentSolver {
         OptionalInt pair = matchKnownPair(board, c -> pairKey(c).equals(pairKey(t7)), "T7");
         if (pair.isPresent()) {
             return pair;
+        }
+        // Partner still hidden: the first click turns over a NEW tile, not the known T7. If it is the partner, the second
+        // click claims the T7; if not, the second click explores again (secondClickOfTurn). Two new tiles a turn, where
+        // reopening the T7 first searched only one (killer560, 2026-11-04: "it would use the first on power 7 and the
+        // next on a blank and repeat that cycle").
+        if (reveal != null) {
+            if (!logOnce("t7-search:" + pairKey(t7))) {
+                LOGGER.info("Superpairs: '{}' at slot {} comes first - searching for its partner with both clicks",
+                        t7.name(), slot);
+            }
+            superpairsRevealAttempted.add(reveal);
+            return OptionalInt.of(reveal);
         }
         if (!logOnce("t7-focus:" + pairKey(t7))) {
             LOGGER.info("Superpairs: '{}' at slot {} is claimed before anything else", t7.name(), slot);
