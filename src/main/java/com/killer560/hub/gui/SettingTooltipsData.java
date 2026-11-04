@@ -106,6 +106,7 @@ final class SettingTooltipsData {
 
     /** The Mining tabs pulled from staging-mining-3 (2026-11-04). */
     private static void mining(Map<String, String> d) {
+        d.put("chest loot compact/keep rare rewards", "On, a rare reward (Fine or Flawless gemstone, Prehistoric Egg, Pickonimbus 2000) keeps its own line in chat while Chest Loot Compact hides the rest of the chest's block.");
         d.put("profit per hour/profit per hour tracker", "Tracks the items you gain while mining and their Bazaar or Auction House value, and shows coins per hour.");
         d.put("profit per hour/mining islands only", "On, the clock only runs on mining islands. Off, it counts gains anywhere on Skyblock.");
         d.put("profit per hour/refresh", "Reads the totals again.");

@@ -61,6 +61,7 @@ public final class PowderChat {
     private static boolean doublePowder = false;
     private static Object level = null;
     private static boolean flushing = false;
+    private static int keptRare = 0;
 
     private static int hidden = 0;
     private static int compactLines = 0;
@@ -127,6 +128,11 @@ public final class PowderChat {
                 return !blockHidden;
             }
             if (plain.startsWith("    ") && reward(t)) {
+                if (blockHidden && keepRare(t)) {
+                    keptRare++;
+                    hidden--; // counted as hidden by reward(); it is shown
+                    return true;
+                }
                 return !blockHidden;
             }
             finish(); // any other line ends the block
@@ -176,13 +182,19 @@ public final class PowderChat {
         flushHeld();
         boolean hide = PowderMiningConfig.getInstance().isLootCompact();
         begin(hide);
+        java.util.List<String> rare = new java.util.ArrayList<>();
         for (String line : plain.split("\n", 64)) {
             String t = line.trim();
-            if (line.startsWith("    ")) {
-                reward(t);
+            if (line.startsWith("    ") && reward(t) && hide && keepRare(t)) {
+                rare.add(t);
             }
         }
         finish();
+        for (String t : rare) {
+            // The block came as one message, so its rare lines cannot be let through on their own: print them again.
+            keptRare++;
+            ModChat.sendBare(Component.literal(t).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
         if (hide) {
             hidden++;
         }
@@ -247,6 +259,15 @@ public final class PowderChat {
     static boolean isRare(String name) {
         return name.equals("Prehistoric Egg") || name.equals("Pickonimbus 2000")
                 || (name.endsWith(" Gemstone") && (name.startsWith("Fine ") || name.startsWith("Flawless ")));
+    }
+
+    /** Keep Rare Rewards: a rare reward's own line stays in chat while Compact hides its block. */
+    private static boolean keepRare(String t) {
+        if (!PowderMiningConfig.getInstance().isKeepRareRewards()) {
+            return false;
+        }
+        Matcher m = REWARD.matcher(t);
+        return m.matches() && isRare(m.group(1).trim());
     }
 
     static boolean isPowder(String name) {
@@ -392,6 +413,11 @@ public final class PowderChat {
 
     public static int doubleAlerts() {
         return doubleAlerts;
+    }
+
+    /** Rare reward lines Keep Rare Rewards left in chat this session (read by the testkit). */
+    public static int keptRare() {
+        return keptRare;
     }
 
     public static String lastCompact() {

@@ -54,6 +54,8 @@ public final class PowderMiningConfig {
 
     private boolean lootCompact = true;
     private boolean hideTreasureUncovered = true;
+    /** Chest Loot Compact leaves a rare reward's own line in chat (staging-mining-3's Powder Chest Chat Filter). */
+    private boolean keepRareRewards = true;
     private LootShow lootShow = LootShow.ALL;
 
     /** What Chest Loot Compact shows (killer560, 2026-11-03): left click forward, right click back, wrapping. */
@@ -126,6 +128,7 @@ public final class PowderMiningConfig {
                 cfg.doublePowderSound = ConfigJson.getBool(o, "doublePowderSound", cfg.doublePowderSound);
                 cfg.lootCompact = ConfigJson.getBool(o, "lootCompact", cfg.lootCompact);
                 cfg.hideTreasureUncovered = ConfigJson.getBool(o, "hideTreasureUncovered", cfg.hideTreasureUncovered);
+                cfg.keepRareRewards = ConfigJson.getBool(o, "keepRareRewards", cfg.keepRareRewards);
                 cfg.lootShow = LootShow.byName(o.has("lootShow") && o.get("lootShow").isJsonPrimitive()
                         ? o.get("lootShow").getAsString() : null);
             } catch (Exception ignored) {
@@ -163,6 +166,7 @@ public final class PowderMiningConfig {
             o.addProperty("doublePowderSound", doublePowderSound);
             o.addProperty("lootCompact", lootCompact);
             o.addProperty("hideTreasureUncovered", hideTreasureUncovered);
+            o.addProperty("keepRareRewards", keepRareRewards);
             o.addProperty("lootShow", lootShow.name());
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
@@ -333,6 +337,14 @@ public final class PowderMiningConfig {
 
     public void setHideTreasureUncovered(boolean v) {
         hideTreasureUncovered = v;
+    }
+
+    public boolean isKeepRareRewards() {
+        return keepRareRewards;
+    }
+
+    public void setKeepRareRewards(boolean v) {
+        keepRareRewards = v;
     }
 
     public boolean isLootCompact() {

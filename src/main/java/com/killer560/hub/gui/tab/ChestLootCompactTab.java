@@ -23,6 +23,8 @@ public class ChestLootCompactTab extends BaseTab {
                 cfg::stepLootShow, cfg::save);
         w.add(onOffButton("Hide Treasure Chest Uncovered", cfg::isHideTreasureUncoveredRaw, cfg::setHideTreasureUncovered,
                 cfg::save, requestRebuild, contentX, contentY + 2 * MiningQolRows.STEP, contentWidth, 20));
+        w.add(onOffButton("Keep Rare Rewards", cfg::isKeepRareRewards, cfg::setKeepRareRewards,
+                cfg::save, requestRebuild, contentX, contentY + 3 * MiningQolRows.STEP, contentWidth, 20));
         return w;
     }
 }
