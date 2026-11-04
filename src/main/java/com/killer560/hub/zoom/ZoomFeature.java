@@ -72,9 +72,7 @@ public final class ZoomFeature {
 
     /** The zoom factor at {@code now}: the wheel's follow, or the key pan's ease, or the target once it is reached. */
     private static float factorAt(long now) {
-        if (!ZoomConfig.getInstance().isSmooth()) {
-            return to;
-        }
+        if (!ZoomConfig.getInstance().isSmooth()) return to;
         if (following) {
             double dt = Math.max(0.0, (now - followAt) / 1e9);
             follow += (to - follow) * (float) (1.0 - Math.exp(-dt / FOLLOW_TAU_SECONDS));
@@ -93,9 +91,7 @@ public final class ZoomFeature {
     /** The field of view to draw with, given the normal one in degrees. Narrows it on the tangent so the zoom is even. */
     public static float applyFov(float fovDegrees) {
         float current = factorAt(System.nanoTime());
-        if (current <= 1.0001f) {
-            return fovDegrees;
-        }
+        if (current <= 1.0001f) return fovDegrees;
         double half = Math.toRadians(fovDegrees) / 2.0;
         return (float) Math.toDegrees(2.0 * Math.atan(Math.tan(half) / current));
     }
@@ -103,9 +99,7 @@ public final class ZoomFeature {
     /** The mouse wheel, while zoom is held. @return true when the wheel was used for the zoom (so it does not change the hotbar). */
     public static boolean onScroll(double yOffset) {
         ZoomConfig cfg = ZoomConfig.getInstance();
-        if (!held || !cfg.isScrollWhileZoomed() || yOffset == 0.0) {
-            return false;
-        }
+        if (!held || !cfg.isScrollWhileZoomed() || yOffset == 0.0) return false;
         float level = wheelLevel > 0f ? wheelLevel : cfg.getZoomLevel();
         // killer560, 2026-10-19: the Scroll Step slider sets how far one notch moves the zoom.
         level *= (float) Math.pow(1.0 + cfg.getScrollStep(), yOffset);

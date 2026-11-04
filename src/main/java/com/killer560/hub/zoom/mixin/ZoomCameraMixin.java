@@ -22,9 +22,7 @@ public abstract class ZoomCameraMixin {
     @Inject(method = "calculateFov(F)F", at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$zoomFov(float partialTicks, CallbackInfoReturnable<Float> cir) {
         // Panorama screenshots return a fixed 90 and must stay 90.
-        if (((Camera) (Object) this).isPanoramicMode()) {
-            return;
-        }
+        if (((Camera) (Object) this).isPanoramicMode()) return;
         cir.setReturnValue(ZoomFeature.applyFov(cir.getReturnValue()));
     }
 }
