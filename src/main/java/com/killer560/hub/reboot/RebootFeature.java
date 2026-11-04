@@ -69,7 +69,6 @@ public final class RebootFeature {
                         }))));
     }
 
-    // ---- detection ---------------------------------------------------------------------------------------------------
 
     /** What /reboot found: the launcher to run and the instance id, or why it cannot reboot. */
     public record Detection(String launcher, String launcherName, String instanceId, String reason) {
@@ -141,7 +140,6 @@ public final class RebootFeature {
         return lastMessage;
     }
 
-    // ---- the command and the button -----------------------------------------------------------------------------
 
     /** /reboot. Not a Prism game: says so. In a server: asks for confirmation. Otherwise reboots now. */
     public static void request() {
