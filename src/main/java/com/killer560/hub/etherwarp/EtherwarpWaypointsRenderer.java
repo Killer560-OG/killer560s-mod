@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.world.phys.AABB;
-import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -67,7 +66,7 @@ final class EtherwarpWaypointsRenderer {
                         throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                         (pose, fillBuffer) -> {
                             for (Entry e : entries) {
-                                filledBox(pose.pose(), fillBuffer, e.box(), e.r(), e.g(), e.b(),
+                                com.killer560.hub.util.WorldRenderUtils.filledBoxQuads(pose.pose(), fillBuffer, e.box(), e.r(), e.g(), e.b(),
                                         e.a() * fillAlphaScale);
                             }
                         });
@@ -113,24 +112,6 @@ final class EtherwarpWaypointsRenderer {
             float dx = ex - sx, dy = ey - sy, dz = ez - sz;
             buffer.addVertex(pose, sx, sy, sz).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
             buffer.addVertex(pose, ex, ey, ez).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        }
-    }
-
-    private static void filledBox(Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
-        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
-        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        float[][] quads = {
-                {x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0},
-                {x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1},
-                {x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0},
-                {x1, y0, z1, x1, y1, z1, x0, y1, z1, x0, y0, z1},
-                {x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1},
-                {x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0}
-        };
-        for (float[] q : quads) {
-            for (int i = 0; i < 12; i += 3) {
-                buf.addVertex(m, q[i], q[i + 1], q[i + 2]).setColor(r, g, b, a);
-            }
         }
     }
 }
