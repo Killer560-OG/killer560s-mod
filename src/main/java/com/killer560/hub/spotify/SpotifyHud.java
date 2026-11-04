@@ -57,29 +57,19 @@ public final class SpotifyHud implements HudElement {
     }
 
     @Override
-    public String id() {
-        return ELEMENT_ID;
-    }
+    public String id() { return ELEMENT_ID; }
 
     @Override
-    public String displayName() {
-        return "Spotify HUD";
-    }
+    public String displayName() { return "Spotify HUD"; }
 
     @Override
-    public int defaultX() {
-        return 10;
-    }
+    public int defaultX() { return 10; }
 
     @Override
-    public int defaultY() {
-        return 60;
-    }
+    public int defaultY() { return 60; }
 
     @Override
-    public int width() {
-        return W;
-    }
+    public int width() { return W; }
 
     @Override
     public int height() {
@@ -94,9 +84,7 @@ public final class SpotifyHud implements HudElement {
     }
 
     @Override
-    public boolean isEnabledInSettings() {
-        return SpotifyHudConfig.getInstance().isHudEnabled();
-    }
+    public boolean isEnabledInSettings() { return SpotifyHudConfig.getInstance().isHudEnabled(); }
 
     /** The editor's sample, so the panel can be placed before anything plays. */
     private static final LyricsEngine.Snapshot DEMO;
@@ -262,9 +250,7 @@ public final class SpotifyHud implements HudElement {
     private static volatile long pauseHides;
 
     /** A word, title or line as the HUD draws it: starred at the Display Censor level, with no formatting codes. */
-    private static String shown(String s) {
-        return clean(SpotifyLyricsFeature.censorDisplay(s));
-    }
+    private static String shown(String s) { return clean(SpotifyLyricsFeature.censorDisplay(s)); }
 
     // ---- Smooth Lyric Scroll (killer560, 2026-10-26: "have a smoother transition of moving the lines up when a line
     // finishes for lyrics"). When the top row moves on to a later row (the next line, or the next wrapped row of a long
@@ -547,9 +533,7 @@ public final class SpotifyHud implements HudElement {
     }
 
     /** A lyric or title never carries formatting codes into the HUD. */
-    private static String clean(String s) {
-        return s.indexOf('§') < 0 ? s : s.replace('§', '?');
-    }
+    private static String clean(String s) { return s.indexOf('§') < 0 ? s : s.replace('§', '?'); }
 
     private static String fit(Font font, String s, int width) {
         String c = clean(s);

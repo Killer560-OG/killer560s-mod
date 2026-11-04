@@ -53,13 +53,9 @@ public final class SongShareConfig {
             this.label = label;
         }
 
-        public boolean song() {
-            return this != LYRICS;
-        }
+        public boolean song() { return this != LYRICS; }
 
-        public boolean lyrics() {
-            return this != SONG;
-        }
+        public boolean lyrics() { return this != SONG; }
     }
 
     private volatile ShareWhat shareWhat = ShareWhat.SONG;
@@ -132,83 +128,43 @@ public final class SongShareConfig {
         }
     }
 
-    public boolean isShareSong() {
-        return shareSong;
-    }
+    public boolean isShareSong() { return shareSong; }
 
-    public void setShareSong(boolean shareSong) {
-        this.shareSong = shareSong;
-    }
+    public void setShareSong(boolean shareSong) { this.shareSong = shareSong; }
 
-    public boolean isShowOthers() {
-        return showOthers;
-    }
+    public boolean isShowOthers() { return showOthers; }
 
-    public void setShowOthers(boolean showOthers) {
-        this.showOthers = showOthers;
-    }
+    public void setShowOthers(boolean showOthers) { this.showOthers = showOthers; }
 
-    public boolean isLyricsOverHead() {
-        return lyricsOverHead;
-    }
+    public boolean isLyricsOverHead() { return lyricsOverHead; }
 
-    public void setLyricsOverHead(boolean lyricsOverHead) {
-        this.lyricsOverHead = lyricsOverHead;
-    }
+    public void setLyricsOverHead(boolean lyricsOverHead) { this.lyricsOverHead = lyricsOverHead; }
 
-    public boolean isHighlightWordInF5() {
-        return highlightWordInF5;
-    }
+    public boolean isHighlightWordInF5() { return highlightWordInF5; }
 
-    public void setHighlightWordInF5(boolean highlightWordInF5) {
-        this.highlightWordInF5 = highlightWordInF5;
-    }
+    public void setHighlightWordInF5(boolean highlightWordInF5) { this.highlightWordInF5 = highlightWordInF5; }
 
-    public ShareWhat getShareWhat() {
-        return shareWhat;
-    }
+    public ShareWhat getShareWhat() { return shareWhat; }
 
-    public void setShareWhat(ShareWhat shareWhat) {
-        this.shareWhat = shareWhat == null ? ShareWhat.SONG : shareWhat;
-    }
+    public void setShareWhat(ShareWhat shareWhat) { this.shareWhat = shareWhat == null ? ShareWhat.SONG : shareWhat; }
 
-    public boolean isShareWord() {
-        return shareWord;
-    }
+    public boolean isShareWord() { return shareWord; }
 
-    public void setShareWord(boolean shareWord) {
-        this.shareWord = shareWord;
-    }
+    public void setShareWord(boolean shareWord) { this.shareWord = shareWord; }
 
-    public boolean isSongInF5() {
-        return songInF5;
-    }
+    public boolean isSongInF5() { return songInF5; }
 
-    public void setSongInF5(boolean songInF5) {
-        this.songInF5 = songInF5;
-    }
+    public void setSongInF5(boolean songInF5) { this.songInF5 = songInF5; }
 
-    public boolean isCustomF5Colors() {
-        return customF5Colors;
-    }
+    public boolean isCustomF5Colors() { return customF5Colors; }
 
-    public void setCustomF5Colors(boolean customF5Colors) {
-        this.customF5Colors = customF5Colors;
-    }
+    public void setCustomF5Colors(boolean customF5Colors) { this.customF5Colors = customF5Colors; }
 
-    public int getF5TextColor() {
-        return f5TextColor;
-    }
+    public int getF5TextColor() { return f5TextColor; }
 
-    public void setF5TextColor(int argb) {
-        this.f5TextColor = argb | 0xFF000000;
-    }
+    public void setF5TextColor(int argb) { this.f5TextColor = argb | 0xFF000000; }
 
-    public int getF5HighlightColor() {
-        return f5HighlightColor;
-    }
+    public int getF5HighlightColor() { return f5HighlightColor; }
 
-    public void setF5HighlightColor(int argb) {
-        this.f5HighlightColor = argb | 0xFF000000;
-    }
+    public void setF5HighlightColor(int argb) { this.f5HighlightColor = argb | 0xFF000000; }
 }

@@ -279,9 +279,7 @@ public final class SongShare {
      * list, the switch showed nothing anywhere and said nothing. Your own copy is local, so none of those gates apply
      * to it; the tab's Share My Song row says why it is not reaching anyone else ({@link #notSentReason}).
      */
-    public static Component ownTag() {
-        return localTag;
-    }
+    public static Component ownTag() { return localTag; }
 
     // Client thread only.
     private static Component localTag;

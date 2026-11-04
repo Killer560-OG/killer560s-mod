@@ -133,13 +133,9 @@ public final class SpotifyLyricsFeature {
     }
 
     /** Send Lyrics To Chat: whether lyric lines (or the song title) are posted to the chosen chat. */
-    public static boolean isSendLyricsToChat() {
-        return enabled;
-    }
+    public static boolean isSendLyricsToChat() { return enabled; }
 
-    public static void setSendLyricsToChat(boolean send) {
-        enabled = send;
-    }
+    public static void setSendLyricsToChat(boolean send) { enabled = send; }
 
 
     // Hypixel's own party lines, whole-line and with a name group no chat prefix can fill: the old contains() checks
@@ -337,9 +333,7 @@ public final class SpotifyLyricsFeature {
             new java.util.concurrent.ConcurrentHashMap<String, String>()};
 
     /** {@code text} as the HUD and the F5 lines show it: starred at the Display Censor level. Any thread. */
-    public static String censorDisplay(String text) {
-        return censor(text, SpotifyHudConfig.getInstance().getDisplayCensor());
-    }
+    public static String censorDisplay(String text) { return censor(text, SpotifyHudConfig.getInstance().getDisplayCensor()); }
 
     /** {@code text} starred at {@code level}, cached. */
     public static String censor(String text, ProfanityLevel level) {
@@ -369,9 +363,7 @@ public final class SpotifyLyricsFeature {
     }
 
     /** The Windows media-session helper, which Spotify Controls also send through. */
-    static SpotifyMediaSession media() {
-        return MEDIA;
-    }
+    static SpotifyMediaSession media() { return MEDIA; }
 
     /** Runs {@code task} on the Spotify poll thread, so a pipe write or a process start never stalls a frame. */
     static void runOffThread(Runnable task) {
@@ -385,24 +377,16 @@ public final class SpotifyLyricsFeature {
     }
 
     /** Moves the lyric clock by {@code deltaMs} at once, for a seek a control just sent. */
-    static void nudge(long deltaMs) {
-        runOffThread(() -> ENGINE.nudge(deltaMs, System.currentTimeMillis()));
-    }
+    static void nudge(long deltaMs) { runOffThread(() -> ENGINE.nudge(deltaMs, System.currentTimeMillis())); }
 
     /** The current track's cover from Windows' media controls, or null; any thread. */
-    public static SpotifyMediaSession.Cover cover() {
-        return MEDIA.cover();
-    }
+    public static SpotifyMediaSession.Cover cover() { return MEDIA.cover(); }
 
     /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */
-    public static String sourceProblem() {
-        return DESKTOP.available() ? "" : DESKTOP.unavailableReason();
-    }
+    public static String sourceProblem() { return DESKTOP.available() ? "" : DESKTOP.unavailableReason(); }
 
     /** What the last poll saw Spotify doing, or null when nothing polls (chat lyrics, the HUD and Share My Song all off). */
-    public static NowPlaying nowPlaying() {
-        return ENGINE.lastNowPlaying();
-    }
+    public static NowPlaying nowPlaying() { return ENGINE.lastNowPlaying(); }
 
     private static void sendToChat(String raw, boolean localOnly) {
         Minecraft client = Minecraft.getInstance();
@@ -491,9 +475,7 @@ public final class SpotifyLyricsFeature {
 
     private static final Pattern WORD_PATTERN = Pattern.compile("[\\w']+|[^\\w']+");
 
-    private static String applyProfanityFilter(String input) {
-        return filterProfanity(input, profanityLevel);
-    }
+    private static String applyProfanityFilter(String input) { return filterProfanity(input, profanityLevel); }
 
     /** Stars out every word {@code level} bans after its first letter. Song Tag runs other players' text through it at
      *  {@link ProfanityLevel#ALL}. */

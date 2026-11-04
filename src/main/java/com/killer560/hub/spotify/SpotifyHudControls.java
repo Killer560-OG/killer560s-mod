@@ -78,9 +78,7 @@ public final class SpotifyHudControls {
         });
     }
 
-    private static boolean chatOpen() {
-        return McCompat.screen(Minecraft.getInstance()) instanceof ChatScreen;
-    }
+    private static boolean chatOpen() { return McCompat.screen(Minecraft.getInstance()) instanceof ChatScreen; }
 
     /** The mouse in the HUD's own units, or null. */
     private static double[] mouseLocal(double guiX, double guiY) {

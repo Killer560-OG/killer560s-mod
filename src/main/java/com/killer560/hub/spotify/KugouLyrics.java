@@ -109,9 +109,7 @@ public final class KugouLyrics {
         }
     }
 
-    static String lastResult() {
-        return lastResult;
-    }
+    static String lastResult() { return lastResult; }
 
     /** The first search candidate that is the same song (normalized title, artist) and within 2 s of Spotify's length. */
     static Hit pick(String searchJson, String artist, String title, double spotifySeconds) {
@@ -247,9 +245,7 @@ public final class KugouLyrics {
         }
     }
 
-    private static String enc(String s) {
-        return URLEncoder.encode(s == null ? "" : s, StandardCharsets.UTF_8);
-    }
+    private static String enc(String s) { return URLEncoder.encode(s == null ? "" : s, StandardCharsets.UTF_8); }
 
     /** Test hook: answers a request instead of the network (null answer = a failed request). */
     static volatile java.util.function.Function<String, String> testResponder;

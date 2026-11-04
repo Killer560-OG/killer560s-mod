@@ -293,7 +293,5 @@ public final class SongTagDraw {
     }
 
     /** Song lines submitted since start. */
-    public static long submitted() {
-        return submitted;
-    }
+    public static long submitted() { return submitted; }
 }

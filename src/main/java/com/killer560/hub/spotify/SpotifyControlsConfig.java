@@ -36,9 +36,7 @@ public final class SpotifyControlsConfig {
     /** The volume last set from the menu or a key, 0-100, or -1 when never set. Shown while Spotify's own is unknown. */
     private int volume = -1;
 
-    private SpotifyControlsConfig() {
-        java.util.Arrays.fill(keys, KeyUtil.NONE);
-    }
+    private SpotifyControlsConfig() { java.util.Arrays.fill(keys, KeyUtil.NONE); }
 
     public static SpotifyControlsConfig getInstance() {
         SpotifyControlsConfig cfg = instance;
@@ -93,13 +91,9 @@ public final class SpotifyControlsConfig {
         }
     }
 
-    public int getKey(SpotifyControls.Action action) {
-        return keys[action.ordinal()];
-    }
+    public int getKey(SpotifyControls.Action action) { return keys[action.ordinal()]; }
 
-    public void setKey(SpotifyControls.Action action, int code) {
-        keys[action.ordinal()] = KeyUtil.sanitizeBind(code);
-    }
+    public void setKey(SpotifyControls.Action action, int code) { keys[action.ordinal()] = KeyUtil.sanitizeBind(code); }
 
     /** Whether any control has a key, so the Windows reader is kept running for an instant first press. */
     public boolean anyKeyBound() {
@@ -111,27 +105,15 @@ public final class SpotifyControlsConfig {
         return false;
     }
 
-    public int getSeekSeconds() {
-        return seekSeconds;
-    }
+    public int getSeekSeconds() { return seekSeconds; }
 
-    public void setSeekSeconds(int seconds) {
-        this.seekSeconds = pick(SEEK_STEPS, seconds, 10);
-    }
+    public void setSeekSeconds(int seconds) { this.seekSeconds = pick(SEEK_STEPS, seconds, 10); }
 
-    public int getVolumeStep() {
-        return volumeStep;
-    }
+    public int getVolumeStep() { return volumeStep; }
 
-    public void setVolumeStep(int step) {
-        this.volumeStep = pick(VOLUME_STEPS, step, 5);
-    }
+    public void setVolumeStep(int step) { this.volumeStep = pick(VOLUME_STEPS, step, 5); }
 
-    public int getVolume() {
-        return volume;
-    }
+    public int getVolume() { return volume; }
 
-    public void setVolume(int volume) {
-        this.volume = Math.max(-1, Math.min(100, volume));
-    }
+    public void setVolume(int volume) { this.volume = Math.max(-1, Math.min(100, volume)); }
 }

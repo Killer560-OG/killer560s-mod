@@ -126,14 +126,10 @@ public final class LyricsEngine {
             return (playedMs + (playingSinceMs == 0 ? 0 : Math.max(0, nowMs - playingSinceMs))) / 1000.0;
         }
 
-        public boolean hasTrack() {
-            return !title.isEmpty();
-        }
+        public boolean hasTrack() { return !title.isEmpty(); }
 
         /** Index of the line being sung at {@code seconds}, or -1 before the first. */
-        public int lineAt(double seconds) {
-            return LyricTiming.lineAt(i -> lines.get(i).timeSeconds(), lines.size(), seconds);
-        }
+        public int lineAt(double seconds) { return LyricTiming.lineAt(i -> lines.get(i).timeSeconds(), lines.size(), seconds); }
 
         /** Where line {@code i} ends: the next line's start, else the track's end, else NaN. */
         public double lineEnd(int i) {
@@ -147,9 +143,7 @@ public final class LyricsEngine {
     private volatile Snapshot snapshot = Snapshot.NONE;
 
     /** The latest {@link Snapshot}; any thread, never null. */
-    public Snapshot snapshot() {
-        return snapshot;
-    }
+    public Snapshot snapshot() { return snapshot; }
 
     /** Publishes the current state as a {@link Snapshot}. Caller holds the lock. */
     private void publish(NowPlaying.Kind kind) {
@@ -210,9 +204,7 @@ public final class LyricsEngine {
      */
     private static final java.util.Map<String, List<LyricLine>> WORD_CACHE = new java.util.LinkedHashMap<>(16, 0.75f, true) {
         @Override
-        protected boolean removeEldestEntry(java.util.Map.Entry<String, List<LyricLine>> eldest) {
-            return size() > 64;
-        }
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, List<LyricLine>> eldest) { return size() > 64; }
     };
 
     /**
@@ -925,9 +917,7 @@ public final class LyricsEngine {
      */
     private static final java.util.Map<String, Fetched> FETCH_CACHE = new java.util.LinkedHashMap<>(16, 0.75f, true) {
         @Override
-        protected boolean removeEldestEntry(java.util.Map.Entry<String, Fetched> eldest) {
-            return size() > 64;
-        }
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Fetched> eldest) { return size() > 64; }
     };
 
     /** What lrclib gave for one track: every version with synced lines, and the first listing's length (0 = unknown). */
@@ -935,29 +925,19 @@ public final class LyricsEngine {
         static final Fetched NOTHING = new Fetched(List.of(), 0);
     }
 
-    public NowPlaying lastNowPlaying() {
-        return lastNowPlaying;
-    }
+    public NowPlaying lastNowPlaying() { return lastNowPlaying; }
 
     /** Polling stopped: what was playing is no longer known. */
-    public void forgetNowPlaying() {
-        lastNowPlaying = null;
-    }
+    public void forgetNowPlaying() { lastNowPlaying = null; }
 
-    public void setFetchLyrics(boolean fetch) {
-        wantLyrics = fetch;
-    }
+    public void setFetchLyrics(boolean fetch) { wantLyrics = fetch; }
 
-    public synchronized String getCurrentLyric() {
-        return currentLyric;
-    }
+    public synchronized String getCurrentLyric() { return currentLyric; }
 
     /** @return whether the current {@link #getCurrentLyric()} value is a track-change announcement
      *  rather than an actual lyric line - lets the caller detect that without depending on its exact
      *  wording, which now varies by {@code fullLyricsMode} (see {@link #poll}). */
-    public synchronized boolean isCurrentLyricTransition() {
-        return currentIsTransition;
-    }
+    public synchronized boolean isCurrentLyricTransition() { return currentIsTransition; }
 
     private String currentLyricAt(double elapsedSeconds) {
         String current = "";
@@ -1096,7 +1076,5 @@ public final class LyricsEngine {
         return result;
     }
 
-    private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
+    private static String urlEncode(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
 }

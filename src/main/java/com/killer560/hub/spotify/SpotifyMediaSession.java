@@ -52,13 +52,9 @@ public final class SpotifyMediaSession {
     public record Timeline(String artist, String title, int status, long positionMs, long endMs, long updatedMs,
                            long receivedMs, int coverSeq) {
 
-        public boolean playing() {
-            return status == STATUS_PLAYING;
-        }
+        public boolean playing() { return status == STATUS_PLAYING; }
 
-        public boolean paused() {
-            return status == STATUS_PAUSED;
-        }
+        public boolean paused() { return status == STATUS_PAUSED; }
 
         /**
          * Spotify's position at {@code nowMs}: the reported position plus the time since Spotify took it while playing,
@@ -123,14 +119,10 @@ public final class SpotifyMediaSession {
     }
 
     /** The newest cover picture, or null. Any thread. */
-    public Cover cover() {
-        return cover;
-    }
+    public Cover cover() { return cover; }
 
     /** Starts the helper if it is not running (with a back-off after failures). Poll thread; returns at once. */
-    public synchronized void ensureRunning() {
-        ensureRunning(false);
-    }
+    public synchronized void ensureRunning() { ensureRunning(false); }
 
     /** {@code urgent}: a control the player just pressed, which starts the helper even inside the failure back-off. */
     private synchronized void ensureRunning(boolean urgent) {
@@ -192,9 +184,7 @@ public final class SpotifyMediaSession {
         }
     }
 
-    static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-    }
+    static boolean isWindows() { return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win"); }
 
     // ---- controls (2026-10-26, killer560: "make the spotify menu have a pause button and a skip button and rewind and
     // stuff ... also have a volume slider") ---------------------------------------------------------------------------
@@ -235,16 +225,12 @@ public final class SpotifyMediaSession {
     /** The current track's album as Windows reports it (lrclib's /api/get can match on it), or "". */
     private volatile String album = "";
 
-    public String album() {
-        return album;
-    }
+    public String album() { return album; }
 
     /** The player the reading came from (Windows' app id, "Spotify.exe" for the desktop app), or "" before a reading. */
     private volatile String sourceApp = "";
 
-    public String sourceApp() {
-        return sourceApp;
-    }
+    public String sourceApp() { return sourceApp; }
 
     /** Whether the reading is the Spotify app's (or carries no app id, as an older helper's did). */
     public boolean fromSpotify() {
@@ -271,14 +257,10 @@ public final class SpotifyMediaSession {
     // Test hook: volume commands the helper skipped because a later one was already waiting.
     private volatile long volumesSkipped;
 
-    public String volumeHow() {
-        return volumeHow;
-    }
+    public String volumeHow() { return volumeHow; }
 
     /** Spotify's mixer volume (0-100), -1 when it has no audio session, -2 when not read yet. Any thread. */
-    public int volume() {
-        return volume;
-    }
+    public int volume() { return volume; }
 
     /** Whether Spotify allows control {@code index} (0 play/pause, 1 next, 2 previous, 3 seek); true while unknown. */
     public boolean allows(int index) {
@@ -318,9 +300,7 @@ public final class SpotifyMediaSession {
     private volatile String state = "stopped";
 
     /** "stopped", "reading Spotify", "no Spotify session", "read failed" or "ended"; any thread. */
-    public String state() {
-        return state;
-    }
+    public String state() { return state; }
 
     private void setState(String s) {
         if (!s.equals(state)) {

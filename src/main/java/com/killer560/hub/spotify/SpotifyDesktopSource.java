@@ -56,9 +56,7 @@ public final class SpotifyDesktopSource {
 
     private volatile String reason = "";
 
-    public String displayName() {
-        return "Spotify App";
-    }
+    public String displayName() { return "Spotify App"; }
 
     public boolean available() {
         if (!Win.supported()) {
@@ -79,9 +77,7 @@ public final class SpotifyDesktopSource {
         return true;
     }
 
-    public String unavailableReason() {
-        return reason;
-    }
+    public String unavailableReason() { return reason; }
 
     /**
      * @return what Spotify is doing, never null. Never throws; a failure reads as paused.

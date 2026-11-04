@@ -311,15 +311,11 @@ public final class RemoteSongs {
         LAST_ACCEPT.clear();
     }
 
-    public static int tracked() {
-        return SONGS.size();
-    }
+    public static int tracked() { return SONGS.size(); }
 
 
     /** "♪ Title - Artist" in gray italic, plain literal text, never a sender-chosen style or event. */
-    static Component buildTag(String artist, String title) {
-        return buildTag(artist, title, -1);
-    }
+    static Component buildTag(String artist, String title) { return buildTag(artist, title, -1); }
 
     /** The same line in {@code argb} instead of gray ({@code -1}: gray), still italic: Song In F5's custom text color. */
     static Component buildTag(String artist, String title, int argb) {

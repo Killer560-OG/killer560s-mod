@@ -42,9 +42,7 @@ public final class LyricTiming {
             this(text, words, wordStarts, LyricTiming.weights(words));
         }
 
-        public boolean timed() {
-            return wordStarts != null;
-        }
+        public boolean timed() { return wordStarts != null; }
     }
 
     private static double[] weights(List<String> words) {
@@ -277,9 +275,7 @@ public final class LyricTiming {
         return n - 1;
     }
 
-    private static String collapse(String s) {
-        return s.trim().replaceAll("\\s+", " ");
-    }
+    private static String collapse(String s) { return s.trim().replaceAll("\\s+", " "); }
 
     private static List<String> split(String text) {
         if (text.isEmpty()) {
