@@ -116,6 +116,15 @@ public final class TickTimersFeature {
     // PerTickServerClock.now() baseline set when Goldor's line lands - Devonian's own baseline for "Show Total"
     // (its Stages.Terminals.startTime.tick), ported in the 2026-09-20 Goldor Frenzy merge.
     private static long goldorPhaseStartTick = 0L;
+    /** Clock tick each countdown above ends on (MIN = not running). The int fields are worked out from these on every server
+     *  tick, so a tick on which the boss-phase gate read false (the sidebar flickers) can no longer leave a countdown one
+     *  tick behind for the rest of the phase, as Odin's decrement-in-a-gated-listener did here until 2026-11-04. */
+    private static long necronEnd = Long.MIN_VALUE;
+    private static long maxorStartEnd = Long.MIN_VALUE;
+    private static long goldorStartEnd = Long.MIN_VALUE;
+    private static TimerMark necronMark;
+    private static TimerMark maxorStartMark;
+    private static TimerMark goldorStartMark;
     private static boolean wasInDungeon = false;
     private static Object lastLevel = null;
 
@@ -155,20 +164,35 @@ public final class TickTimersFeature {
         // boss/sidebar lines embed §-codes mid-word, which silently breaks an exact/regex match unless
         // formatting is stripped first. Every trigger here is real boss dialogue of that exact kind.
         String raw = com.killer560.hub.util.ChatObserver.strip(message);
+        long now = PerTickServerClock.now();
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
+            necronEnd = now + 60;
+            necronMark = TimerMark.now();
         } else if (MAXOR_START_REGEX.matcher(raw).matches()) {
             maxorStartTime = MAXOR_START_TICKS;
+            maxorStartEnd = now + MAXOR_START_TICKS;
+            maxorStartMark = TimerMark.now();
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
+            if (goldorStartMark != null && goldorStartEnd != Long.MIN_VALUE) {
+                // How far the "Start:" countdown was from Goldor's line when it landed (0 = the 17-tick gap was right).
+                TimerMark.proc("Goldor Start (Goldor's line, " + (goldorStartEnd - now) + " ticks left on it)", goldorStartMark);
+            }
             GoldorTick.start();
-            goldorPhaseStartTick = PerTickServerClock.now();
+            goldorPhaseStartTick = now;
             // "Start:" counts from Storm's death to this line, so the line itself ends it whatever the pacing.
             goldorStartTime = -1;
+            goldorStartEnd = Long.MIN_VALUE;
+            goldorStartMark = null;
         } else if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             goldorStartTime = -1;
+            goldorStartEnd = Long.MIN_VALUE;
             GoldorTick.stop();
         } else if (STORM_END_REGEX.matcher(raw).matches()) {
             goldorStartTime = GOLDOR_START_TICKS;
+            goldorStartEnd = now + GOLDOR_START_TICKS;
+            goldorStartMark = TimerMark.now();
+            GoldorTick.stormDeath();
             StormLine.stop();
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
             StormLine.start();
@@ -210,10 +234,25 @@ public final class TickTimersFeature {
 
     /** Odin {@code on<TickEvent.Server>} (boss-only part). */
     private static void serverTick() {
-        if (!TickTimersConfig.getInstance().isEnabled() || !DungeonState.isBossPhaseActive()) {
-            return;
+        // Every countdown is its end tick minus the clock, whatever the boss-phase gate reads this tick (2026-11-04).
+        long now = PerTickServerClock.now();
+        int was = maxorStartTime;
+        maxorStartTime = remainingTo(maxorStartEnd, now);
+        if (was > 0 && maxorStartTime == 0) {
+            TimerMark.proc("Maxor Start", maxorStartMark);
         }
-        TickTimersConfig cfg = TickTimersConfig.getInstance();
+        was = necronTicks;
+        necronTicks = remainingTo(necronEnd, now);
+        if (was > 0 && necronTicks == 0) {
+            TimerMark.proc("Necron drop", necronMark);
+        }
+        was = goldorStartTime;
+        goldorStartTime = remainingTo(goldorStartEnd, now);
+        if (was > 0 && goldorStartTime == 0) {
+            TimerMark.proc("Goldor Start", goldorStartMark);
+        }
+        GoldorTick.serverTick();
+        StormLine.serverTick();
         // Real bug found and fixed (2026-09-14, real-run log analysis): an earlier review pass removed this
         // re-arm as a "copy-paste bug", claiming the Core entrance line fires BEFORE Goldor's taunt. It
         // doesn't - the real order is Storm dies -> "Who dares trespass" -> terminals -> "The Core entrance
@@ -229,21 +268,26 @@ public final class TickTimersFeature {
         // it only removes that failure mode; the countdown's alignment is unchanged.
         // Goldor's "Tick:" and Storm's line are no longer counted down here: they are worked out from a remembered
         // server tick on PerTickServerClock (GoldorTick, StormLine), so a skipped call cannot move them (2026-11-02).
-        if (maxorStartTime >= 0) {
-            maxorStartTime--;
+    }
+
+    /** Ticks from {@code now} to {@code end}, or -1 once past it or when nothing runs (Odin's -1 = off the HUD). */
+    private static int remainingTo(long end, long now) {
+        if (end == Long.MIN_VALUE || now > end) {
+            return -1;
         }
-        if (goldorStartTime >= 0) {
-            goldorStartTime--;
-        }
-        if (necronTicks >= 0) {
-            necronTicks--;
-        }
+        return (int) Math.min(Integer.MAX_VALUE, end - now);
     }
 
     private static void resetAll() {
         necronTicks = -1;
         maxorStartTime = -1;
         goldorStartTime = -1;
+        necronEnd = Long.MIN_VALUE;
+        maxorStartEnd = Long.MIN_VALUE;
+        goldorStartEnd = Long.MIN_VALUE;
+        necronMark = null;
+        maxorStartMark = null;
+        goldorStartMark = null;
         GoldorTick.stop();
         StormLine.stop();
         goldorPhaseStartTick = 0L;
