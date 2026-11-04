@@ -951,6 +951,7 @@ final class SettingTooltipsData {
         d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
         d.put("cooldown", "Minimum wait between two automatic actions.");
+        d.put("pv link on join", "When someone joins your party in a dungeon queue or run, adds a clickable [PV] line under the join message that opens their profile viewer.");
         d.put("auto requeue", "Sends /instancerequeue automatically when a dungeon run ends.");
         d.put("requeue delay", "Seconds to wait (0-30) after the run ends before requeuing.");
         d.put("disable on leave/kick", "Skips the next auto requeue if someone leaves, is kicked or the party disbands.");

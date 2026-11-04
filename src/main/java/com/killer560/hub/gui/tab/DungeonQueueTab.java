@@ -35,7 +35,7 @@ public class DungeonQueueTab extends BaseTab {
      *  card is ON while either is, OFF only when both are (killer560, 2026-10-14). */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Auto Requeue", "Party Finder Overlay");
+        return switchRows(built, "Auto Requeue", "PV Link on Join", "Party Finder Overlay");
     }
 
     @Override
@@ -71,6 +71,11 @@ public class DungeonQueueTab extends BaseTab {
             y += 24;
         }
         y += 6;
+
+        // ---------------------------------------------------------------- PV Link on Join (its own switch)
+        widgets.add(onOffButton("PV Link on Join", queue::isPvLinkOnJoin, queue::setPvLinkOnJoin, queue::save,
+                requestRebuild, contentX, y, contentWidth, 20));
+        y += 30;
 
         // ---------------------------------------------------------------- Party Finder Overlay
         PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
