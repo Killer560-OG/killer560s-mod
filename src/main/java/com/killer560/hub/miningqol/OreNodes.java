@@ -71,9 +71,7 @@ final class OreNodes {
             key = k;
             nodes = areaNodes;
         }
-        if (nodes.length == 0) {
-            return;
-        }
+        if (nodes.length == 0) return;
         Predicate<BlockState> isOre = predicate(ore);
         if (++nearClock >= NEAR_TICKS) {
             nearClock = 0;
@@ -126,9 +124,7 @@ final class OreNodes {
         List<BlockPos> found = new ArrayList<>();
         for (int cx = x0 >> 4; cx <= (x1 >> 4); cx++) {
             for (int cz = z0 >> 4; cz <= (z1 >> 4); cz++) {
-                if (!ClientChunks.isLoaded(level, cx, cz)) {
-                    return -1;
-                }
+                if (!ClientChunks.isLoaded(level, cx, cz)) return -1;
                 var chunk = level.getChunk(cx, cz);
                 int bx0 = Math.max(x0, cx << 4);
                 int bx1 = Math.min(x1, (cx << 4) + 15);
@@ -174,9 +170,7 @@ final class OreNodes {
         List<Integer> some = new ArrayList<>();
         for (int n : nodes) {
             Integer c = counts.get(n);
-            if (c == null) {
-                continue;
-            }
+            if (c == null) continue;
             if (c >= MIN_ORE) {
                 good.add(n);
             } else if (c > 0) {
@@ -190,15 +184,9 @@ final class OreNodes {
     /** The ore a commission for {@code area} wants: "Mithril", "Titanium", or null. */
     static String oreFor(List<MiningState.Commission> coms, String area) {
         for (MiningState.Commission c : coms) {
-            if (c.done() || !c.name().startsWith(area + " ")) {
-                continue;
-            }
-            if (c.name().endsWith(" Mithril")) {
-                return "Mithril";
-            }
-            if (c.name().endsWith(" Titanium")) {
-                return "Titanium";
-            }
+            if (c.done() || !c.name().startsWith(area + " ")) continue;
+            if (c.name().endsWith(" Mithril")) return "Mithril";
+            if (c.name().endsWith(" Titanium")) return "Titanium";
         }
         return null;
     }

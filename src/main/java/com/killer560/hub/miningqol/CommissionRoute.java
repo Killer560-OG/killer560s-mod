@@ -169,9 +169,7 @@ public final class CommissionRoute {
     }
 
     private static boolean offPath(Cur c, Vec3 pos) {
-        if (c.pts.isEmpty()) {
-            return false;
-        }
+        if (c.pts.isEmpty()) return false;
         Vec3 a = c.anchor;
         double best = Double.MAX_VALUE;
         for (Vec3 q : c.pts) {
@@ -184,13 +182,9 @@ public final class CommissionRoute {
     /** The area of the first open commission that names one, or null. */
     public static String targetArea(List<MiningState.Commission> coms) {
         for (MiningState.Commission c : coms) {
-            if (c.done()) {
-                continue;
-            }
+            if (c.done()) continue;
             for (String a : MiningState.COMMISSION_AREAS) {
-                if (c.name().startsWith(a + " ")) {
-                    return a;
-                }
+                if (c.name().startsWith(a + " ")) return a;
             }
         }
         return null;
@@ -325,9 +319,7 @@ public final class CommissionRoute {
         }
 
         void relax(int u, int v, double w, boolean warp, BlockPos hop, Vec3 stand) {
-            if (v < 0 || v >= dist.length || done[v]) {
-                return;
-            }
+            if (v < 0 || v >= dist.length || done[v]) return;
             double nd = dist[u] + w;
             if (nd < dist[v]) {
                 dist[v] = nd;
@@ -381,9 +373,7 @@ public final class CommissionRoute {
         while (!s.pq.isEmpty()) {
             double[] e = s.pq.poll();
             int u = (int) e[1];
-            if (s.done[u]) {
-                continue;
-            }
+            if (s.done[u]) continue;
             s.done[u] = true;
             if (u != me && isGoal[u]) {
                 reached = u;
@@ -399,38 +389,28 @@ public final class CommissionRoute {
                     s.relax(u, out[j], w[j], false, null, null);
                 }
             }
-            if (mode == MiningQolConfig.CommissionRouteMode.WALK) {
-                continue;
-            }
+            if (mode == MiningQolConfig.CommissionRouteMode.WALK) continue;
             // Warp edges: candidates that get closer to the goal, best first.
             double range = ether ? ETHERWARP_RANGE : AOTE_RANGE + 2.0;
             double minGain = ether ? 8.0 : 1.5;
             List<Integer> cand = new ArrayList<>();
             for (int j = 0; j < n; j++) {
-                if (j == u || s.done[j]) {
-                    continue;
-                }
+                if (j == u || s.done[j]) continue;
                 double d = feetOf(g.nodes[j]).distanceTo(stand);
-                if (d > range || d < (ether ? 6.0 : 2.0) || h[j] > h[u] - minGain) {
-                    continue;
-                }
+                if (d > range || d < (ether ? 6.0 : 2.0) || h[j] > h[u] - minGain) continue;
                 cand.add(j);
             }
             cand.sort((x, y) -> Double.compare(h[x], h[y]));
             int limit = u == me ? 40 : (ether ? 10 : 40);
             int tried = 0;
             for (int j : cand) {
-                if (tried >= limit || tests >= MAX_RAYCAST_TESTS) {
-                    break;
-                }
+                if (tried >= limit || tests >= MAX_RAYCAST_TESTS) break;
                 tried++;
                 tests++;
                 Vec3 f = feetOf(g.nodes[j]);
                 if (ether) {
                     BlockPos ground = groundUnder(new Vec3(f.x, f.y + 0.5, f.z));
-                    if (ground == null) {
-                        continue;
-                    }
+                    if (ground == null) continue;
                     Vec3 eye = stand.add(0, TeleportUtils.SNEAK_EYE, 0);
                     if (Vec3.atCenterOf(ground).distanceTo(eye) > ETHERWARP_RANGE
                             || TeleportUtils.getEtherwarpDirection(eye, ground, ETHERWARP_RANGE, false) == null) {
@@ -445,9 +425,7 @@ public final class CommissionRoute {
                     TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, f.add(0, 1.62, 0));
                     TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
                     Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
-                    if (land == null) {
-                        continue;
-                    }
+                    if (land == null) continue;
                     int k = -1;
                     double kd = 2.0;
                     for (int m = 0; m < n; m++) {
@@ -463,9 +441,7 @@ public final class CommissionRoute {
                 }
             }
         }
-        if (reached < 0) {
-            return null;
-        }
+        if (reached < 0) return null;
         List<Integer> rev = new ArrayList<>();
         for (int c = reached; c != -1; c = s.prev[c]) {
             rev.add(c);
@@ -494,9 +470,7 @@ public final class CommissionRoute {
         int fy = (int) Math.floor(p.y);
         for (int dy = 1; dy <= 3; dy++) {
             BlockPos b = new BlockPos(x, fy - dy, z);
-            if (TeleportUtils.etherwarpable(b)) {
-                return b;
-            }
+            if (TeleportUtils.etherwarpable(b)) return b;
         }
         return null;
     }
@@ -507,9 +481,7 @@ public final class CommissionRoute {
         BlockPos q = p;
         for (int i = 0; i < 4 && mc.level != null; i++) {
             BlockPos below = q.below();
-            if (!mc.level.getBlockState(below).getCollisionShape(mc.level, below).isEmpty()) {
-                break;
-            }
+            if (!mc.level.getBlockState(below).getCollisionShape(mc.level, below).isEmpty()) break;
             q = below;
         }
         return new Vec3(q.getX() + 0.5, q.getY(), q.getZ() + 0.5);
@@ -518,9 +490,7 @@ public final class CommissionRoute {
     static void render(LevelRenderContext context) {
         Vec3[] pts = points;
         Minecraft client = Minecraft.getInstance();
-        if (pts.length == 0 || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (pts.length == 0 || client.player == null || !MiningState.dwarvenMines()) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         float[] k = WorldRenderUtils.argbToFloats(cfg.getCommissionRouteColor());
         Vec3 me = WorldRenderUtils.tracerOrigin(context);
@@ -559,9 +529,7 @@ public final class CommissionRoute {
         IslandGraph g = MinesAreaMap.graph();
         int[] n = pathNodes;
         List<Integer> out = new ArrayList<>();
-        if (g == null) {
-            return out;
-        }
+        if (g == null) return out;
         for (int i : n) {
             if (i >= 0 && i < g.nodes.length) {
                 out.add(g.nodes[i].id);

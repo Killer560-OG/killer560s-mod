@@ -91,14 +91,10 @@ public final class CommissionClaim {
 
     /** Whether a finished commission waits to be claimed. */
     public static boolean claimDue() {
-        if (!MiningState.dwarvenMines()) {
-            return false;
-        }
+        if (!MiningState.dwarvenMines()) return false;
         long now = System.currentTimeMillis();
         int v = MiningState.version();
-        if (now < quietUntil && v == quietVersion) {
-            return false;
-        }
+        if (now < quietUntil && v == quietVersion) return false;
         // The chat line covers the lag before the tab shows DONE, and ends the moment the tab's list changes.
         boolean bridge = now < chatUntil && v == chatVersion;
         return MiningState.anyDone() || bridge;
@@ -122,14 +118,10 @@ public final class CommissionClaim {
     /** The hotbar slot (0-8) holding a Royal Pigeon, or -1. */
     public static int pigeonSlot() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) {
-            return -1;
-        }
+        if (mc.player == null) return -1;
         for (int i = 0; i < 9; i++) {
             ItemStack s = mc.player.getInventory().getItem(i);
-            if (!s.isEmpty() && "ROYAL_PIGEON".equals(ItemIdentity.skyblockId(s))) {
-                return i;
-            }
+            if (!s.isEmpty() && "ROYAL_PIGEON".equals(ItemIdentity.skyblockId(s))) return i;
         }
         return -1;
     }
@@ -139,13 +131,9 @@ public final class CommissionClaim {
 
     private static void renderPulse(GuiGraphicsExtractor graphics) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || com.killer560.hub.hud.HudVisibility.hidesHud() || !pigeonPulse()) {
-            return;
-        }
+        if (mc.player == null || com.killer560.hub.hud.HudVisibility.hidesHud() || !pigeonPulse()) return;
         int slot = pigeonSlot();
-        if (slot < 0) {
-            return;
-        }
+        if (slot < 0) return;
         int x = graphics.guiWidth() / 2 - 90 + slot * 20 + 2;
         int y = graphics.guiHeight() - 19;
         int a = (int) (70 + 150 * pulse(System.currentTimeMillis()));

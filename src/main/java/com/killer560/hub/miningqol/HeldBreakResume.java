@@ -86,9 +86,7 @@ public final class HeldBreakResume {
     }
 
     private static boolean buttonDown(Minecraft client) {
-        if (!MouseButtons.isDown(0)) {
-            return false;
-        }
+        if (!MouseButtons.isDown(0)) return false;
         return trustTrackedForTest || McInput.isStoredButtonDown(client.getWindow(), 0);
     }
 

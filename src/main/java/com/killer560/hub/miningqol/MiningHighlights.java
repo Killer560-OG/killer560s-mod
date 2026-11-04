@@ -168,14 +168,10 @@ public final class MiningHighlights {
             next.add(p.asLong());
         }
         java.util.Set<Long> old = carpetKeys;
-        if (old.equals(next)) {
-            return;
-        }
+        if (old.equals(next)) return;
         carpetKeys = java.util.Set.copyOf(next);
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return;
-        }
+        if (mc.level == null) return;
         java.util.Set<Long> sections = new java.util.HashSet<>();
         for (Long k : old) {
             if (!next.contains(k)) {
@@ -246,9 +242,7 @@ public final class MiningHighlights {
      */
     public static void onBlockChanged(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         BlockPos p = pos.immutable();
         boolean changed = false;
@@ -283,13 +277,9 @@ public final class MiningHighlights {
     /** A chunk arrived: its blocks are evaluated now, not on the next safety scan. */
     public static void onChunkLoaded(int chunkX, int chunkZ) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (client.level == null || client.player == null || !MiningState.dwarvenMines()) return;
         BlockPos at = client.player.blockPosition();
-        if (Math.abs((chunkX << 4) + 8 - at.getX()) > RADIUS + 8 || Math.abs((chunkZ << 4) + 8 - at.getZ()) > RADIUS + 8) {
-            return;
-        }
+        if (Math.abs((chunkX << 4) + 8 - at.getX()) > RADIUS + 8 || Math.abs((chunkZ << 4) + 8 - at.getZ()) > RADIUS + 8) return;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         BlockPos center = new BlockPos((chunkX << 4) + 8, at.getY(), (chunkZ << 4) + 8);
         boolean changed = false;
@@ -314,9 +304,7 @@ public final class MiningHighlights {
         for (Entity e : client.level.entitiesForRendering()) {
             if (isTicket(e)) {
                 out.add(new double[]{e.getX(), e.getY(), e.getZ(), e.getBbWidth(), e.getBbHeight()});
-                if (out.size() >= 200) {
-                    break;
-                }
+                if (out.size() >= 200) break;
             }
         }
         return List.copyOf(out);
@@ -325,12 +313,8 @@ public final class MiningHighlights {
     static boolean isTicket(Entity e) {
         if (e instanceof ItemEntity item) {
             ItemStack stack = item.getItem();
-            if (stack.isEmpty()) {
-                return false;
-            }
-            if (stack.is(Items.NAME_TAG)) {
-                return true;
-            }
+            if (stack.isEmpty()) return false;
+            if (stack.is(Items.NAME_TAG)) return true;
             String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
             return name != null && name.contains("Raffle Ticket");
         }
@@ -344,9 +328,7 @@ public final class MiningHighlights {
     /** A face of {@code p} touches air: the block can be reached and mined (Exposed Only, Through Walls). */
     static boolean exposed(net.minecraft.world.level.Level level, BlockPos p) {
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-            if (level.getBlockState(p.relative(d)).isAir()) {
-                return true;
-            }
+            if (level.getBlockState(p.relative(d)).isAir()) return true;
         }
         return false;
     }
@@ -355,9 +337,7 @@ public final class MiningHighlights {
     static boolean inSight(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, BlockPos p) {
         net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
         for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
-            if (!level.getBlockState(p.relative(d)).isAir()) {
-                continue;
-            }
+            if (!level.getBlockState(p.relative(d)).isAir()) continue;
             net.minecraft.world.phys.Vec3 face = net.minecraft.world.phys.Vec3.atCenterOf(p)
                     .add(d.getStepX() * 0.501, d.getStepY() * 0.501, d.getStepZ() * 0.501);
             if (face.subtract(eye).dot(net.minecraft.world.phys.Vec3.atCenterOf(p).subtract(face)) > 0) {
@@ -379,9 +359,7 @@ public final class MiningHighlights {
         List<BlockPos> c = carpets;
         List<BlockPos> t = titanium;
         List<double[]> r = tickets;
-        if (c.isEmpty() && t.isEmpty() && r.isEmpty()) {
-            return;
-        }
+        if (c.isEmpty() && t.isEmpty() && r.isEmpty()) return;
         FILLS.clear();
         LINES.clear();
         WALL_FILLS.clear();
@@ -409,12 +387,8 @@ public final class MiningHighlights {
                 line = WALL_LINES;
             }
             for (BlockPos p : t) {
-                if (exposedOnly && level != null && !exposed(level, p)) {
-                    continue;
-                }
-                if (!walls && (level == null || mc.player == null || !inSight(level, mc.player, p))) {
-                    continue;
-                }
+                if (exposedOnly && level != null && !exposed(level, p)) continue;
+                if (!walls && (level == null || mc.player == null || !inSight(level, mc.player, p))) continue;
                 drawnNow.add(p);
                 double e = 0.002;
                 fill.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e, p.getZ() + 1 + e,

@@ -101,13 +101,9 @@ public final class CommissionProgress {
         java.util.Set<String> live = new java.util.HashSet<>();
         for (MiningState.Commission c : coms) {
             live.add(c.name());
-            if (c.done() || stepWiki(c.name()) == 0) {
-                continue;
-            }
+            if (c.done() || stepWiki(c.name()) == 0) continue;
             double t = pct(c.progress());
-            if (t < 0) {
-                continue;
-            }
+            if (t < 0) continue;
             Track tr = TRACKS.computeIfAbsent(c.name(), k -> new Track());
             if (tr.tab < 0 || tr.shown < 0) {
                 tr.tab = t;
@@ -168,9 +164,7 @@ public final class CommissionProgress {
 
     /** Remembers the ore around a newly dug block, so a Mining Spread break next to it can be told from any other change. */
     private static void snapshotNeighbours(Minecraft client, BlockPos center, long now) {
-        if (center.equals(snapCenter) && !NEIGHBOURS.isEmpty()) {
-            return;
-        }
+        if (center.equals(snapCenter) && !NEIGHBOURS.isEmpty()) return;
         snapCenter = center;
         for (BlockPos p : BlockScan.scan(client.level, center, SPREAD_RADIUS, SPREAD_RADIUS,
                 s -> oreOf(s) != null, (pos, s) -> true, 3000)) {
@@ -197,9 +191,7 @@ public final class CommissionProgress {
     /** A block the server changed (client thread, after the change; from MiningBlockUpdateMixin). */
     public static void onBlockChanged(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || !MiningState.dwarvenMines()) {
-            return;
-        }
+        if (client.level == null || !MiningState.dwarvenMines()) return;
         Object[] t = TARGETS.get(pos);
         boolean spread = false;
         if (t == null) {
@@ -208,9 +200,7 @@ public final class CommissionProgress {
             // that the server now changes counts too, while he is still digging.
             long nowMs = System.currentTimeMillis();
             t = nowMs - lastAimMs <= SPREAD_MS ? NEIGHBOURS.get(pos) : null;
-            if (t == null) {
-                return;
-            }
+            if (t == null) return;
             spread = true;
         }
         BlockState was = (BlockState) t[0];
@@ -232,12 +222,8 @@ public final class CommissionProgress {
 
     /** "Mithril", "Titanium", or null. */
     static String oreOf(BlockState s) {
-        if (MithrilStone.isMithril(s)) {
-            return "Mithril";
-        }
-        if (s != null && MiningHighlights.isTitanium(s)) {
-            return "Titanium";
-        }
+        if (MithrilStone.isMithril(s)) return "Mithril";
+        if (s != null && MiningHighlights.isTitanium(s)) return "Titanium";
         return null;
     }
 
@@ -246,13 +232,9 @@ public final class CommissionProgress {
         String area = blockArea != null ? blockArea : playerArea;
         boolean any = false;
         for (MiningState.Commission c : coms) {
-            if (c.done() || !counts(c.name(), ore, area)) {
-                continue;
-            }
+            if (c.done() || !counts(c.name(), ore, area)) continue;
             Track tr = TRACKS.get(c.name());
-            if (tr == null || tr.shown < 0) {
-                continue;
-            }
+            if (tr == null || tr.shown < 0) continue;
             double step = step(c.name(), tr);
             tr.shown = Math.min(MAX_SHOWN, tr.shown + step);
             tr.countedSinceTab++;
@@ -268,35 +250,21 @@ public final class CommissionProgress {
 
     /** Whether commission {@code name} counts a block of {@code ore} in {@code area}. */
     static boolean counts(String name, String ore, String area) {
-        if (name.equals(ore + " Miner")) {
-            return true;
-        }
-        if (!name.endsWith(" " + ore)) {
-            return false;
-        }
+        if (name.equals(ore + " Miner")) return true;
+        if (!name.endsWith(" " + ore)) return false;
         for (String a : MiningState.COMMISSION_AREAS) {
-            if (name.equals(a + " " + ore)) {
-                return area != null && MiningState.areaIs(area, a);
-            }
+            if (name.equals(a + " " + ore)) return area != null && MiningState.areaIs(area, a);
         }
         return false;
     }
 
     /** The wiki's step in percent, 0 for a commission not counted per block. */
     static double stepWiki(String name) {
-        if (name.equals("Mithril Miner")) {
-            return 100.0 / 350;
-        }
-        if (name.equals("Titanium Miner")) {
-            return 100.0 / 15;
-        }
+        if (name.equals("Mithril Miner")) return 100.0 / 350;
+        if (name.equals("Titanium Miner")) return 100.0 / 15;
         for (String a : MiningState.COMMISSION_AREAS) {
-            if (name.equals(a + " Mithril")) {
-                return 100.0 / 250;
-            }
-            if (name.equals(a + " Titanium")) {
-                return 100.0 / 10;
-            }
+            if (name.equals(a + " Mithril")) return 100.0 / 250;
+            if (name.equals(a + " Titanium")) return 100.0 / 10;
         }
         return 0;
     }
@@ -308,9 +276,7 @@ public final class CommissionProgress {
      */
     private static void learn(String name, Track tr, double t) {
         int settled = tr.totalCounted - tr.recent.size();
-        if (settled < 20 || t <= tr.firstTab) {
-            return;
-        }
+        if (settled < 20 || t <= tr.firstTab) return;
         double learned = (t - tr.firstTab) / settled;
         double wiki = stepWiki(name);
         tr.learnedStep = Math.abs(learned - wiki) > wiki * 0.25 ? learned : 0;
@@ -320,9 +286,7 @@ public final class CommissionProgress {
 
     /** "45%" -> 45, "12.5%" -> 12.5, else -1. */
     static double pct(String p) {
-        if (p == null || !p.endsWith("%")) {
-            return -1;
-        }
+        if (p == null || !p.endsWith("%")) return -1;
         try {
             return Double.parseDouble(p.substring(0, p.length() - 1));
         } catch (NumberFormatException e) {
@@ -332,9 +296,7 @@ public final class CommissionProgress {
 
     /** What the HUD shows for {@code c}: the interpolated percent, or the tab's own text. */
     public static String shown(MiningState.Commission c) {
-        if (c.done() || !MiningQolConfig.getInstance().isCommissionInterpolate()) {
-            return c.progress();
-        }
+        if (c.done() || !MiningQolConfig.getInstance().isCommissionInterpolate()) return c.progress();
         Track tr = TRACKS.get(c.name());
         return tr == null || tr.shown < 0 ? c.progress() : format(tr.shown);
     }
@@ -367,9 +329,7 @@ public final class CommissionProgress {
     /** The shown text for commission {@code name} given the tab lines (null when not present). */
     public static String shownForTest(String name, List<String> lines) {
         for (MiningState.Commission c : MiningState.parse(lines)) {
-            if (c.name().equals(name)) {
-                return shown(c);
-            }
+            if (c.name().equals(name)) return shown(c);
         }
         return null;
     }

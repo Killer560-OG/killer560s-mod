@@ -96,9 +96,7 @@ public final class CommissionMobs {
     public static List<String> mobsFor(List<MiningState.Commission> coms) {
         Set<String> out = new LinkedHashSet<>();
         for (MiningState.Commission c : coms) {
-            if (c.done()) {
-                continue;
-            }
+            if (c.done()) continue;
             List<String> known = MOBS.get(c.name());
             if (known != null) {
                 out.addAll(known);
@@ -130,9 +128,7 @@ public final class CommissionMobs {
             clear();
             return;
         }
-        if (ticks++ % REFRESH_TICKS != 0) {
-            return;
-        }
+        if (ticks++ % REFRESH_TICKS != 0) return;
         List<String> mobs = mobsFor(MiningState.commissions());
         wanted = mobs;
         if (mobs.isEmpty()) {
@@ -154,18 +150,12 @@ public final class CommissionMobs {
         }
         // Identify: every loaded name tag (no range), remembered by the mob's id.
         for (Entity e : client.level.entitiesForRendering()) {
-            if (e == client.player || !e.hasCustomName()) {
-                continue;
-            }
+            if (e == client.player || !e.hasCustomName()) continue;
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(e.getCustomName().getString());
             java.util.regex.Matcher m = pattern.matcher(plain);
-            if (!m.find()) {
-                continue;
-            }
+            if (!m.find()) continue;
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
-            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) {
-                continue;
-            }
+            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) continue;
             String name = matchedName(plain, mobs);
             if (KNOWN.size() < MAX_KNOWN || KNOWN.containsKey(mob.getId())) {
                 KNOWN.put(mob.getId(), name);
@@ -294,9 +284,7 @@ public final class CommissionMobs {
         int n = 0;
         for (int id : ids) {
             Entity e = client.level.getEntity(id);
-            if (e == null || e.isRemoved()) {
-                continue;
-            }
+            if (e == null || e.isRemoved()) continue;
             double dx = Mth.lerp(pt, e.xo, e.getX()) - e.getX();
             double dy = Mth.lerp(pt, e.yo, e.getY()) - e.getY();
             double dz = Mth.lerp(pt, e.zo, e.getZ()) - e.getZ();
@@ -307,9 +295,7 @@ public final class CommissionMobs {
             rgba[n * 4 + 3] = k[3] <= 0f ? 1f : k[3];
             n++;
         }
-        if (n == 0) {
-            return;
-        }
+        if (n == 0) return;
         if (st.fill) {
             // A see-through fill: the outline-only alpha would hide the mob.
             WorldRenderUtils.renderFilledBoxes(context, boxes, rgba, n, st.outline ? 0.3f : 0.45f, throughWalls);

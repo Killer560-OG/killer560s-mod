@@ -87,9 +87,7 @@ public final class PickobulusEstimate {
 
     static void onChat(net.minecraft.network.chat.Component message) {
         String raw = com.killer560.hub.util.ChatObserver.strip(message);
-        if (raw == null || raw.length() > 80) {
-            return;
-        }
+        if (raw == null || raw.length() > 80) return;
         onChatLine(raw.trim(), System.currentTimeMillis());
     }
 
@@ -120,13 +118,9 @@ public final class PickobulusEstimate {
     /** On cooldown: a chat line from the last {@link #CHAT_WINS_MS} decides; with none, the tab widget does. */
     static boolean onCooldown(long now) {
         // A use stands until its ready line (Pickobulus cools down for under two minutes); a ready line for 15 s.
-        if (chatAt != 0L && now - chatAt <= (chatCooldown ? USED_WINS_MS : CHAT_WINS_MS)) {
-            return chatCooldown;
-        }
+        if (chatAt != 0L && now - chatAt <= (chatCooldown ? USED_WINS_MS : CHAT_WINS_MS)) return chatCooldown;
         for (String line : MiningState.pickaxeAbilityLines()) {
-            if (line.startsWith("Pickobulus: ") && !line.equals("Pickobulus: Available")) {
-                return true;
-            }
+            if (line.startsWith("Pickobulus: ") && !line.equals("Pickobulus: Available")) return true;
         }
         return false;
     }
@@ -166,9 +160,7 @@ public final class PickobulusEstimate {
 
     static boolean holdsPickobulus(Player player) {
         for (String line : CheatUtils.lore(player.getMainHandItem())) {
-            if (ABILITY.matcher(line.trim()).matches()) {
-                return true;
-            }
+            if (ABILITY.matcher(line.trim()).matches()) return true;
         }
         return false;
     }
@@ -199,14 +191,10 @@ public final class PickobulusEstimate {
             for (int j = 1; j < 7; j++) {
                 for (int k = 1; k < 7; k++) {
                     BlockState s = b[i][j][k];
-                    if (s.isAir() || s.is(Blocks.BEDROCK)) {
-                        continue;
-                    }
+                    if (s.isAir() || s.is(Blocks.BEDROCK)) continue;
                     boolean exposed = b[i - 1][j][k].isAir() || b[i + 1][j][k].isAir() || b[i][j - 1][k].isAir()
                             || b[i][j + 1][k].isAir() || b[i][j][k - 1].isAir() || b[i][j][k + 1].isAir();
-                    if (!exposed) {
-                        continue;
-                    }
+                    if (!exposed) continue;
                     boolean breakable;
                     if (all) {
                         breakable = true;
@@ -234,9 +222,7 @@ public final class PickobulusEstimate {
 
     static void render(LevelRenderContext context) {
         List<BlockPos> snap = breaks;
-        if (snap.isEmpty() || !MiningQolConfig.getInstance().isPickobulus()) {
-            return;
-        }
+        if (snap.isEmpty() || !MiningQolConfig.getInstance().isPickobulus()) return;
         float[] k = WorldRenderUtils.argbToFloats(MiningQolConfig.getInstance().getPickobulusColor());
         LINES.clear();
         for (BlockPos p : snap) {

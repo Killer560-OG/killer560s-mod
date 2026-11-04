@@ -56,12 +56,8 @@ public final class MithrilStone {
      */
     public static BlockState replace(BlockState state, int x, int y, int z) {
         BlockState red = MiningHighlights.carpetReplace(state, x, y, z);
-        if (red != null) {
-            return red;
-        }
-        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) {
-            return null;
-        }
+        if (red != null) return red;
+        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) return null;
         swapped.incrementAndGet();
         if (recordForTest) {
             SWAPPED_AT.add(BlockPosKey.of(x, y, z));
@@ -81,15 +77,11 @@ public final class MithrilStone {
 
     /** Whether a mithril block at x, y, z is drawn as stone now (its own area, else the player's). Any thread. */
     public static boolean stoneAt(int x, int y, int z) {
-        if (!enabled) {
-            return false;
-        }
+        if (!enabled) return false;
         String a = MinesAreaMap.areaAt(x, y, z);
         // A block the map can place is judged by its own area. One it cannot place (no map yet) takes the player's area; with
         // a map loaded an unplaceable block is not wanted: standing in an area never makes the blocks around it that area's.
-        if (a == null) {
-            return MinesAreaMap.loaded() ? true : active;
-        }
+        if (a == null) return MinesAreaMap.loaded() ? true : active;
         return !wanted.at(a, null);
     }
 
@@ -116,9 +108,7 @@ public final class MithrilStone {
     /** Marks every section within render distance for a rebuild (on the client thread). */
     private static void remesh(Minecraft client) {
         ClientLevel level = client.level;
-        if (level == null || client.player == null) {
-            return;
-        }
+        if (level == null || client.player == null) return;
         int r = client.options.getEffectiveRenderDistance() + 1;
         int cx = client.player.blockPosition().getX() >> 4;
         int cz = client.player.blockPosition().getZ() >> 4;

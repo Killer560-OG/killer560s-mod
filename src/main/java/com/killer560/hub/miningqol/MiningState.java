@@ -76,9 +76,7 @@ public final class MiningState {
 
     private static List<Commission> applyDone(List<Commission> coms, long now) {
         DONE_OVERRIDE.values().removeIf(e -> e[0] < now);
-        if (DONE_OVERRIDE.isEmpty()) {
-            return coms;
-        }
+        if (DONE_OVERRIDE.isEmpty()) return coms;
         List<Commission> out = new ArrayList<>(coms.size());
         boolean changed = false;
         for (Commission c : coms) {
@@ -128,32 +126,20 @@ public final class MiningState {
      */
     public static Commission parseMenuItem(String name, List<String> lore) {
         try {
-            if (name == null || name.isBlank() || name.length() > 48 || lore == null) {
-                return null;
-            }
+            if (name == null || name.isBlank() || name.length() > 48 || lore == null) return null;
             String n = name.trim();
-            if (CommissionMenuHighlight.completed(lore)) {
-                return new Commission(n, "DONE", true);
-            }
+            if (CommissionMenuHighlight.completed(lore)) return new Commission(n, "DONE", true);
             for (String raw : lore) {
                 String l = raw == null ? "" : raw.trim();
-                if (l.length() > 120 || !l.toLowerCase(Locale.ROOT).startsWith("progress")) {
-                    continue;
-                }
+                if (l.length() > 120 || !l.toLowerCase(Locale.ROOT).startsWith("progress")) continue;
                 Matcher m = MENU_PCT.matcher(l);
-                if (m.find()) {
-                    return menuPct(n, m.group(1));
-                }
+                if (m.find()) return menuPct(n, m.group(1));
             }
             for (String raw : lore) {
                 String l = raw == null ? "" : raw.trim();
-                if (l.length() > 24) {
-                    continue;
-                }
+                if (l.length() > 24) continue;
                 Matcher m = MENU_PCT_ONLY.matcher(l);
-                if (m.matches()) {
-                    return menuPct(n, m.group(1));
-                }
+                if (m.matches()) return menuPct(n, m.group(1));
             }
         } catch (RuntimeException e) {
             LOG.warn("[Commissions] menu item parse failed: {}", e.toString());
@@ -170,18 +156,14 @@ public final class MiningState {
     private static List<Commission> pollMenu(Minecraft client) {
         if (com.killer560.hub.compat.McCompat.screen(client) instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen
                 && CommissionMenuHighlight.isMenu(screen)) {
-            if (menuTicks++ % 4 != 0) {
-                return null;
-            }
+            if (menuTicks++ % 4 != 0) return null;
             try {
                 List<Commission> out = new ArrayList<>();
                 StringBuilder dump = menuDumped ? null : new StringBuilder();
                 int top = Math.min(screen.getMenu().slots.size() - 36, 54);
                 for (int i = 0; i < top; i++) {
                     net.minecraft.world.item.ItemStack st = screen.getMenu().slots.get(i).getItem();
-                    if (st.isEmpty()) {
-                        continue;
-                    }
+                    if (st.isEmpty()) continue;
                     String name = st.getHoverName().getString();
                     List<String> lore = com.killer560.hub.croesus.DungeonChestValuer.cleanLore(st);
                     if (dump != null && lore.size() > 0 && dump.length() < 6000) {
@@ -197,9 +179,7 @@ public final class MiningState {
                     menuDumped = true;
                     LOG.info("[Commissions] menu lore (first open, codes stripped):{}", dump);
                 }
-                if (out.equals(menuSeen)) {
-                    return null;
-                }
+                if (out.equals(menuSeen)) return null;
                 menuSeen = List.copyOf(out);
                 return menuSeen;
             } catch (RuntimeException e) {
@@ -216,13 +196,9 @@ public final class MiningState {
     static void storeMenu(List<Commission> menu, List<Commission> tab, long now) {
         for (Commission m : menu) {
             for (Commission t : tab) {
-                if (!t.name().equalsIgnoreCase(m.name()) || t.done()) {
-                    continue;
-                }
+                if (!t.name().equalsIgnoreCase(m.name()) || t.done()) continue;
                 double tp = CommissionProgress.pct(t.progress());
-                if (tp < 0) {
-                    continue;
-                }
+                if (tp < 0) continue;
                 MENU.put(t.name().toLowerCase(Locale.ROOT),
                         new MenuEntry(m.done() ? 100 : CommissionProgress.pct(m.progress()), m.done(), tp, now + MENU_MS));
             }
@@ -235,9 +211,7 @@ public final class MiningState {
      */
     static List<Commission> applyMenu(List<Commission> coms, long now) {
         MENU.values().removeIf(e -> e.expiry() < now);
-        if (MENU.isEmpty()) {
-            return coms;
-        }
+        if (MENU.isEmpty()) return coms;
         List<Commission> out = new ArrayList<>(coms.size());
         boolean changed = false;
         for (Commission c : coms) {
@@ -269,9 +243,7 @@ public final class MiningState {
 
     static void tick(Minecraft client) {
         List<Commission> menuNew = client.getConnection() != null ? pollMenu(client) : null;
-        if (ticks++ % 10 != 0 && menuNew == null) {
-            return;
-        }
+        if (ticks++ % 10 != 0 && menuNew == null) return;
         List<Commission> coms = List.of();
         boolean known = false;
         List<String> ability = List.of();
@@ -323,9 +295,7 @@ public final class MiningState {
         for (PlayerInfo info : listed) {
             String plain = TabText.plain(info);
             if (plain == null) {
-                if (out != null) {
-                    break;
-                }
+                if (out != null) break;
                 continue;
             }
             if (out == null) {
@@ -334,13 +304,9 @@ public final class MiningState {
                 }
                 continue;
             }
-            if (plain.isBlank() || !Character.isWhitespace(plain.charAt(0))) {
-                break;
-            }
+            if (plain.isBlank() || !Character.isWhitespace(plain.charAt(0))) break;
             out.add(plain.trim());
-            if (out.size() >= 12) {
-                break;
-            }
+            if (out.size() >= 12) break;
         }
         return out;
     }
@@ -358,9 +324,7 @@ public final class MiningState {
 
     public static boolean anyDone(List<Commission> coms) {
         for (Commission c : coms) {
-            if (c.done()) {
-                return true;
-            }
+            if (c.done()) return true;
         }
         return false;
     }
@@ -422,9 +386,7 @@ public final class MiningState {
     public record Wanted(boolean anywhere, java.util.Set<String> areas) {
         /** Whether a block in {@code blockArea} (null: unknown, so {@code playerArea} decides) is wanted. */
         public boolean at(String blockArea, String playerArea) {
-            if (anywhere) {
-                return true;
-            }
+            if (anywhere) return true;
             String a = blockArea != null ? blockArea : playerArea;
             return a != null && areas.contains(norm(a));
         }
@@ -451,22 +413,14 @@ public final class MiningState {
     /** The rule behind {@link #openCommissionHere}, on given commissions and area (also the testkit's hook). */
     public static boolean wants(List<Commission> coms, String area, String ore, boolean alsoTitaniumForMithril) {
         for (Commission c : coms) {
-            if (c.done()) {
-                continue;
-            }
+            if (c.done()) continue;
             String n = c.name();
             boolean ofOre = n.endsWith(" " + ore) || n.equals(ore + " Miner")
                     || (alsoTitaniumForMithril && (n.endsWith(" Titanium") || n.equals("Titanium Miner")));
-            if (!ofOre) {
-                continue;
-            }
-            if (n.endsWith(" Miner")) {
-                return true;
-            }
+            if (!ofOre) continue;
+            if (n.endsWith(" Miner")) return true;
             for (String a : COMMISSION_AREAS) {
-                if (n.startsWith(a + " ") && areaIs(area, a)) {
-                    return true;
-                }
+                if (n.startsWith(a + " ") && areaIs(area, a)) return true;
             }
         }
         return false;

@@ -78,20 +78,14 @@ public final class WrongArmorAlert {
 
     /** True for a pickaxe, drill or gauntlet: a Skyblock mining tool (its id, or the "Breaking Power" lore every one has). */
     public static boolean isMiningTool(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         String id = ItemIdentity.skyblockId(stack);
         if (id != null) {
             String u = id.toUpperCase(Locale.ROOT);
-            if (u.contains("PICKAXE") || u.contains("DRILL") || u.contains("GAUNTLET") || u.contains("PICKONIMBUS")) {
-                return true;
-            }
+            if (u.contains("PICKAXE") || u.contains("DRILL") || u.contains("GAUNTLET") || u.contains("PICKONIMBUS")) return true;
         }
         for (String line : com.killer560.hub.cheatutils.CheatUtils.lore(stack)) {
-            if (line.startsWith("Breaking Power ")) {
-                return true;
-            }
+            if (line.startsWith("Breaking Power ")) return true;
         }
         return false;
     }
@@ -156,13 +150,9 @@ public final class WrongArmorAlert {
     static String wrongPiece(Player player) {
         for (EquipmentSlot slot : SLOTS) {
             ItemStack s = player.getItemBySlot(slot);
-            if (s.isEmpty()) {
-                return slot.name() + ": empty";
-            }
+            if (s.isEmpty()) return slot.name() + ": empty";
             String id = ItemIdentity.skyblockId(s);
-            if (!isMiningArmor(id)) {
-                return slot.name() + ": " + id;
-            }
+            if (!isMiningArmor(id)) return slot.name() + ": " + id;
         }
         return null;
     }
@@ -217,9 +207,7 @@ public final class WrongArmorAlert {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             boolean editor = HudVisibility.editorOpen();
-            if (!editor && (!showing || !MiningQolConfig.getInstance().isWrongArmor() || HudVisibility.hidesHud())) {
-                return;
-            }
+            if (!editor && (!showing || !MiningQolConfig.getInstance().isWrongArmor() || HudVisibility.hidesHud())) return;
             var pose = graphics.pose();
             pose.pushMatrix();
             pose.translate(x, y);

@@ -78,13 +78,9 @@ public final class AbilityReadyAlert {
     static void register() { ChatObserver.subscribe(AbilityReadyAlert::onChat); }
 
     static void onChat(Component message) {
-        if (!MiningQolConfig.getInstance().isAbilityAlert()) {
-            return;
-        }
+        if (!MiningQolConfig.getInstance().isAbilityAlert()) return;
         String raw = ChatObserver.strip(message);
-        if (raw == null || raw.length() > 80) {
-            return;
-        }
+        if (raw == null || raw.length() > 80) return;
         handle(raw, System.currentTimeMillis());
     }
 
@@ -167,13 +163,9 @@ public final class AbilityReadyAlert {
     static void applyTab(List<String> lines, long now) {
         for (String line : lines) {
             Matcher m = TAB.matcher(line);
-            if (!m.matches()) {
-                continue;
-            }
+            if (!m.matches()) continue;
             String name = m.group(1).trim();
-            if (line.equals(LAST_TAB.get(name))) {
-                continue;
-            }
+            if (line.equals(LAST_TAB.get(name))) continue;
             LAST_TAB.put(name, line);
             if (m.group(3) == null) {
                 READY_AT.remove(name);
@@ -193,9 +185,7 @@ public final class AbilityReadyAlert {
     private static String currentTab(String name) {
         List<String> lines = testTab != null ? testTab : MiningState.pickaxeAbilityLines();
         for (String line : lines) {
-            if (line.startsWith(name + ": ")) {
-                return line;
-            }
+            if (line.startsWith(name + ": ")) return line;
         }
         return null;
     }
@@ -283,13 +273,9 @@ public final class AbilityReadyAlert {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!MiningQolConfig.getInstance().isAbilityAlert() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!MiningQolConfig.getInstance().isAbilityAlert() || HudVisibility.hidesHud()) return;
             String s = shown();
-            if (s == null) {
-                return;
-            }
+            if (s == null) return;
             var pose = graphics.pose();
             pose.pushMatrix();
             pose.translate(x, y);
@@ -308,9 +294,7 @@ public final class AbilityReadyAlert {
 
         private List<String> shown() {
             List<String> l = timerLines;
-            if (l.isEmpty() && HudVisibility.editorOpen()) {
-                return List.of("§6Pickobulus: §e34s");
-            }
+            if (l.isEmpty() && HudVisibility.editorOpen()) return List.of("§6Pickobulus: §e34s");
             return l;
         }
 
@@ -348,9 +332,7 @@ public final class AbilityReadyAlert {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             MiningQolConfig cfg = MiningQolConfig.getInstance();
-            if (!cfg.isAbilityAlert() || !cfg.isAbilityTimer() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!cfg.isAbilityAlert() || !cfg.isAbilityTimer() || HudVisibility.hidesHud()) return;
             Font font = Minecraft.getInstance().font;
             int lineY = y;
             for (String s : shown()) {

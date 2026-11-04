@@ -62,18 +62,14 @@ public final class PigeonDrillSwap {
 
     /** A use of {@code held} (the client thread). */
     static void onUse(ItemStack held) {
-        if (!MiningQolConfig.getInstance().isPigeonDrill()) {
-            return;
-        }
+        if (!MiningQolConfig.getInstance().isPigeonDrill()) return;
         if ("ROYAL_PIGEON".equals(ItemIdentity.skyblockId(held))) {
             pendingTicks = PENDING_TICKS;
         }
     }
 
     static void tick(Minecraft client) {
-        if (pendingTicks <= 0) {
-            return;
-        }
+        if (pendingTicks <= 0) return;
         LocalPlayer player = client.player;
         if (player == null || !MiningQolConfig.getInstance().isPigeonDrill()
                 || com.killer560.hub.compat.McCompat.screen(client) != null) {
@@ -114,9 +110,7 @@ public final class PigeonDrillSwap {
         long bestScore = Long.MIN_VALUE;
         for (int i = 0; i < 8; i++) {
             ItemStack s = player.getInventory().getItem(i);
-            if (!isDrill(s)) {
-                continue;
-            }
+            if (!isDrill(s)) continue;
             long score;
             if (mode == MiningQolConfig.PigeonDrillMode.SPECIFIC) {
                 if (want.isEmpty() || !(stripped(s).toLowerCase(Locale.ROOT).contains(want)
