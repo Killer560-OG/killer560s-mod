@@ -30,6 +30,13 @@ public class ScoreCalculatorTab extends BaseTab {
         super("Score Calculator");
     }
 
+    /** The card reads ON while the calculator or any 270/300 alert is on: the alerts run without the calculator
+     *  (killer560, 2026-11-03: "if the 300 title is on then it doesnt show the score calc setting on"). */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Score Calculator", "270 Title", "300 Title", "270 Party Message", "300 Party Message");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
@@ -44,17 +51,24 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 24;
 
         if (!cfg.isEnabled() && !isSearchScan()) {
-            // The 270/300 title popups work without the calculator (killer560, 2026-11-03: "make it so i can toggle 300
-            // score without the score calc on ... for the hud popup"). Party messages and the chat note still need it.
-            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Score Alert Titles", false));
+            // The 270/300 title popups and party messages work without the calculator (killer560, 2026-11-03). Only the
+            // chat note still needs it.
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Score Alerts", false));
             y += 16;
             widgets.add(toggle("270 Title", cfg.isTitle270(), v -> cfg.setTitle270(v), cfg, contentX, y, colW));
             widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 270 Title"),
                     btn -> ScoreCalculatorFeature.previewAlert(270)).bounds(col2X, y, colW, 18).build());
             y += 20;
+            widgets.add(toggle("270 Party Message", cfg.isParty270(), v -> cfg.setParty270(v), cfg, contentX, y, colW));
+            y += 20;
+            y = textBox(widgets, "270 party message", cfg.getParty270Message(), v -> cfg.setParty270Message(v), cfg, contentX, y, contentWidth);
             widgets.add(toggle("300 Title", cfg.isTitle300(), v -> cfg.setTitle300(v), cfg, contentX, y, colW));
             widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 300 Title"),
                     btn -> ScoreCalculatorFeature.previewAlert(300)).bounds(col2X, y, colW, 18).build());
+            y += 20;
+            widgets.add(toggle("300 Party Message", cfg.isParty300(), v -> cfg.setParty300(v), cfg, contentX, y, colW));
+            y += 20;
+            y = textBox(widgets, "300 party message", cfg.getParty300Message(), v -> cfg.setParty300Message(v), cfg, contentX, y, contentWidth);
             return widgets;
         }
 

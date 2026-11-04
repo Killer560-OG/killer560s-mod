@@ -194,7 +194,8 @@ public final class ScoreCalculatorFeature {
      */
     public static boolean estimateWanted() {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
-        return cfg.isEnabled() || cfg.isTitle270() || cfg.isTitle300() || mapExtraInfoWanted() || ScoreWarnings.wanted();
+        return cfg.isEnabled() || cfg.isTitle270() || cfg.isTitle300() || cfg.isParty270() || cfg.isParty300()
+                || mapExtraInfoWanted() || ScoreWarnings.wanted();
     }
 
     /** Either map's Extra Info is on: the Dungeon Map HUD's (Map Extras) or the Interactive Map legend's. */
@@ -574,17 +575,24 @@ public final class ScoreCalculatorFeature {
         }
         ScoreWarnings.check(cfg, inputs, result, runTicks);
         if (!cfg.isEnabled()) {
-            // Calculator off: only the 270/300 title popups may fire (killer560, 2026-11-03); no party message or note.
+            // Calculator off: the 270/300 title popups and party messages still fire (killer560, 2026-11-03: "i should be
+            // able to send the 300 score messages as well with it off not just the hud"); no chat note.
             if (!said300 && result.total() >= 300) {
                 said300 = true;
                 said270 = true;
                 if (cfg.isTitle300()) {
                     previewAlert(300);
                 }
+                if (cfg.isParty300()) {
+                    TranslateFeature.sendGenerated(cfg.getParty300Message(), "pc");
+                }
             } else if (!said270 && result.total() >= 270) {
                 said270 = true;
                 if (cfg.isTitle270()) {
                     previewAlert(270);
+                }
+                if (cfg.isParty270()) {
+                    TranslateFeature.sendGenerated(cfg.getParty270Message(), "pc");
                 }
             }
             return;
