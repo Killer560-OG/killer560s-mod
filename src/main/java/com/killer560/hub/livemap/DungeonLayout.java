@@ -203,18 +203,31 @@ public final class DungeonLayout {
             if (type != DOOR_WITHER && type != DOOR_BLOOD) {
                 continue;
             }
-            boolean locked;
-            BlockPos pos = doorBlock(idx);
-            if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
-                locked = !client.level.getBlockState(pos).isAir();
-            } else {
-                locked = type == DOOR_BLOOD || DungeonMapScanner.doorTileAt(idx) == LiveMapFeature.Tile.DOOR_WITHER;
-            }
-            if (locked != doorLocked[idx]) {
+            if (lockedAt(client, idx, type) != doorLocked[idx]) {
                 return false;
             }
         }
         return true;
+    }
+
+    static int typeOfDoorTile(LiveMapFeature.Tile tile) {
+        return switch (tile) {
+            case DOOR_WITHER -> DOOR_WITHER;
+            case DOOR_BLOOD -> DOOR_BLOOD;
+            case DOOR_ENTRANCE -> DOOR_ENTRANCE;
+            case DOOR_NORMAL -> DOOR_NORMAL;
+            default -> DOOR_NONE;
+        };
+    }
+
+    /** Whether a wither or blood door's lock block is there; out of render distance the map decides (an opened wither
+     *  door turns normal-colored there). */
+    private static boolean lockedAt(Minecraft client, int idx, int type) {
+        BlockPos pos = doorBlock(idx);
+        if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
+            return !client.level.getBlockState(pos).isAir();
+        }
+        return type == DOOR_BLOOD || DungeonMapScanner.doorTileAt(idx) == LiveMapFeature.Tile.DOOR_WITHER;
     }
 
     /** Must be called on the client thread. */
@@ -240,40 +253,23 @@ public final class DungeonLayout {
             }
             LiveMapFeature.Tile tile = LiveMapFeature.effectiveTile(idx);
             LiveMapFeature.Tile mapDoor = DungeonMapScanner.doorTileAt(idx);
-            int type = switch (tile) {
-                case DOOR_NORMAL -> mapDoor == LiveMapFeature.Tile.DOOR_WITHER ? DOOR_WITHER : DOOR_NORMAL;
-                case DOOR_WITHER -> DOOR_WITHER;
-                case DOOR_BLOOD -> DOOR_BLOOD;
-                case DOOR_ENTRANCE -> DOOR_ENTRANCE;
-                // killer560, 2026-09-27: "it does not draw the wither door on the fairy room door if it is
-                // the first door in the run and it should." The cell right next to the Entrance is
-                // deliberately refused a room union in rebuildGroups() ("Never next to the Entrance -
-                // NoammAddons turns that gap into an entrance door"), so when the world scan's own roof-
-                // height/block read couldn't tell that gap apart from a plain connector, classifyDoor()
-                // never ran on it at all and it was left classified Tile.ROOM by scan() forever - nothing
-                // downstream ever reconsidered it, so it fell straight to DOOR_NONE below and never drew.
-                // This cell only reaches this switch once the loop above has confirmed no room group ever
-                // claimed it (roomOf[idx] < 0), so a Tile.ROOM here is already known to be an orphaned
-                // connector, not a real room tile - safe to trust the vanilla map's own door byte instead,
-                // exactly like the DOOR_NORMAL case above already does for a plain misread.
-                case ROOM -> switch (mapDoor) {
-                    case DOOR_WITHER -> DOOR_WITHER;
-                    case DOOR_BLOOD -> DOOR_BLOOD;
-                    case DOOR_ENTRANCE -> DOOR_ENTRANCE;
-                    case DOOR_NORMAL -> DOOR_NORMAL;
-                    default -> DOOR_NONE;
-                };
-                default -> DOOR_NONE;
-            };
+            // killer560, 2026-09-27: "it does not draw the wither door on the fairy room door if it is
+            // the first door in the run and it should." The cell right next to the Entrance is
+            // deliberately refused a room union in rebuildGroups() ("Never next to the Entrance -
+            // NoammAddons turns that gap into an entrance door"), so when the world scan's own roof-
+            // height/block read couldn't tell that gap apart from a plain connector, classifyDoor()
+            // never ran on it at all and it was left classified Tile.ROOM by scan() forever - nothing
+            // downstream ever reconsidered it, so it fell straight to DOOR_NONE below and never drew.
+            // This cell only reaches this switch once the loop above has confirmed no room group ever
+            // claimed it (roomOf[idx] < 0), so a Tile.ROOM here is already known to be an orphaned
+            // connector, not a real room tile - safe to trust the vanilla map's own door byte instead,
+            // exactly like the DOOR_NORMAL case above already does for a plain misread.
+            int type = tile == LiveMapFeature.Tile.DOOR_NORMAL
+                    ? (mapDoor == LiveMapFeature.Tile.DOOR_WITHER ? DOOR_WITHER : DOOR_NORMAL)
+                    : typeOfDoorTile(tile == LiveMapFeature.Tile.ROOM ? mapDoor : tile);
             layout.doorType[idx] = type;
             if (type == DOOR_WITHER || type == DOOR_BLOOD) {
-                BlockPos pos = doorBlock(idx);
-                if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
-                    layout.doorLocked[idx] = !client.level.getBlockState(pos).isAir();
-                } else {
-                    // Out of render distance: trust the map (an opened wither door turns normal-colored there).
-                    layout.doorLocked[idx] = type == DOOR_BLOOD || mapDoor == LiveMapFeature.Tile.DOOR_WITHER;
-                }
+                layout.doorLocked[idx] = lockedAt(client, idx, type);
             }
         }
         // killer560s-mod-relay task (2026-09-21): refresh which cells teammates have reported that THIS
@@ -287,14 +283,10 @@ public final class DungeonLayout {
         PartyMapIntel.mergeIfNeeded(LiveMapFeature.tickCount(), LiveMapFeature.resetGeneration(),
                 idx -> layout.roomOf[idx] >= 0, idx -> layout.doorType[idx] != DOOR_NONE);
 
-        int current = -1;
-        if (client.player != null) {
-            current = layout.roomAtWorld(client.player.getX(), client.player.getZ());
-        }
-        return new DungeonLayout(layout, current);
+        return new DungeonLayout(layout,
+                client.player == null ? -1 : layout.roomAtWorld(client.player.getX(), client.player.getZ()));
     }
 
-    /** World position of a door cell's lock block (QUOI {@code OdonDoor.pos} at y 69). */
     /**
      * How far the floor is shifted from Hypixel's own heights, which is zero everywhere except the sim.
      *
@@ -308,6 +300,7 @@ public final class DungeonLayout {
                 ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
     }
 
+    /** World position of a door cell's lock block (QUOI {@code OdonDoor.pos} at y 69). */
     public static BlockPos doorBlock(int idx) {
         // y 69 is Hypixel's floor height. In the sim the whole map is shifted vertically, so the block that
         // tells a wither door apart from an open one is somewhere else entirely - and read at 69 it is always
@@ -319,9 +312,7 @@ public final class DungeonLayout {
 
     /** World center of a cell at y 70 (QUOI {@code RoomTile.blockPos}). */
     public static BlockPos cellCenter(int idx) {
-        return new BlockPos(LiveMapFeature.START_X + (idx % GRID) * LiveMapFeature.HALF_ROOM,
-                70 + simYOffset(),
-                LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
+        return cellCenter(idx % GRID, idx / GRID);
     }
 
     /**

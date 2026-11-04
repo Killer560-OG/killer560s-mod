@@ -116,14 +116,7 @@ public final class HeldMap {
         if (emulated()) {
             return simDoorType(idx);
         }
-        LiveMapFeature.Tile t = DungeonMapScanner.doorTileAt(idx);
-        return switch (t) {
-            case DOOR_WITHER -> DungeonLayout.DOOR_WITHER;
-            case DOOR_BLOOD -> DungeonLayout.DOOR_BLOOD;
-            case DOOR_ENTRANCE -> DungeonLayout.DOOR_ENTRANCE;
-            case DOOR_NORMAL -> DungeonLayout.DOOR_NORMAL;
-            default -> DungeonLayout.DOOR_NONE;
-        };
+        return DungeonLayout.typeOfDoorTile(DungeonMapScanner.doorTileAt(idx));
     }
 
     /** Whether the map joins the two tiles either side of connector cell {@code idx} into one room. */
@@ -151,16 +144,8 @@ public final class HeldMap {
             RoomEntry e = layout.entry(layout.roomOfCell(tile));
             return e == null || e.type == null ? "NORMAL" : e.type.toUpperCase(Locale.ROOT);
         }
-        return switch (DungeonMapScanner.roomColorAt(tile)) {
-            case 18 -> "BLOOD";
-            case 82 -> "FAIRY";
-            case 34 -> "RARE";
-            case 74 -> "CHAMPION";
-            case 66 -> "PUZZLE";
-            case 62 -> "TRAP";
-            case 30 -> "ENTRANCE";
-            default -> "NORMAL";
-        };
+        String type = MapPainter.mapColorType(tile);
+        return type != null ? type : "NORMAL";
     }
 
     /** Room slots {across, down} of the floor being played; the whole 6x6 in the sim, which lays floors out anywhere. */
@@ -242,6 +227,8 @@ public final class HeldMap {
         return room >= 0 && SIM_VISITED.contains(room);
     }
 
+    static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
     private static int simRoomState(int tile) {
         DungeonLayout layout = DungeonLayout.current();
         int r = layout.roomOfCell(tile);
@@ -255,8 +242,7 @@ public final class HeldMap {
         for (int t : layout.tiles(r)) {
             int gx = t % GRID;
             int gz = t / GRID;
-            int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-            for (int[] d : dirs) {
+            for (int[] d : DIRS) {
                 int nx = gx + 2 * d[0];
                 int nz = gz + 2 * d[1];
                 if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
