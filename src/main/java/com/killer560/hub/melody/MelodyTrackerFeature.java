@@ -67,7 +67,6 @@ public final class MelodyTrackerFeature {
     private static int lastTarget = -1;
     private static int lastCurrent = -1;
 
-    // ---- HUD row cache, rebuilt once per tick, read every frame with zero allocation ----
     private static final Row[] ROWS = new Row[MAX_ROWS];
     private static int rowCount;
 
@@ -181,7 +180,6 @@ public final class MelodyTrackerFeature {
         }
     }
 
-    // ------------------------------------------------------------------ our own read
 
     private static void tickSelf(Minecraft client) {
         if (!SkyblockGate.allows() || !(McCompat.screen(client) instanceof ContainerScreen screen)) {
@@ -292,7 +290,6 @@ public final class MelodyTrackerFeature {
         return open ? new SelfMelody(lastLitRow, lastTarget, lastCurrent) : null;
     }
 
-    // ------------------------------------------------------------------ Team Melody HUD
 
     /** One HUD row's already-formatted content - mutated in place by {@link #rebuildRows} (tick rate), never
      *  reallocated by {@link TeamMelodyHudElement#render} (frame rate). */
