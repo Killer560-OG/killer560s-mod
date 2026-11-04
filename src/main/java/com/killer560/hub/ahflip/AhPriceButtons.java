@@ -276,7 +276,7 @@ public final class AhPriceButtons {
         if (!(screen instanceof AbstractContainerScreen<?> cs) || !isCreateBinTitle(BazaarFlipMenus.titleOf(cs))) {
             return;
         }
-        ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> {
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, g, mx, my, delta) -> {
             try {
                 drawVanilla(cs, g, mx, my);
             } catch (Exception e) {

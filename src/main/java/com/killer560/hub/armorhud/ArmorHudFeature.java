@@ -85,6 +85,7 @@ public final class ArmorHudFeature {
         if (!loaded) {
             loadCache();
         }
+        followLoadout();
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || !isEquipmentMenu(screen)) {
             return;
         }
@@ -210,6 +211,17 @@ public final class ArmorHudFeature {
                 blobs[i] = e == null || e.isJsonNull() ? null : e.getAsString();
             }
             pendingBlobs = blobs;
+            JsonObject per = o.getAsJsonObject("loadouts");
+            if (per != null) {
+                for (String k : per.keySet()) {
+                    JsonArray a = per.getAsJsonArray(k);
+                    String[] b = new String[4];
+                    for (int i = 0; i < 4 && i < a.size(); i++) {
+                        b[i] = a.get(i).isJsonNull() ? null : a.get(i).getAsString();
+                    }
+                    BY_LOADOUT.put(Integer.parseInt(k), b);
+                }
+            }
         } catch (Exception e) {
             LOGGER.warn("[ArmorHud] equipment cache unreadable: {}", e.toString());
         }
@@ -239,25 +251,63 @@ public final class ArmorHudFeature {
         }
     }
 
+    // ---- per loadout (killer560, 2026-11-03: "it also needs to update when i swap loadouts") ------------------------------
+    /** Equipment blobs last seen with each loadout on (Hypixel's "You equipped Loadout N!"); saved with the cache. */
+    private static final java.util.Map<Integer, String[]> BY_LOADOUT = new java.util.HashMap<>();
+    private static int loadoutSeen = 0;
+
+    private static String[] blobs() {
+        String[] out = new String[4];
+        for (int i = 0; i < 4; i++) {
+            ItemStack s = equipment[i];
+            out[i] = s == null ? null : s.isEmpty() ? "" : StorageSearchNbtCodec.encode(List.of(s));
+        }
+        return out;
+    }
+
+    /** A loadout swap: show what that loadout wore the last time a menu showed its equipment. */
+    private static void followLoadout() {
+        int n = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.lastEquippedLoadout();
+        if (n == loadoutSeen) {
+            return;
+        }
+        loadoutSeen = n;
+        String[] b = BY_LOADOUT.get(n);
+        if (n > 0 && b != null) {
+            pendingBlobs = b.clone();
+            decodePending();
+            loadoutSwaps++;
+        }
+    }
+
+    private static int loadoutSwaps = 0;
+
+    public static int loadoutSwapsForTest() {
+        return loadoutSwaps;
+    }
+
     private static void saveCache() {
+        int n = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.lastEquippedLoadout();
+        if (n > 0) {
+            BY_LOADOUT.put(n, blobs());
+            loadoutSeen = n;
+        }
         try {
             JsonArray arr = new JsonArray();
-            for (ItemStack s : equipment) {
-                if (s == null) {
-                    arr.add(JsonNull.INSTANCE);
-                } else if (s.isEmpty()) {
-                    arr.add("");
-                } else {
-                    String blob = StorageSearchNbtCodec.encode(List.of(s));
-                    if (blob == null) {
-                        arr.add(JsonNull.INSTANCE);
-                    } else {
-                        arr.add(blob);
-                    }
-                }
+            for (String blob : blobs()) {
+                arr.add(blob == null ? JsonNull.INSTANCE : new com.google.gson.JsonPrimitive(blob));
             }
             JsonObject o = new JsonObject();
             o.add("equipment", arr);
+            JsonObject per = new JsonObject();
+            for (var e : BY_LOADOUT.entrySet()) {
+                JsonArray a = new JsonArray();
+                for (String blob : e.getValue()) {
+                    a.add(blob == null ? JsonNull.INSTANCE : new com.google.gson.JsonPrimitive(blob));
+                }
+                per.add(String.valueOf(e.getKey()), a);
+            }
+            o.add("loadouts", per);
             Files.createDirectories(CACHE_PATH.getParent());
             Files.writeString(CACHE_PATH, o.toString(), StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -352,6 +402,7 @@ public final class ArmorHudFeature {
             equipment[i] = null;
         }
         pendingBlobs = null;
+        BY_LOADOUT.clear();
         loadCache();
     }
 
@@ -361,6 +412,9 @@ public final class ArmorHudFeature {
             equipment[i] = null;
         }
         pendingBlobs = null;
+        BY_LOADOUT.clear();
+        loadoutSeen = 0;
+        loadoutSwaps = 0;
         loaded = true;
         try {
             Files.deleteIfExists(CACHE_PATH);

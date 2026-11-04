@@ -5,7 +5,9 @@
 	"package": "com.killer560.hub.gui.mixin",
 	"client": [
 		"MenuFadeMixin",
-		"ModScreenTextCacheMixin"
+		"ModScreenTextCacheMixin",
+		"BelowTooltipContainerMixin",
+		"BelowTooltipRecipeBookMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

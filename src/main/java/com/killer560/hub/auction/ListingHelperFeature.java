@@ -80,7 +80,7 @@ public final class ListingHelperFeature {
             return;
         }
         copyButtonRect = null;
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
+        com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) -> {
             try {
                 render(containerScreen, graphics, mouseX, mouseY);
             } catch (Exception e) {
