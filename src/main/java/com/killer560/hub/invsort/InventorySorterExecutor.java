@@ -69,8 +69,10 @@ public final class InventorySorterExecutor {
     private static final int WAIT_FOR_SCREEN_TICKS = 40;
     /** Ticks to wait for the server to have him standing still before giving up. */
     private static final int STILL_TIMEOUT_TICKS = 40;
+    /** Ticks the loadout swap may take (the menu has 5 s to open, then a click and a close). */
+    private static final int LOADOUT_TIMEOUT_TICKS = 240;
 
-    private enum State { IDLE, WAITING_LOBBY, STORAGE, WAIT_SCREEN, SORTING }
+    private enum State { IDLE, WAITING_LOBBY, LOADOUT, STORAGE, WAIT_SCREEN, SORTING }
 
     /** Hypixel will not open a backpack, the Ender Chest or the storage menu for about this long after a warp or server
      *  switch (killer560, 2026-11-03: "it needs to wait to open backpacks and stuff for 4 seconds after a warp"; his own
@@ -190,6 +192,22 @@ public final class InventorySorterExecutor {
         openedByUs = false;
         instantRun = InventorySorterConfig.getInstance().isInstant();
         storage = null;
+        loadoutSent = false;
+        if (layout.loadout() > 0) {
+            // The layout's Hypixel loadout first (killer560, 2026-11-04): a loadout swap can change what he carries, so
+            // storage and the sort plan from the inventory it leaves, not the one it started with.
+            setState(State.LOADOUT);
+            return;
+        }
+        afterLoadout(client);
+    }
+
+    /** True once the loadout swap of this run was started. */
+    private static boolean loadoutSent;
+
+    /** The loadout step is done (or the layout has none): storage visit if the layout uses it, else the sort. */
+    private static void afterLoadout(Minecraft client) {
+        InventoryLayout layout = targetLayout;
         if (layout.usesStorage()) {
             storage = new InvSortStorage(layout);
             storage.plan(client);
@@ -279,7 +297,8 @@ public final class InventorySorterExecutor {
             return;
         }
         ModChat.send(InventorySorterCommands.FEATURE, ModChat.good("Sorting to "), ModChat.value(layout.name()),
-                ModChat.dim(" (" + layout.size() + " slot" + (layout.size() == 1 ? "" : "s") + ")"));
+                ModChat.dim(" (" + layout.size() + " slot" + (layout.size() == 1 ? "" : "s")
+                        + (layout.loadout() > 0 ? ", loadout " + layout.loadout() + " first" : "") + ")"));
     }
 
     // ------------------------------------------------------------------------------------------- tick
@@ -320,6 +339,7 @@ public final class InventorySorterExecutor {
         stateTicks++;
         Screen screen = McCompat.screen(client);
         switch (state) {
+            case LOADOUT -> loadoutTick(client);
             case STORAGE -> {
                 boolean mayClick = pacedAndStill();
                 if (state == State.IDLE) {
@@ -360,6 +380,32 @@ public final class InventorySorterExecutor {
             default -> {
             }
         }
+    }
+
+    /** Selects the layout's Hypixel loadout through Loadout Keybinds' own "Open, Swap, Close" (one /loadouts, one click, one
+     *  close, all through ActionGate), then goes on to storage or the sort. */
+    private static void loadoutTick(Minecraft client) {
+        if (!loadoutSent) {
+            if (com.killer560.hub.loadoutkeybinds.LoadoutSwapper.requestLoadout(client, targetLayout.loadout())) {
+                loadoutSent = true;
+                stateTicks = 0;
+            } else if (stateTicks > WAIT_FOR_SCREEN_TICKS) {
+                stop("could not start the loadout swap (close the open menu first)");
+            }
+            return;
+        }
+        if (com.killer560.hub.loadoutkeybinds.LoadoutSwapper.isBusy()) {
+            if (stateTicks > LOADOUT_TIMEOUT_TICKS) {
+                stop("the loadout swap took too long");
+            }
+            return;
+        }
+        if (!com.killer560.hub.loadoutkeybinds.LoadoutSwapper.lastSwapped()) {
+            stop("loadout " + targetLayout.loadout() + " was not selected, so nothing was sorted");
+            return;
+        }
+        LOGGER.info("[InvSort] Loadout {} selected for {}", targetLayout.loadout(), targetLayout.name());
+        afterLoadout(client);
     }
 
     /**
@@ -620,6 +666,9 @@ public final class InventorySorterExecutor {
     }
 
     private static void stop(String reason) {
+        if (state == State.LOADOUT) {
+            com.killer560.hub.loadoutkeybinds.LoadoutSwapper.cancel(Minecraft.getInstance());
+        }
         ModChat.send(InventorySorterCommands.FEATURE, ModChat.bad("Stopped: "), ModChat.text(reason));
         LOGGER.info("[InvSort] Stopped: {} ({} clicks)", reason, clicksSent);
         end(Minecraft.getInstance());
