@@ -349,3 +349,4 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
   deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
+- Inventory Sorter layouts carry an optional Hypixel loadout (invloadout-1104, killer560 2026-11-04): `InventoryLayout.loadout()` 0 (none) or 1-12 (/loadouts page 1 only), saved as `"loadout"` in the layout file. Applying selects it first through `LoadoutSwapper.requestLoadout` (Open, Swap, Close), then storage/sort plan from the inventory it leaves; a failed swap stops the run. Testkit 1104-invsort-loadout-save/-apply.

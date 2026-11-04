@@ -65,6 +65,33 @@ public final class LoadoutSwapper {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LoadoutSwapper.tick", LoadoutSwapper::tick));
     }
 
+    private static boolean lastSwapped;
+
+    /** Selects Hypixel loadout {@code number} (1-12) the way a slot key set to Open, Swap, Close does; the Inventory
+     *  Sorter calls it before a layout with a loadout sorts (killer560, 2026-11-04). False, with nothing sent, while a
+     *  swap runs, a menu is open or {@code number} is out of range. Poll {@link #isBusy} and {@link #lastSwapped}. */
+    public static boolean requestLoadout(Minecraft client, int number) {
+        lastSwapped = false;
+        return request(client, number - 1);
+    }
+
+    /** True when the last swap got as far as clicking the loadout and closing the menu. */
+    public static boolean lastSwapped() {
+        return lastSwapped;
+    }
+
+    /** Drops a running swap (a caller that was stopped); a menu it opened is closed. */
+    public static void cancel(Minecraft client) {
+        if (stage == Stage.IDLE) {
+            return;
+        }
+        Screen screen = McCompat.screen(client);
+        finish("cancelled by the caller");
+        if (LoadoutKeybindsFeature.isLoadoutScreen(screen)) {
+            screen.onClose();
+        }
+    }
+
     public static boolean isBusy() {
         return stage != Stage.IDLE;
     }
@@ -257,6 +284,7 @@ public final class LoadoutSwapper {
             return;
         }
         screen.onClose();
+        lastSwapped = true;
         finish("swapped and closed");
     }
 
