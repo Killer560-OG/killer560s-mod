@@ -237,7 +237,7 @@ public final class GoldorTriggerbotFeature {
         for (com.killer560.hub.dungeonclass.DungeonClass c : com.killer560.hub.dungeonclass.DungeonClass.values()) {
             all &= cfg.isClassEnabled(c);
         }
-        return all ? true : cfg.isClassEnabled(com.killer560.hub.leapmenu.PartyTracker.selfClass());
+        return all || cfg.isClassEnabled(com.killer560.hub.leapmenu.PartyTracker.selfClass());
     }
 
     private static void clearAim() {
