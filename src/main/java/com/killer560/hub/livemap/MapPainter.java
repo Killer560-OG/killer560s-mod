@@ -1006,10 +1006,7 @@ public final class MapPainter {
         if (lines.isEmpty()) {
             return;
         }
-        int maxWidth = 0;
-        for (String s : lines) {
-            maxWidth = Math.max(maxWidth, font.width(s));
-        }
+        int maxWidth = lines.stream().mapToInt(font::width).max().orElse(0);
         float want = LABEL_SCALE * cfg.getFontScale() * ppu;
         float fit = Math.min(ROOM_UNITS * ppu / Math.max(1, maxWidth), ROOM_UNITS * ppu / (lines.size() * font.lineHeight));
         float scale = Math.max(LABEL_MIN_SCALE, Math.min(want, fit));
@@ -1537,10 +1534,7 @@ public final class MapPainter {
             if (lines.isEmpty()) {
                 continue;
             }
-            int maxWidth = 0;
-            for (String s : lines) {
-                maxWidth = Math.max(maxWidth, font.width(s));
-            }
+            int maxWidth = lines.stream().mapToInt(font::width).max().orElse(0);
             float[] box = drawnLabelBox(group);
             // A scanned room never entered (Funny Map) is named in a dimmer gray than one entered but not cleared.
             int textColor = markState(group) == DungeonMapScanner.STATE_UNOPENED && visibleState(group) != DungeonMapScanner.STATE_UNOPENED
@@ -1694,10 +1688,7 @@ public final class MapPainter {
         if (lines == null || lines.length == 0) {
             return;
         }
-        int maxWidth = 0;
-        for (String s : lines) {
-            maxWidth = Math.max(maxWidth, font.width(s));
-        }
+        int maxWidth = java.util.Arrays.stream(lines).mapToInt(font::width).max().orElse(0);
         float fit = Math.min(boxW / Math.max(1, maxWidth), boxH / (lines.length * font.lineHeight));
         float scale = Math.max(LABEL_MIN_SCALE, Math.min(want, fit));
         graphics.pose().pushMatrix();
