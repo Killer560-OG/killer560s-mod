@@ -105,9 +105,7 @@ public final class MotionBlurRenderer {
                 resetHistory();
                 return;
             }
-            if (failed || cfg.isBlurGui() != afterGui) {
-                return;
-            }
+            if (failed || cfg.isBlurGui() != afterGui) return;
 
             Minecraft mc = Minecraft.getInstance();
             // Same condition GameRenderer.render uses to decide whether the level was drawn this frame.
@@ -131,9 +129,7 @@ public final class MotionBlurRenderer {
                 primed = false;
             }
 
-            if (chain == null && !buildChain(mc)) {
-                return;
-            }
+            if (chain == null && !buildChain(mc)) return;
 
             float blend = primed ? computeBlend(cfg.getStrength()) : 0.0f;
             if (!primed) {
@@ -166,9 +162,7 @@ public final class MotionBlurRenderer {
     }
 
     private static void writeBlend(float blend) {
-        if (blend == lastWrittenBlend) {
-            return;
-        }
+        if (blend == lastWrittenBlend) return;
         McRender.writeUniformVec4(uniformBuffer, blend, 0.0f, 0.0f, 0.0f);
         lastWrittenBlend = blend;
     }
@@ -177,9 +171,7 @@ public final class MotionBlurRenderer {
         PostChain built = null;
         try {
             PostChainConfig config = readConfig(mc);
-            if (config == null) {
-                return false;
-            }
+            if (config == null) return false;
             if (projection == null) {
                 projection = new Projection();
                 projectionBuffer = new ProjectionMatrixBuffer("killer560smod motion blur");
@@ -211,9 +203,7 @@ public final class MotionBlurRenderer {
             boolean installed = false;
             for (PostPass pass : passes) {
                 Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).killer560smod$getCustomUniforms();
-                if (!uniforms.containsKey(UNIFORM_BLOCK)) {
-                    continue;
-                }
+                if (!uniforms.containsKey(UNIFORM_BLOCK)) continue;
                 GpuBuffer old = uniforms.put(UNIFORM_BLOCK, buffer);
                 if (old != null && old != buffer) {
                     old.close();
