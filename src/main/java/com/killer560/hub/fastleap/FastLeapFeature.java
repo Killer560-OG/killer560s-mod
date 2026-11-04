@@ -383,10 +383,7 @@ public final class FastLeapFeature {
         if (cfg.isLeapFast(LeapGroup.STORM_DEATH) && isInP2()) {
             return leapToConfigured(LeapTarget.STORM_DEATH);
         }
-        if (cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle()) {
-            return leapToConfigured(LeapTarget.MIDDLE);
-        }
-        return false;
+        return cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle() && leapToConfigured(LeapTarget.MIDDLE);
     }
 
     private static void handleP3Leap(Stage completedStage) {

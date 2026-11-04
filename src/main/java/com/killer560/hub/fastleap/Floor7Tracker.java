@@ -325,10 +325,7 @@ public final class Floor7Tracker {
         if (y > 100) {
             return Phase.P3;
         }
-        if (y > 45) {
-            return Phase.P4;
-        }
-        return Phase.P5;
+        return y > 45 ? Phase.P4 : Phase.P5;
     }
 
     public static Stage getStage() {
@@ -354,10 +351,7 @@ public final class Floor7Tracker {
         if (in(x, -2, 90) && in(z, 27, 51)) {
             return Stage.S4;
         }
-        if (in(x, 41, 68) && in(z, 59, 117)) {
-            return Stage.S5;
-        }
-        return Stage.UNKNOWN;
+        return in(x, 41, 68) && in(z, 59, 117) ? Stage.S5 : Stage.UNKNOWN;
     }
 
     public static boolean inPhase(Phase... phases) {

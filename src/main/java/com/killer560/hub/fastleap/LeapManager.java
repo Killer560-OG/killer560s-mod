@@ -190,10 +190,7 @@ public final class LeapManager {
         if (t != null) {
             return t.dead() ? null : new Target(t.name(), t.name());
         }
-        if (name.equalsIgnoreCase(Teammates.selfName())) {
-            return null;
-        }
-        return Teammates.isKnown() ? null : new Target(name, name);
+        return name.equalsIgnoreCase(Teammates.selfName()) || Teammates.isKnown() ? null : new Target(name, name);
     }
 
     /** @return a target for the first alive teammate of {@code clazz}, or null. */
