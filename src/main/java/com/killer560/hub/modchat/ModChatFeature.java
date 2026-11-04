@@ -147,10 +147,7 @@ public final class ModChatFeature {
             return "§c[ModChat] Nothing to whisper.";
         }
         String line = WHISPER_PREFIX + target + WHISPER_SEP + text.trim();
-        if (line.length() > 512) {
-            return "§c[ModChat] Too long - 512 characters at most.";
-        }
-        return send(line);
+        return line.length() > 512 ? "§c[ModChat] Too long - 512 characters at most." : send(line);
     }
 
     /** The relay stamps the sender from a verified login, but a name is still checked before it is shown or acted on. */
