@@ -189,25 +189,15 @@ public final class PlayerStatsFeature {
      */
     public static boolean hidesHeldItemName(net.minecraft.client.gui.GuiGraphicsExtractor graphics) {
         PlayerStatsConfig.HeldItemName mode = PlayerStatsConfig.getInstance().getHeldItemName();
-        if (mode == PlayerStatsConfig.HeldItemName.SHOWN || !com.killer560.hub.util.SkyblockGate.allows()) {
-            return false;
-        }
-        if (mode == PlayerStatsConfig.HeldItemName.HIDDEN) {
-            return true;
-        }
+        if (mode == PlayerStatsConfig.HeldItemName.SHOWN || !com.killer560.hub.util.SkyblockGate.allows()) return false;
+        if (mode == PlayerStatsConfig.HeldItemName.HIDDEN) return true;
         // Auto hides the name only under a drawn readout, and none is drawn while Health and Mana Bars is off: skip
         // measuring the held item's name every frame for an answer that is always false (95-perf, 2026-10-15).
-        if (!PlayerStatsConfig.getInstance().isEnabled()) {
-            return false;
-        }
+        if (!PlayerStatsConfig.getInstance().isEnabled()) return false;
         // Nothing drawn this frame to cover: no need to look at the held item at all (this runs every frame).
-        if (!StatElements.anyDrawn()) {
-            return false;
-        }
+        if (!StatElements.anyDrawn()) return false;
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-        if (mc.player == null) {
-            return false;
-        }
+        if (mc.player == null) return false;
         net.minecraft.network.chat.Component name = mc.player.getMainHandItem().getHoverName();
         if (name != heldNameSource) {
             heldNameSource = name;
@@ -278,18 +268,14 @@ public final class PlayerStatsFeature {
      * every line. Only reads; the line itself is not changed here (see {@link #actionBarReplacement}).
      */
     public static void onActionBar(Component message) {
-        if (message == null || message == lastRead) {
-            return;
-        }
+        if (message == null || message == lastRead) return;
         // Marked first, so the second sighting of the same line (ALLOW_GAME, then setOverlayMessage) is skipped with the HUD off too.
         lastRead = message;
         // Read before the enabled gate: an etherwarp route needs to know about an empty mana bar even with the HUD off.
         noteManaShort(message.getString());
         // The area on the action bar (mining-1103): the mining features' area check reads it with the HUD off too.
         com.killer560.hub.pathfinding.IslandDetector.noteActionBar(message.getString());
-        if (!PlayerStatsConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!PlayerStatsConfig.getInstance().isEnabled()) return;
         try {
             read(message.getString());
         } catch (RuntimeException e) {
@@ -379,9 +365,7 @@ public final class PlayerStatsFeature {
             Matcher otherMatch = OTHER_REGEX.matcher(raw);
             while (otherMatch.find()) {
                 String icon = otherMatch.group(3);
-                if (HEALTH_ICONS.contains(icon) || MANA_ICONS.contains(icon) || VITALITY_ICONS.contains(icon)) {
-                    continue;
-                }
+                if (HEALTH_ICONS.contains(icon) || MANA_ICONS.contains(icon) || VITALITY_ICONS.contains(icon)) continue;
                 otherCur = num(otherMatch.group(1));
                 otherMax = num(otherMatch.group(2));
                 otherIcon = icon;
@@ -400,14 +384,10 @@ public final class PlayerStatsFeature {
     private static void logActionBar(String raw) {
         try {
             // A release jar drops INFO: skip building the escaped text for a line nobody will see.
-            if (!LOGGER.isInfoEnabled()) {
-                return;
-            }
+            if (!LOGGER.isInfoEnabled()) return;
             long now = System.nanoTime();
             boolean changed = !raw.equals(lastLogText);
-            if (!changed && now - lastLogNanos < LOG_EVERY_NANOS) {
-                return;
-            }
+            if (!changed && now - lastLogNanos < LOG_EVERY_NANOS) return;
             lastLogText = raw;
             lastLogNanos = now;
             LOGGER.info("[StatBars] action bar: {}", visible(raw));
@@ -466,9 +446,7 @@ public final class PlayerStatsFeature {
         for (Pattern p : STRIP) {
             left = p.matcher(left).replaceAll("");
         }
-        if (COLOUR_CODE.matcher(left).replaceAll("").isBlank()) {
-            return null;
-        }
+        if (COLOUR_CODE.matcher(left).replaceAll("").isBlank()) return null;
         // Hypixel separates segments with runs of spaces; removing some leaves wide gaps, so close them up.
         return Component.literal(SPACE_RUN.matcher(left).replaceAll("     ").trim());
     }

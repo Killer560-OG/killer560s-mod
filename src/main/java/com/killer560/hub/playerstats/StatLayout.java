@@ -79,9 +79,7 @@ public final class StatLayout {
 
         public static Area byKey(String key) {
             for (Area a : values()) {
-                if (a.key.equals(key)) {
-                    return a;
-                }
+                if (a.key.equals(key)) return a;
             }
             return null;
         }
@@ -133,9 +131,7 @@ public final class StatLayout {
 
         public Zone zone(Area a) {
             for (Zone z : zones) {
-                if (z.area() == a) {
-                    return z;
-                }
+                if (z.area() == a) return z;
             }
             return null;
         }
@@ -175,9 +171,7 @@ public final class StatLayout {
     /** The readout behind a stat element id, or null. */
     public static Readout readout(String hudId) {
         for (Readout r : Readout.values()) {
-            if (r.hudId.equals(hudId)) {
-                return r;
-            }
+            if (r.hudId.equals(hudId)) return r;
         }
         return null;
     }
@@ -231,9 +225,7 @@ public final class StatLayout {
 
     /** The HUD editor's drag: {@code moving} shown at {@code index} of {@code area}. A null area shows it where it is. */
     public static void setPreview(Readout moving, Area area, int index) {
-        if (previewActive && previewMoving == moving && previewArea == area && previewIndex == index) {
-            return;
-        }
+        if (previewActive && previewMoving == moving && previewArea == area && previewIndex == index) return;
         previewActive = true;
         previewMoving = moving;
         previewArea = area;
@@ -253,9 +245,7 @@ public final class StatLayout {
     /** Where {@code r} draws now, or null when the layout does not place it (Custom, off, nothing to show, Hidden). */
     public static Placed placed(Readout r) {
         // A readout that is off is never placed (compute skips it), so it must not be the one that builds the layout.
-        if (!predefined() || !PlayerStatsConfig.getInstance().isReadoutOn(r)) {
-            return null;
-        }
+        if (!predefined() || !PlayerStatsConfig.getInstance().isReadoutOn(r)) return null;
         Layout l = current();
         return l == null ? null : l.placed.get(r);
     }
@@ -264,9 +254,7 @@ public final class StatLayout {
     public static Layout current() {
         Minecraft mc = Minecraft.getInstance();
         Window window = mc == null ? null : mc.getWindow();
-        if (window == null) {
-            return null;
-        }
+        if (window == null) return null;
         int w = window.getGuiScaledWidth();
         int h = window.getGuiScaledHeight();
         boolean editor = HudVisibility.editorOpen();
@@ -319,16 +307,12 @@ public final class StatLayout {
                 best = z;
             }
         }
-        if (best == null) {
-            return null;
-        }
+        if (best == null) return null;
         List<Readout> in = zones.members.getOrDefault(best.area(), List.of());
         int index = 0;
         for (Readout r : in) {
             Placed p = zones.placed.get(r);
-            if (p == null) {
-                continue;
-            }
+            if (p == null) continue;
             double cx = p.x() + p.w() / 2.0;
             double cy = p.y() + p.h() / 2.0;
             boolean before = switch (best.area()) {
@@ -357,14 +341,10 @@ public final class StatLayout {
         for (Area a : Area.values()) {
             List<Readout> list = new ArrayList<>();
             for (Readout r : orderedCached(cfg, a)) {
-                if (r == exclude || r == moving || !cfg.isReadoutOn(r)) {
-                    continue;
-                }
+                if (r == exclude || r == moving || !cfg.isReadoutOn(r)) continue;
                 // In game only what has something to show takes room (Skyblocker drops a bar that is not visible
                 // the same way); the editor previews every readout that is on.
-                if (!editor && !StatElements.hasValue(r)) {
-                    continue;
-                }
+                if (!editor && !StatElements.hasValue(r)) continue;
                 list.add(r);
             }
             out.members.put(a, list);
@@ -394,9 +374,7 @@ public final class StatLayout {
         int bottom = vanillaTop(mc, w, h) - 1;
         for (Area a : new Area[]{Area.ABOVE_HOTBAR, Area.ABOVE_HOTBAR_2}) {
             List<Readout> list = out.members.get(a);
-            if (list.isEmpty() && !reserveEmpty) {
-                continue;
-            }
+            if (list.isEmpty() && !reserveEmpty) continue;
             int rowH = list.isEmpty() ? EMPTY_ROW : 0;
             for (Readout r : list) {
                 rowH = Math.max(rowH, drawnHeight(r));
@@ -524,9 +502,7 @@ public final class StatLayout {
     public static int vanillaTop(Minecraft mc, int w, int h) {
         int top = h - 23; // the hotbar (22) and its selection frame, one higher
         LocalPlayer p = mc.player;
-        if (p == null || mc.gameMode == null) {
-            return top;
-        }
+        if (p == null || mc.gameMode == null) return top;
         if (mc.gameMode.hasExperience() && !PlayerStatsFeature.hidesVanillaXp()) {
             top = Math.min(top, p.experienceLevel > 0 ? h - 24 - 9 - 2 - 1 : h - 24 - 5);
         }

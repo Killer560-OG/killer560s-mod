@@ -175,9 +175,7 @@ public final class StatElements {
 
     private static boolean isAscii(String text) {
         for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) > 0x7F) {
-                return false;
-            }
+            if (text.charAt(i) > 0x7F) return false;
         }
         return true;
     }
@@ -188,13 +186,9 @@ public final class StatElements {
      * the only whole step is a half, too small, so Small is 0.85 there.
      */
     static float textScale(GuiGraphicsExtractor g, PlayerStatsConfig cfg) {
-        if (cfg.getBarTextSize() != PlayerStatsConfig.TextSize.SMALL) {
-            return 1f;
-        }
+        if (cfg.getBarTextSize() != PlayerStatsConfig.TextSize.SMALL) return 1f;
         float p = g.pose().m00() * Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
-        if (p <= 0f) {
-            return SMALL_SCALE;
-        }
+        if (p <= 0f) return SMALL_SCALE;
         float whole = (float) Math.floor(p * SMALL_SCALE + 1e-3f);
         float s = whole / p;
         return s >= 0.6f && s <= SMALL_SCALE + 1e-3f ? s : SMALL_SCALE;
@@ -213,9 +207,7 @@ public final class StatElements {
 
     /** Records the box a readout just drew, {@code (x, y, w, h)} in its own pose, as GUI units on screen. */
     static void noteDrawn(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        if (drawnCount >= MAX_DRAWN) {
-            return;
-        }
+        if (drawnCount >= MAX_DRAWN) return;
         var pose = g.pose();
         int i = drawnCount++ * 4;
         drawnRects[i] = pose.m00() * x + pose.m20();
@@ -235,9 +227,7 @@ public final class StatElements {
             float a1 = Math.max(drawnRects[i], drawnRects[i + 2]);
             float b0 = Math.min(drawnRects[i + 1], drawnRects[i + 3]);
             float b1 = Math.max(drawnRects[i + 1], drawnRects[i + 3]);
-            if (a0 < x1 && x0 < a1 && b0 < y1 && y0 < b1) {
-                return true;
-            }
+            if (a0 < x1 && x0 < a1 && b0 < y1 && y0 < b1) return true;
         }
         return false;
     }
@@ -261,16 +251,12 @@ public final class StatElements {
      * before the symbol, so a bar that showed its max before Show Symbols still does.
      */
     static String fitValue(Font font, String value, String symbol, int w, float s) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
         String shortForm = shortValue(value);
         String[] tries = symbol == null ? new String[]{value, shortForm}
                 : new String[]{symbol + value, value, shortForm == null ? null : symbol + shortForm, shortForm};
         for (String t : tries) {
-            if (t != null && font.width(t) * s + 2 * VALUE_PAD_X <= w) {
-                return t;
-            }
+            if (t != null && font.width(t) * s + 2 * VALUE_PAD_X <= w) return t;
         }
         return null;
     }
@@ -283,9 +269,7 @@ public final class StatElements {
      */
     static String shortValue(String value) {
         int slash = value.indexOf('/');
-        if (slash > 0) {
-            return value.substring(0, slash);
-        }
+        if (slash > 0) return value.substring(0, slash);
         int paren = value.indexOf(" (");
         return paren > 0 ? value.substring(0, paren) : null;
     }
@@ -311,9 +295,7 @@ public final class StatElements {
     static long absorption() {
         long cur = PlayerStatsFeature.healthCur;
         long max = PlayerStatsFeature.healthMax;
-        if (cur < 0 || max <= 0) {
-            return 0;
-        }
+        if (cur < 0 || max <= 0) return 0;
         long fromBar = Math.max(0, cur - max);
         long fromPlayer = 0;
         net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
@@ -346,9 +328,7 @@ public final class StatElements {
     private static int measured(Readout r, String t) {
         Minecraft mc = Minecraft.getInstance();
         net.minecraft.client.gui.Font font = mc.font;
-        if (!mc.isSameThread()) {
-            return Math.max(1, font.width(t));
-        }
+        if (!mc.isSameThread()) return Math.max(1, font.width(t));
         int i = r.ordinal();
         if (widthFont != font) {
             java.util.Arrays.fill(widthSource, null);
@@ -417,9 +397,7 @@ public final class StatElements {
 
         @Override
         public int width() {
-            if (r.bar) {
-                return barWidthNow();
-            }
+            if (r.bar) return barWidthNow();
             // The drawn readout (2026-10-07 box audit: it was a fixed 90); its label when there is no value yet.
             return textWidth(r, true);
         }
@@ -463,9 +441,7 @@ public final class StatElements {
             PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
             // No "a screen is open" gate here (2026-10-07): the bars draw behind an open inventory like vanilla's hearts.
             // HudInGameRenderer is the in-game caller and decides that; the HUD editor is the other.
-            if (!cfg.isEnabled() || !cfg.isReadoutOn(r)) {
-                return;
-            }
+            if (!cfg.isEnabled() || !cfg.isReadoutOn(r)) return;
             boolean preview = HudVisibility.editorOpen();
             if (!preview && StatLayout.predefined() && StatLayout.placed(r) == null) {
                 // Predefined: Hidden, or nothing to show - the layout gave it no place, so it draws nothing.
@@ -486,9 +462,7 @@ public final class StatElements {
             long max = value == null ? 2 : outMax;
             boolean read = value != null;
             if (value == null) {
-                if (!preview) {
-                    return false;
-                }
+                if (!preview) return false;
                 // Nothing read yet: the HUD editor still gets a half-full bar to place.
                 value = r.label;
             }
@@ -543,9 +517,7 @@ public final class StatElements {
 
         private boolean drawText(GuiGraphicsExtractor g, PlayerStatsConfig cfg, int x, int y, boolean preview) {
             String text = text(r, preview);
-            if (text == null) {
-                return false;
-            }
+            if (text == null) return false;
             g.text(Minecraft.getInstance().font, text, x, y, cfg.getReadoutColor(r), cfg.isTextShadow());
             return true;
         }
@@ -621,9 +593,7 @@ public final class StatElements {
             }
             case XP_BAR -> {
                 net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
-                if (p == null) {
-                    return null;
-                }
+                if (p == null) return null;
                 cur = Math.round(1000.0 * xpProgress(p));
                 max = 1000;
                 a = p.experienceLevel;
@@ -636,9 +606,7 @@ public final class StatElements {
                 d = PlayerStatsFeature.otherIcon;
             }
         }
-        if (cur < 0) {
-            return null;
-        }
+        if (cur < 0) return null;
         int i = r.ordinal();
         if (valueText[i] == null || keyA[i] != a || keyB[i] != max || keyC[i] != cur || keyD[i] != d) {
             valueText[i] = switch (r) {
@@ -672,9 +640,7 @@ public final class StatElements {
 
     /** {@code symbol + value}, built only when either changes; {@code value} itself when there is no symbol. */
     static String withSymbol(Readout r, String value, String symbol) {
-        if (symbol == null || value == null) {
-            return value;
-        }
+        if (symbol == null || value == null) return value;
         int i = r.ordinal();
         if (symSource[i] != value || symSymbol[i] != symbol) {
             symSource[i] = value;
@@ -708,9 +674,7 @@ public final class StatElements {
     static int columnReserve(GuiGraphicsExtractor g, Readout r, int x, int need, long now) {
         var pose = g.pose();
         float sx = pose.m00();
-        if (sx <= 0f) {
-            return need;
-        }
+        if (sx <= 0f) return need;
         int i = r.ordinal();
         float left = sx * x + pose.m20();
         colLeft[i] = left;
@@ -746,9 +710,7 @@ public final class StatElements {
     private static final String[] textValue = new String[N];
 
     private static String liveTextCached(Readout r) {
-        if (!Minecraft.getInstance().isSameThread()) {
-            return liveText(r);
-        }
+        if (!Minecraft.getInstance().isSameThread()) return liveText(r);
         long a;
         long b;
         Object c = null;
@@ -783,9 +745,7 @@ public final class StatElements {
             }
             case XP_TEXT -> {
                 net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
-                if (p == null) {
-                    return null;
-                }
+                if (p == null) return null;
                 a = p.experienceLevel;
                 b = Float.floatToIntBits(xpProgress(p));
             }

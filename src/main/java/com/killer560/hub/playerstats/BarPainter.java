@@ -265,12 +265,8 @@ public final class BarPainter {
      * symbol still doesn't show"). A bar under 6 thick has none.
      */
     static int iconRoom(PlayerStatsConfig cfg, int w, int h) {
-        if (!cfg.isBarIcons() || h < 6) {
-            return 0;
-        }
-        if (w >= 3 * h + 20) {
-            return h + ICON_GAP;
-        }
+        if (!cfg.isBarIcons() || h < 6) return 0;
+        if (w >= 3 * h + 20) return h + ICON_GAP;
         int small = Math.min(h, SMALL_ICON);
         return w - small - ICON_GAP >= MIN_TRACK ? small + ICON_GAP : 0;
     }
@@ -326,9 +322,7 @@ public final class BarPainter {
             return;
         }
         ItemStack stack = icon(r);
-        if (stack == null) {
-            return;
-        }
+        if (stack == null) return;
         var pose = g.pose();
         pose.pushMatrix();
         try {

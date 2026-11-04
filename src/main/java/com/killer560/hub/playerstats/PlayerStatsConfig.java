@@ -163,9 +163,7 @@ public final class PlayerStatsConfig {
             cfg.heldItemName = HeldItemName.byKey(ConfigJson.getString(obj, "heldItemName", null), cfg.heldItemName);
             if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
                 for (var e : obj.getAsJsonObject("readouts").entrySet()) {
-                    if (!e.getValue().isJsonObject()) {
-                        continue;
-                    }
+                    if (!e.getValue().isJsonObject()) continue;
                     JsonObject r = e.getValue().getAsJsonObject();
                     if (r.has("on")) {
                         cfg.readoutOn.put(e.getKey(), r.get("on").getAsBoolean());
@@ -368,9 +366,7 @@ public final class PlayerStatsConfig {
 
         static HeldItemName byKey(String key, HeldItemName def) {
             for (HeldItemName v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -445,9 +441,7 @@ public final class PlayerStatsConfig {
      * @return whether the file still carried Classic Display's keys (so it is re-saved without them)
      */
     private boolean migrateClassic(JsonObject obj) {
-        if (!obj.has("showText") && !obj.has("showBar")) {
-            return false;
-        }
+        if (!obj.has("showText") && !obj.has("showBar")) return false;
         boolean showText = ConfigJson.getBool(obj, "showText", true);
         boolean showBar = ConfigJson.getBool(obj, "showBar", true);
         boolean health = ConfigJson.getBool(obj, "showHealth", true);
@@ -457,9 +451,7 @@ public final class PlayerStatsConfig {
         for (StatElements.Readout r : StatElements.Readout.values()) {
             anyReadout |= isReadoutOn(r);
         }
-        if (!enabled || anyReadout || !(showText || showBar)) {
-            return true;
-        }
+        if (!enabled || anyReadout || !(showText || showBar)) return true;
         java.util.List<StatElements.Readout> on = new java.util.ArrayList<>();
         if (showBar && health) {
             on.add(StatElements.Readout.HEALTH_BAR);
@@ -538,9 +530,7 @@ public final class PlayerStatsConfig {
 
         static BarStyle byKey(String key, BarStyle def) {
             for (BarStyle v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -561,9 +551,7 @@ public final class PlayerStatsConfig {
 
         static ValuePosition byKey(String key, ValuePosition def) {
             for (ValuePosition v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -585,9 +573,7 @@ public final class PlayerStatsConfig {
 
         static TextSize byKey(String key, TextSize def) {
             for (TextSize v : values()) {
-                if (v.key.equals(key)) {
-                    return v;
-                }
+                if (v.key.equals(key)) return v;
             }
             return def;
         }
@@ -653,9 +639,7 @@ public final class PlayerStatsConfig {
     }
 
     private static float clampScale(float v) {
-        if (!Float.isFinite(v)) {
-            return 1.0f;
-        }
+        if (!Float.isFinite(v)) return 1.0f;
         // Two decimals, so a slider or a scroll never leaves 1.0000001 behind.
         return Math.round(Math.max(MIN_PREDEFINED_SCALE, Math.min(MAX_PREDEFINED_SCALE, v)) * 100f) / 100f;
     }
