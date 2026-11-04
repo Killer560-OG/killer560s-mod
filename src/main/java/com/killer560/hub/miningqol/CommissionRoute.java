@@ -53,6 +53,9 @@ public final class CommissionRoute {
     private static int sinceCompute = 0;
     private static int frames = 0;
     private static int computes = 0;
+    private static volatile Vec3 lastOrigin = null;
+    private static volatile double[] lastPatch = null;
+    private static int patches = 0;
 
     private static final BoxBatch FILLS = new BoxBatch();
     private static final BoxBatch LINES = new BoxBatch();
@@ -85,20 +88,28 @@ public final class CommissionRoute {
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (!cfg.isCommissionRoute() || !cfg.isCommissionHud() || !MiningState.dwarvenMines()
+        if (!cfg.isCommissionRoute() || !MiningState.dwarvenMines()
                 || !MiningState.commissionsKnown() || client.player == null || client.level == null) {
             clear();
             return;
         }
         IslandGraph g = MinesAreaMap.graph();
-        String area = targetArea(MiningState.commissions());
+        boolean claim = CommissionClaim.routeToEmissary();
+        String area = claim ? EMISSARY : targetArea(MiningState.commissions());
         if (g == null || g.nodes.length == 0 || area == null) {
             clear();
             return;
         }
         Vec3 pos = client.player.position();
         BlockPos feet = client.player.blockPosition();
-        if (MiningState.areaIs(MiningState.area(), area)
+        if (claim) {
+            for (BlockPos e : CommissionClaim.emissaries()) {
+                if (e.distSqr(feet) <= EMISSARY_ARRIVED * EMISSARY_ARRIVED) {
+                    clear();
+                    return;
+                }
+            }
+        } else if (MiningState.areaIs(MiningState.area(), area)
                 || area.equals(MinesAreaMap.areaAt(feet.getX(), feet.getY(), feet.getZ()))) {
             clear();
             return;
@@ -117,42 +128,236 @@ public final class CommissionRoute {
         lastKey = key;
         sinceCompute = 0;
         computes++;
-        int[] goals = MinesAreaMap.nodesInArea(area);
+        int[] goals = claim ? emissaryNodes(g) : MinesAreaMap.nodesInArea(area);
+        targetArea = area;
         if (goals.length == 0) {
             points = new Vec3[0];
             hopBlocks = List.of();
             pathNodes = new int[0];
-            targetArea = area;
             return;
         }
-        GraphPathfinder.Tree tree = GraphPathfinder.dijkstra(g, start.index, -1);
-        int best = -1;
-        for (int i : goals) {
-            if (tree.reachable(i) && (best < 0 || tree.dist()[i] < tree.dist()[best])) {
-                best = i;
-            }
-        }
-        targetArea = area;
-        if (best < 0) {
+        Plan plan = plan(g, pos, start.index, goals, mode);
+        if (plan == null) {
             points = new Vec3[0];
             hopBlocks = List.of();
             pathNodes = new int[0];
             return;
         }
-        int[] nodes = tree.pathTo(best).nodes();
-        pathNodes = nodes;
-        List<Vec3> walk = new ArrayList<>();
-        for (int n : nodes) {
-            walk.add(NavigationManager.centre(g.nodes[n]));
-        }
-        switch (mode) {
-            case ETHERWARP -> etherwarpPlan(pos, walk);
-            case AOTE -> aotePlan(pos, walk);
-            default -> {
-                hopBlocks = List.of();
-                points = walk.toArray(new Vec3[0]);
+        pathNodes = plan.nodes;
+        hopBlocks = plan.hops;
+        points = plan.line.toArray(new Vec3[0]);
+    }
+
+    private static final String EMISSARY = "Emissary";
+    private static final double EMISSARY_ARRIVED = 6.0;
+    /** What one etherwarp costs in blocks of walking: fewer warps win (killer560: "more of a minimal etherwarps style"). */
+    static final double ETHER_COST = 25.0;
+    /** What one AOTE teleport costs in blocks of walking. */
+    static final double AOTE_COST = 5.0;
+    private static final int MAX_RAYCAST_TESTS = 250;
+
+    private record Plan(List<Vec3> line, List<BlockPos> hops, int[] nodes) {
+    }
+
+    /** The graph node nearest each Emissary. */
+    private static int[] emissaryNodes(IslandGraph g) {
+        List<BlockPos> es = CommissionClaim.emissaries();
+        java.util.LinkedHashSet<Integer> out = new java.util.LinkedHashSet<>();
+        for (BlockPos e : es) {
+            IslandGraph.Node n = g.nearest(e.getX() + 0.5, e.getY(), e.getZ() + 0.5);
+            if (n != null) {
+                out.add(n.index);
             }
         }
+        return out.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static Vec3 feetOf(IslandGraph.Node n) {
+        return new Vec3(n.x + 0.5, n.y, n.z + 0.5);
+    }
+
+    /** Per-search state, arrays indexed by node (the last index is the player's own spot). */
+    private static final class Search {
+        final double[] dist;
+        final int[] prev;
+        final boolean[] warpEdge;
+        final BlockPos[] hopOf;
+        final Vec3[] standOf;
+        final boolean[] done;
+        final java.util.PriorityQueue<double[]> pq = new java.util.PriorityQueue<>((x, y) -> Double.compare(x[0], y[0]));
+
+        Search(int size) {
+            dist = new double[size];
+            prev = new int[size];
+            warpEdge = new boolean[size];
+            hopOf = new BlockPos[size];
+            standOf = new Vec3[size];
+            done = new boolean[size];
+            java.util.Arrays.fill(dist, Double.MAX_VALUE);
+            java.util.Arrays.fill(prev, -1);
+        }
+
+        void relax(int u, int v, double w, boolean warp, BlockPos hop, Vec3 stand) {
+            if (v < 0 || v >= dist.length || done[v]) {
+                return;
+            }
+            double nd = dist[u] + w;
+            if (nd < dist[v]) {
+                dist[v] = nd;
+                prev[v] = u;
+                warpEdge[v] = warp;
+                hopOf[v] = hop;
+                standOf[v] = stand;
+                pq.add(new double[]{nd, v});
+            }
+        }
+    }
+
+    /**
+     * One Dijkstra over the walking graph PLUS warp edges (killer560, 2026-11-03: "the pathfinding for aote up to stuff like
+     * lava springs still doesnt work. instead of just teleporting up through the air it just has me run around to it"). The
+     * player's own spot is a virtual node that walks to his nearest graph node and warps like any other. From a node,
+     * Etherwarp mode adds an edge to each graph node an etherwarp reaches from there (a solid block under it, two free above,
+     * within {@link #ETHERWARP_RANGE}, line of sight: {@link TeleportUtils#getEtherwarpDirection}) at {@link #ETHER_COST},
+     * and AOTE mode one to each node within {@link #AOTE_RANGE} that a straight teleport through air lands on
+     * ({@link TeleportUtils#getTeleportPos}) at {@link #AOTE_COST}. Only warps that get closer to the goal are tried, best
+     * first, and at most {@link #MAX_RAYCAST_TESTS} line-of-sight tests are spent per route.
+     */
+    private static Plan plan(IslandGraph g, Vec3 pos, int startNode, int[] goals, MiningQolConfig.CommissionRouteMode mode) {
+        int n = g.nodes.length;
+        int me = n;
+        double[] h = new double[n + 1];
+        for (int i = 0; i < n; i++) {
+            double best = Double.MAX_VALUE;
+            Vec3 f = feetOf(g.nodes[i]);
+            for (int gi : goals) {
+                best = Math.min(best, f.distanceTo(feetOf(g.nodes[gi])));
+            }
+            h[i] = best;
+        }
+        double bestMe = Double.MAX_VALUE;
+        for (int gi : goals) {
+            bestMe = Math.min(bestMe, pos.distanceTo(feetOf(g.nodes[gi])));
+        }
+        h[me] = bestMe;
+        boolean[] isGoal = new boolean[n + 1];
+        for (int gi : goals) {
+            isGoal[gi] = true;
+        }
+        Search s = new Search(n + 1);
+        s.dist[me] = 0;
+        s.standOf[me] = pos;
+        s.pq.add(new double[]{0, me});
+        int tests = 0;
+        int reached = -1;
+        boolean ether = mode == MiningQolConfig.CommissionRouteMode.ETHERWARP;
+        while (!s.pq.isEmpty()) {
+            double[] e = s.pq.poll();
+            int u = (int) e[1];
+            if (s.done[u]) {
+                continue;
+            }
+            s.done[u] = true;
+            if (u != me && isGoal[u]) {
+                reached = u;
+                break;
+            }
+            Vec3 stand = u == me ? pos : feetOf(g.nodes[u]);
+            if (u == me) {
+                s.relax(u, startNode, pos.distanceTo(feetOf(g.nodes[startNode])), false, null, null);
+            } else {
+                int[] out = g.nodes[u].neighbours();
+                double[] w = g.nodes[u].weights();
+                for (int j = 0; j < out.length; j++) {
+                    s.relax(u, out[j], w[j], false, null, null);
+                }
+            }
+            if (mode == MiningQolConfig.CommissionRouteMode.WALK) {
+                continue;
+            }
+            // Warp edges: candidates that get closer to the goal, best first.
+            double range = ether ? ETHERWARP_RANGE : AOTE_RANGE + 2.0;
+            double minGain = ether ? 8.0 : 1.5;
+            List<Integer> cand = new ArrayList<>();
+            for (int j = 0; j < n; j++) {
+                if (j == u || s.done[j]) {
+                    continue;
+                }
+                double d = feetOf(g.nodes[j]).distanceTo(stand);
+                if (d > range || d < (ether ? 6.0 : 2.0) || h[j] > h[u] - minGain) {
+                    continue;
+                }
+                cand.add(j);
+            }
+            cand.sort((x, y) -> Double.compare(h[x], h[y]));
+            int limit = u == me ? 40 : (ether ? 10 : 40);
+            int tried = 0;
+            for (int j : cand) {
+                if (tried >= limit || tests >= MAX_RAYCAST_TESTS) {
+                    break;
+                }
+                tried++;
+                tests++;
+                Vec3 f = feetOf(g.nodes[j]);
+                if (ether) {
+                    BlockPos ground = groundUnder(new Vec3(f.x, f.y + 0.5, f.z));
+                    if (ground == null) {
+                        continue;
+                    }
+                    Vec3 eye = stand.add(0, TeleportUtils.SNEAK_EYE, 0);
+                    if (Vec3.atCenterOf(ground).distanceTo(eye) > ETHERWARP_RANGE
+                            || TeleportUtils.getEtherwarpDirection(eye, ground, ETHERWARP_RANGE, false) == null) {
+                        continue;
+                    }
+                    s.relax(u, j, ETHER_COST, true, ground,
+                            new Vec3(ground.getX() + 0.5, ground.getY() + 1.0, ground.getZ() + 0.5));
+                } else {
+                    // AOTE always travels its full range along the look unless a block stops it, so the edge goes to
+                    // the graph node nearest where aiming at node j LANDS, not to j itself.
+                    Vec3 eye = stand.add(0, 1.62, 0);
+                    TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, f.add(0, 1.62, 0));
+                    TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
+                    Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
+                    if (land == null) {
+                        continue;
+                    }
+                    int k = -1;
+                    double kd = 2.0;
+                    for (int m = 0; m < n; m++) {
+                        double d = feetOf(g.nodes[m]).distanceTo(land);
+                        if (d <= kd && m != u && !s.done[m] && h[m] <= h[u] - minGain) {
+                            kd = d;
+                            k = m;
+                        }
+                    }
+                    if (k >= 0) {
+                        s.relax(u, k, AOTE_COST, true, BlockPos.containing(land.x, land.y - 0.5, land.z), land);
+                    }
+                }
+            }
+        }
+        if (reached < 0) {
+            return null;
+        }
+        List<Integer> rev = new ArrayList<>();
+        for (int c = reached; c != -1; c = s.prev[c]) {
+            rev.add(c);
+        }
+        java.util.Collections.reverse(rev);
+        List<Vec3> line = new ArrayList<>();
+        List<BlockPos> hops = new ArrayList<>();
+        List<Integer> nodes = new ArrayList<>();
+        for (int idx = 1; idx < rev.size(); idx++) {
+            int c = rev.get(idx);
+            nodes.add(c);
+            if (s.warpEdge[c]) {
+                line.add(s.standOf[c]);
+                hops.add(s.hopOf[c]);
+            } else {
+                line.add(NavigationManager.centre(g.nodes[c]));
+            }
+        }
+        return new Plan(line, List.copyOf(hops), nodes.stream().mapToInt(Integer::intValue).toArray());
     }
 
     /** The block a stand at node point p is on: the first etherwarpable block at or just below its feet. */
@@ -166,90 +371,6 @@ public final class CommissionRoute {
             }
         }
         return null;
-    }
-
-    private static void etherwarpPlan(Vec3 pos, List<Vec3> walk) {
-        List<Vec3> line = new ArrayList<>();
-        List<BlockPos> hops = new ArrayList<>();
-        Vec3 stand = pos;
-        int at = -1; // index into walk of the last point reached
-        for (int guard = 0; guard < MAX_HOPS && at < walk.size() - 1; guard++) {
-            Vec3 eye = stand.add(0, TeleportUtils.SNEAK_EYE, 0);
-            int reached = -1;
-            BlockPos block = null;
-            for (int j = walk.size() - 1; j > at; j--) {
-                Vec3 p = walk.get(j);
-                if (p.distanceToSqr(eye) > (ETHERWARP_RANGE + 1) * (ETHERWARP_RANGE + 1)) {
-                    continue;
-                }
-                BlockPos b = groundUnder(p);
-                if (b == null || Vec3.atCenterOf(b).distanceTo(eye) > ETHERWARP_RANGE
-                        || new Vec3(b.getX() + 0.5, b.getY() + 1.0, b.getZ() + 0.5).distanceTo(stand) < 3.0) {
-                    // Out of range, or a warp onto (next to) the block he already stands on.
-                    continue;
-                }
-                if (TeleportUtils.getEtherwarpDirection(eye, b, ETHERWARP_RANGE, false) != null) {
-                    reached = j;
-                    block = b;
-                    break;
-                }
-            }
-            if (block == null) {
-                // No warp reaches further: walk to the next point.
-                at++;
-                stand = walk.get(at);
-                line.add(stand);
-                continue;
-            }
-            hops.add(block);
-            stand = new Vec3(block.getX() + 0.5, block.getY() + 1.0, block.getZ() + 0.5);
-            line.add(stand);
-            at = reached;
-        }
-        hopBlocks = List.copyOf(hops);
-        points = line.toArray(new Vec3[0]);
-    }
-
-    private static void aotePlan(Vec3 pos, List<Vec3> walk) {
-        // Progress is measured along the path (arc length), and only ever moves forward: each teleport aims at the point
-        // AOTE_RANGE further along it, and its landing counts for as far along the path as it got. Aiming at the next
-        // node instead overshot it and bounced back and forth past it (testkit 1103-mining-route-aote, b1).
-        List<Vec3> path = new ArrayList<>();
-        path.add(pos);
-        for (Vec3 w : walk) {
-            path.add(new Vec3(w.x, w.y - 0.5, w.z)); // node centers to feet height
-        }
-        double[] cum = new double[path.size()];
-        for (int i = 1; i < path.size(); i++) {
-            cum[i] = cum[i - 1] + path.get(i - 1).distanceTo(path.get(i));
-        }
-        double total = cum[cum.length - 1];
-        List<Vec3> line = new ArrayList<>();
-        List<BlockPos> hops = new ArrayList<>();
-        Vec3 stand = pos;
-        double s = 0;
-        for (int guard = 0; guard < MAX_HOPS * 2 && s < total - 1.5; guard++) {
-            double want = Math.min(total, s + AOTE_RANGE);
-            Vec3 aim = along(path, cum, want);
-            Vec3 eye = stand.add(0, 1.62, 0);
-            TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, aim.add(0, 1.62, 0));
-            TeleportUtils.RaycastResult res = TeleportUtils.getTeleportPos(eye, r.yaw(), r.pitch(), AOTE_RANGE);
-            Vec3 land = res.succeeded() && res.pos() != null ? settle(res.pos()) : null;
-            double ls = land == null ? s : project(path, cum, land, s);
-            if (land == null || ls < s + 1.0 || land.distanceTo(aim) > 3.0) {
-                // A teleport gets nowhere useful here (wall, ceiling, off the path): walk this stretch.
-                stand = aim;
-                s = want;
-                line.add(stand);
-                continue;
-            }
-            hops.add(BlockPos.containing(land.x, land.y, land.z));
-            stand = land;
-            s = ls;
-            line.add(stand);
-        }
-        hopBlocks = List.copyOf(hops);
-        points = line.toArray(new Vec3[0]);
     }
 
     /** Where a teleport landing in block {@code p} comes to rest: down onto the first solid block within 4. */
@@ -266,46 +387,6 @@ public final class CommissionRoute {
         return new Vec3(q.getX() + 0.5, q.getY(), q.getZ() + 0.5);
     }
 
-    /** The point at arc length {@code s} along the polyline. */
-    private static Vec3 along(List<Vec3> path, double[] cum, double s) {
-        for (int i = 1; i < path.size(); i++) {
-            if (s <= cum[i] || i == path.size() - 1) {
-                double len = cum[i] - cum[i - 1];
-                double t = len <= 1e-9 ? 1.0 : Math.max(0, Math.min(1, (s - cum[i - 1]) / len));
-                Vec3 a = path.get(i - 1);
-                Vec3 b = path.get(i);
-                return a.add(b.subtract(a).scale(t));
-            }
-        }
-        return path.get(path.size() - 1);
-    }
-
-    /** Arc length of the point on the polyline nearest {@code p}, at or after {@code from}. */
-    private static double project(List<Vec3> path, double[] cum, Vec3 p, double from) {
-        double best = from;
-        double bestD = Double.MAX_VALUE;
-        for (int i = 1; i < path.size(); i++) {
-            if (cum[i] < from) {
-                continue;
-            }
-            Vec3 a = path.get(i - 1);
-            Vec3 ab = path.get(i).subtract(a);
-            double len2 = ab.lengthSqr();
-            double t = len2 <= 1e-9 ? 0 : Math.max(0, Math.min(1, p.subtract(a).dot(ab) / len2));
-            double sAt = cum[i - 1] + t * Math.sqrt(len2);
-            if (sAt < from) {
-                t = (from - cum[i - 1]) / Math.max(1e-9, Math.sqrt(len2));
-                sAt = from;
-            }
-            double d = a.add(ab.scale(t)).distanceToSqr(p);
-            if (d < bestD) {
-                bestD = d;
-                best = sAt;
-            }
-        }
-        return best;
-    }
-
     static void render(LevelRenderContext context) {
         Vec3[] pts = points;
         Minecraft client = Minecraft.getInstance();
@@ -314,7 +395,8 @@ public final class CommissionRoute {
         }
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         float[] k = WorldRenderUtils.argbToFloats(cfg.getCommissionRouteColor());
-        Vec3 me = client.player.position().add(0, 0.1, 0);
+        Vec3 me = WorldRenderUtils.tracerOrigin(context);
+        lastOrigin = me;
         Vec3[] line = new Vec3[pts.length + 1];
         line[0] = me;
         System.arraycopy(pts, 0, line, 1, pts.length);
@@ -323,18 +405,16 @@ public final class CommissionRoute {
         if (!hops.isEmpty()) {
             FILLS.clear();
             LINES.clear();
-            boolean ether = cfg.getCommissionRouteMode() == MiningQolConfig.CommissionRouteMode.ETHERWARP;
+            // Each landing is a 3x3 patch on the block tops around it (killer560, 2026-11-03: "highlight a 3x3 area to
+            // etherwarp onto"), with the exact block's top outlined brighter inside it.
+            double e = 0.004;
             for (BlockPos p : hops) {
-                double e = 0.002;
-                if (ether) {
-                    FILLS.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e,
-                            p.getZ() + 1 + e, k[0], k[1], k[2], 0.3f);
-                    LINES.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e,
-                            p.getZ() + 1 + e, k[0], k[1], k[2], 1f);
-                } else {
-                    LINES.add(p.getX() + 0.3, p.getY(), p.getZ() + 0.3, p.getX() + 0.7, p.getY() + 0.4, p.getZ() + 0.7,
-                            k[0], k[1], k[2], 1f);
-                }
+                double top = p.getY() + 1.0 + e;
+                FILLS.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.3f);
+                LINES.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.8f);
+                LINES.add(p.getX(), top, p.getZ(), p.getX() + 1, top + 0.03, p.getZ() + 1, k[0], k[1], k[2], 1f);
+                lastPatch = new double[]{p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, p.getZ() + 2};
+                patches++;
             }
             FILLS.drawFilled(context, RenderTypes.debugFilledBox());
             LINES.drawOutlines(context, RenderTypes.LINES_TRANSLUCENT, 2f);
@@ -384,6 +464,21 @@ public final class CommissionRoute {
 
     public static String currentTargetArea() {
         return targetArea;
+    }
+
+    /** Where the last drawn line started: the crosshair end of the camera's look (testkit). */
+    public static double[] lastOrigin() {
+        Vec3 o = lastOrigin;
+        return o == null ? null : new double[]{o.x, o.y, o.z};
+    }
+
+    /** The last 3x3 landing patch drawn: minX, topY, minZ, maxX, maxZ (testkit). */
+    public static double[] lastPatch() {
+        return lastPatch;
+    }
+
+    public static int patches() {
+        return patches;
     }
 
     public static int frames() {

@@ -97,6 +97,16 @@ public final class WrongArmorAlert {
     }
 
     /** Client tick (from {@link MiningQolFeatures}). */
+    /** Gap between two alarm beeps while the armor stays wrong. */
+    static final long ALERT_REPEAT_MS = 1000L;
+    private static long lastSoundMs = 0L;
+    private static int soundCount = 0;
+
+    /** Alarm beeps played since start (testkit). */
+    public static int soundCount() {
+        return soundCount;
+    }
+
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         Player player = client.player;
@@ -128,9 +138,14 @@ public final class WrongArmorAlert {
         if (wrong) {
             if (!showing) {
                 shownCount++;
-                if (cfg.isWrongArmorSound()) {
-                    client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BASS.value(), 0.8f, 1.0f));
-                }
+            }
+            // An alarm, not one blip: a two-tone beep every ALERT_REPEAT_MS for as long as the wrong armor holds
+            // (killer560, 2026-11-03: "have the wrong armor sound keep playing and be more of an alert style").
+            if (cfg.isWrongArmorSound() && now - lastSoundMs >= ALERT_REPEAT_MS) {
+                lastSoundMs = now;
+                soundCount++;
+                client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 1.8f, 0.9f));
+                client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BASS.value(), 0.7f, 1.0f));
             }
             showing = true;
             lastWrongMs = now;
@@ -156,6 +171,7 @@ public final class WrongArmorAlert {
 
     static void reset() {
         lastDigMs = 0L;
+        lastSoundMs = 0L;
         showing = false;
     }
 

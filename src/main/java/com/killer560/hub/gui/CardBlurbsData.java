@@ -16,6 +16,7 @@ final class CardBlurbsData {
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
         d.put("MiningWrongArmorTab", "Warns when mining without mining armor.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
+        d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
         d.put("MiningPickobulusTab", "Outlines its break area.");

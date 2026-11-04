@@ -20,10 +20,6 @@ public class MiningCarpetTab extends BaseTab {
         int y = contentY;
         w.add(onOffButton("Carpet Highlighter", () -> cfg.isCarpetRaw(), cfg::setCarpet, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
-        y += MiningQolRows.STEP;
-
-        MiningQolRows.color(w, contentX, y, contentWidth, "Carpet Color", cfg::getCarpetColor, cfg::setCarpetColor,
-                MiningQolConfig.DEFAULT_CARPET_COLOR, cfg::save);
         return w;
     }
 }

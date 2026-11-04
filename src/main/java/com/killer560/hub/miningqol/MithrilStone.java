@@ -55,6 +55,10 @@ public final class MithrilStone {
      * to draw it as is.
      */
     public static BlockState replace(BlockState state, int x, int y, int z) {
+        BlockState red = MiningHighlights.carpetReplace(state, x, y, z);
+        if (red != null) {
+            return red;
+        }
         if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) {
             return null;
         }
@@ -85,7 +89,12 @@ public final class MithrilStone {
             return false;
         }
         String a = MinesAreaMap.areaAt(x, y, z);
-        return a == null ? active : !wanted.at(a, null);
+        // A block the map can place is judged by its own area. One it cannot place (no map yet) takes the player's area; with
+        // a map loaded an unplaceable block is not wanted: standing in an area never makes the blocks around it that area's.
+        if (a == null) {
+            return MinesAreaMap.loaded() ? true : active;
+        }
+        return !wanted.at(a, null);
     }
 
     static void tick(Minecraft client) {
