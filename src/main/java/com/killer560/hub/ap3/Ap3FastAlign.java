@@ -499,11 +499,7 @@ final class Ap3FastAlign {
             }
             boolean improved = false;
             for (int tries = 0; tries < 5 && !improved; tries++) {
-                double[][] aa = new double[k][k];
-                for (int i = 0; i < k; i++) {
-                    System.arraycopy(a[i], 0, aa[i], 0, k);
-                    aa[i][i] += lambda * (a[i][i] + 1e-12);
-                }
+                double[][] aa = damped(a, k, lambda, 1e-12);
                 double[] dy = solveLinear(aa, g.clone());
                 if (dy == null) {
                     lambda *= 10;
@@ -637,11 +633,7 @@ final class Ap3FastAlign {
                 }
                 boolean improved = false;
                 for (int tries = 0; tries < 6 && !improved; tries++) {
-                    double[][] aa = new double[k][k];
-                    for (int i = 0; i < k; i++) {
-                        System.arraycopy(a[i], 0, aa[i], 0, k);
-                        aa[i][i] += lambda * (a[i][i] + 1e-9);
-                    }
+                    double[][] aa = damped(a, k, lambda, 1e-9);
                     double[] dy = solveLinear(aa, g.clone());
                     if (dy == null) {
                         lambda *= 10;
@@ -694,6 +686,16 @@ final class Ap3FastAlign {
             s += a[i] * b[i];
         }
         return s;
+    }
+
+    /** Levenberg-Marquardt damping: {@code a} with {@code lambda * (diagonal + eps)} added on its diagonal. */
+    static double[][] damped(double[][] a, int k, double lambda, double eps) {
+        double[][] aa = new double[k][k];
+        for (int i = 0; i < k; i++) {
+            System.arraycopy(a[i], 0, aa[i], 0, k);
+            aa[i][i] += lambda * (a[i][i] + eps);
+        }
+        return aa;
     }
 
     private static double[] solveLinear(double[][] a, double[] b) {
