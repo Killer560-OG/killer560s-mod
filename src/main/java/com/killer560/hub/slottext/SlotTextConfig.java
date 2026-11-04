@@ -98,42 +98,26 @@ public final class SlotTextConfig {
         }
     }
 
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         SlotTextFeature.settingsChanged();
     }
 
-    public Mode getMode() {
-        return mode;
-    }
+    public Mode getMode() { return mode; }
 
-    public void setMode(Mode mode) {
-        this.mode = mode == null ? Mode.ALWAYS : mode;
-    }
+    public void setMode(Mode mode) { this.mode = mode == null ? Mode.ALWAYS : mode; }
 
-    public int getKeyCode() {
-        return keyCode;
-    }
+    public int getKeyCode() { return keyCode; }
 
-    public void setKeyCode(int keyCode) {
-        this.keyCode = KeyUtil.sanitizeBind(keyCode);
-    }
+    public void setKeyCode(int keyCode) { this.keyCode = KeyUtil.sanitizeBind(keyCode); }
 
-    public boolean isSkyblockOnly() {
-        return skyblockOnly;
-    }
+    public boolean isSkyblockOnly() { return skyblockOnly; }
 
-    public void setSkyblockOnly(boolean skyblockOnly) {
-        this.skyblockOnly = skyblockOnly;
-    }
+    public void setSkyblockOnly(boolean skyblockOnly) { this.skyblockOnly = skyblockOnly; }
 
-    public boolean isTypeEnabled(SlotTextType type) {
-        return types.getOrDefault(type, type.defaultOn);
-    }
+    public boolean isTypeEnabled(SlotTextType type) { return types.getOrDefault(type, type.defaultOn); }
 
     public void setTypeEnabled(SlotTextType type, boolean on) {
         types.put(type, on);

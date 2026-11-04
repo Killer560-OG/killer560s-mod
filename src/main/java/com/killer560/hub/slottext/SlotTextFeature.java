@@ -67,9 +67,7 @@ public final class SlotTextFeature {
     }
 
     /** Call after any setting that changes what is drawn; cached results are rebuilt on the next frame. */
-    public static void settingsChanged() {
-        generation++;
-    }
+    public static void settingsChanged() { generation++; }
 
 
     /** Whether text should be drawn this frame: feature on, Skyblock gate, and the key rule of the chosen mode. */
@@ -579,9 +577,7 @@ public final class SlotTextFeature {
     }
 
     /** Whether {@code s} is a non-empty Roman numeral made only of I V X L C D M. */
-    public static boolean isRoman(String s) {
-        return s != null && !s.isEmpty() && s.length() <= 15 && s.matches("[IVXLCDM]+");
-    }
+    public static boolean isRoman(String s) { return s != null && !s.isEmpty() && s.length() <= 15 && s.matches("[IVXLCDM]+"); }
 
     /** Value of a Roman numeral (subtractive notation); 0 if {@code s} is not one. Public for the tests. */
     public static int roman(String s) {
