@@ -107,6 +107,23 @@ public final class CryptScanner {
         LOGGER.info("[CryptScan] {} at {}: {}", verdict, anchor.toShortString(), detail);
     }
 
+    /** {@code seeds} plus every bottom smooth stone slab joined to them on the same layer, capped at {@code 4 * LID_MAX}. */
+    private static Set<BlockPos> slabRing(Level level, Set<BlockPos> seeds) {
+        ArrayDeque<BlockPos> walk = new ArrayDeque<>(seeds);
+        Set<BlockPos> all = new HashSet<>(seeds);
+        while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
+            BlockPos here = walk.poll();
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                if (!all.contains(next) && isLidSlab(level.getBlockState(next))) {
+                    all.add(next);
+                    walk.add(next);
+                }
+            }
+        }
+        return all;
+    }
+
     /** A bottom smooth stone slab - what a crypt lid is made of. */
     static boolean isLidSlab(BlockState state) {
         return state.is(Blocks.SMOOTH_STONE_SLAB) && state.hasProperty(SlabBlock.TYPE)
@@ -195,21 +212,7 @@ public final class CryptScanner {
             crowns.addAll(lid);
             // The WHOLE ring: the slabs touching the lid are its sides, and the corner slabs join them on the same
             // layer (Big Red Flag's ring is 14 slabs, 10 touching the lid and 4 corners). Bottom slabs only, capped.
-            ArrayDeque<BlockPos> walk = new ArrayDeque<>(ring);
-            Set<BlockPos> all = new HashSet<>(ring);
-            while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
-                BlockPos here = walk.poll();
-                for (Direction dir : Direction.Plane.HORIZONTAL) {
-                    BlockPos next = here.relative(dir).immutable();
-                    var state = level.getBlockState(next);
-                    if (!all.contains(next) && state.is(Blocks.SMOOTH_STONE_SLAB)
-                            && state.getValue(SlabBlock.TYPE) == SlabType.BOTTOM) {
-                        all.add(next);
-                        walk.add(next);
-                    }
-                }
-            }
-            crowns.addAll(all);
+            crowns.addAll(slabRing(level, ring));
         }
         return crowns;
     }
@@ -254,19 +257,7 @@ public final class CryptScanner {
         if (!rimmed) return crowns;
         crowns.addAll(run);
         // The slabs touching the run, and the rest of the ring on the same layer (its corners touch only slabs).
-        ArrayDeque<BlockPos> walk = new ArrayDeque<>(touching);
-        Set<BlockPos> all = new HashSet<>(touching);
-        while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
-            BlockPos here = walk.poll();
-            for (Direction dir : Direction.Plane.HORIZONTAL) {
-                BlockPos next = here.relative(dir).immutable();
-                if (!all.contains(next) && isLidSlab(level.getBlockState(next))) {
-                    all.add(next);
-                    walk.add(next);
-                }
-            }
-        }
-        crowns.addAll(all);
+        crowns.addAll(slabRing(level, touching));
         return crowns;
     }
 
