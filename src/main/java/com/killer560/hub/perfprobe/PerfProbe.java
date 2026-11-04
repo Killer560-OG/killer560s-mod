@@ -70,7 +70,6 @@ public final class PerfProbe {
         }
     }
 
-    // ---- wrapping -----------------------------------------------------------------------------------------------
 
     /** The listener itself, or a timing proxy for it when the probe is on and it is one of this mod's classes. */
     @SuppressWarnings("unchecked")
@@ -180,7 +179,6 @@ public final class PerfProbe {
         exit(stat);
     }
 
-    // ---- timing -------------------------------------------------------------------------------------------------
 
     private static boolean onRenderThread() {
         Thread t = Thread.currentThread();
@@ -270,7 +268,6 @@ public final class PerfProbe {
         return STATS.computeIfAbsent(key, k -> new Stat(k, kind));
     }
 
-    // ---- naming -------------------------------------------------------------------------------------------------
 
     /** {@code com.killer560.hub.trail.TrailFeature$$Lambda/0x..} -> {@code trail.TrailFeature}; an anonymous
      *  {@code Foo$1} -> {@code Foo}; a named nested class keeps its name. */
