@@ -345,8 +345,4 @@ public final class SpiritBearTracker {
         return lastOverkill >= 0 ? "§6Last Overkill: §e" + lastOverkill : "§6Overkill: §70";
     }
 
-    public static int getKills() { return kills; }
-    public static int getOverkill() { return overkill; }
-    public static int getLastOverkill() { return lastOverkill; }
-    public static boolean isRingFull() { return ringFull; }
 }
