@@ -534,13 +534,10 @@ public final class BazaarFlipFeature {
 
     /** The best candidate the live page has not already refused at this price or lower ({@link #fallThrough}). */
     static BazaarFlipCandidate pick(List<BazaarFlipCandidate> ranked) {
-        for (BazaarFlipCandidate c : ranked) {
+        return ranked.stream().filter(c -> {
             Double refusedAt = rejected.get(c.productId());
-            if (refusedAt == null || c.averageUnitCost() < refusedAt - 1e-6) {
-                return c;
-            }
-        }
-        return null;
+            return refusedAt == null || c.averageUnitCost() < refusedAt - 1e-6;
+        }).findFirst().orElse(null);
     }
 
     private static void tickScanning() {
@@ -657,14 +654,9 @@ public final class BazaarFlipFeature {
         if (client.player == null || target == null) {
             return 0;
         }
-        int total = 0;
-        for (int i = 0; i < 36; i++) {
-            ItemStack stack = client.player.getInventory().getItem(i);
-            if (BazaarFlipMenus.isProduct(stack, target.productId(), target.displayName())) {
-                total += stack.getCount();
-            }
-        }
-        return total;
+        return java.util.stream.IntStream.range(0, 36).mapToObj(client.player.getInventory()::getItem)
+                .filter(stack -> BazaarFlipMenus.isProduct(stack, target.productId(), target.displayName()))
+                .mapToInt(ItemStack::getCount).sum();
     }
 
     private static void tickBazaar(Minecraft client, BazaarFlipConfig cfg) {
