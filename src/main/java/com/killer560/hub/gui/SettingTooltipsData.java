@@ -114,6 +114,11 @@ final class SettingTooltipsData {
         d.put("commission hud/commission mobs", "Boxes the mobs that count for your open commissions (Goblin Slayer: goblins, Glacite Walker Slayer: Glacite Walkers, Star Sentry Puncher...), only while you can see them. No range: a mob once recognized stays highlighted while it is loaded, even after its name tag stops arriving.");
         d.put("commission hud/commission mob color", "The color of the Commission Mobs boxes.");
         d.put("commission hud/commission mob style", "How commission mobs are drawn: Outline, Fill, Fill + Outline or Glow. Left click forward, right click back.");
+        d.put("commission route", "In the Dwarven Mines, draws a line from your crosshair along the island's paths to the area of your first open area commission, and to the nearest Emissary once one is done. Draws only.");
+        d.put("commission route/route color", "The color of the Commission Route line and its landing patches.");
+        d.put("commission route/route mode", "Walk: the walking path. AOTE: Aspect of the End teleports straight through air where they land on the path. Etherwarp: the fewest etherwarps, each landing a 3x3 of whole blocks. Left click forward, right click back.");
+        d.put("commission route/route to emissary", "When a commission is done, the line goes to the nearest Emissary. Off: the normal area line carries on.");
+        d.put("commission route/highlight royal pigeon", "When a commission is done, pulses the Royal Pigeon in your hotbar so you can use it to claim. Works on its own, whatever the route switches say.");
         d.put("commission hud/commission route", "In the Dwarven Mines, draws a line along the island's paths from you to the area of your first open area commission. It disappears once you are in that area. Only draws; never moves you.");
         d.put("commission hud/commission route color", "The color of the Commission Route line.");
         d.put("commission hud/route mode", "Walk: the walking path. AOTE: the path as Aspect of the End teleports, each landing marked. Etherwarp: the path as etherwarps, each block to warp onto highlighted. Left click forward, right click back.");

@@ -48,6 +48,60 @@ public final class MiningState {
     /** Bumped whenever what the features derive from (island, area, commissions) changes. */
     private static volatile int version = 0;
     private static String lastKey = "";
+    /** Commissions Hypixel's chat said are complete, before the tab shows DONE: lower-case name -> {expiry ms, tab percent when it was announced (-1: unknown)}. */
+    private static final java.util.Map<String, double[]> DONE_OVERRIDE = new java.util.concurrent.ConcurrentHashMap<>();
+    /** How long a chat-announced completion stands in for the tab (it only has to bridge the tab's lag). */
+    static final long DONE_OVERRIDE_MS = 15_000;
+
+    /**
+     * "ROYAL MINES MITHRIL Commission Complete!": that commission is DONE now, not when the tab next refreshes (killer560,
+     * 2026-11-03). Lasts until the tab shows it DONE itself, the Commissions menu is closed, or {@link #DONE_OVERRIDE_MS}.
+     */
+    static void markDone(String upperName, long now) {
+        double at = -1;
+        for (Commission c : commissions) {
+            if (c.name().equalsIgnoreCase(upperName)) {
+                at = CommissionProgress.pct(c.progress());
+            }
+        }
+        DONE_OVERRIDE.put(upperName.toLowerCase(java.util.Locale.ROOT), new double[]{now + DONE_OVERRIDE_MS, at});
+        List<Commission> now2 = applyDone(commissions, now);
+        if (now2 != commissions) {
+            commissions = now2;
+            version++;
+        }
+    }
+
+    static void clearDoneOverrides() {
+        DONE_OVERRIDE.clear();
+    }
+
+    private static List<Commission> applyDone(List<Commission> coms, long now) {
+        DONE_OVERRIDE.values().removeIf(e -> e[0] < now);
+        if (DONE_OVERRIDE.isEmpty()) {
+            return coms;
+        }
+        List<Commission> out = new ArrayList<>(coms.size());
+        boolean changed = false;
+        for (Commission c : coms) {
+            double[] e = c.done() ? null : DONE_OVERRIDE.get(c.name().toLowerCase(java.util.Locale.ROOT));
+            if (e != null && e[1] >= 0) {
+                double now2 = CommissionProgress.pct(c.progress());
+                if (now2 >= 0 && now2 < e[1] - 0.5) {
+                    // The tab reads LOWER than when it was announced: a new commission under that name, so it was claimed.
+                    DONE_OVERRIDE.remove(c.name().toLowerCase(java.util.Locale.ROOT));
+                    e = null;
+                }
+            }
+            if (e != null) {
+                out.add(new Commission(c.name(), "DONE", true));
+                changed = true;
+            } else {
+                out.add(c);
+            }
+        }
+        return changed ? List.copyOf(out) : coms;
+    }
 
     private MiningState() {
     }
@@ -64,7 +118,7 @@ public final class MiningState {
             List<String> section = readSection(listed, COMMISSIONS);
             known = section != null;
             if (section != null) {
-                coms = parse(section);
+                coms = applyDone(parse(section), System.currentTimeMillis());
             }
             List<String> ab = readSection(listed, PICKAXE_ABILITY);
             ability = ab == null ? List.of() : ab;

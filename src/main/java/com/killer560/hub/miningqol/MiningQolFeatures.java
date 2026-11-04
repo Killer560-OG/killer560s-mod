@@ -52,6 +52,7 @@ public final class MiningQolFeatures {
             MiningHighlights.tick(client);
             RaffleLog.tick(client);
             MithrilStone.tick(client);
+            CommissionClaim.tick(client);
             CommissionRoute.tick(client);
             PowderGhast.tick(client);
         }));
