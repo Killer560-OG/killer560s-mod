@@ -104,6 +104,14 @@ public final class BlinkCharge {
     private static net.minecraft.world.phys.Vec3 prevPingPos;
     private static long prevPingMs;
     private static final long PING_FRESH_MS = 250L;
+    /**
+     * No server ping for this long means the server (or the link) stalled. The held answers go at once and banking stops
+     * until pings come again: GrimAC measures a stall from the newest answer it has, so answers held the usual second would
+     * put every stall over its 1000 ms ping-abuse limit (blinklag-1104). The bank is kept and backed again afterwards.
+     */
+    private static final long STALL_MS = 150L;
+    private static volatile boolean stalled;
+    private static long stallsSeen;
     private static long pongsAtSplit;
     private static long splitAtMs;
     private static boolean splitWaitSaid;
@@ -555,6 +563,7 @@ public final class BlinkCharge {
                     lastPingPos = me.position();
                     lastPingMs = System.currentTimeMillis();
                 }
+                stalled = false;
                 Answer a = new Answer(new Held(packet, listener, flush), System.currentTimeMillis());
                 answers.addLast(a);
                 markHeldBlocksLocked(a);
@@ -620,10 +629,10 @@ public final class BlinkCharge {
                 if (settling) {
                     settleTicks--;
                 }
-                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling;
+                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling && !stalled;
                 // Ticks of a kept bank GrimAC no longer backs (the waiting answers went out early: a hold, a configuration
                 // phase) are backed again first, by withholding still ticks without counting them (campaign-blink-1027).
-                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling;
+                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling && !stalled;
                 if (reback) {
                     dropStash();
                     busy = false;
@@ -791,6 +800,10 @@ public final class BlinkCharge {
 
     public static int unbacked() {
         return unbacked;
+    }
+
+    public static long stallsSeen() {
+        return stallsSeen;
     }
 
     public static long rebackedTotal() {
@@ -1228,6 +1241,16 @@ public final class BlinkCharge {
             return;
         }
         synchronized (LOCK) {
+            if (!stalled && lastPingMs > 0 && System.currentTimeMillis() - lastPingMs > STALL_MS && tpSegs.isEmpty()) {
+                stalled = true;
+                stallsSeen++;
+                int n = releaseAnswersLocked();
+                BlinkLog.event("charge: no server ping for %d ms - lag; %d answer(s) sent now, banking paused (bank %d kept)",
+                        System.currentTimeMillis() - lastPingMs, n, banked);
+                if (n > 0) {
+                    answersWentEarly("server lag");
+                }
+            }
             if (!tickOpen && heldBlocks.isEmpty()) { // with block changes held, pumpDeferredBlocks released them above
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
@@ -1365,6 +1388,8 @@ public final class BlinkCharge {
             offAfterShot = false;
             active = true;
         }
+        lastPingMs = 0L; // a server that never pings is never judged stalled
+        stalled = false;
         bankEmptySinceMs = System.currentTimeMillis();
         statusTicks = 0;
         statusBanked = bankedTotal;
