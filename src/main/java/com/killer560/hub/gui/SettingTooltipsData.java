@@ -1205,7 +1205,7 @@ final class SettingTooltipsData {
         d.put("highlight best upgrade", "Outlines the upgrade with the best chocolate-per-second value green, and other upgrades you can afford yellow.");
         d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
         d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
-        d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
+        d.put("time tower reminder", "Outlines the Time Tower when it has a charge and is not running (no chat message).");
         d.put("hoppity egg timers", "A movable HUD with the six Hoppity eggs: each ready, found or ? when unknown, and when the next one spawns. Read-only.");
         d.put("egg extra info", "Adds the rest of Hoppity's info to the egg HUD: eggs spawned, time to the next egg, eggs left and the tracker totals.");
         d.put("egglocator tracer line", "Draws a line from your crosshair to the Egglocator's guess. Off leaves just the box and label on the guessed block.");
