@@ -671,10 +671,10 @@ final class SettingTooltipsData {
         d.put("s2 leaps", "Teammates expected to leap to you in section 2. 0 turns it off.");
         d.put("s3 leaps", "Teammates expected to leap to you in section 3. 0 turns it off.");
         d.put("s4 leaps", "Teammates expected to leap to you in section 4. 0 turns it off.");
-        d.put("core leaps", "Teammates expected to leap to you once inside the core. 0 turns it off.");
+        d.put("core leaps", "Teammates expected to leap into the core while you are inside it; one who lands anywhere in the core counts, not only near you. 0 turns it off.");
         d.put("relic leaps", "Teammates expected to leap to you in Phase 5. 0 turns it off.");
-        d.put("detection", "Counts a teammate as leaping to you when they cover the Jump Distance quickly and land within the Leap Radius.");
-        d.put("leap radius", "How close to you, in blocks, a teammate must land to count (1-8).");
+        d.put("detection", "Counts a teammate as leaping to you when they cover the Jump Distance quickly and land within the Leap Radius (in the core, anywhere inside it).");
+        d.put("leap radius", "How close to you, in blocks, a teammate must land to count (1-8). Not used in the core, where any landing inside the core counts.");
         d.put("jump distance", "Blocks a teammate must travel quickly for the arrival to count as a leap (3-20).");
         d.put("alert", "What happens when the expected number of teammates have leaped to you.");
         d.put("leap alert title", "Shows a screen title when everyone has leaped to you.");
