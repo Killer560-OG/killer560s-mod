@@ -79,6 +79,9 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 
 ## Chat and commands
 
+- `ServerCommands.toServer` returns false both with no connection and when Creation Cooldown blocks a /joininstance, so a
+  caller must not read false as "offline" or log success anyway: Party Commands' "!f3" was dropped, logged "Not sent (no
+  connection)" and still "queued F3" (2026-11-04). A floor request now waits the cooldown out (partycmd-1104, testkit 1104-partycmd-floor-*).
 - Fabric's `MODIFY_GAME` chains: each listener gets the previous one's return, and `GAME` plus
   `Gui.setOverlayMessage` get the final result (javap, fabric-message-api-v1 7.0.5 and 7.0.8). Stat Bars returned
   `Component.empty()` for the HP/mana action bar, which blanked it for Ability Cooldown, the live map, Auto Routes,

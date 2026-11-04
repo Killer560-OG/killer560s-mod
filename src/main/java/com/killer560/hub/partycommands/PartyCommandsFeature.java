@@ -1,6 +1,8 @@
 package com.killer560.hub.partycommands;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.creationcooldown.CreationCooldownConfig;
+import com.killer560.hub.creationcooldown.CreationCooldownFeature;
 import com.killer560.hub.dungeonqueue.DungeonQueueFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Channel;
@@ -89,6 +91,7 @@ public final class PartyCommandsFeature {
     /** {@code !reinv}: how long to leave the player out before inviting them back. */
     private static final long REINVITE_DELAY_MS = 5_000L;
     private static final String REINVITE_KEY = "reinvite:";
+    private static final String QUEUE_KEY = "queue-instance";
 
     private static final Deque<Long> GLOBAL_TIMES = new ArrayDeque<>();
     private static final Map<String, Deque<Long>> SENDER_TIMES = new HashMap<>();
@@ -194,10 +197,11 @@ public final class PartyCommandsFeature {
         // (info replies included: !coords, !location, !time and !holding say where he is and his time zone) for
         // anyone who is neither a teammate nor a friend, whatever chat it came from.
         // Your own "!pt dirt" in party chat is never a request to this client (killer560, 2026-11-03: it transferred
-        // his party away; "this shouldn't happen ever").
+        // his party away; "this shouldn't happen ever"). Only a floor request runs for you (2026-11-04: his own "!f3" as
+        // party leader was ignored while a teammate's worked).
         Minecraft selfClient = Minecraft.getInstance();
         String selfName = selfClient.player == null ? null : selfClient.player.getGameProfile().name();
-        if (selfName != null && selfName.equalsIgnoreCase(sender)) {
+        if (selfName != null && selfName.equalsIgnoreCase(sender) && command != Command.QUEUE_INSTANCE) {
             LOGGER.info("[PartyCommands] Ignored your own \"!{}\"", word);
             return false;
         }
@@ -215,7 +219,8 @@ public final class PartyCommandsFeature {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - you are not the party leader", word, sender);
             return true;
         }
-        if (!allowRate(sender)) {
+        // A floor request already waiting out Creation Cooldown is replaced, not rate limited: a retry is not spam.
+        if (!(command == Command.QUEUE_INSTANCE && isPending(QUEUE_KEY)) && !allowRate(sender)) {
             return true;
         }
         long received = System.currentTimeMillis();
@@ -319,7 +324,7 @@ public final class PartyCommandsFeature {
             case QUEUE_INSTANCE -> {
                 String instance = instanceFor(word);
                 if (instance != null) {
-                    execute(sender, "joininstance " + instance, "queued " + word.toUpperCase(Locale.US));
+                    queueInstance(sender, "joininstance " + instance, "queued " + word.toUpperCase(Locale.US));
                 }
             }
             default -> {
@@ -569,8 +574,27 @@ public final class PartyCommandsFeature {
     }
 
     private static void execute(String sender, String serverCommand, String description) {
-        toServer(serverCommand);
-        log(sender, description);
+        if (toServer(serverCommand)) {
+            log(sender, description);
+        }
+    }
+
+    /**
+     * A floor request inside Creation Cooldown's block waits it out and then goes (2026-11-04: "!f3" 15 s into the
+     * cooldown was blocked, dropped, and still logged "queued F3"). A newer request replaces a waiting one.
+     */
+    private static void queueInstance(String sender, String serverCommand, String description) {
+        long waitMs = CreationCooldownConfig.getInstance().isBlockCreation() ? CreationCooldownFeature.remainingMs() : 0L;
+        cancelPending(QUEUE_KEY);
+        if (waitMs <= 0) {
+            execute(sender, serverCommand, description);
+            return;
+        }
+        ClientLevel level = Minecraft.getInstance().level;
+        ModChat.log("Party Commands", ModChat.value(sender), ModChat.text(" " + description),
+                ModChat.dim(" - sending when Creation Cooldown ends (" + (waitMs + 999) / 1000 + " s)."));
+        schedule(waitMs + 250L, QUEUE_KEY, () -> Minecraft.getInstance().level == level,
+                () -> execute(sender, serverCommand, description));
     }
 
     /** Local-only record of what someone just made this client do - never silent, by design. */
@@ -580,10 +604,13 @@ public final class PartyCommandsFeature {
     }
 
     /** Hypixel's commands go below the client dispatcher (util/ServerCommands), never back into this mod's own. */
-    private static void toServer(String command) {
-        if (!ServerCommands.toServer(command)) {
-            LOGGER.info("[PartyCommands] Not sent (no connection): /{}", command);
+    private static boolean toServer(String command) {
+        if (ServerCommands.toServer(command)) {
+            return true;
         }
+        LOGGER.info("[PartyCommands] Not sent ({}): /{}", Minecraft.getInstance().getConnection() == null
+                ? "no connection" : "held back by Creation Cooldown", command);
+        return false;
     }
 
     /** Sends {@code message} back into the chat the command came from. */
@@ -675,6 +702,12 @@ public final class PartyCommandsFeature {
             }
         }
         return false;
+    }
+
+    private static void cancelPending(String key) {
+        synchronized (PENDING) {
+            PENDING.removeIf(p -> key.equals(p.key()));
+        }
     }
 
     private static void cancelReinvites(String reason) {
