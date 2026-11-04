@@ -337,11 +337,6 @@ public final class TicTacToeSolverFeature {
         return safePrediction(parse(cells));
     }
 
-    /** For the testkit: his best move (his turn) on a board given the same way, or null. */
-    public static Integer bestMoveFor(String cells) {
-        return getBestMove(parse(cells), true);
-    }
-
     private static char[] parse(String cells) {
         char[] board = new char[9];
         for (int i = 0; i < 9; i++) {
@@ -408,11 +403,6 @@ public final class TicTacToeSolverFeature {
     /** How many clicks Prevent Misclicks has stopped (the testkit reads it). */
     public static int blockedClicks() {
         return blockedClicks;
-    }
-
-    /** The prediction square, for the testkit. */
-    public static BlockPos getPredictedMove() {
-        return predictedMove;
     }
 
     private static BlockPos indexToPos(int i, int[] cr) {
