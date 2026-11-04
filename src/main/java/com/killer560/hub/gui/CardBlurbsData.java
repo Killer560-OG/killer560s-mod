@@ -14,7 +14,7 @@ final class CardBlurbsData {
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
-        d.put("MiningWrongArmorTab", "Warns when mining without mining armor.");
+        d.put("MiningWrongArmorTab", "Warns about wrong armor.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
@@ -24,8 +24,8 @@ final class CardBlurbsData {
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
-        d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
-        d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
+        d.put("TreasureChestHighlightTab", "Boxes your chests.");
+        d.put("TreasureChestAlertTab", "Chest spawn sound.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
@@ -194,7 +194,7 @@ final class CardBlurbsData {
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
         d.put("AhFlipperTab", "Finds underpriced BINs on the AH.");
-        d.put("AhPriceButtonsTab", "Copy LBIN, average or value when you list.");
+        d.put("AhPriceButtonsTab", "Copies prices on click.");
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");

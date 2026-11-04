@@ -2571,8 +2571,22 @@ public final class BloodCampFeature {
     /** A mob to hit: alive, not a stand, and not a real player - but a player-model NPC (Hypixel gives those a version-2
      *  UUID, real players version 4, the same test {@code leapcounter.LeapTracker} uses) is a mob. */
     private static boolean isAttackableMob(Entity entity) {
+        return isAttackableMob0(entity);
+    }
+
+    /** The entity id, or -1 for an entity never added to a level: 26.3's getId() throws "Tried to access entity ID before
+     *  ID assignment" there (testkit 686 asks about an NPC it built). Such an entity is in no dead-id set. */
+    private static int idOrNone(Entity entity) {
+        try {
+            return entity.getId();
+        } catch (IllegalStateException noId) {
+            return -1;
+        }
+    }
+
+    private static boolean isAttackableMob0(Entity entity) {
         return entity instanceof LivingEntity && entity.isAlive() && !entity.isRemoved()
-                && !DEAD_IDS.contains(entity.getId())
+                && !DEAD_IDS.contains(idOrNone(entity))
                 && !(entity instanceof ArmorStand)
                 && !(entity instanceof Player && entity.getUUID().version() == 4)
                 && !isPlayerSummon(entity)
