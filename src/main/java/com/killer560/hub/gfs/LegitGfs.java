@@ -48,12 +48,7 @@ public final class LegitGfs {
         }
 
         static Item byWord(String word) {
-            for (Item item : values()) {
-                if (item.word.equalsIgnoreCase(word)) {
-                    return item;
-                }
-            }
-            return null;
+            return java.util.Arrays.stream(values()).filter(item -> item.word.equalsIgnoreCase(word)).findFirst().orElse(null);
         }
     }
 
@@ -103,15 +98,10 @@ public final class LegitGfs {
 
     /** How many of {@code item} the player carries, counted by the name each stack shows. */
     private static int carriedCount(Minecraft client, Item item) {
-        int total = 0;
         var inv = client.player.getInventory();
-        for (int i = 0; i < inv.getContainerSize(); i++) {
-            var stack = inv.getItem(i);
-            if (!stack.isEmpty() && stack.getHoverName().getString().contains(item.label)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
+        return java.util.stream.IntStream.range(0, inv.getContainerSize()).mapToObj(inv::getItem)
+                .filter(stack -> !stack.isEmpty() && stack.getHoverName().getString().contains(item.label))
+                .mapToInt(stack -> stack.getCount()).sum();
     }
 
     /** Asks for one item by its chat name ({@code pearl}, {@code boom}, {@code leap}, {@code jerry}). */

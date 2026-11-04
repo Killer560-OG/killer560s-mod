@@ -94,27 +94,7 @@ public final class GoldorTriggerbotFeature {
             return;
         }
 
-        String gate = null;
-        if (!CheatUtils.isOnDungeonServer(client)) {
-            gate = "not on hypixel/p3sim";
-        } else if (McCompat.screen(client) != null) {
-            // Any screen, not just a container: with a menu up the mouse is not steering the crosshair, so
-            // "aimed at Goldor" is a stale reading of where you were looking. The gate refuses container
-            // screens by itself; this is the stricter half the gate deliberately leaves to the feature.
-            gate = "a screen is open";
-        } else if (player.isDeadOrDying()) {
-            gate = "dead";
-        } else if (!WitherEspFeature.isWitherBossActive(client)) {
-            gate = "not in the F7/M7 boss";
-        } else if (!classAllowed(cfg)) {
-            gate = "class not selected";
-        } else if (!cfg.isAllWithers()
-                && !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3) && !Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3)) {
-            // Chat-driven phase OR the y-band one, so joining mid-run (no Goldor line seen) still works, and so
-            // does p3sim, where the phase lines arrive exactly as they do on Hypixel.
-            gate = "not in P3";
-        }
-        if (gate != null) {
+        if (gated(client, player, cfg)) {
             clearAim();
             return;
         }
@@ -182,6 +162,22 @@ public final class GoldorTriggerbotFeature {
         nextClickDueTick = Math.max(nextClickDueTick, now - 1) + rollIntervalMs(cfg) / 50.0;
     }
 
+    /** True while any condition keeps the triggerbot from acting. */
+    private static boolean gated(Minecraft client, LocalPlayer player, GoldorTriggerbotConfig cfg) {
+        // Any screen, not just a container: with a menu up the mouse is not steering the crosshair, so
+        // "aimed at Goldor" is a stale reading of where you were looking. The gate refuses container
+        // screens by itself; this is the stricter half the gate deliberately leaves to the feature.
+        return !CheatUtils.isOnDungeonServer(client)
+                || McCompat.screen(client) != null
+                || player.isDeadOrDying()
+                || !WitherEspFeature.isWitherBossActive(client)
+                || !classAllowed(cfg)
+                // Chat-driven phase OR the y-band one, so joining mid-run (no Goldor line seen) still works, and so
+                // does p3sim, where the phase lines arrive exactly as they do on Hypixel.
+                || (!cfg.isAllWithers()
+                && !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3) && !Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3));
+    }
+
     /**
      * A fresh interval for every click: a CPS uniformly inside the configured band, converted to milliseconds.
      * Rolled in the CPS domain because that is the unit the slider promises.
@@ -233,11 +229,7 @@ public final class GoldorTriggerbotFeature {
 
     /** Your class (tab list / override) is one of the selected ones; an unknown class passes only when all are on. */
     private static boolean classAllowed(GoldorTriggerbotConfig cfg) {
-        boolean all = true;
-        for (com.killer560.hub.dungeonclass.DungeonClass c : com.killer560.hub.dungeonclass.DungeonClass.values()) {
-            all &= cfg.isClassEnabled(c);
-        }
-        return all || cfg.isClassEnabled(com.killer560.hub.leapmenu.PartyTracker.selfClass());
+        return java.util.Arrays.stream(com.killer560.hub.dungeonclass.DungeonClass.values()).allMatch(cfg::isClassEnabled) || cfg.isClassEnabled(com.killer560.hub.leapmenu.PartyTracker.selfClass());
     }
 
     private static void clearAim() {

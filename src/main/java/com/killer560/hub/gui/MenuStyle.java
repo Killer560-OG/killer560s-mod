@@ -309,45 +309,34 @@ public final class MenuStyle {
             return;
         }
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
-        r.outline(x, y, w, h, BLACK);
-        r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
-        r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);
-        r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, SHADE);
-        r.fill(x + w - 2, y + 2, x + w - 1, y + h - 2, SHADE);
+        bevelEdges(r, x, y, w, h);
     }
 
     /** The menu's outer panel: {@link #bevel} in {@link #PANEL_TOP}..{@link #PANEL_BOTTOM}, or, for a theme with a
      *  background of its own, the same bevel edges around that background. */
     public static void panel(GuiRects r, int x, int y, int w, int h) {
+        themed(r, x, y, w, h, PANEL_TOP, PANEL_BOTTOM, true);
+    }
+
+    /** {@link #bevel} in {@code top}..{@code bottom}, or the theme's own background (its panel or side fill). */
+    private static void themed(GuiRects r, int x, int y, int w, int h, int top, int bottom, boolean panelFill) {
         GreenTheme.Background bg = PANEL_BG;
         if (bg == null || w <= 2 || h <= 2) {
-            bevel(r, x, y, w, h, PANEL_TOP, PANEL_BOTTOM);
+            bevel(r, x, y, w, h, top, bottom);
             return;
         }
-        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.panel, false);
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, panelFill ? bg.panel : bg.side, false);
         bevelEdges(r, x, y, w, h);
     }
 
     /** The menu's sidebar: {@link #bevel} in {@link #SIDE_TOP}..{@link #SIDE_BOTTOM}, or the theme's own background. */
     public static void sidePanel(GuiRects r, int x, int y, int w, int h) {
-        GreenTheme.Background bg = PANEL_BG;
-        if (bg == null || w <= 2 || h <= 2) {
-            bevel(r, x, y, w, h, SIDE_TOP, SIDE_BOTTOM);
-            return;
-        }
-        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.side, false);
-        bevelEdges(r, x, y, w, h);
+        themed(r, x, y, w, h, SIDE_TOP, SIDE_BOTTOM, false);
     }
 
     /** The settings drawer: {@link #bevel} in {@link #DRAWER_TOP}..{@link #DRAWER_BOTTOM}, or the theme's own background. */
     public static void drawerPanel(GuiRects r, int x, int y, int w, int h) {
-        GreenTheme.Background bg = PANEL_BG;
-        if (bg == null || w <= 2 || h <= 2) {
-            bevel(r, x, y, w, h, DRAWER_TOP, DRAWER_BOTTOM);
-            return;
-        }
-        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.side, false);
-        bevelEdges(r, x, y, w, h);
+        themed(r, x, y, w, h, DRAWER_TOP, DRAWER_BOTTOM, false);
     }
 
     /** The well the feature cards sit in: {@link #well} in {@link #WELL}, or the theme's own background (with its glow). */
@@ -454,8 +443,8 @@ public final class MenuStyle {
             glow(r, x, y, w, h, SW_ON_BOTTOM, Math.round((0x40 + 0x20 * hover) * colour));
         }
         // pill: square ends softened by clipping a pixel off each corner
-        int top = colour <= 0f ? SW_OFF_TOP : colour >= 1f ? SW_ON_TOP : mix(SW_OFF_TOP, SW_ON_TOP, colour);
-        int bottom = colour <= 0f ? SW_OFF_BOTTOM : colour >= 1f ? SW_ON_BOTTOM : mix(SW_OFF_BOTTOM, SW_ON_BOTTOM, colour);
+        int top = ease(SW_OFF_TOP, SW_ON_TOP, colour);
+        int bottom = ease(SW_OFF_BOTTOM, SW_ON_BOTTOM, colour);
         r.fill(x + 1, y, x + w - 1, y + 1, BLACK);
         r.fill(x + 1, y + h - 1, x + w - 1, y + h, BLACK);
         r.fill(x, y + 1, x + 1, y + h - 1, BLACK);
@@ -467,7 +456,7 @@ public final class MenuStyle {
         int kx = x + 1 + Math.round(Math.max(0f, Math.min(1f, knob)) * (w - 2 - k));
         int ky = y + 1;
         int offKnob = hover <= 0f ? KNOB_OFF : mix(KNOB_OFF, mix(KNOB_OFF, TXT, 0.3f), hover);
-        int knobColour = colour <= 0f ? offKnob : colour >= 1f ? KNOB : mix(offKnob, KNOB, colour);
+        int knobColour = ease(offKnob, KNOB, colour);
         r.fill(kx + 1, ky, kx + k - 1, ky + k, knobColour);
         r.fill(kx, ky + 1, kx + k, ky + k - 1, knobColour);
         r.fill(kx + 1, ky, kx + k - 1, ky + 1, 0x60FFFFFF);
@@ -505,11 +494,7 @@ public final class MenuStyle {
         int top = ease(ease(BTN_TOP, BTN_HOVER_TOP, hover), BTN_PRESSED_TOP, press);
         int bottom = ease(ease(BTN_BOTTOM, BTN_HOVER_BOTTOM, hover), BTN_PRESSED_BOTTOM, press);
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
-        r.outline(x, y, w, h, BLACK);
-        r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
-        r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);
-        r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, SHADE);
-        r.fill(x + w - 2, y + 2, x + w - 1, y + h - 2, SHADE);
+        bevelEdges(r, x, y, w, h);
     }
 
     /** A red raised button (a destructive action asking for its confirming click). */
@@ -594,12 +579,7 @@ public final class MenuStyle {
     /** {@code Component.literal(s).withStyle(BOLD)}, the same object for the same text (render thread): a Component keeps
      *  its visual order, so a heading drawn every frame runs ICU's Bidi once instead of every frame (fps-gui-1015). */
     public static Component bold(String s) {
-        Component c = BOLD.get(s);
-        if (c == null) {
-            c = Component.literal(s).withStyle(net.minecraft.ChatFormatting.BOLD);
-            BOLD.put(s, c);
-        }
-        return c;
+        return BOLD.computeIfAbsent(s, k -> Component.literal(k).withStyle(net.minecraft.ChatFormatting.BOLD));
     }
 
     /** Text with no shadow. */

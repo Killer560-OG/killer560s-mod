@@ -95,11 +95,8 @@ public final class GifAudioFeature {
 
     private static void reloadNow() {
         List<Path> found;
-        try (Stream<Path> stream = GifPlayerFeature.list(GifPlayerFeature.folder())) {
-            found = stream.filter(Files::isRegularFile)
-                    .filter(GifAudioFeature::isSupportedAudio)
-                    .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
-                    .collect(Collectors.toList());
+        try {
+            found = GifPlayerFeature.folderFiles(GifAudioFeature::isSupportedAudio);
         } catch (IOException e) {
             LOGGER.error("Failed to list GIF folder for audio", e);
             return;
@@ -181,10 +178,11 @@ public final class GifAudioFeature {
 
     private static void closeAndRemove(String name) {
         Loaded l = clips.remove(name);
-        if (l != null) {
-            l.clip().stop();
-            l.clip().close();
+        if (l == null) {
+            return;
         }
+        l.clip().stop();
+        l.clip().close();
     }
 
     private static boolean isSupportedAudio(Path file) {
@@ -195,12 +193,9 @@ public final class GifAudioFeature {
     /** Every supported audio filename currently in the folder, regardless of its enabled state -
      *  for the tab's per-file toggle list. */
     public static List<String> discoverFileNames() {
-        try (Stream<Path> stream = GifPlayerFeature.list(GifPlayerFeature.folder())) {
-            return stream.filter(Files::isRegularFile)
-                    .filter(GifAudioFeature::isSupportedAudio)
-                    .map(p -> p.getFileName().toString())
-                    .sorted(String.CASE_INSENSITIVE_ORDER)
-                    .collect(Collectors.toList());
+        try {
+            return GifPlayerFeature.folderFiles(GifAudioFeature::isSupportedAudio).stream()
+                    .map(p -> p.getFileName().toString()).collect(Collectors.toList());
         } catch (IOException e) {
             return List.of();
         }
