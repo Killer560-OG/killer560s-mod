@@ -81,17 +81,11 @@ public final class WindowModeConfig {
         }
     }
 
-    public boolean isBorderlessFullscreenEnabled() {
-        return borderlessFullscreenEnabled;
-    }
+    public boolean isBorderlessFullscreenEnabled() { return borderlessFullscreenEnabled; }
 
-    public void setBorderlessFullscreenEnabled(boolean enabled) {
-        this.borderlessFullscreenEnabled = enabled;
-    }
+    public void setBorderlessFullscreenEnabled(boolean enabled) { this.borderlessFullscreenEnabled = enabled; }
 
-    public boolean hasSavedWindowedBounds() {
-        return hasSavedWindowedBounds;
-    }
+    public boolean hasSavedWindowedBounds() { return hasSavedWindowedBounds; }
 
     public void saveWindowedBounds(int x, int y, int width, int height) {
         this.savedWindowedX = x;
@@ -101,19 +95,11 @@ public final class WindowModeConfig {
         this.hasSavedWindowedBounds = true;
     }
 
-    public int getSavedWindowedX() {
-        return savedWindowedX;
-    }
+    public int getSavedWindowedX() { return savedWindowedX; }
 
-    public int getSavedWindowedY() {
-        return savedWindowedY;
-    }
+    public int getSavedWindowedY() { return savedWindowedY; }
 
-    public int getSavedWindowedWidth() {
-        return savedWindowedWidth;
-    }
+    public int getSavedWindowedWidth() { return savedWindowedWidth; }
 
-    public int getSavedWindowedHeight() {
-        return savedWindowedHeight;
-    }
+    public int getSavedWindowedHeight() { return savedWindowedHeight; }
 }
