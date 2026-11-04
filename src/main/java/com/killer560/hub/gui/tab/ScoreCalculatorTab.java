@@ -44,6 +44,17 @@ public class ScoreCalculatorTab extends BaseTab {
         y += 24;
 
         if (!cfg.isEnabled() && !isSearchScan()) {
+            // The 270/300 title popups work without the calculator (killer560, 2026-11-03: "make it so i can toggle 300
+            // score without the score calc on ... for the hud popup"). Party messages and the chat note still need it.
+            widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Score Alert Titles", false));
+            y += 16;
+            widgets.add(toggle("270 Title", cfg.isTitle270(), v -> cfg.setTitle270(v), cfg, contentX, y, colW));
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 270 Title"),
+                    btn -> ScoreCalculatorFeature.previewAlert(270)).bounds(col2X, y, colW, 18).build());
+            y += 20;
+            widgets.add(toggle("300 Title", cfg.isTitle300(), v -> cfg.setTitle300(v), cfg, contentX, y, colW));
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Preview 300 Title"),
+                    btn -> ScoreCalculatorFeature.previewAlert(300)).bounds(col2X, y, colW, 18).build());
             return widgets;
         }
 

@@ -193,7 +193,8 @@ public final class ScoreCalculatorFeature {
      * new beyond the map's own lines.
      */
     public static boolean estimateWanted() {
-        return ScoreCalculatorConfig.getInstance().isEnabled() || mapExtraInfoWanted() || ScoreWarnings.wanted();
+        ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
+        return cfg.isEnabled() || cfg.isTitle270() || cfg.isTitle300() || mapExtraInfoWanted() || ScoreWarnings.wanted();
     }
 
     /** Either map's Extra Info is on: the Dungeon Map HUD's (Map Extras) or the Interactive Map legend's. */
@@ -573,7 +574,20 @@ public final class ScoreCalculatorFeature {
         }
         ScoreWarnings.check(cfg, inputs, result, runTicks);
         if (!cfg.isEnabled()) {
-            return; // nor the 270/300 alerts while only a map's Extra Info (or Score Warning) is tracking
+            // Calculator off: only the 270/300 title popups may fire (killer560, 2026-11-03); no party message or note.
+            if (!said300 && result.total() >= 300) {
+                said300 = true;
+                said270 = true;
+                if (cfg.isTitle300()) {
+                    previewAlert(300);
+                }
+            } else if (!said270 && result.total() >= 270) {
+                said270 = true;
+                if (cfg.isTitle270()) {
+                    previewAlert(270);
+                }
+            }
+            return;
         }
         if (!said300 && result.total() >= 300) {
             said300 = true;
