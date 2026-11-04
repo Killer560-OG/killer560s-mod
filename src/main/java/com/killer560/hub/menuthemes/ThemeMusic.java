@@ -79,9 +79,7 @@ public final class ThemeMusic {
         return new Bundled(id, label, Identifier.fromNamespaceAndPath("killer560smod", "theme_music_" + id));
     }
 
-    public static List<Bundled> bundled() {
-        return BUNDLED;
-    }
+    public static List<Bundled> bundled() { return BUNDLED; }
 
     public static synchronized void register() {
         if (registered) {
@@ -182,9 +180,7 @@ public final class ThemeMusic {
     }
 
     /** The track's gain now: Theme Music Volume, 0..1. */
-    static float gain() {
-        return ThemeExtrasConfig.getInstance().getMusicVolume() / 100f;
-    }
+    static float gain() { return ThemeExtrasConfig.getInstance().getMusicVolume() / 100f; }
 
     /** The main menu is what is on screen: no world, the title screen seen since the last one, and not a connecting or
      *  loading screen. */
@@ -295,14 +291,10 @@ public final class ThemeMusic {
     }
 
     /** Looks the wanted track up again on the next tick (a file was just imported, perhaps over one of the same name). */
-    public static void forgetResolved() {
-        resolvedVersion = Integer.MIN_VALUE;
-    }
+    public static void forgetResolved() { resolvedVersion = Integer.MIN_VALUE; }
 
     /** True while a theme track or a preview is playing: vanilla's MusicManager stays quiet. */
-    public static boolean playing() {
-        return current != null || preview != null;
-    }
+    public static boolean playing() { return current != null || preview != null; }
 
 
     /** The preview playing now (Menu Theme's Play Preview, killer560 2026-10-22), or null. */
@@ -354,19 +346,13 @@ public final class ThemeMusic {
         }
     }
 
-    public static boolean previewing() {
-        return preview != null;
-    }
+    public static boolean previewing() { return preview != null; }
 
     /** What the Play Preview button runs when a preview ends (its label); replaced by each rebuild of the tab. */
-    public static void onPreviewEnded(Runnable r) {
-        previewEnded = r;
-    }
+    public static void onPreviewEnded(Runnable r) { previewEnded = r; }
 
     /** The event (or imported key) the preview plays, or null. */
-    public static String previewKey() {
-        return previewKey;
-    }
+    public static String previewKey() { return previewKey; }
 
     /** Whether the sound engine holds the preview as a live channel. */
     public static boolean previewEngineActive() {
@@ -374,14 +360,10 @@ public final class ThemeMusic {
         return p != null && Minecraft.getInstance().getSoundManager().isActive(p);
     }
 
-    public static int previewStarts() {
-        return previewStarts;
-    }
+    public static int previewStarts() { return previewStarts; }
 
     /** The engine's answer to the last preview's play. */
-    public static String lastPreviewResult() {
-        return lastPreviewResult;
-    }
+    public static String lastPreviewResult() { return lastPreviewResult; }
 
     /** Whether the preview plays once (not looping); for the testkit. */
     public static boolean previewLooping() {
@@ -391,9 +373,7 @@ public final class ThemeMusic {
 
 
     /** The event (or imported key) playing now, or null. */
-    public static String currentKey() {
-        return currentKey;
-    }
+    public static String currentKey() { return currentKey; }
 
     /** Whether the sound engine holds the current track as a live channel. */
     public static boolean engineActive() {
@@ -401,26 +381,16 @@ public final class ThemeMusic {
         return c != null && Minecraft.getInstance().getSoundManager().isActive(c);
     }
 
-    public static int starts() {
-        return starts;
-    }
+    public static int starts() { return starts; }
 
-    public static int stops() {
-        return stops;
-    }
+    public static int stops() { return stops; }
 
-    public static String lastStarted() {
-        return lastStarted;
-    }
+    public static String lastStarted() { return lastStarted; }
 
     /** The engine's answer to the last play (STARTED, STARTED_SILENTLY or NOT_STARTED). */
-    public static String lastResult() {
-        return lastResult;
-    }
+    public static String lastResult() { return lastResult; }
 
-    public static String lastError() {
-        return lastError;
-    }
+    public static String lastError() { return lastError; }
 
     /** The volume the current track was last given (0..1), or -1. */
     public static float currentVolume() {

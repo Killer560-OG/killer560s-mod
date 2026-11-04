@@ -148,18 +148,12 @@ public final class ThemeBackgrounds {
     }
 
 
-    public static boolean importing() {
-        return importing;
-    }
+    public static boolean importing() { return importing; }
 
     /** The last import's message (green on success, red on refusal), or null before any. */
-    public static String lastImport() {
-        return lastImport;
-    }
+    public static String lastImport() { return lastImport; }
 
-    public static int imports() {
-        return imports;
-    }
+    public static int imports() { return imports; }
 
     /**
      * Imports the file whose path is on the clipboard, on the import thread. {@code done} gets the new background's id

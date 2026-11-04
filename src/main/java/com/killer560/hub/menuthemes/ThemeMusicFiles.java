@@ -145,18 +145,12 @@ public final class ThemeMusicFiles {
     }
 
 
-    public static boolean importing() {
-        return importing;
-    }
+    public static boolean importing() { return importing; }
 
-    public static String lastImport() {
-        return lastImport;
-    }
+    public static String lastImport() { return lastImport; }
 
     /** Streams the engine opened for imported tracks (testkit evidence: the file really was handed to the engine). */
-    public static int streamsOpened() {
-        return streamsOpened;
-    }
+    public static int streamsOpened() { return streamsOpened; }
 
     /** Imports the clipboard's file on the import thread; {@code done} gets the new choice's id, or null on failure. */
     public static void importClipboardAsync(String clip, Consumer<String> done) {

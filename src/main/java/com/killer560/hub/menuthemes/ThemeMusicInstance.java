@@ -64,14 +64,10 @@ class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implem
     /** Starts even at volume 0 (a muted game, or the slider at 0%), so the track keeps its place and the volume can come
      *  back up without a restart. Vanilla's music does the same. */
     @Override
-    public boolean canStartSilent() {
-        return true;
-    }
+    public boolean canStartSilent() { return true; }
 
     @Override
-    public boolean isStopped() {
-        return stopped;
-    }
+    public boolean isStopped() { return stopped; }
 
     @Override
     public void tick() {
@@ -83,12 +79,8 @@ class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implem
     }
 
     /** The volume this instance asks for, before the engine's own scaling ({@code getVolume} needs a resolved sound). */
-    float rawVolume() {
-        return volume;
-    }
+    float rawVolume() { return volume; }
 
     /** Ends the track: the engine drops a stopped tickable on its next tick. */
-    void finish() {
-        stopped = true;
-    }
+    void finish() { stopped = true; }
 }

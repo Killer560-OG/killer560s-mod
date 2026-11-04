@@ -368,15 +368,9 @@ public final class ThemeBackgroundPlayer {
         return l == null ? -1 : l.uploadedIndex;
     }
 
-    public static int uploads() {
-        return uploads;
-    }
+    public static int uploads() { return uploads; }
 
-    public static int draws() {
-        return draws;
-    }
+    public static int draws() { return draws; }
 
-    public static String lastError() {
-        return lastError;
-    }
+    public static String lastError() { return lastError; }
 }
