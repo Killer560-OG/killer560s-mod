@@ -83,3 +83,19 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - In a gametest client quiet frames reached 51.5 ms in 200 ticks (1026-stutter-hooks, 2026-10-26, other clients running),
   so the "nothing fires on quiet frames" check uses a 500 ms threshold.
 
+
+## fps-1104 (everything fps tested)
+
+- Predictive Rooms' ray sweep was the largest cost at defaults in a dungeon (95-perf-features: 61 us/frame@144, 220 KB a
+  tick; 95-perf-predict alone: 909 us and 227 KB a tick), nearly all inside vanilla `level.clip`. `predict/PredictClip`
+  walks the ray as `BlockGetter.traverseBlocks` does (javap: identical on 26.2 and 26.3), skips air, reads each chunk
+  once per column and stops once the ray has left the target tiles' box: 579 us and 174 KB a tick, and testkit
+  95-perf-predict re-casts every ray with vanilla's clip under `RoomPredictor.VERIFY_CLIP` (115,688 rays, 0 different).
+  Any change to PredictClip reruns that check.
+- Only `HudInGameRenderer` opened the `HudTextCache` scope, so every other mod HUD layer (Hoppity Eggs, Inventory HUD,
+  alerts...) ran ICU Bidi over its String lines every frame. `BazaarHud.gate` now opens it around every layer whose
+  class is ours (Hoppity Eggs' HUD: 48 -> 38 us and 32 -> 15 KB a frame). Other mods' layers stay outside it.
+- With everything OFF the mod still costs ~200 us/frame@144 in the sim, spread thin: the HUD layer's per-element
+  position lookups (`resolvePosition`, ~2.5% of an ALL ON frame), FeatureGuard wrappers, Mining QoL's 14 sub-ticks
+  (0.2% in JFR). No single fix there is worth its risk; a per-frame position cache would be the next step.
+- `bench.sh` runs need the jar as `C:/Users/...`: run-scenario.ps1 reports "Mod under test not found" for `/c/Users/...`.
