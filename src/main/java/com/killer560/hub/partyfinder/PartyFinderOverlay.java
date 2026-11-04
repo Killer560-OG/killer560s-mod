@@ -89,7 +89,6 @@ public final class PartyFinderOverlay {
         });
     }
 
-    // ------------------------------------------------------------------------------------------ scanning
 
     private static void tick(Minecraft client) {
         // Background lookups outlive the menu, but not the world it was opened in (dungeon start, lobby swap).
@@ -187,7 +186,6 @@ public final class PartyFinderOverlay {
         return parties[slot.index];
     }
 
-    // ------------------------------------------------------------------------------------------ rendering
 
     /** Highlight: called right before the slot's item is drawn. */
     public static void drawSlotBackground(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, Slot slot) {
@@ -228,7 +226,6 @@ public final class PartyFinderOverlay {
                 slot.x + 14, slot.y + 8, cfg.getCountColor());
     }
 
-    // ------------------------------------------------------------------------------------------ tooltip
 
     /** @return the rewritten tooltip for a Party Finder party head, or null to leave it unchanged. */
     public static List<Component> rewriteTooltip(AbstractContainerScreen<?> screen, ItemStack stack, List<Component> lines) {
@@ -486,8 +483,7 @@ public final class PartyFinderOverlay {
         n /= 1000.0;
         if (n < 10.0) return String.format(Locale.US, "%.2fM", n);
         if (n < 100.0) return String.format(Locale.US, "%.1fM", n);
-        if (n < 1000.0) return String.format(Locale.US, "%.0fM", n);
-        return String.format(Locale.US, "%.2fB", n / 1000.0);
+        return n < 1000.0 ? String.format(Locale.US, "%.0fM", n) : String.format(Locale.US, "%.2fB", n / 1000.0);
     }
 
     private static Component literal(String text) {
@@ -499,7 +495,6 @@ public final class PartyFinderOverlay {
         return currentRole;
     }
 
-    // ------------------------------------------------------------------------------------------ settings-tab preview
 
     /** killer560 7.2: "live preview of the selected style using killer560, aut0balls, agreencatgirl,
      *  femboy_recruiter, latinomommy at cata/class 50/45/40/35/30". Fixed sample data, one per dungeon class,

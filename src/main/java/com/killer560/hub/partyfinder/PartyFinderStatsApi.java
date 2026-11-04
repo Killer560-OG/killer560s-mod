@@ -165,7 +165,6 @@ public final class PartyFinderStatsApi {
         volatile long relayErrorUntil;
         /** When the relay first answered it stale: polling then only follows the refresh, for a bounded time. */
         volatile long staleSince;
-        // direct
         volatile boolean directBusy;
         volatile long directRetryAt;
         volatile int directFailures;
@@ -418,7 +417,6 @@ public final class PartyFinderStatsApi {
         }
     }
 
-    // ------------------------------------------------------------------ the direct path
 
     private static void wakeDirect() {
         synchronized (DIRECT_LOCK) {
@@ -641,7 +639,6 @@ public final class PartyFinderStatsApi {
         }
     }
 
-    // ------------------------------------------------------------------ the relay
 
     private static void relayLoop() {
         while (true) {
@@ -852,7 +849,6 @@ public final class PartyFinderStatsApi {
         wakeDirect();
     }
 
-    // ------------------------------------------------------------------ the disk cache
 
     private static Path diskPath() {
         return ModPaths.config("killer560smod-partyfinder-stats-cache.json");
