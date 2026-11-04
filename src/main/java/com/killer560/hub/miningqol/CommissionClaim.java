@@ -25,9 +25,17 @@ import java.util.regex.Pattern;
 public final class CommissionClaim {
 
     private static final Pattern COMPLETE = Pattern.compile("^.{1,60} Commission Complete! Visit the King to claim your rewards!$");
-    private static final long CHAT_HOLD_MS = 20_000;
+    /** The chat line bridges only until the tab next updates its commission list, and never longer than this. */
+    private static final long CHAT_HOLD_MS = 10_000;
+    /** After the Commissions menu closes, a stale DONE in the tab is ignored this long (or until the tab updates). */
+    private static final long MENU_QUIET_MS = 5_000;
 
     private static volatile long chatUntil = 0;
+    private static volatile int chatVersion = -1;
+    private static volatile long quietUntil = 0;
+    private static volatile int quietVersion = -1;
+    private static boolean wasMenu = false;
+    private static boolean wasDone = false;
     private static volatile List<BlockPos> emissaryOverride = null;
     private static int pulseFrames = 0;
     private static int lastPulseSlot = -1;
@@ -53,12 +61,41 @@ public final class CommissionClaim {
     static void handle(String raw, long now) {
         if (raw.length() <= 100 && COMPLETE.matcher(raw).matches()) {
             chatUntil = now + CHAT_HOLD_MS;
+            chatVersion = MiningState.version();
         }
+    }
+
+    /** Client tick: a claim is over once the Commissions menu has been opened and closed, or the tab's DONE has gone. */
+    static void tick(Minecraft client) {
+        long now = System.currentTimeMillis();
+        boolean menu = com.killer560.hub.compat.McCompat.screen(client) instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> acs
+                && CommissionMenuHighlight.isMenu(acs);
+        if (wasMenu && !menu) {
+            chatUntil = 0;
+            quietUntil = now + MENU_QUIET_MS;
+            quietVersion = MiningState.version();
+        }
+        wasMenu = menu;
+        boolean done = MiningState.anyDone();
+        if (wasDone && !done) {
+            chatUntil = 0; // the DONE commission is gone from the tab: claimed
+        }
+        wasDone = done;
     }
 
     /** Whether a finished commission waits to be claimed. */
     public static boolean claimDue() {
-        return MiningState.dwarvenMines() && (MiningState.anyDone() || System.currentTimeMillis() < chatUntil);
+        if (!MiningState.dwarvenMines()) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        int v = MiningState.version();
+        if (now < quietUntil && v == quietVersion) {
+            return false;
+        }
+        // The chat line covers the lag before the tab shows DONE, and ends the moment the tab's list changes.
+        boolean bridge = now < chatUntil && v == chatVersion;
+        return MiningState.anyDone() || bridge;
     }
 
     /** The claim line goes to an Emissary (Commission Route on, Route To Emissary on, a claim due). */
@@ -67,10 +104,9 @@ public final class CommissionClaim {
         return cfg.isCommissionRoute() && cfg.isCommissionRouteEmissary() && claimDue();
     }
 
-    /** The Royal Pigeon pulses (Commission Route on, Route To Emissary off, a claim due). */
+    /** The Royal Pigeon pulses: Highlight Royal Pigeon on and a claim due (independent of the route switches). */
     public static boolean pigeonPulse() {
-        MiningQolConfig cfg = MiningQolConfig.getInstance();
-        return cfg.isCommissionRoute() && !cfg.isCommissionRouteEmissary() && claimDue();
+        return MiningQolConfig.getInstance().isCommissionPigeon() && claimDue();
     }
 
     /** Emissary spots (the ones the Commission HUD labels). */
@@ -136,6 +172,9 @@ public final class CommissionClaim {
 
     public static void resetForTest() {
         chatUntil = 0;
+        quietUntil = 0;
+        wasMenu = false;
+        wasDone = false;
         emissaryOverride = null;
         pulseFrames = 0;
         lastPulseSlot = -1;

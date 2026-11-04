@@ -47,28 +47,137 @@ public final class CommissionRoute {
 
     private static volatile Vec3[] points = new Vec3[0];
     private static volatile List<BlockPos> hopBlocks = List.of();
+    private static volatile List<BlockPos> patchBlocks = List.of();
     private static volatile int[] pathNodes = new int[0];
     private static volatile String targetArea = null;
-    private static String lastKey = "";
-    private static int sinceCompute = 0;
     private static int frames = 0;
     private static int computes = 0;
     private static volatile Vec3 lastOrigin = null;
-    private static volatile double[] lastPatch = null;
     private static int patches = 0;
+    /** The plan being followed; it is trimmed as he reaches its points and rebuilt only when it has to be. */
+    private static Cur cur = null;
+    private static String lastTried = "";
+    private static int sincePlan = 0;
+    /** Ticks before a plan that found nothing is tried again. */
+    private static final int RETRY_TICKS = 20;
+    /** Ticks before a plan he has walked off is rebuilt. */
+    private static final int OFF_TICKS = 10;
+    /** A point counts as reached within this many blocks sideways (and {@link #REACH_Y} up or down). */
+    private static final double REACH = 2.5;
+    private static final double REACH_Y = 3.0;
+    /** Further than this from the whole remaining line, he has left it. */
+    private static final double OFF_PATH = 8.0;
 
     private static final BoxBatch FILLS = new BoxBatch();
     private static final BoxBatch LINES = new BoxBatch();
+
+    /** The plan and what is left of it: parallel lists, one entry per point of the line. */
+    private static final class Cur {
+        final String key;
+        final List<Vec3> pts;
+        final List<BlockPos> hopAt;
+        final List<List<BlockPos>> patch;
+        final int[] nodes;
+        Vec3 anchor;
+
+        Cur(String key, Plan plan, List<List<BlockPos>> patch, Vec3 anchor) {
+            this.key = key;
+            this.pts = new ArrayList<>(plan.line);
+            this.hopAt = new ArrayList<>(plan.hopAt);
+            this.patch = new ArrayList<>(patch);
+            this.nodes = plan.nodes;
+            this.anchor = anchor;
+        }
+    }
 
     private CommissionRoute() {
     }
 
     private static void clear() {
-        points = new Vec3[0];
-        hopBlocks = List.of();
-        pathNodes = new int[0];
+        cur = null;
+        lastTried = "";
         targetArea = null;
-        lastKey = "";
+        publish();
+    }
+
+    private static void publish() {
+        Cur c = cur;
+        if (c == null) {
+            points = new Vec3[0];
+            hopBlocks = List.of();
+            patchBlocks = List.of();
+            pathNodes = new int[0];
+            return;
+        }
+        List<BlockPos> hops = new ArrayList<>();
+        List<BlockPos> boxes = new ArrayList<>();
+        for (int i = 0; i < c.pts.size(); i++) {
+            if (c.hopAt.get(i) != null) {
+                hops.add(c.hopAt.get(i));
+                boxes.addAll(c.patch.get(i));
+            }
+        }
+        points = c.pts.toArray(new Vec3[0]);
+        hopBlocks = List.copyOf(hops);
+        patchBlocks = List.copyOf(boxes);
+        pathNodes = c.nodes;
+    }
+
+    /**
+     * The 3x3 around a landing (killer560, 2026-11-03: "3x3 in that area and full block not just top layer. so if the 3x3 has
+     * 1 block down a block highlight that instead"): in each of the nine columns, the highest block you could etherwarp onto
+     * (solid, two free above) from three below the landing to two above it; a column with none is left out.
+     */
+    static List<BlockPos> patchAround(BlockPos ground) {
+        List<BlockPos> out = new ArrayList<>(9);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dy = 2; dy >= -3; dy--) {
+                    BlockPos b = ground.offset(dx, dy, dz);
+                    if (TeleportUtils.etherwarpable(b)) {
+                        out.add(b);
+                        break;
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    private static double segDist(Vec3 p, Vec3 a, Vec3 b) {
+        Vec3 ab = b.subtract(a);
+        double l2 = ab.lengthSqr();
+        double t = l2 <= 1e-9 ? 0 : Math.max(0, Math.min(1, p.subtract(a).dot(ab) / l2));
+        return a.add(ab.scale(t)).distanceTo(p);
+    }
+
+    /** Drops every point up to the furthest one he is standing at: a reached point or hop is done, no replan. */
+    private static void trim(Cur c, Vec3 pos) {
+        int last = -1;
+        for (int i = 0; i < c.pts.size(); i++) {
+            Vec3 q = c.pts.get(i);
+            if (Math.hypot(q.x - pos.x, q.z - pos.z) <= REACH && Math.abs(q.y - pos.y) <= REACH_Y) {
+                last = i;
+            }
+        }
+        for (int i = 0; i <= last; i++) {
+            c.anchor = c.pts.remove(0);
+            c.hopAt.remove(0);
+            c.patch.remove(0);
+        }
+    }
+
+    private static boolean offPath(Cur c, Vec3 pos) {
+        if (c.pts.isEmpty()) {
+            return false;
+        }
+        Vec3 a = c.anchor;
+        double best = Double.MAX_VALUE;
+        for (Vec3 q : c.pts) {
+            best = Math.min(best, segDist(pos, a, q));
+            a = q;
+        }
+        return best > OFF_PATH;
     }
 
     /** The area of the first open commission that names one, or null. */
@@ -114,38 +223,39 @@ public final class CommissionRoute {
             clear();
             return;
         }
-        IslandGraph.Node start = g.nearest(pos.x, pos.y + 1.0, pos.z);
-        if (start == null) {
-            clear();
-            return;
-        }
         MiningQolConfig.CommissionRouteMode mode = cfg.getCommissionRouteMode();
-        String key = MiningState.version() + "|" + MinesAreaMap.version() + "|" + start.index + "|" + area + "|" + mode;
-        sinceCompute++;
-        if (key.equals(lastKey) || (sinceCompute < MIN_TICKS_BETWEEN && !lastKey.isEmpty())) {
-            return;
-        }
-        lastKey = key;
-        sinceCompute = 0;
-        computes++;
-        int[] goals = claim ? emissaryNodes(g) : MinesAreaMap.nodesInArea(area);
+        // What a plan depends on: where it goes, how, and the map. Not the commission percentages (they change every few
+        // seconds) and not which node he is nearest: those used to rebuild it, and its warps, again and again.
+        String key = area + "|" + mode + "|" + MinesAreaMap.version();
+        sincePlan++;
         targetArea = area;
-        if (goals.length == 0) {
-            points = new Vec3[0];
-            hopBlocks = List.of();
-            pathNodes = new int[0];
-            return;
+        boolean replan = false;
+        if (cur == null || !cur.key.equals(key)) {
+            replan = !key.equals(lastTried) || sincePlan >= RETRY_TICKS;
+        } else {
+            trim(cur, pos);
+            replan = offPath(cur, pos) && sincePlan >= OFF_TICKS;
         }
-        Plan plan = plan(g, pos, start.index, goals, mode);
-        if (plan == null) {
-            points = new Vec3[0];
-            hopBlocks = List.of();
-            pathNodes = new int[0];
-            return;
+        if (replan) {
+            lastTried = key;
+            sincePlan = 0;
+            computes++;
+            cur = null;
+            IslandGraph.Node start = g.nearest(pos.x, pos.y + 1.0, pos.z);
+            int[] goals = claim ? emissaryNodes(g) : MinesAreaMap.nodesInArea(area);
+            if (start != null && goals.length > 0) {
+                Plan plan = plan(g, pos, start.index, goals, mode);
+                if (plan != null) {
+                    List<List<BlockPos>> patch = new ArrayList<>();
+                    for (BlockPos h : plan.hopAt) {
+                        patch.add(h == null ? List.of() : patchAround(h));
+                    }
+                    cur = new Cur(key, plan, patch, pos);
+                    trim(cur, pos);
+                }
+            }
         }
-        pathNodes = plan.nodes;
-        hopBlocks = plan.hops;
-        points = plan.line.toArray(new Vec3[0]);
+        publish();
     }
 
     private static final String EMISSARY = "Emissary";
@@ -156,7 +266,7 @@ public final class CommissionRoute {
     static final double AOTE_COST = 5.0;
     private static final int MAX_RAYCAST_TESTS = 250;
 
-    private record Plan(List<Vec3> line, List<BlockPos> hops, int[] nodes) {
+    private record Plan(List<Vec3> line, List<BlockPos> hopAt, int[] nodes) {
     }
 
     /** The graph node nearest each Emissary. */
@@ -355,9 +465,10 @@ public final class CommissionRoute {
                 hops.add(s.hopOf[c]);
             } else {
                 line.add(NavigationManager.centre(g.nodes[c]));
+                hops.add(null);
             }
         }
-        return new Plan(line, List.copyOf(hops), nodes.stream().mapToInt(Integer::intValue).toArray());
+        return new Plan(line, hops, nodes.stream().mapToInt(Integer::intValue).toArray());
     }
 
     /** The block a stand at node point p is on: the first etherwarpable block at or just below its feet. */
@@ -401,21 +512,24 @@ public final class CommissionRoute {
         line[0] = me;
         System.arraycopy(pts, 0, line, 1, pts.length);
         WorldRenderUtils.renderLineStrip(context, line, k[0], k[1], k[2], 0.95f, 3f);
-        List<BlockPos> hops = hopBlocks;
-        if (!hops.isEmpty()) {
+        List<BlockPos> boxes = patchBlocks;
+        if (!boxes.isEmpty()) {
+            // Each landing is a 3x3 of WHOLE blocks, each column at the height you can stand on it, with the landing block
+            // itself outlined brighter. Depth-writing types (EspTypes), drawn from COLLECT_SUBMITS.
             FILLS.clear();
             LINES.clear();
-            // Each landing is a 3x3 patch on the block tops around it (killer560, 2026-11-03: "highlight a 3x3 area to
-            // etherwarp onto"), with the exact block's top outlined brighter inside it.
-            double e = 0.004;
-            for (BlockPos p : hops) {
-                double top = p.getY() + 1.0 + e;
-                FILLS.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.3f);
-                LINES.add(p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, top + 0.03, p.getZ() + 2, k[0], k[1], k[2], 0.8f);
-                LINES.add(p.getX(), top, p.getZ(), p.getX() + 1, top + 0.03, p.getZ() + 1, k[0], k[1], k[2], 1f);
-                lastPatch = new double[]{p.getX() - 1, top, p.getZ() - 1, p.getX() + 2, p.getZ() + 2};
-                patches++;
+            double e = 0.003;
+            for (BlockPos p : boxes) {
+                FILLS.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e, p.getZ() + 1 + e,
+                        k[0], k[1], k[2], 0.25f);
+                LINES.add(p.getX() - e, p.getY() - e, p.getZ() - e, p.getX() + 1 + e, p.getY() + 1 + e, p.getZ() + 1 + e,
+                        k[0], k[1], k[2], 0.8f);
             }
+            for (BlockPos p : hopBlocks) {
+                LINES.add(p.getX() - 2 * e, p.getY() - 2 * e, p.getZ() - 2 * e, p.getX() + 1 + 2 * e, p.getY() + 1 + 2 * e,
+                        p.getZ() + 1 + 2 * e, k[0], k[1], k[2], 1f);
+            }
+            patches = boxes.size();
             FILLS.drawFilled(context, com.killer560.hub.util.EspTypes.FILLED);
             LINES.drawOutlines(context, com.killer560.hub.util.EspTypes.LINES, 2f);
         }
@@ -472,11 +586,16 @@ public final class CommissionRoute {
         return o == null ? null : new double[]{o.x, o.y, o.z};
     }
 
-    /** The last 3x3 landing patch drawn: minX, topY, minZ, maxX, maxZ (testkit). */
-    public static double[] lastPatch() {
-        return lastPatch;
+    /** The blocks of the landing patches now drawn, as "x,y,z" (testkit). */
+    public static List<String> patchBlockList() {
+        List<String> out = new ArrayList<>();
+        for (BlockPos p : patchBlocks) {
+            out.add(p.getX() + "," + p.getY() + "," + p.getZ());
+        }
+        return out;
     }
 
+    /** How many patch boxes the last frame drew (testkit). */
     public static int patches() {
         return patches;
     }

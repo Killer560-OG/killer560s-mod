@@ -116,6 +116,8 @@ public final class MiningQolConfig {
     private CommissionRouteMode commissionRouteMode = CommissionRouteMode.WALK;
     /** Route to the nearest Emissary when a commission completes (killer560, 2026-11-03); off pulses the Royal Pigeon slot. */
     private boolean commissionRouteEmissary = true;
+    /** Pulse the Royal Pigeon's hotbar slot while a claim is due (killer560, 2026-11-03), apart from the route switches. */
+    private boolean commissionPigeon = true;
     // Pickobulus Estimate
     private boolean pickobulus = false;
     private int pickobulusColor = DEFAULT_PICKOBULUS_COLOR;
@@ -188,6 +190,7 @@ public final class MiningQolConfig {
                 cfg.commissionRoute = ConfigJson.getBool(o, "commissionRoute", cfg.commissionRoute);
                 cfg.commissionRouteColor = intOr(o, "commissionRouteColor", cfg.commissionRouteColor);
                 cfg.commissionRouteEmissary = ConfigJson.getBool(o, "commissionRouteEmissary", cfg.commissionRouteEmissary);
+                cfg.commissionPigeon = ConfigJson.getBool(o, "commissionPigeon", cfg.commissionPigeon);
                 cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
                         CommissionRouteMode.WALK);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
@@ -258,6 +261,7 @@ public final class MiningQolConfig {
             o.addProperty("commissionRoute", commissionRoute);
             o.addProperty("commissionRouteColor", commissionRouteColor);
             o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
+            o.addProperty("commissionPigeon", commissionPigeon);
             o.addProperty("commissionRouteMode", commissionRouteMode.name());
             o.addProperty("pickobulus", pickobulus);
             o.addProperty("pickobulusColor", pickobulusColor);
@@ -373,6 +377,14 @@ public final class MiningQolConfig {
 
     public void setCommissionMobsEsp(boolean v) {
         commissionMobsEsp = v;
+    }
+
+    public boolean isCommissionPigeon() {
+        return commissionPigeon;
+    }
+
+    public void setCommissionPigeon(boolean v) {
+        commissionPigeon = v;
     }
 
     public boolean isCommissionRouteEmissary() {

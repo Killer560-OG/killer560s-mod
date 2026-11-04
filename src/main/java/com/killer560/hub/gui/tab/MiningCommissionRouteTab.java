@@ -29,6 +29,9 @@ public class MiningCommissionRouteTab extends BaseTab {
         y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Route To Emissary", cfg::isCommissionRouteEmissary,
                 cfg::setCommissionRouteEmissary, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Highlight Royal Pigeon", cfg::isCommissionPigeon,
+                cfg::setCommissionPigeon, cfg::save);
         return w;
     }
 }
