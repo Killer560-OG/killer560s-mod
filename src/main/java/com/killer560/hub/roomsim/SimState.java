@@ -22,9 +22,7 @@ public final class SimState {
     }
 
     /** True only inside a sim world the mod itself opened. */
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
     /**
      * Whether sim behavior may act right now.
@@ -49,9 +47,7 @@ public final class SimState {
      * anything whose job is to create one, and to anything running from the main menu. The only question here
      * is whether he is attached to somebody else's server, and if he is the answer is no.
      */
-    public static boolean canOpen(Minecraft client) {
-        return client != null && client.getCurrentServer() == null;
-    }
+    public static boolean canOpen(Minecraft client) { return client != null && client.getCurrentServer() == null; }
 
     public static void enter(String code) {
         active = true;
@@ -70,9 +66,7 @@ public final class SimState {
      * the trap-room ability rule, the sidebar's "Room:" line, the tab list - answered from the old floor: he
      * stood in Atlas and was told "No abilities in a trap room", stood in Museum and the sidebar said Atlas.
      */
-    public static void replaceMapCode(String code) {
-        mapCode = code == null ? "" : code;
-    }
+    public static void replaceMapCode(String code) { mapCode = code == null ? "" : code; }
 
     public static void leave() {
         generatedFloor = false;
@@ -97,21 +91,13 @@ public final class SimState {
      */
     private static boolean generatedFloor;
 
-    public static boolean isGeneratedFloor() {
-        return generatedFloor;
-    }
+    public static boolean isGeneratedFloor() { return generatedFloor; }
 
-    public static void setGeneratedFloor(boolean value) {
-        generatedFloor = value;
-    }
+    public static void setGeneratedFloor(boolean value) { generatedFloor = value; }
 
-    public static String floorLabel() {
-        return floorLabel;
-    }
+    public static String floorLabel() { return floorLabel; }
 
-    public static void setFloorLabel(String label) {
-        floorLabel = label == null || label.isBlank() ? "F7" : label;
-    }
+    public static void setFloorLabel(String label) { floorLabel = label == null || label.isBlank() ? "F7" : label; }
 
     /**
      * The room the player is standing in, worked out from the sim's OWN map code.
@@ -171,9 +157,7 @@ public final class SimState {
         return decoded.nameTable()[id];
     }
 
-    public static String mapCode() {
-        return mapCode;
-    }
+    public static String mapCode() { return mapCode; }
 
     /** One map code and what it decodes to (null for a code that does not decode). Immutable, swapped whole. */
     private record DecodedCode(String code, MapCode.Decoded decoded) {

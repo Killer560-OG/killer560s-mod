@@ -368,27 +368,17 @@ public final class SimRedstoneKey {
     }
 
     /** For tests (server thread): {@code room}'s key found by somebody else - a teammate's pickup. */
-    public static void foundForTest(String room) {
-        FOUND.add(room);
-    }
+    public static void foundForTest(String room) { FOUND.add(room); }
 
     /** For tests: armed nodes on this floor. */
-    public static int armedCount() {
-        return NODE_ROOM.size();
-    }
+    public static int armedCount() { return NODE_ROOM.size(); }
 
     /** For tests: key heads still lying in the world. */
-    public static int keysLying() {
-        return KEYS.size();
-    }
+    public static int keysLying() { return KEYS.size(); }
 
     /** For tests: keys placed on a node this floor. */
-    public static int placedCount() {
-        return placedCount;
-    }
+    public static int placedCount() { return placedCount; }
 
     /** For tests: whether a room's key has been found and not placed. */
-    public static boolean keyFound(String room) {
-        return room != null && FOUND.stream().anyMatch(room::equalsIgnoreCase);
-    }
+    public static boolean keyFound(String room) { return room != null && FOUND.stream().anyMatch(room::equalsIgnoreCase); }
 }

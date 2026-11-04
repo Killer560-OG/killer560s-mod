@@ -38,9 +38,7 @@ public final class SimKeys {
      * item reach and unverified for keys; the Magnetic Talisman does not apply to keys, confirmed in game). The
      * Autopilot's Key Base Range setting stands in for the base. Was a flat 3-block guess.
      */
-    public static double pickupRange() {
-        return com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
-    }
+    public static double pickupRange() { return com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange(); }
 
     /** Dropped keys not yet picked up: the stand's UUID -> blood key? */
     private static final Map<UUID, Boolean> DROPPED = new ConcurrentHashMap<>();
@@ -105,9 +103,7 @@ public final class SimKeys {
     }
 
     /** Who picked up the last key and how far from it, for tests: "name|distance", or null. */
-    public static String lastPickup() {
-        return lastPickup;
-    }
+    public static String lastPickup() { return lastPickup; }
 
     /** Spends one team wither key; false when there is none. */
     static boolean useWitherKey() {
@@ -119,13 +115,9 @@ public final class SimKeys {
     }
 
     /** Whether the team holds the Blood Key. */
-    static boolean hasBloodKey() {
-        return bloodKey;
-    }
+    static boolean hasBloodKey() { return bloodKey; }
 
-    static void useBloodKey() {
-        bloodKey = false;
-    }
+    static void useBloodKey() { bloodKey = false; }
 
     public static void clear() {
         SimKeyRoom.disarm();

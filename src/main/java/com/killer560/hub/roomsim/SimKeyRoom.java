@@ -107,9 +107,7 @@ public final class SimKeyRoom {
      * Arms {@code roomName} beside any room already armed: its key is a Blood Key when {@code blood}. Client thread.
      * @return false when the sim cannot act or the room is not on the map
      */
-    static boolean arm(Minecraft client, String roomName, boolean blood) {
-        return arm(client, roomName, blood, null, -1);
-    }
+    static boolean arm(Minecraft client, String roomName, boolean blood) { return arm(client, roomName, blood, null, -1); }
 
     /**
      * {@link #arm} for a floor with mobs: {@code beforeRoom} is the room before it on the path to Blood and {@code doorIn}
@@ -152,13 +150,9 @@ public final class SimKeyRoom {
         return List.copyOf(out);
     }
 
-    private static String key(String name) {
-        return name.toLowerCase(Locale.ROOT);
-    }
+    private static String key(String name) { return name.toLowerCase(Locale.ROOT); }
 
-    public static void disarm() {
-        ARMED.clear();
-    }
+    public static void disarm() { ARMED.clear(); }
 
     /** {@code room|entered|enteredBy|lost|dropped} for tests (the first armed room), or null when none is armed. */
     public static String testState() {

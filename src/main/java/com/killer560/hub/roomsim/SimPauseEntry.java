@@ -55,9 +55,7 @@ public final class SimPauseEntry {
         return bottom < 0 ? screen.height - 46 : bottom + GAP;
     }
 
-    public static void register() {
-        ScreenEvents.AFTER_INIT.register(SimPauseEntry::onScreenInit);
-    }
+    public static void register() { ScreenEvents.AFTER_INIT.register(SimPauseEntry::onScreenInit); }
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
         if (!(screen instanceof PauseScreen) || !SimState.canAct(client)) {

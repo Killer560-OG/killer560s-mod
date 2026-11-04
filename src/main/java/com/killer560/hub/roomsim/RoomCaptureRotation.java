@@ -111,14 +111,10 @@ public final class RoomCaptureRotation {
                           int[] votes) {
 
         /** {@code "0:a 90:b 180:c 270:d"} for the secret hits. */
-        public String secretScores() {
-            return perRotation(secretHits);
-        }
+        public String secretScores() { return perRotation(secretHits); }
 
         /** {@code "0:a 90:b 180:c 270:d"} for the weighed votes. */
-        public String voteScores() {
-            return perRotation(votes);
-        }
+        public String voteScores() { return perRotation(votes); }
 
         private static String perRotation(int[] values) {
             StringBuilder sb = new StringBuilder();
@@ -188,14 +184,10 @@ public final class RoomCaptureRotation {
     }
 
     /** For Auto Routes' recording warning: the same answer as {@link #isUncertain(String)}. */
-    public static boolean uncertainForRecording(RoomLibrary.Room room) {
-        return room != null && isUncertain(room.name);
-    }
+    public static boolean uncertainForRecording(RoomLibrary.Room room) { return room != null && isUncertain(room.name); }
 
     /** Forget everything - for a room library reload, and for tests that rewrite captures. */
-    public static void clearCache() {
-        CACHE.clear();
-    }
+    public static void clearCache() { CACHE.clear(); }
 
     private static Verdict derive(RoomLibrary.Room room) {
         RoomEntry entry = RoomDatabase.lookupByName(room.name);
@@ -559,18 +551,12 @@ public final class RoomCaptureRotation {
         return room.palette.get(id);
     }
 
-    private static List<Integer> allFour() {
-        return new ArrayList<>(List.of(0, 90, 180, 270));
-    }
+    private static List<Integer> allFour() { return new ArrayList<>(List.of(0, 90, 180, 270)); }
 
-    private static String perRotation(int[] values) {
-        return Verdict.perRotation(values);
-    }
+    private static String perRotation(int[] values) { return Verdict.perRotation(values); }
 
     /** Tiles across, from a captured size - 33 is one tile, 65 two, 129 four. */
-    private static int tiles(int size) {
-        return (size - 1) / (RoomLibrary.TILE + 1);
-    }
+    private static int tiles(int size) { return (size - 1) / (RoomLibrary.TILE + 1); }
 
     /**
      * How far the database's secrets reach from the room's corner, as {@code {maxX, maxZ}}, or null.
@@ -596,9 +582,7 @@ public final class RoomCaptureRotation {
         return maxX < 0 ? null : new int[]{maxX, maxZ};
     }
 
-    private static List<RoomEntry.Pos> nullToEmpty(List<RoomEntry.Pos> list) {
-        return list == null ? List.of() : list;
-    }
+    private static List<RoomEntry.Pos> nullToEmpty(List<RoomEntry.Pos> list) { return list == null ? List.of() : list; }
 
     /**
      * Whether the database's secrets still land inside the capture once turned by {@code degrees}.

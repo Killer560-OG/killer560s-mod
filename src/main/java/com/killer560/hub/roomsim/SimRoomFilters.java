@@ -40,9 +40,7 @@ public final class SimRoomFilters {
 
 
     /** Re-reads the designer's file. For the testkit. */
-    public static void load() {
-        DESIGNER.load();
-    }
+    public static void load() { DESIGNER.load(); }
 
     /** Re-reads all three filter files (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
     public static void reloadAll() {
@@ -52,27 +50,17 @@ public final class SimRoomFilters {
     }
 
     /** The designer's filter back to none. */
-    public static void reset() {
-        DESIGNER.clear();
-    }
+    public static void reset() { DESIGNER.clear(); }
 
-    public static int activeCount() {
-        return DESIGNER.activeCount();
-    }
+    public static int activeCount() { return DESIGNER.activeCount(); }
 
-    public static boolean isDefault() {
-        return DESIGNER.isDefault();
-    }
+    public static boolean isDefault() { return DESIGNER.isDefault(); }
 
     /** Whether the designer's room list shows this room. */
-    public static boolean listMatches(String name) {
-        return DESIGNER.matches(name);
-    }
+    public static boolean listMatches(String name) { return DESIGNER.matches(name); }
 
     /** Whether Generate may put this room on a floor: {@link #listMatches}, but never refusing a required room. */
-    public static boolean generatorAllows(String name) {
-        return REQUIRED.contains(typeKey(name)) || listMatches(name);
-    }
+    public static boolean generatorAllows(String name) { return REQUIRED.contains(typeKey(name)) || listMatches(name); }
 
     /**
      * How many puzzle rooms Generate can place: allowed by the designer's filter AND a single tile, since the
@@ -92,13 +80,9 @@ public final class SimRoomFilters {
     }
 
 
-    public static String typeKey(String name) {
-        return SimRoomFilter.typeKey(name);
-    }
+    public static String typeKey(String name) { return SimRoomFilter.typeKey(name); }
 
-    public static String shapeKey(String name) {
-        return SimRoomFilter.shapeKey(name);
-    }
+    public static String shapeKey(String name) { return SimRoomFilter.shapeKey(name); }
 
     /** Usable rooms in the library, by name - the "M" of "N of M rooms". */
     public static List<String> usableNames() {

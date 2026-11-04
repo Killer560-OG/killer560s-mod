@@ -238,14 +238,10 @@ public final class SimRoomLevers {
         }
 
         /** The same rule taking only these blocks. */
-        Rule only(String... ids) {
-            return new Rule(room, lever, from, to, place, Set.of(ids));
-        }
+        Rule only(String... ids) { return new Rule(room, lever, from, to, place, Set.of(ids)); }
 
         /** The same rule with its lever placed, hanging from the block over it. */
-        Rule ceiling() {
-            return new Rule(room, lever, from, to, AttachFace.CEILING, only);
-        }
+        Rule ceiling() { return new Rule(room, lever, from, to, AttachFace.CEILING, only); }
     }
 
     private static final List<Rule> RULES = List.of(
@@ -619,9 +615,7 @@ public final class SimRoomLevers {
         return out;
     }
 
-    private static String key(int[] p) {
-        return p[0] + "," + p[1] + "," + p[2];
-    }
+    private static String key(int[] p) { return p[0] + "," + p[1] + "," + p[2]; }
 
     /** The block id (path only) a capture holds here; "air" outside it or for a column never read. */
     private static String idAt(RoomLibrary.Room room, int x, int y, int z) {
@@ -681,7 +675,5 @@ public final class SimRoomLevers {
     }
 
     /** For tests and the build log. */
-    public static int armedCount() {
-        return ARMED.size();
-    }
+    public static int armedCount() { return ARMED.size(); }
 }

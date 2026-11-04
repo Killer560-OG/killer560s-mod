@@ -121,9 +121,7 @@ public final class SimBlazePuzzle {
     }
 
     /** How tall the chain is for a spacing, in blocks of clearance needed above the origin. */
-    private static int chainHeight(int spacing) {
-        return (HEALTHS.length - 1) * spacing + 2;
-    }
+    private static int chainHeight(int spacing) { return (HEALTHS.length - 1) * spacing + 2; }
 
     /** The spacing the current arena was built with. */
     private static volatile int spacing = SPACINGS[0];
@@ -279,9 +277,7 @@ public final class SimBlazePuzzle {
      * says it spawned five. Rather than assert on an instrument that reads zero whatever is there, the test
      * asks the puzzle - and the puzzle only counts a blaze the level actually accepted.
      */
-    public static int spawnedCount() {
-        return spawnedIds == null ? 0 : spawnedIds.size();
-    }
+    public static int spawnedCount() { return spawnedIds == null ? 0 : spawnedIds.size(); }
 
     public static void build(Minecraft client, BlockPos origin) {
         // A standalone arena, not a bind to a captured room, and always the Lower Blaze half of the rule -
@@ -503,19 +499,13 @@ public final class SimBlazePuzzle {
     }
 
     /** True once every blaze has died in the required order. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** The room the current arena is bound in ("Higher Blaze" / "Lower Blaze"), or null for none or a standalone one. */
-    public static String boundRoom() {
-        return boundRoom;
-    }
+    public static String boundRoom() { return boundRoom; }
 
     /** Blazes killed in order so far in the current chain, for tests and logs. */
-    public static int killedInOrder() {
-        return nextRequired;
-    }
+    public static int killedInOrder() { return nextRequired; }
 
     /** Despawns whatever is left of the current arena and clears progress. Takes no arguments - grabs the
      *  client singleton the same way {@code SimAbilities}'s item-use handler does, since the three-method

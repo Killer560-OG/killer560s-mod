@@ -41,17 +41,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "sim";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     /** Room slots per side. The 11x11 cell grid holds rooms on even cells, so six of them. */
     private static final int GRID = (com.killer560.hub.livemap.DungeonLayout.GRID + 1) / 2;
@@ -70,9 +66,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private static volatile String labelsDrawn = "";
 
     /** What the last drawn frame wrote on the grid's rooms; each room's lines are joined by "|", rooms by ";". */
-    public static String labelsDrawn() {
-        return labelsDrawn;
-    }
+    public static String labelsDrawn() { return labelsDrawn; }
 
     /** What the menu closes back to (the title screen, the game). Re-pointed when the session's designer is reopened. */
     private Screen parent;
@@ -195,9 +189,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    void setParent(Screen parent) {
-        this.parent = parent;
-    }
+    void setParent(Screen parent) { this.parent = parent; }
 
     /** The shared frame and left column (SimMenuNav); this screen is the menu's Create a New Map page. */
     private SimMenuNav nav;
@@ -444,9 +436,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Same inverse of {@link RoomLibrary#footprint} the builder uses - they must not disagree. */
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /** Color per room type, so a floor reads at a glance the way the live map does. */
     private static int colourFor(String name) {
@@ -480,9 +470,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /** "Floor 1 · Generated" / "· Drawn" / "My Dungeon · Saved design" - a Load row's first line, what search matches. */
-    private static String historyTitle(SimMapHistory.Entry e) {
-        return e.title();
-    }
+    private static String historyTitle(SimMapHistory.Entry e) { return e.title(); }
 
     /** Puts a floor from the Load list back on the grid, at its own floor size, ready for Play. */
     private void loadEntry(SimMapHistory.Entry e) {
@@ -544,9 +532,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      * loads over it would build something other than what he is looking at - the exact failure the preview
      * exists to prevent.
      */
-    private void planStale() {
-        generated = null;
-    }
+    private void planStale() { generated = null; }
 
     /** The Puzzles slider's top: what this floor holds at the Rooms to blood set, or at its longest when that is Random. */
     private int puzzlesTop() {
@@ -598,9 +584,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Forget the rotations too - they belong to the plan that is being dropped. */
-    private void clearRotations() {
-        rotations.clear();
-    }
+    private void clearRotations() { rotations.clear(); }
 
     /**
      * Lays out a floor and puts it on the grid. Nothing is built and no world is opened.
@@ -857,19 +841,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      * straight through the settings row (killer560, 2026-09-29: "the search rooms section goes too low and
      * overlaps the top layer of things").
      */
-    private int listBottom() {
-        return rowAY() - 8;
-    }
+    private int listBottom() { return rowAY() - 8; }
 
     /** The top of the grid and of the room list: under the search row. Read by the testkit. */
-    public int listTop() {
-        return nav.contentY + 24;
-    }
+    public int listTop() { return nav.contentY + 24; }
 
     /** The y of the upper button row (floor, sliders, Generate); the lower row (Clear, Load, Play) is 24 below. */
-    private int rowAY() {
-        return nav.contentBottom - 20 - 24;
-    }
+    private int rowAY() { return nav.contentBottom - 20 - 24; }
 
     /**
      * Lays the grid out in whole screen pixels (killer560, 2026-10-16: "make this grid for rooms line up better").
@@ -1266,12 +1244,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

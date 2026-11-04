@@ -109,29 +109,19 @@ public final class SimMobFloor {
         LOGGER.info("[Sim] floor with mobs: {}", on ? "on" : "off");
     }
 
-    public static boolean isEnabled() {
-        return enabled;
-    }
+    public static boolean isEnabled() { return enabled; }
 
     /** Whether the Blood door of this floor wants the Blood Key (a floor with mobs whose key room drops one). */
-    static boolean bloodDoorNeedsKey() {
-        return enabled && planned && bloodNeedsKey && SimState.isActive();
-    }
+    static boolean bloodDoorNeedsKey() { return enabled && planned && bloodNeedsKey && SimState.isActive(); }
 
     /** Whether this floor says Hypixel's run lines. */
-    static boolean saysHypixelLines() {
-        return enabled && planned && SimState.isActive();
-    }
+    static boolean saysHypixelLines() { return enabled && planned && SimState.isActive(); }
 
     /** The plan in words, for tests and the log: "rooms: A(wither) > B(blood); fairy door N; blood needs key". */
-    public static String plan() {
-        return plan;
-    }
+    public static String plan() { return plan; }
 
     /** This floor's wither door cells in rush order (11x11 index), for tests. */
-    public static List<Integer> witherDoorCellsForTest() {
-        return List.copyOf(WITHER_CELLS);
-    }
+    public static List<Integer> witherDoorCellsForTest() { return List.copyOf(WITHER_CELLS); }
 
     /** The key rooms of this floor in rush order, "name|wither" or "name|blood", for tests. */
     public static List<String> keyRoomsForTest() {

@@ -179,9 +179,7 @@ public final class RoomLibrary {
         boolean fromJar;
 
         /** Whether this room is the untouched copy that shipped in the jar. */
-        public boolean isBundled() {
-            return fromJar;
-        }
+        public boolean isBundled() { return fromJar; }
 
         /**
          * The y band THIS capture covers.
@@ -216,9 +214,7 @@ public final class RoomLibrary {
         }
 
         /** How many block slots this room holds ({@code sizeX * sizeZ * (maxY - minY + 1)}). */
-        public int blockCount() {
-            return narrow != null ? narrow.length : wide.length;
-        }
+        public int blockCount() { return narrow != null ? narrow.length : wide.length; }
 
         /** The palette index at a raw {@link #index}, -1 for never read. No bounds handling beyond the array's. */
         public short blockAt(int i) {
@@ -240,9 +236,7 @@ public final class RoomLibrary {
         }
 
         /** Bytes this room's block array holds. */
-        public long blockBytes() {
-            return narrow != null ? narrow.length : 2L * wide.length;
-        }
+        public long blockBytes() { return narrow != null ? narrow.length : 2L * wide.length; }
 
         /** A copy of every block as shorts (the file form, and for tests). */
         public short[] blockArray() {
@@ -298,9 +292,7 @@ public final class RoomLibrary {
             return id;
         }
 
-        int index(int x, int y, int z) {
-            return (y - minY) * sizeX * sizeZ + z * sizeX + x;
-        }
+        int index(int x, int y, int z) { return (y - minY) * sizeX * sizeZ + z * sizeX + x; }
 
         /**
          * The captured palette index at these room-local coordinates, or -1 outside the capture.
@@ -360,9 +352,7 @@ public final class RoomLibrary {
             return seenColumn.length == 0 ? 0 : (double) seen / seenColumn.length;
         }
 
-        public boolean complete() {
-            return completeness() >= 0.999;
-        }
+        public boolean complete() { return completeness() >= 0.999; }
 
         /**
          * Captured at the footprint this version of the mod uses.
@@ -461,9 +451,7 @@ public final class RoomLibrary {
          */
         public String corruptReason;
 
-        public boolean usable() {
-            return currentFormat() && complete() && corruptReason == null;
-        }
+        public boolean usable() { return currentFormat() && complete() && corruptReason == null; }
     }
 
     /**
@@ -514,9 +502,7 @@ public final class RoomLibrary {
     }
 
     /** Whether the library has finished loading. */
-    public static synchronized boolean isReady() {
-        return loaded;
-    }
+    public static synchronized boolean isReady() { return loaded; }
 
     private static volatile boolean loading;
 
@@ -789,9 +775,7 @@ public final class RoomLibrary {
         return r == null || !r.currentFormat() ? 0 : Math.max(1, (r.sizeX - 1) / (TILE + 1));
     }
 
-    public static synchronized int roomCount() {
-        return ROOMS.size();
-    }
+    public static synchronized int roomCount() { return ROOMS.size(); }
 
     /**
      * Moves a room file that cannot be read out of the way.
@@ -824,9 +808,7 @@ public final class RoomLibrary {
     }
 
     /** A room's file name in the library, the shape every capture has been saved under ({@code Arrow_Trap.json}). */
-    static String safeName(String name) {
-        return name.replaceAll("[^A-Za-z0-9._-]", "_");
-    }
+    static String safeName(String name) { return name.replaceAll("[^A-Za-z0-9._-]", "_"); }
 
     private static void decodeShorts(String encoded, short[] into) {
         if (encoded == null || encoded.isEmpty()) {

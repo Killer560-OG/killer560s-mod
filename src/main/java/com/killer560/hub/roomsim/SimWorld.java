@@ -212,9 +212,7 @@ public final class SimWorld {
      * player is still on whatever server they were on. It is set once the world is loaded - see
      * {@link #onWorldLoaded}.
      */
-    public static void open(Minecraft client, String mapCode) {
-        open(client, mapCode, null, null);
-    }
+    public static void open(Minecraft client, String mapCode) { open(client, mapCode, null, null); }
 
     /**
      * Opens the sim world and builds something into it before handing it over.
@@ -384,9 +382,7 @@ public final class SimWorld {
     }
 
     /** Whether a build asked for through {@link #open} is still running (its loading screen is up). */
-    static boolean isBuilding() {
-        return buildInProgress;
-    }
+    static boolean isBuilding() { return buildInProgress; }
 
     /** Progress line for the loading screen, if one is up. */
     public static void buildProgress(String line) {

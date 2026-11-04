@@ -59,9 +59,7 @@ public final class SimMapHistory {
     public record Entry(long createdMs, String kind, String name, String floorCode, String floorLabel, String code,
                         Map<Integer, String> cells, int rooms, int puzzles) {
 
-        public boolean generated() {
-            return code != null;
-        }
+        public boolean generated() { return code != null; }
 
         /** "Floor 1 · Generated", "Floor 7 · Drawn", "My Dungeon · Saved design" - a Load row's first line. */
         public String title() {
@@ -71,9 +69,7 @@ public final class SimMapHistory {
             return floorLabel + " · " + (DRAWN.equals(kind) ? "Drawn" : "Generated");
         }
 
-        public String dateText() {
-            return DATE.format(Instant.ofEpochMilli(createdMs).atZone(ZoneId.systemDefault()));
-        }
+        public String dateText() { return DATE.format(Instant.ofEpochMilli(createdMs).atZone(ZoneId.systemDefault())); }
     }
 
     /** The removed Save button's file, read once by {@link #migratePresets} and never written. */

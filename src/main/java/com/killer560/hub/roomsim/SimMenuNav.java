@@ -58,18 +58,12 @@ public final class SimMenuNav {
     }
 
     /** The page shown last this session, or null. */
-    static Page lastPage() {
-        return lastPage;
-    }
+    static Page lastPage() { return lastPage; }
 
-    static void shown(Page page) {
-        lastPage = page;
-    }
+    static void shown(Page page) { lastPage = page; }
 
     /** What the Dungeon Sim button (and /map) opens: the designer at first, then the page he was on last. */
-    public static Screen open(Screen parent) {
-        return screenFor(lastPage == null ? Page.DESIGNER : lastPage, parent);
-    }
+    public static Screen open(Screen parent) { return screenFor(lastPage == null ? Page.DESIGNER : lastPage, parent); }
 
     /** The screen for {@code page}, closing back to {@code parent}. */
     static Screen screenFor(Page page, Screen parent) {
@@ -84,9 +78,7 @@ public final class SimMenuNav {
         return new SimMenuScreen(parent, page);
     }
 
-    static void go(Minecraft mc, Page page, Screen parent) {
-        McCompat.setScreen(mc, screenFor(page, parent));
-    }
+    static void go(Minecraft mc, Page page, Screen parent) { McCompat.setScreen(mc, screenFor(page, parent)); }
 
 
     private static final int ITEM_H = 20;
@@ -151,9 +143,7 @@ public final class SimMenuNav {
         add.accept(new Item("Back", false, x, backY(), w, ITEM_H, () -> McCompat.setScreen(mc, parent)));
     }
 
-    private int backY() {
-        return sideY + sideH - 6 - ITEM_H;
-    }
+    private int backY() { return sideY + sideH - 6 - ITEM_H; }
 
     /** The panel, its header bar with the menu's name, and the column's raised box. Widgets draw over it. */
     void drawFrame(GuiGraphicsExtractor g, int screenW, int screenH) {
@@ -184,9 +174,7 @@ public final class SimMenuNav {
         }
 
         /** Whether this entry is the page on screen. Read by the testkit. */
-        public boolean selected() {
-            return selected;
-        }
+        public boolean selected() { return selected; }
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -214,9 +202,7 @@ public final class SimMenuNav {
         }
 
         @Override
-        public void onClick(MouseButtonEvent event, boolean doubleClick) {
-            press.run();
-        }
+        public void onClick(MouseButtonEvent event, boolean doubleClick) { press.run(); }
 
         @Override
         protected void updateWidgetNarration(NarrationElementOutput output) {

@@ -472,19 +472,13 @@ public final class SimBoulderPuzzle {
      * tab line and the map's tick off for that whole run. The tab list ({@code SimTabList}) and the map
      * ({@code SimRoomState}) both read this. The pushes still stop at {@link #complete}, the board's own state.
      */
-    public static boolean isComplete() {
-        return complete || rewardOpened;
-    }
+    public static boolean isComplete() { return complete || rewardOpened; }
 
     /** Whether the boxes leave a way through - the board itself solved, whatever the chest. */
-    public static boolean isPathOpen() {
-        return complete;
-    }
+    public static boolean isPathOpen() { return complete; }
 
     /** Whether the reward chest has been opened (right-clicked) since the board was laid. */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world - for a floor about to be rebuilt, where the
@@ -508,9 +502,7 @@ public final class SimBoulderPuzzle {
     }
 
     /** Whether a Boulder board is up (so a player reset has something to put back). */
-    public static boolean isBuilt() {
-        return grid != null;
-    }
+    public static boolean isBuilt() { return grid != null; }
 
     /** The same arrangement back, boxes and buttons, for an Architect's First Draft or {@code /simpuzzle reset}. */
     public static void reset() {

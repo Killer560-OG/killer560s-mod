@@ -107,23 +107,15 @@ public final class RoomDoors {
     public record Mask(int tilesX, int tilesZ, Set<Integer> edges) {
 
         /** Whether this room has a doorway on {@code side} at tile {@code index} along it. */
-        public boolean has(int side, int index) {
-            return edges.contains(edge(side, index));
-        }
+        public boolean has(int side, int index) { return edges.contains(edge(side, index)); }
     }
 
     /** Packs a side and an index along it into one key. */
-    public static int edge(int side, int index) {
-        return side * MAX_TILES + index;
-    }
+    public static int edge(int side, int index) { return side * MAX_TILES + index; }
 
-    public static int sideOf(int packed) {
-        return packed / MAX_TILES;
-    }
+    public static int sideOf(int packed) { return packed / MAX_TILES; }
 
-    public static int indexOf(int packed) {
-        return packed % MAX_TILES;
-    }
+    public static int indexOf(int packed) { return packed % MAX_TILES; }
 
     /**
      * The doorways of a captured room, measured once and remembered.
@@ -386,9 +378,7 @@ public final class RoomDoors {
      * after that, which is the same arithmetic {@link RoomPlacer} pastes with.
      */
     /** {@link #of}'s measurement for a room that is not (yet) in the library. No cache. */
-    static Mask measure(RoomLibrary.Room room) {
-        return detect(room);
-    }
+    static Mask measure(RoomLibrary.Room room) { return detect(room); }
 
     private static Mask detect(RoomLibrary.Room room) {
         int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));

@@ -447,9 +447,7 @@ public final class SimWaterPuzzle {
         tickCounter++;
     }
 
-    private static boolean isArmed() {
-        return anchor != null || standaloneOrigin != null;
-    }
+    private static boolean isArmed() { return anchor != null || standaloneOrigin != null; }
 
     /**
      * A room-relative position in the world, however this puzzle is currently standing.
@@ -1038,9 +1036,7 @@ public final class SimWaterPuzzle {
         };
     }
 
-    private static String fmt(double seconds) {
-        return String.format(Locale.ROOT, "%.1f", seconds);
-    }
+    private static String fmt(double seconds) { return String.format(Locale.ROOT, "%.1f", seconds); }
 
     /**
      * A click the board did not ask for. Named, and nothing else: the puzzle cannot be failed (killer560,
@@ -1091,19 +1087,13 @@ public final class SimWaterPuzzle {
         });
     }
 
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Where the reward chest stands, or null before the board is solved. For the testkit's 93-solve-waterboard. */
-    public static BlockPos rewardChestPos() {
-        return rewardChest;
-    }
+    public static BlockPos rewardChestPos() { return rewardChest; }
 
     /** Whether the reward chest has been opened (right-clicked) since it appeared. */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.

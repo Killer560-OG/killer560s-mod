@@ -110,9 +110,7 @@ public final class SimRunHistory {
         return out;
     }
 
-    private static long when(RunRecord r) {
-        return r.endedAtMs() > 0 ? r.endedAtMs() : r.startedAtMs();
-    }
+    private static long when(RunRecord r) { return r.endedAtMs() > 0 ? r.endedAtMs() : r.startedAtMs(); }
 
     /** "E" first, then F1..F7, then M1..M7, anything else last. */
     private static String floorOrder(RunRecord r) {
@@ -144,9 +142,7 @@ public final class SimRunHistory {
     }
 
     /** Rebuilds a listed run in the sim, by its {@link #savedRuns} label. */
-    public static synchronized void load(Minecraft client, String label) {
-        load(client, BY_LABEL.get(label));
-    }
+    public static synchronized void load(Minecraft client, String label) { load(client, BY_LABEL.get(label)); }
 
     /** Rebuilds a run in the sim. */
     public static void load(Minecraft client, RunRecord run) {
@@ -166,9 +162,7 @@ public final class SimRunHistory {
      * The sim map code a run rebuilds as, or null. Public for the testkit, which decodes it to check every room's
      * rotation before the floor is built.
      */
-    public static String mapCodeFor(RunRecord run) {
-        return run == null || run.map() == null ? null : toMapCode(run.map());
-    }
+    public static String mapCodeFor(RunRecord run) { return run == null || run.map() == null ? null : toMapCode(run.map()); }
 
     /**
      * Turns a run's map snapshot into a sim map code.
@@ -327,7 +321,5 @@ public final class SimRunHistory {
         return Math.max(0, best);
     }
 
-    private static long key(int x, int z) {
-        return ((long) x << 16) | (z & 0xFFFF);
-    }
+    private static long key(int x, int z) { return ((long) x << 16) | (z & 0xFFFF); }
 }

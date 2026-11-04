@@ -94,9 +94,7 @@ public final class RoomPlacer {
         }
 
         /** How many blocks were dropped for being outside the world. Zero on a healthy build. */
-        int outsideWorld() {
-            return outsideWorld;
-        }
+        int outsideWorld() { return outsideWorld; }
 
         /** @return whether the block was written */
         boolean set(int x, int y, int z, BlockState state) {
@@ -290,19 +288,13 @@ public final class RoomPlacer {
         }
 
         @Override
-        public boolean isDone() {
-            return done;
-        }
+        public boolean isDone() { return done; }
 
         @Override
-        public long totalWork() {
-            return total;
-        }
+        public long totalWork() { return total; }
 
         @Override
-        public long doneWork() {
-            return visited;
-        }
+        public long doneWork() { return visited; }
 
         /**
          * Places up to {@code budget} blocks and returns how many landed.

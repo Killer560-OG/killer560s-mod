@@ -516,39 +516,25 @@ public final class SimIceFillPuzzle {
     }
 
     /** True once the last section's exit tile has been reached. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** How many times a section has broken since the puzzle was armed. */
-    public static int breaks() {
-        return breakCount;
-    }
+    public static int breaks() { return breakCount; }
 
     /** The section (0-based) that broke last, or -1 if none has. */
-    public static int lastBrokenSection() {
-        return lastBrokenSection;
-    }
+    public static int lastBrokenSection() { return lastBrokenSection; }
 
     /** True while a section is broken and waiting to regenerate. */
-    public static boolean isBroken() {
-        return regenCountdown > 0;
-    }
+    public static boolean isBroken() { return regenCountdown > 0; }
 
     /** The section (0-based) that is live - the one a mistake breaks. */
-    public static int activeSection() {
-        return activeSection;
-    }
+    public static int activeSection() { return activeSection; }
 
     /** Every landing of a sim ability teleport since the puzzle was armed, broken section or not. */
-    public static int landings() {
-        return landingCount;
-    }
+    public static int landings() { return landingCount; }
 
     /** The block under the last sim teleport's landing, or null. */
-    public static BlockPos lastLandingTile() {
-        return lastLandingTile;
-    }
+    public static BlockPos lastLandingTile() { return lastLandingTile; }
 
     /** Section {@code s}'s entry tile (the ice block, not the feet), or null when not armed. */
     public static BlockPos entryTile(int s) {
@@ -806,9 +792,7 @@ public final class SimIceFillPuzzle {
     }
 
     /** Chat belongs on the client thread; the judge runs on the server's. */
-    private static void chat(Runnable r) {
-        Minecraft.getInstance().execute(r);
-    }
+    private static void chat(Runnable r) { Minecraft.getInstance().execute(r); }
 
     /** Whether two tiles touch - the eight neighbors and one block of height, as a walked step does. */
     private static boolean touching(BlockPos a, BlockPos b) {

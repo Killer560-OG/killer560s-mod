@@ -30,9 +30,7 @@ public final class SimShadowAssassinLeap {
     }
 
     /** A leap is on: the client's border still refuses clicks. */
-    public static boolean leaping() {
-        return landsAt >= 0;
-    }
+    public static boolean leaping() { return landsAt >= 0; }
 
     /**
      * Leaps a Shadow Assassin at him for {@code ticks} server ticks: the nearest placed one within 32 blocks, else a new

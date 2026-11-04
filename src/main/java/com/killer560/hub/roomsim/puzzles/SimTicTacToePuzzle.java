@@ -113,9 +113,7 @@ public final class SimTicTacToePuzzle {
      * 2026-10-15: "the server moved you 4.2 blocks" right after the first click). On Hypixel the click stays a click
      * (his Mod Only Test log of 2026-10-14 17:26: no move after any board click), so SimAbilities lets a square win.
      */
-    public static boolean isCell(BlockPos pos) {
-        return pos != null && CELL_INDEX.containsKey(pos);
-    }
+    public static boolean isCell(BlockPos pos) { return pos != null && CELL_INDEX.containsKey(pos); }
 
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -308,9 +306,7 @@ public final class SimTicTacToePuzzle {
 
     /** Whether the last game finished without the computer winning (a draw or an O win). False before any game
      *  finishes, and false again after a loss resets the board. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Clears the board (blocks and bookkeeping) if a session is still open, and always clears the in-memory
      *  state. Safe to call with no board built, and safe to call after the sim session has already ended. */

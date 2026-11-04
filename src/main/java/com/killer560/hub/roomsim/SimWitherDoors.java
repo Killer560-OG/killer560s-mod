@@ -36,9 +36,7 @@ public final class SimWitherDoors {
         current = compute(roomCells, doorCells, names);
     }
 
-    public static void clear() {
-        current = null;
-    }
+    public static void clear() { current = null; }
 
     /** Whether the live map should mark this ordinary door as a theoretical wither door. Never on Hypixel. */
     public static boolean isTheoretical(int idx) {

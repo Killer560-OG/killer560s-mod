@@ -98,9 +98,7 @@ public final class SimDoors {
     private static final java.util.Set<BlockPos> CARVED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** Whether this position is inside an opening a doorway carve made. */
-    public static boolean isCarvedDoorway(BlockPos at) {
-        return CARVED.contains(at);
-    }
+    public static boolean isCarvedDoorway(BlockPos at) { return CARVED.contains(at); }
 
     private static final List<Door> DOORS = new CopyOnWriteArrayList<>();
 
@@ -108,9 +106,7 @@ public final class SimDoors {
     private static final Map<BlockPos, Door> BLOCK_INDEX = new ConcurrentHashMap<>();
 
     /** A shut door's block: a click on it is the door's, never an ability's (SimAbilities skips it). */
-    static boolean isDoorBlock(BlockPos pos) {
-        return pos != null && BLOCK_INDEX.containsKey(pos);
-    }
+    static boolean isDoorBlock(BlockPos pos) { return pos != null && BLOCK_INDEX.containsKey(pos); }
 
     /** Doors currently mid-open: door -> ticks remaining until the BARRIER blocks are removed. */
     private static final Map<Door, Integer> PENDING = new ConcurrentHashMap<>();
@@ -313,9 +309,7 @@ public final class SimDoors {
      * found the lintel's top and cut the opening five blocks up; a chest in the perimeter read as the floor). A
      * doorway the layout links at the wrong height is a mask fault ({@link RoomDoors}), not something to search for.
      */
-    private static int findFloor(ServerLevel level, BlockPos near) {
-        return SimAltitude.toWorld(RoomDoors.DOOR_FLOOR_Y);
-    }
+    private static int findFloor(ServerLevel level, BlockPos near) { return SimAltitude.toWorld(RoomDoors.DOOR_FLOOR_Y); }
 
     /**
      * Registers a wither door centered on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for
@@ -538,9 +532,7 @@ public final class SimDoors {
     }
 
     /** Ticks the pending countdown holds, so a test knows how long to wait rather than guessing. */
-    public static int openDelayTicks() {
-        return OPEN_DELAY_TICKS;
-    }
+    public static int openDelayTicks() { return OPEN_DELAY_TICKS; }
 
     /**
      * A wither key stack, built the exact way {@link SimItems#build} builds every other sim item: a plain
@@ -583,9 +575,7 @@ public final class SimDoors {
 
     /** Forgets every door and pending barrier removal - call when a run restarts or the sim session ends. */
     /** Doors still registered and shut, for the sim's sidebar. */
-    public static int doorsRemaining() {
-        return DOORS.size();
-    }
+    public static int doorsRemaining() { return DOORS.size(); }
 
     /** Wither keys in his inventory, counted the same way the real key tracker would. */
     public static int keysHeld() {

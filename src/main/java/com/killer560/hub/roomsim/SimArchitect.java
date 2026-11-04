@@ -44,9 +44,7 @@ public final class SimArchitect {
     }
 
     /** Forgets the cooldown, so the first fail of a new run always counts. */
-    public static void reset() {
-        lastMs = 0;
-    }
+    public static void reset() { lastMs = 0; }
 
     /**
      * A sim puzzle just failed.

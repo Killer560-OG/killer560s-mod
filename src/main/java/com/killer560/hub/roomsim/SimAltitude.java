@@ -40,34 +40,22 @@ public final class SimAltitude {
     }
 
     /** How far down (or up) the whole floor is shifted from its captured coordinates. */
-    public static int offset() {
-        return offset;
-    }
+    public static int offset() { return offset; }
 
     /** A captured y in the world the floor was built into. */
-    public static int toWorld(int capturedY) {
-        return capturedY + offset;
-    }
+    public static int toWorld(int capturedY) { return capturedY + offset; }
 
     /** The world y the lowest captured block can occupy. */
-    public static int minWorldY() {
-        return RoomLibrary.MIN_Y + offset;
-    }
+    public static int minWorldY() { return RoomLibrary.MIN_Y + offset; }
 
     /** The world y the highest captured block can occupy. */
-    public static int maxWorldY() {
-        return RoomLibrary.MAX_Y + offset;
-    }
+    public static int maxWorldY() { return RoomLibrary.MAX_Y + offset; }
 
     /** Back to the capture's own coordinates, for anything holding a world y. */
-    public static int toCaptured(int worldY) {
-        return worldY - offset;
-    }
+    public static int toCaptured(int worldY) { return worldY - offset; }
 
     /** Drops the shift. A floor that has not been planned builds where it always did. */
-    public static void reset() {
-        offset = 0;
-    }
+    public static void reset() { offset = 0; }
 
     /**
      * Works out the shift for a map, from the rooms that are actually in it.

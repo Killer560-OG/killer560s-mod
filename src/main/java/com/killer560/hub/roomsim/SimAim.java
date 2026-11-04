@@ -25,9 +25,7 @@ public final class SimAim {
     }
 
     /** The server player's aim right now. Call on the server thread. */
-    static Aim of(ServerPlayer sp) {
-        return new Aim(sp.getEyePosition(), sp.getYRot(), sp.getXRot());
-    }
+    static Aim of(ServerPlayer sp) { return new Aim(sp.getEyePosition(), sp.getYRot(), sp.getXRot()); }
 
     /** Runs {@code body} with {@code aim} in force. Client thread. */
     static void with(Aim aim, Runnable body) {

@@ -84,14 +84,10 @@ public final class SimBuildAudit {
     }
 
     /** Rooms in the last audited floor that scored under the threshold, or -1 if no floor has been audited. */
-    public static synchronized int lastBelowThreshold() {
-        return lastBelowThreshold;
-    }
+    public static synchronized int lastBelowThreshold() { return lastBelowThreshold; }
 
     /** Every room of the last audited floor and its score, as {@code "Name=87"}. */
-    public static synchronized List<String> lastScores() {
-        return List.copyOf(LAST_SCORES);
-    }
+    public static synchronized List<String> lastScores() { return List.copyOf(LAST_SCORES); }
 
     /** Records a placement as it is queued, so the audit can look it up once the paste has finished. */
     public static synchronized void record(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
@@ -210,7 +206,5 @@ public final class SimBuildAudit {
     }
 
     /** Air is air. A capture holds void_air where the world holds air and neither is a fault. */
-    private static boolean sameAir(String want, String got) {
-        return want.endsWith("air") && got.endsWith("air");
-    }
+    private static boolean sameAir(String want, String got) { return want.endsWith("air") && got.endsWith("air"); }
 }

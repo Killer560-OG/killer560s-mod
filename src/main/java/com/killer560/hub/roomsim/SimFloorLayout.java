@@ -61,13 +61,9 @@ public final class SimFloorLayout {
      */
     private static final ThreadLocal<int[]> BOUNDS = ThreadLocal.withInitial(() -> new int[]{GRID, GRID});
 
-    private static int gw() {
-        return BOUNDS.get()[0];
-    }
+    private static int gw() { return BOUNDS.get()[0]; }
 
-    private static int gh() {
-        return BOUNDS.get()[1];
-    }
+    private static int gh() { return BOUNDS.get()[1]; }
 
     private static boolean inside(int x, int z) {
         int[] b = BOUNDS.get();
@@ -107,13 +103,9 @@ public final class SimFloorLayout {
     }
 
     /** The longest Rooms to blood a floor of {@code across x down} can be relied on to hold (see {@link #maxPuzzles}). */
-    public static int maxRoomsToBlood(int across, int down) {
-        return across * down <= 16 ? 6 : Integer.MAX_VALUE;
-    }
+    public static int maxRoomsToBlood(int across, int down) { return across * down <= 16 ? 6 : Integer.MAX_VALUE; }
 
-    private static boolean insideCell(int cell) {
-        return inside(cell % GRID, cell / GRID);
-    }
+    private static boolean insideCell(int cell) { return inside(cell % GRID, cell / GRID); }
 
     /** One room, placed. {@code rotation} is degrees clockwise, as {@link RoomPlacer.PasteJob} takes it. */
     public record Placement(String name, int rotation, int originX, int originZ,
@@ -172,13 +164,9 @@ public final class SimFloorLayout {
     /** A room the layout may use: its name, type, and its doorways at all four rotations. */
     private record Candidate(String name, String type, RoomDoors.Mask[] byRotation) {
 
-        int doorCount() {
-            return byRotation[0].edges().size();
-        }
+        int doorCount() { return byRotation[0].edges().size(); }
 
-        int area(int rotationIndex) {
-            return byRotation[rotationIndex].tilesX() * byRotation[rotationIndex].tilesZ();
-        }
+        int area(int rotationIndex) { return byRotation[rotationIndex].tilesX() * byRotation[rotationIndex].tilesZ(); }
     }
 
     /** A doorway of a placed room that nothing has been attached to yet. */
@@ -881,9 +869,7 @@ public final class SimFloorLayout {
         }
 
         /** Step 2: give a 1x1 neighbor of an empty cell a doorway facing it, keeping all its doors. */
-        boolean rewireOnce() {
-            return rewireOnce(false);
-        }
+        boolean rewireOnce() { return rewireOnce(false); }
 
         /** @param puzzles whether a puzzle neighbor may be swapped out too - the last step, after the carve */
         boolean rewireOnce(boolean puzzles) {
@@ -1402,9 +1388,7 @@ public final class SimFloorLayout {
     private static final double RECENCY_ORDER_WEIGHT = 1.5;
 
     /** The recency map, for saving across restarts. A copy. */
-    public static Map<String, Double> recencySnapshot() {
-        return new HashMap<>(RECENT);
-    }
+    public static Map<String, Double> recencySnapshot() { return new HashMap<>(RECENT); }
 
     /** Puts back a saved recency map. Called once, before the first floor of a session. */
     public static void restoreRecency(Map<String, Double> saved) {
@@ -1426,9 +1410,7 @@ public final class SimFloorLayout {
         }
     }
 
-    private static double recency(String name) {
-        return RECENT.getOrDefault(name, 0.0);
-    }
+    private static double recency(String name) { return RECENT.getOrDefault(name, 0.0); }
 
     /** The best of {@link #ATTEMPTS} (or {@link #PINNED_ATTEMPTS}) layouts. */
     private static Grown attemptLoop(List<Candidate> pool, int minRooms, int wantCells, int puzzles,
@@ -2890,9 +2872,7 @@ public final class SimFloorLayout {
     private record Best(Candidate candidate, int rotation, int originX, int originZ) {
     }
 
-    private static long cellKey(int x, int z) {
-        return ((long) x << 32) ^ (z & 0xffffffffL);
-    }
+    private static long cellKey(int x, int z) { return ((long) x << 32) ^ (z & 0xffffffffL); }
 
     /**
      * Two room types no door may ever join directly.
@@ -2927,9 +2907,7 @@ public final class SimFloorLayout {
      *
      * <p>Traps are left as they are (the trap rule is separate and he asked for it unchanged).
      */
-    static boolean isOneDoor(String type) {
-        return "PUZZLE".equalsIgnoreCase(type);
-    }
+    static boolean isOneDoor(String type) { return "PUZZLE".equalsIgnoreCase(type); }
 
     /** Whether a cell is next door to the fairy room - blood may not be, so a room always sits between. */
     private static boolean touchesFairy(int x, int z, java.util.Set<Long> fairyCells) {

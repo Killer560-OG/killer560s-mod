@@ -190,7 +190,5 @@ public final class SimWhere {
         return new int[]{back[0], SimAltitude.toCaptured(pos.getY()), back[1]};
     }
 
-    private static String str(BlockPos p) {
-        return p.getX() + ", " + p.getY() + ", " + p.getZ();
-    }
+    private static String str(BlockPos p) { return p.getX() + ", " + p.getY() + ", " + p.getZ(); }
 }

@@ -233,7 +233,5 @@ public final class RoomTileAudit {
     }
 
     /** Tiles across, from a captured size - 33 is one tile, 65 two, 129 four. */
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 }

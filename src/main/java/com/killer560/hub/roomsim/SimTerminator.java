@@ -150,9 +150,7 @@ public final class SimTerminator {
     private static final java.util.Map<UUID, String> LAST_HIT_BY = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The arrow that last damaged {@code id}, described, or null. */
-    public static String lastHitBy(UUID id) {
-        return LAST_HIT_BY.get(id);
-    }
+    public static String lastHitBy(UUID id) { return LAST_HIT_BY.get(id); }
 
     /** Arrows actually put in the world, so a test can prove the weapon acted rather than trust a log line. */
     private static volatile int arrowsFired;
@@ -222,14 +220,10 @@ public final class SimTerminator {
     }
 
     /** Advances the fire-rate clock; called once per client tick. */
-    public static void tick() {
-        tickCounter++;
-    }
+    public static void tick() { tickCounter++; }
 
     /** Arrow entities put in the world since {@link #reset}. A shot that fired nothing cannot hide behind this. */
-    public static int arrowsFired() {
-        return arrowsFired;
-    }
+    public static int arrowsFired() { return arrowsFired; }
 
     /**
      * One use of the Terminator: Salvation if it is armed AND this is a left click, otherwise the three-arrow
@@ -440,9 +434,7 @@ public final class SimTerminator {
      * {@code ProjectileDeflection.REVERSE}, which turns it about 180 degrees. Anything that needs "which way was
      * this shot aimed" - Ice Path's shove - reads this instead.
      */
-    public static Float shotYaw(Entity entity) {
-        return entity instanceof TerminatorArrow arrow ? arrow.shotYaw : null;
-    }
+    public static Float shotYaw(Entity entity) { return entity instanceof TerminatorArrow arrow ? arrow.shotYaw : null; }
 
     /** Vanilla's own yaw/pitch to direction, so an angled arrow goes where the crosshair says it would. */
     private static Vec3 fromAngles(float yaw, float pitch) {
@@ -516,9 +508,7 @@ public final class SimTerminator {
          * anything had been fired (93-solve, 2026-10-05: two of fifteen runs; the save held two such arrows).
          */
         @Override
-        public boolean shouldBeSaved() {
-            return false;
-        }
+        public boolean shouldBeSaved() { return false; }
 
         @Override
         public void tick() {

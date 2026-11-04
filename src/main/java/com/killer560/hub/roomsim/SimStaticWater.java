@@ -38,9 +38,7 @@ public final class SimStaticWater {
 
     /** A Water Board paste box, inclusive, in world x/z. */
     private record Box(int minX, int minZ, int maxX, int maxZ) {
-        boolean contains(int x, int z) {
-            return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
-        }
+        boolean contains(int x, int z) { return x >= minX && x <= maxX && z >= minZ && z <= maxZ; }
     }
 
     private static volatile List<Box> boxes = List.of();
@@ -78,14 +76,10 @@ public final class SimStaticWater {
     }
 
     /** Water ticks canceled since the game started. */
-    public static long frozenTicks() {
-        return frozen;
-    }
+    public static long frozenTicks() { return frozen; }
 
     /** Water ticks let through inside a Water Board since the game started. */
-    public static long allowedTicks() {
-        return allowed;
-    }
+    public static long allowedTicks() { return allowed; }
 
     /** The Water Board box(es) currently exempt, as {@code minX,minZ..maxX,maxZ}; "none" without one. */
     public static String describe() {

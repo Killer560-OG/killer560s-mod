@@ -59,18 +59,14 @@ public final class SimRoomIndex {
     }
 
     /** Changes whenever the placed rooms do. */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     /**
      * Records a placed room.
      *
      * @param gridX the 11x11 grid coordinates of the room's top-left cell
      */
-    public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-        add(room, gridX, gridZ, rotation, null);
-    }
+    public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation) { add(room, gridX, gridZ, rotation, null); }
 
     /**
      * Records a placed room on the tile cells the MAP gives it.
@@ -124,9 +120,7 @@ public final class SimRoomIndex {
     }
 
     /** Every placed room on the floor, in paste order. Read by {@link SimRoomPuzzles} to arm the puzzles. */
-    public static List<Placed> placed() {
-        return List.copyOf(ROOMS);
-    }
+    public static List<Placed> placed() { return List.copyOf(ROOMS); }
 
     /**
      * Re-records one room's corner and rotation, because its own FURNITURE disagreed with the recovered turn.
@@ -159,9 +153,7 @@ public final class SimRoomIndex {
         return false;
     }
 
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /** Every placed room, in the {@code {id, clayX, clayZ, rotation}} shape Secret Waypoints already reads. */
     public static List<int[]> identifiedRoomsWithRotation() {
@@ -211,9 +203,7 @@ public final class SimRoomIndex {
         return null;
     }
 
-    public static int size() {
-        return ROOMS.size();
-    }
+    public static int size() { return ROOMS.size(); }
 
     private static final List<Placed> VIEW = java.util.Collections.unmodifiableList(ROOMS);
 
@@ -222,7 +212,5 @@ public final class SimRoomIndex {
      * {@link CopyOnWriteArrayList}'s iterator walks a snapshot, so a rebuild clearing the list mid-loop is safe; do
      * not index into it.
      */
-    public static List<Placed> placedView() {
-        return VIEW;
-    }
+    public static List<Placed> placedView() { return VIEW; }
 }

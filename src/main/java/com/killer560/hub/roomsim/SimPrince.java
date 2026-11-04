@@ -142,24 +142,16 @@ public final class SimPrince {
     }
 
     /** Where the first prince on this floor is, or null when the floor has none. */
-    public static BlockPos position() {
-        return PRINCES.isEmpty() ? null : PRINCES.get(0);
-    }
+    public static BlockPos position() { return PRINCES.isEmpty() ? null : PRINCES.get(0); }
 
     /** Where every prince on this floor is (one block of each), for the build log and for tests. */
-    public static List<BlockPos> positions() {
-        return new ArrayList<>(PRINCES);
-    }
+    public static List<BlockPos> positions() { return new ArrayList<>(PRINCES); }
 
     /** How many princes this floor has. Usually none, occasionally one. */
-    public static int count() {
-        return PRINCES.size();
-    }
+    public static int count() { return PRINCES.size(); }
 
     /** How many blocks all of this floor's princes are made of, for the build log and for tests. */
-    public static int size() {
-        return BLOCKS.size();
-    }
+    public static int size() { return BLOCKS.size(); }
 
     /** Whether a block is part of a prince that has not been blown yet. */
     public static boolean isPrince(BlockPos pos) {
@@ -168,9 +160,7 @@ public final class SimPrince {
     }
 
     /** Whether a block is part of any prince, blown or not - so its slabs are never also counted as a crypt. */
-    public static boolean isPart(BlockPos pos) {
-        return BLOCKS.containsKey(pos);
-    }
+    public static boolean isPart(BlockPos pos) { return BLOCKS.containsKey(pos); }
 
     /** Every block of the prince containing {@code pos}, or nothing when it is not a prince block. */
     public static List<BlockPos> blocksOf(BlockPos pos) {
@@ -414,9 +404,7 @@ public final class SimPrince {
     }
 
     /** Whether the run has already taken its prince point. For tests. */
-    public static boolean hasScored() {
-        return scored;
-    }
+    public static boolean hasScored() { return scored; }
 
     /**
      * Finds the golden crypts in a floor that has already been pasted.

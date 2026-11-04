@@ -166,9 +166,7 @@ public final class SimPuzzles {
     }
 
     /** Every puzzle's name, in the order they are offered. */
-    public static java.util.List<String> names() {
-        return java.util.List.copyOf(BUILDERS.keySet());
-    }
+    public static java.util.List<String> names() { return java.util.List.copyOf(BUILDERS.keySet()); }
 
     /**
      * Builds one puzzle at a chosen spot, for tests.
@@ -215,9 +213,7 @@ public final class SimPuzzles {
      * chat line. The SETTINGS are the same ones; only where the draft comes from differs, because there is no
      * sack to pull from in a world this mod made.
      */
-    public static void reportFail(String puzzleName) {
-        reportFail(puzzleName, null);
-    }
+    public static void reportFail(String puzzleName) { reportFail(puzzleName, null); }
 
     /**
      * The same, for a puzzle that knows which ROOM it is bound to.

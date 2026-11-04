@@ -43,9 +43,7 @@ public final class TeleportMazeLinks {
     public record Maze(int[] link, int exitPad) {
     }
 
-    public static int chamberOf(int pad) {
-        return pad >= 0 && pad < END ? pad / PADS_PER_CHAMBER : -1;
-    }
+    public static int chamberOf(int pad) { return pad >= 0 && pad < END ? pad / PADS_PER_CHAMBER : -1; }
 
     /**
      * The pad diagonally across the chamber from {@code pad}, from the pads' own positions ({@code rel[pad] = {x,

@@ -39,9 +39,7 @@ public final class SimRoomState {
     }
 
     /** Every room back to no opinion - for a new floor or leaving the sim. */
-    public static void clear() {
-        STATES.clear();
-    }
+    public static void clear() { STATES.clear(); }
 
     /** This room's puzzle was failed: paint it red. */
     public static void markFailed(String roomName) {

@@ -49,9 +49,7 @@ public final class RoomBraziers {
     }
 
     /** How many rooms the last library load lit braziers in. */
-    public static int lastRooms() {
-        return lastRooms;
-    }
+    public static int lastRooms() { return lastRooms; }
 
     /** Lights one room's unlit braziers in place; returns how many. */
     static int light(RoomLibrary.Room room) {

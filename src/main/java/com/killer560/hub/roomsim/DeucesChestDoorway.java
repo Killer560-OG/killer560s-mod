@@ -67,9 +67,7 @@ public final class DeucesChestDoorway {
     }
 
     /** Whether {@code room} is Deuces. */
-    public static boolean isRoom(RoomLibrary.Room room) {
-        return room != null && ROOM.equals(room.name);
-    }
+    public static boolean isRoom(RoomLibrary.Room room) { return room != null && ROOM.equals(room.name); }
 
     /** Whether {@code (side, index)} of {@code room} is this doorway, in the capture's frame. */
     public static boolean isDoorway(RoomLibrary.Room room, int side, int index) {
@@ -99,19 +97,13 @@ public final class DeucesChestDoorway {
     }
 
     /** Records where a paste put this doorway, so the carve's trim rule can leave it alone. */
-    static void pastedAt(BlockPos world) {
-        WORLD.add(world.immutable());
-    }
+    static void pastedAt(BlockPos world) { WORLD.add(world.immutable()); }
 
     /** Whether {@code pos} is one of this doorway's blocks in the world. */
-    public static boolean covers(BlockPos pos) {
-        return !WORLD.isEmpty() && WORLD.contains(pos);
-    }
+    public static boolean covers(BlockPos pos) { return !WORLD.isEmpty() && WORLD.contains(pos); }
 
     /** Forgets every pasted copy; a new build is starting. */
-    static void clearWorld() {
-        WORLD.clear();
-    }
+    static void clearWorld() { WORLD.clear(); }
 
     /** {@link #SPEC} resolved, keyed by {@link RoomDoorPieces#key}. */
     private static Map<Long, BlockState> table() {

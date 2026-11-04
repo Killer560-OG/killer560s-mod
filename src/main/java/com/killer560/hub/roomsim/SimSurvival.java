@@ -36,9 +36,7 @@ public final class SimSurvival {
     }
 
     /** Remembered by the builder once it knows where the room's floor is. */
-    public static void setHome(BlockPos pos) {
-        homePoint = pos == null ? null : pos.immutable();
-    }
+    public static void setHome(BlockPos pos) { homePoint = pos == null ? null : pos.immutable(); }
 
     public static void register() {
         // No fall damage. Checked per damage rather than by resetting fallDistance every tick: resetting it

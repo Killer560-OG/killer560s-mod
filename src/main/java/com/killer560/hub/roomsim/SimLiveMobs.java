@@ -85,22 +85,14 @@ public final class SimLiveMobs {
 
     /** Fels from the next GO on: some mob rooms get a starred Fel beside one of their starred mobs, and some an unstarred
      *  one (killer560, Doc 2026-11-01: "make it so fels can spawn for the mobs"). */
-    public static void setFels(boolean on) {
-        fels = on;
-    }
+    public static void setFels(boolean on) { fels = on; }
 
-    public static boolean isOn() {
-        return perTile > 0;
-    }
+    public static boolean isOn() { return perTile > 0; }
 
     /** Starred mobs placed in {@code roomName} at the last GO (fels included), or -1 when the room got none placed. */
-    public static int placedIn(String roomName) {
-        return roomName == null ? -1 : PLACED_IN.getOrDefault(roomName, -1);
-    }
+    public static int placedIn(String roomName) { return roomName == null ? -1 : PLACED_IN.getOrDefault(roomName, -1); }
 
-    static BlockPos firstSpot(String roomName) {
-        return roomName == null ? null : FIRST_SPOT.get(roomName);
-    }
+    static BlockPos firstSpot(String roomName) { return roomName == null ? null : FIRST_SPOT.get(roomName); }
 
     public static void setTrapCleared(boolean on) {
         trapCleared = on;
@@ -113,9 +105,7 @@ public final class SimLiveMobs {
     }
 
     /** Whether the trap room's secrets are left out of the build (SimSecrets.place asks). */
-    static boolean skipSecrets(String roomName) {
-        return trapCleared && "TRAP".equalsIgnoreCase(typeOf(roomName));
-    }
+    static boolean skipSecrets(String roomName) { return trapCleared && "TRAP".equalsIgnoreCase(typeOf(roomName)); }
 
     private static String typeOf(String roomName) {
         RoomEntry e = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(roomName);
@@ -313,9 +303,7 @@ public final class SimLiveMobs {
     }
 
     /** The rooms whose mobs stood on learned spawn spots at the last GO, and those spots, for tests. */
-    public static Map<String, List<BlockPos>> learnedSpotsPlaced() {
-        return Map.copyOf(LEARNED_IN);
-    }
+    public static Map<String, List<BlockPos>> learnedSpotsPlaced() { return Map.copyOf(LEARNED_IN); }
 
     /** An open floor spot 2-4 blocks from {@code near}, in the same room and clear of {@code taken}, or null. */
     private static BlockPos besideSpot(ServerLevel level, DungeonLayout layout, int room, BlockPos near, List<BlockPos> taken,

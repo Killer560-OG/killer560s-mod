@@ -182,9 +182,7 @@ public final class SimSpiritSceptre {
     }
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}. */
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(SimSpiritSceptre::tick);
-    }
+    public static void register() { ClientTickEvents.END_CLIENT_TICK.register(SimSpiritSceptre::tick); }
 
     /**
      * Right-click: launch a burst.
@@ -225,14 +223,10 @@ public final class SimSpiritSceptre {
     }
 
     /** Bats currently in the air. For tests, which otherwise cannot tell "fired" from "did nothing". */
-    public static int inFlight() {
-        return FLYING.size();
-    }
+    public static int inFlight() { return FLYING.size(); }
 
     /** How many blasts have gone off since the game started - a counter a test can watch change. */
-    public static int blasts() {
-        return blastCount;
-    }
+    public static int blasts() { return blastCount; }
 
     private static int blastCount;
 

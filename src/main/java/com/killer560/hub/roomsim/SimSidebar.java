@@ -53,9 +53,7 @@ public final class SimSidebar {
      * does. {@code ScoreboardData.lineText} already drops an owner that is blank once formatting is stripped,
      * so the Custom Scoreboard and every sidebar reader see the prefix alone.
      */
-    private static String holder(int i) {
-        return "\u00a7" + "0123456789abcdef".charAt(i & 15) + "\u00a7r";
-    }
+    private static String holder(int i) { return "\u00a7" + "0123456789abcdef".charAt(i & 15) + "\u00a7r"; }
 
     /** Top line of the sidebar and the tab list header. */
     public static final String INFO_TITLE = "killer560's personal testing sim";
@@ -221,7 +219,5 @@ public final class SimSidebar {
         built = true;
     }
 
-    public static boolean isBuilt() {
-        return built;
-    }
+    public static boolean isBuilt() { return built; }
 }

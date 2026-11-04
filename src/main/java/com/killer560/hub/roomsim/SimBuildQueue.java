@@ -105,9 +105,7 @@ public final class SimBuildQueue {
      * (97-sim-roomspawn). Anything that writes after the queue finishes - secrets, doors, secret items picked up
      * and put back - now adds to the box instead of replacing it.
      */
-    public static synchronized int[] touchedBounds() {
-        return union(boundsOf(touchedChunks), lastBuiltBounds);
-    }
+    public static synchronized int[] touchedBounds() { return union(boundsOf(touchedChunks), lastBuiltBounds); }
 
     private static int[] union(int[] a, int[] b) {
         if (a == null) {
@@ -164,19 +162,13 @@ public final class SimBuildQueue {
         }
 
         @Override
-        public boolean isDone() {
-            return index >= chunks.size();
-        }
+        public boolean isDone() { return index >= chunks.size(); }
 
         @Override
-        public long totalWork() {
-            return chunks.size();
-        }
+        public long totalWork() { return chunks.size(); }
 
         @Override
-        public long doneWork() {
-            return index;
-        }
+        public long doneWork() { return index; }
 
         @Override
         public int step(int budget) {
@@ -241,14 +233,10 @@ public final class SimBuildQueue {
     private SimBuildQueue() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimBuildQueue::tick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimBuildQueue::tick); }
 
     /** Whether anything is still being placed. */
-    public static synchronized boolean isBusy() {
-        return !JOBS.isEmpty();
-    }
+    public static synchronized boolean isBusy() { return !JOBS.isEmpty(); }
 
     /**
      * How many builds have RUN TO COMPLETION since the game started.
@@ -263,9 +251,7 @@ public final class SimBuildQueue {
      * <p>{@code progress()} cannot serve here: {@code finishedWork} is zeroed the moment the queue empties, so
      * it reads 0 before a build and 0 after one.
      */
-    public static synchronized long buildsFinished() {
-        return buildsFinished;
-    }
+    public static synchronized long buildsFinished() { return buildsFinished; }
 
     private static long buildsFinished;
 
@@ -403,19 +389,13 @@ public final class SimBuildQueue {
         }
 
         @Override
-        public boolean isDone() {
-            return done;
-        }
+        public boolean isDone() { return done; }
 
         @Override
-        public long totalWork() {
-            return total;
-        }
+        public long totalWork() { return total; }
 
         @Override
-        public long doneWork() {
-            return visited;
-        }
+        public long doneWork() { return visited; }
 
         @Override
         public int step(int budget) {
@@ -527,19 +507,13 @@ public final class SimBuildQueue {
         }
 
         @Override
-        public boolean isDone() {
-            return done;
-        }
+        public boolean isDone() { return done; }
 
         @Override
-        public long totalWork() {
-            return total;
-        }
+        public long totalWork() { return total; }
 
         @Override
-        public long doneWork() {
-            return visited;
-        }
+        public long doneWork() { return visited; }
 
         @Override
         public int step(int budget) {
@@ -619,9 +593,7 @@ public final class SimBuildQueue {
      * supersedes the first, and running the old completion afterward would take the loading screen down for a
      * build that is no longer the one in progress.
      */
-    public static synchronized void whenDone(Runnable action) {
-        onDone = action;
-    }
+    public static synchronized void whenDone(Runnable action) { onDone = action; }
 
     /** Throws everything away - for leaving the sim mid-build. */
     public static synchronized void clear() {

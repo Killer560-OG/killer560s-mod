@@ -104,27 +104,19 @@ public final class SimRoomCycle {
     }
 
     /** The chosen set, or null before one was picked. For the testkit. */
-    public static synchronized Choice choice() {
-        return choice;
-    }
+    public static synchronized Choice choice() { return choice; }
 
     /** The frozen list being stepped through, empty before a set was picked. For the testkit. */
-    public static synchronized List<String> currentRooms() {
-        return rooms == null ? List.of() : List.copyOf(rooms);
-    }
+    public static synchronized List<String> currentRooms() { return rooms == null ? List.of() : List.copyOf(rooms); }
 
     /** Index of the room loaded last within {@link #currentRooms}, -1 before one. For the testkit. */
-    public static synchronized int currentIndex() {
-        return index;
-    }
+    public static synchronized int currentIndex() { return index; }
 
     /**
      * Called by {@link SimBuilder#buildSingleRoom} for every single room it places: {@code fromCycle} true only for
      * this class's own loads. Any other load (the picker) ends the cycle.
      */
-    static synchronized void noteSingleRoomLoad(boolean fromCycle) {
-        cycling = fromCycle;
-    }
+    static synchronized void noteSingleRoomLoad(boolean fromCycle) { cycling = fromCycle; }
 
     /**
      * Whether All Rooms is running: the room standing was loaded by this cycle and is in its set. False on a room

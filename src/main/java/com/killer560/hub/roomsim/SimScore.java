@@ -79,14 +79,10 @@ public final class SimScore {
         paulEzpz = false;
     }
 
-    public static synchronized void cryptBlown() {
-        cryptsBlown++;
-    }
+    public static synchronized void cryptBlown() { cryptsBlown++; }
 
     /** The mimic - "prince" - killed. Worth two bonus points and nothing else. */
-    public static synchronized void mimicKilled() {
-        mimicKilled = true;
-    }
+    public static synchronized void mimicKilled() { mimicKilled = true; }
 
     /**
      * A bat killed.
@@ -142,9 +138,7 @@ public final class SimScore {
     }
 
     /** Secrets found so far in the named room this run. */
-    public static int foundInRoom(String room) {
-        return room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0);
-    }
+    public static int foundInRoom(String room) { return room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0); }
 
     /** The placed room covering a world position, by the same tile rounding {@code DungeonLayout.roomAtWorld} uses. */
     public static String roomAt(net.minecraft.core.BlockPos at) {
@@ -161,9 +155,7 @@ public final class SimScore {
 
     private static final java.util.Map<String, Integer> FOUND_BY_ROOM = new java.util.concurrent.ConcurrentHashMap<>();
 
-    public static synchronized void roomCleared() {
-        roomsCleared++;
-    }
+    public static synchronized void roomCleared() { roomsCleared++; }
 
     /** Rooms counted by {@link #countRoomOnce} this floor. */
     private static final java.util.Set<String> COUNTED_ONCE = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -181,20 +173,14 @@ public final class SimScore {
         return true;
     }
 
-    public static synchronized void died() {
-        deaths++;
-    }
+    public static synchronized void died() { deaths++; }
 
     /** Explore: rooms completed and secrets found, as a percentage pair. */
     /** Secrets found so far this run - read by the sim's sidebar. */
-    public static int secretsFound() {
-        return secretsFound;
-    }
+    public static int secretsFound() { return secretsFound; }
 
     /** Secrets the generated map contains, or 0 before a map has been built. */
-    public static int secretsTotal() {
-        return secretsTotal;
-    }
+    public static int secretsTotal() { return secretsTotal; }
 
     /**
      * The rest of the run's counters, for the HUDs that normally read them off Hypixel's TAB LIST.
@@ -205,22 +191,14 @@ public final class SimScore {
      * his log). They read these instead while the sim is active. Same numbers this class already scores with,
      * so the HUD and the sim's own score screen cannot disagree.
      */
-    public static int roomsCleared() {
-        return roomsCleared;
-    }
+    public static int roomsCleared() { return roomsCleared; }
 
-    public static int roomsTotal() {
-        return roomsTotal;
-    }
+    public static int roomsTotal() { return roomsTotal; }
 
-    public static int deaths() {
-        return deaths;
-    }
+    public static int deaths() { return deaths; }
 
     /** Secrets found as a percentage of the floor's total, or 0 before a map has been built. */
-    public static double secretsPercent() {
-        return secretsTotal <= 0 ? 0.0 : 100.0 * secretsFound / secretsTotal;
-    }
+    public static double secretsPercent() { return secretsTotal <= 0 ? 0.0 : 100.0 * secretsFound / secretsTotal; }
 
     public static int exploreScore() {
         if (roomsTotal <= 0) {
@@ -240,9 +218,7 @@ public final class SimScore {
     }
 
     /** Skill: 100 less the death penalty. Puzzle fails are not modeled - the sim does not fail puzzles yet. */
-    public static int skillScore() {
-        return Math.max(0, 100 - deaths * 2);
-    }
+    public static int skillScore() { return Math.max(0, 100 - deaths * 2); }
 
     /** Bonus: one per crypt to a maximum of five, two for the mimic, ten for Paul. */
     public static int bonusScore() {
@@ -257,25 +233,15 @@ public final class SimScore {
     }
 
     /** Paul's EZPZ, which is worth ten and decides plenty of 300 runs on its own. */
-    public static void setPaulEzpz(boolean on) {
-        paulEzpz = on;
-    }
+    public static void setPaulEzpz(boolean on) { paulEzpz = on; }
 
-    public static boolean isPaulEzpz() {
-        return paulEzpz;
-    }
+    public static boolean isPaulEzpz() { return paulEzpz; }
 
-    public static int cryptsBlown() {
-        return cryptsBlown;
-    }
+    public static int cryptsBlown() { return cryptsBlown; }
 
-    public static int batsKilled() {
-        return batsKilled;
-    }
+    public static int batsKilled() { return batsKilled; }
 
-    public static boolean isMimicKilled() {
-        return mimicKilled;
-    }
+    public static boolean isMimicKilled() { return mimicKilled; }
 
     /**
      * What is still missing for the bonus, in words.

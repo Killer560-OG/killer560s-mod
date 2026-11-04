@@ -103,29 +103,19 @@ public final class SimRun {
         entranceDoor = null;
     }
 
-    public static boolean isRunning() {
-        return running;
-    }
+    public static boolean isRunning() { return running; }
 
     /** Whether a run has started on this floor - true from GO until the next map is built. */
-    public static boolean hasStarted() {
-        return everStarted;
-    }
+    public static boolean hasStarted() { return everStarted; }
 
     /** Ticks left on the countdown, 0 once the door has opened. Also what the HUD reads. */
-    public static int countdownTicks() {
-        return ticksLeft;
-    }
+    public static int countdownTicks() { return ticksLeft; }
 
     /** True between {@link #begin} and the end of the run - the countdown is only ticked while armed. */
-    public static boolean isArmed() {
-        return armed;
-    }
+    public static boolean isArmed() { return armed; }
 
     /** Milliseconds since the door opened, or 0 when no run is under way. */
-    public static long elapsedMs() {
-        return running ? System.currentTimeMillis() - startedAtMs : 0L;
-    }
+    public static long elapsedMs() { return running ? System.currentTimeMillis() - startedAtMs : 0L; }
 
     private static void tick(Minecraft client) {
         if (!armed || !SimState.canAct(client)) {

@@ -35,17 +35,13 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "sim";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     private String what;
     private String detail = "";
@@ -57,14 +53,10 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Updates the line under the title - the room being placed, or the block count as it lands. */
-    public void progress(String line) {
-        this.detail = line == null ? "" : line;
-    }
+    public void progress(String line) { this.detail = line == null ? "" : line; }
 
     @Override
-    public boolean shouldCloseOnEsc() {
-        return false;
-    }
+    public boolean shouldCloseOnEsc() { return false; }
 
     @Override
     public boolean isPauseScreen() {
@@ -73,9 +65,7 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void tick() {
-        ticks++;
-    }
+    public void tick() { ticks++; }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {

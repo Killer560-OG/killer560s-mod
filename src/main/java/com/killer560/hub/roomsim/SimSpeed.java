@@ -50,9 +50,7 @@ public final class SimSpeed {
     }
 
     /** A profile load replaced the file: read it again on next use. */
-    public static synchronized void forgetSaved() {
-        savedSpeed = -1;
-    }
+    public static synchronized void forgetSaved() { savedSpeed = -1; }
 
     /** The remembered speed, or the default when none has been set. */
     public static synchronized int saved() {
@@ -82,9 +80,7 @@ public final class SimSpeed {
     }
 
     /** Re-applies the remembered speed. Called when a sim world opens. */
-    public static void applySaved(Minecraft client) {
-        set(client, saved());
-    }
+    public static void applySaved(Minecraft client) { set(client, saved()); }
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->

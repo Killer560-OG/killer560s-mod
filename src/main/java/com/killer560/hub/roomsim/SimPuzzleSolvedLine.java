@@ -32,9 +32,7 @@ public final class SimPuzzleSolvedLine {
     private SimPuzzleSolvedLine() {
     }
 
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(SimPuzzleSolvedLine::tick);
-    }
+    public static void register() { ClientTickEvents.END_CLIENT_TICK.register(SimPuzzleSolvedLine::tick); }
 
     private static void tick(Minecraft client) {
         if (client.level != level) {

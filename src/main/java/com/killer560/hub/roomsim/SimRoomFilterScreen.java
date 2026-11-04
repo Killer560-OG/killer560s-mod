@@ -46,17 +46,13 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "sim";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     static final int CHIP_H = 16;
     private static final int CHIP_GAP = 4;
@@ -107,9 +103,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The filter this panel edits. For the testkit. */
-    public SimRoomFilter filter() {
-        return filter;
-    }
+    public SimRoomFilter filter() { return filter; }
 
     @Override
     protected void init() {
@@ -261,13 +255,9 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Clear all and Done share one width, so the footer reads as a row of buttons like Design a Map's. */
-    private int footerButtonW() {
-        return Math.max(this.font.width("Clear all"), this.font.width("Done")) + 20;
-    }
+    private int footerButtonW() { return Math.max(this.font.width("Clear all"), this.font.width("Done")) + 20; }
 
-    private int maxScroll() {
-        return Math.max(0, contentHeight - (contentBottom - contentTop));
-    }
+    private int maxScroll() { return Math.max(0, contentHeight - (contentBottom - contentTop)); }
 
     private void applyScroll() {
         scroll = Math.max(0, Math.min(maxScroll(), scroll));
@@ -300,9 +290,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -348,9 +336,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     /**
      * One chip: a toggle in a row, drawn as a {@link SettingsButtonWidget} box. Its message is the bare label, so a
@@ -373,13 +359,9 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
         }
 
         /** The row's label ("Size", "Kind", ...), or "" for an action chip. */
-        public String row() {
-            return row;
-        }
+        public String row() { return row; }
 
-        public boolean selected() {
-            return selected;
-        }
+        public boolean selected() { return selected; }
 
         @Override
         protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -398,9 +380,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
         }
 
         @Override
-        public void onClick(MouseButtonEvent event, boolean doubleClick) {
-            press.run();
-        }
+        public void onClick(MouseButtonEvent event, boolean doubleClick) { press.run(); }
 
         @Override
         protected void updateWidgetNarration(NarrationElementOutput output) {

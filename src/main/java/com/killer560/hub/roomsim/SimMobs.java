@@ -126,14 +126,10 @@ public final class SimMobs {
     private static volatile String lastFelWake;
 
     /** Fels placed since the last {@link #forget}, for tests and the log. */
-    public static int felsPlaced() {
-        return FELS_PLACED.get();
-    }
+    public static int felsPlaced() { return FELS_PLACED.get(); }
 
     /** The last wake: "x y z|distance to the player|starred", or null. */
-    public static String lastFelWake() {
-        return lastFelWake;
-    }
+    public static String lastFelWake() { return lastFelWake; }
 
     /** Every dormant Fel's skull position as {x, y, z}, for tests (the skull sits on the floor block's top). */
     public static java.util.List<double[]> dormantFels() {
@@ -275,13 +271,9 @@ public final class SimMobs {
     /** On by default. The testkit turns it off for the scenarios that measure a clear by its mobs dying (Auto Clear). */
     private static volatile boolean clearRoomsOnEntry = true;
 
-    public static void setClearRoomsOnEntry(boolean on) {
-        clearRoomsOnEntry = on;
-    }
+    public static void setClearRoomsOnEntry(boolean on) { clearRoomsOnEntry = on; }
 
-    public static boolean isClearRoomsOnEntry() {
-        return clearRoomsOnEntry;
-    }
+    public static boolean isClearRoomsOnEntry() { return clearRoomsOnEntry; }
 
     /**
      * Where each starred mob stood when it was spawned (or woken), so its ROOM is known. Hypixel clears a room the moment
@@ -308,9 +300,7 @@ public final class SimMobs {
     private static final java.util.Map<UUID, Long> DEATH_ORDER = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.atomic.AtomicLong DEATH_SEQ = new java.util.concurrent.atomic.AtomicLong();
 
-    private static void recordStarred(UUID id, double x, double y, double z) {
-        STARRED_AT.put(id, new double[]{x, y, z});
-    }
+    private static void recordStarred(UUID id, double x, double y, double z) { STARRED_AT.put(id, new double[]{x, y, z}); }
 
     /**
      * Marks every room whose recorded starred mobs are all confirmed dead as cleared ({@link SimRoomState#markCleared}),
@@ -351,9 +341,7 @@ public final class SimMobs {
         }
     }
 
-    public static void spawn(Minecraft client, BlockPos pos, Kind kind) {
-        spawn(client, pos, kind, false, DEFAULT_MINIBOSS);
-    }
+    public static void spawn(Minecraft client, BlockPos pos, Kind kind) { spawn(client, pos, kind, false, DEFAULT_MINIBOSS); }
 
     public static void spawnStarred(Minecraft client, BlockPos pos, Kind kind) {
         spawn(client, pos, kind, true, DEFAULT_MINIBOSS);
@@ -814,9 +802,7 @@ public final class SimMobs {
     }
 
     /** Live secret bats, for tests. */
-    public static int secretBatsAlive() {
-        return BATS.size();
-    }
+    public static int secretBatsAlive() { return BATS.size(); }
 
     /**
      * How far below the floor a skull's armor stand stands, so the skull it wears rests ON the floor: a full-size stand's
@@ -870,9 +856,7 @@ public final class SimMobs {
     }
 
     /** {@link #spawnFel} for {@link SimLiveMobs} (server thread). */
-    static void spawnFelLive(ServerLevel level, BlockPos pos, boolean starred) {
-        spawnFel(level, pos, starred);
-    }
+    static void spawnFelLive(ServerLevel level, BlockPos pos, boolean starred) { spawnFel(level, pos, starred); }
 
     /** Checks every dormant Fel against every player each tick and wakes the ones close enough. */
     private static void wakeFels(ServerLevel level) {
@@ -982,13 +966,9 @@ public final class SimMobs {
      * How many entities this class has spawned, and how many of those were starred - written the moment the entity
      * is added, which is the question a test needs answered.
      */
-    public static int spawnedCount() {
-        return SPAWNED.size();
-    }
+    public static int spawnedCount() { return SPAWNED.size(); }
 
-    public static int starredCount() {
-        return STARRED.size();
-    }
+    public static int starredCount() { return STARRED.size(); }
 
     /**
      * Every starred mob paired with its name-tag armor stand, as {@code {mobUuid, tagUuid}}.
@@ -1120,9 +1100,7 @@ public final class SimMobs {
         }
 
         @Override
-        protected boolean isSunSensitive() {
-            return false;
-        }
+        protected boolean isSunSensitive() { return false; }
 
         /** AI on with a random stroll only (no target, no attack) - a live mob that walks about ({@link #spawnLive}). */
         void wanderOnly() {
@@ -1181,9 +1159,7 @@ public final class SimMobs {
         }
 
         @Override
-        protected boolean teleport() {
-            return false;
-        }
+        protected boolean teleport() { return false; }
 
         /**
          * A sleeping Fel stays invisible. {@code LivingEntity.updateInvisibilityStatus} (javap 26.2 and 26.3) sets
@@ -1201,9 +1177,7 @@ public final class SimMobs {
         }
 
         @Override
-        public boolean isSensitiveToWater() {
-            return false;
-        }
+        public boolean isSensitiveToWater() { return false; }
 
         @Override
         public boolean isInvulnerableTo(net.minecraft.server.level.ServerLevel level,

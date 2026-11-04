@@ -202,9 +202,7 @@ public final class SimItems {
         });
     }
 
-    private static String literalName(GiveItem item) {
-        return item.name().toLowerCase(java.util.Locale.ROOT);
-    }
+    private static String literalName(GiveItem item) { return item.name().toLowerCase(java.util.Locale.ROOT); }
 
     /**
      * Gives one item. Registered as both {@code /simitem <item>} and {@code /item <item>}; the short
@@ -253,9 +251,7 @@ public final class SimItems {
     }
 
     /** Everything at once, for the picker's one button. */
-    public static void giveEverything(Minecraft client) {
-        giveAll();
-    }
+    public static void giveEverything(Minecraft client) { giveAll(); }
 
     /** The Architect's First Draft, named once so the sim's Architect handler cannot drift from the enum. */
     public static final String ARCHITECT_DRAFT_ID = "ARCHITECT_FIRST_DRAFT";
@@ -348,9 +344,7 @@ public final class SimItems {
      * and secret item drops - and killer560 asked for "the same tooltip as main [...] for all items the player
      * gets", which means all of them, not just the ones this class builds.
      */
-    public static void applySkyblockTooltip(ItemStack stack, String skyblockId) {
-        SimItemLore.apply(stack, skyblockId);
-    }
+    public static void applySkyblockTooltip(ItemStack stack, String skyblockId) { SimItemLore.apply(stack, skyblockId); }
 
     // Ability behavior for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
     // packet - the way Hypixel's server answers it. SimAbilities' server-side use handler delegates any skyblock
@@ -920,9 +914,7 @@ public final class SimItems {
         return hit != null && hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 
-    private static void fail(Minecraft client, String why) {
-        ModChat.send("Sim", ModChat.dim(why));
-    }
+    private static void fail(Minecraft client, String why) { ModChat.send("Sim", ModChat.dim(why)); }
 
     /**
      * An ability refusal on the server thread: logged, never said. Hypixel sends no chat line of its own for these
@@ -931,9 +923,7 @@ public final class SimItems {
     /** When the sim last said Hypixel's "not enough charges" line (server thread only). */
     private static long lastNoChargesMs = 0L;
 
-    private static void failOnServer(String why) {
-        LOGGER.info("[Sim] {}", why);
-    }
+    private static void failOnServer(String why) { LOGGER.info("[Sim] {}", why); }
     /**
      * Every fragile block joined to {@code start}, so one charge opens a whole crypt wall.
      *

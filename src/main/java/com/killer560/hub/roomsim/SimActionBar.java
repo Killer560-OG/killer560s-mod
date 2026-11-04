@@ -23,9 +23,7 @@ public final class SimActionBar {
     private SimActionBar() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimActionBar::serverTick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimActionBar::serverTick); }
 
     private static void serverTick(MinecraftServer server) {
         if (++tick % EVERY_TICKS != 0) {

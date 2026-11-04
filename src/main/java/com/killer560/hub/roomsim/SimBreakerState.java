@@ -67,9 +67,7 @@ public final class SimBreakerState {
     private SimBreakerState() {
     }
 
-    public static void register() {
-        ServerTickEvents.END_SERVER_TICK.register(SimBreakerState::tick);
-    }
+    public static void register() { ServerTickEvents.END_SERVER_TICK.register(SimBreakerState::tick); }
 
     /** Wipes charges and pending restores - for a new room or leaving the sim. */
     public static synchronized void reset() {
@@ -78,9 +76,7 @@ public final class SimBreakerState {
         PENDING.clear();
     }
 
-    public static synchronized int charges() {
-        return charges;
-    }
+    public static synchronized int charges() { return charges; }
 
     /**
      * Spends a charge, if there is one.
@@ -114,9 +110,7 @@ public final class SimBreakerState {
     private static int secretCharges = -1;
 
     /** A profile load replaced the file: read it again on next use. */
-    public static synchronized void forgetSecretCharges() {
-        secretCharges = -1;
-    }
+    public static synchronized void forgetSecretCharges() { secretCharges = -1; }
 
     /**
      * Charges a secret gives back: the sim's "Echoes of the Lost" level, 0 (off) to {@link #MAX_SECRET_CHARGES}.

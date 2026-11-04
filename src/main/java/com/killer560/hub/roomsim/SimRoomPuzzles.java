@@ -121,9 +121,7 @@ public final class SimRoomPuzzles {
     public record Placement(RoomLibrary.Room room, int gridX, int gridZ, int pasteRotation, int dbRotation) {
 
         /** The anchor this placement was recorded with. */
-        public Anchor anchor() {
-            return anchorAt(dbRotation, 0);
-        }
+        public Anchor anchor() { return anchorAt(dbRotation, 0); }
 
         /** The anchor for a different database rotation and vertical nudge, for {@link #bestAnchor}. */
         public Anchor anchorAt(int rotation, int dy) {
@@ -152,9 +150,7 @@ public final class SimRoomPuzzles {
             return new BlockPos(real.getX(), SimAltitude.toWorld(real.getY()), real.getZ());
         }
 
-        public BlockPos world(int[] rel) {
-            return world(rel[0], rel[1], rel[2]);
-        }
+        public BlockPos world(int[] rel) { return world(rel[0], rel[1], rel[2]); }
     }
 
     /**

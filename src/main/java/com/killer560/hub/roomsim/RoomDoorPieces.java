@@ -69,14 +69,10 @@ public final class RoomDoorPieces {
     }
 
     /** How many doorways the pastes turned to their world side's piece since the last call, and starts again. */
-    public static int takeSwapped() {
-        return SWAPPED.getAndSet(0);
-    }
+    public static int takeSwapped() { return SWAPPED.getAndSet(0); }
 
     /** Packs a capture position for {@link #overrides}' map. */
-    static long key(int x, int y, int z) {
-        return ((long) y << 32) | ((long) (x & 0xFFFF) << 16) | (z & 0xFFFF);
-    }
+    static long key(int x, int y, int z) { return ((long) y << 32) | ((long) (x & 0xFFFF) << 16) | (z & 0xFFFF); }
 
     /**
      * The capture-frame blocks to paste instead of the capture's, for {@code room} pasted at {@code rotation}: the
@@ -122,9 +118,7 @@ public final class RoomDoorPieces {
     }
 
     /** True for the sides whose doorways carry the fill on Hypixel: north (0) and west (3). */
-    static boolean westOrNorth(int side) {
-        return side == RoomDoors.NORTH || side == RoomDoors.WEST;
-    }
+    static boolean westOrNorth(int side) { return side == RoomDoors.NORTH || side == RoomDoors.WEST; }
 
     /** Whether the box over this doorway holds exactly the standard filling for its captured side. */
     private static boolean matches(RoomLibrary.Room room, int side, int index, boolean fill) {

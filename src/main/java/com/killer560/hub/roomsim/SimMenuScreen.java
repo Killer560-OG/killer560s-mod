@@ -41,17 +41,13 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "sim";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
 
     @Override
-    public int[] themedPanelBounds() {
-        return themedBounds.clone();
-    }
+    public int[] themedPanelBounds() { return themedBounds.clone(); }
 
     /** The left column's "Create a New Map" entry, which opens the designer as the menu's first page. */
     public static final String NEW_MAP_LABEL = "Create a New Map";
@@ -89,9 +85,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     private int contentBottom;
 
     /** The menu on the page it was last on this session, Load a Room when that was the designer or nothing yet. */
-    public SimMenuScreen(Screen parent) {
-        this(parent, SimMenuNav.lastPage());
-    }
+    public SimMenuScreen(Screen parent) { this(parent, SimMenuNav.lastPage()); }
 
     SimMenuScreen(Screen parent, SimMenuNav.Page page) {
         super(Component.literal("Dungeon Sim"));
@@ -103,9 +97,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
      * What the Dungeon Sim button and /map open: the map designer the first time this game session, afterward the page
      * he was on last (killer560, 2026-10-15).
      */
-    public static Screen open(Screen parent) {
-        return SimMenuNav.open(parent);
-    }
+    public static Screen open(Screen parent) { return SimMenuNav.open(parent); }
 
     @Override
     protected void init() {
@@ -204,9 +196,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The y of the route practice page's KEYBINDS heading. */
-    private int cycleKeybindsY() {
-        return contentY + 24 + 3 * 24 + 10;
-    }
+    private int cycleKeybindsY() { return contentY + 24 + 3 * 24 + 10; }
 
     private Component keyLabel(String label, int which, int code) {
         if (capturing == which) {
@@ -370,13 +360,9 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    private int sortWidth() {
-        return this.font.width("Sort: Secrets ▼") + 14;
-    }
+    private int sortWidth() { return this.font.width("Sort: Secrets ▼") + 14; }
 
-    private String sortLabel() {
-        return "Sort: " + prefs.roomSort.label + (prefs.roomDescending ? " ▼" : " ▲");
-    }
+    private String sortLabel() { return "Sort: " + prefs.roomSort.label + (prefs.roomDescending ? " ▼" : " ▲"); }
 
     /** Counts read best biggest first; names, types and sizes smallest first. */
     private static boolean defaultDescending(SimMenuPrefs.RoomSort sort) {
@@ -384,9 +370,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                 || sort == SimMenuPrefs.RoomSort.ROUTES;
     }
 
-    private int filtersWidth() {
-        return this.font.width("Filters (99)") + 12;
-    }
+    private int filtersWidth() { return this.font.width("Filters (99)") + 12; }
 
     /** A "Filters" button opening the shared panel on {@code filter}. */
     private void filtersButton(SimRoomFilter filter, String note, int x, int y) {
@@ -483,14 +467,10 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** What the room list shows right now, in order. For the testkit; the screen itself reads the field. */
-    public List<String> listedRooms() {
-        return List.copyOf(listed);
-    }
+    public List<String> listedRooms() { return List.copyOf(listed); }
 
     /** Opens straight on "Load a Room", for the testkit. */
-    public static SimMenuScreen roomPicker(Screen parent) {
-        return new SimMenuScreen(parent, SimMenuNav.Page.ROOM);
-    }
+    public static SimMenuScreen roomPicker(Screen parent) { return new SimMenuScreen(parent, SimMenuNav.Page.ROOM); }
 
 
     private static final int ROW_H = 14;
@@ -501,18 +481,12 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The well the room list sits in: its top, below the search row and the quick filters. */
-    private int roomWellTop() {
-        return contentY + 22 + quickRows * 22 + 2;
-    }
+    private int roomWellTop() { return contentY + 22 + quickRows * 22 + 2; }
 
     /** Where the first room row starts, under the column headings. */
-    private int roomRowsTop() {
-        return roomWellTop() + HEAD_H;
-    }
+    private int roomRowsTop() { return roomWellTop() + HEAD_H; }
 
-    private int roomRowsHeight() {
-        return contentBottom - roomRowsTop();
-    }
+    private int roomRowsHeight() { return contentBottom - roomRowsTop(); }
 
     /** The least space between two columns' text, in GUI units. */
     private static final int COL_GAP = 8;
@@ -595,9 +569,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** "Name (N)" - the Name heading without its sort arrow. */
-    private String nameHeading() {
-        return "Name (" + listed.size() + ")";
-    }
+    private String nameHeading() { return "Name (" + listed.size() + ")"; }
 
     /** What a room's row shows in column {@code key}. Measured by {@link #columns()} and drawn by the row, so they agree. */
     private static String cellText(SimMenuPrefs.RoomSort key, String name, boolean ready) {
@@ -624,9 +596,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** {x, y, w, h} of the visible part of the room list (the rows, under the headings). For the testkit. */
-    public int[] roomListBounds() {
-        return new int[]{contentX, roomRowsTop(), contentW, roomRowsHeight()};
-    }
+    public int[] roomListBounds() { return new int[]{contentX, roomRowsTop(), contentW, roomRowsHeight()}; }
 
     /** {x, y, w, h} of a column heading ("NAME", "SECRETS"...), or null when the page has no such column. */
     public int[] columnHeaderBounds(String key) {
@@ -648,9 +618,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return row >= 0 && row < listed.size() ? row : -1;
     }
 
-    private int maxScroll() {
-        return Math.max(0, listed.size() * ROW_H - roomRowsHeight());
-    }
+    private int maxScroll() { return Math.max(0, listed.size() * ROW_H - roomRowsHeight()); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -866,31 +834,19 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         }).bounds(contentX + sw + 4, contentY, fw, 18).build());
     }
 
-    private int runSortWidth() {
-        return this.font.width("Sort: Best Score") + 14;
-    }
+    private int runSortWidth() { return this.font.width("Sort: Best Score") + 14; }
 
-    private int runFloorWidth() {
-        return this.font.width("Floor: M7 (Master)") + 14;
-    }
+    private int runFloorWidth() { return this.font.width("Floor: M7 (Master)") + 14; }
 
     /** Sort and Floor side by side, from the page's left edge. */
-    private int runButtonsWidth() {
-        return runSortWidth() + 4 + runFloorWidth();
-    }
+    private int runButtonsWidth() { return runSortWidth() + 4 + runFloorWidth(); }
 
-    private int cardsTop() {
-        return contentY + 24;
-    }
+    private int cardsTop() { return contentY + 24; }
 
-    private int cardsHeight() {
-        return contentBottom - cardsTop();
-    }
+    private int cardsHeight() { return contentBottom - cardsTop(); }
 
     /** Two columns of cards when the page is wide enough for two readable ones. */
-    private int cardColumns() {
-        return contentW - 6 >= 2 * 300 + CARD_GAP ? 2 : 1;
-    }
+    private int cardColumns() { return contentW - 6 >= 2 * 300 + CARD_GAP ? 2 : 1; }
 
     private int cardWidth() {
         int cols = cardColumns();
@@ -913,9 +869,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The runs as listed, in order. For the testkit. */
-    public List<com.killer560.hub.runsummary.RunRecord> listedRuns() {
-        return List.copyOf(runs);
-    }
+    public List<com.killer560.hub.runsummary.RunRecord> listedRuns() { return List.copyOf(runs); }
 
     /** The open run page's text, § codes included. For the testkit. */
     public List<String> detailLines() {
@@ -1030,9 +984,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         static final int GRID = com.killer560.hub.runsummary.RunRecord.MapSnapshot.GRID;
     }
 
-    private int detailTextX() {
-        return contentX + 6 + RunRecordGrid.GRID * detailMapCell() + 12;
-    }
+    private int detailTextX() { return contentX + 6 + RunRecordGrid.GRID * detailMapCell() + 12; }
 
     private int detailMaxScroll() {
         int lines = detailLines().size();
@@ -1071,12 +1023,8 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

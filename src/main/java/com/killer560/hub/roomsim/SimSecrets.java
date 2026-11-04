@@ -279,9 +279,7 @@ public final class SimSecrets {
     }
 
     /** A database coordinate in the world the floor was built into - the floor's shift applies to y. */
-    private static BlockPos world(BlockPos at) {
-        return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ());
-    }
+    private static BlockPos world(BlockPos at) { return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ()); }
 
     /** One line per secret placed, so a run's missed secrets can be named by position (testkit 1016-sim-fullclear
      *  pairs these with SimScore's "Sim secret counted" lines). */
@@ -340,9 +338,7 @@ public final class SimSecrets {
     private static volatile int forcedKeySpot = -1;
 
     /** For the testkit: put the key on spot {@code index} of a room with several (database order); -1 = random. */
-    public static void setKeySpotForTest(int index) {
-        forcedKeySpot = index;
-    }
+    public static void setKeySpotForTest(int index) { forcedKeySpot = index; }
 
     /** Starts a new floor's audit. */
     public static void resetAudit() {
@@ -364,9 +360,7 @@ public final class SimSecrets {
      * translation fault - the database has no duplicate coordinates - it is two rooms' secrets meeting in a
      * shared wall, which got likelier the moment floors started filling all 36 cells.
      */
-    public static int collidingChests() {
-        return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size();
-    }
+    public static int collidingChests() { return PLACED_CHESTS.size() - new java.util.HashSet<>(PLACED_CHESTS).size(); }
 
     /** Every chest this floor placed, so the build can check afterward that they are all still there. */
     /** Secret chests skipped because they landed in a carved doorway. Reported by the build. */
@@ -416,9 +410,7 @@ public final class SimSecrets {
     }
 
     /** Tiles across a captured dimension - {@code size = tiles * 32 + 1}, so this is its inverse. */
-    private static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * @param defer the chest is not put in the world yet: it appears when he comes near, as a secret bat does

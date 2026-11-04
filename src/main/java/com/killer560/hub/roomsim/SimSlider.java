@@ -54,9 +54,7 @@ public final class SimSlider extends ThemedSliderButton {
 
     /** @return the chosen number, or {@link #RANDOM} when the handle is at the far right */
     /** The top value, which can move (the designer's Puzzles slider follows Rooms to blood and the floor). */
-    public int max() {
-        return max;
-    }
+    public int max() { return max; }
 
     /**
      * Moves the top to {@code newMax}: a value above it comes down to it (and is reported, so the caller's copy follows);

@@ -105,9 +105,7 @@ public final class SimBuilder {
      * client thread would freeze the game rather than merely be slow.
      */
     /** Forgets the door /start opens, so a new map cannot inherit the last one's. */
-    public static void clearEntranceDoor() {
-        entranceDoorPos = null;
-    }
+    public static void clearEntranceDoor() { entranceDoorPos = null; }
 
     public static void build(Minecraft client, String code) {
         // On a real server getSingleplayerServer() is null, and the branch below reads that as "no world yet"
@@ -672,9 +670,7 @@ public final class SimBuilder {
         }
 
         /** Whether the landing height is the doorway's floor rather than a scan of this column. */
-        boolean atDoorLevel() {
-            return doorDx != 0 || doorDz != 0;
-        }
+        boolean atDoorLevel() { return doorDx != 0 || doorDz != 0; }
     }
 
     /** The room's doorway mask turned to the rotation it was pasted at, or null. */
@@ -1479,9 +1475,7 @@ public final class SimBuilder {
     private static net.minecraft.core.BlockPos entranceDoorPos;
 
     /** Where the run's first door is, or null when the map has none. */
-    public static net.minecraft.core.BlockPos entranceDoor() {
-        return entranceDoorPos;
-    }
+    public static net.minecraft.core.BlockPos entranceDoor() { return entranceDoorPos; }
 
     /**
      * Removes every mob and armor stand left in the sim world.
@@ -1773,9 +1767,7 @@ public final class SimBuilder {
      * <p>The mode that gets used most while learning a room, which is why the menu offers it directly rather
      * than making him generate a whole map to reach it.
      */
-    public static void buildSingleRoom(Minecraft client, String roomName) {
-        buildSingleRoom(client, roomName, false);
-    }
+    public static void buildSingleRoom(Minecraft client, String roomName) { buildSingleRoom(client, roomName, false); }
 
     /**
      * Test aid: the quarter turn a lone ONE-TILE room is pasted at (0, 90, 180 or 270), so a puzzle auto can be played at
@@ -1784,9 +1776,7 @@ public final class SimBuilder {
      */
     private static volatile int singleRoomRotation = 0;
 
-    public static void setSingleRoomRotationForTest(int rotation) {
-        singleRoomRotation = Math.floorMod(rotation, 360) / 90 * 90;
-    }
+    public static void setSingleRoomRotationForTest(int rotation) { singleRoomRotation = Math.floorMod(rotation, 360) / 90 * 90; }
 
     /**
      * {@link #buildSingleRoom(Minecraft, String)}, saying whether All Rooms asked for it ({@code fromCycle}): any
@@ -2116,9 +2106,7 @@ public final class SimBuilder {
     }
 
     /** A captured size back to a tile count - {@code RoomLibrary.footprint}'s only inverse. */
-    private static int tilesOf(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tilesOf(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * Drops the synthetic test room into the middle of the grid.

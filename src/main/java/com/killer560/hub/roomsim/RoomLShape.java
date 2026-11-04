@@ -35,9 +35,7 @@ public final class RoomLShape {
     }
 
     /** Tiles across a captured size - {@code RoomLibrary.footprint}'s inverse, as everywhere else. */
-    static int tiles(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    static int tiles(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * For an L room (2x2 capture, database shape "L"), its missing quarter as {@code {tx, tz}} in the CAPTURE's

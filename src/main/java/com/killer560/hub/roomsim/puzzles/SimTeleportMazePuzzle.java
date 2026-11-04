@@ -345,9 +345,7 @@ public final class SimTeleportMazePuzzle {
     /** Ticks before a pad can fire again - the server moves him a tick or two after the client asks. */
     private static volatile int settleTicks = 0;
 
-    private static int chamberOf(int pad) {
-        return pad < END ? pad / PADS_PER_CELL : -1;
-    }
+    private static int chamberOf(int pad) { return pad < END ? pad / PADS_PER_CELL : -1; }
 
     /**
      * Draws a fresh pairing: the start linked to one chamber pad, one exit pad to the center, every other pad
@@ -455,9 +453,7 @@ public final class SimTeleportMazePuzzle {
     private static volatile long lastRefusalMs = 0L;
 
     /** Where the center's pad sends him, for Auto Teleport Maze's finish; null when no maze is bound. */
-    public static BlockPos returnSpot() {
-        return returnSpot;
-    }
+    public static BlockPos returnSpot() { return returnSpot; }
 
     /**
      * The block he is put on when the Interactive Map takes him into this room: {@code AutoClearUtils}'
@@ -595,9 +591,7 @@ public final class SimTeleportMazePuzzle {
     }
 
     /** True once the last cell's correct pad has sent the player to the final landing spot. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Clears the arena and its bookkeeping. Safe with nothing built. */
     /**

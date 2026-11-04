@@ -223,9 +223,7 @@ public final class SimFloorGen {
      *
      * @return the planned floor, or null when it could not lay one out (having said so in chat)
      */
-    public static Planned plan(Floor floor, int puzzles, int roomsToBlood) {
-        return plan(floor, puzzles, roomsToBlood, null);
-    }
+    public static Planned plan(Floor floor, int puzzles, int roomsToBlood) { return plan(floor, puzzles, roomsToBlood, null); }
 
     /**
      * The same, but laid out AROUND rooms he has already placed on the designer's grid.
@@ -508,9 +506,7 @@ public final class SimFloorGen {
      * <p>{@code bloodDistance} carries the DOOR COUNT here rather than a distance, because a drawn floor has
      * no generated blood path to measure.
      */
-    public static Planned planExplicit(Map<Integer, String> placements) {
-        return planExplicit(placements, false);
-    }
+    public static Planned planExplicit(Map<Integer, String> placements) { return planExplicit(placements, false); }
 
     /**
      * The same, optionally without a word in chat - for the map designer, which re-plans the drawing every
@@ -768,9 +764,7 @@ public final class SimFloorGen {
      * standing alone, and it then planned a 2-tile room into a single cell: 65 blocks pasted into a 32-block
      * slot, straight over the neighbor. That is "the map isnt generating right".
      */
-    private static int tilesAcross(int size) {
-        return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
-    }
+    private static int tilesAcross(int size) { return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1)); }
 
     /**
      * Marks every cell a room covers, INCLUDING the connector cells between its own tiles.
@@ -815,15 +809,9 @@ public final class SimFloorGen {
     }
 
     /** Room cell to the 11x11 grid index - rooms live on even coordinates. */
-    private static int gridCell(int[] c) {
-        return (c[1] * 2) * DungeonLayout.GRID + (c[0] * 2);
-    }
+    private static int gridCell(int[] c) { return (c[1] * 2) * DungeonLayout.GRID + (c[0] * 2); }
 
-    private static long key(int[] c) {
-        return ((long) c[0] << 32) ^ (c[1] & 0xffffffffL);
-    }
+    private static long key(int[] c) { return ((long) c[0] << 32) ^ (c[1] & 0xffffffffL); }
 
-    private static boolean same(int[] a, int[] b) {
-        return a[0] == b[0] && a[1] == b[1];
-    }
+    private static boolean same(int[] a, int[] b) { return a[0] == b[0] && a[1] == b[1]; }
 }

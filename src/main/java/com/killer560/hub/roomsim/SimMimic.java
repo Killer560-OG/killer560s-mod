@@ -72,14 +72,10 @@ public final class SimMimic {
     private static final Set<BlockPos> PUZZLE_REWARDS = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** Marks a puzzle's reward chest, so opening it is not counted as a secret. */
-    public static void markPuzzleReward(BlockPos pos) {
-        PUZZLE_REWARDS.add(pos.immutable());
-    }
+    public static void markPuzzleReward(BlockPos pos) { PUZZLE_REWARDS.add(pos.immutable()); }
 
     /** Forgets a puzzle reward chest the puzzle has taken away (or whose floor is gone). */
-    public static void unmarkPuzzleReward(BlockPos pos) {
-        PUZZLE_REWARDS.remove(pos);
-    }
+    public static void unmarkPuzzleReward(BlockPos pos) { PUZZLE_REWARDS.remove(pos); }
 
     private SimMimic() {
     }
@@ -144,9 +140,7 @@ public final class SimMimic {
     }
 
     /** Records a chest that could be the mimic, as a room is placed. */
-    public static void addCandidate(BlockPos pos) {
-        CANDIDATES.add(pos.immutable());
-    }
+    public static void addCandidate(BlockPos pos) { CANDIDATES.add(pos.immutable()); }
 
     /**
      * Picks the one chest that is the mimic, once the whole map is placed.
@@ -154,14 +148,10 @@ public final class SimMimic {
      * <p>Chosen after everything is down rather than while placing, because "one per map" cannot be decided a
      * room at a time - picking as you go gives the first eligible room a far better chance than the last.
      */
-    public static void chooseForMap(net.minecraft.server.level.ServerLevel level) {
-        chooseForMap(level, null);
-    }
+    public static void chooseForMap(net.minecraft.server.level.ServerLevel level) { chooseForMap(level, null); }
 
     /** The chest chosen as this map's mimic, or null when it has none. */
-    public static BlockPos chosen() {
-        return mimic;
-    }
+    public static BlockPos chosen() { return mimic; }
 
     /**
      * As {@link #chooseForMap(net.minecraft.server.level.ServerLevel)}, but {@code prefer} is the mimic when it is
@@ -278,17 +268,11 @@ public final class SimMimic {
     }
 
     /** Its mob was discarded (a run restart), not killed - so it must not score. */
-    static void forgetMob() {
-        mimicMob = null;
-    }
+    static void forgetMob() { mimicMob = null; }
 
     /** The live mimic's id, or null - for tests. */
-    public static java.util.UUID mimicMob() {
-        return mimicMob;
-    }
+    public static java.util.UUID mimicMob() { return mimicMob; }
 
     /** Where the mimic's chest is (or was), or null. */
-    public static BlockPos position() {
-        return mimic;
-    }
+    public static BlockPos position() { return mimic; }
 }

@@ -256,14 +256,10 @@ public final class SimIcePathPuzzle {
     private static volatile boolean rewardOpened = false;
 
     /** Where the sim put the reward chest, or null before the solve. */
-    public static BlockPos rewardChestPos() {
-        return rewardChest;
-    }
+    public static BlockPos rewardChestPos() { return rewardChest; }
 
     /** True once the reward chest was opened (a use-on it reached the server). */
-    public static boolean isRewardChestOpened() {
-        return rewardOpened;
-    }
+    public static boolean isRewardChestOpened() { return rewardOpened; }
 
     private static void placeRewardChest(ServerLevel level) {
         if (rewardChest != null) {
@@ -457,9 +453,7 @@ public final class SimIcePathPuzzle {
     }
 
     /** True once the silverfish has reached the exit. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /**
      * Drops this puzzle's bookkeeping WITHOUT touching the world.
@@ -570,18 +564,12 @@ public final class SimIcePathPuzzle {
     }
 
     /** The ice a cell's silverfish stands on. {@code IcePathSolverFeature}'s own path coordinate. */
-    private static BlockPos iceOf(int row, int col) {
-        return rel(23 - col, ICE_Y, 24 - row);
-    }
+    private static BlockPos iceOf(int row, int col) { return rel(23 - col, ICE_Y, 24 - row); }
 
     /** The cell a maze wall would occupy. {@code IcePathSolverFeature}'s own board read. */
-    private static BlockPos wallOf(int row, int col) {
-        return rel(23 - col, WALL_Y, 24 - row);
-    }
+    private static BlockPos wallOf(int row, int col) { return rel(23 - col, WALL_Y, 24 - row); }
 
-    private static boolean inBounds(int row, int col) {
-        return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
-    }
+    private static boolean inBounds(int row, int col) { return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE; }
 
     /**
      * Where a shove from {@code (row, col)} in direction {@code (dRow, dCol)} comes to rest.
@@ -1038,8 +1026,6 @@ public final class SimIcePathPuzzle {
         }
 
         @Override
-        public boolean isPushable() {
-            return false;
-        }
+        public boolean isPushable() { return false; }
     }
 }

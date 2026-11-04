@@ -139,9 +139,7 @@ public final class SimSecretItems {
     }
 
     /** Secret bats that have not appeared yet, for tests. */
-    public static List<BlockPos> pendingBats() {
-        return List.copyOf(PENDING_BATS);
-    }
+    public static List<BlockPos> pendingBats() { return List.copyOf(PENDING_BATS); }
 
     /**
      * Secret chests waiting for him to come near, with the block each becomes.
@@ -163,9 +161,7 @@ public final class SimSecretItems {
      * (killer560, 2026-10-18: "they should have the 10 block rule always"): {@code DEV_TOOLS} is a compile-time constant
      * that is false in a release, so there javac folds this to {@code true} and the test switch below cannot matter.
      */
-    public static boolean chestsAppearNear() {
-        return !com.killer560.hub.BuildVariant.DEV_TOOLS || chestsAppearNear;
-    }
+    public static boolean chestsAppearNear() { return !com.killer560.hub.BuildVariant.DEV_TOOLS || chestsAppearNear; }
 
     /**
      * For the testkit only, by reflection: {@code false} puts every secret chest in at the build, for a scenario about
@@ -186,9 +182,7 @@ public final class SimSecretItems {
     }
 
     /** Whether a secret chest is waiting at {@code at} to appear. */
-    public static boolean isPendingChest(BlockPos at) {
-        return at != null && PENDING_CHESTS.containsKey(at);
-    }
+    public static boolean isPendingChest(BlockPos at) { return at != null && PENDING_CHESTS.containsKey(at); }
 
     /**
      * The mimic picked a chest that has not appeared yet: it will appear as a TRAPPED chest, facing the way it would
@@ -267,9 +261,7 @@ public final class SimSecretItems {
     }
 
     /** How many item secrets are still waiting to be found, for anything that wants to report progress. */
-    public static int remaining() {
-        return PENDING.size() + LIVE.size();
-    }
+    public static int remaining() { return PENDING.size() + LIVE.size(); }
 
     /**
      * How many have not appeared yet, separately from how many are lying around uncollected.
@@ -278,14 +270,10 @@ public final class SimSecretItems {
      * spawned and was never picked up - and those are different bugs. Scenario 81 could not tell them apart
      * until this existed.
      */
-    public static int pendingCount() {
-        return PENDING.size();
-    }
+    public static int pendingCount() { return PENDING.size(); }
 
     /** How many drops are on the floor waiting to be collected. */
-    public static int liveCount() {
-        return LIVE.size();
-    }
+    public static int liveCount() { return LIVE.size(); }
 
     /**
      * Where the item secrets that have not appeared yet are.
@@ -294,9 +282,7 @@ public final class SimSecretItems {
      * A test cannot guess these - they come from the room database through two rotations - and a test that
      * asserted on a position it made up would prove nothing about the real ones.
      */
-    public static List<BlockPos> pendingPositions() {
-        return List.copyOf(PENDING.keySet());
-    }
+    public static List<BlockPos> pendingPositions() { return List.copyOf(PENDING.keySet()); }
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {

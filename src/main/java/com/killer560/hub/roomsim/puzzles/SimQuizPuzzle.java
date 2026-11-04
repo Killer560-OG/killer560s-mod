@@ -881,19 +881,13 @@ public final class SimQuizPuzzle {
 
     /** Whether the correct chest has been opened. False before a question is answered, and false again after a
      *  wrong click resets the board. */
-    public static boolean isComplete() {
-        return complete;
-    }
+    public static boolean isComplete() { return complete; }
 
     /** Solved, and the room this class is bound to is Three Weirdos - for tests that must not mistake a Quiz. */
-    public static boolean isWeirdosComplete() {
-        return complete && weirdosRoom;
-    }
+    public static boolean isWeirdosComplete() { return complete && weirdosRoom; }
 
     /** Solved, and the room this class is bound to is the Quiz (or a standalone arena). */
-    public static boolean isQuizComplete() {
-        return complete && !weirdosRoom;
-    }
+    public static boolean isQuizComplete() { return complete && !weirdosRoom; }
 
     /** Non-null while this puzzle is bound to a real captured room rather than a standalone arena. */
     private static volatile BlockPos[] boundPositions = null;
@@ -1130,9 +1124,7 @@ public final class SimQuizPuzzle {
     private static final List<long[]> ORUO_ACCEPTED = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /** True while this class runs a bound Quiz room (answered on the server through Oruo's locks). */
-    private static boolean oruoRoom() {
-        return built && boundRoom != null && !weirdosRoom && quizButtons != null;
-    }
+    private static boolean oruoRoom() { return built && boundRoom != null && !weirdosRoom && quizButtons != null; }
 
     private static void forgetOruo() {
         oruoFlow = "IDLE";
@@ -1229,9 +1221,7 @@ public final class SimQuizPuzzle {
         }
     }
 
-    private static void at(long tick, Runnable r) {
-        ORUO_PLAN.add(new Object[]{tick, r});
-    }
+    private static void at(long tick, Runnable r) { ORUO_PLAN.add(new Object[]{tick, r}); }
 
     /** Oruo speaks: a server system message to every player, as Hypixel sends his lines to the whole dungeon. */
     private static void oruoSay(String text) {
@@ -1406,31 +1396,19 @@ public final class SimQuizPuzzle {
     }
 
     /** Test hooks: where Oruo is ({@code IDLE}, {@code RUNNING}, {@code DONE}), which question, and its lock. */
-    public static String oruoFlow() {
-        return oruoFlow;
-    }
+    public static String oruoFlow() { return oruoFlow; }
 
-    public static int oruoQuestion() {
-        return oruoQuestion;
-    }
+    public static int oruoQuestion() { return oruoQuestion; }
 
-    public static long oruoServerTick() {
-        return oruoTick;
-    }
+    public static long oruoServerTick() { return oruoTick; }
 
-    public static long oruoOpenAt() {
-        return oruoOpenAt;
-    }
+    public static long oruoOpenAt() { return oruoOpenAt; }
 
     /** Presses refused for coming before the lock ended (or before any question), this room. */
-    public static int oruoRefused() {
-        return oruoRefused;
-    }
+    public static int oruoRefused() { return oruoRefused; }
 
     /** {question, tick accepted, tick it opened} per answer that counted. */
-    public static List<long[]> oruoAccepted() {
-        return List.copyOf(ORUO_ACCEPTED);
-    }
+    public static List<long[]> oruoAccepted() { return List.copyOf(ORUO_ACCEPTED); }
 
     /** Test hook, server thread: Oruo back to not started (as a wrong answer leaves him), with no fail reported. */
     public static void testRearm() {
