@@ -242,6 +242,15 @@ MultiBreak* only while it is on.
 - After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
   "Under no circumstances." Only dungeon/main work ships before 2.0.
 - No limit on testkit clients (killer560, 2026-11-04: "run as many clients at once as you like"; was 9).
+- BUILD STANDARDS for every feature and fix (killer560, 2026-11-04: what the size/FPS/scan passes of 11-04 enforced, now
+  the default for all new code). FPS: nothing per frame or per tick that can be cached, event-driven or gated on the state
+  it needs (in a dungeon, screen open); no allocation, stream or regex compile in render/tick paths; block scans ask section
+  palettes first; disk, network and big parsing never on the render thread (saves on release or throttled, shared-store
+  writes on `shared/SharedWriter`). Boot: nothing heavy in static init or the client entrypoint; load lazily. Size: fewest
+  lines that stay clear; grep for an existing helper before writing one and never add a second copy (the dup passes merged
+  dozens); delete dead code you touch; no large asset in the jar (big theme assets download on demand, previews only).
+  Leaks: every listener, cache and map is bounded or cleared on world change. Mixins: chaining forms only (see below),
+  targets verified. Render or tick changes run the perf gate; docs/LESSONS-PERF.md has the measured rules.
 - Every failure found gets fixed, even in the middle of a size, perf or other pass (killer560, 2026-11-04: "If you find a
   failure fix it even during these changes/optimizations"). "Pre-existing" is a finding, not a reason to leave it: start a
   fix job (mod or test, whichever is wrong) and put it in WORKQUEUE.
