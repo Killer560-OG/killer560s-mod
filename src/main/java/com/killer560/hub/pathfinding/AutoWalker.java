@@ -200,67 +200,41 @@ public final class AutoWalker {
         ViewFreeze.release();
     }
 
-    public static boolean isSessionActive() {
-        return sessionActive;
-    }
+    public static boolean isSessionActive() { return sessionActive; }
 
     /** True while this session holds the free camera. */
-    public static boolean holdsView() {
-        return sessionActive && viewHeld;
-    }
+    public static boolean holdsView() { return sessionActive && viewHeld; }
 
-    public static String stopReason() {
-        return stopReason;
-    }
+    public static String stopReason() { return stopReason; }
 
     /** Driving the player right now (the mixin asks this). */
     public static boolean isDriving() {
         return sessionActive && walking && !noCarrot && !respawning && PathfindingConfig.getInstance().isAutoWalk();
     }
 
-    public static boolean wantForward() {
-        return wantForward;
-    }
+    public static boolean wantForward() { return wantForward; }
 
-    public static boolean wantBack() {
-        return wantBack;
-    }
+    public static boolean wantBack() { return wantBack; }
 
-    public static boolean wantLeft() {
-        return wantLeft;
-    }
+    public static boolean wantLeft() { return wantLeft; }
 
-    public static boolean wantRight() {
-        return wantRight;
-    }
+    public static boolean wantRight() { return wantRight; }
 
-    public static boolean wantJump() {
-        return wantJump;
-    }
+    public static boolean wantJump() { return wantJump; }
 
-    public static boolean wantSprint() {
-        return wantSprint;
-    }
+    public static boolean wantSprint() { return wantSprint; }
 
     /** Sneak (crouch) this tick: under a 1.5-high ceiling, or to stop on a narrow spot without stepping off it. */
-    public static boolean wantSneak() {
-        return wantSneak;
-    }
+    public static boolean wantSneak() { return wantSneak; }
 
     /** Testkit: ticks the walker held sneak. */
-    public static int crouchTicks() {
-        return crouchTicks;
-    }
+    public static int crouchTicks() { return crouchTicks; }
 
     /** Testkit: controlled jumps (a jump with height to spare, steered in the air onto its cell). */
-    public static int controlledJumps() {
-        return controlledJumps;
-    }
+    public static int controlledJumps() { return controlledJumps; }
 
     /** Testkit: plans made again because his jump changed (Jump Boost on or off). */
-    public static int jumpReplans() {
-        return jumpReplans;
-    }
+    public static int jumpReplans() { return jumpReplans; }
 
     public static void setWalking(boolean value) {
         if (walking == value) {
@@ -277,9 +251,7 @@ public final class AutoWalker {
     }
 
     /** Forget the last applied rotation after a server-driven one (the etherwarp teleport reply). */
-    public static void rebaseCamera() {
-        WalkCamera.rebase();
-    }
+    public static void rebaseCamera() { WalkCamera.rebase(); }
 
     public static void clearStuck() {
         stuck = false;
@@ -307,13 +279,9 @@ public final class AutoWalker {
         }
     }
 
-    public static void onMixinApplied() {
-        mixinApplied = true;
-    }
+    public static void onMixinApplied() { mixinApplied = true; }
 
-    public static boolean mixinApplied() {
-        return mixinApplied;
-    }
+    public static boolean mixinApplied() { return mixinApplied; }
 
     /** From {@code PathMotionPacketMixin}: the server set the local player's velocity. Netty-safe (main thread). */
     public static void onServerMotion(Vec3 motion) {
@@ -349,9 +317,7 @@ public final class AutoWalker {
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-pathfinding");
 
     /** From {@code PathMotionPacketMixin}, main thread: the server says he died. */
-    public static void onServerDeath() {
-        onDeath("death packet");
-    }
+    public static void onServerDeath() { onDeath("death packet"); }
 
     /** Hypixel's death chat line (see {@link #HYPIXEL_DEATH}). */
     private static void onChat(net.minecraft.network.chat.Component message) {
@@ -405,9 +371,7 @@ public final class AutoWalker {
     }
 
     /** Dead and waiting, or inside the grace after the respawn (the world-change hook and the testkit ask). */
-    public static boolean inDeathGrace() {
-        return sessionActive && (respawning || System.currentTimeMillis() < graceUntilMs);
-    }
+    public static boolean inDeathGrace() { return sessionActive && (respawning || System.currentTimeMillis() < graceUntilMs); }
 
     /** The respawn is done: a fresh start for the path, the camera and the stuck clock. */
     private static void resumeAfterRespawn(LocalPlayer player, String why) {
@@ -901,9 +865,7 @@ public final class AutoWalker {
     }
 
     /** The route's feet cells around {@code start} and the soul (an escape's landing must reach one of them). */
-    static List<BlockPos> routeGoals(Level level, Vec3 pos, BlockPos start) {
-        return rescueGoals(level, pos, start, false);
-    }
+    static List<BlockPos> routeGoals(Level level, Vec3 pos, BlockPos start) { return rescueGoals(level, pos, start, false); }
 
     /**
      * Where a way back may end: route points (feet cells he can stand in, not water or lava) and the soul. Blocked or
@@ -1258,9 +1220,7 @@ public final class AutoWalker {
         return true;
     }
 
-    static boolean isApproaching() {
-        return sessionActive && approaching && rescuePath != null;
-    }
+    static boolean isApproaching() { return sessionActive && approaching && rescuePath != null; }
 
     static void cancelApproach() {
         if (approaching) {
@@ -1276,13 +1236,9 @@ public final class AutoWalker {
         fail(why);
     }
 
-    public static int approachesPlanned() {
-        return approachesPlanned;
-    }
+    public static int approachesPlanned() { return approachesPlanned; }
 
-    public static int approachesDone() {
-        return approachesDone;
-    }
+    public static int approachesDone() { return approachesDone; }
 
     /**
      * On a ladder, keep his 0.6-wide box inside the ladder's own column: 0.2 off its center his head catches the block
@@ -1351,9 +1307,7 @@ public final class AutoWalker {
     /** Testkit probe (1102-fairy-arrival): sprints ended by a no-key tick before a soul's stop. */
     static int sprintEndsBeforeStop;
 
-    public static int sprintEndsBeforeStop() {
-        return sprintEndsBeforeStop;
-    }
+    public static int sprintEndsBeforeStop() { return sprintEndsBeforeStop; }
 
     /**
      * The last word on the keys while he is on a ladder, whoever chose them (the climb, a way back, an approach, the
@@ -1449,13 +1403,9 @@ public final class AutoWalker {
     }
 
     /** No way back on foot: the runner escapes with a tool it is allowed, or skips the soul. */
-    public static boolean needsEscape() {
-        return sessionActive && needsEscape;
-    }
+    public static boolean needsEscape() { return sessionActive && needsEscape; }
 
-    public static String escapeWhy() {
-        return escapeWhy;
-    }
+    public static String escapeWhy() { return escapeWhy; }
 
     /** The runner's warp landed: its teleport packet is the warp's, not a correction to report. */
     static void acceptServerMoves() {
@@ -1477,9 +1427,7 @@ public final class AutoWalker {
         NavigationManager.recalculate(true);
     }
 
-    public static boolean isRescuing() {
-        return rescuePath != null;
-    }
+    public static boolean isRescuing() { return rescuePath != null; }
 
     /** The target yaw expressed next to the running yaw, so the camera never turns the long way. */
     private static float yaw(float target, LocalPlayer player) {
@@ -1572,9 +1520,7 @@ public final class AutoWalker {
     }
 
     /** How far the camera still has to turn to the current aim target, in degrees. */
-    public static float aimError() {
-        return WalkCamera.error();
-    }
+    public static float aimError() { return WalkCamera.error(); }
 
     private static void clearKeys() {
         wantForward = false;
@@ -1610,51 +1556,27 @@ public final class AutoWalker {
                 : String.format(Locale.US, "no jump boost - jumps %.2f blocks", h);
     }
 
-    public static int jumpsPressed() {
-        return jumpsPressed;
-    }
+    public static int jumpsPressed() { return jumpsPressed; }
 
-    public static int sidesteps() {
-        return sidesteps;
-    }
+    public static int sidesteps() { return sidesteps; }
 
-    public static int climbTicks() {
-        return climbTicks;
-    }
+    public static int climbTicks() { return climbTicks; }
 
-    public static int damageHits() {
-        return damageHits;
-    }
+    public static int damageHits() { return damageHits; }
 
-    public static int deaths() {
-        return deaths;
-    }
+    public static int deaths() { return deaths; }
 
-    public static int knockbacks() {
-        return knockbacks;
-    }
+    public static int knockbacks() { return knockbacks; }
 
-    public static boolean isRespawning() {
-        return respawning;
-    }
+    public static boolean isRespawning() { return respawning; }
 
-    public static int failsafes() {
-        return failsafes;
-    }
+    public static int failsafes() { return failsafes; }
 
-    public static String lastFailsafe() {
-        return lastFailsafe;
-    }
+    public static String lastFailsafe() { return lastFailsafe; }
 
-    public static int rescuesPlanned() {
-        return rescuesPlanned;
-    }
+    public static int rescuesPlanned() { return rescuesPlanned; }
 
-    public static int rescuesDone() {
-        return rescuesDone;
-    }
+    public static int rescuesDone() { return rescuesDone; }
 
-    public static String lastRescue() {
-        return lastRescue;
-    }
+    public static String lastRescue() { return lastRescue; }
 }

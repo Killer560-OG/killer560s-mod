@@ -94,9 +94,7 @@ public final class ProfileTracker {
         profileName = "";
     }
 
-    public static String profileName() {
-        return profileName;
-    }
+    public static String profileName() { return profileName; }
 
     /** Storage key: "&lt;account uuid&gt;/&lt;profile name&gt;", or ".../?" until the profile is known. */
     public static String key() {
@@ -120,7 +118,5 @@ public final class ProfileTracker {
 
     private static volatile KeyMemo keyMemo;
 
-    public static String displayName() {
-        return profileName.isEmpty() ? "unknown profile" : profileName;
-    }
+    public static String displayName() { return profileName.isEmpty() ? "unknown profile" : profileName; }
 }

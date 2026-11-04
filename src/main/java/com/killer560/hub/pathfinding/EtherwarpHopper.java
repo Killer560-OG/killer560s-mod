@@ -85,18 +85,12 @@ public final class EtherwarpHopper {
         return com.killer560.hub.util.ItemNbt.view(stack);
     }
 
-    public static boolean isBusy() {
-        return planning || ClearExecutor.isBusy();
-    }
+    public static boolean isBusy() { return planning || ClearExecutor.isBusy(); }
 
     /** Whether {@code node} is one of this hopper's own hops (Zero Ping Etherwarp's Works For asks). */
-    public static boolean owns(ClearNode node) {
-        return node instanceof PathEtherNode;
-    }
+    public static boolean owns(ClearNode node) { return node instanceof PathEtherNode; }
 
-    public static Vec3 expectedLanding() {
-        return expectedLanding;
-    }
+    public static Vec3 expectedLanding() { return expectedLanding; }
 
     public static void cancel() {
         generation++;
@@ -236,13 +230,9 @@ public final class EtherwarpHopper {
         }
 
         @Override
-        protected String[] items() {
-            return items;
-        }
+        protected String[] items() { return items; }
 
         @Override
-        protected double range() {
-            return Math.max(1.0, EtherwarpHopper.range());
-        }
+        protected double range() { return Math.max(1.0, EtherwarpHopper.range()); }
     }
 }

@@ -66,9 +66,7 @@ final class WalkPhysics {
             return (sprint ? AIR_SPEED_SPRINTING : AIR_SPEED) * inputScale;
         }
 
-        double speed() {
-            return Math.sqrt(vx * vx + vz * vz);
-        }
+        double speed() { return Math.sqrt(vx * vx + vz * vz); }
     }
 
     private WalkPhysics() {

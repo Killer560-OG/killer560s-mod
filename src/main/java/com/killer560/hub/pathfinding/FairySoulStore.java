@@ -53,9 +53,7 @@ public final class FairySoulStore {
         public int menuTotal = -1;
         public long menuAt = 0L;
 
-        public boolean menuComplete() {
-            return menuTotal > 0 && menuFound >= menuTotal;
-        }
+        public boolean menuComplete() { return menuTotal > 0 && menuFound >= menuTotal; }
     }
 
     private static final Map<String, Map<String, IslandRecord>> PROFILES = new LinkedHashMap<>();
@@ -70,9 +68,7 @@ public final class FairySoulStore {
      *  holding an answer from an older version knows to ask again (PathWorldRenderer's unfound-soul list). */
     private static volatile int version;
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
     public static synchronized void load() {
         version++;

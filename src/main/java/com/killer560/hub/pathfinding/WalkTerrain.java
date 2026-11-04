@@ -53,9 +53,7 @@ final class WalkTerrain {
         return effect == null ? 0 : effect.getAmplifier() + 1;
     }
 
-    static boolean climbable(Level level, BlockPos pos) {
-        return level.getBlockState(pos).is(BlockTags.CLIMBABLE);
-    }
+    static boolean climbable(Level level, BlockPos pos) { return level.getBlockState(pos).is(BlockTags.CLIMBABLE); }
 
     /** A block a player collides with (a ladder or vine is climbed, not walked into). */
     static boolean solid(Level level, BlockPos pos) {
@@ -93,9 +91,7 @@ final class WalkTerrain {
     static final double FOOTPRINT = 0.25;
 
     /** Whether the block's collision reaches into the square of half-width {@link #FOOTPRINT} around {@code (x, z)}. */
-    static boolean underFootprint(Level level, BlockPos p, double x, double z) {
-        return collidesNear(level, p, x, z, FOOTPRINT);
-    }
+    static boolean underFootprint(Level level, BlockPos p, double x, double z) { return collidesNear(level, p, x, z, FOOTPRINT); }
 
     /** Whether the block's collision reaches into the square of half-width {@code half} around {@code (x, z)}. */
     static boolean collidesNear(Level level, BlockPos p, double x, double z, double half) {

@@ -279,9 +279,7 @@ final class LocalPlanner {
     }
 
     /** A cell he fits in only crouching (see {@link #crouchCell}). */
-    static boolean crouchOnly(Level level, BlockPos feet) {
-        return crouchCell(level, feet);
-    }
+    static boolean crouchOnly(Level level, BlockPos feet) { return crouchCell(level, feet); }
 
     /** The tallest collision in a block that still counts as a floor inside the feet cell (a bottom slab is 0.5). */
     static final double LOW_TOP = 0.5625;
@@ -367,13 +365,9 @@ final class LocalPlanner {
         return !s.getCollisionShape(level, p).isEmpty() || s.is(BlockTags.CLIMBABLE);
     }
 
-    static boolean water(Level level, BlockPos p) {
-        return level.getBlockState(p).getFluidState().is(FluidTags.WATER);
-    }
+    static boolean water(Level level, BlockPos p) { return level.getBlockState(p).getFluidState().is(FluidTags.WATER); }
 
-    static boolean lava(Level level, BlockPos p) {
-        return level.getBlockState(p).getFluidState().is(FluidTags.LAVA);
-    }
+    static boolean lava(Level level, BlockPos p) { return level.getBlockState(p).getFluidState().is(FluidTags.LAVA); }
 
     /**
      * The cell his feet are in: the block containing the feet, or the one above it when the feet rest on top of a

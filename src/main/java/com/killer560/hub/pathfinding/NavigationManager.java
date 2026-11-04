@@ -57,18 +57,12 @@ public final class NavigationManager {
     }
 
 
-    public static boolean isActive() {
-        return target != null;
-    }
+    public static boolean isActive() { return target != null; }
 
-    public static Target target() {
-        return target;
-    }
+    public static Target target() { return target; }
 
     /** Path points (block centers) from the first graph node to the target, or empty. */
-    public static List<Vec3> path() {
-        return path;
-    }
+    public static List<Vec3> path() { return path; }
 
     public static void navigate(String label, Vec3 pos, int nodeIndex, boolean stayOnArrive, ArrivalListener listener) {
         target = new Target(label, pos, nodeIndex, stayOnArrive, listener);
@@ -251,9 +245,7 @@ public final class NavigationManager {
 
 
     /** Feet-level center of a graph node's block (positions in the graph are the block a player stands on). */
-    public static Vec3 centre(IslandGraph.Node node) {
-        return new Vec3(node.x + 0.5, node.y + 0.5, node.z + 0.5);
-    }
+    public static Vec3 centre(IslandGraph.Node node) { return new Vec3(node.x + 0.5, node.y + 0.5, node.z + 0.5); }
 
     // closestSegment is asked many times a tick for one position (the walker's carrot tries, corner scan, remaining
     // distance, the HUD's width/height/render): the path list is only ever replaced, so identity plus the position is a key.

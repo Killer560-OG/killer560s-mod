@@ -123,25 +123,15 @@ public final class AutoSoulRunner {
     private AutoSoulRunner() {
     }
 
-    public static int clicksSent() {
-        return clicksSent;
-    }
+    public static int clicksSent() { return clicksSent; }
 
-    public static int escapesEther() {
-        return escapesEther;
-    }
+    public static int escapesEther() { return escapesEther; }
 
-    public static int escapesPearl() {
-        return escapesPearl;
-    }
+    public static int escapesPearl() { return escapesPearl; }
 
-    public static int noWayOuts() {
-        return noWayOuts;
-    }
+    public static int noWayOuts() { return noWayOuts; }
 
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
     public static void start() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -583,13 +573,9 @@ public final class AutoSoulRunner {
 
 
     /** A warp back to the island's spawn is under way (the world change and the screen it brings are not failsafes). */
-    public static boolean isWarping() {
-        return active && state == State.WARPING;
-    }
+    public static boolean isWarping() { return active && state == State.WARPING; }
 
-    public static int warpsSent() {
-        return warpsSent;
-    }
+    public static int warpsSent() { return warpsSent; }
 
     /**
      * Stuck with no way out on foot or by an allowed tool: /warp to this island's own spawn, then walk back to the same

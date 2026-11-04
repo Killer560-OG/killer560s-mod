@@ -61,9 +61,7 @@ public final class GraphRepository {
     private GraphRepository() {
     }
 
-    public static Path dataDir() {
-        return ModPaths.config("killer560smod-pathfinding").resolve("graphs");
-    }
+    public static Path dataDir() { return ModPaths.config("killer560smod-pathfinding").resolve("graphs"); }
 
     /** The graph for this island if it is already loaded, else null (a background load is started). */
     public static IslandGraph get(String island) {
@@ -77,13 +75,9 @@ public final class GraphRepository {
         return graph;
     }
 
-    public static boolean isLoaded(String island) {
-        return island != null && LOADED.containsKey(island);
-    }
+    public static boolean isLoaded(String island) { return island != null && LOADED.containsKey(island); }
 
-    public static String lastError(String island) {
-        return LAST_ERROR.get(island);
-    }
+    public static String lastError(String island) { return LAST_ERROR.get(island); }
 
     /** Safe to call every tick: no-ops once loaded, at most one load per island in flight, backs off on failure. */
     public static void ensureLoading(String island, boolean force) {

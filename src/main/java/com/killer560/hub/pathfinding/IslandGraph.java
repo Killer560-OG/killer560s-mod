@@ -63,17 +63,11 @@ public final class IslandGraph {
             this.tags = tags;
         }
 
-        public boolean hasTag(String tag) {
-            return tags.contains(tag);
-        }
+        public boolean hasTag(String tag) { return tags.contains(tag); }
 
-        public int[] neighbours() {
-            return out;
-        }
+        public int[] neighbours() { return out; }
 
-        public double[] weights() {
-            return weight;
-        }
+        public double[] weights() { return weight; }
 
         public double distSq(double px, double py, double pz) {
             double dx = x - px;

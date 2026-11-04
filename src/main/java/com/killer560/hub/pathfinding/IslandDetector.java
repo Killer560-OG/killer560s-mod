@@ -139,9 +139,7 @@ public final class IslandDetector {
     }
 
     /** The last action-bar area read (testkit). */
-    public static String actionBarArea() {
-        return actionBarArea;
-    }
+    public static String actionBarArea() { return actionBarArea; }
 
     /** Forgets the action-bar area (testkit, and a world change). */
     public static void clearActionBarArea() {
@@ -150,24 +148,16 @@ public final class IslandDetector {
     }
 
     /** Graph file name for the island the player is on, or null when unknown / no graph exists. */
-    public static String graphIsland() {
-        return graphIsland;
-    }
+    public static String graphIsland() { return graphIsland; }
 
     /** Human island name from the tab list ("Hub"), or "". */
-    public static String islandName() {
-        return islandName;
-    }
+    public static String islandName() { return islandName; }
 
     /** Current scoreboard area ("Village"), or "". */
-    public static String scoreboardArea() {
-        return scoreboardArea;
-    }
+    public static String scoreboardArea() { return scoreboardArea; }
 
     /** The island a fairy-soul count in Hypixel's menu belongs to - Glacite souls are counted under Dwarven Mines. */
-    public static String soulMenuGroup(String island) {
-        return "GLACITE_TUNNELS".equals(island) ? "DWARVEN_MINES" : island;
-    }
+    public static String soulMenuGroup(String island) { return "GLACITE_TUNNELS".equals(island) ? "DWARVEN_MINES" : island; }
 
     /** Graph files whose fairy souls Hypixel counts under {@code menuGroup}. */
     public static List<String> graphsForSoulGroup(String menuGroup) {

@@ -99,9 +99,7 @@ public final class WalkCamera {
         velPitch = 0f;
     }
 
-    public static boolean isLocked() {
-        return locked;
-    }
+    public static boolean isLocked() { return locked; }
 
     public static void clear() {
         active = false;
@@ -118,17 +116,11 @@ public final class WalkCamera {
         rebase();
     }
 
-    public static boolean isActive() {
-        return active;
-    }
+    public static boolean isActive() { return active; }
 
-    public static float targetYaw() {
-        return targetYaw;
-    }
+    public static float targetYaw() { return targetYaw; }
 
-    public static float targetPitch() {
-        return targetPitch;
-    }
+    public static float targetPitch() { return targetPitch; }
 
     /** Forget the last write: the next frame's rotation is not compared against it (a server-set rotation). */
     public static void rebase() {
@@ -138,27 +130,17 @@ public final class WalkCamera {
     }
 
     /** True once something other than this class turned the body since the last write; cleared by {@link #clear}. */
-    public static boolean userMoved() {
-        return userMoved;
-    }
+    public static boolean userMoved() { return userMoved; }
 
     /** Frames that wrote a rotation since launch (the testkit reads it to prove the camera moved per frame). */
-    public static int framesWritten() {
-        return framesWritten;
-    }
+    public static int framesWritten() { return framesWritten; }
 
     /** Testkit read-outs: movements drawn, of them overshooting, micro-pauses taken. */
-    public static int movements() {
-        return movements;
-    }
+    public static int movements() { return movements; }
 
-    public static int overshoots() {
-        return overshoots;
-    }
+    public static int overshoots() { return overshoots; }
 
-    public static int pauses() {
-        return pauses;
-    }
+    public static int pauses() { return pauses; }
 
     /** Remaining turn to the aim, in degrees (the larger of yaw and pitch). */
     public static float error() {

@@ -165,23 +165,15 @@ public final class ShortWalk {
         clearKeys();
     }
 
-    public static boolean isActive() {
-        return active != null;
-    }
+    public static boolean isActive() { return active != null; }
 
     /** The mixin asks: is a walk driving the keys right now. */
-    public static boolean isDriving() {
-        return active != null;
-    }
+    public static boolean isDriving() { return active != null; }
 
-    public static void onMixinApplied() {
-        mixinApplied = true;
-    }
+    public static void onMixinApplied() { mixinApplied = true; }
 
     /** Whether the input mixin has ever run (without it a walk would press nothing, so callers do not choose one). */
-    public static boolean mixinApplied() {
-        return mixinApplied;
-    }
+    public static boolean mixinApplied() { return mixinApplied; }
 
     /**
      * One START_CLIENT_TICK of the walk: picks the carrot, has {@code turnBody} turn the body to face it, then sets the

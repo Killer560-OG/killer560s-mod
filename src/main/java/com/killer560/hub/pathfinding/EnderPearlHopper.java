@@ -58,9 +58,7 @@ public final class EnderPearlHopper {
     private EnderPearlHopper() {
     }
 
-    public static boolean isBusy() {
-        return busy;
-    }
+    public static boolean isBusy() { return busy; }
 
     public static void cancel() {
         thrownAtTick = Long.MIN_VALUE;
@@ -91,9 +89,7 @@ public final class EnderPearlHopper {
         return -1;
     }
 
-    public static boolean hasPearl() {
-        return hotbarSlot() >= 0;
-    }
+    public static boolean hasPearl() { return hotbarSlot() >= 0; }
 
     /** A solved throw: the yaw/pitch to use and where it actually lands. */
     public record Result(float yaw, float pitch, Vec3 landing, int ticks) {

@@ -66,9 +66,7 @@ public final class FairySoulsFeature {
      * Souls is running (killer560, 2026-10-17: "you shouldn't have to have the fairy soul setting on for auto fairy
      * souls to work").
      */
-    public static boolean soulsWanted() {
-        return PathfindingConfig.getInstance().isFairySouls() || autoRunning();
-    }
+    public static boolean soulsWanted() { return PathfindingConfig.getInstance().isFairySouls() || autoRunning(); }
 
     /** A progress line: chat for the legit guide, the log while Auto Fairy Souls runs (automation says only
      *  started/stopped, corrections and real failures, killer560 2026-10-16). */
@@ -80,18 +78,12 @@ public final class FairySoulsFeature {
         }
     }
 
-    public static boolean isGuiding() {
-        return guiding;
-    }
+    public static boolean isGuiding() { return guiding; }
 
-    public static boolean isRouting() {
-        return routing;
-    }
+    public static boolean isRouting() { return routing; }
 
     /** The soul currently being navigated to, or null. */
-    public static IslandGraph.Node currentSoul() {
-        return queue.isEmpty() ? null : queue.get(0);
-    }
+    public static IslandGraph.Node currentSoul() { return queue.isEmpty() ? null : queue.get(0); }
 
     public static List<IslandGraph.Node> unfound(IslandGraph graph) {
         List<IslandGraph.Node> out = new ArrayList<>();
@@ -127,13 +119,9 @@ public final class FairySoulsFeature {
     }
 
 
-    public static void guideNearest() {
-        start(PathfindingConfig.SoulMode.NEAREST);
-    }
+    public static void guideNearest() { start(PathfindingConfig.SoulMode.NEAREST); }
 
-    public static void routeIsland() {
-        start(PathfindingConfig.SoulMode.ROUTE);
-    }
+    public static void routeIsland() { start(PathfindingConfig.SoulMode.ROUTE); }
 
     public static void start(PathfindingConfig.SoulMode mode) {
         Minecraft client = Minecraft.getInstance();

@@ -116,9 +116,7 @@ public final class PathfindingFeature {
     }
 
     /** A press of the Start/Stop key with no screen open (from {@code PathStopKeyMixin}, between ticks). */
-    static void onStartKey() {
-        startKeyPressed = true;
-    }
+    static void onStartKey() { startKeyPressed = true; }
 
     /** The Start/Stop key's press, taken at the top of the tick: a fresh press toggles, a held key does nothing more
      *  (the same press event the "any key stops it" rule reads, so the two can never disagree about one press). */
@@ -386,19 +384,13 @@ public final class PathfindingFeature {
         }
 
         @Override
-        public String id() {
-            return ELEMENT_ID;
-        }
+        public String id() { return ELEMENT_ID; }
 
         @Override
-        public String displayName() {
-            return "Pathfinding";
-        }
+        public String displayName() { return "Pathfinding"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
         public int defaultY() {
@@ -413,9 +405,7 @@ public final class PathfindingFeature {
         }
 
         @Override
-        public int height() {
-            return com.killer560.hub.hud.HudText.height(drawnLines().size(), 10);
-        }
+        public int height() { return com.killer560.hub.hud.HudText.height(drawnLines().size(), 10); }
 
         /** What render() draws: the HUD lines, or the editor's sample when there are none. */
         private static List<String> drawnLines() {

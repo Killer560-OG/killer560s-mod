@@ -28,15 +28,11 @@ public final class GraphPathfinder {
     }
 
     public record Path(int[] nodes, double length) {
-        public boolean isEmpty() {
-            return nodes.length == 0;
-        }
+        public boolean isEmpty() { return nodes.length == 0; }
     }
 
     public record Tree(int source, double[] dist, int[] prev) {
-        public boolean reachable(int node) {
-            return dist[node] < UNREACHABLE;
-        }
+        public boolean reachable(int node) { return dist[node] < UNREACHABLE; }
 
         public Path pathTo(int target) {
             if (!reachable(target)) {
@@ -97,9 +93,7 @@ public final class GraphPathfinder {
         return new Tree(source, dist, prev);
     }
 
-    public static Path shortestPath(IslandGraph graph, int from, int to) {
-        return dijkstra(graph, from, to).pathTo(to);
-    }
+    public static Path shortestPath(IslandGraph graph, int from, int to) { return dijkstra(graph, from, to).pathTo(to); }
 
     /** The candidate cheapest to reach over the graph from the node nearest (x, y, z); the first when none is reachable. */
     public static IslandGraph.Node closestByCost(IslandGraph graph, double x, double y, double z,
