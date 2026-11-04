@@ -58,8 +58,8 @@ final class ExperimentNavigator {
             "Metaphysical", "Transcendent", "Supreme", "Grand", "High", "Beginner");
     private static final List<String> LOCKED_LORE_MARKERS = List.of(
             "Enchanting level too low!", "Not enough experience!", "Practice mode has no rewards");
-    private static final Pattern ROUNDS_NEEDED_PATTERN = Pattern.compile("(?:Chain|Series) of (\\d+):");
-    private static final Pattern RENEWED_TODAY_PATTERN = Pattern.compile("You've renewed (\\d+)/3 charges today!");
+    private static final Pattern ROUNDS_NEEDED_PATTERN = Pattern.compile("(?:Chain|Series) of (\\d{1,9}):");
+    private static final Pattern RENEWED_TODAY_PATTERN = Pattern.compile("You've renewed (\\d{1,9})/3 charges today!");
     private static final Pattern BAZAAR_PRICE_PATTERN = Pattern.compile("Bazaar (?:Buy )?Price: ([0-9][0-9,]*(?:\\.[0-9]+)?) Coins");
     /** Real bug found and fixed (2026-09-06) from a real lore dump: the Titanic Experience Bottle's
      *  own purchase-preview tooltip splits "Bazaar Price" (a bare heading, no colon) and its value
@@ -68,7 +68,7 @@ final class ExperimentNavigator {
      *  expects - {@link #readBazaarPrice} now also checks for this heading-then-value pair. */
     private static final Pattern BAZAAR_PRICE_HEADING_PATTERN = Pattern.compile("^Bazaar (?:Buy )?Price$");
     private static final Pattern BARE_COINS_PATTERN = Pattern.compile("^([0-9][0-9,]*(?:\\.[0-9]+)?) Coins$");
-    private static final Pattern XP_COST_PATTERN = Pattern.compile("(\\d+)\\s*XP Levels");
+    private static final Pattern XP_COST_PATTERN = Pattern.compile("(\\d{1,9})\\s*XP Levels");
     private static final long MENU_ACTION_DELAY_MS = 1000;
     /** Distinct from -1 ("nothing to do right now") - means the navigator wants to back out right now
      *  (e.g. an unaffordable Titanic bottle purchase) and {@link ExperimentsFeature} should actually
