@@ -442,39 +442,7 @@ public final class SimPrince {
                             for (int ly = 0; ly < 16; ly++) {
                                 var state = section.getBlockState(lx, ly, lz);
                                 BlockPos at = new BlockPos((cx << 4) + lx, baseY + ly, (cz << 4) + lz);
-                                if (state.is(CROWN)) {
-                                    if (onAPlinth(level, at)) {
-                                        crowns.add(at);
-                                    }
-                                } else if (state.is(LID)) {
-                                    if (lidChecked.add(at)) {
-                                        ringedLid(level, at, lidChecked, crowns);
-                                    }
-                                } else if (state.is(OBSIDIAN)) {
-                                    if (lidChecked.add(at)) {
-                                        obsidianTop(level, at, lidChecked, crowns);
-                                    }
-                                } else if (state.is(PLINTH)) {
-                                    if (lidChecked.add(at)) {
-                                        sarcophagus(level, at, lidChecked, crowns);
-                                    }
-                                    if (brazierChecked.add(at)) {
-                                        braziers(level, at, brazierChecked, crowns);
-                                    }
-                                } else if (state.is(LANTERN) && walledIn(level, at)) {
-                                    // The lantern AND its ring, so a superboom aimed at any face of the
-                                    // structure finds a prince block - he is looking at andesite, not at the
-                                    // lantern buried inside it.
-                                    crowns.add(at);
-                                    for (int dx = -1; dx <= 1; dx++) {
-                                        for (int dz = -1; dz <= 1; dz++) {
-                                            BlockPos ring = at.offset(dx, 0, dz);
-                                            if (level.getBlockState(ring).is(LANTERN_WALL)) {
-                                                crowns.add(ring);
-                                            }
-                                        }
-                                    }
-                                }
+                                collectCrown(level, state, at, lidChecked, brazierChecked, crowns);
                             }
                         }
                     }
@@ -541,37 +509,7 @@ public final class SimPrince {
                     if (BLOCKS.containsKey(at) || !level.isLoaded(at)) continue;
                     var state = level.getBlockState(at);
                     BlockPos p = at.immutable();
-                    if (state.is(CROWN)) {
-                        if (onAPlinth(level, p)) {
-                            crowns.add(p);
-                        }
-                    } else if (state.is(LID)) {
-                        if (lidChecked.add(p)) {
-                            ringedLid(level, p, lidChecked, crowns);
-                        }
-                    } else if (state.is(OBSIDIAN)) {
-                        if (lidChecked.add(p)) {
-                            obsidianTop(level, p, lidChecked, crowns);
-                        }
-                    } else if (state.is(PLINTH)) {
-                        if (lidChecked.add(p)) {
-                            sarcophagus(level, p, lidChecked, crowns);
-                        }
-                        if (brazierChecked.add(p)) {
-                            braziers(level, p, brazierChecked, crowns);
-                        }
-                    } else if (state.is(LANTERN) && walledIn(level, p)) {
-                        crowns.add(p);
-                        for (int rx = -1; rx <= 1; rx++) {
-                            for (int rz = -1; rz <= 1; rz++) {
-                                BlockPos ring = p.offset(rx, 0, rz);
-                                if (level.getBlockState(ring).is(LANTERN_WALL)) {
-                                    crowns.add(ring);
-                                }
-                            }
-                        }
-                    }
-                }
+                    collectCrown(level, state, p, lidChecked, brazierChecked, crowns);
             }
         }
         group(crowns);
@@ -582,6 +520,44 @@ public final class SimPrince {
                     center.toShortString());
         }
         return found;
+    }
+
+    /** One block of the prince scan: whatever part of a prince structure {@code state} is, its crown blocks join {@code crowns}. */
+    private static void collectCrown(ServerLevel level, net.minecraft.world.level.block.state.BlockState state, BlockPos at,
+                                     Set<BlockPos> lidChecked, Set<BlockPos> brazierChecked, List<BlockPos> crowns) {
+        if (state.is(CROWN)) {
+            if (onAPlinth(level, at)) {
+                crowns.add(at);
+            }
+        } else if (state.is(LID)) {
+            if (lidChecked.add(at)) {
+                ringedLid(level, at, lidChecked, crowns);
+            }
+        } else if (state.is(OBSIDIAN)) {
+            if (lidChecked.add(at)) {
+                obsidianTop(level, at, lidChecked, crowns);
+            }
+        } else if (state.is(PLINTH)) {
+            if (lidChecked.add(at)) {
+                sarcophagus(level, at, lidChecked, crowns);
+            }
+            if (brazierChecked.add(at)) {
+                braziers(level, at, brazierChecked, crowns);
+            }
+        } else if (state.is(LANTERN) && walledIn(level, at)) {
+            // The lantern AND its ring, so a superboom aimed at any face of the
+            // structure finds a prince block - he is looking at andesite, not at the
+            // lantern buried inside it.
+            crowns.add(at);
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    BlockPos ring = at.offset(dx, 0, dz);
+                    if (level.getBlockState(ring).is(LANTERN_WALL)) {
+                        crowns.add(ring);
+                    }
+                }
+            }
+        }
     }
 
     /** The {@link #LID} rule, asked of {@code CryptScanner} so the sim and Secret Waypoints' prince waypoints cannot
