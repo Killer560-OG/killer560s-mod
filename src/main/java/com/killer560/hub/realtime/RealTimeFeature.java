@@ -113,10 +113,7 @@ public final class RealTimeFeature {
         @Override
         public int width() {
             Font font = Minecraft.getInstance().font;
-            if (font == null) {
-                return 80;
-            }
-            return Math.max(20, font.width(buildText(RealTimeConfig.getInstance())) + 1);
+            return font == null ? 80 : Math.max(20, font.width(buildText(RealTimeConfig.getInstance())) + 1);
         }
 
         @Override
