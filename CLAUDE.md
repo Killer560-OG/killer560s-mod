@@ -242,6 +242,9 @@ MultiBreak* only while it is on.
 - After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
   "Under no circumstances." Only dungeon/main work ships before 2.0.
 - No limit on testkit clients (killer560, 2026-11-04: "run as many clients at once as you like"; was 9).
+- Every failure found gets fixed, even in the middle of a size, perf or other pass (killer560, 2026-11-04: "If you find a
+  failure fix it even during these changes/optimizations"). "Pre-existing" is a finding, not a reason to leave it: start a
+  fix job (mod or test, whichever is wrong) and put it in WORKQUEUE.
 - A finished, tested main batch is deployed to EVERY instance, his play instance included (he said yes, 2026-10-26; that
   is `26.3` since 2026-11-01). Test or testing jars still never go into it, and it is never booted by us.
 
@@ -684,3 +687,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   marking just the changed sections dirty; it draws no box any more. Mining Spread blocks are told from other changes by the ore snapshot
   taken around each newly dug block (`CommissionProgress.NEIGHBOURS`).
 - Server-time countdowns (timerlag-1103, killer560 2026-11-03: "all timers seem to go off sometimes"): anything Hypixel runs on SERVER ticks (Tick Timers' Maxor/Necron/Goldor Start, dragon spawn, King Relics, Maxor crystal backstop, Quiz waits, mask cooldowns, Powder Ghast minute, Terracotta, Spirit Bear, Livid) counts on `util/PerTickServerClock`: `subscribe(Runnable)` runs once per server tick (a stall runs it zero times, a catch-up burst several), `new PerTickServerClock.Step().take()` gives the ticks since the last call for a loop that already runs per client tick (call it every tick, idle or not). `ServerTickClock` counts CLIENT ticks in any second the server sent under 15 pings, so a laggy server ran those timers ahead; it stays only for lag MEASURING (LagDisplay, SplitLagClock, ServerLag, InfoReplies). Wall clock stays right for ability cooldowns resynced from the tab, Split Timers (with their lagless/Lag Lost lines), personal stopwatches (Maxor place time, terminal time) and automation pacing. Testkit 1103-logic-timer-lag.
+- A quiet GrimAC server pings about once a tick, so `PerTickServerClock` trusted it (20 pings, 19 of 20 ticks), and each hit
+  then added transactions and ran the clock ahead: 1102-hx-goldor-tick read Goldor's hits 5, 3, 7, 11 late on 26.3 legit
+  (gate-1104b/c; Tick Timers logged "48 pings, 2129 ms (42.6 ticks of wall time)"). goldfix-1104: pings are paced against the
+  WALL clock (a server cannot tick faster than 20/s; client ticks are no measure, a frame freeze drops them), and once they run
+  more than 6 ahead the server loses trust, sticky hypixel.net trust included, until the next world. Read a timer fault off its
+  pings-vs-wall-time line first. Testkit `pingForTest` is unpaced (cases push the clock 400 ahead); `pingForTestTimed` is paced.
