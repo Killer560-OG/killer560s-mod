@@ -223,10 +223,7 @@ public final class BossHealthFeature {
                 BossHealthText.line("Healthy Guardian", 400_000L, 1_000_000L, true, false, false));
 
         private static List<String> rows() {
-            if (McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen) {
-                return SAMPLE;
-            }
-            return currentLines();
+            return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen ? SAMPLE : currentLines();
         }
 
         @Override
