@@ -149,10 +149,7 @@ public final class AutoDialogueFeature {
             return keyword.group(1);
         }
         Matcher cost = COST_NUMBER.matcher(lower);
-        if (cost.find()) {
-            return cost.group();
-        }
-        return null;
+        return cost.find() ? cost.group() : null;
     }
 
     static void onClientTick(Minecraft client) {
