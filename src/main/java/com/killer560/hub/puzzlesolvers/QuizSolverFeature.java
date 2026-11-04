@@ -8,7 +8,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
@@ -56,10 +55,7 @@ public final class QuizSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", com.killer560.hub.util.FeatureBits.register("Quiz Solver tick", () -> QuizSolverConfig.getInstance().isEnabledRaw()), client -> {
             onTick();
         }));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Quiz Solver render", () -> QuizSolverConfig.getInstance().isEnabledRaw()), QuizSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Quiz Solver", () -> QuizSolverConfig.getInstance().isEnabledRaw(), QuizSolverFeature::onWorldRender);
     }
 
     private static Map<String, List<String>> loadAnswers() {

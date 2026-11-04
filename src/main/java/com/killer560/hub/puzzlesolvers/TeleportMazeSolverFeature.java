@@ -7,7 +7,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
@@ -69,10 +68,7 @@ public final class TeleportMazeSolverFeature {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TeleportMazeSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver tick", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::tick));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("TeleportMaze Solver render", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw()), TeleportMazeSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("TeleportMaze Solver", () -> TeleportMazeSolverConfig.getInstance().isEnabledRaw(), TeleportMazeSolverFeature::onWorldRender);
     }
 
     public static Set<BlockPos> getTpPads() { return Collections.unmodifiableSet(tpPads); }

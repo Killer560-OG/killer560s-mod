@@ -8,7 +8,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -134,10 +133,7 @@ public final class WeirdosSolverFeature {
                 reset();
             }
         }));
-        // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
-        // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectTerrain(
-                com.killer560.hub.util.FeatureBits.register("Weirdos Solver render", () -> WeirdosSolverConfig.getInstance().isEnabledRaw()), WeirdosSolverFeature::onWorldRender));
+        SolverEspRender.registerRender("Weirdos Solver", () -> WeirdosSolverConfig.getInstance().isEnabledRaw(), WeirdosSolverFeature::onWorldRender);
     }
 
     /** The room the current answer belongs to, so leaving it drops the answer. */
