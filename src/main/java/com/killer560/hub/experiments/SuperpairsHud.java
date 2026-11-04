@@ -1,5 +1,6 @@
 package com.killer560.hub.experiments;
 
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
@@ -43,26 +44,7 @@ public final class SuperpairsHud {
 
     static void register() {
         HudElementRegistry.markContainerOnly(ELEMENT_ID);
-        HudElementRegistry.register(new HudElement() {
-            @Override
-            public String id() {
-                return ELEMENT_ID;
-            }
-
-            @Override
-            public String displayName() {
-                return "Superpairs Overview";
-            }
-
-            @Override
-            public int defaultX() {
-                return 4;
-            }
-
-            @Override
-            public int defaultY() {
-                return 40;
-            }
+        HudElementRegistry.register(new BasicHud(ELEMENT_ID, "Superpairs Overview", 4, 40) {
 
             // The editor's box is the preview's own size (testkit 394: it was 170x94 around a 190x84 preview).
             @Override

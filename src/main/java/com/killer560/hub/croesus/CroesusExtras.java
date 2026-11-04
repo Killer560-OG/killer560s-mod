@@ -4,6 +4,7 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestType;
 import com.killer560.hub.croesus.DungeonChestValuer.ChestValue;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -224,28 +225,12 @@ public final class CroesusExtras {
         return unclaimed;
     }
 
-    public static final class ChestCountHudElement implements HudElement {
+    public static final class ChestCountHudElement extends BasicHud {
+        public ChestCountHudElement() {
+            super(ID, "Croesus Chests", 10, 270);
+        }
+
         public static final String ID = "croesus_chests";
-
-        @Override
-        public String id() {
-            return ID;
-        }
-
-        @Override
-        public String displayName() {
-            return "Croesus Chests";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 270;
-        }
 
         @Override
         public int width() {
