@@ -3,6 +3,8 @@ package com.killer560.hub.loadoutkeybinds;
 import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.miningqol.CommissionMenuHighlight;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.ModLog;
+import org.slf4j.Logger;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
@@ -22,7 +24,9 @@ import java.util.regex.Pattern;
  * <p>Which loadout is on: a loadout slot whose lore says so ("Selected", "Equipped", "Currently selected", "Click to
  * unequip"... a whole line, never "Click to equip"); when no slot's lore says it, the last "You equipped Loadout N!" line
  * Hypixel sent this session (his chat, 2026-11-02), placed on its page: twelve loadouts a page in
- * {@link LoadoutKeybindsFeature#LOADOUT_SLOTS} order. The chat line is anchored, so a player's message cannot set it.
+ * {@link LoadoutKeybindsFeature#LOADOUT_SLOTS} order. A RENAMED loadout is announced by its name ("You equipped Dwarven
+ * Coms!", 2026-11-04): that name is matched to the slot whose item name equals it, else nothing is highlighted. The chat
+ * lines are anchored, so a player's message cannot set them.
  */
 public final class LoadoutHighlight {
 
@@ -32,12 +36,20 @@ public final class LoadoutHighlight {
     private static final int BORDER = 0xFF55FF55;
     /** Hypixel's line; anchored with a bounded number, so "[VIP] Bob: You equipped Loadout 3!" never matches. */
     private static final Pattern EQUIPPED = Pattern.compile("^You equipped Loadout (\\d{1,2})!$");
+    /** A renamed loadout's line: "You equipped Dwarven Coms!" (anchored and bounded like the numbered one). */
+    private static final Pattern EQUIPPED_NAMED = Pattern.compile("^You equipped (.{1,32})!$");
+    private static final Logger LOGGER = ModLog.get("killer560smod-loadoutkeybinds");
     private static final Set<String> SELECTED_LINES = Set.of("selected", "equipped", "active", "currently selected",
             "currently equipped", "currently active", "this loadout is selected", "this loadout is equipped",
             "this loadout is active", "you are using this loadout");
 
     /** The loadout number Hypixel last said he equipped, or 0. */
     private static volatile int lastEquipped = 0;
+    /** The name Hypixel last said he equipped (a renamed loadout), or null; excludes {@link #lastEquipped}. */
+    private static volatile String lastName = null;
+    /** Bumped by every equip line, so the slot cache knows to look again. */
+    private static volatile int equipVersion = 0;
+    private static boolean loreLogged;
 
     private static Object cachedScreen;
     private static ItemStack[] cachedStacks = new ItemStack[0];
@@ -49,15 +61,20 @@ public final class LoadoutHighlight {
 
     static void register() {
         ChatObserver.subscribe(message -> {
-            Matcher m = EQUIPPED.matcher(ChatObserver.strip(message).trim());
+            String plain = ChatObserver.strip(message).trim();
+            Matcher m = EQUIPPED.matcher(plain);
             if (m.matches()) {
-                try {
-                    lastEquipped = Integer.parseInt(m.group(1));
-                } catch (NumberFormatException ignored) {
-                    // bounded to two digits; cannot happen
-                }
+                setEquipped(Integer.parseInt(m.group(1)), null);
+            } else if ((m = EQUIPPED_NAMED.matcher(plain)).matches()) {
+                setEquipped(0, m.group(1).trim());
             }
         });
+    }
+
+    private static void setEquipped(int number, String name) {
+        lastEquipped = number;
+        lastName = name;
+        equipVersion++;
     }
 
     /** Whether lore lines (codes stripped) mark this loadout as the one on (also the testkit's hook). */
@@ -85,7 +102,7 @@ public final class LoadoutHighlight {
             return -1;
         }
         var slots = screen.getMenu().slots;
-        boolean changed = cachedScreen != screen || cachedFor != lastEquipped;
+        boolean changed = cachedScreen != screen || cachedFor != equipVersion;
         if (cachedStacks.length != LoadoutKeybindsFeature.LOADOUT_SLOTS.length) {
             cachedStacks = new ItemStack[LoadoutKeybindsFeature.LOADOUT_SLOTS.length];
         }
@@ -99,17 +116,33 @@ public final class LoadoutHighlight {
             return cachedSlot;
         }
         cachedScreen = screen;
-        cachedFor = lastEquipped;
+        cachedFor = equipVersion;
         int found = -1;
         for (int i = 0; i < LoadoutKeybindsFeature.LOADOUT_SLOTS.length; i++) {
             int s = LoadoutKeybindsFeature.LOADOUT_SLOTS[i];
             ItemStack stack = s < slots.size() ? slots.get(s).getItem() : ItemStack.EMPTY;
             cachedStacks[i] = stack;
-            if (found < 0 && !stack.isEmpty() && selected(DungeonChestValuer.cleanLore(stack))) {
-                found = s;
+            if (found < 0 && !stack.isEmpty()) {
+                List<String> lore = DungeonChestValuer.cleanLore(stack);
+                if (!loreLogged) {
+                    loreLogged = true;
+                    LOGGER.info("[LoadoutHighlight] first loadout slot lore read: slot {} \"{}\" {}", s,
+                            DungeonChestValuer.strip(stack.getHoverName().getString()), lore);
+                }
+                if (selected(lore)) {
+                    found = s;
+                }
             }
         }
-        if (found < 0 && lastEquipped > 0) {
+        String name = lastName;
+        if (found < 0 && name != null) {
+            for (int s : LoadoutKeybindsFeature.LOADOUT_SLOTS) {
+                if (s < slots.size() && name.equals(DungeonChestValuer.strip(slots.get(s).getItem().getHoverName().getString()).trim())) {
+                    found = s;
+                    break;
+                }
+            }
+        } else if (found < 0 && lastEquipped > 0) {
             int page = Integer.parseInt(title.group(1));
             int i = lastEquipped - 1 - (page - 1) * LoadoutKeybindsFeature.LOADOUT_SLOTS.length;
             if (i >= 0 && i < LoadoutKeybindsFeature.LOADOUT_SLOTS.length) {
@@ -153,6 +186,11 @@ public final class LoadoutHighlight {
     }
 
     public static void setLastEquippedForTest(int n) {
-        lastEquipped = n;
+        setEquipped(n, null);
+    }
+
+    /** Testkit: as if Hypixel said "You equipped {name}!". */
+    public static void setLastEquippedNameForTest(String name) {
+        setEquipped(0, name);
     }
 }
