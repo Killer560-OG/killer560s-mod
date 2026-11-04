@@ -1034,17 +1034,9 @@ public final class SimFloorLayout {
                     || (pick >= 0 && p.depth() <= floor.rooms().get(pick).depth())) {
                 continue;
             }
-            int linkSide = -1;
-            int count = 0;
-            for (Link l : floor.links()) {
-                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
-                    linkSide = sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ());
-                    count++;
-                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
-                    linkSide = sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ());
-                    count++;
-                }
-            }
+            int[] sc = linkSideCount(floor, p);
+            int linkSide = sc[0];
+            int count = sc[1];
             if (count == 1) {
                 pick = i;
                 pickSide = linkSide;
@@ -1120,17 +1112,9 @@ public final class SimFloorLayout {
                     || onPath.contains(cellKey(p.originX(), p.originZ()))) {
                 continue;
             }
-            int linkSide = -1;
-            int count = 0;
-            for (Link l : floor.links()) {
-                if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
-                    linkSide = sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ());
-                    count++;
-                } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
-                    linkSide = sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ());
-                    count++;
-                }
-            }
+            int[] sc = linkSideCount(floor, p);
+            int linkSide = sc[0];
+            int count = sc[1];
             if (count != 1) continue;
             Set<String> used = new HashSet<>();
             for (Placement q : rooms) {
@@ -1257,6 +1241,45 @@ public final class SimFloorLayout {
     }
 
     /** The {@link RoomDoors} side index pointing one cell along (dx, dz). */
+    /** The side of {@code p}'s cell its link leaves by (last one seen) and how many links touch it: {side, count}. */
+    private static int[] linkSideCount(Floor floor, Placement p) {
+        int linkSide = -1;
+        int count = 0;
+        for (Link l : floor.links()) {
+            if (l.aX() == p.originX() && l.aZ() == p.originZ()) {
+                linkSide = sideTowards(l.bX() - l.aX(), l.bZ() - l.aZ());
+                count++;
+            } else if (l.bX() == p.originX() && l.bZ() == p.originZ()) {
+                linkSide = sideTowards(l.aX() - l.bX(), l.aZ() - l.bZ());
+                count++;
+            }
+        }
+        return new int[]{linkSide, count};
+    }
+
+    /** Room index owning each grid cell (-1 none); {@code eb} receives the first ENTRANCE and BLOOD room index (-1 none). */
+    private static int[] cellOwners(Floor floor, int[] eb) {
+        int[] owner = new int[GRID * GRID];
+        java.util.Arrays.fill(owner, -1);
+        eb[0] = -1;
+        eb[1] = -1;
+        for (int i = 0; i < floor.rooms().size(); i++) {
+            Placement p = floor.rooms().get(i);
+            if (eb[0] < 0 && "ENTRANCE".equalsIgnoreCase(p.type())) {
+                eb[0] = i;
+            }
+            if (eb[1] < 0 && "BLOOD".equalsIgnoreCase(p.type())) {
+                eb[1] = i;
+            }
+            for (int a = 0; a < p.cellsX(); a++) {
+                for (int b = 0; b < p.cellsZ(); b++) {
+                    owner[(p.originZ() + b) * GRID + p.originX() + a] = i;
+                }
+            }
+        }
+        return owner;
+    }
+
     private static int sideTowards(int dx, int dz) {
         for (int s = 0; s < 4; s++) {
             if (RoomDoors.DX[s] == Integer.signum(dx) && RoomDoors.DZ[s] == Integer.signum(dz)) return s;
@@ -1538,24 +1561,10 @@ public final class SimFloorLayout {
      * {@link SimWitherDoors} walks those doors - so this is the door graph the build uses.
      */
     public static List<Link> doorLinks(Floor floor) {
-        int[] owner = new int[GRID * GRID];
-        java.util.Arrays.fill(owner, -1);
-        int entrance = -1;
-        int blood = -1;
-        for (int i = 0; i < floor.rooms().size(); i++) {
-            Placement p = floor.rooms().get(i);
-            if (entrance < 0 && "ENTRANCE".equalsIgnoreCase(p.type())) {
-                entrance = i;
-            }
-            if (blood < 0 && "BLOOD".equalsIgnoreCase(p.type())) {
-                blood = i;
-            }
-            for (int a = 0; a < p.cellsX(); a++) {
-                for (int b = 0; b < p.cellsZ(); b++) {
-                    owner[(p.originZ() + b) * GRID + p.originX() + a] = i;
-                }
-            }
-        }
+        int[] eb = new int[2];
+        int[] owner = cellOwners(floor, eb);
+        int entrance = eb[0];
+        int blood = eb[1];
         int[] parent = new int[floor.rooms().size()];
         for (int i = 0; i < parent.length; i++) {
             parent[i] = i;
@@ -1623,25 +1632,11 @@ public final class SimFloorLayout {
      * count) and fairy is 1 when the Fairy is on it. {@code {-1, 0}} when there is no blood or no way to it.
      */
     public static int[] pathToBlood(Floor floor) {
-        int[] owner = new int[GRID * GRID];
-        java.util.Arrays.fill(owner, -1);
-        int entrance = -1;
-        int blood = -1;
+        int[] eb = new int[2];
+        int[] owner = cellOwners(floor, eb);
+        int entrance = eb[0];
+        int blood = eb[1];
         int n = floor.rooms().size();
-        for (int i = 0; i < n; i++) {
-            Placement p = floor.rooms().get(i);
-            if (entrance < 0 && "ENTRANCE".equalsIgnoreCase(p.type())) {
-                entrance = i;
-            }
-            if (blood < 0 && "BLOOD".equalsIgnoreCase(p.type())) {
-                blood = i;
-            }
-            for (int a = 0; a < p.cellsX(); a++) {
-                for (int b = 0; b < p.cellsZ(); b++) {
-                    owner[(p.originZ() + b) * GRID + p.originX() + a] = i;
-                }
-            }
-        }
         if (entrance < 0 || blood < 0) return new int[]{-1, 0};
         List<List<Integer>> adj = new ArrayList<>();
         for (int i = 0; i < n; i++) {

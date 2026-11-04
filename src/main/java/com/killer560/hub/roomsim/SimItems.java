@@ -939,25 +939,9 @@ public final class SimItems {
      * {@link #SUPERBOOM_MAX_BLOCKS} and {@link #SUPERBOOM_CHAIN_SPAN} horizontally from the hit, so it stays in the room.
      */
     private static java.util.List<BlockPos> fragileChain(ServerLevel level, BlockPos start, BlockPos hit) {
-        java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
-        queue.add(start.immutable());
-        seen.add(start.immutable());
-        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
-            BlockPos here = queue.poll();
-            found.add(here);
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
-                BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next) || Math.abs(next.getX() - hit.getX()) > SUPERBOOM_CHAIN_SPAN
-                        || Math.abs(next.getZ() - hit.getZ()) > SUPERBOOM_CHAIN_SPAN) {
-                    continue;
-                }
-                if (isFragile(level.getBlockState(next))) {
-                    queue.add(next);
-                }
-            }
-        }
+        java.util.List<BlockPos> found = floodFrom(start, next -> Math.abs(next.getX() - hit.getX()) <= SUPERBOOM_CHAIN_SPAN
+                && Math.abs(next.getZ() - hit.getZ()) <= SUPERBOOM_CHAIN_SPAN
+                && isFragile(level.getBlockState(next)));
         if (found.size() >= SUPERBOOM_MAX_BLOCKS) {
             LOGGER.info("Sim superboom: fragile chain from {} hit the {}-block cap", start, SUPERBOOM_MAX_BLOCKS);
         }
@@ -1135,8 +1119,13 @@ public final class SimItems {
     }
 
     private static java.util.List<BlockPos> connectedFragile(ServerLevel level, BlockPos start) {
+        if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) return new java.util.ArrayList<>();
+        return floodFrom(start, next -> isFragile(level.getBlockState(next)) || SimPrince.isPrince(next));
+    }
+
+    /** Six-way flood fill from {@code start} over positions {@code take} accepts, capped at {@link #SUPERBOOM_MAX_BLOCKS}. */
+    private static java.util.List<BlockPos> floodFrom(BlockPos start, java.util.function.Predicate<BlockPos> take) {
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        if (!isFragile(level.getBlockState(start)) && !SimPrince.isPrince(start)) return found;
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
         queue.add(start.immutable());
@@ -1146,8 +1135,7 @@ public final class SimItems {
             found.add(here);
             for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
                 BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next)) continue;
-                if (isFragile(level.getBlockState(next)) || SimPrince.isPrince(next)) {
+                if (seen.add(next) && take.test(next)) {
                     queue.add(next);
                 }
             }
@@ -1191,23 +1179,8 @@ public final class SimItems {
     private static java.util.List<BlockPos> wallSlab(ServerLevel level, BlockPos start,
                                                      net.minecraft.core.Direction face) {
         net.minecraft.core.Direction.Axis normal = face.getAxis();
-        java.util.List<BlockPos> found = new java.util.ArrayList<>();
-        java.util.Set<BlockPos> seen = new java.util.HashSet<>();
-        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
-        queue.add(start.immutable());
-        seen.add(start.immutable());
-        while (!queue.isEmpty() && found.size() < SUPERBOOM_MAX_BLOCKS) {
-            BlockPos here = queue.poll();
-            found.add(here);
-            for (net.minecraft.core.Direction dir : net.minecraft.core.Direction.values()) {
-                BlockPos next = here.relative(dir).immutable();
-                if (!seen.add(next) || !withinSlab(start, next, normal)) continue;
-                if (isWallMaterial(level.getBlockState(next)) || SimPrince.isPrince(next)) {
-                    queue.add(next);
-                }
-            }
-        }
-        return found;
+        return floodFrom(start, next -> withinSlab(start, next, normal)
+                && (isWallMaterial(level.getBlockState(next)) || SimPrince.isPrince(next)));
     }
 
     /** Whether this position is still inside the slab: near the aimed face, and shallow into it. */
