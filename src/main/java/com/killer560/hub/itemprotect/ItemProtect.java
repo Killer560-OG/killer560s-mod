@@ -196,10 +196,7 @@ public final class ItemProtect {
                 return "Protected Name";
             }
         }
-        if (cfg.isProtectStarredEnabled() && isStarred(stack)) {
-            return "Starred Item";
-        }
-        return null;
+        return cfg.isProtectStarredEnabled() && isStarred(stack) ? "Starred Item" : null;
     }
 
     public static Inventory playerInventory() {
@@ -415,10 +412,7 @@ public final class ItemProtect {
 
     private static ItemStack carriedStack() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || player.containerMenu == null) {
-            return ItemStack.EMPTY;
-        }
-        return player.containerMenu.getCarried();
+        return player == null || player.containerMenu == null ? ItemStack.EMPTY : player.containerMenu.getCarried();
     }
 
     public static String displayName(ItemStack stack) {

@@ -271,10 +271,7 @@ public final class InventoryThemeConfig {
     }
 
     private static float clampHotbarScale(float value) {
-        if (Float.isNaN(value)) {
-            return 1.0f;
-        }
-        return Math.max(MIN_HOTBAR_SCALE, Math.min(MAX_HOTBAR_SCALE, value));
+        return Float.isNaN(value) ? 1.0f : Math.max(MIN_HOTBAR_SCALE, Math.min(MAX_HOTBAR_SCALE, value));
     }
 
     /** Line Width in screen pixels. A width still in old GUI units is converted here, once, at the current GUI scale

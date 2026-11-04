@@ -53,10 +53,7 @@ public final class SearchCalculator {
         try {
             List<Token> tokens = tokenize(query);
             boolean anyMath = tokens.stream().anyMatch(t -> t.kind() == Kind.OP || t.kind() == Kind.POSTFIX);
-            if (!anyMath) {
-                return null;
-            }
-            return format(evaluate(tokens));
+            return !anyMath ? null : format(evaluate(tokens));
         } catch (ArithmeticException | IllegalArgumentException e) {
             return null;
         }

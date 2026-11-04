@@ -1666,10 +1666,7 @@ public final class WarpGraph {
     public boolean deepFirst = true;
 
     private double key(int f, int g, double dist, double toGoal) {
-        if (deepFirst) {
-            return f * DEEP_F - g * DEEP_G + toGoal;
-        }
-        return f * WARP + dist + toGoal;
+        return deepFirst ? f * DEEP_F - g * DEEP_G + toGoal : f * WARP + dist + toGoal;
     }
 
     private static final double DEEP_F = 1.0e7;

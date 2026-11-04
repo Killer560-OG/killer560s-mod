@@ -528,18 +528,12 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (DropdownWidget.clickOpen(event)) {
-            return true;
-        }
-        return super.mouseClicked(event, doubleClick);
+        return DropdownWidget.clickOpen(event) ? true : super.mouseClicked(event, doubleClick);
     }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (DropdownWidget.keyOpen(event)) {
-            return true;
-        }
-        return super.keyPressed(event);
+        return DropdownWidget.keyOpen(event) ? true : super.keyPressed(event);
     }
 
     @Override

@@ -321,10 +321,7 @@ public final class LeapTracker {
                 return true;
             }
         }
-        if (PartyTracker.classOf(name) != null) {
-            return true;
-        }
-        return party.isEmpty();
+        return PartyTracker.classOf(name) != null ? true : party.isEmpty();
     }
 
     /** Position-based first (it is where YOU stand that matters), chat-driven stage as the fallback for the gaps

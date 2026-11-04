@@ -128,10 +128,7 @@ public final class LuckMath {
         if (chance <= 0 || attempts <= 0) {
             return 0;
         }
-        if (chance >= 1) {
-            return 1;
-        }
-        return 1 - Math.exp(attempts * Math.log1p(-chance));
+        return chance >= 1 ? 1 : 1 - Math.exp(attempts * Math.log1p(-chance));
     }
 
     /** Attempts needed for a {@code target} (0..1) chance of at least one drop; -1 when it never gets there. */
@@ -139,10 +136,7 @@ public final class LuckMath {
         if (chance <= 0 || target <= 0 || target >= 1) {
             return -1;
         }
-        if (chance >= 1) {
-            return 1;
-        }
-        return (long) Math.ceil(Math.log1p(-target) / Math.log1p(-chance));
+        return chance >= 1 ? 1 : (long) Math.ceil(Math.log1p(-target) / Math.log1p(-chance));
     }
 
     /** "1/7,348" for a chance, or "-" for none. */
@@ -179,9 +173,6 @@ public final class LuckMath {
         if (e < 0.01) {
             return String.format(Locale.US, "%.4f", e);
         }
-        if (e < 100) {
-            return String.format(Locale.US, "%.2f", e);
-        }
-        return String.format(Locale.US, "%,.0f", e);
+        return e < 100 ? String.format(Locale.US, "%.2f", e) : String.format(Locale.US, "%,.0f", e);
     }
 }

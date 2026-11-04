@@ -146,10 +146,7 @@ public final class LeverAuraConfig {
 
     /** The old delay setting as CPS: round(1000 / delay), clamped to 1-20 (a 0 ms delay is 20). */
     static int cpsFromDelayMs(double delayMs) {
-        if (delayMs <= 0) {
-            return MAX_CPS;
-        }
-        return (int) Math.max(MIN_CPS, Math.min(MAX_CPS, Math.round(1000.0 / delayMs)));
+        return delayMs <= 0 ? MAX_CPS : (int) Math.max(MIN_CPS, Math.min(MAX_CPS, Math.round(1000.0 / delayMs)));
     }
 
     public boolean isSwingHand() { return swingHand; }

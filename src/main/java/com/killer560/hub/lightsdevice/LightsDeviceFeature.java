@@ -203,10 +203,7 @@ public final class LightsDeviceFeature {
                     ? (unlitTotal == 1 ? "last unlit lever (completes device)" : "unlit lever (" + unlitTotal + " unlit)")
                     : "pre-flick before S2 (" + unlitTotal + " unlit)";
         }
-        if (s2Open && unlitTotal == 0 && clickedS2.isEmpty() && !activationClicked) {
-            return ACTIVATION_REASON;
-        }
-        return null;
+        return s2Open && unlitTotal == 0 && clickedS2.isEmpty() && !activationClicked ? ACTIVATION_REASON : null;
     }
 
     private static void auraTick(Minecraft client, LightsDeviceConfig cfg, boolean s2Open) {

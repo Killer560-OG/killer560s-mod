@@ -83,10 +83,7 @@ public final class I4SolverFeature {
         if (client.player == null || client.level == null || !I4SensorsFeature.isNearDevice()) {
             return "not near i4";
         }
-        if (!I4SensorsFeature.isOnP3Sim(client) && !DungeonState.isF7OrM7()) {
-            return "not in F7/M7";
-        }
-        return "";
+        return !I4SensorsFeature.isOnP3Sim(client) && !DungeonState.isF7OrM7() ? "not in F7/M7" : "";
     }
 
     private static void tick() {

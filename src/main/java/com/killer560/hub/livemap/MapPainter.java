@@ -1230,10 +1230,7 @@ public final class MapPainter {
         if (gx < 0 || gz < 0 || gx >= g || gz >= g || LiveMapFeature.groupIdAt(gx + gz * g) != gid) {
             return false;
         }
-        if (gx % 2 == 1 && gz % 2 == 1) {
-            return centreOfSquare(gid, gx, gz);
-        }
-        return true;
+        return gx % 2 == 1 && gz % 2 == 1 ? centreOfSquare(gid, gx, gz) : true;
     }
 
     /** Fill color a reported-but-unseen cell is dimmed by, when {@link LiveMapConfig#isMarkReportedRooms()}
@@ -1653,10 +1650,7 @@ public final class MapPainter {
         if (entry == null || !identityRevealed(group)) {
             return "?";
         }
-        if (entry.secrets == 0) {
-            return "0";
-        }
-        return foundSecretsCount(group) + "/" + entry.secrets;
+        return entry.secrets == 0 ? "0" : foundSecretsCount(group) + "/" + entry.secrets;
     }
 
     /** The "found" half of {@link #secretsText} as a number (0 where that label shows no "found/total"), so a caller

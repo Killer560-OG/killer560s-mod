@@ -478,9 +478,6 @@ final class DungeonMapScanner {
         }
         ItemStack stack = client.player.getInventory().getItem(8);
         MapId mapId = stack.get(DataComponents.MAP_ID);
-        if (mapId == null) {
-            return null;
-        }
-        return client.level.getMapData(mapId);
+        return mapId == null ? null : client.level.getMapData(mapId);
     }
 }

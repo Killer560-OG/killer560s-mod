@@ -827,10 +827,7 @@ public final class LeapMenuConfig {
             return null;
         }
         String t = raw.replaceAll("\u00a7.", "").strip();
-        if (t.isEmpty() || t.length() > 16 || !t.matches("[A-Za-z0-9_]+")) {
-            return null;
-        }
-        return t;
+        return t.isEmpty() || t.length() > 16 || !t.matches("[A-Za-z0-9_]+") ? null : t;
     }
 
     /** A teammate's class from the dungeon tab list (read by the leap menu colors and the Live Map). */

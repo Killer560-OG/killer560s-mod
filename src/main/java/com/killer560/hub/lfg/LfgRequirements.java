@@ -111,10 +111,7 @@ public final class LfgRequirements {
             return new String[]{"normal", "floor_0"};
         }
         Matcher m = FLOOR.matcher(activity);
-        if (!m.matches()) {
-            return null;
-        }
-        return new String[]{m.group(1).equals("M") ? "master" : "normal", "floor_" + m.group(2)};
+        return !m.matches() ? null : new String[]{m.group(1).equals("M") ? "master" : "normal", "floor_" + m.group(2)};
     }
 
     /** The player's S+ PB on that floor in seconds, 0 when he has none. */

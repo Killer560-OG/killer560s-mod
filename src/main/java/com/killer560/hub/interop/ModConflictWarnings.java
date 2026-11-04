@@ -103,10 +103,7 @@ public final class ModConflictWarnings {
     }
 
     private static JsonObject child(JsonObject obj, String key) {
-        if (obj == null || !obj.has(key) || !obj.get(key).isJsonObject()) {
-            return null;
-        }
-        return obj.getAsJsonObject(key);
+        return obj == null || !obj.has(key) || !obj.get(key).isJsonObject() ? null : obj.getAsJsonObject(key);
     }
 
     private static boolean bool(JsonObject obj, String key) {

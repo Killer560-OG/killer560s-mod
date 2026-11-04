@@ -131,10 +131,7 @@ public final class ImageLinks {
                 return false;
             }
             String host = u.getHost() == null ? null : u.getHost().toLowerCase(Locale.ROOT);
-            if (host == null || host.isEmpty()) {
-                return false;
-            }
-            return anyHost || isKnownHost(host) || isTestHost(host, u.getPort());
+            return host == null || host.isEmpty() ? false : anyHost || isKnownHost(host) || isTestHost(host, u.getPort());
         } catch (Exception e) {
             return false;
         }
@@ -147,10 +144,7 @@ public final class ImageLinks {
         }
         int slash = path.lastIndexOf('/');
         int dot = path.lastIndexOf('.');
-        if (dot <= slash || dot == path.length() - 1) {
-            return "";
-        }
-        return path.substring(dot + 1).toLowerCase(Locale.ROOT);
+        return dot <= slash || dot == path.length() - 1 ? "" : path.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     public static boolean hasImageExtension(String url) {

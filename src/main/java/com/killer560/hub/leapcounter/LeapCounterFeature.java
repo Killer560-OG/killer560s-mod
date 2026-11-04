@@ -105,10 +105,7 @@ public final class LeapCounterFeature {
             return null;
         }
         int count = LeapTracker.count();
-        if (count == 0 && !cfg.isHudShowAtZero()) {
-            return null;
-        }
-        return format(count, target, section);
+        return count == 0 && !cfg.isHudShowAtZero() ? null : format(count, target, section);
     }
 
     private static String format(int count, int target, LeapTracker.Section section) {
@@ -170,10 +167,7 @@ public final class LeapCounterFeature {
         /** Drawn only while there is a count to show (or in the HUD editor, where the preview line stands in).
          *  Same shape as {@code etherwarp/EtherwarpHudElement.isVisible()}; chat never hides it ({@link HudVisibility}). */
         public boolean isVisible() {
-            if (HudVisibility.editorOpen()) {
-                return true;
-            }
-            return !HudVisibility.hidesHud() && hudText() != null;
+            return HudVisibility.editorOpen() ? true : !HudVisibility.hidesHud() && hudText() != null;
         }
 
         /** Listed in the HUD editor only while the feature is on and you're in the F7/M7 boss - the same gate the

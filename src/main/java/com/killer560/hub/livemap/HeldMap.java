@@ -165,10 +165,7 @@ public final class HeldMap {
 
     /** Room slots {across, down} of the floor being played; the whole 6x6 in the sim, which lays floors out anywhere. */
     public static int[] floorTiles() {
-        if (com.killer560.hub.roomsim.SimState.isActive()) {
-            return new int[]{6, 6};
-        }
-        return MapPainter.currentFloorRooms();
+        return com.killer560.hub.roomsim.SimState.isActive() ? new int[]{6, 6} : MapPainter.currentFloorRooms();
     }
 
     /** The two room tiles either side of door cell {@code idx}: {west, east} or {north, south}. */

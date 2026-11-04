@@ -604,10 +604,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (chat.scroll(mouseX, mouseY, scrollY)) {
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return chat.scroll(mouseX, mouseY, scrollY) ? true : super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     /** Testkit: whether the chat panel is open, the lines it shows (plain text, top to bottom), and lines it has sent. */

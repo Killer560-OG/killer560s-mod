@@ -798,10 +798,7 @@ public final class TripCache {
             return e.stale() ? Need.STALE : Need.NONE;
         }
         Long failedAt = FAILED.get(w.key());
-        if (failedAt != null && failedAt == epoch.get()) {
-            return Need.NONE;
-        }
-        return Need.MISSING;
+        return failedAt != null && failedAt == epoch.get() ? Need.NONE : Need.MISSING;
     }
 
     /** Missing trips first (in priority order), then stale ones - not until the block changes have gone quiet. */
@@ -837,10 +834,7 @@ public final class TripCache {
             }
         }
         cursor = first < 0 ? list.size() : first;
-        if (!missing.isEmpty()) {
-            return missing;
-        }
-        return stale;
+        return !missing.isEmpty() ? missing : stale;
     }
 
     private static long scanKey = Long.MIN_VALUE;

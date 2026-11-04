@@ -243,10 +243,7 @@ public final class ItemRarityFeature {
 
     /** Rarity of a stack, or null. Public so other overlays (e.g. Storage Overlay's own grid) can reuse it. */
     public static ItemRarity getRarity(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        return lookup(stack).rarity;
+        return stack == null || stack.isEmpty() ? null : lookup(stack).rarity;
     }
 
     private static CacheEntry lookup(ItemStack stack) {

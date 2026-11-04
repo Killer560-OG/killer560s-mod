@@ -265,10 +265,7 @@ public final class PartyTracker {
     }
 
     private static DungeonClass parseClass(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        return "Berserk".equalsIgnoreCase(raw) ? DungeonClass.BERSERKER : DungeonClass.byName(raw);
+        return raw == null ? null : "Berserk".equalsIgnoreCase(raw) ? DungeonClass.BERSERKER : DungeonClass.byName(raw);
     }
 
     private static void add(String name) {

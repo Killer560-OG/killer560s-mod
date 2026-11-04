@@ -192,10 +192,7 @@ final class PartyMapIntel {
 
     /** Network text in a log line: bounded, and never null. */
     private static String clip(String s) {
-        if (s == null) {
-            return "null";
-        }
-        return s.length() > 40 ? s.substring(0, 40) + "..." : s;
+        return s == null ? "null" : s.length() > 40 ? s.substring(0, 40) + "..." : s;
     }
 
     /** Snaps a wire (col,row) tile index to the nearest of the 6 even (room) slots per axis - the dungeon's

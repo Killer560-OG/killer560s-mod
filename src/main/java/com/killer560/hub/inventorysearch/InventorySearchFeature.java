@@ -274,10 +274,7 @@ public final class InventorySearchFeature {
             return null;
         }
         String query = queryNow();
-        if (query.isBlank() || calcResultNow(query) != null) {
-            return null;
-        }
-        return query;
+        return query.isBlank() || calcResultNow(query) != null ? null : query;
     }
 
     /**
@@ -395,10 +392,7 @@ public final class InventorySearchFeature {
      *  reach it (never above 0). Panels beside the bar keep their y. */
     public static double keepAbove(Screen screen, double x, double y, double w, double h) {
         int[] r = reservedRect(screen);
-        if (r == null || !(x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h)) {
-            return y;
-        }
-        return Math.max(0, r[1] - h);
+        return r == null || !(x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h) ? y : Math.max(0, r[1] - h);
     }
 
     /**
