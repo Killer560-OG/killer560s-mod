@@ -108,20 +108,14 @@ public final class StatLayout {
 
     /** Where one readout draws: its top-left in GUI pixels, its drawn size, and (bars) its length in its own units. */
     public record Placed(int[] pos, int w, int h, int widthLocal) {
-        public int x() {
-            return pos[0];
-        }
+        public int x() { return pos[0]; }
 
-        public int y() {
-            return pos[1];
-        }
+        public int y() { return pos[1]; }
     }
 
     /** An area's drop zone in the HUD editor, in GUI pixels (x1/y1 exclusive). */
     public record Zone(Area area, int x0, int y0, int x1, int y1) {
-        public boolean contains(double mx, double my) {
-            return mx >= x0 && mx < x1 && my >= y0 && my < y1;
-        }
+        public boolean contains(double mx, double my) { return mx >= x0 && mx < x1 && my >= y0 && my < y1; }
 
         double distance(double mx, double my) {
             double dx = mx < x0 ? x0 - mx : mx >= x1 ? mx - x1 + 1 : 0;
@@ -173,14 +167,10 @@ public final class StatLayout {
     }
 
     /** Whether the Predefined layout is selected. */
-    public static boolean predefined() {
-        return PlayerStatsConfig.getInstance().isPredefinedLayout();
-    }
+    public static boolean predefined() { return PlayerStatsConfig.getInstance().isPredefinedLayout(); }
 
     /** Whether {@code e} is placed by this layout right now (a stat readout, with Predefined selected). */
-    public static boolean manages(HudElement e) {
-        return e != null && StatElements.isStatElementId(e.id()) && predefined();
-    }
+    public static boolean manages(HudElement e) { return e != null && StatElements.isStatElementId(e.id()) && predefined(); }
 
     /** The readout behind a stat element id, or null. */
     public static Readout readout(String hudId) {
@@ -237,9 +227,7 @@ public final class StatLayout {
     }
 
     /** Called once per frame by the HUD layer and the HUD editor: values and vanilla rows may have changed. */
-    public static void newFrame() {
-        frame++;
-    }
+    public static void newFrame() { frame++; }
 
     /** The HUD editor's drag: {@code moving} shown at {@code index} of {@code area}. A null area shows it where it is. */
     public static void setPreview(Readout moving, Area area, int index) {

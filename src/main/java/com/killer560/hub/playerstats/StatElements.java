@@ -209,9 +209,7 @@ public final class StatElements {
     private static int drawnCount;
 
     /** Forgets last frame's boxes; the readouts' own layer calls this before it draws. Render thread. */
-    public static void beginFrame() {
-        drawnCount = 0;
-    }
+    public static void beginFrame() { drawnCount = 0; }
 
     /** Records the box a readout just drew, {@code (x, y, w, h)} in its own pose, as GUI units on screen. */
     static void noteDrawn(GuiGraphicsExtractor g, int x, int y, int w, int h) {
@@ -227,9 +225,7 @@ public final class StatElements {
     }
 
     /** Whether any readout has drawn this frame (the held-item name has nothing to hide under otherwise). */
-    public static boolean anyDrawn() {
-        return drawnCount > 0;
-    }
+    public static boolean anyDrawn() { return drawnCount > 0; }
 
     /** Whether any readout drawn this frame overlaps the GUI-unit box {@code [x0,x1) x [y0,y1)}. */
     public static boolean drawnOver(float x0, float y0, float x1, float y1) {
@@ -257,9 +253,7 @@ public final class StatElements {
 
     /** What fits on a bar {@code w} units long with {@link #VALUE_PAD_X} at each end: {@code value}, else its short
      *  form ({@link #shortValue}), else null. */
-    static String fitValue(Font font, String value, int w, float s) {
-        return fitValue(font, value, null, w, s);
-    }
+    static String fitValue(Font font, String value, int w, float s) { return fitValue(font, value, null, w, s); }
 
     /**
      * {@link #fitValue(Font, String, int, float)} with the bar's symbol (Show Symbols, null for none) in front where it
@@ -334,9 +328,7 @@ public final class StatElements {
     }
 
     /** Whether {@code r} has something to show in game right now (a value read, or for XP a player). */
-    static boolean hasValue(Readout r) {
-        return r.bar ? readBar(r) != null : text(r, false) != null;
-    }
+    static boolean hasValue(Readout r) { return r.bar ? readBar(r) != null : text(r, false) != null; }
 
     /** Width in its own units of what text readout {@code r} draws (its label in the editor while it has no value). */
     static int textWidth(Readout r, boolean preview) {
@@ -370,9 +362,7 @@ public final class StatElements {
     }
 
     /** True for an id this class registered - {@code HudInGameRenderer} draws these. */
-    public static boolean isStatElementId(String id) {
-        return id.startsWith("statbar_") || id.startsWith("stattext_");
-    }
+    public static boolean isStatElementId(String id) { return id.startsWith("statbar_") || id.startsWith("stattext_"); }
 
     /** A bar readout: an {@link Element} whose length and thickness drag separately in the HUD editor. */
     private static final class BarElement extends Element implements ResizableHudElement {
@@ -382,9 +372,7 @@ public final class StatElements {
         }
 
         @Override
-        public int resizeWidth() {
-            return PlayerStatsConfig.getInstance().getBarWidth(r);
-        }
+        public int resizeWidth() { return PlayerStatsConfig.getInstance().getBarWidth(r); }
 
         @Override
         public int resizeHeight() {
@@ -401,9 +389,7 @@ public final class StatElements {
         }
 
         @Override
-        public void saveSize() {
-            PlayerStatsConfig.getInstance().save();
-        }
+        public void saveSize() { PlayerStatsConfig.getInstance().save(); }
     }
 
     private static class Element implements HudElement {
@@ -415,14 +401,10 @@ public final class StatElements {
         }
 
         @Override
-        public String id() {
-            return r.hudId;
-        }
+        public String id() { return r.hudId; }
 
         @Override
-        public String displayName() {
-            return r.label;
-        }
+        public String displayName() { return r.label; }
 
         @Override
         public int defaultX() {
@@ -431,9 +413,7 @@ public final class StatElements {
         }
 
         @Override
-        public int defaultY() {
-            return 150 + r.ordinal() * 14;
-        }
+        public int defaultY() { return 150 + r.ordinal() * 14; }
 
         @Override
         public int width() {
@@ -870,7 +850,5 @@ public final class StatElements {
         return "Level " + fmt(level) + " (" + Math.round(progress * 100f) + "%)";
     }
 
-    private static String fmt(long v) {
-        return String.format(Locale.US, "%,d", v);
-    }
+    private static String fmt(long v) { return String.format(Locale.US, "%,d", v); }
 }

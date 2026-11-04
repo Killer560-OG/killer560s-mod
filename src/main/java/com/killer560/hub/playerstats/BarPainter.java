@@ -304,9 +304,7 @@ public final class BarPainter {
         q.gradient(x0, mid, x1, y1, mix(color, 0xFF000000, 0.12f), mix(color, 0xFF000000, 0.45f));
     }
 
-    private static int ghostColor(int color) {
-        return (mix(color, 0xFFFFFFFF, 0.6f) & 0x00FFFFFF) | 0xC8000000;
-    }
+    private static int ghostColor(int color) { return (mix(color, 0xFFFFFFFF, 0.6f) & 0x00FFFFFF) | 0xC8000000; }
 
     /** {@code a} moved {@code t} of the way to {@code b}, per channel; alpha is {@code a}'s (at least opaque-ish). */
     static int mix(int a, int b, float t) {
@@ -319,9 +317,7 @@ public final class BarPainter {
         return alpha << 24 | r << 16 | gg << 8 | bl;
     }
 
-    private static float clamp01(float v) {
-        return v < 0f ? 0f : (v > 1f ? 1f : v);
-    }
+    private static float clamp01(float v) { return v < 0f ? 0f : (v > 1f ? 1f : v); }
 
     /** The stat's item, drawn into a {@code size}-unit square at {@code (x, y)} (items are 16 units; scaled to fit). */
     private static void drawIcon(GuiGraphicsExtractor g, Readout r, int x, int y, int size, int color) {

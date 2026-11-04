@@ -252,26 +252,16 @@ public final class PlayerStatsFeature {
         return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHearts() && !heartsForcedByRift();
     }
 
-    public static boolean hidesVanillaHunger() {
-        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHunger();
-    }
+    public static boolean hidesVanillaHunger() { return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaHunger(); }
 
-    public static boolean hidesVanillaArmour() {
-        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaArmour();
-    }
+    public static boolean hidesVanillaArmour() { return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaArmour(); }
 
-    public static boolean hidesVanillaAir() {
-        return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaAir();
-    }
+    public static boolean hidesVanillaAir() { return suppressing() && PlayerStatsConfig.getInstance().isHideVanillaAir(); }
 
     /** Whether the vanilla XP bar and its level are hidden ({@code hideXpBar}, Skyblock Only). */
-    public static boolean hidesVanillaXp() {
-        return hidingXp();
-    }
+    public static boolean hidesVanillaXp() { return hidingXp(); }
 
-    private static boolean suppressing() {
-        return PlayerStatsConfig.getInstance().isEnabled();
-    }
+    private static boolean suppressing() { return PlayerStatsConfig.getInstance().isEnabled(); }
 
     /** True while the vanilla heart bar should stay visible despite {@code hideVanillaHearts} - killer560:
      *  "Add a toggle to unhide hearts in the rift", where hearts show a different (real HP) meaning. Reads
@@ -343,20 +333,14 @@ public final class PlayerStatsFeature {
 
     /** The mana the action bar last showed, whether or not the stat HUD is on: 0 while it reads NOT ENOUGH MANA, -1 before
      *  any figure. Auto Clear spaces its bats with it when mana runs low. */
-    public static long manaNow() {
-        return manaSeen;
-    }
+    public static long manaNow() { return manaSeen; }
 
     /** The maximum mana the action bar last showed, -1 before any figure. */
-    public static long manaMaxNow() {
-        return manaSeenMax;
-    }
+    public static long manaMaxNow() { return manaSeenMax; }
 
     /** True while an Aspect of the Void would fail for lack of mana: the action bar says so, or the last mana figure is
      *  under its cost. Etherwarp holds on this (no use is sent into a refusal). */
-    public static boolean manaTooLowForAotv() {
-        return manaShort || manaSeen >= 0 && manaSeen < AOTV_MANA;
-    }
+    public static boolean manaTooLowForAotv() { return manaShort || manaSeen >= 0 && manaSeen < AOTV_MANA; }
 
     private static void read(String raw) {
 
@@ -494,9 +478,7 @@ public final class PlayerStatsFeature {
     private static final Pattern SPACE_RUN = Pattern.compile(" {2,}");
 
     /** True while the mixin is re-sending a stripped line, so it is not processed (or read) a second time. */
-    public static boolean isResending() {
-        return resending;
-    }
+    public static boolean isResending() { return resending; }
 
     /** Runs {@code send} (a setOverlayMessage call with the stripped line) with the re-entry guard up. */
     public static void resend(Runnable send) {
