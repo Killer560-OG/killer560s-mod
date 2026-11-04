@@ -123,10 +123,7 @@ public final class MobSkins {
             return pet == null ? "Player" : "Pet: " + pet.name();
         }
         EntityType<?> type = type(id);
-        if (type == null) {
-            return "Player";
-        }
-        return type.getDescription().getString();
+        return type == null ? "Player" : type.getDescription().getString();
     }
 
     /** Prefix of a pet's id: {@code "pet:" + the pet's uuid}. Pets come from the Pet Wheel's seen pets. */
