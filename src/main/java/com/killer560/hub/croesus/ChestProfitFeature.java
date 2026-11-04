@@ -291,14 +291,20 @@ public final class ChestProfitFeature {
             return;
         }
         List<ItemStack> stacks = containerStacks(screen);
-        if (stacks.size() <= DungeonChestValuer.CLAIM_BUTTON_SLOT
-                || !DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT))) {
+        if (claimButton(stacks) == null) {
             return;
         }
         ChestValue value = DungeonChestValuer.fromChestScreen(type, stacks);
         String floor = floorForChestScreen();
         pending = new PendingClaim(value, floor, screen.getMenu().containerId, System.currentTimeMillis(), source);
         pendingFailed = false;
+    }
+
+    /** The claim button when the container has one and it is claimable, else null. */
+    private static ItemStack claimButton(List<ItemStack> stacks) {
+        return stacks.size() > DungeonChestValuer.CLAIM_BUTTON_SLOT
+                && DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT))
+                ? stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT) : null;
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
@@ -487,14 +493,12 @@ public final class ChestProfitFeature {
             return; // the page's items have not arrived: keep what this page held last time
         }
         Matcher m = MENU_PAGE.matcher(titleOf(screen));
-        int page = m.matches() ? Integer.parseInt(m.group(1)) : 1;
+        int page = headPage;
         int pages = m.matches() ? Math.max(1, Integer.parseInt(m.group(2))) : 1;
         // killer560, 2026-10-12: "count from all pages combined out of how many at max it can store". Each page as read
         // (each run's expiry and state) is kept with the run memory, saved, so the totals survive a restart.
-        List<CroesusRunMemory.PageRun> pageRuns = new ArrayList<>();
-        for (CroesusRunMemory.Entry e : entries) {
-            pageRuns.add(new CroesusRunMemory.PageRun(e.expiresAt(), e.tolMs(), state[e.slot()]));
-        }
+        List<CroesusRunMemory.PageRun> pageRuns = entries.stream()
+                .map(e -> new CroesusRunMemory.PageRun(e.expiresAt(), e.tolMs(), state[e.slot()])).toList();
         CroesusRunMemory.notePage(page, pages, pageRuns, now);
     }
 
@@ -596,12 +600,11 @@ public final class ChestProfitFeature {
         if (run == null || type == null) {
             return;
         }
-        List<ItemStack> stacks = containerStacks(screen);
-        if (stacks.size() <= DungeonChestValuer.CLAIM_BUTTON_SLOT
-                || !DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT))) {
+        ItemStack button = claimButton(containerStacks(screen));
+        if (button == null) {
             return;
         }
-        boolean keyed = DungeonChestValuer.cleanLore(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT)).contains("Dungeon Chest Key");
+        boolean keyed = DungeonChestValuer.cleanLore(button).contains("Dungeon Chest Key");
         CroesusRunMemory.noteClaim(run, type.name(), keyed, System.currentTimeMillis());
         LOGGER.info("[Croesus] Claim seen in the {} chest of run {}{}", type.display, CroesusRunMemory.describe(run),
                 keyed ? " (with a key)" : "");
@@ -739,9 +742,7 @@ public final class ChestProfitFeature {
         int rgb = free ? cfg.getChestFreeColor() : cfg.getChestKeyColor();
         int x = slot.x;
         int y = slot.y;
-        graphics.fill(x, y, x + 16, y + 16, (CHEST_MARK_FILL_ALPHA << 24) | rgb);
-        insetBorder(graphics, x, y, 0xFF000000 | rgb);
-        insetBorder(graphics, x + 1, y + 1, 14, 0xFF000000 | rgb);
+        filledOutline(graphics, x, y, CHEST_MARK_FILL_ALPHA, 0xFF, rgb);
     }
 
     /** For the testkit: the RUN_* state of every slot of the Croesus menu last read. */
@@ -801,16 +802,12 @@ public final class ChestProfitFeature {
         int y = slot.y;
         switch (state) {
             case RUN_UNCLAIMED -> {
-                graphics.fill(x, y, x + 16, y + 16, (RUN_UNCLAIMED_FILL_ALPHA << 24) | cfg.getRunUnclaimedColor());
-                insetBorder(graphics, x, y, (RUN_UNCLAIMED_BORDER_ALPHA << 24) | cfg.getRunUnclaimedColor());
-                insetBorder(graphics, x + 1, y + 1, 14, (RUN_UNCLAIMED_BORDER_ALPHA << 24) | cfg.getRunUnclaimedColor());
+                filledOutline(graphics, x, y, RUN_UNCLAIMED_FILL_ALPHA, RUN_UNCLAIMED_BORDER_ALPHA, cfg.getRunUnclaimedColor());
             }
             case RUN_NEEDS_KEY -> {
                 // Hue AND treatment (2026-10-12, "these colors are hard to actually tell if they are different"):
                 // a stronger fill and a 2 px border, plus the key mark drawn over the item (drawRunGlyph).
-                graphics.fill(x, y, x + 16, y + 16, (RUN_KEY_FILL_ALPHA << 24) | cfg.getRunKeyColor());
-                insetBorder(graphics, x, y, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
-                insetBorder(graphics, x + 1, y + 1, 14, (RUN_KEY_BORDER_ALPHA << 24) | cfg.getRunKeyColor());
+                filledOutline(graphics, x, y, RUN_KEY_FILL_ALPHA, RUN_KEY_BORDER_ALPHA, cfg.getRunKeyColor());
             }
             // killer560, 2026-10-13: "can you change that light blue to be a full outline". Both blue states are a
             // solid outline as thick as the action states' borders, with no fill: the fill is what keeps unclaimed and
@@ -819,6 +816,12 @@ public final class ChestProfitFeature {
             case RUN_OPENED -> outline(graphics, x, y, 0xFF000000 | cfg.getRunOpenedColor());
             default -> graphics.fill(x, y, x + 16, y + 16, (RUN_USED_FILL_ALPHA << 24) | cfg.getRunClaimedColor());
         }
+    }
+
+    /** The slot filled at {@code fillAlpha} under a 2 px border at {@code borderAlpha}, both in {@code rgb}. */
+    private static void filledOutline(GuiGraphicsExtractor graphics, int x, int y, int fillAlpha, int borderAlpha, int rgb) {
+        graphics.fill(x, y, x + 16, y + 16, (fillAlpha << 24) | rgb);
+        outline(graphics, x, y, (borderAlpha << 24) | rgb);
     }
 
     /** A 2 px solid outline, no fill: the not-looked-at and opened runs. */
@@ -906,12 +909,8 @@ public final class ChestProfitFeature {
         boolean sameScreen = McCompat.screen(client) instanceof AbstractContainerScreen<?> s
                 && s.getMenu().containerId == claim.containerId()
                 && ChestType.fromName(titleOf(s)) == claim.value().type();
-        boolean stillClaimable = false;
-        if (sameScreen) {
-            List<ItemStack> stacks = containerStacks((AbstractContainerScreen<?>) McCompat.screen(client));
-            stillClaimable = stacks.size() > DungeonChestValuer.CLAIM_BUTTON_SLOT
-                    && DungeonChestValuer.isClaimableButton(stacks.get(DungeonChestValuer.CLAIM_BUTTON_SLOT));
-        }
+        boolean stillClaimable = sameScreen
+                && claimButton(containerStacks((AbstractContainerScreen<?>) McCompat.screen(client))) != null;
         if (!sameScreen || !stillClaimable) {
             pending = null;
             commit(claim);
@@ -947,8 +946,7 @@ public final class ChestProfitFeature {
     }
 
     private static net.minecraft.network.chat.MutableComponent profitComponent(long profit) {
-        String text = (profit >= 0 ? "+" : "") + DungeonChestValuer.formatCoins(profit);
-        return profit >= 0 ? ModChat.good(text) : ModChat.bad(text);
+        return profit >= 0 ? ModChat.good(signed(profit)) : ModChat.bad(signed(profit));
     }
 
     private record Line(String text, int color, String right, int rightColor, Component rich) {
@@ -1140,13 +1138,9 @@ public final class ChestProfitFeature {
 
     private static int panelWidth(List<Line> lines) {
         Font font = Minecraft.getInstance().font;
-        int width = 0;
-        for (Line line : lines) {
-            int w = line.rich() != null ? font.width(line.rich())
-                    : font.width(line.text()) + (line.right() != null ? PANEL_GAP + font.width(line.right()) : 0);
-            width = Math.max(width, w);
-        }
-        return width + PANEL_PADDING * 2;
+        return lines.stream().mapToInt(line -> line.rich() != null ? font.width(line.rich())
+                : font.width(line.text()) + (line.right() != null ? PANEL_GAP + font.width(line.right()) : 0))
+                .max().orElse(0) + PANEL_PADDING * 2;
     }
 
     private static int panelHeight(List<Line> lines) {
