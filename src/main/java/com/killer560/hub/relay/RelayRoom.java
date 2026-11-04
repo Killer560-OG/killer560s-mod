@@ -44,13 +44,9 @@ public final class RelayRoom {
             this.label = label;
         }
 
-        public Mode next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
+        public Mode next() { return values()[(ordinal() + 1) % values().length]; }
 
-        public Mode previous() {
-            return values()[(values().length + ordinal() - 1) % values().length];
-        }
+        public Mode previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
     /**
@@ -58,9 +54,7 @@ public final class RelayRoom {
      *         fallback room (see the class doc). Reads {@link PartyTracker} / {@link HypixelLocation} only;
      *         call it from the client thread.
      */
-    public static String current(Mode mode) {
-        return mode == Mode.PARTY ? partyRoom() : HypixelLocation.lobbyRoom();
-    }
+    public static String current(Mode mode) { return mode == Mode.PARTY ? partyRoom() : HypixelLocation.lobbyRoom(); }
 
     /** {@code party:<hash>} for the current party, or {@code null} when you are alone / it isn't known yet. */
     private static String partyRoom() {

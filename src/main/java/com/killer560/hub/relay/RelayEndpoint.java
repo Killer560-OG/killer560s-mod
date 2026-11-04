@@ -65,9 +65,7 @@ public final class RelayEndpoint {
         return URI.create(normalise(baseUrl) + "/challenge?uuid=" + enc(uuid));
     }
 
-    public static URI auth(String baseUrl) {
-        return URI.create(normalise(baseUrl) + "/auth");
-    }
+    public static URI auth(String baseUrl) { return URI.create(normalise(baseUrl) + "/auth"); }
 
     /** {@code https} -> {@code wss}, {@code http} -> {@code ws}; the Worker only speaks WebSocket on {@code /ws}. */
     public static URI websocket(String baseUrl, String room, String token) {
@@ -78,7 +76,5 @@ public final class RelayEndpoint {
         return URI.create(ws + "/ws?room=" + enc(room) + "&token=" + enc(token));
     }
 
-    private static String enc(String value) {
-        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
-    }
+    private static String enc(String value) { return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8); }
 }

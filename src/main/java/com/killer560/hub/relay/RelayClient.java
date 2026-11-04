@@ -130,9 +130,7 @@ public final class RelayClient {
     }
 
 
-    public static void setListener(RelayListener value) {
-        listener = value == null ? NO_LISTENER : value;
-    }
+    public static void setListener(RelayListener value) { listener = value == null ? NO_LISTENER : value; }
 
     /** Drops the cached relay token, so the next connect signs in again (after an in-game account swap). */
     public static void forgetToken() {
@@ -213,22 +211,14 @@ public final class RelayClient {
         return send(packet);
     }
 
-    public static State state() {
-        return state;
-    }
+    public static State state() { return state; }
 
-    public static boolean isConnected() {
-        return state == State.CONNECTED;
-    }
+    public static boolean isConnected() { return state == State.CONNECTED; }
 
     /** Everyone the relay currently has in your room, including you. Empty while disconnected. */
-    public static List<String> online() {
-        return online;
-    }
+    public static List<String> online() { return online; }
 
-    public static String room() {
-        return activeRoom;
-    }
+    public static String room() { return activeRoom; }
 
     /** One short phrase for the settings tab and for {@code /killer560 chat}'s reply. */
     public static String statusText() {
@@ -457,14 +447,10 @@ public final class RelayClient {
         /** A text message can arrive in several frames; nothing may be parsed until {@code last}. */
         private final StringBuilder buffer = new StringBuilder();
 
-        private Socket(long gen) {
-            this.gen = gen;
-        }
+        private Socket(long gen) { this.gen = gen; }
 
         @Override
-        public void onOpen(WebSocket webSocket) {
-            webSocket.request(1);
-        }
+        public void onOpen(WebSocket webSocket) { webSocket.request(1); }
 
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
@@ -493,9 +479,7 @@ public final class RelayClient {
         }
 
         @Override
-        public void onError(WebSocket webSocket, Throwable error) {
-            dropped(gen, reason(error));
-        }
+        public void onError(WebSocket webSocket, Throwable error) { dropped(gen, reason(error)); }
     }
 
     private static void dropped(long gen, String why) {

@@ -44,9 +44,7 @@ public final class RelayAuth {
 
     /** Thrown for every handshake failure, so the caller has one short human-readable reason to show. */
     public static final class RelayAuthException extends RuntimeException {
-        public RelayAuthException(String message) {
-            super(message);
-        }
+        public RelayAuthException(String message) { super(message); }
     }
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);

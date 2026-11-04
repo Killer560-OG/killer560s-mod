@@ -119,9 +119,7 @@ public final class HypixelLocation {
     }
 
     /** For the settings tab: is the id known, or should it explain why not yet. */
-    public static boolean isKnown() {
-        return serverId != null;
-    }
+    public static boolean isKnown() { return serverId != null; }
 
     /** For the settings tab: p3sim has no real Hypixel instance id, so Lobby mode can never work there. */
     public static boolean isP3Sim(Minecraft client) {
