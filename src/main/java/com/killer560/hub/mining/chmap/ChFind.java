@@ -44,14 +44,16 @@ public final class ChFind {
         this.minZ = this.maxZ = z;
     }
 
-    /** Widens the known box to include this position. */
-    public void include(double x, double y, double z) {
+    /** Widens the known box to include this position; true if it grew. */
+    public boolean include(double x, double y, double z) {
+        boolean grew = x < minX || y < minY || z < minZ || x > maxX || y > maxY || z > maxZ;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         minZ = Math.min(minZ, z);
         maxX = Math.max(maxX, x);
         maxY = Math.max(maxY, y);
         maxZ = Math.max(maxZ, z);
+        return grew;
     }
 
     /** Widens to include everything another find knows. Used when a shared find arrives for a known place. */

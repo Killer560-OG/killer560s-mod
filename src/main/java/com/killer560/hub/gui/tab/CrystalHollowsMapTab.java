@@ -72,6 +72,12 @@ public class CrystalHollowsMapTab extends BaseTab {
                 cfg.save();
             }
         });
+        y += 22;
+        // The map as a HUD element in the Crystal Hollows, like Skyblocker's Crystals HUD (moved and sized in Edit HUD).
+        widgets.add(onOffButton("Map HUD", cfg::isHudEnabled, cfg::setHudEnabled, cfg::save, null,
+                contentX, y, colW, 18));
+        widgets.add(onOffButton("Show Zones", cfg::isShowZones, cfg::setShowZones, cfg::save, null,
+                colBX, y, colW, 18));
         y += 24;
 
         // Structures he has found in this lobby, and what to draw for them.

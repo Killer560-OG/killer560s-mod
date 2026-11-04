@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.chmap;
 
+import com.killer560.hub.miningqol.MiningState;
 import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
@@ -28,12 +29,9 @@ import java.util.Locale;
  *   <li>The current zone name (top-left) is read live from the sidebar via
  *   {@link IslandDetector#scoreboardArea()} - the same "Area:"/sidebar read {@code IslandDetector} already
  *   uses to tell Dwarven Mines from Glacite Tunnels.</li>
- *   <li><b>What this does NOT draw</b>: shaped outlines for the five named zones (Jungle, Mithril Deposits,
- *   Goblin Holdout, Precursor Remnants, Magma Fields). Their approximate compass position is common
- *   Skyblock community knowledge, but this pass could not confirm a per-lobby-fixed boundary polygon for
- *   any of them from a citable source - the wiki itself only says structure placement "will always be
- *   different across different servers" - so drawing invented boxes would be showing something not
- *   actually known to be true. The live zone-name label is the honest substitute.</li>
+ *   <li>Zones (Show Zones): the four quadrants split at x/z 513 around the Nucleus box, as SkyHanni's Area Walls
+ *   draw them in the world - see {@link ChMapRenderer}. Magma Fields is a height (below y 65), not a quadrant, so
+ *   the live zone-name label is what names it.</li>
  * </ul>
  * <p>
  * <b>"Interactive"</b>: clicking anywhere on the map (or right on a saved waypoint) sets that spot as the
@@ -59,7 +57,7 @@ public class CrystalHollowsMapScreen extends Screen {
      * whose midpoint is 512.5. The Nucleus sits at the centre of the Crystal Hollows, so 512 is where it has
      * to be and 495.5 cannot have been.
      *
-     * <p>Safe to change. This constant is only the map's centring reference - {@code screenX} plots
+     * <p>Safe to change. This constant is only the map's centring reference - {@code ChMapRenderer.sx} plots
      * {@code (worldX - NUCLEUS_X)} - and every waypoint is stored in absolute world coordinates. So moving
      * it moves the VIEW, not the data: saved waypoints keep their real positions and their positions
      * relative to the player, and the Nucleus marker stops being drawn 47 blocks from the Nucleus.
@@ -68,15 +66,9 @@ public class CrystalHollowsMapScreen extends Screen {
     public static final double NUCLEUS_Y = 106.0;
     public static final double NUCLEUS_Z = 512.0;
 
-    private static final int ORANGE = 0xFFCC6600;
     private static final int LIGHT_ORANGE = 0xFFFFA040;
-    private static final int PANEL = 0xD00D0D0D;
     private static final int TEXT = 0xFFF0E6DC;
     private static final int DIM = 0xFF9A8C80;
-    private static final int NUCLEUS_COLOR = 0xFFB44DFF;
-    private static final int PLAYER_COLOR = 0xFF55FF55;
-    private static final int WAYPOINT_COLOR = 0xFFCC6600;
-    private static final int TARGET_COLOR = 0xFFFFFFFF;
 
     /** How many blocks across the panel shows at zoom = 1 / mapScale = 1. */
     private static final double BASE_VIEW_BLOCKS = 260.0;
@@ -88,6 +80,8 @@ public class CrystalHollowsMapScreen extends Screen {
     private static Double targetZ = null;
     private static String targetLabel = null;
 
+    /** Paints the map; shared with the HUD element so the two never drift. */
+    private final ChMapRenderer renderer = new ChMapRenderer(true);
     private float zoom = 1f;
     private float panX = 0f;
     private float panY = 0f;
@@ -133,12 +127,10 @@ public class CrystalHollowsMapScreen extends Screen {
         return (p[1] + p[3]) / 2.0 + panY;
     }
 
-    private int screenX(double worldX) {
-        return (int) Math.round(originX() + (worldX - NUCLEUS_X) * ppu());
-    }
-
-    private int screenY(double worldZ) {
-        return (int) Math.round(originY() + (worldZ - NUCLEUS_Z) * ppu());
+    /** Points the shared renderer at this frame's panel, pan and zoom. */
+    private void syncView() {
+        int[] p = panel();
+        renderer.setView(p[0], p[1], p[2], p[3], originX(), originY(), ppu());
     }
 
     private double worldXAt(double mouseX) {
@@ -159,127 +151,39 @@ public class CrystalHollowsMapScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         Minecraft client = Minecraft.getInstance();
         int[] p = panel();
-        graphics.fill(p[0], p[1], p[2], p[3], PANEL);
-        graphics.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, ORANGE);
+        boolean inCrystalHollows = MiningState.crystalHollows();
+        syncView();
+        renderer.setTarget(targetX, targetZ, targetLabel);
+        renderer.draw(graphics, font, inCrystalHollows ? client.player : null);
 
         String zone = IslandDetector.scoreboardArea();
-        boolean inCrystalHollows = "CRYSTAL_HOLLOWS".equals(IslandDetector.graphIsland());
         String header = "Crystal Hollows Map" + (zone.isEmpty() ? "" : " - " + zone);
         graphics.text(font, header, p[0], p[1] - 12, LIGHT_ORANGE, true);
         if (!inCrystalHollows) {
             graphics.text(font, "Not currently in Crystal Hollows - showing last known layout", p[0], p[3] + 4, DIM, false);
         }
-
-        // Nucleus marker - the one real fixed reference point everything else is drawn relative to.
-        drawMarker(graphics, screenX(NUCLEUS_X), screenY(NUCLEUS_Z), NUCLEUS_COLOR, "Nucleus", p);
-
-        drawDiscoveredStructures(graphics, p);
-
-        for (CrystalHollowsWaypoint w : CrystalHollowsMapConfig.getInstance().getWaypoints()) {
-            drawMarker(graphics, screenX(w.x), screenY(w.z), WAYPOINT_COLOR, w.name, p);
-        }
-
-        if (targetX != null && targetZ != null) {
-            drawMarker(graphics, screenX(targetX), screenY(targetZ), TARGET_COLOR,
-                    targetLabel != null ? targetLabel : "Target", p);
-        }
-
         var player = client.player;
-        if (player != null && inCrystalHollows) {
-            int px = screenX(player.getX());
-            int py = screenY(player.getZ());
-            if (inside(p, px, py)) {
-                graphics.fill(px - 2, py - 2, px + 2, py + 2, PLAYER_COLOR);
-                graphics.outline(px - 3, py - 3, 6, 6, 0xFF000000);
-            }
-            if (targetX != null && targetZ != null) {
-                double dx = targetX - player.getX();
-                double dz = targetZ - player.getZ();
-                double distance = Math.sqrt(dx * dx + dz * dz);
-                String bearing = compassBearing(dx, dz);
-                graphics.text(font, String.format(Locale.US, "Target: %.0f blocks, %s", distance, bearing),
-                        p[0], p[3] + 14, TEXT, false);
-            }
+        if (player != null && inCrystalHollows && targetX != null && targetZ != null) {
+            double dx = targetX - player.getX();
+            double dz = targetZ - player.getZ();
+            graphics.text(font, String.format(Locale.US, "Target: %.0f blocks, %s", Math.sqrt(dx * dx + dz * dz),
+                    compassBearing(dx, dz)), p[0], p[3] + 14, TEXT, false);
         }
-
         graphics.text(font, "Left-click: set target  |  Right-click: clear target  |  Scroll: zoom  |  Drag: pan",
                 p[0], p[3] + (targetX != null ? 26 : 14), DIM, false);
     }
 
-    /**
-     * Draws the border and waypoint of every structure found in this lobby.
-     *
-     * <p>killer560 (2026-09-30): "if I find a area like the [Mines of Divan] then it should show the border
-     * for [it] on the map. I should have an option to show the waypoint for [it] as well."
-     *
-     * <p>The box drawn is the part he has ESTABLISHED is there, not a guess at the structure's real shape -
-     * see {@link ChFind} for why it grows rather than being fixed. A find that is still a single point has
-     * no border worth drawing, so it gets the waypoint alone until he has walked far enough inside for the
-     * box to mean something.
-     *
-     * <p>A structure found by the cheat scanner, or sent by someone else, is drawn with a DASHED border.
-     * That is not decoration: he asked for a legit map that only knows what he has walked into, so the map
-     * has to be able to tell him which of these he actually established himself.
-     */
-    private void drawDiscoveredStructures(GuiGraphicsExtractor graphics, int[] p) {
-        CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
-        if (!cfg.isShowBorders() && !cfg.isShowStructureWaypoints()) {
-            return;
-        }
-        for (ChFind f : ChDiscovery.all()) {
-            int x0 = screenX(f.minX);
-            int x1 = screenX(f.maxX);
-            int y0 = screenY(f.minZ);
-            int y1 = screenY(f.maxZ);
-            boolean firsthand = f.source == ChFind.Source.VISITED;
-            if (cfg.isShowBorders() && f.hasExtent()) {
-                clippedBorder(graphics, p, Math.min(x0, x1), Math.min(y0, y1),
-                        Math.max(x0, x1), Math.max(y0, y1), f.structure.colour, firsthand);
-            }
-            if (cfg.isShowStructureWaypoints()) {
-                drawMarker(graphics, screenX(f.centreX()), screenY(f.centreZ()),
-                        f.structure.colour, f.structure.displayName, p);
-            }
-        }
+    /** The travel target, for the HUD map (null when none is set). */
+    public static Double targetX() {
+        return targetX;
     }
 
-    /**
-     * A rectangle outline clipped to the map panel, solid for a first-hand find and dashed otherwise.
-     *
-     * <p>Clipped rather than scissored because the map pans: a border whose structure is half off the edge
-     * should stop at the edge, not paint over the panel's own frame and the text around it.
-     */
-    private void clippedBorder(GuiGraphicsExtractor graphics, int[] p,
-                               int x0, int y0, int x1, int y1, int colour, boolean solid) {
-        for (int x = Math.max(x0, p[0]); x <= Math.min(x1, p[2] - 1); x++) {
-            if (solid || ((x - x0) / 3) % 2 == 0) {
-                plot(graphics, p, x, y0, colour);
-                plot(graphics, p, x, y1, colour);
-            }
-        }
-        for (int y = Math.max(y0, p[1]); y <= Math.min(y1, p[3] - 1); y++) {
-            if (solid || ((y - y0) / 3) % 2 == 0) {
-                plot(graphics, p, x0, y, colour);
-                plot(graphics, p, x1, y, colour);
-            }
-        }
+    public static Double targetZ() {
+        return targetZ;
     }
 
-    private void plot(GuiGraphicsExtractor graphics, int[] p, int x, int y, int colour) {
-        if (x >= p[0] && x < p[2] && y >= p[1] && y < p[3]) {
-            graphics.fill(x, y, x + 1, y + 1, colour);
-        }
-    }
-
-    private void drawMarker(GuiGraphicsExtractor graphics, int x, int y, int color, String label, int[] p) {
-        if (!inside(p, x, y)) {
-            return;
-        }
-        graphics.fill(x - 2, y - 2, x + 2, y + 2, color);
-        graphics.outline(x - 3, y - 3, 6, 6, 0xFF000000);
-        if (label != null && !label.isBlank()) {
-            graphics.text(font, label, x + 5, y - 4, TEXT, true);
-        }
+    public static String targetLabel() {
+        return targetLabel;
     }
 
     /** 8-way compass bearing for a (dx, dz) offset - Minecraft's +Z is south, +X is east. */
@@ -374,11 +278,12 @@ public class CrystalHollowsMapScreen extends Screen {
         double worldX = worldXAt(mouseX);
         double worldZ = worldZAt(mouseY);
 
+        syncView();
         CrystalHollowsWaypoint nearest = null;
         double nearestDistSq = Double.MAX_VALUE;
         for (CrystalHollowsWaypoint w : CrystalHollowsMapConfig.getInstance().getWaypoints()) {
-            double dx = screenX(w.x) - mouseX;
-            double dz = screenY(w.z) - mouseY;
+            double dx = renderer.sx(w.x) - mouseX;
+            double dz = renderer.sy(w.z) - mouseY;
             double distSq = dx * dx + dz * dz;
             if (distSq < nearestDistSq) {
                 nearestDistSq = distSq;

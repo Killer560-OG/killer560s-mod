@@ -1815,7 +1815,7 @@ public final class MapPainter {
 
     /** The turn, in degrees clockwise on screen, that points a marker's local -y (the arrow's tip, the head's top)
      *  where a player with this Minecraft yaw faces on the north-up map: yaw 180 (north) is 0, yaw 270 (east) 90. */
-    static float headRotationDegrees(float yaw) {
+    public static float headRotationDegrees(float yaw) {
         return 180f + yaw;
     }
 
@@ -1829,7 +1829,7 @@ public final class MapPainter {
      *  and under the heading rotation the thin strips break up, so on the Entrance's #00FF00 his #55FF55 arrow had
      *  next to nothing around it. It is now two solid triangles: an outline triangle {@link #MARKER_OUTLINE} unit
      *  bigger on every side, then the fill. Same point, same back edge, same size setting. */
-    private static void drawArrow(GuiGraphicsExtractor graphics, int size, int color) {
+    public static void drawArrow(GuiGraphicsExtractor graphics, int size, int color) {
         int half = Math.max(3, size / 2);
         outlinedTriangle(graphics, -half, half, color);
     }

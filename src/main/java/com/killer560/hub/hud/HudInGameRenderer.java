@@ -47,7 +47,9 @@ public final class HudInGameRenderer {
             // Treasure Chest Timer and Powder Tracker (powdermining, 2026-11-03).
             "mining_treasure_chest", "mining_powder_tracker",
             // Armor HUD and the Wrong Armor Alert (2026-11-03).
-            "armor_hud", "mining_wrong_armor");
+            "armor_hud", "mining_wrong_armor",
+            // The Crystal Hollows Map HUD (chhud-1104).
+            "mining_ch_map");
 
     private HudInGameRenderer() {
     }
