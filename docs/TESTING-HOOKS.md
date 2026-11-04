@@ -210,3 +210,9 @@ Testkit 95-perf-livemap runs it.
 `Ap3Executor.setLeapCountAnyPlayerForTest(boolean)` (static, called by reflection): the leap counter and the
 `leapcounter:` gate count a teleporting player whatever its UUID version. The testkit's fake players have name-based
 (version 3) UUIDs, which the counter otherwise skips as NPCs. Used by testkit 1026-ap3-leapgate, which sets it back to false.
+
+## Highlight depth hook (espdepth-1103)
+
+`util/EspDepthTestHook.setForced(family, AABB)` draws one green test shape through a shared highlight helper family from
+COLLECT_SUBMITS (families: thru-fill, depth-fill, block-fill, waypoint-fill, thru-outline, depth-outline, thru-line,
+depth-line); `setForced(null, null)` stops it. Testkit 1103-esp-depth-<family> puts water behind, in front of and around it.
