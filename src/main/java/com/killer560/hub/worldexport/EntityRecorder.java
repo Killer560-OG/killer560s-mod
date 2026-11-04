@@ -56,21 +56,13 @@ public final class EntityRecorder {
         });
     }
 
-    public static boolean isRecording() {
-        return recording;
-    }
+    public static boolean isRecording() { return recording; }
 
-    public static void setRecording(boolean on) {
-        recording = on;
-    }
+    public static void setRecording(boolean on) { recording = on; }
 
-    public static int count() {
-        return SEEN.size();
-    }
+    public static int count() { return SEEN.size(); }
 
-    public static void clear() {
-        SEEN.clear();
-    }
+    public static void clear() { SEEN.clear(); }
 
     private static void scan(ClientLevel level) {
         Minecraft mc = Minecraft.getInstance();
