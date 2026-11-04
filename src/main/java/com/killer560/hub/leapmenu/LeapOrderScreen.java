@@ -244,7 +244,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
      */
     private void addClassButtons() {
         String[] layout = currentLayout();
-        builtFor = String.join(",", Arrays.asList(layout).stream().map(n -> n == null ? "" : n).toList());
+        builtFor = layoutKey(layout);
         for (int spot = 0; spot < 4; spot++) {
             String name = layout[spot];
             int[] b = spotBounds(spot);
@@ -256,6 +256,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                         rebuild();
                     }).bounds(b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14).build());
         }
+    }
+
+    private static String layoutKey(String[] layout) {
+        return String.join(",", Arrays.stream(layout).map(n -> n == null ? "" : n).toList());
     }
 
     /** "Default Order: Odin" - the label is also the tooltip key "default order". */
@@ -283,10 +287,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     /** Starts the wizard over the current teammates (at most 4). Unless {@code always}, only when one of them has no
      *  known class. @return true when it started. */
     private boolean startWizard(boolean always) {
-        java.util.List<String> names = new java.util.ArrayList<>(PartyTracker.teammatesInLeapOrder());
-        if (names.size() > 4) {
-            names = new java.util.ArrayList<>(names.subList(0, 4));
-        }
+        java.util.List<String> names = PartyTracker.teammatesInLeapOrder().stream().limit(4).toList();
         if (names.isEmpty() || !always && names.stream().allMatch(n -> PartyTracker.classOf(n) != null)) {
             return false;
         }
@@ -328,12 +329,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         // The page's own rows sit in the part of the panel the chat leaves; the bottom row stays across the whole width.
         int ccx = contentCx();
         addRenderableWidget(SettingsButtonWidget.cycling(wizardClassText(now), (btn, dir) -> {
-            int at = 0;
-            for (int i = 0; i < WIZARD_CYCLE.length; i++) {
-                if (WIZARD_CYCLE[i] == PartyTracker.classOf(name)) {
-                    at = i;
-                }
-            }
+            int at = Math.max(0, Arrays.asList(WIZARD_CYCLE).lastIndexOf(PartyTracker.classOf(name)));
             pickClass(name, WIZARD_CYCLE[SettingsButtonWidget.step(at, dir, WIZARD_CYCLE.length)]);
             rebuild();
         }).bounds(ccx - 80, wizardY() + 64, 160, 18).build());
@@ -353,17 +349,16 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             if (wizardIndex == 0) {
                 wizard = null;
                 editing = null;
-                rebuild();
             } else {
                 wizardIndex--;
-                rebuild();
             }
+            rebuild();
         }).bounds(cx - 150, by, 90, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Skip"), btn -> endWizard())
                 .bounds(cx - 45, by, 90, 20).build());
         boolean last = wizardIndex >= wizard.size() - 1;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(last ? "Finish" : "Next"), btn -> {
-            if (wizardIndex >= wizard.size() - 1) {
+            if (last) {
                 endWizard();
             } else {
                 wizardIndex++;
@@ -418,8 +413,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 return;
             }
         }
-        String now = String.join(",", Arrays.asList(currentLayout()).stream().map(n -> n == null ? "" : n).toList());
-        if (!now.equals(builtFor)) {
+        if (!layoutKey(currentLayout()).equals(builtFor)) {
             rebuild(); // someone joined / left: new spot buttons
         }
     }
@@ -442,6 +436,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         int x0 = spot % 2 == 0 ? cx - GAP - w : cx + GAP;
         int y0 = spot < 2 ? cy - GAP - h : cy + GAP;
         return new int[]{x0, y0, w, h};
+    }
+
+    private static boolean inSpot(int[] b, double x, double y) {
+        return x >= b[0] && x < b[0] + b[2] && y >= b[1] && y < b[1] + b[3];
     }
 
     private String[] currentLayout() {
@@ -477,7 +475,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             boolean any = false;
             for (int spot = 0; spot < 4; spot++) {
                 int[] b = spotBounds(spot);
-                boolean hovered = mouseX >= b[0] && mouseX < b[0] + b[2] && mouseY >= b[1] && mouseY < b[1] + b[3];
+                boolean hovered = inSpot(b, mouseX, mouseY);
                 String name = layout[spot];
                 any |= name != null;
                 DungeonClass c = name == null ? null : PartyTracker.classOf(name);
@@ -604,7 +602,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        return chat.scroll(mouseX, mouseY, scrollY) ? true : super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return chat.scroll(mouseX, mouseY, scrollY) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     /** Testkit: whether the chat panel is open, the lines it shows (plain text, top to bottom), and lines it has sent. */
@@ -645,7 +643,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         }
         for (int spot = 0; spot < 4; spot++) {
             int[] b = spotBounds(spot);
-            if (event.x() < b[0] || event.x() >= b[0] + b[2] || event.y() < b[1] || event.y() >= b[1] + b[3]) {
+            if (!inSpot(b, event.x(), event.y())) {
                 continue;
             }
             String[] layout = currentLayout();

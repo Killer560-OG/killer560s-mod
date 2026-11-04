@@ -235,11 +235,8 @@ public final class LeapRunMemory {
         List<String> placed = new ArrayList<>();
         String took = "";
         if (!joined.isEmpty() && !departed.isEmpty() && !changed && playing != null) {
-            java.util.function.Function<String, DungeonClass> lastClassOf = n -> {
-                DungeonClass c = lastClasses.get(n.toLowerCase(Locale.ROOT));
-                return c != null ? c : PartyTracker.classOf(n);
-            };
-            String[] before = LeapMenuFeature.layout(runParty, cfg.getClassOrder(playing), cfg.getDefaultOrder(), lastClassOf);
+            String[] before = LeapMenuFeature.layout(runParty, cfg.getClassOrder(playing), cfg.getDefaultOrder(),
+                    lastClassOf(lastClasses));
             List<String> pinsNow = cfg.getClassOrder(playing);
             List<Integer> free = new ArrayList<>();
             for (int spot = 0; spot < 4; spot++) {
@@ -247,12 +244,7 @@ public final class LeapRunMemory {
                     free.add(spot);
                 }
             }
-            List<String> placeable = new ArrayList<>();
-            for (String n : joined) {
-                if (!cfg.isPinned(playing, n)) {
-                    placeable.add(n);
-                }
-            }
+            List<String> placeable = joined.stream().filter(n -> !cfg.isPinned(playing, n)).toList();
             for (int i = 0; i < placeable.size() && i < free.size(); i++) {
                 cfg.pinAt(playing, placeable.get(i), free.get(i));
                 placed.add(placeable.get(i) + "->" + free.get(i));
@@ -310,12 +302,7 @@ public final class LeapRunMemory {
         // Picks and pins set by hand outside a run (the Hub, or the dungeon before Mort's line) since the last run start
         // were set FOR this run: compared with an older party they read as departures and joins, and rules 3 and 2 used
         // to wipe or move them (killer560, 2026-10-22: "picks set in the Hub are reset when the run starts").
-        List<String> setBefore = new ArrayList<>();
-        for (String n : party) {
-            if (cfg.wasSetBeforeRun(n)) {
-                setBefore.add(n);
-            }
-        }
+        List<String> setBefore = party.stream().filter(cfg::wasSetBeforeRun).toList();
         // The one-for-one swap (see the class javadoc), decided before rule 1 clears the leaver's pick.
         Map<String, DungeonClass> lastClasses = cfg.getLastRunClasses();
         Map<String, DungeonClass> lastTab = cfg.getLastRunTabClasses();
@@ -363,14 +350,7 @@ public final class LeapRunMemory {
                     cleared.add(name);
                 }
             }
-            for (String name : cfg.allPinnedNames()) {
-                if (!containsIgnoreCase(setBefore, name)) {
-                    cfg.unpinEverywhere(name);
-                    if (!containsIgnoreCase(cleared, name)) {
-                        cleared.add(name);
-                    }
-                }
-            }
+            unpinOthers(cfg, setBefore, cleared);
             outcome = departed.size() + " left " + departed + ": every class pick and pin reset " + cleared
                     + ", kept (set before the run) " + setBefore;
         } else {
@@ -380,12 +360,8 @@ public final class LeapRunMemory {
             // the layout the last run showed: with a Tank and a Mage both wanting bottom-right, a departed Tank read as
             // standing top-left, the newcomer was pinned there and the Mage was pushed into the Tank's corner.
             DungeonClass beforeClass = lastPlaying != null ? lastPlaying : playing;
-            java.util.function.Function<String, DungeonClass> lastClassOf = n -> {
-                DungeonClass c = lastClasses.get(n.toLowerCase(Locale.ROOT));
-                return c != null ? c : PartyTracker.classOf(n);
-            };
             String[] before = LeapMenuFeature.layout(previous, cfg.getClassOrder(beforeClass), cfg.getDefaultOrder(),
-                    lastClassOf);
+                    lastClassOf(lastClasses));
             List<Integer> vacated = new ArrayList<>();
             for (int spot = 0; spot < 4; spot++) {
                 if (before[spot] != null && containsIgnoreCase(departed, before[spot])) {
@@ -401,14 +377,7 @@ public final class LeapRunMemory {
                     cleared.add(name);
                 }
             }
-            for (String name : cfg.allPinnedNames()) {
-                if (!containsIgnoreCase(party, name)) {
-                    cfg.unpinEverywhere(name);
-                    if (!containsIgnoreCase(cleared, name)) {
-                        cleared.add(name);
-                    }
-                }
-            }
+            unpinOthers(cfg, party, cleared);
             // A stayer now on another class keeps nothing they had for the old one (leaporder-1102): their pick and
             // their pins were for a role they no longer play, and a pin holds them in that role's spot over the Default
             // Order. Not what was set before this run.
@@ -428,12 +397,7 @@ public final class LeapRunMemory {
             List<String> placed = new ArrayList<>();
             boolean layoutHolds = classChanges.isEmpty() && !playingChanged;
             List<String> pinsNow = cfg.getClassOrder(playing);
-            List<String> placeable = new ArrayList<>();
-            for (String n : joined) {
-                if (!cfg.isPinned(playing, n)) {
-                    placeable.add(n);
-                }
-            }
+            List<String> placeable = joined.stream().filter(n -> !cfg.isPinned(playing, n)).toList();
             List<Integer> free = new ArrayList<>();
             for (int spot : vacated) {
                 if (pinsNow.get(spot).isEmpty()) {
@@ -522,28 +486,36 @@ public final class LeapRunMemory {
         }
     }
 
+    /** Clears the pins of everyone not in {@code keep}, adding each to {@code cleared} once. */
+    private static void unpinOthers(LeapMenuConfig cfg, List<String> keep, List<String> cleared) {
+        for (String name : cfg.allPinnedNames()) {
+            if (!containsIgnoreCase(keep, name)) {
+                cfg.unpinEverywhere(name);
+                if (!containsIgnoreCase(cleared, name)) {
+                    cleared.add(name);
+                }
+            }
+        }
+    }
+
+    /** A teammate's class as recorded last run, else as the mod reads it now. */
+    private static java.util.function.Function<String, DungeonClass> lastClassOf(Map<String, DungeonClass> lastClasses) {
+        return n -> {
+            DungeonClass c = lastClasses.get(n.toLowerCase(Locale.ROOT));
+            return c != null ? c : PartyTracker.classOf(n);
+        };
+    }
+
     private static String selfName() {
         Minecraft client = Minecraft.getInstance();
         return client.player == null ? null : client.player.getGameProfile().name();
     }
 
     private static List<String> minus(List<String> a, List<String> b) {
-        List<String> out = new ArrayList<>();
-        for (String n : a) {
-            if (!containsIgnoreCase(b, n)) {
-                out.add(n);
-            }
-        }
-        return out;
+        return a.stream().filter(n -> !containsIgnoreCase(b, n)).toList();
     }
 
     private static boolean containsIgnoreCase(List<String> names, String name) {
-        String n = name.toLowerCase(Locale.US);
-        for (String s : names) {
-            if (s.toLowerCase(Locale.US).equals(n)) {
-                return true;
-            }
-        }
-        return false;
+        return names.stream().anyMatch(name::equalsIgnoreCase);
     }
 }
