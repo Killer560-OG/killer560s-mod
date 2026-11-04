@@ -114,7 +114,6 @@ public final class RightClick {
     private RightClick() {
     }
 
-    // ------------------------------------------------------------------------------------------- fed by the send tap
 
     /** A movement packet is leaving: what the server will know of his position and look. */
     public static void onMove(LocalPlayer player, ServerboundMovePlayerPacket p) {
@@ -234,7 +233,6 @@ public final class RightClick {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- asked by senders
 
     /**
      * True when a use sent now at {@code yaw}/{@code pitch} would be taken as the second half of an earlier block click:
@@ -612,7 +610,6 @@ public final class RightClick {
         sentKnown = false;
     }
 
-    // ------------------------------------------------------------------------------------------- the model
 
     private static void checkLevel(LocalPlayer player) {
         Level now = player == null ? null : player.level();

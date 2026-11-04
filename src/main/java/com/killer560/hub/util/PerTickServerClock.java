@@ -231,10 +231,7 @@ public final class PerTickServerClock {
 
     /** Client ticks since {@code mark} that the server did not tick (0 while it is not trusted), never negative. */
     public static synchronized long stallTicksSince(long[] mark) {
-        if (mark == null) {
-            return 0L;
-        }
-        return Math.max(0L, (trustedTicks - mark[1]) - (trustedPings - mark[0]));
+        return mark == null ? 0L : Math.max(0L, (trustedTicks - mark[1]) - (trustedPings - mark[0]));
     }
 
     /** Every non-zero ping seen since launch, trusted or not (Tick Timers' proc log compares it with the clock). */

@@ -145,7 +145,6 @@ public final class ChromaWave {
         return Math.round(r * 255) << 16 | Math.round(g * 255) << 8 | Math.round(b * 255);
     }
 
-    // ------------------------------------------------------------------ text
 
     /** The spec whose {@link Spec#textColor()} is exactly this instance, or null (the per-glyph check). */
     public static Spec specFor(TextColor color) {

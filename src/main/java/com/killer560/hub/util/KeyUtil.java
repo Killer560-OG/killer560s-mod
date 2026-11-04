@@ -120,9 +120,6 @@ public final class KeyUtil {
 
     /** Display name of a STORED code ("R", "Left Shift", "Mouse 4"), whatever Minecraft version is running. */
     public static String keyName(int code) {
-        if (isMouseCode(code)) {
-            return mouseName(mouseButton(code));
-        }
-        return McInput.storedKeyInput(code).getDisplayName().getString();
+        return isMouseCode(code) ? mouseName(mouseButton(code)) : McInput.storedKeyInput(code).getDisplayName().getString();
     }
 }

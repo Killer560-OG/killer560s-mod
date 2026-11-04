@@ -190,7 +190,6 @@ public final class ActionGate {
         MASK_SWAP_ROD(Kind.WORLD),
         /** Auto Door Opener. */
         DOOR_OPENER(Kind.WORLD),
-        /** Secret Aura. */
         SECRET_AURA(Kind.WORLD),
         /** Secret Triggerbot. */
         SECRET_TRIGGER(Kind.WORLD),
@@ -209,7 +208,6 @@ public final class ActionGate {
         CROESUS_NPC(Kind.WORLD),
         /** Auto Quiz / Weirdos / experiment solvers clicking in their GUI. */
         EXPERIMENTS(Kind.SCREEN),
-        /** Chocolate Factory. */
         CHOCOLATE_FACTORY(Kind.SCREEN),
         /** Auto GFS (a {@code /gfs} command, not a click). */
         AUTO_GFS(Kind.COMMAND),
@@ -351,7 +349,6 @@ public final class ActionGate {
     private ActionGate() {
     }
 
-    // ---- settings ----
 
     /**
      * True while a CONTAINER screen is open - the only kind of screen a world action must stand down for.
@@ -415,7 +412,6 @@ public final class ActionGate {
         return (minSpacingTicks * 50L + ThreadLocalRandom.current().nextLong(0L, 21L)) * 1_000_000L;
     }
 
-    // ---- per-tick observation ----
 
     /** Registered on {@code START_CLIENT_TICK} so it runs before every feature's {@code END_CLIENT_TICK} logic. */
     public static void onClientTick(Minecraft client) {
@@ -490,7 +486,6 @@ public final class ActionGate {
         selfTeleportUntilTick = tick + Math.max(0, ticks);
     }
 
-    // ---- the gate ----
 
     /** For {@link Kind#WORLD}, {@link Kind#COMMAND} and {@link Kind#HOTBAR} actors. */
     public static boolean tryAct(Actor actor) {
@@ -519,10 +514,7 @@ public final class ActionGate {
      * cross-class spacing, settles, priority) is identical.
      */
     public static boolean tryActHeadless(Actor actor, AbstractContainerMenu ownMenu) {
-        if (ownMenu == null) {
-            return deny(actor, "no headless menu");
-        }
-        return tryActInternal(actor, null, ownMenu);
+        return ownMenu == null ? deny(actor, "no headless menu") : tryActInternal(actor, null, ownMenu);
     }
 
     /**

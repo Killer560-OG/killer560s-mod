@@ -104,7 +104,6 @@ public final class ModPaths {
     private static Map<String, String> buildTable() {
         Map<String, String> t = new LinkedHashMap<>();
 
-        // ---- dungeons --------------------------------------------------------------------------------------------
         t.put("ap3", "dungeons/ap3");
         t.put(LEGACY_AP3_DIR, "dungeons/ap3");
 
@@ -165,7 +164,6 @@ public final class ModPaths {
             t.put(run, "dungeons/runs");
         }
 
-        // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
         // How Lucky Are You's settings (killer560smod-luck.json); its records are in the shared store.
         t.put("luck", "skyblock/luck");
@@ -227,7 +225,6 @@ public final class ModPaths {
         // Kick Rejoin Timer (killer560smod-kickrejoin.json, 2026-11-03).
         t.put("kickrejoin", "skyblock/kickrejoin");
 
-        // ---- social ----------------------------------------------------------------------------------------------
         t.put("friendslist", "social/friends");
         t.put("bestfriends", "social/friends");
         t.put("social", "social/friends");
@@ -257,7 +254,6 @@ public final class ModPaths {
         t.put("posmsg", "social/posmsg");
         t.put("bridge", "social/bridge");
 
-        // ---- interface -------------------------------------------------------------------------------------------
         t.put("hud", "interface/hud");
         t.put("customscoreboard", "interface/customscoreboard");
         t.put("mainmenu", "interface/mainmenu");
@@ -308,7 +304,6 @@ public final class ModPaths {
         t.put("modusers", "interface/modusers");
         t.put("zoom", "interface/zoom");
 
-        // ---- system ----------------------------------------------------------------------------------------------
         t.put("configversion", "system/configversion");
         t.put("sharing-defaults", "system/sharing-defaults");
         t.put("interop", "system/interop");
