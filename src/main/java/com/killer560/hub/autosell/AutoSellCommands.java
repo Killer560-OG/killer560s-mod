@@ -1,6 +1,5 @@
 package com.killer560.hub.autosell;
 
-import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;

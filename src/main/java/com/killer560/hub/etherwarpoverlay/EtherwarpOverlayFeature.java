@@ -62,7 +62,6 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McRender;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 
 /**
  * Real Hypixel Skyblock Etherwarp landing-prediction overlay, ported from Odin's own {@code Etherwarp.kt}

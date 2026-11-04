@@ -2,7 +2,6 @@ package com.killer560.hub.ap3;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 

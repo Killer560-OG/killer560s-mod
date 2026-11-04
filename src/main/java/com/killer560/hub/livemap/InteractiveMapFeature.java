@@ -11,7 +11,6 @@ import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;

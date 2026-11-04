@@ -6,7 +6,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.secrets.SecretsFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;

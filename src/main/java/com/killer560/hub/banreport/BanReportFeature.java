@@ -1,6 +1,5 @@
 package com.killer560.hub.banreport;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

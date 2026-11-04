@@ -4,7 +4,6 @@ import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;

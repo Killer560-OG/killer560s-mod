@@ -1,7 +1,6 @@
 package com.killer560.hub.ap3;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;

@@ -1,6 +1,5 @@
 package com.killer560.hub.dungeonalerts;
 
-import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.scoreboard.ScoreboardData;

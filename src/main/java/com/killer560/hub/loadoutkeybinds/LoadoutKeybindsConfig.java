@@ -9,7 +9,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import com.mojang.blaze3d.platform.InputConstants;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

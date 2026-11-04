@@ -2,7 +2,6 @@ package com.killer560.hub.interop;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;

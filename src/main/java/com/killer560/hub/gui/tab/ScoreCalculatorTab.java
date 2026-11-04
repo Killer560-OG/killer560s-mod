@@ -12,7 +12,6 @@ import com.killer560.hub.scorecalc.ScoreCalculatorConfig;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;

@@ -10,10 +10,8 @@ import com.killer560.hub.routes.RouteStore;
 import com.killer560.hub.routes.SkyblockArea;
 import com.killer560.hub.routes.WaypointRoutesConfig;
 import com.killer560.hub.routes.WaypointRoutesFeature;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 

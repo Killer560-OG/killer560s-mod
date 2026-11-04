@@ -1,7 +1,6 @@
 package com.killer560.hub.loadoutkeybinds;
 
 import com.killer560.hub.croesus.DungeonChestValuer;
-import com.killer560.hub.miningqol.CommissionMenuHighlight;
 import com.killer560.hub.util.ChatObserver;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

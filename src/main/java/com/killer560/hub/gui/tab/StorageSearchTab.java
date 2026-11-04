@@ -8,7 +8,6 @@ import com.killer560.hub.storagesearch.StorageSearchConfig;
 import com.killer560.hub.storagesearch.StorageSearchEsp;
 import com.killer560.hub.storagesearch.StorageSearchExtraCache;
 import com.killer560.hub.storagesearch.StorageSearchScreen;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
