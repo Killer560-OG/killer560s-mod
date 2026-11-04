@@ -585,7 +585,7 @@ public final class ZeroPingEtherwarp {
         if (data == null) {
             return 0;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(data);
         String id = tag.getStringOr("id", "");
         if (tag.getIntOr("ethermerge", 0) != 1 && !"ETHERWARP_CONDUIT".equals(id)) {
             return 0;

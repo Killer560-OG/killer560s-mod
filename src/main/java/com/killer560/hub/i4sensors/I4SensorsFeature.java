@@ -168,7 +168,7 @@ public final class I4SensorsFeature {
         if (data == null) {
             return "";
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(data);
         return tag.contains("id") ? tag.getStringOr("id", "") : "";
     }
 
