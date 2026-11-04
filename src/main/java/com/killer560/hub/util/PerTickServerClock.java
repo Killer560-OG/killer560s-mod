@@ -5,38 +5,29 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
 /**
- * A server-tick clock that is only driven by the server's pings when the server really pings once a tick (Hypixel does;
- * NoammAddons and Odin count its non-zero pings as server ticks). Blood Camp's countdowns and kill timer run on it, so a
- * server stall pauses them as it pauses the Watcher's mobs (doc-blood-1101, killer560 2026-11-01: lag and "the triggerbot
- * comes out really late").
+ * A server-tick clock driven by the server's pings where they are one a tick. Every server-tick countdown (Tick Timers,
+ * mask cooldowns, Blood Camp, ...) and Split Timers' lag run on it, so a server stall pauses them as it pauses the server.
  * <p>
- * Why not {@link ServerTickClock} or {@link ServerLag}: both take a server as ping-driven at 15 pings a second, and an
- * anticheat's transaction pings come close to that on their own. On the testkit's GrimAC server (about 15 a second)
- * ServerLag read the gaps between them as stalls, and a Blood Camp countdown built on it fell 11-15 ticks a second instead
- * of 20 (testkit 177 on doc-blood-1101's first jar: "74.8 -> 62.8 -> 47.8 -> 33.8 ticks left" a second apart). Here a
- * server is trusted only after two 20-client-tick windows in a row in which at least {@link #TRUST_TICKS_WITH_PING}
- * ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all and, on hypixel.net, once trusted STAYS
- * trusted (2026-11-03, timers2): a stall or a burst is just a window that fails that test, and dropping trust there ran the
- * clock on client ticks through the stall. Odin (ConnectionMixin) and NoammAddons (MixinConnection) count every non-zero ping
- * and nothing else, so a stall pauses their countdowns and a burst catches them up. The first rule, at 18 pings a window, still
- * trusted GrimAC now and then and ran testkit 792's first trip 31 ticks slow.
+ * <b>hypixel.net (tickfix3-1104).</b> Hypixel sends one ping a tick whose id steps by one (-642, -643, -644, ...) and,
+ * between them, pings with random ids (his 2026-11-04 log, "first ping ids": [-642, -643, -26967, -380, -9038, -644]):
+ * about 1.13 non-zero pings per 50 ms of wall time over a 48 s Goldor phase. Odin and NoammAddons count every non-zero ping;
+ * here only the CHAIN counts ({@link #chain}), from the first ping after a join, with no trust to earn: the clock is trusted
+ * at once. goldfix-1104's pace rule (pings ahead of the wall clock end the trust) read the random ids as a server pinging
+ * faster than it ticks and untrusted real Hypixel, so Split Timers hid every lag figure and every timer ran on client ticks.
+ * "Real" hypixel.net is the address AND a non-local remote: the testkit labels its loopback GrimAC server mc.hypixel.net,
+ * and Grim's transaction ids form a chain too (-(counter &amp; 0x7FFF), a hit adds several), so they must never count.
  * <p>
- * The clock is one count: each ping advances it while the server is trusted; while it is not, it follows the client's
- * game time (a tick a tick, plus the server's set-time corrections), exactly the clock Blood Camp used before - testkit 392
- * (singleplayer, whose game time outran the client's ticks by 12 in a trip) failed on plain client ticks. So it is
- * continuous across a change of source, a stall stops it, and a burst of pings after a network spike (the server kept
- * ticking) catches it up. {@link #deficitTicksSince} is how far it is behind the client's own ticks now (a burst pays it
- * back); {@link #stallTicksSince} counts every stall, paid back or not.
+ * <b>Any other server</b> is trusted only after two 20-client-tick windows in a row in which at least
+ * {@link #TRUST_TICKS_WITH_PING} ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all (GrimAC's ~15
+ * transactions a second fail it; testkit 177, 792), loses it after two failing windows, and loses it for the rest of the
+ * world once its pings run more than {@link #MAX_EXCESS} ahead of the wall clock (goldfix-1104: a quiet Grim server pings
+ * about once a tick, then every hit adds transactions; 1102-hx-goldor-tick read the hits 5, 3, 7, 11 ticks late).
  * <p>
- * <b>Pings ahead of the wall clock (goldfix-1104).</b> A quiet GrimAC server sends about one transaction ping a tick, so its
- * windows (20 pings, 19 of 20 ticks with one) passed the rule above and it was trusted; then every hit added transactions
- * and the clock ran ahead of the server: on 26.3 legit (gate-1104b/c) Tick Timers logged "48 pings, 2129 ms (42.6 ticks of
- * wall time)" at Goldor's first hit and 1102-hx-goldor-tick read the hits 5, 3, 7, 11 ticks late. A server never ticks faster
- * than 20 a second, so a real per-tick pinger never sends more than one ping per 50 ms of wall time, give or take network
- * jitter: {@link #excess} is pings minus elapsed 50 ms steps (floored, so a slow server or a stall banks only so much
- * credit for the catch-up after it), and once it passes {@link #MAX_EXCESS} the server is not a per-tick pinger, loses the
- * trust (sticky or not) and does not earn it again until the next world. Wall time, not client ticks: a client frame freeze
- * drops client ticks (at most 10 run per frame) but not pings.
+ * The clock is one count: each counted ping advances it while trusted; while not, it follows the client's game time (a
+ * tick a tick, plus forward set-time corrections; never down), so it is continuous across a change of source.
+ * {@link #deficitTicksSince} is how far it is behind the client's ticks (a catch-up burst pays it back);
+ * {@link #stallTicksSince} counts every stall, paid back or not. Once per world, 60 s after its first ping, one INFO line
+ * gives the ping census (ids 0 and non-zero, chain and off-chain, per 50 ms of wall time, chain direction).
  */
 public final class PerTickServerClock {
 
@@ -45,34 +36,56 @@ public final class PerTickServerClock {
     static final int TRUST_TICKS_WITH_PING = 19;
     /** ...and no more than this many pings in all (an anticheat's bursts of transactions are not ticks). */
     static final int MAX_WINDOW_PINGS = 24;
-    private static int windowTicksWithPing;
-    private static int pingsThisTick;
-    private static int goodWindows;
-    private static volatile int trustChanges;
-
-    private static volatile long clock;
-    private static volatile long clientTicks;
-    private static volatile boolean trusted;
-    private static int windowPings;
-    private static int windowTicks;
-    private static int shortWindows;
-    private static volatile int lastWindowPings = -1;
-    private static boolean registered;
-    private static Object lastLevel;
-    /** Client ticks and pings counted while trusted: the stall is the ticks the pings did not keep up with. */
-    private static long trustedTicks;
-    private static long trustedPings;
-    private static long lastGameTime;
-    /** Pings minus elapsed 50 ms steps in this world (see the class comment), floored at -{@link #EXCESS_FLOOR}. */
-    private static double excess;
-    private static long lastPingNanos = Long.MIN_VALUE;
-    /** Set once this world's server sent pings faster than it can tick; cleared by a new world or connection. */
-    private static volatile boolean notPerTick;
     /** More pings than this ahead of the wall clock is not network jitter (300 ms of pings). */
     static final double MAX_EXCESS = 6.0;
     /** A slow server or a stall banks at most this many ticks of credit (a 10 s hold, then the burst that pays it back). */
     static final double EXCESS_FLOOR = 200.0;
+    /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
+     *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
+    static final int STALL_TICKS = 2;
+    private static final long CENSUS_NANOS = 60_000_000_000L;
+
+    private static volatile long clock;
+    private static volatile boolean trusted;
+    private static volatile int trustChanges;
+    private static volatile long rawPings;
+    private static volatile int lastWindowPings = -1;
+    private static volatile boolean notPerTick;
+    private static boolean registered;
+    private static boolean hypixel;
+    private static Boolean forcedHypixel;
+    private static Object lastLevel;
+    private static long lastGameTime;
+    private static int windowTicks;
+    private static int windowPings;
+    private static int windowTicksWithPing;
+    private static int pingsThisTick;
+    private static int goodWindows;
+    private static int shortWindows;
+    /** Client ticks and pings counted while trusted: the stall is the ticks the pings did not keep up with. */
+    private static long trustedTicks;
+    private static long trustedPings;
+    /** The trusted deficit's low point since the last counted stall, every stall tick counted, and whether one is rising. */
+    private static long deficitLow;
+    private static long stallTicksTotal;
+    private static boolean inStall;
+    /** Pings minus elapsed 50 ms steps in this world (non-Hypixel only), floored at -{@link #EXCESS_FLOOR}. */
+    private static double excess;
+    private static long lastPingNanos = Long.MIN_VALUE;
+    /** The per-tick chain's last id, and the last id off it (two in a row there means the chain was that one). */
+    private static int chainId;
+    private static int otherId;
+    private static boolean chainSet;
+    private static boolean otherSet;
+    /** This world's ping census: {non-zero, in the chain, id 0, chain steps down, chain steps up}. */
+    private static final long[] CENSUS = new long[5];
+    private static long censusStart = Long.MIN_VALUE;
+    private static boolean censusLogged;
+    private static int testChainId = -100;
     private static long testNanos;
+
+    private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
 
     private PerTickServerClock() {
     }
@@ -80,8 +93,7 @@ public final class PerTickServerClock {
     public static synchronized void register() {
         if (registered) return;
         registered = true;
-        ServerTickClock.register();
-        ServerTickClock.subscribeRawPing(PerTickServerClock::onPing);
+        ServerTickClock.register(); // its ping mixin calls onPingId
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PerTickServerClock", client -> {
             long gameTime = client.level == null ? lastGameTime : client.level.getGameTime();
             long delta = gameTime - lastGameTime;
@@ -91,27 +103,37 @@ public final class PerTickServerClock {
                 delta = 1L; // a new world's game time says nothing about the old one's
             }
             lastGameTime = gameTime;
-            // Untrusted, the clock follows the client's game time, as Blood Camp always did: a tick a tick, plus the
-            // server's own forward time corrections (set-time packets). A wild jump (a /time command) counts as one
-            // tick, and a correction BACKWARDS counts as none: the clock never goes down, or every countdown on it
-            // would jump back up (2026-11-03, timers2).
-            setHypixel(client);
+            // A wild jump (a /time command) counts as one tick, a correction BACKWARDS as none (2026-11-03, timers2).
             onClientTick(Math.abs(delta) > 100L ? 1L : Math.max(0L, delta));
         }));
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> untrust());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> untrust());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            untrust();
+            setHypixel(forcedHypixel != null ? forcedHypixel : AttackCooldown.onHypixel(client)
+                    && !isLocal(handler.getConnection().getRemoteAddress()));
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            untrust();
+            setHypixel(forcedHypixel != null && forcedHypixel);
+        });
     }
 
-    /** Whether the connection is labeled hypixel.net: only makes trust sticky, never earns it (the testkit labels a GrimAC
-     *  connection "mc.hypixel.net" in some cases, and Grim's ~15 pings a second are not ticks). */
-    private static synchronized void setHypixel(net.minecraft.client.Minecraft client) {
-        boolean h = forcedHypixel != null ? forcedHypixel : client.level != null && AttackCooldown.onHypixel(client);
-        hypixel = h;
+    private static boolean isLocal(java.net.SocketAddress address) {
+        if (!(address instanceof java.net.InetSocketAddress inet) || inet.getAddress() == null) {
+            return true; // an in-memory (singleplayer) connection or an unresolved one
+        }
+        java.net.InetAddress a = inet.getAddress();
+        return a.isLoopbackAddress() || a.isSiteLocalAddress() || a.isLinkLocalAddress() || a.isAnyLocalAddress();
     }
 
-    private static Boolean forcedHypixel;
+    private static synchronized void setHypixel(boolean on) {
+        hypixel = on;
+    }
 
-    private static boolean hypixel;
+    /** Testkit (logic suite): act as if connected to the real hypixel.net (true), not (false), or by the connection (null). */
+    public static synchronized void hypixelForTest(Boolean on) {
+        forcedHypixel = on;
+        hypixel = on != null && on;
+    }
 
     private static synchronized void untrust() {
         trusted = false;
@@ -126,47 +148,41 @@ public final class PerTickServerClock {
         excess = 0.0;
         lastPingNanos = Long.MIN_VALUE;
         notPerTick = false;
+        chainSet = false;
+        otherSet = false;
+        java.util.Arrays.fill(CENSUS, 0L);
+        censusStart = Long.MIN_VALUE;
+        censusLogged = false;
     }
 
-    /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
-     *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
-    static final int STALL_TICKS = 2;
-    /** The trusted deficit's low point since the last counted stall (a burst of pings only ever lowers it). */
-    private static long deficitLow;
-    /** Every stall tick counted while trusted, never paid back by the burst that follows (tickfix2-1104). */
-    private static long stallTicksTotal;
-    /** True while a counted stall is still rising, so its every further tick counts without the jitter threshold. */
-    private static boolean inStall;
-
-    /** At a trusted client tick's end (that tick's pings are in): count the deficit's rise as a stall once it passes
-     *  {@link #STALL_TICKS}, and keep counting while it goes on rising. A catch-up burst lowers the low point and pays
-     *  nothing back: on Hypixel the server runs the lost ticks afterwards, so the net deficit nets every stall to 0. */
-    private static void countStall() {
-        long deficit = trustedTicks - trustedPings;
-        long rise = deficit - deficitLow;
-        if (rise > STALL_TICKS || (inStall && rise > 0)) {
-            stallTicksTotal += rise;
-            deficitLow = deficit;
-            inStall = true;
-        } else if (rise <= 0) {
-            deficitLow = Math.min(deficitLow, deficit);
-            inStall = false;
-        }
+    /** From the ping mixin (through {@link ServerTickClock#onPing}), on the client thread, for every ping id. */
+    public static void onPingId(int id) {
+        onPing(id, System.nanoTime());
     }
 
-    private static void onPing() {
-        onPing(System.nanoTime());
-    }
-
-    private static void onPing(long nanos) {
+    private static void onPing(int id, long nanos) {
         boolean advanced;
         synchronized (PerTickServerClock.class) {
-            checkPace(nanos);
+            boolean inChain = id != 0 && chain(id);
+            census(id, inChain, nanos);
+            if (id == 0) {
+                return; // not a tick anywhere (Odin, NoammAddons)
+            }
             rawPings++;
             windowPings++;
             pingsThisTick++;
-            advanced = trusted;
-            if (trusted) {
+            offChain = hypixel && !inChain;
+            if (hypixel) {
+                if (!trusted) {
+                    trusted = true;
+                    trustChanges++;
+                }
+                advanced = inChain;
+            } else {
+                checkPace(nanos);
+                advanced = trusted;
+            }
+            if (advanced) {
                 clock++;
                 trustedPings++;
             }
@@ -176,7 +192,54 @@ public final class PerTickServerClock {
         }
     }
 
-    /** Under the lock, for every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
+    /** Whether {@code id} continues the per-tick chain: a step of 1-3 from its last id (either way; past +-32767 it wraps
+     *  to 1). The first ping starts it; an off-chain id followed by its own next step means the chain was that one. */
+    private static boolean chain(int id) {
+        if (!chainSet || next(id, chainId)) {
+            if (chainSet) {
+                CENSUS[id < chainId ? 3 : 4]++;
+            }
+            chainId = id;
+            chainSet = true;
+            return true;
+        }
+        if (otherSet && next(id, otherId)) {
+            chainId = id;
+            otherSet = false;
+            return true;
+        }
+        otherId = id;
+        otherSet = true;
+        return false;
+    }
+
+    private static boolean next(int id, int last) {
+        long d = Math.abs((long) id - last);
+        return d >= 1 && d <= 3 || Math.abs((long) last) >= 0x7FFF && Math.abs((long) id) <= 3;
+    }
+
+    private static void census(int id, boolean inChain, long nanos) {
+        CENSUS[id == 0 ? 2 : 0]++;
+        if (inChain) {
+            CENSUS[1]++;
+        }
+        if (censusLogged || nanos == Long.MIN_VALUE) {
+            return;
+        }
+        if (censusStart == Long.MIN_VALUE) {
+            censusStart = nanos;
+        } else if (nanos - censusStart >= CENSUS_NANOS) {
+            censusLogged = true;
+            double steps = (nanos - censusStart) / 50_000_000.0;
+            LOGGER.info("[PerTickServerClock] ping census, first 60 s of this world ({}): {} non-zero ids ({} in the per-tick"
+                    + " chain, {} off it), {} with id 0; {} pings and {} chain pings per 50 ms; chain steps {} down, {} up",
+                    hypixel ? "hypixel.net, chain counted" : "not hypixel.net", CENSUS[0], CENSUS[1], CENSUS[0] - CENSUS[1],
+                    CENSUS[2], String.format(java.util.Locale.ROOT, "%.3f", CENSUS[0] / steps),
+                    String.format(java.util.Locale.ROOT, "%.3f", CENSUS[1] / steps), CENSUS[3], CENSUS[4]);
+        }
+    }
+
+    /** Non-Hypixel, every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
     private static void checkPace(long nanos) {
         if (nanos == Long.MIN_VALUE) {
             return; // pingForTest: not paced
@@ -198,6 +261,21 @@ public final class PerTickServerClock {
             }
             LOGGER.info("[PerTickServerClock] server is not a per-tick pinger: its pings ran {} ahead of the wall clock{}",
                     String.format(java.util.Locale.ROOT, "%.1f", excess), was ? " (no longer trusted)" : "");
+        }
+    }
+
+    /** At a trusted client tick's end: count the deficit's rise as a stall once it passes {@link #STALL_TICKS}, and keep
+     *  counting while it goes on rising. A catch-up burst lowers the low point and pays nothing back (tickfix2-1104). */
+    private static void countStall() {
+        long deficit = trustedTicks - trustedPings;
+        long rise = deficit - deficitLow;
+        if (rise > STALL_TICKS || (inStall && rise > 0)) {
+            stallTicksTotal += rise;
+            deficitLow = deficit;
+            inStall = true;
+        } else if (rise <= 0) {
+            deficitLow = Math.min(deficitLow, deficit);
+            inStall = false;
         }
     }
 
@@ -225,15 +303,11 @@ public final class PerTickServerClock {
     }
 
     /**
-     * Runs {@code listener} once per server tick of this clock, on the client thread: a ping while the server is trusted, a
-     * tick of the client's game time otherwise, so a stalled server stops it and a catch-up burst runs it that many times.
-     * A countdown that used to be a field decremented in {@code END_CLIENT_TICK} or in a {@code ServerTickClock}
-     * listener (client ticks whenever the server sent under 15 pings a second) belongs here (2026-11-03: "all timers
-     * seem to go off sometimes" when the server lags). Call {@link #register()} first.
+     * Runs {@code listener} once per server tick of this clock, on the client thread: a counted ping while the server is
+     * trusted, a tick of the client's game time otherwise, so a stalled server stops it and a catch-up burst runs it that
+     * many times. Call {@link #register()} first.
      */
     public static void subscribe(Runnable listener) { LISTENERS.add(listener); }
-
-    private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     /**
      * For a loop that already runs once per client tick: {@link #take()} is how many server ticks the clock moved since
@@ -253,7 +327,6 @@ public final class PerTickServerClock {
 
     private static synchronized long clientTickLocked(long untrustedStep) {
         long before = clock;
-        clientTicks++;
         if (!trusted) {
             clock += untrustedStep;
         } else {
@@ -266,36 +339,36 @@ public final class PerTickServerClock {
         pingsThisTick = 0;
         if (++windowTicks >= WINDOW_TICKS) {
             lastWindowPings = windowPings;
-            boolean good = windowTicksWithPing >= TRUST_TICKS_WITH_PING && windowPings <= MAX_WINDOW_PINGS;
-            boolean was = trusted;
-            if (good) {
-                shortWindows = 0;
-                if (++goodWindows >= 2 && !notPerTick) {
-                    trusted = true;
-                }
-            } else {
-                goodWindows = 0;
-                // On hypixel.net trust is STICKY (2026-11-03, timers2): a lag spike, a stall or the burst after one is exactly
-                // a window that fails the test above, and dropping trust there ran the clock on client ticks through the
-                // stall while Hypixel stood still (Odin and NoammAddons count every non-zero ping and nothing else).
-                // Elsewhere (an anticheat server pinging ~15 a second) two failing windows in a row still end trust.
-                if (hypixel) {
-                    shortWindows = 0;
-                } else if (trusted && ++shortWindows >= 2) {
-                    trusted = false;
-                    shortWindows = 0;
-                }
-            }
-            if (was != trusted) {
-                trustChanges++;
-                LOGGER.info("[PerTickServerClock] server {} per-tick pinger: {} pings, {} of {} ticks with a ping", trusted
-                        ? "is a" : "is no longer a", windowPings, windowTicksWithPing, WINDOW_TICKS);
+            if (!hypixel) {
+                judgeWindow();
             }
             windowPings = 0;
             windowTicks = 0;
             windowTicksWithPing = 0;
         }
         return clock - before;
+    }
+
+    /** Non-Hypixel: two good windows in a row earn the trust, two failing ones end it. */
+    private static void judgeWindow() {
+        boolean was = trusted;
+        if (windowTicksWithPing >= TRUST_TICKS_WITH_PING && windowPings <= MAX_WINDOW_PINGS) {
+            shortWindows = 0;
+            if (++goodWindows >= 2 && !notPerTick) {
+                trusted = true;
+            }
+        } else {
+            goodWindows = 0;
+            if (trusted && ++shortWindows >= 2) {
+                trusted = false;
+                shortWindows = 0;
+            }
+        }
+        if (was != trusted) {
+            trustChanges++;
+            LOGGER.info("[PerTickServerClock] server {} per-tick pinger: {} pings, {} of {} ticks with a ping", trusted
+                    ? "is a" : "is no longer a", windowPings, windowTicksWithPing, WINDOW_TICKS);
+        }
     }
 
     /** The clock now (server ticks while trusted, client ticks otherwise). */
@@ -308,8 +381,7 @@ public final class PerTickServerClock {
     }
 
     /** The server's stalls since {@code mark}, in client ticks (0 while it is not trusted): every rise of more than
-     *  {@link #STALL_TICKS} counts in full and stays counted when a burst of catch-up pings follows. For a lag READING
-     *  (Blood Camp Stats' camp lag, a pong's stall). */
+     *  {@link #STALL_TICKS} counts in full and stays counted when a burst of catch-up pings follows. For a lag READING. */
     public static synchronized long stallTicksSince(long[] mark) {
         if (mark == null || mark.length < 3) {
             return 0L;
@@ -326,25 +398,40 @@ public final class PerTickServerClock {
         return Math.max(0L, (trustedTicks - mark[1]) - (trustedPings - mark[0]));
     }
 
-    /** Every non-zero ping seen since launch, trusted or not (Tick Timers' proc log compares it with the clock). */
-    public static long rawPings() { return rawPings; }
-
-    private static volatile long rawPings;
-
-    public static boolean trusted() { return trusted; }
-
-    /** Testkit (logic suite, no server): drive the clock by hand - a server ping, a client tick, a fresh world. */
-    public static void pingForTest() {
-        onPing(Long.MIN_VALUE);
+    /** Every non-zero ping seen since launch, counted or not (Tick Timers' proc log compares it with the clock). */
+    public static long rawPings() {
+        return rawPings;
     }
 
-    /** Testkit: a server ping timed on the test's own wall clock ({@link #tickForTest} moves it 50 ms), so the pace check
+    public static boolean trusted() {
+        return trusted;
+    }
+
+    /** Whether the ping being handled now is one of hypixel.net's random-id pings, not a tick (for ServerTickClock's raw
+     *  ping listeners, which run right after {@link #onPingId}: ServerLag skips it, or it would split a stall's gap). */
+    public static boolean offChain() {
+        return offChain;
+    }
+
+    private static volatile boolean offChain;
+
+    /** Testkit (logic suite, no server): a per-tick ping (the next id of a test chain), not paced. */
+    public static void pingForTest() {
+        onPing(testChainId--, Long.MIN_VALUE);
+    }
+
+    /** Testkit: a ping with this id (a Hypixel-style random id is off the chain), not paced. */
+    public static void pingForTestId(int id) {
+        onPing(id, Long.MIN_VALUE);
+    }
+
+    /** Testkit: a per-tick ping timed on the test's own wall clock ({@link #tickForTest} moves it 50 ms), so the pace check
      *  sees it. {@link #pingForTest} is not paced: cases push the clock ahead with hundreds of pings at once. */
     public static void pingForTestTimed() {
-        onPing(testNanos);
+        onPing(testChainId--, testNanos);
     }
 
-    /** A client tick, and 50 ms of the test's own wall clock (the pace check times pingForTest's pings on it). */
+    /** A client tick, and 50 ms of the test's own wall clock. */
     public static void tickForTest() {
         testNanos += 50_000_000L;
         onClientTick(1L);
@@ -358,8 +445,6 @@ public final class PerTickServerClock {
     public static void untrustForTest() {
         untrust();
     }
-
-    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
 
     /** Testkit: times the trust changed. */
     public static int trustChanges() { return trustChanges; }

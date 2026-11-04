@@ -306,7 +306,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
   attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
 - **In the Blood Room Hypixel sends more than one ping per tick, so the ping clock runs ahead of game time** (bctrig-1104,
-  his 2026-11-03/04 26.3 log, 25 camps). `PerTickServerClock` is trusted (sticky on Hypixel) and counts every ping, and the
+  his 2026-11-03/04 26.3 log, 25 camps). `PerTickServerClock` was trusted (sticky on Hypixel) and counted every ping (since tickfix3-1104 only Hypixel's per-tick id chain), and the
   Blood Room got 20-24 pings per 20 ticks: one camp read 417 clock ticks against 333 game ticks (`level.getGameTime()`,
   which matched the wall clock), a 14 s last wave read 16.45 s. Two faults came of it. The long-gap table (gap >= 18 s ->
   24-27 s) put KILL ~60 ticks after the move on fast Watchers ("the kill still comes up way too late"), and the gate opened

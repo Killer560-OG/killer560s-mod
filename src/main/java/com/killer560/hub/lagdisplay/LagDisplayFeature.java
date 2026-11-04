@@ -35,12 +35,10 @@ import com.killer560.hub.compat.McCompat;
  * pong pair, once a second while the line is on). It used to read the player's own tab-list latency, which Hypixel
  * never fills in, so it always said 1ms (killer560, 2026-10-11).
  *
- * <p><b>TPS source.</b> No new clock: this subscribes to the mod's existing {@link ServerTickClock} (Odin's
- * "one server tick per non-zero {@code ClientboundPingPacket}") and keeps a rolling window of tick
- * timestamps, exactly like {@code ChatCommandsFeature#tpsReply()}. That clock deliberately falls back to
- * counting CLIENT ticks whenever the server stops pinging ~20x/s - a server that never pings 20x/s
- * (singleplayer, a plain test server) would otherwise show a fake, always-20 TPS number, so the TPS line
- * only ever prints a number while {@link ServerTickClock#isPingDriven()} is true; otherwise it reads "-".
+ * <p><b>TPS source.</b> No new clock: this subscribes to {@link com.killer560.hub.util.PerTickServerClock} (on
+ * hypixel.net its per-tick ping chain, not the random-id pings beside it; tickfix3-1104) and keeps a rolling window of
+ * tick timestamps, like {@code InfoReplies}' "!tps". A server the clock does not trust (singleplayer, GrimAC's
+ * transactions) would show a fake number, so the TPS line prints one only while it is trusted; otherwise it reads "-".
  *
  * <p><b>CPS</b> is sampled by polling GLFW's mouse-button state from a frame callback rather than adding a
  * {@code MouseHandler} mixin, so clicks are counted at frame rate. At normal FPS that is far faster than
@@ -83,7 +81,7 @@ public final class LagDisplayFeature {
             LagDisplayConfig cfg = LagDisplayConfig.getInstance();
             return cfg.isEnabled() && cfg.isShowPing();
         });
-        ServerTickClock.subscribe(LagDisplayFeature::onServerTick);
+        com.killer560.hub.util.PerTickServerClock.subscribe(LagDisplayFeature::onServerTick);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LagDisplayFeature", client -> pruneTicks()));
 
         // Frame-rate click sampler. Separate from the HUD element's own draw so CPS keeps counting even
@@ -124,10 +122,10 @@ public final class LagDisplayFeature {
         }
     }
 
-    /** A TPS reading needs a server that pings once a tick: 15 pings a second ({@link ServerTickClock#isPingDriven()})
-     *  is reached by GrimAC's transaction pings alone, so the per-tick clock's 19-of-20 rule must agree (tickfix2-1104). */
+    /** A TPS reading needs a server that pings once a tick: the per-tick clock's trust (hypixel.net from its first ping;
+     *  ServerTickClock's 15 pings a second, which GrimAC's transactions reach, is no test: tickfix2/tickfix3-1104). */
     private static boolean perTickServer() {
-        return ServerTickClock.isPingDriven() && com.killer560.hub.util.PerTickServerClock.trusted();
+        return com.killer560.hub.util.PerTickServerClock.trusted();
     }
 
     private static void pruneTicks() {
