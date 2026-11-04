@@ -158,13 +158,7 @@ public final class EtherwarpWaypointsStore {
     }
 
     public static void remove(String id) {
-        EtherwarpWaypoint found = null;
-        for (EtherwarpWaypoint w : all()) {
-            if (w.id.equals(id)) {
-                found = w;
-                break;
-            }
-        }
+        EtherwarpWaypoint found = all().stream().filter(w -> w.id.equals(id)).findFirst().orElse(null);
         all().removeIf(w -> w.id.equals(id));
         version++;
         if (found != null) {
