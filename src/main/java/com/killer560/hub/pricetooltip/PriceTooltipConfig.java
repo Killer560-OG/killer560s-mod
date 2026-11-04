@@ -246,15 +246,6 @@ public final class PriceTooltipConfig {
         PriceTooltipFeature.invalidate();
     }
 
-    public When getStackPrice() {
-        return stackPrice;
-    }
-
-    public void setStackPrice(When v) {
-        stackPrice = v == null ? When.SHIFT : v;
-        PriceTooltipFeature.invalidate();
-    }
-
     public When getBreakdown() {
         return breakdown;
     }
