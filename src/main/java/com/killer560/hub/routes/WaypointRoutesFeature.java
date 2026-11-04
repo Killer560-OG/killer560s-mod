@@ -52,9 +52,7 @@ public final class WaypointRoutesFeature {
                 com.killer560.hub.util.FeatureBits.register("Waypoint Routes render", () -> WaypointRoutesConfig.getInstance().isEnabledRaw()), WaypointRoutesFeature::onWorldRender));
     }
 
-    // ------------------------------------------------------------------
     // Public API (tab)
-    // ------------------------------------------------------------------
 
     /** Active route for the current area, falling back to the "Any Area" binding. */
     public static Route activeRoute() {
@@ -149,9 +147,7 @@ public final class WaypointRoutesFeature {
                 ModChat.value(String.valueOf(route.points.size())), ModChat.text(" points, Coleweight format)."));
     }
 
-    // ------------------------------------------------------------------
     // Tick
-    // ------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         WaypointRoutesConfig cfg = WaypointRoutesConfig.getInstance();
@@ -332,9 +328,7 @@ public final class WaypointRoutesFeature {
         return new Vec3(p.x() + 0.5, p.y() + 0.5, p.z() + 0.5);
     }
 
-    // ------------------------------------------------------------------
     // Rendering
-    // ------------------------------------------------------------------
 
     private static void onWorldRender(LevelRenderContext context) {
         WaypointRoutesConfig cfg = WaypointRoutesConfig.getInstance();
