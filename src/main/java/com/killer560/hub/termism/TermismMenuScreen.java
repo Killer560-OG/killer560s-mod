@@ -1,6 +1,5 @@
 package com.killer560.hub.termism;
 
-import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminals.TerminalType;
