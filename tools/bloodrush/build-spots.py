@@ -7,7 +7,7 @@ Each argument is a killer560smod-bloodrush-spots.json, or a folder searched for 
 %APPDATA%/PrismLauncher/instances. The current table is merged in too, so a rebuild never loses a room.
 
 Spots are room-relative blocks (RouteCoords), the same in every file. Two spots within MERGE blocks on each axis are one
-spot (seen counts add, the most-seen position wins). Only spots learned on Hypixel (the mod never learns in the sim) and
+spot (the higher seen count and its position win, so a rebuild is idempotent). Only spots learned on Hypixel (the mod never learns in the sim) and
 never adm's data (All Rights Reserved).
 """
 import json
@@ -42,14 +42,23 @@ def add(rooms, name, s):
         if all(abs(t[i] - s[i]) <= MERGE for i in range(3)):
             if seen > t[3]:
                 t[0], t[1], t[2] = s[0], s[1], s[2]
-            t[3] += seen
+            t[3] = max(t[3], seen)  # max, not sum: a rebuild reads the table AND the files it came from
             return
     if len(lst) < MAX_PER_ROOM:
         lst.append([s[0], s[1], s[2], seen])
 
 
+def label(path):
+    """Where a learned file came from: its Prism instance name, else the file name."""
+    parts = os.path.normpath(path).split(os.sep)
+    if "minecraft" in parts:
+        return "learned on Hypixel, Prism instance '" + parts[parts.index("minecraft") - 1] + "'"
+    return "learned on Hypixel, " + os.path.basename(path)
+
+
 def main():
     rooms = {}
+    origin = {}
     sources = []
     if os.path.isfile(TABLE):
         sources.append(TABLE)
@@ -58,13 +67,19 @@ def main():
         with open(f, encoding="utf-8") as h:
             data = json.load(h)
         n = 0
+        if os.path.abspath(f) == os.path.abspath(TABLE):
+            for name, src in (data.get("sources") or {}).items():
+                origin.setdefault(name, set()).update(x.strip() for x in src.split(";") if x.strip())
         for name, spots in (data.get("rooms") or {}).items():
+            if os.path.abspath(f) != os.path.abspath(TABLE):
+                origin.setdefault(name, set()).add(label(f))
             for s in spots:
                 if isinstance(s, list) and len(s) >= 3:
                     add(rooms, name, [int(v) for v in s[:4]])
                     n += 1
         print(f"{f}: {n} spot(s)")
     out = {"version": 1, "rooms": {k: sorted(v) for k, v in sorted(rooms.items()) if v}}
+    out["sources"] = {k: "; ".join(sorted(origin.get(k, {"unknown"}))) for k in out["rooms"]}
     os.makedirs(os.path.dirname(TABLE), exist_ok=True)
     with open(TABLE, "w", encoding="utf-8", newline="\n") as h:
         json.dump(out, h, indent=1)

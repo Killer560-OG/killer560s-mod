@@ -34,9 +34,16 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 26;
+        // Learning runs while the helper is off too (bloodrush2-1104), so its row shows either way. It draws nothing, so it
+        // is not a master toggle: the card stays OFF while only learning runs.
+        w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
+                contentX, y, colW, 18));
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
+        w.add(onOffButton("Show Learned Spots", cfg::isShowLearned, cfg::setShowLearned, cfg::save, null,
+                colB, y, colW, 18));
+        y += 22;
 
         w.add(SettingsButtonWidget.cycling(killersText(cfg), (btn, dir) -> {
             cfg.setKillers(SettingsButtonWidget.step(cfg.getKillers() - 1, dir, BloodRushConfig.MAX_KILLERS) + 1);
@@ -64,11 +71,6 @@ public class BloodRushHelperTab extends BaseTab {
                 colB, y, colW, 18));
         y += 22;
 
-        w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
-                contentX, y, colW, 18));
-        w.add(onOffButton("Show Learned Spots", cfg::isShowLearned, cfg::setShowLearned, cfg::save, null,
-                colB, y, colW, 18));
-        y += 22;
 
         w.add(color("My Spots Color", cfg.getMineColor(), BloodRushConfig.DEFAULT_MINE_COLOR, v -> {
             cfg.setMineColor(v);

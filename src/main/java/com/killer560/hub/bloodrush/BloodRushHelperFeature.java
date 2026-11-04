@@ -378,8 +378,7 @@ public final class BloodRushHelperFeature {
         if (DungeonState.isInDungeon()) {
             wasInDungeon = true;
         }
-        if (!cfg.isEnabled() || client.level == null || client.player == null || !DungeonState.isInDungeon()
-                || DungeonState.isBossPhaseActive()) {
+        if (client.level == null || client.player == null || !DungeonState.isInDungeon() || DungeonState.isBossPhaseActive()) {
             if (!CACHED.isEmpty()) {
                 CACHED = List.of();
             }
@@ -387,6 +386,22 @@ public final class BloodRushHelperFeature {
             return;
         }
         DungeonLayout layout = DungeonLayout.current();
+        if (!cfg.isEnabled()) {
+            // Helper off: Learn Spawn Spots still learns, passively (bloodrush2-1104, so his normal runs fill the table). The
+            // same starred-mob scan Mob ESP runs every frame, here every other tick, in a clear only; nothing drawn.
+            if (!CACHED.isEmpty()) {
+                CACHED = List.of();
+            }
+            boolean learn = cfg.isLearnSpots() && (!com.killer560.hub.roomsim.SimState.isActive() || learnInSimForTest);
+            status = learn ? "off (learning spawn spots)" : "off";
+            if (learn && ++ticks % 2 == 0) {
+                trackMobs(client, layout, true);
+                if (ticks % 200 == 0) {
+                    BloodRushSpots.saveIfDirty(false);
+                }
+            }
+            return;
+        }
         if (bloodOpened) {
             // The rush is over and nothing shows, but the clear still teaches spawn spots for later runs.
             if (!CACHED.isEmpty()) {

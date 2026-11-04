@@ -163,6 +163,15 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   which merges every Prism instance's learned file into it), spots are learned all run until the boss, and a spot is learned
   only after the mob stood on it half a second. Visibility: 2 px outlines and 12% faces were hard to see; Outline Width
   (default 4) and Filled Boxes (default on, 25%) were added, proven in pixels by testkit 1104-bloodrush-known.
+- Where spawn spots could come from (surveyed 2026-11-04, so nobody repeats it): the 134 room captures' `mobSpawns` hold
+  starred entries only for Archway (40: zombies, skeletons, 2 Fels), and Archway is a bad capture anchored a tile off
+  (docs/SIM-ROOMS.md), so its frame cannot be trusted; the rest are bats. The sim places mobs at random unless a room has
+  known spots (`SimLiveMobs.placeMobs`), so it is no source. His Hypixel logs name no starred mob positions with a room
+  frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The NoammAddons room data (rooms-modern.json), Hades'
+  rooms.json (LGPL, room ids and scores only), Nebulune, Athen and QUOI hold no spawn positions; only adm does (ARR, not
+  used). So the table grows only from learning: since bloodrush2-1104 Learn Spawn Spots also runs while the helper is off
+  (its row shows in the tab either way; it draws nothing, so it is not a master toggle), and the table's `sources` map
+  names each room's origin.
 
 ## Blood Camp
 
