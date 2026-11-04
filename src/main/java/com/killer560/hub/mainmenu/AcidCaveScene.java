@@ -299,9 +299,7 @@ final class AcidCaveScene {
             double pos = (t * speed + h(i, 23) * travel * 7) % travel;
             int y1 = (int) Math.min(lakeY, top + pos);
             int y0 = (int) Math.max(top, top + pos - sl);
-            if (y1 - y0 < 2) {
-                continue;
-            }
+            if (y1 - y0 < 2) continue;
             double ww = w0 + (w1 - w0) * ((y0 + y1) * 0.5 - top) / len;
             int x = (int) Math.round(cx - ww / 2 + 1 + u * (ww - 3));
             int sw = h(i, 24) > 0.6 ? Math.max(2, Math.round(2 * s)) : Math.max(1, Math.round(s));
@@ -536,9 +534,7 @@ final class AcidCaveScene {
             for (int k = 1; k <= 7; k++) {
                 double ang = Math.min(190, theta + k * 15);
                 int a = (int) (0xE0 * (1 - k / 8.0) * fade);
-                if (a <= 6) {
-                    continue;
-                }
+                if (a <= 6) continue;
                 double hx = shX + 12 * u * Math.sin(Math.toRadians(ang));
                 double hy = shY + 12 * u * Math.cos(Math.toRadians(ang));
                 double b = Math.toRadians(ang + 60);
@@ -636,9 +632,7 @@ final class AcidCaveScene {
     }
 
     private static int scaled(int base, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
+        if (density <= 0f) return 0;
         return Math.max(Math.round(min * density), Math.min(Math.round(max * density), Math.round(base * density)));
     }
 }

@@ -227,9 +227,7 @@ final class PictureScene {
                     double wgt = attach * (base + (1 - base) * clamp((cy - y0Second) / reachSecond)) * fade;
                     double dx = amp * wgt * Math.sin(t * fx - cx * kxx + cy * kxy);
                     double dy = ampY == 0 ? 0 : ampY * wgt * Math.sin(t * fy + cx * kyx);
-                    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) {
-                        continue;
-                    }
+                    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) continue;
                     g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, (float) (x - dx), (float) (y - dy), tile, tile, tile, tile,
                             tw, th);
                     n++;
@@ -278,12 +276,8 @@ final class PictureScene {
      * stays in its place in the drawing order. False (nothing drawn) without the shaders.
      */
     static boolean coneGlow(GuiRects r, double cx, double cy, double rx, double ry, int rgb, double alpha, int layers) {
-        if (!SceneShaders.available() || !SceneShaders.ensure()) {
-            return false;
-        }
-        if (rx < 1 || ry < 1 || alpha <= 0 || layers <= 0) {
-            return true;
-        }
+        if (!SceneShaders.available() || !SceneShaders.ensure()) return false;
+        if (rx < 1 || ry < 1 || alpha <= 0 || layers <= 0) return true;
         double per = Math.max(1, alpha / layers) / 255.0;
         double peak = 1 - Math.pow(1 - per, layers);
         double c = 1 + 0.5 / layers;
@@ -310,9 +304,7 @@ final class PictureScene {
                 double pos = (t * sp + hash(i, salt + 3) * travel * 9) % travel;
                 double y1 = Math.min(bottom, top + pos);
                 double y0 = Math.max(top, top + pos - sl);
-                if (y1 - y0 < 3) {
-                    continue;
-                }
+                if (y1 - y0 < 3) continue;
                 int sx = (int) (x + u * width);
                 int sw = hash(i, salt + 4) > 0.6 ? 3 : 2;
                 int c = i % 6 == 0 ? MenuStyle.alpha(darkRgb, 0x50) : MenuStyle.alpha(rgb, 0x40 + (int) (hash(i, salt + 5) * 0x70));
@@ -441,9 +433,7 @@ final class PictureScene {
             implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
-            if (density <= 0) {
-                return;
-            }
+            if (density <= 0) return;
             for (int i = 0; i < stars.length; i += 2) {
                 double x = stars[i] + 0.5;
                 double y = stars[i + 1] + 0.5;
@@ -482,13 +472,9 @@ final class PictureScene {
             for (int i = 0; i < faint; i++) {
                 double x = hash(i, salt + 10) * tw;
                 double y = hash(i, salt + 11) * skyBottom;
-                if (x > calm[0] && x < calm[2] && y > calm[1] && y < calm[3]) {
-                    continue;
-                }
+                if (x > calm[0] && x < calm[2] && y > calm[1] && y < calm[3]) continue;
                 double s = Math.sin(t * (0.3 + 0.8 * hash(i, salt + 12)) + i * 2.3);
-                if (s <= 0) {
-                    continue;
-                }
+                if (s <= 0) continue;
                 int a = (int) Math.round(255 * 0.55 * s * s);
                 if (a > 2) {
                     softDot(r, x, y, (0.8 + 0.7 * hash(i, salt + 13)) * scale, 1, rgb, a, 0);
@@ -501,14 +487,10 @@ final class PictureScene {
     static int[] loadPoints(String path) {
         java.util.ArrayList<Integer> v = new java.util.ArrayList<>();
         try (java.io.InputStream in = PictureScene.class.getResourceAsStream(path)) {
-            if (in == null) {
-                return new int[0];
-            }
+            if (in == null) return new int[0];
             for (String line : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
                 line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
+                if (line.isEmpty() || line.startsWith("#")) continue;
                 String[] f = line.split("\\s+");
                 if (f.length >= 3) {
                     v.add(Integer.parseInt(f[0]));
@@ -528,9 +510,7 @@ final class PictureScene {
 
     /** A soft cross at (cx, cy): four arms one pixel wide whose alpha falls smoothly to nothing over {@code arm} px. */
     static void cross(GuiRects r, double cx, double cy, double arm, int rgb, int alpha) {
-        if (alpha <= 2) {
-            return;
-        }
+        if (alpha <= 2) return;
         Matrix3x2fStack pose = r.graphics().pose();
         pose.pushMatrix();
         pose.translate((float) cx, (float) cy);
@@ -556,15 +536,11 @@ final class PictureScene {
     record Meteor(double period, int tw, int th, double width, int rgb, int salt, double scale) implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
-            if (density <= 0) {
-                return;
-            }
+            if (density <= 0) return;
             int shot = (int) Math.floor(t / period);
             double life = 1.1;
             double q = (t - shot * period - hash(shot, salt) * 2.5) / life;
-            if (q < 0 || q > 1) {
-                return;
-            }
+            if (q < 0 || q > 1) return;
             boolean left = hash(shot, salt + 1) < 0.5;
             double sx = tw * (left ? 0.03 + 0.20 * hash(shot, salt + 2) : 0.70 + 0.22 * hash(shot, salt + 2));
             double sy = th * (0.05 + 0.25 * hash(shot, salt + 3));
@@ -576,9 +552,7 @@ final class PictureScene {
             double fade = ease(q / 0.25) * ease((1 - q) / 0.45);
             double tail = 150 * scale * ease(q / 0.35);
             int a = (int) Math.round(255 * fade);
-            if (a <= 2) {
-                return;
-            }
+            if (a <= 2) return;
             Matrix3x2fStack pose = r.graphics().pose();
             pose.pushMatrix();
             pose.translate((float) hx, (float) hy);
@@ -657,9 +631,7 @@ final class PictureScene {
                     softDot(r, x, y, radius, 1.35, rgb, alpha, depth);
                 } else {
                     double f = (tt - form - fall) / splash;
-                    if (f > 1) {
-                        continue;
-                    }
+                    if (f > 1) continue;
                     int a = (int) (alpha * (1 - f) * (1 - f));
                     double e = 1 - (1 - f) * (1 - f); // eases out
                     if (ledge) {
@@ -723,9 +695,7 @@ final class PictureScene {
         for (int dy = -rows; dy < rows; dy++) {
             double mid = dy + 0.5;
             double q = big * big - mid * mid;
-            if (q <= 0) {
-                continue;
-            }
+            if (q <= 0) continue;
             double half = Math.sqrt(q);
             int core = (int) Math.floor(half);
             double frac = half - core;
@@ -743,9 +713,7 @@ final class PictureScene {
 
     /** A soft trail from y0 (clear) to y1 (alpha), {@code width} wide, sub-pixel placed, faded at its sides. */
     static void streak(GuiRects r, double x, double y0, double y1, double width, int rgb, int alpha) {
-        if (y1 - y0 < 1) {
-            return;
-        }
+        if (y1 - y0 < 1) return;
         Matrix3x2fStack pose = r.graphics().pose();
         pose.pushMatrix();
         pose.translate((float) (x - width / 2), (float) y0);
@@ -761,9 +729,7 @@ final class PictureScene {
     /** An antialiased elliptical ring (rx, ry) of {@code thick} pixels, centered on a sub-pixel position; its far half
      *  (the top, on the water) is fainter. */
     static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
-        if (alpha <= 2 || rx < 1) {
-            return;
-        }
+        if (alpha <= 2 || rx < 1) return;
         int steps = (int) Math.max(24, rx * 1.6);
         Matrix3x2fStack pose = r.graphics().pose();
         for (int k = 0; k < steps; k++) {

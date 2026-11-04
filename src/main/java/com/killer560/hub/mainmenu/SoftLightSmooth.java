@@ -50,9 +50,7 @@ final class SoftLightSmooth {
             for (int l = 0; l < 3; l++) {
                 double half = width * (l == 0 ? 0.40 : l == 1 ? 0.50 : 0.60);
                 int la = (int) Math.round(a * (l == 0 ? 0.62 : l == 1 ? 0.26 : 0.14));
-                if (la <= 0) {
-                    continue;
-                }
+                if (la <= 0) continue;
                 r.gradient((int) Math.round(mid - half), 0, (int) Math.round(mid + half), (int) Math.ceil(sh),
                         MenuStyle.alpha(ray, la), MenuStyle.alpha(ray, 0));
             }
@@ -95,9 +93,7 @@ final class SoftLightSmooth {
      */
     static boolean drawShaded(GuiGraphicsExtractor g, int w, int h, double t, int accent, int panel, boolean light, int n,
                               int baseTop, int baseBottom) {
-        if (!SceneShaders.available()) {
-            return false;
-        }
+        if (!SceneShaders.available()) return false;
         int s = Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
         double sw = w * (double) s;
         double sh = h * (double) s;
@@ -126,9 +122,7 @@ final class SoftLightSmooth {
         p[36] = Math.max(1, w / 6) * (float) s;
         p[37] = (light ? 0x28 : 0x70) / 255f;
         int slot = SceneShaders.upload();
-        if (slot < 0) {
-            return false;
-        }
+        if (slot < 0) return false;
         new SceneShaders.Quads(SceneShaders.softLight, g)
                 .add(0, 0, w, h, 0, 0, (float) sw, (float) sh, 0xFF000000 | (slot << 16))
                 .submit(g);
@@ -166,9 +160,7 @@ final class SoftLightSmooth {
     /** One disc of {@code radius} GUI units at (x, y): its box a pixel and a half past the edge, uv in radius units. */
     private static void disc(SceneShaders.Quads q, double x, double y, double radius, int s, float slotU, int argb) {
         double rp = radius * s;
-        if (rp < 0.5 || (argb >>> 24) == 0) {
-            return;
-        }
+        if (rp < 0.5 || (argb >>> 24) == 0) return;
         double e = (rp + 1.5) / rp;
         double half = radius * e;
         q.add((float) (x - half), (float) (y - half), (float) (x + half), (float) (y + half),
@@ -180,9 +172,7 @@ final class SoftLightSmooth {
      * one row per pixel, each row's two edge pixels carrying the partial coverage. {@code alpha} 0..255, unrounded.
      */
     static void aaDisc(GuiRects r, double cx, double cy, double radius, int rgb, double alpha) {
-        if (radius < 0.5 || alpha < 0.5) {
-            return;
-        }
+        if (radius < 0.5 || alpha < 0.5) return;
         Matrix3x2fStack pose = r.graphics().pose();
         double fx = Math.floor(cx);
         double fy = Math.floor(cy);

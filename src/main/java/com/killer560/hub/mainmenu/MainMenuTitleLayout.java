@@ -119,9 +119,7 @@ public final class MainMenuTitleLayout {
 
     /** Call once from the client entrypoint. */
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         // Amber's Aurora shader pipeline must be in RenderPipelines' static list before the first resource reload.
         AmberAuroraScene.register();
@@ -192,9 +190,7 @@ public final class MainMenuTitleLayout {
         appliedTo = new WeakReference<>(null);
         MainMenuChrome.clearCard();
         playingAsY = -1;
-        if (!MainMenuTheme.active()) {
-            return;
-        }
+        if (!MainMenuTheme.active()) return;
         SwapAccountsButton swap = null;
         try {
             List<AbstractWidget> widgets = Screens.getWidgets(screen);
@@ -217,9 +213,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim || w instanceof ModSettingsButton) {
-                    continue;
-                }
+                if (w == sim || w instanceof ModSettingsButton) continue;
                 String key = translationKey(w);
                 if (KEY_REALMS.equals(key)) {
                     realms = w;
@@ -264,9 +258,7 @@ public final class MainMenuTitleLayout {
                     column.add(w);
                 }
             }
-            if (column.isEmpty()) {
-                return;
-            }
+            if (column.isEmpty()) return;
             column.sort(Comparator.comparingInt(AbstractWidget::getY));
 
             // Directly under Multiplayer. Placed by INDEX in the sorted column rather than by a y value, so the
@@ -429,9 +421,7 @@ public final class MainMenuTitleLayout {
     }
 
     private static void removeWidget(Screen screen, List<AbstractWidget> widgets, AbstractWidget w) {
-        if (w == null) {
-            return;
-        }
+        if (w == null) return;
         GuiEventListener focused = screen.getFocused();
         widgets.remove(w);
         if (focused == w) {
@@ -452,14 +442,10 @@ public final class MainMenuTitleLayout {
         }
         playingAsY = chipY;
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
-            if (!MainMenuTheme.active() || !swap.visible) {
-                return;
-            }
+            if (!MainMenuTheme.active() || !swap.visible) return;
             try {
                 float alpha = swap.getAlpha();
-                if (alpha <= 0.02f) {
-                    return;
-                }
+                if (alpha <= 0.02f) return;
                 MainMenuChrome.drawPlayingAs(graphics, cx, chipY, name, alpha);
             } catch (Throwable t) {
                 MainMenuTheme.fail("playing-as line", t);
@@ -475,9 +461,7 @@ public final class MainMenuTitleLayout {
 
     private static String translationKey(AbstractWidget w) {
         Component message = w.getMessage();
-        if (message == null) {
-            return null;
-        }
+        if (message == null) return null;
         ComponentContents contents = message.getContents();
         return contents instanceof TranslatableContents tc ? tc.getKey() : null;
     }

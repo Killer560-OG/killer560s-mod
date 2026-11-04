@@ -107,9 +107,7 @@ public final class MainMenuChrome {
 
     private static void accentLine(GuiRects r, int x0, int x1, int y, float a) {
         int w = x1 - x0;
-        if (w <= 2) {
-            return;
-        }
+        if (w <= 2) return;
         int half = w / 2;
         int steps = 12;
         for (int i = 0; i < steps; i++) {
@@ -172,9 +170,7 @@ public final class MainMenuChrome {
     /** Label colors on a title-screen button. */
     public static int labelColour(boolean active, boolean hover) {
         MenuWidgets.sync();
-        if (!active) {
-            return MenuStyle.DIM2 & 0xFFFFFF;
-        }
+        if (!active) return MenuStyle.DIM2 & 0xFFFFFF;
         return (hover ? (MenuStyle.LIGHT ? MenuStyle.OR_DARK : MenuStyle.OR_HOVER) : MenuStyle.TXT) & 0xFFFFFF;
     }
 

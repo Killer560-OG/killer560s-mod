@@ -84,9 +84,7 @@ public final class SceneShaders {
     public static long quads;
 
     public static void register() {
-        if (softLight != null || failed) {
-            return;
-        }
+        if (softLight != null || failed) return;
         if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             failed = true;
             return;
@@ -131,9 +129,7 @@ public final class SceneShaders {
 
     /** Writes the scratch slot into the next of the four and uploads the texture; returns that slot's index, or -1. */
     static int upload() {
-        if (!ensure()) {
-            return -1;
-        }
+        if (!ensure()) return -1;
         try {
             int s = nextSlot;
             nextSlot = (nextSlot + 1) % SLOTS;
@@ -152,9 +148,7 @@ public final class SceneShaders {
 
     /** Creates the data texture (the blue noise in it) on first use; false when that failed. */
     static boolean ensure() {
-        if (data != null) {
-            return true;
-        }
+        if (data != null) return true;
         try {
             {
                 NativeImage img = new NativeImage(N, N + SLOTS * 2, false);
@@ -222,13 +216,9 @@ public final class SceneShaders {
 
         /** Hands the quads to the frame's render state (nothing when empty or scissored away). */
         void submit(GuiGraphicsExtractor g) {
-            if (n == 0 || tex == null) {
-                return;
-            }
+            if (n == 0 || tex == null) return;
             ScreenRectangle b = bounds();
-            if (b == null) {
-                return;
-            }
+            if (b == null) return;
             g.guiRenderState.addGuiElement(this);
             elements++;
             quads += n;
@@ -316,9 +306,7 @@ public final class SceneShaders {
             int v = extreme(e0, init, false, false);
             init[v] = true;
             splat(e0, lut, n, v, 1);
-            if (v == c) {
-                break;
-            }
+            if (v == c) break;
         }
         int[] rank = new int[total];
         boolean[] b = init.clone();
@@ -361,9 +349,7 @@ public final class SceneShaders {
         int best = -1;
         float bv = max ? -Float.MAX_VALUE : Float.MAX_VALUE;
         for (int i = 0; i < e.length; i++) {
-            if (b[i] != set) {
-                continue;
-            }
+            if (b[i] != set) continue;
             if (max ? e[i] > bv : e[i] < bv) {
                 bv = e[i];
                 best = i;

@@ -30,9 +30,7 @@ public abstract class MenuTooltipMixin {
             at = @At("HEAD"), cancellable = true, require = 0)
     private static void killer560smod$themedTooltip(GuiGraphicsExtractor graphics, int x, int y, int width, int height,
                                                     Identifier style, CallbackInfo ci) {
-        if (style != null || !MenuWidgets.tooltipsActive()) {
-            return;
-        }
+        if (style != null || !MenuWidgets.tooltipsActive()) return;
         try {
             MenuWidgets.drawTooltip(graphics, x, y, width, height);
             ci.cancel();

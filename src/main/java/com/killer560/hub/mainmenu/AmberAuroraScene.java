@@ -71,9 +71,7 @@ final class AmberAuroraScene {
 
     /** Registers the pipeline at client init, so it is in RenderPipelines' static list before the shaders precompile. */
     static void register() {
-        if (pipeline != null || failed) {
-            return;
-        }
+        if (pipeline != null || failed) return;
         if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             failed = true;
             return;

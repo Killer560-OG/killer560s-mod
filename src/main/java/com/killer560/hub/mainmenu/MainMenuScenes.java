@@ -166,21 +166,15 @@ public final class MainMenuScenes {
      *  clock (killer560, 2026-10-16: "120fps"): {@code Util.getMillis} steps whole milliseconds, an eighth of a 120 fps frame,
      *  so motion read from it lands up to 12% of a frame early or late and judders. */
     static double clock(float speed) {
-        if (testClockMs >= 0) {
-            return (testClockMs % 3_600_000.0) / 1000.0 * speed;
-        }
+        if (testClockMs >= 0) return (testClockMs % 3_600_000.0) / 1000.0 * speed;
         long ns = Util.getNanos();
         return Math.floorMod(ns, 3_600_000_000_000L) / 1.0e9 * speed;
     }
 
     public static void draw(GuiGraphicsExtractor g, int w, int h, MainMenuLook look) {
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         // A theme's imported video or GIF (Theme Extras, 2026-10-21) replaces its scene once its first frame is ready.
-        if (com.killer560.hub.menuthemes.ThemeBackgroundPlayer.draw(g, w, h, look.theme())) {
-            return;
-        }
+        if (com.killer560.hub.menuthemes.ThemeBackgroundPlayer.draw(g, w, h, look.theme())) return;
         long probeStart = allocProbe ? allocatedNow() : 0L;
         double t = clock(look.speed());
         int accent = look.accent() | 0xFF000000;
@@ -355,9 +349,7 @@ public final class MainMenuScenes {
 
     /** Soft elliptical glow: nested ellipses drawn as horizontal bands of low alpha. */
     static void glow(GuiRects r, int cx, int cy, double rx, double ry, int rgb, int maxAlpha, int layers) {
-        if (rx < 1 || ry < 1 || maxAlpha <= 0) {
-            return;
-        }
+        if (rx < 1 || ry < 1 || maxAlpha <= 0) return;
         int color = MenuStyle.alpha(rgb, Math.max(1, maxAlpha / layers));
         for (int k = layers; k >= 1; k--) {
             double s = (double) k / layers;
@@ -367,9 +359,7 @@ public final class MainMenuScenes {
             for (int y = (int) Math.floor(cy - lry); y < Math.ceil(cy + lry); y += step) {
                 double dy = ((y + step * 0.5) - cy) / lry;
                 double q = 1.0 - dy * dy;
-                if (q <= 0) {
-                    continue;
-                }
+                if (q <= 0) continue;
                 int half = (int) Math.round(lrx * Math.sqrt(q));
                 if (half > 0) {
                     r.fill(cx - half, y, cx + half, y + step, color);
@@ -385,9 +375,7 @@ public final class MainMenuScenes {
         for (int dy = -rad; dy < rad; dy += step) {
             double mid = dy + step * 0.5;
             double q = radius * radius - mid * mid;
-            if (q <= 0) {
-                continue;
-            }
+            if (q <= 0) continue;
             int half = (int) Math.round(Math.sqrt(q));
             int y = (int) Math.round(cy + dy);
             r.fill((int) Math.round(cx) - half, y, (int) Math.round(cx) + half, y + step, color);
@@ -400,9 +388,7 @@ public final class MainMenuScenes {
     }
 
     private static int count(double perArea, int w, int h, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
+        if (density <= 0f) return 0;
         int n = (int) Math.round(w * h / perArea * density);
         return Math.max(Math.round(min * density), Math.min(Math.round(max * density), n));
     }
@@ -432,9 +418,7 @@ public final class MainMenuScenes {
             double life = Math.min(1.0, progress * 8.0) * (1.0 - progress);
             double flicker = 0.7 + 0.3 * Math.sin(t * (2.0 + r3 * 2.5) + i * 1.7);
             int a = (int) (215 * life * flicker);
-            if (a <= 4) {
-                continue;
-            }
+            if (a <= 4) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             int size = r2 > 0.82 ? 2 : 1;

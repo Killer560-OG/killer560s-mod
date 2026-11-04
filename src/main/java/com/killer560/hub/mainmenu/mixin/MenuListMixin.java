@@ -58,9 +58,7 @@ public abstract class MenuListMixin {
 
     @Inject(method = "extractListBackground(Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$themedListBackground(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return;
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
             MenuChrome.drawListBackground(graphics, self.getX(), self.getY(), self.getRight(), self.getBottom(),
@@ -75,26 +73,18 @@ public abstract class MenuListMixin {
     private void killer560smod$themedRowHover(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         killer560smod$mouseX = mouseX;
         killer560smod$mouseY = mouseY;
-        if (!MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return;
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
-            if (!self.isMouseOver(mouseX, mouseY) || !entriesCanBeSelected()) {
-                return;
-            }
+            if (!self.isMouseOver(mouseX, mouseY) || !entriesCanBeSelected()) return;
             Object selected = self.getSelected();
             for (Object child : self.children()) {
-                if (!(child instanceof LayoutElement row)) {
-                    continue;
-                }
+                if (!(child instanceof LayoutElement row)) continue;
                 int x = row.getX();
                 int y = row.getY();
                 int w = row.getWidth();
                 int h = row.getHeight();
-                if (mouseX < x || mouseX >= x + w || mouseY < y || mouseY >= y + h) {
-                    continue;
-                }
+                if (mouseX < x || mouseX >= x + w || mouseY < y || mouseY >= y + h) continue;
                 if (child != selected
                         && !(child instanceof ServerSelectionList.LANHeader)
                         && !(child instanceof WorldSelectionList.LoadingHeader)
@@ -112,9 +102,7 @@ public abstract class MenuListMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V", ordinal = 0),
             index = 4, require = 0)
     private int killer560smod$themedSelectionBorder(int x0, int y0, int x1, int y1, int color) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return color;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return color;
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
             com.killer560.hub.mainmenu.MenuChrome.sync();
@@ -130,9 +118,7 @@ public abstract class MenuListMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V", ordinal = 1),
             index = 4, require = 0)
     private int killer560smod$themedSelectionFill(int x0, int y0, int x1, int y1, int color) {
-        if (!MainMenuTheme.activeOnMenus()) {
-            return color;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return color;
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
             com.killer560.hub.mainmenu.MenuChrome.sync();

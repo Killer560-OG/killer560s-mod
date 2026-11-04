@@ -17,9 +17,7 @@ public final class MainMenuFramerate {
      *  (the title screen, or another out-of-world menu with Themed Menus on). */
     public static int menuLimit(int userLimit) {
         try {
-            if (!MainMenuTheme.activeOnMenuBackground()) {
-                return 0;
-            }
+            if (!MainMenuTheme.activeOnMenuBackground()) return 0;
         } catch (RuntimeException | LinkageError e) {
             return 0;
         }

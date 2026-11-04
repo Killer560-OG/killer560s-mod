@@ -49,9 +49,7 @@ public final class MenuWidgets {
         int sig = com.killer560.hub.gui.MenuStyle.OR * 31 + com.killer560.hub.gui.MenuStyle.PANEL_TOP * 17
                 + com.killer560.hub.gui.MenuStyle.CARD_TOP * 7 + com.killer560.hub.gui.MenuStyle.TXT
                 + (com.killer560.hub.gui.MenuStyle.LIGHT ? 1 : 0);
-        if (sig == lastSig) {
-            return;
-        }
+        if (sig == lastSig) return;
         lastSig = sig;
         boolean light = com.killer560.hub.gui.MenuStyle.LIGHT;
         BG = com.killer560.hub.gui.MenuStyle.CARD_BOTTOM;
@@ -88,9 +86,7 @@ public final class MenuWidgets {
     /** Bordered EditBox / multi-line text area frame: dark field, dim orange border, full orange when focused. */
     public static void drawTextField(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean focused) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         int bg = active ? FIELD : BG_DISABLED;
         int border = !active ? BORDER_DISABLED : (focused ? ACCENT : BORDER);
         g.fill(x, y, x + w, y + h, bg);
@@ -102,9 +98,7 @@ public final class MenuWidgets {
     public static void drawSliderTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                        boolean highlighted, float alpha, double value, int handleWidth) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         MainMenuTheme.drawButtonBox(g, x, y, w, h, active, highlighted, alpha);
         if (active && h > 2) {
             double v = Math.max(0.0, Math.min(1.0, value));
@@ -119,9 +113,7 @@ public final class MenuWidgets {
     public static void drawSliderHandle(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                         boolean highlighted, float alpha) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         int fillColor = !active ? BORDER_DISABLED : (highlighted ? ACCENT_LIGHT : ACCENT);
         int rim = !active ? BG_DISABLED : BORDER_DARK;
         g.fill(x, y, x + w, y + h, MainMenuTheme.fade(rim, alpha));
@@ -135,13 +127,9 @@ public final class MenuWidgets {
     public static void drawCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean active,
                                     boolean highlighted, boolean selected, float alpha) {
         sync();
-        if (size <= 0) {
-            return;
-        }
+        if (size <= 0) return;
         MainMenuTheme.drawButtonBox(g, x, y, size, size, active, highlighted, alpha);
-        if (!selected) {
-            return;
-        }
+        if (!selected) return;
         int color = MainMenuTheme.fade(!active ? BORDER_DISABLED : (highlighted ? ACCENT_LIGHT : ACCENT), alpha);
         int t = size >= 12 ? 2 : 1;
         int ax = x + Math.round(size * 0.22f);
@@ -164,9 +152,7 @@ public final class MenuWidgets {
         int guard = 0;
         while (guard++ < 256) {
             g.fill(x0, y0, x0 + t, y0 + t, color);
-            if (x0 == x1 && y0 == y1) {
-                break;
-            }
+            if (x0 == x1 && y0 == y1) break;
             int e2 = 2 * err;
             if (e2 >= dy) {
                 err += dy;
@@ -186,9 +172,7 @@ public final class MenuWidgets {
     public static void drawTab(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                boolean selected, boolean highlighted) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         if (selected) {
             int border = !active ? BORDER_DISABLED : (highlighted ? ACCENT_LIGHT : ACCENT);
             g.fill(x, y, x + w, y + h, active ? BG_WARM : BG_DISABLED);
@@ -199,9 +183,7 @@ public final class MenuWidgets {
         }
         int top = y + 2;
         int bh = h - 2;
-        if (bh <= 0) {
-            return;
-        }
+        if (bh <= 0) return;
         int bg = !active ? BG_DISABLED : (highlighted ? BG_HOVER : BG);
         int border = !active ? BORDER_DISABLED : (highlighted ? ACCENT : BORDER);
         g.fill(x, top, x + w, top + bh, bg);
@@ -212,9 +194,7 @@ public final class MenuWidgets {
      *  line on the bottom row (aligned with the unselected tabs' bottom edge). */
     public static void drawTabSeparator(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         g.fill(x, y + h - 1, x + w, y + h, BORDER);
     }
 
@@ -223,9 +203,7 @@ public final class MenuWidgets {
     public static void drawLockButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                       boolean highlighted, boolean locked, float alpha) {
         sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         MainMenuTheme.drawButtonBox(g, x, y, w, h, active, highlighted, alpha);
         int color;
         if (!active) {

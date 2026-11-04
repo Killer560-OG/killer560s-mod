@@ -17,9 +17,7 @@ public abstract class MainMenuCopyrightMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"),
             index = 4, require = 0)
     private int killer560smod$themedCopyrightColor(int color) {
-        if (!MainMenuTheme.activeOnTitleScreen()) {
-            return color;
-        }
+        if (!MainMenuTheme.activeOnTitleScreen()) return color;
         try {
             boolean hovered = ((AbstractWidget) (Object) this).isHoveredOrFocused();
             return MainMenuTheme.argb(hovered ? com.killer560.hub.mainmenu.MainMenuChrome.accentLightColour()

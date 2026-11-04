@@ -30,9 +30,7 @@ public abstract class MenuTextureMixin {
     private void killer560smod$themedSeparators(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v,
                                                 int width, int height, int textureWidth, int textureHeight, CallbackInfo ci) {
         int kind = MenuChrome.classifyTexture(texture);
-        if (kind == MenuChrome.KIND_NONE || !MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (kind == MenuChrome.KIND_NONE || !MainMenuTheme.activeOnMenus()) return;
         try {
             boolean inWorld = Minecraft.getInstance().level != null;
             MenuChrome.drawTextureReplacement((GuiGraphicsExtractor) (Object) this, kind, x, y, width, height, inWorld);

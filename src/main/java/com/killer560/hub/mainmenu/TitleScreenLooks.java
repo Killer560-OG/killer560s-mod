@@ -158,12 +158,8 @@ public final class TitleScreenLooks {
     /** The index of the look on screen in {@link #looks()}: the picked one, else the one the saved settings give. */
     public static int currentIndex() {
         Look c = current();
-        if (c != null) {
-            return LOOKS.indexOf(c);
-        }
-        if (!MainMenuThemeConfig.getInstance().isEnabled()) {
-            return 0;
-        }
+        if (c != null) return LOOKS.indexOf(c);
+        if (!MainMenuThemeConfig.getInstance().isEnabled()) return 0;
         MenuTheme theme = MainMenuLook.current().theme();
         boolean simpleNow = MainMenuLook.current().scene().simple();
         for (int i = 0; i < LOOKS.size(); i++) {
@@ -185,9 +181,7 @@ public final class TitleScreenLooks {
 
     /** Shows {@code look} live. Writes no setting. */
     public static void apply(Look look) {
-        if (!enabled() || look == null) {
-            return;
-        }
+        if (!enabled() || look == null) return;
         boolean wasVanilla = !MainMenuTheme.active();
         current = look;
         MainMenuScenes.setAmberScene(look.amber());
@@ -211,9 +205,7 @@ public final class TitleScreenLooks {
 
     /** Back to the saved look (nothing picked). */
     public static void clear() {
-        if (current == null) {
-            return;
-        }
+        if (current == null) return;
         current = null;
         MainMenuScenes.setAmberScene(null);
         MainMenuScenes.setDarkScene(null);
@@ -227,9 +219,7 @@ public final class TitleScreenLooks {
     /** The picked look's five colors for the mod's own screens (so Mod Settings shows Green's gradients), or null. */
     public static int[] menuColours() {
         Look c = current();
-        if (c == null || c.vanilla()) {
-            return null;
-        }
+        if (c == null || c.vanilla()) return null;
         return MainMenuLook.coloursOf(c.theme(), MenuConfig.getInstance());
     }
 
@@ -285,9 +275,7 @@ public final class TitleScreenLooks {
      * the same slot (the layout then treats it as Multiplayer) and puts the cycling button in the top right corner.
      */
     static void install(Screen screen) {
-        if (!enabled() || !(screen instanceof TitleScreen)) {
-            return;
-        }
+        if (!enabled() || !(screen instanceof TitleScreen)) return;
         try {
             List<AbstractWidget> widgets = Screens.getWidgets(screen);
             for (int i = 0; i < widgets.size(); i++) {

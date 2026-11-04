@@ -110,9 +110,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
      * option"). Custom shows the embers in its own colors in both.
      */
     public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme, boolean simple) {
-        if (theme == null) {
-            return simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
-        }
+        if (theme == null) return simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
         return switch (theme) {
             case AMBER -> simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
             case OCEAN -> simple ? MainMenuThemeConfig.Scene.SIMPLE_BUBBLES : MainMenuThemeConfig.Scene.WATERFALL;

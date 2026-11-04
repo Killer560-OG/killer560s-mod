@@ -28,9 +28,7 @@ public abstract class MainMenuPanoramaMixin {
     private void killer560smod$themedTitleBackground(GuiGraphicsExtractor graphics, float partialTick, CallbackInfo ci) {
         Object self = this;
         if (self instanceof TitleScreen screen) {
-            if (!MainMenuTheme.active()) {
-                return;
-            }
+            if (!MainMenuTheme.active()) return;
             try {
                 MainMenuTheme.drawBackground(graphics, screen.width, screen.height);
                 // The panel behind the buttons and the footer band, under the logo and every widget (2026-10-15).
@@ -45,9 +43,7 @@ public abstract class MainMenuPanoramaMixin {
         // view is shown (Screen.extractBackground gates on level == null itself), so the loading/message screens
         // that call it after the level exists (joining a server, loading a world) stay themed instead of
         // flipping back to the vanilla panorama mid-load.
-        if (!MainMenuTheme.activeOnMenus()) {
-            return;
-        }
+        if (!MainMenuTheme.activeOnMenus()) return;
         try {
             Screen screen = (Screen) self;
             MenuChrome.drawMenuBackground(graphics, screen.width, screen.height);

@@ -73,15 +73,9 @@ public final class MenuChrome {
      *  for CreateWorldScreen.TAB_HEADER_BACKGROUND (compared by path so this never forces CreateWorldScreen's
      *  static init from an arbitrary early blit). Called for every 10-arg blit, so no allocation. */
     public static int classifyTexture(Identifier id) {
-        if (id == null) {
-            return KIND_NONE;
-        }
-        if (id == Screen.HEADER_SEPARATOR || id == Screen.INWORLD_HEADER_SEPARATOR) {
-            return KIND_HEADER_SEPARATOR;
-        }
-        if (id == Screen.FOOTER_SEPARATOR || id == Screen.INWORLD_FOOTER_SEPARATOR) {
-            return KIND_FOOTER_SEPARATOR;
-        }
+        if (id == null) return KIND_NONE;
+        if (id == Screen.HEADER_SEPARATOR || id == Screen.INWORLD_HEADER_SEPARATOR) return KIND_HEADER_SEPARATOR;
+        if (id == Screen.FOOTER_SEPARATOR || id == Screen.INWORLD_FOOTER_SEPARATOR) return KIND_FOOTER_SEPARATOR;
         String path = id.getPath();
         if (path.length() == TAB_HEADER_BACKGROUND_PATH.length() && TAB_HEADER_BACKGROUND_PATH.equals(path)
                 && "minecraft".equals(id.getNamespace())) {
@@ -93,9 +87,7 @@ public final class MenuChrome {
     /** Draws the themed replacement for a classified texture over the blit's destination rect. */
     public static void drawTextureReplacement(GuiGraphicsExtractor g, int kind, int x, int y, int w, int h, boolean inWorld) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         switch (kind) {
             case KIND_HEADER_SEPARATOR -> separator(g, x, y, w, h, true);
             case KIND_FOOTER_SEPARATOR -> separator(g, x, y, w, h, false);
@@ -122,9 +114,7 @@ public final class MenuChrome {
      *  to {@code minAlpha} at the screen edges. ~24 flat quads for a full-width line. */
     public static void accentSpan(GuiGraphicsExtractor g, int x0, int x1, int y, int maxAlpha, int minAlpha) {
         MenuWidgets.sync();
-        if (x1 <= x0) {
-            return;
-        }
+        if (x1 <= x0) return;
         int gw = g.guiWidth();
         if (gw <= 0) {
             gw = Math.max(1, x1);
@@ -137,9 +127,7 @@ public final class MenuChrome {
         for (int cx = start; cx < x1 && guard < 512; cx += colW, guard++) {
             int a0 = Math.max(x0, cx);
             int a1 = Math.min(x1, cx + colW);
-            if (a1 <= a0) {
-                continue;
-            }
+            if (a1 <= a0) continue;
             double mid = cx + colW * 0.5;
             double d = Math.min(1.0, Math.abs(mid - half) / half);
             int a = (int) Math.round(maxAlpha - (maxAlpha - minAlpha) * d);
@@ -153,9 +141,7 @@ public final class MenuChrome {
      *  (still honoring the particles toggle) so lists and text on top stay readable. */
     public static void drawMenuBackground(GuiGraphicsExtractor g, int w, int h) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         // The main menu's own animated scene, calmer (half the particles) and under a veil, so every out-of-world menu
         // reads as the same place as the main menu (2026-10-15). Lists and panels on top are opaque (drawListBackground).
         MainMenuScenes.draw(g, w, h, MainMenuLook.current().calm());
@@ -166,9 +152,7 @@ public final class MenuChrome {
     /** Replaces Screen.MENU_BACKGROUND's tiled dark tint (out of world only) over the given rect. */
     public static void drawMenuTint(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         g.fill(x, y, x + w, y + h, com.killer560.hub.gui.MenuStyle.alpha(LIST_BG, 0x40));
     }
 
@@ -177,9 +161,7 @@ public final class MenuChrome {
      *  it stays lighter so the blurred world still reads through. */
     public static void drawListBackground(GuiGraphicsExtractor g, int x, int y, int right, int bottom, boolean inWorld) {
         MenuWidgets.sync();
-        if (right <= x || bottom <= y) {
-            return;
-        }
+        if (right <= x || bottom <= y) return;
         // Opaque out of the world: nothing of the animated background behind a world or server list's text.
         g.fill(x, y, right, bottom, inWorld ? com.killer560.hub.gui.MenuStyle.alpha(LIST_BG, 0xB0) : LIST_BG);
     }
@@ -189,9 +171,7 @@ public final class MenuChrome {
      *  outer-fill + inset-black pair. */
     public static void drawSelection(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean focused, boolean hovered) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         boolean bright = focused || hovered;
         g.fill(x + 1, y + 1, x + w - 1, y + h - 1, hovered ? SELECTION_FILL_HOVER : SELECTION_FILL);
         g.outline(x, y, w, h, bright ? ACCENT_LIGHT : ACCENT);
@@ -200,9 +180,7 @@ public final class MenuChrome {
     /** Faint hover wash for a non-selected row of a selectable list. */
     public static void drawRowHover(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         g.fill(x + 1, y + 1, x + w - 1, y + h - 1, ROW_HOVER);
         g.outline(x, y, w, h, ROW_HOVER_EDGE);
     }
@@ -210,9 +188,7 @@ public final class MenuChrome {
 
     public static void drawScrollTrack(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         g.fill(x, y, x + w, y + h, BG_WARM);
         g.fill(x, y, x + 1, y + h, BORDER_DARK);
     }
@@ -220,9 +196,7 @@ public final class MenuChrome {
     /** Orange thumb; light orange while hovered/dragged, muted brown when disabled. */
     public static void drawScrollThumb(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hot, boolean disabled) {
         MenuWidgets.sync();
-        if (w <= 0 || h <= 0) {
-            return;
-        }
+        if (w <= 0 || h <= 0) return;
         int body = disabled ? BORDER_DARK : (hot ? ACCENT_LIGHT : ACCENT);
         g.fill(x, y, x + w, y + h, body);
         if (w > 2 && h > 2) {

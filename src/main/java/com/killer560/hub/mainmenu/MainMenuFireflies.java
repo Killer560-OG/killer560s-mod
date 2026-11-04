@@ -167,9 +167,7 @@ final class MainMenuFireflies {
     }
 
     private static void addTrunk(int layer, float x, float tw, float top, float bottom) {
-        if (trunks >= MAX_TRUNKS) {
-            return;
-        }
+        if (trunks >= MAX_TRUNKS) return;
         trunkLayer[trunks] = layer;
         trunkX[trunks] = x;
         trunkW[trunks] = tw;
@@ -179,9 +177,7 @@ final class MainMenuFireflies {
     }
 
     private static void addLobe(int layer, float x, float y, float rx, float ry) {
-        if (lobes >= MAX_LOBES) {
-            return;
-        }
+        if (lobes >= MAX_LOBES) return;
         lobeLayer[lobes] = layer;
         lobeX[lobes] = x;
         lobeY[lobes] = y;
@@ -276,9 +272,7 @@ final class MainMenuFireflies {
 
     private static void drawTrunks(GuiRects r, int layer, int dx, int colour, int rimColour, float s) {
         for (int i = 0; i < trunks; i++) {
-            if (trunkLayer[i] != layer) {
-                continue;
-            }
+            if (trunkLayer[i] != layer) continue;
             int x = Math.round(trunkX[i]) + dx;
             int tw = Math.max(1, Math.round(trunkW[i]));
             int top = Math.round(trunkTop[i]);
@@ -300,9 +294,7 @@ final class MainMenuFireflies {
     /** Lobes as five horizontal bands following an ellipse, swaying {@code sway} at most. */
     private static void drawLobes(GuiRects r, int layer, int dx, int colour, double t, float sway) {
         for (int i = 0; i < lobes; i++) {
-            if (lobeLayer[i] != layer) {
-                continue;
-            }
+            if (lobeLayer[i] != layer) continue;
             double sw = Math.sin(t * 0.45 + lobePhase[i]) * sway;
             int cx = (int) Math.round(lobeX[i] + dx + sw);
             float ry = lobeRy[i];
@@ -368,9 +360,7 @@ final class MainMenuFireflies {
             double y = fall - 15.0;
             double x = r3 * w + Math.sin(t * (0.5 + r1 * 0.6) + i * 1.9) * (14.0 + r2 * 20.0);
             int a = (int) (0xB0 * Math.min(1.0, fall / 30.0) * Math.min(1.0, (travel - fall) / 30.0));
-            if (a <= 6) {
-                continue;
-            }
+            if (a <= 6) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             boolean wide = Math.sin(t * (1.1 + r3) + i) > 0;
@@ -384,9 +374,7 @@ final class MainMenuFireflies {
         for (int i = 0; i < flies; i++) {
             double r0 = MainMenuScenes.hash(i, 90);
             int g = r0 < 0.4 ? 0 : r0 < 0.8 ? 1 : 2;
-            if (g != group) {
-                continue;
-            }
+            if (g != group) continue;
             double r1 = MainMenuScenes.hash(i, 91);
             double r2 = MainMenuScenes.hash(i, 92);
             double r3 = MainMenuScenes.hash(i, 93);
@@ -395,9 +383,7 @@ final class MainMenuFireflies {
             double pulse = Math.max(0.0, Math.sin(t * (0.7 + r3 * 1.1) + i * 3.7));
             double depth = group == 0 ? 0.45 : group == 1 ? 0.75 : 1.0;
             int a = (int) (255 * pulse * pulse * depth);
-            if (a <= 8) {
-                continue;
-            }
+            if (a <= 8) continue;
             int px = (int) Math.round(x);
             int py = (int) Math.round(y);
             if (group > 0) {
@@ -409,9 +395,7 @@ final class MainMenuFireflies {
     }
 
     static int scaled(double perArea, float density, int min, int max) {
-        if (density <= 0f) {
-            return 0;
-        }
+        if (density <= 0f) return 0;
         int n = (int) Math.round(perArea * density);
         return Math.max(Math.round(min * density), Math.min(Math.round(max * density), n));
     }
