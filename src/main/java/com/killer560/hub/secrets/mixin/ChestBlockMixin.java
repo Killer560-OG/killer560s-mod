@@ -38,9 +38,7 @@ public abstract class ChestBlockMixin implements OriginalCollisionShapeProvider 
     private static Map<Direction, VoxelShape> HALF_SHAPES;
 
     @Shadow
-    public static Direction getConnectedDirection(BlockState blockState) {
-        throw new AssertionError();
-    }
+    public static Direction getConnectedDirection(BlockState blockState) { throw new AssertionError(); }
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void killer560smod$expandShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {

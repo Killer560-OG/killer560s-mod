@@ -149,13 +149,9 @@ public final class DungeonState {
     private static boolean roomSimActive;
 
     /** Turned on while a sim clear is loaded; off the moment it ends. */
-    public static void setRoomSim(boolean active) {
-        roomSimActive = active;
-    }
+    public static void setRoomSim(boolean active) { roomSimActive = active; }
 
-    public static boolean isRoomSim() {
-        return roomSimActive;
-    }
+    public static boolean isRoomSim() { return roomSimActive; }
 
     /** The sim's F7 boss fight is on (bosssim.BossFight): set however it started, P1 or straight into a later phase. */
     private static boolean simBoss;
@@ -181,9 +177,7 @@ public final class DungeonState {
         }
     }
 
-    public static boolean isInDungeon() {
-        return simOverrideActive || roomSimActive || cachedFloor != null;
-    }
+    public static boolean isInDungeon() { return simOverrideActive || roomSimActive || cachedFloor != null; }
 
     /** @return the raw floor string (e.g. "F7", "M3"), or null outside a dungeon run - added for
      *  {@link com.killer560.hub.splittimers.SplitTimersFeature}, which needs to pick the right split
@@ -207,9 +201,7 @@ public final class DungeonState {
         return simOverrideActive || (bossPhaseActive && isF7OrM7());
     }
 
-    public static boolean isSimOverrideActive() {
-        return simOverrideActive;
-    }
+    public static boolean isSimOverrideActive() { return simOverrideActive; }
 
     /** The F7-boss override: was {@code /killer560 sim}, killer560's manual override for testing on p3sim.net, until he
      *  removed the command on 2026-11-01. Now only the testkit flips it, to put a client in the F7 boss without a

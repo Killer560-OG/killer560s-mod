@@ -80,9 +80,7 @@ public final class DummyLevers {
      * Whether a world block is one of a dummy lever's positions in a room that is placed (sim) or identified with its
      * rotation (Hypixel). Client thread on Hypixel; any thread in the sim.
      */
-    public static boolean isDummy(BlockPos pos) {
-        return pos != null && current().world().contains(pos.asLong());
-    }
+    public static boolean isDummy(BlockPos pos) { return pos != null && current().world().contains(pos.asLong()); }
 
     /** Every dummy lever's world position, for tests and the log. */
     public static List<BlockPos> worldPositions() {

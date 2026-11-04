@@ -126,11 +126,7 @@ public final class HitboxSizer {
         };
     }
 
-    private static double lerp(double base, int pct) {
-        return base + (1.0 - base) * (clamp(pct) / 100.0);
-    }
+    private static double lerp(double base, int pct) { return base + (1.0 - base) * (clamp(pct) / 100.0); }
 
-    private static int clamp(int v) {
-        return Math.max(0, Math.min(100, v));
-    }
+    private static int clamp(int v) { return Math.max(0, Math.min(100, v)); }
 }
