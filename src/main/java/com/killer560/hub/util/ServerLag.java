@@ -98,6 +98,9 @@ public final class ServerLag {
     }
 
     private static synchronized void onPing() {
+        if (PerTickServerClock.offChain()) {
+            return; // a hypixel.net random-id ping is not a server tick (tickfix3-1104)
+        }
         long now = System.currentTimeMillis();
         // tickfix2-1104: a gap is measured only when the ping that OPENED it came from a server PerTickServerClock trusts
         // (a ping on 19 of 20 ticks, two windows running). ServerTickClock's 15 pings a second, the old gate, is reached by

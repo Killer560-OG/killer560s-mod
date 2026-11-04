@@ -71,6 +71,7 @@ public final class ServerTickClock {
 
     /** Called from the ping mixin on the client thread. */
     public static void onPing(int id) {
+        com.killer560.hub.util.PerTickServerClock.onPingId(id); // every id, 0 included: its Hypixel chain and id census
         if (id == 0) {
             return;
         }

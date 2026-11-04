@@ -381,5 +381,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   then added transactions and ran the clock ahead: 1102-hx-goldor-tick read Goldor's hits 5, 3, 7, 11 late on 26.3 legit
   (gate-1104b/c; Tick Timers logged "48 pings, 2129 ms (42.6 ticks of wall time)"). goldfix-1104: pings are paced against the
   WALL clock (a server cannot tick faster than 20/s; client ticks are no measure, a frame freeze drops them), and once they run
-  more than 6 ahead the server loses trust, sticky hypixel.net trust included, until the next world. Read a timer fault off its
-  pings-vs-wall-time line first. Testkit `pingForTest` is unpaced (cases push the clock 400 ahead); `pingForTestTimed` is paced.
+  more than 6 ahead the server loses trust until the next world. That rule untrusted REAL Hypixel (its random-id pings make
+  ~1.13 a tick), so it is off-Hypixel only since tickfix3-1104 (code-lessons.md, "Tick timers and split timers"). Read a timer
+  fault off its pings-vs-wall-time line and the once-a-world "ping census" line first. Testkit `pingForTest` is unpaced (cases push the clock 400 ahead); `pingForTestTimed` is paced.
