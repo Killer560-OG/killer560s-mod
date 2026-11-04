@@ -755,3 +755,18 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   keeps the pre-click stack and puts it back after max(250 ms, 2 x ping + 150 ms) if still empty; the server's update wins if it arrives
   first. Hx's chest menu always re-sends after a click, which hid this: testkit `menu.terminal` `dropClicks` / `menu.terminal.drop` answer
   nothing, cases 298/299-menu-term-resync-*. His 19:22 log had no failing terminal in it (Rubix 1.68 s, Starts With 25 s, no resend lines).
+
+### Lag spikes and TimerLimit (blinklag-1104)
+
+Why 1026-blink-lag flags TimerLimit, read off GrimAC 2.3.74 (`TimerLimit.limitFallBehind`, javap of ac_grim_grimac_common):
+when the player's last confirmed movement clock (its transaction ping) is more than `ping-abuse-limit-threshold` (1000 ms)
+behind real time, the banked timer balance is clamped, so the catch-up burst after a stall is flagged tick by tick. Nothing in
+the client can avoid it: the stalled packets are already in the network and arrive together; releasing, dropping or merging
+them does not change their arrival time, and skipping movement ticks would be a position the server never saw. Measured with
+the harness `LagSpike` (system property `killer560.test.lagMs`, default 1500): Blink OFF (1026-blink-controls) a 1.5 s spike
+draws 6-8 TimerLimit (any >1 s stall does, vanilla or not). With Blink Charge full the answers already wait 1050 ms by design
+(`BlinkCharge.answerDelayMs`, 1120 ms of room), so ANY extra lag crosses the limit: charging is clean at a 100 ms spike,
+flags 6 at 250 ms, 6 at 400, 15 at 650, 19 at 900, 23 at 1100; mid-hold (Hold's own delay is shorter) is clean to 650 ms,
+2 flags at 900. So the flag at 1.5 s is Grim's design for the baseline and the thin margin of a full Charge bank for the
+rest. The test must not expect the flag; the only mod-side lever is a smaller answer delay (a smaller bank), which is the
+owner's decision, not a bug fix.
