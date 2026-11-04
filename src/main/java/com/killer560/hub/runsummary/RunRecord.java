@@ -203,10 +203,7 @@ public record RunRecord(
     }
 
     public String effectiveRank() {
-        if (hypixelScore >= 0 && hypixelRank != null) {
-            return hypixelRank;
-        }
-        return estimatedRank;
+        return hypixelScore >= 0 && hypixelRank != null ? hypixelRank : estimatedRank;
     }
 
     public String dateText() {
@@ -228,7 +225,6 @@ public record RunRecord(
                 + String.format(Locale.US, "%.2fs", remaining / 1000f);
     }
 
-    // ------------------------------------------------------------------ json
 
     public JsonObject toJson() {
         JsonObject o = new JsonObject();

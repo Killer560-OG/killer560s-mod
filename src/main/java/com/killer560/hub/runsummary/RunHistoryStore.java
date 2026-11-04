@@ -224,10 +224,7 @@ public final class RunHistoryStore {
 
     /** The floor a run is ranked against - Master and normal floors are separate bests. */
     public static String floorKey(RunRecord record) {
-        if (record == null || record.floor() == null || record.floor().isBlank()) {
-            return "Unknown";
-        }
-        return record.floor();
+        return record == null || record.floor() == null || record.floor().isBlank() ? "Unknown" : record.floor();
     }
 
     /** Fastest stored {@code totalMs} for a floor key, or -1 when nothing is stored for it. */

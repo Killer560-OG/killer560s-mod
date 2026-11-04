@@ -88,7 +88,6 @@ public final class RunSummaryFeature {
     private static final int FINISH_DELAY_AFTER_SCORE_TICKS = 20;
     private static final long DEVICE_DEDUPE_MS = 500L;
 
-    // ---- per-run state ----
     private static boolean active = false;
     private static long runStartMs = 0L;
     private static long runEndMs = 0L;
@@ -129,7 +128,6 @@ public final class RunSummaryFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RunSummaryFeature.tick", RunSummaryFeature::tick));
     }
 
-    // ------------------------------------------------------------------ tick
 
     private static void tick(Minecraft client) {
         if (finishDelayTicks >= 0 && --finishDelayTicks < 0) {
@@ -442,7 +440,6 @@ public final class RunSummaryFeature {
         }
     }
 
-    // ------------------------------------------------------------------ chat
 
     private static void onChat(Component message) {
         if (!RunSummaryConfig.getInstance().isEnabled()) {
@@ -517,7 +514,6 @@ public final class RunSummaryFeature {
                 phase, segmentStart > 0L ? now - segmentStart : -1L));
     }
 
-    // ------------------------------------------------------------------ run lifecycle
 
     private static void startRun() {
         resetRun();
@@ -603,7 +599,6 @@ public final class RunSummaryFeature {
         resetRun();
     }
 
-    // ------------------------------------------------------------------ chat output
 
     private static void announce(RunRecord stored, RunHistoryStore.BestFlags flags) {
         if (stored == null) {
@@ -650,7 +645,6 @@ public final class RunSummaryFeature {
         return out;
     }
 
-    // ------------------------------------------------------------------ summary view
 
     /** The full "Open Last Run" body, as § formatted lines - used by the settings tab's detail view and by
      *  the chat summary, so both always say the same thing in the same order. */
@@ -723,10 +717,7 @@ public final class RunSummaryFeature {
         if (Math.abs(coins) >= 1_000_000L) {
             return String.format(Locale.US, "%.2fM", coins / 1_000_000.0);
         }
-        if (Math.abs(coins) >= 1_000L) {
-            return String.format(Locale.US, "%.1fk", coins / 1_000.0);
-        }
-        return String.valueOf(coins);
+        return Math.abs(coins) >= 1_000L ? String.format(Locale.US, "%.1fk", coins / 1_000.0) : String.valueOf(coins);
     }
 
     private static String orDash(String s) {

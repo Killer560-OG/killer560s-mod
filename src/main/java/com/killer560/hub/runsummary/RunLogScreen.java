@@ -129,7 +129,6 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         visible = out;
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -177,7 +176,6 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
