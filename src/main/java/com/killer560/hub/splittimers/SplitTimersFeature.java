@@ -651,7 +651,14 @@ public final class SplitTimersFeature {
                 p5Y += ROW_HEIGHT;
             }
             int extraY = right ? lineY : p5Y;
-            for (String line : coreLines()) {
+            List<String> cores = coreLines();
+            if ((!cores.isEmpty() || !slowestCoreLine().isEmpty()) && !rows.isEmpty()) {
+                // A divider above the core entry times, like the ones between the split sections (killer560,
+                // 2026-11-04: "put a split bar for recore times").
+                out.add(new Line(DIVIDER_TEXT, 0, extraY));
+                extraY += ROW_HEIGHT;
+            }
+            for (String line : cores) {
                 out.add(new Line(line, 0, extraY));
                 extraY += ROW_HEIGHT;
             }
