@@ -72,9 +72,7 @@ public final class RebootFeature {
 
     /** What /reboot found: the launcher to run and the instance id, or why it cannot reboot. */
     public record Detection(String launcher, String launcherName, String instanceId, String reason) {
-        public boolean ok() {
-            return reason == null;
-        }
+        public boolean ok() { return reason == null; }
     }
 
     /**
@@ -136,9 +134,7 @@ public final class RebootFeature {
         return detect(parent, FabricLoader.getInstance().getGameDir());
     }
 
-    public static String lastMessage() {
-        return lastMessage;
-    }
+    public static String lastMessage() { return lastMessage; }
 
 
     /** /reboot. Not a Prism game: says so. In a server: asks for confirmation. Otherwise reboots now. */
@@ -181,9 +177,7 @@ public final class RebootFeature {
         reboot(d);
     }
 
-    private static boolean needsConfirm(Minecraft client) {
-        return client.player != null && !client.hasSingleplayerServer();
-    }
+    private static boolean needsConfirm(Minecraft client) { return client.player != null && !client.hasSingleplayerServer(); }
 
     private static void reboot(Detection d) {
         Minecraft client = Minecraft.getInstance();
@@ -203,9 +197,7 @@ public final class RebootFeature {
     }
 
     /** The relauncher's folder: its class file, reboot.log and the launcher's output. */
-    public static Path workDir() {
-        return ModPaths.config("killer560smod-reboot");
-    }
+    public static Path workDir() { return ModPaths.config("killer560smod-reboot"); }
 
     /**
      * Starts {@link RebootHelper} waiting on {@code gamePid}; it then runs {@code launcher [prefix...] --launch
