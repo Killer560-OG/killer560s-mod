@@ -73,9 +73,7 @@ public final class MobSkinRender {
     private MobSkinRender() {
     }
 
-    public static void setExtractingOwnState(boolean on) {
-        extractingOwnState = on;
-    }
+    public static void setExtractingOwnState(boolean on) { extractingOwnState = on; }
 
     /** The mob {@code entity} is drawn as right now (an allowed id), or null for the normal player. */
     public static String mobFor(Entity entity) {
@@ -276,15 +274,9 @@ public final class MobSkinRender {
     }
 
     /** Mobs marked broken this session (testkit). */
-    public static Set<String> broken() {
-        return Set.copyOf(BROKEN);
-    }
+    public static Set<String> broken() { return Set.copyOf(BROKEN); }
 
-    public static long swaps() {
-        return swaps;
-    }
+    public static long swaps() { return swaps; }
 
-    public static String lastSwap() {
-        return lastSwap;
-    }
+    public static String lastSwap() { return lastSwap; }
 }

@@ -129,9 +129,7 @@ public final class MobSkins {
     /** Prefix of a pet's id: {@code "pet:" + the pet's uuid}. Pets come from the Pet Wheel's seen pets. */
     public static final String PET_PREFIX = "pet:";
 
-    public static boolean isPet(String id) {
-        return id != null && id.startsWith(PET_PREFIX);
-    }
+    public static boolean isPet(String id) { return id != null && id.startsWith(PET_PREFIX); }
 
     /** The seen pet behind a {@code pet:} id, or null when there is no such pet or it has no captured head texture. */
     public static PetEntry petFor(String id) {

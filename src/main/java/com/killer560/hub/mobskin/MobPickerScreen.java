@@ -117,9 +117,7 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    private static String label(String id) {
-        return id.isEmpty() ? "Player" : MobSkins.displayName(id);
-    }
+    private static String label(String id) { return id.isEmpty() ? "Player" : MobSkins.displayName(id); }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -179,17 +177,11 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(parent);
-    }
+    public void onClose() { this.minecraft.setScreenAndShow(parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 }
