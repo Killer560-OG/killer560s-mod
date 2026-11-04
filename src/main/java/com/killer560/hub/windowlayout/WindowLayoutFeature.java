@@ -3,11 +3,9 @@ package com.killer560.hub.windowlayout;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.window.WindowModeConfig;
 import com.killer560.hub.window.WindowModeFeature;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.TitleScreen;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
