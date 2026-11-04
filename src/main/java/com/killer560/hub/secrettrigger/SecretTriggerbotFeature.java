@@ -252,13 +252,9 @@ public final class SecretTriggerbotFeature {
                 && REDSTONE_KEY_ID.equals(skull.getOwnerProfile().partialProfile().id());
     }
 
-    private static boolean isChest(Block block) {
-        return block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST;
-    }
+    private static boolean isChest(Block block) { return block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST; }
 
-    private static boolean isDone(BlockPos pos) {
-        return clicked.contains(pos.asLong()) || SecretAuraFeature.isDone(pos);
-    }
+    private static boolean isDone(BlockPos pos) { return clicked.contains(pos.asLong()) || SecretAuraFeature.isDone(pos); }
 
     /** Runs before the screen gate: a chest GUI opening means the looked-at / just-clicked chest was looted. */
     private static void updateDone(Minecraft client, long now) {
