@@ -74,9 +74,7 @@ public final class WaypointRoutesFeature {
         progress.put(route.id, Math.max(0, Math.min(index, route.points.size())));
     }
 
-    public static void restart(Route route) {
-        setProgress(route, 0);
-    }
+    public static void restart(Route route) { setProgress(route, 0); }
 
     public static void startAtNearest(Route route) {
         Minecraft client = Minecraft.getInstance();
@@ -97,9 +95,7 @@ public final class WaypointRoutesFeature {
         setProgress(route, best);
     }
 
-    public static void forget(String routeId) {
-        progress.remove(routeId);
-    }
+    public static void forget(String routeId) { progress.remove(routeId); }
 
     public static void importFromClipboard() {
         Minecraft client = Minecraft.getInstance();
@@ -320,13 +316,9 @@ public final class WaypointRoutesFeature {
     }
 
     /** Top-center of the waypoint block - where a player standing on it has their feet. */
-    private static Vec3 anchor(Route.Point p) {
-        return new Vec3(p.x() + 0.5, p.y() + 1.0, p.z() + 0.5);
-    }
+    private static Vec3 anchor(Route.Point p) { return new Vec3(p.x() + 0.5, p.y() + 1.0, p.z() + 0.5); }
 
-    private static Vec3 center(Route.Point p) {
-        return new Vec3(p.x() + 0.5, p.y() + 0.5, p.z() + 0.5);
-    }
+    private static Vec3 center(Route.Point p) { return new Vec3(p.x() + 0.5, p.y() + 0.5, p.z() + 0.5); }
 
     // Rendering
 

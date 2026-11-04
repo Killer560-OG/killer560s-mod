@@ -58,9 +58,7 @@ public final class RouteStore {
         return route;
     }
 
-    public static void delete(String id) {
-        all().removeIf(route -> route.id.equals(id));
-    }
+    public static void delete(String id) { all().removeIf(route -> route.id.equals(id)); }
 
     public static String uniqueName(String base) {
         String clean = base == null || base.isBlank() ? "Route" : base.trim();

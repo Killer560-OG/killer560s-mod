@@ -31,18 +31,12 @@ public final class SkyblockArea {
     }
 
     /** Area name, or "" when unknown. */
-    public static String current() {
-        return current;
-    }
+    public static String current() { return current; }
 
     /** Key for the per-area active-route map. */
-    public static String key() {
-        return current.isEmpty() ? GLOBAL : current;
-    }
+    public static String key() { return current.isEmpty() ? GLOBAL : current; }
 
-    public static String label(String key) {
-        return GLOBAL.equals(key) ? "Any Area" : key;
-    }
+    public static String label(String key) { return GLOBAL.equals(key) ? "Any Area" : key; }
 
     private static String read(Minecraft client) {
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {

@@ -25,13 +25,9 @@ public final class Route {
         this.name = name;
     }
 
-    public double getRadius() {
-        return radius;
-    }
+    public double getRadius() { return radius; }
 
-    public void setRadius(double radius) {
-        this.radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radius));
-    }
+    public void setRadius(double radius) { this.radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radius)); }
 
     /** A block position in a route. {@code label} is optional ("" = just the number). */
     public record Point(int x, int y, int z, String label) {

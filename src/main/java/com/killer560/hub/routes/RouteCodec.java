@@ -46,9 +46,7 @@ public final class RouteCodec {
 
     /** {@code truncated}: the import hit {@link #MAX_POINTS_PER_ROUTE} / {@link #MAX_ROUTES} and dropped the rest. */
     public record Result(List<Imported> routes, String error, boolean truncated) {
-        static Result fail(String error) {
-            return new Result(List.of(), error, false);
-        }
+        static Result fail(String error) { return new Result(List.of(), error, false); }
     }
 
     public static Result parse(String clipboard) {
@@ -110,9 +108,7 @@ public final class RouteCodec {
         }
     }
 
-    private static String clip(String s, int max) {
-        return s.length() > max ? s.substring(0, max) : s;
-    }
+    private static String clip(String s, int max) { return s.length() > max ? s.substring(0, max) : s; }
 
     private static Imported fromArray(String name, JsonArray array, boolean[] truncated) {
         record Entry(Route.Point point, Integer order) {
@@ -184,9 +180,7 @@ public final class RouteCodec {
         return null;
     }
 
-    private static int channel(double v) {
-        return (int) Math.max(0, Math.min(255, Math.round(v)));
-    }
+    private static int channel(double v) { return (int) Math.max(0, Math.min(255, Math.round(v))); }
 
     /** ColeWeight / Soopy ordered-waypoint JSON - readable by ColeWeight, SkyHanni /sho and Skyblocker. */
     public static String toColeweight(Route route) {
