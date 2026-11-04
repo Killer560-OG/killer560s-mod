@@ -76,6 +76,7 @@ public class Killer560ModClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        com.killer560.hub.util.BootTimer.begin();
         ModCompatibility.refuseIfFirmamentPresent();
         // The shared record store's account, read once on this (the client) thread so a record touched from another
         // thread later still finds its account folder (SharedRecords.accountId).
@@ -712,6 +713,7 @@ public class Killer560ModClient implements ClientModInitializer {
                                 return 1;
                             })));
         });
+        com.killer560.hub.util.BootTimer.end();
     }
 
     /** Parses {@code /posmsg add <message...> <x> <y> <z> <radius>} - the message itself can contain

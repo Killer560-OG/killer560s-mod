@@ -63,7 +63,7 @@ public final class SceneShaders {
     static RenderPipeline simpleMote;
     private static boolean failed;
 
-    /** Blue noise, 64x64, 0..255, generated at {@link #register}. */
+    /** Blue noise, 64x64, 0..255, generated on first use ({@link #ensure}). */
     private static byte[] noise;
 
     static final int N = 64;
@@ -90,7 +90,6 @@ public final class SceneShaders {
             return;
         }
         try {
-            noise = blueNoise(N, 560L);
             softLight = pipeline("scene_soft_light");
             softDisc = pipeline("scene_soft_disc");
             coneGlow = pipeline("scene_cone_glow");
@@ -151,6 +150,9 @@ public final class SceneShaders {
         if (data != null) return true;
         try {
             {
+                if (noise == null) {
+                    noise = blueNoise(N, 560L);
+                }
                 NativeImage img = new NativeImage(N, N + SLOTS * 2, false);
                 for (int y = 0; y < N; y++) {
                     for (int x = 0; x < N; x++) {
