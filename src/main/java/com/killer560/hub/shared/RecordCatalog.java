@@ -40,9 +40,7 @@ public final class RecordCatalog {
             Scope.GLOBAL, new JsonMerge.Policy() {
         @Override
         public Function<JsonElement, String> arrayKey(String path) {
-            if (path.equals("entries")) {
-                return JsonMerge.fields("timestamp", "floor", "chest", "profit");
-            }
+            if (path.equals("entries")) return JsonMerge.fields("timestamp", "floor", "chest", "profit");
             if (path.equals("resets")) {
                 return e -> e.getAsJsonObject().get("atMs").getAsString() + "|" + e.getAsJsonObject().get("filter");
             }
@@ -66,12 +64,8 @@ public final class RecordCatalog {
             Scope.ACCOUNT, new JsonMerge.Policy() {
         @Override
         public Function<JsonElement, String> arrayKey(String path) {
-            if (path.equals("runs")) {
-                return JsonMerge.fields("id");
-            }
-            if (path.equals("pages")) {
-                return JsonMerge.fields("page");
-            }
+            if (path.equals("runs")) return JsonMerge.fields("id");
+            if (path.equals("pages")) return JsonMerge.fields("page");
             return null;
         }
     });
@@ -83,12 +77,8 @@ public final class RecordCatalog {
             "experiments-profit.json", Scope.GLOBAL, new JsonMerge.Policy() {
         @Override
         public Function<JsonElement, String> arrayKey(String path) {
-            if (path.equals("buckets")) {
-                return JsonMerge.fields("account", "accountId", "sbProfile", "modProfile");
-            }
-            if (path.equals("sessionLog")) {
-                return JsonMerge.fields("endedAtMs", "game");
-            }
+            if (path.equals("buckets")) return JsonMerge.fields("account", "accountId", "sbProfile", "modProfile");
+            if (path.equals("sessionLog")) return JsonMerge.fields("endedAtMs", "game");
             return null;
         }
 
@@ -97,9 +87,7 @@ public final class RecordCatalog {
             for (String c : new String[]{"buckets.[].sessions", "buckets.[].sessionsPerGame.*", "buckets.[].xpGained",
                     "buckets.[].rewardValueCoins", "buckets.[].bitsSpent", "buckets.[].items.*.count",
                     "buckets.[].items.*.value"}) {
-                if (JsonMerge.matches(path, c)) {
-                    return JsonMerge.NumberMode.COUNTER;
-                }
+                if (JsonMerge.matches(path, c)) return JsonMerge.NumberMode.COUNTER;
             }
             return JsonMerge.matches(path, "totals.trackingSinceMs") ? JsonMerge.NumberMode.MIN : JsonMerge.NumberMode.STATE;
         }
@@ -125,9 +113,7 @@ public final class RecordCatalog {
             Scope.ACCOUNT, new JsonMerge.Policy() {
         @Override
         public JsonObject custom(JsonObject disk, JsonObject base, JsonObject mine) {
-            if (mine == null) {
-                return null;
-            }
+            if (mine == null) return null;
             String day = str(mine, "day") + "|" + str(mine, "account");
             if (disk == null || !day.equals(str(disk, "day") + "|" + str(disk, "account"))) {
                 // Another day or account on disk: the later day wins whole (a new UTC day starts at 0 anyway).
@@ -169,12 +155,8 @@ public final class RecordCatalog {
                     || JsonMerge.matches(path, "players.[].dungeonRunsByFloor.*")) {
                 return JsonMerge.NumberMode.COUNTER;
             }
-            if (JsonMerge.matches(path, "players.[].firstPartiedAtMs")) {
-                return JsonMerge.NumberMode.MIN;
-            }
-            if (JsonMerge.matches(path, "players.[].lastPartiedAtMs")) {
-                return JsonMerge.NumberMode.MAX;
-            }
+            if (JsonMerge.matches(path, "players.[].firstPartiedAtMs")) return JsonMerge.NumberMode.MIN;
+            if (JsonMerge.matches(path, "players.[].lastPartiedAtMs")) return JsonMerge.NumberMode.MAX;
             return JsonMerge.NumberMode.STATE;
         }
 
@@ -221,9 +203,7 @@ public final class RecordCatalog {
         public JsonMerge.NumberMode number(String path) {
             for (String c : new String[]{"profiles.*.attempts.*", "profiles.*.exp.*", "profiles.*.expMf.*",
                     "profiles.*.got.*"}) {
-                if (JsonMerge.matches(path, c)) {
-                    return JsonMerge.NumberMode.COUNTER;
-                }
+                if (JsonMerge.matches(path, c)) return JsonMerge.NumberMode.COUNTER;
             }
             return JsonMerge.NumberMode.STATE;
         }
@@ -247,9 +227,7 @@ public final class RecordCatalog {
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {
-        if (!root.has(key) || !root.get(key).isJsonArray()) {
-            return null;
-        }
+        if (!root.has(key) || !root.get(key).isJsonArray()) return null;
         List<JsonElement> list = new ArrayList<>();
         root.getAsJsonArray(key).forEach(list::add);
         Comparator<JsonElement> cmp = Comparator.comparing(e -> sortKey(e, field));

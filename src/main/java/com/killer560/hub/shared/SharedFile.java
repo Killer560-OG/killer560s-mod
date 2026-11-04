@@ -98,9 +98,7 @@ public final class SharedFile {
             JsonObject ledger = readJson(ledgerFile);
             JsonObject hashes = obj(ledger, "hashes");
             JsonObject sources = obj(ledger, "sources");
-            if (hashes.has(hash)) {
-                return false;
-            }
+            if (hashes.has(hash)) return false;
             JsonObject prior = null;
             if (sources.has(sourceId)) {
                 Path priorFile = ledgerDir().resolve(sources.get(sourceId).getAsString() + ".json");
@@ -130,9 +128,7 @@ public final class SharedFile {
 
     private static JsonObject readJson(Path p) {
         try {
-            if (!Files.exists(p)) {
-                return new JsonObject();
-            }
+            if (!Files.exists(p)) return new JsonObject();
             JsonElement e = JsonParser.parseString(Files.readString(p, StandardCharsets.UTF_8));
             return e != null && e.isJsonObject() ? e.getAsJsonObject() : new JsonObject();
         } catch (Exception unreadable) {
@@ -187,9 +183,7 @@ public final class SharedFile {
         ReentrantLock jvm = JVM_LOCKS.computeIfAbsent(file, k -> new ReentrantLock());
         long deadline = System.currentTimeMillis() + lockWaitMs;
         try {
-            if (!jvm.tryLock(lockWaitMs, TimeUnit.MILLISECONDS)) {
-                return new Locked(null, null, null);
-            }
+            if (!jvm.tryLock(lockWaitMs, TimeUnit.MILLISECONDS)) return new Locked(null, null, null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return new Locked(null, null, null);
@@ -206,9 +200,7 @@ public final class SharedFile {
                 } catch (OverlappingFileLockException same) {
                     fl = null;
                 }
-                if (fl != null) {
-                    return new Locked(jvm, ch, fl);
-                }
+                if (fl != null) return new Locked(jvm, ch, fl);
                 if (System.currentTimeMillis() > deadline) {
                     // Another instance has held it for 10 s: carry on without it rather than lose this save.
                     return new Locked(jvm, ch, null);
