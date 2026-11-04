@@ -421,17 +421,6 @@ public final class PetWheelConfig {
         wheelPets.removeIf(p -> p.uuid().equals(uuid));
     }
 
-    /** @return true if the swap happened (both indices were valid neighbors-or-not within range). */
-    public boolean moveInWheel(int index, int delta) {
-        int target = index + delta;
-        if (index < 0 || index >= wheelPets.size() || target < 0 || target >= wheelPets.size()) {
-            return false;
-        }
-        PetEntry moved = wheelPets.remove(index);
-        wheelPets.add(target, moved);
-        return true;
-    }
-
     /** killer560's reworked wheel-edit flow: left-click one slice then another (or drag one onto another)
      *  swaps their pets in place. Both indices must already hold a real pet - the wheel's one trailing empty
      *  "appendable" slot (see {@link PetWheelScreen}) is never a valid swap partner. @return true if it swapped. */
