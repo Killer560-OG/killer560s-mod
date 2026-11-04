@@ -204,8 +204,6 @@ public final class AutoRoutesCommands {
         return offset.buildFuture();
     }
 
-    // ---- registration ----
-
     /** Call once from {@code Killer560ModClient#onInitializeClient} (see INTEGRATION.md). */
     public static void register() {
         // "/ar and /autoroutes, both are the exact same, just different wording" (killer560, 2026-10-04). The same

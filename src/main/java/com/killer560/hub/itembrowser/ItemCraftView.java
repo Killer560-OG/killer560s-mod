@@ -120,8 +120,6 @@ public final class ItemCraftView {
         }
     }
 
-    // ------------------------------------------------------------------ minion tier picker
-
     private static void renderTiers(GuiGraphicsExtractor graphics, int screenWidth, int screenHeight, int mouseX, int mouseY) {
         Font font = Minecraft.getInstance().font;
         List<SkyblockItemEntry> tiers = openTiers;
@@ -167,8 +165,6 @@ public final class ItemCraftView {
             graphics.setTooltipForNextFrame(font, ItemBrowserFeature.buildTooltipLines(hovered), Optional.empty(), mouseX, mouseY);
         }
     }
-
-    // ------------------------------------------------------------------ craft / obtain view
 
     private static void renderEntry(GuiGraphicsExtractor graphics, int screenWidth, int screenHeight, int mouseX, int mouseY) {
         SkyblockItemEntry entry = openEntry;

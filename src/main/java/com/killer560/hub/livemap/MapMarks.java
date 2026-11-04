@@ -34,8 +34,6 @@ public final class MapMarks {
     private MapMarks() {
     }
 
-    // ------------------------------------------------------------------------------------------- Hypixel's marks
-
     /** Per room ({@code mainIdx}): runs {x0, y0, x1, y1} in map units and their ARGB, or an empty array for none. */
     private record Runs(float[] rects, int[] colors) {
     }
@@ -147,8 +145,6 @@ public final class MapMarks {
         return gid < 0 ? 0 : hypixelRuns(LiveMapFeature.groupsView().get(gid)).colors.length;
     }
 
-    // ------------------------------------------------------------------------------------------- the mod's sprites
-
     // '#' the mark's color, 'o' its outline (black), '.' nothing. Drawn by this mod for its Custom Checkmark Sprite:
     // bolder than Hypixel's, each with a one-pixel dark edge so it reads on any room color.
     private static final String[] MOD_CHECK = {
@@ -227,8 +223,6 @@ public final class MapMarks {
             default -> null;
         };
     }
-
-    // ------------------------------------------------------------------------------------------- his own sprites
 
     /** The folder his own sprites live in: {@code config/killer560/dungeons/map/killer560smod-livemap-checkmarks/}. */
     public static Path spriteFolder() {

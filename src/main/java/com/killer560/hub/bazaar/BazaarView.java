@@ -110,8 +110,6 @@ public final class BazaarView {
     private static BoosterCookie.State cookie = BoosterCookie.State.UNKNOWN;
     private static long cookieReadMs;
 
-    // ---- the last frame -------------------------------------------------------------------------------------------
-
     private record Hot(int x, int y, int w, int h, String key, int slot, ItemStack stack, Runnable action, String label) {
         boolean contains(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
@@ -242,8 +240,6 @@ public final class BazaarView {
             }
         }
     }
-
-    // ---- layout ---------------------------------------------------------------------------------------------------
 
     /**
      * Draws one frame. {@code cp} is the menu whose items the content shows (null: none), {@code frozen} says the
@@ -1723,8 +1719,6 @@ public final class BazaarView {
         maybeText(record, "list", detail, tx, y + 12, t.faint());
     }
 
-    // ---- input ----------------------------------------------------------------------------------------------------
-
     /** A press on the Bazaar (never on a frozen frame - the hosts do not call this then). */
     static void press(double x, double y, int button, boolean shift, BazaarReskin.State cp) {
         BazaarFollowUp.disarm("another press");
@@ -1801,8 +1795,6 @@ public final class BazaarView {
         BazaarFollowUp.disarm("command search");
         setQuery(term);
     }
-
-    // ---- small drawing helpers ------------------------------------------------------------------------------------
 
     private static boolean in(int x, int y, int w, int h) {
         return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
@@ -1989,8 +1981,6 @@ public final class BazaarView {
         String cut = font.plainSubstrByWidth(s, Math.max(0, width - font.width("...")));
         return cut.isEmpty() ? "" : cut + "...";
     }
-
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
 
     /**
      * Every region, text, hotspot and widget of the LAST frame, one per line: {@code region <name> x y w h},

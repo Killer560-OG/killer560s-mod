@@ -133,8 +133,6 @@ public final class Ap3Store {
         Ap3Feature.onChainsReloaded();
     }
 
-    // ------------------------------------------------------------------------------------------- choosing a file
-
     /** Every chains file in the folder by name ({@code *.json}, the broken backups left out), sorted, and always
      *  including the one in use even when it is not on disk yet (it is written on the first save). */
     public static List<String> listConfigNames() {
@@ -385,8 +383,6 @@ public final class Ap3Store {
         return stem + BROKEN_SUFFIX;
     }
 
-    // ------------------------------------------------------------------------------------------- access
-
     /** Every chain, in file order (unmodifiable). Mutate through {@link #forAreaOrCreate}/{@link #remove}. */
     public List<Ap3Chain> chains() {
         return Collections.unmodifiableList(new ArrayList<>(chains.values()));
@@ -466,8 +462,6 @@ public final class Ap3Store {
         migrationNotes.clear();
         return out;
     }
-
-    // ------------------------------------------------------------------------------------------- codec
 
     private Ap3Chain readChain(String key, JsonObject obj, int version) {
         // The area is no longer a choice: there is one, the boss room. Any key a per-area file used ("S3",
@@ -736,8 +730,6 @@ public final class Ap3Store {
         }
         return o;
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static boolean finiteCoord(double v) {
         return Double.isFinite(v) && Math.abs(v) <= MAX_ABS_COORD;

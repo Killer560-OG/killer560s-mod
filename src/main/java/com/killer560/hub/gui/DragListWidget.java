@@ -146,8 +146,6 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
         return mx >= trashLeft() && mx < trashLeft() + TRASH_W;
     }
 
-    // ---- input ------------------------------------------------------------------------------------------------------
-
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!this.active || !this.visible || com.killer560.hub.compat.McInput.button(event) != 0 || !isMouseOver(event.x(), event.y())) {
@@ -259,8 +257,6 @@ public final class DragListWidget extends AbstractWidget implements WheelTarget 
         int step = (int) Math.max(1, Math.round(speed * dt));
         state.scroll = clampScroll(state.scroll + dir * step);
     }
-
-    // ---- drawing ----------------------------------------------------------------------------------------------------
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float partialTick) {

@@ -54,7 +54,6 @@ public final class LeverAuraFeature {
     private static final List<BlockPos> S2_SECTION_LEVERS = List.of(
             new BlockPos(27, 124, 127), new BlockPos(23, 132, 138));
 
-    // ---- click bookkeeping ----
     /** Levers clicked before S2 opened (per run). */
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
@@ -71,7 +70,6 @@ public final class LeverAuraFeature {
     private LeverAuraFeature() {
     }
 
-    // ---- logging only ----
     private static String lastGateLogged = "init";
     /** Per lever, the last state code logged (logged again only on change). */
     private static final Map<Long, String> leverStateLogged = new HashMap<>();
@@ -110,9 +108,7 @@ public final class LeverAuraFeature {
         LOGGER.debug("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Tick
-    // ------------------------------------------------------------------------------------------------------------
 
     /** The body turn for a lever the reported look does not reach (see util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
@@ -167,7 +163,6 @@ public final class LeverAuraFeature {
         String reason = null;
         Set<Long> inRangeNow = new HashSet<>();
 
-        // ---- S2 section levers ----
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
         if (sectionWanted) {
             double best = Double.MAX_VALUE;

@@ -137,8 +137,6 @@ public final class InstaClearTracker {
         }
     }
 
-    // ============================================================================================== public API
-
     /** Hooks the recorder up: client tick and the position-packet hook (via {@code LiveMapPacketListenerMixin}). Its
      *  readout and settings are rows in the Auto Clear tab (they were {@code /autosecret instaclear} until killer560
      *  removed the command, 2026-11-01). Safe to call more than once. A no-op in the legit build. */
@@ -219,8 +217,6 @@ public final class InstaClearTracker {
         return "from=" + fromPart + ";land=" + land;
     }
 
-    // ============================================================================================== extras
-
     /** The real world block an entry key lands on in this run's copy of {@code roomName}, or null (walk-in key, room
      *  not on the map, or not a key this class made). The inverse of the {@code land} half of {@link #entryKeyFor}. */
     public static BlockPos realLandingFor(String roomName, String entryKey) {
@@ -277,8 +273,6 @@ public final class InstaClearTracker {
         boolean mapPath = "interactivemap".equals(teleportDriver);
         teleportMethod = etherItem && (player.isShiftKeyDown() || mapPath) ? "etherwarp" : "teleport";
     }
-
-    // ============================================================================================== recording
 
     private static void tick(Minecraft client) {
         tick++;
@@ -549,8 +543,6 @@ public final class InstaClearTracker {
         return alive;
     }
 
-    // ============================================================================================== helpers
-
     private static double sq(double v) {
         return v * v;
     }
@@ -667,8 +659,6 @@ public final class InstaClearTracker {
         return "manual";
     }
 
-    // ============================================================================================== persistence
-
     private static Path path() {
         if (file == null) {
             file = ModPaths.config("killer560smod-autosecret/insta-clear.json");
@@ -726,8 +716,6 @@ public final class InstaClearTracker {
         }
     }
 
-    // ============================================================================================== readout
-
     private static List<String> summaryLines() {
         ensureLoaded();
         List<String> out = new ArrayList<>();
@@ -756,7 +744,6 @@ public final class InstaClearTracker {
         return out;
     }
 
-    // ============================================================================================== test hooks
     // For the testkit's logic and sim cases (reflection). None of these is used by the mod itself.
 
     /** Points the store at {@code path} (any file) and loads it; null goes back to the real file. */

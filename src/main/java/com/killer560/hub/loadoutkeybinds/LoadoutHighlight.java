@@ -139,8 +139,6 @@ public final class LoadoutHighlight {
         }
     }
 
-    // ---- testkit hooks
-
     private static long highlightDraws = 0;
 
     public static long highlightDraws() {

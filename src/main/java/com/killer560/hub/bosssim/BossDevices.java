@@ -45,7 +45,6 @@ public final class BossDevices {
     private static final Logger LOGGER = ModLog.get("killer560smod-bosssim");
     private static final Random RNG = new Random();
 
-    // ---- Simon Says ------------------------------------------------------------------------------------------------
     static final BlockPos SS_START = new BlockPos(110, 121, 91);
     private static final int SS_ROUNDS = 4;
 
@@ -60,7 +59,6 @@ public final class BossDevices {
     private static boolean ssStartWasPowered;
     private static final boolean[] ssWasPowered = new boolean[16];
 
-    // ---- Lights ----------------------------------------------------------------------------------------------------
     /** Hypixel's known solution: these six on light all twenty lamps. */
     static final List<BlockPos> LIGHTS = List.of(
             new BlockPos(62, 136, 142), new BlockPos(58, 136, 142), new BlockPos(60, 135, 142),
@@ -68,13 +66,11 @@ public final class BossDevices {
     private static boolean lightsDone;
     private static int lightsCreditAt = -1;
 
-    // ---- Arrows ----------------------------------------------------------------------------------------------------
     private static final int ARROW_X = -2, ARROW_Y = 120, ARROW_Z = 75;
     private static final ItemFrame[] frames = new ItemFrame[25];
     private static int[] solution;
     private static boolean arrowsDone;
 
-    // ---- Target ----------------------------------------------------------------------------------------------------
     private static final int TARGET_Z = 50;
     private static final int TARGET_HITS = 9;
     /** The plate (ADM: 63, 127, 35 on Hypixel's floor; here on the built-in plan's device floor at 125). */
@@ -275,8 +271,6 @@ public final class BossDevices {
         BossStations.complete(level, BossStations.device(section), by);
     }
 
-    // ---- Simon Says ------------------------------------------------------------------------------------------------
-
     private static boolean powered(BlockState s) {
         return s.is(net.minecraft.world.level.block.Blocks.STONE_BUTTON) && s.getValue(BlockStateProperties.POWERED);
     }
@@ -440,8 +434,6 @@ public final class BossDevices {
             strayTick = -1;
         }
     }
-
-    // ---- Target ----------------------------------------------------------------------------------------------------
 
     private static boolean onPlate(ServerLevel level) {
         AABB plate = new AABB(TARGET_PLATE.getX(), TARGET_PLATE.getY(), TARGET_PLATE.getZ(), TARGET_PLATE.getX() + 1,

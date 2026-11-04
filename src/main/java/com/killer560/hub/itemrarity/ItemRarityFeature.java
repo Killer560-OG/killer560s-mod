@@ -76,8 +76,6 @@ public final class ItemRarityFeature {
         clearRequested = true;
     }
 
-    // ---------------------------------------------------------------- rendering
-
     /** Called from the container-slot mixin (just before the item is drawn) and the hotbar mixin. */
     public static void drawBackground(GuiGraphicsExtractor graphics, ItemStack stack, int x, int y, boolean hotbar) {
         ItemRarityConfig cfg = ItemRarityConfig.getInstance();
@@ -242,8 +240,6 @@ public final class ItemRarityFeature {
         }
         return runs.toArray(new int[0][]);
     }
-
-    // ---------------------------------------------------------------- parsing + cache
 
     /** Rarity of a stack, or null. Public so other overlays (e.g. Storage Overlay's own grid) can reuse it. */
     public static ItemRarity getRarity(ItemStack stack) {

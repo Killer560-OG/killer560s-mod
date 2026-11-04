@@ -104,8 +104,6 @@ final class InvSortStorage {
         return notFound;
     }
 
-    // ------------------------------------------------------------------------------------------- planning
-
     /** Builds the page visits from the live inventory and the Storage Overlay's cache. */
     void plan(Minecraft client) {
         visits.clear();
@@ -270,8 +268,6 @@ final class InvSortStorage {
         }
         return out;
     }
-
-    // ------------------------------------------------------------------------------------------- running
 
     /** One client tick (START). {@code mayClick} is the executor's pacing and still-input verdict for this tick. */
     Result tick(Minecraft client, boolean mayClick) {

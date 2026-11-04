@@ -98,8 +98,6 @@ final class Ap3RouteRunner {
     private Ap3RouteRunner() {
     }
 
-    // ---- session state ------------------------------------------------------------------------------------------
-
     /** The Path nodes this run is driving, in chain order. */
     private static final List<Ap3Node> route = new ArrayList<>();
     private static Ap3RoutePlanner.Plan plan;
@@ -231,8 +229,6 @@ final class Ap3RouteRunner {
     private static Object drawnTerrain;
     private static final Vec3[] NO_PATH = new Vec3[0];
     private static Vec3[] drawnPath = NO_PATH;
-
-    // ---- driving ------------------------------------------------------------------------------------------------
 
     /**
      * One tick of a Path node. Collects the route the first time, plans it on a worker, then plays the schedule out.
@@ -1113,8 +1109,6 @@ final class Ap3RouteRunner {
         return s;
     }
 
-    // ---- terminal stops -----------------------------------------------------------------------------------------
-
     private static boolean tickTermWait(Minecraft client, LocalPlayer player) {
         if (McCompat.screen(client) != null) {
             sawTermScreen = true;
@@ -1207,8 +1201,6 @@ final class Ap3RouteRunner {
         }
         return stopOrHandOver(last);
     }
-
-    // ---- the world snapshot -------------------------------------------------------------------------------------
 
     /**
      * Which block columns the route can use, read once on the client thread. A column is a wall when anything in the
@@ -1812,9 +1804,6 @@ final class Ap3RouteRunner {
             return any;
         }
     }
-
-
-    // ---- keeping the world scan ---------------------------------------------------------------------------------
 
     /**
      * The last world scan, kept so running the same route again costs nothing. killer560 (2026-09-22): "It should

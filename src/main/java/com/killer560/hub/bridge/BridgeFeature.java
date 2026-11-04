@@ -110,8 +110,6 @@ public final class BridgeFeature {
         contextOverrideForTest = ctx;
     }
 
-    // ------------------------------------------------------------------ client tick
-
     private static void tick(Minecraft client) {
         boolean inDungeon = DungeonState.isInDungeon() && !DungeonState.isSimOverrideActive();
         if (inDungeon != wasInDungeon) {
@@ -362,8 +360,6 @@ public final class BridgeFeature {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------ JSON helpers for SelfFact payloads
 
     /** Case-preserving (unlike {@code PartyDataProtocol}'s reader, which lower-cases). */
     static String str(JsonObject o, String field) {

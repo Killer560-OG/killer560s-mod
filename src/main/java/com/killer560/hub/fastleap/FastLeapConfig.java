@@ -383,8 +383,6 @@ public final class FastLeapConfig {
         return Math.max(1, (timeoutMs + 49) / 50);
     }
 
-    // ---- master / general ------------------------------------------------------------------------------------
-
     public boolean isEnabled() {
         return BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
@@ -454,8 +452,6 @@ public final class FastLeapConfig {
     public void setOnlyWhenGateBlown(boolean v) {
         onlyWhenGateBlown = v;
     }
-
-    // ---- per leap ---------------------------------------------------------------------------------------------
 
     /** The leap's row: Off, Fast or Auto. */
     public LeapMode getLeapMode(LeapGroup group) {

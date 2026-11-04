@@ -78,8 +78,6 @@ public final class I4LeapFeature {
     private I4LeapFeature() {
     }
 
-    // ------------------------------------------------------------------------------------------------------------
-
     static void onWorldChange() {
         melodyTarget = null;
         deviceStarted = false;
@@ -162,8 +160,6 @@ public final class I4LeapFeature {
         }
         lastAnyLit = anyLit;
     }
-
-    // ------------------------------------------------------------------------------------------------------------
 
     /** True when a left click with a Spirit Leap should do the i4 fast leap. */
     static boolean wantsFastLeap() {

@@ -97,12 +97,10 @@ public final class ArrowAlignFeature {
     private static boolean active = false;
     private static ClientLevel lastLevel = null;
 
-    // --- solve timer ---
     private static long firstClickMs = 0L;
     private static int clicksThisSolve = 0;
     private static boolean solvedAnnounced = false;
 
-    // --- automation ---
     private static boolean syntheticClickInProgress = false;
     // Client ticks (ActionGate.currentTick), not ms: the clicks go out at the start of a tick.
     private static int triggerAimIndex = -1;
@@ -123,7 +121,6 @@ public final class ArrowAlignFeature {
     private ArrowAlignFeature() {
     }
 
-    // ---- logging only ----
     private static String lastHeldKey;
     private static long lastHeldTick;
     private static int lastAuraTargetLogged = -1;
@@ -172,9 +169,7 @@ public final class ArrowAlignFeature {
         // Post on every one (testkit 788). Delays are whole ticks now - see tickTriggerBot / tickAura.
     }
 
-    // ------------------------------------------------------------------
     // Tick: scan frames, confirm pending clicks, match layout
-    // ------------------------------------------------------------------
 
     /** The body turn for a frame the reported look does not reach (util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
@@ -335,9 +330,7 @@ public final class ArrowAlignFeature {
         auraTurnStartTick = -1L;
     }
 
-    // ------------------------------------------------------------------
     // Click math
-    // ------------------------------------------------------------------
 
     private static int indexOf(BlockPos pos) {
         int dy = pos.getY() - GRID_Y;
@@ -499,9 +492,7 @@ public final class ArrowAlignFeature {
         return true;
     }
 
-    // ------------------------------------------------------------------
     // Trigger Bot + Aura (cheat build)
-    // ------------------------------------------------------------------
 
     private static void tickAutomation(Minecraft client) {
         ArrowAlignConfig cfg = ArrowAlignConfig.getInstance();
@@ -746,9 +737,7 @@ public final class ArrowAlignFeature {
         return index == heldIndexNow() ? Math.max(0, needed - 1) : needed;
     }
 
-    // ------------------------------------------------------------------
     // Rendering (solver)
-    // ------------------------------------------------------------------
 
     private static void onWorldRender(LevelRenderContext context) {
         ArrowAlignConfig cfg = ArrowAlignConfig.getInstance();

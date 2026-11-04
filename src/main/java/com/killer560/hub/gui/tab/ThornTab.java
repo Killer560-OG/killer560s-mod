@@ -51,7 +51,6 @@ public class ThornTab extends BaseTab {
         // No switch over the whole tab (killer560, 2026-10-14): the counter, each highlight and the stun spots are
         // independent, each has its own switch, and the card is ON while any is.
 
-        // ---- Spirit Bear counter ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Spirit Bear Counter", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Spirit Bear HUD", cfg::getBearHudRaw, cfg::setBearHud));
@@ -99,7 +98,6 @@ public class ThornTab extends BaseTab {
         }
         y += 28;
 
-        // ---- Stun spots ----
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Stun Spots", false));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Stun Spot Waypoints", cfg::getStunSpotsRaw, cfg::setStunSpots));

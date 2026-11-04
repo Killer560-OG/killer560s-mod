@@ -95,7 +95,6 @@ public class MenuThemeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        // ---- Saved Themes ----
         var font = Minecraft.getInstance().font;
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Saved Themes", false));
         y += 16;

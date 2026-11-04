@@ -128,7 +128,6 @@ final class BazaarFlipAutopilot {
     private record Pending(boolean buy, String name, long atMs, int relists) {
     }
 
-    // ---- the current step ----------------------------------------------------------------------------------------------
     private static FlipAction action;
     /** True while the current job is reading Manage Orders (no core action). */
     private static boolean refresh;
@@ -166,7 +165,6 @@ final class BazaarFlipAutopilot {
     private static long sellPendingAtMs;
     private static long npcSoldUnits;
 
-    // ---- the session's books -------------------------------------------------------------------------------------------
     private static final Map<String, Long> holdings = new HashMap<>();
     private static final Map<String, Double> costBasis = new HashMap<>();
     private static final Set<String> avoid = new HashSet<>();
@@ -197,8 +195,6 @@ final class BazaarFlipAutopilot {
 
     private BazaarFlipAutopilot() {
     }
-
-    // ---- start / stop ---------------------------------------------------------------------------------------------------
 
     /** Prepares a session. Null on success, else why it refused. */
     static String begin(Minecraft client, double purse) {
@@ -417,8 +413,6 @@ final class BazaarFlipAutopilot {
         }
     }
 
-    // ---- the tick -------------------------------------------------------------------------------------------------------
-
     static void tick(Minecraft client, BazaarFlipConfig cfg) {
         long now = System.currentTimeMillis();
         takeBoughtLines();
@@ -536,8 +530,6 @@ final class BazaarFlipAutopilot {
         return BazaarFlipMenus.page(c).kind() == BazaarPages.Kind.UNKNOWN && !BazaarFlipFeature.TRADES_TITLE.matcher(title).matches()
                 && !BazaarFlipFeature.CONFIRM_INSTANT_BUY.equals(title);
     }
-
-    // ---- deciding -------------------------------------------------------------------------------------------------------
 
     /**
      * Hypixel put order placing on cooldown: the attempt it refused is dropped without counting (a relist's second half is
@@ -903,8 +895,6 @@ final class BazaarFlipAutopilot {
         commandSentAtMs = 0L;
         lastStepAtMs = 0L;
     }
-
-    // ---- expectations ---------------------------------------------------------------------------------------------------
 
     private static void expect(Expect e, int baseline, AbstractContainerScreen<?> screen) {
         expect = e;
@@ -1459,8 +1449,6 @@ final class BazaarFlipAutopilot {
         }
     }
 
-    // ---- the amount sign ------------------------------------------------------------------------------------------------
-
     /** Custom Amount was clicked: type {@link #signAmount} on line 1 and press Done, in one tick (as the cycle does). */
     private static void tickSign(Screen open, BazaarFlipConfig cfg, long now) {
         if (!(open instanceof AbstractSignEditScreen sign)) {
@@ -1665,8 +1653,6 @@ final class BazaarFlipAutopilot {
         return null;
     }
 
-    // ---- /trades --------------------------------------------------------------------------------------------------------
-
     private static void tickNpcSell(Minecraft client, Screen open, FlipAction.SellToNpc s, BazaarFlipConfig cfg, long now) {
         if (open instanceof AbstractContainerScreen<?> screen && !BazaarFlipFeature.TRADES_TITLE.matcher(
                 BazaarFlipMenus.titleOf(screen)).matches()) {
@@ -1737,8 +1723,6 @@ final class BazaarFlipAutopilot {
         closeMenu(client);
         done("NPC sale of " + s.name() + ": " + why);
     }
-
-    // ---- helpers --------------------------------------------------------------------------------------------------------
 
     /** Every click of this class: {@link BazaarFlipFeature#click} (gate, pacing, cap), remembering that the job has
      *  moved on, so a moment with no menu between two pages is waited out instead of answered with a new /bz. */

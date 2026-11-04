@@ -40,8 +40,6 @@ final class SpeechBubble {
     static final long POP_NANOS = 300_000_000L;
     static final long RESIZE_NANOS = 260_000_000L;
 
-    // ---- text ------------------------------------------------------------------------------------------------------
-
     /** A run of text in one style. */
     record Seg(String text, int style) {
         static final int PLAIN = 0;
@@ -227,8 +225,6 @@ final class SpeechBubble {
         return (int) Math.min(chars, sec * TYPE_CPS);
     }
 
-    // ---- geometry --------------------------------------------------------------------------------------------------
-
     /** The rectangle as drawn now (animated toward {@link #setTarget}). */
     private float x;
     private float y;
@@ -316,8 +312,6 @@ final class SpeechBubble {
     static float floatY(long now) {
         return (float) Math.sin(now / 1_000_000_000.0 * 1.6 + 1.0) * 1.1f;
     }
-
-    // ---- drawing ---------------------------------------------------------------------------------------------------
 
     private final GuiRects rects = GuiRects.reusable();
 

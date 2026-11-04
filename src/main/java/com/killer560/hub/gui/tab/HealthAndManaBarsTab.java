@@ -199,7 +199,6 @@ public class HealthAndManaBarsTab extends BaseTab {
             y[0] += ROW;
         }
 
-        // ---------------- Advanced ----------------
         boolean open = scanningForSearch || ps.isMenuAdvancedOpen();
         y[0] = CollapsibleSection.header(widgets, contentX, y[0], contentWidth, "Advanced", false, open, () -> {
             ps.setMenuAdvancedOpen(!ps.isMenuAdvancedOpen());
@@ -316,7 +315,6 @@ public class HealthAndManaBarsTab extends BaseTab {
             y[0] += ROW;
         }
 
-        // ---------------- Hide ----------------
         header(widgets, contentX, contentWidth, y, "Hide");
         if (showAll) {
             note(widgets, contentX, contentWidth, y, "While Stat Bars is on:");

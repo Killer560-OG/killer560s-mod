@@ -90,7 +90,6 @@ public class ModScreen extends Screen {
     /** The drawer's Basic / Advanced strip: the "▶ Advanced" header row it opens and closes, or null. */
     private SettingsButtonWidget advancedHeader;
 
-    // ---- grid ------------------------------------------------------------------------------------------------------
     private enum ItemKind { CARD, HEADER, BLOCK }
 
     /** One thing in the center grid, positioned in grid-content coordinates (before {@link #gridScroll}). */
@@ -133,7 +132,6 @@ public class ModScreen extends Screen {
     private static final int GAP = 6;
     private static final int GRID_PAD = 6;
 
-    // ---- sidebar ---------------------------------------------------------------------------------------------------
     private record SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h,
                              Item jump) {
         SideEntry(String label, String icon, int tab, boolean favourites, int x, int y, int w, int h) {
@@ -153,7 +151,6 @@ public class ModScreen extends Screen {
     private final List<SideEntry> side = new ArrayList<>();
     private final List<Integer> sideSeparators = new ArrayList<>();
 
-    // ---- search palette --------------------------------------------------------------------------------------------
     /** One search hit: a feature (its name matched) or a setting inside one. */
     public record Result(BaseTab tab, String label, boolean feature, String where) {
     }
@@ -360,8 +357,6 @@ public class ModScreen extends Screen {
         rebuild();
     }
 
-    // ---- navigation ------------------------------------------------------------------------------------------------
-
     private void selectCategory(int index) {
         selectedTab = index;
         favouritesSelected = false;
@@ -458,7 +453,6 @@ public class ModScreen extends Screen {
         }
     }
 
-
     private BaseTab selected() {
         return tabs.get(selectedTab);
     }
@@ -467,8 +461,6 @@ public class ModScreen extends Screen {
     private boolean pageMode() {
         return !favouritesSelected && !(selected() instanceof FolderTab);
     }
-
-    // ---- layout ----------------------------------------------------------------------------------------------------
 
     private void layout() {
         layoutPanels();
@@ -1347,8 +1339,6 @@ public class ModScreen extends Screen {
         }
     }
 
-    // ---- input -----------------------------------------------------------------------------------------------------
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         MenuAnim.input();
@@ -1983,8 +1973,6 @@ public class ModScreen extends Screen {
         return null;
     }
 
-    // ---- search ----------------------------------------------------------------------------------------------------
-
     /** The search hits for the text in the box (features first, then settings). For the testkit too. */
     public List<Result> searchResults() {
         return new ArrayList<>(results);
@@ -2070,8 +2058,6 @@ public class ModScreen extends Screen {
         }
         return true;
     }
-
-    // ---- rendering -------------------------------------------------------------------------------------------------
 
     /** Testkit: when set, the bytes the render thread allocates inside each menu frame are added up (1594). */
     public static boolean allocProbe;
@@ -3066,8 +3052,6 @@ public class ModScreen extends Screen {
         }
         return tabs == null || tabs.isEmpty() ? null : tabs.get(Math.max(0, Math.min(selectedTab, tabs.size() - 1))).name;
     }
-
-    // ---- Home page blocks ------------------------------------------------------------------------------------------
 
     /** A plain line of text across the grid (Favorites with nothing starred). */
     private final class HintBlock implements Block {

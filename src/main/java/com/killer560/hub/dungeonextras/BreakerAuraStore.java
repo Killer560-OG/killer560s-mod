@@ -118,8 +118,6 @@ public final class BreakerAuraStore {
         load();
     }
 
-    // ------------------------------------------------------------------------------------------- choosing a file
-
     /** Every config file in the folder by name ({@code *.json}, the broken backups left out), sorted, and always
      *  including the one in use even when it is not on disk yet (it is written on the first pick/save). */
     public static List<String> listConfigNames() {
@@ -431,8 +429,6 @@ public final class BreakerAuraStore {
         return stem(fileName) + BROKEN_SUFFIX;
     }
 
-    // ------------------------------------------------------------------------------------------- access
-
     /** Every pick in the active config, as {@code "x,y,z"} keys - a snapshot copy, same as {@code Ap3Store.chains()},
      *  so a caller iterating it never sees a pick added or removed out from under it. Mutate through
      *  {@link #addPick}/{@link #removePick}/{@link #clear}. */
@@ -481,8 +477,6 @@ public final class BreakerAuraStore {
         LOGGER.info("[BreakerStore] cleared: {} pick(s) removed", n);
         return n;
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     /** {@code "x,y,z"} -> the same string re-normalized (trimmed, no leading zeros/whitespace quirks), or null for
      *  anything that isn't three finite ints inside a sane world - garbage in a hand-edited or shared file must

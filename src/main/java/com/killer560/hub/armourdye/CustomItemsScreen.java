@@ -77,8 +77,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
-    // ------------------------------------------------------------------------------------------- model
-
     static ArmourDyeConfig cfg() {
         return ArmourDyeConfig.getInstance();
     }
@@ -347,9 +345,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-
-    // ------------------------------------------------------------------------------------------- layout
-
     @Override
     protected void init() {
         panelW = Math.min(MAX_W, this.width - 8);
@@ -457,8 +452,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return -1;
     }
 
-    // ------------------------------------------------------------------------------------------- drawing
-
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         ScreenChrome.backdrop(graphics, this.width, this.height);
@@ -509,8 +502,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                     Optional.empty(), mouseX, mouseY);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- input
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {

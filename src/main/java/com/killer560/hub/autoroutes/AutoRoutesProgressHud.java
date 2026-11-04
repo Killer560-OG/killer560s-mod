@@ -47,8 +47,6 @@ public final class AutoRoutesProgressHud {
                 Identifier.fromNamespaceAndPath("killer560smod", "autoroutes_progress"), (graphics, deltaTracker) -> draw(graphics));
     }
 
-    // ------------------------------------------------------------------------------------------- content
-
     /** "40%" for {@code done} of {@code total} nodes (whole percent, rounded); "0%" for a route with none done. */
     static int percent(int done, int total) {
         return total <= 0 ? 0 : Math.max(0, Math.min(100, Math.round(done * 100f / total)));
@@ -134,8 +132,6 @@ public final class AutoRoutesProgressHud {
         }
         return out;
     }
-
-    // ------------------------------------------------------------------------------------------- element
 
     static final HudElement ELEMENT = new HudElement() {
         @Override

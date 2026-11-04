@@ -168,8 +168,6 @@ public final class BazaarOrders {
         return diff > -0.05 ? Standing.MATCHED : Standing.OUTBID;
     }
 
-    // ---- persistence --------------------------------------------------------------------------------------------
-
     private static void load() {
         if (loaded) {
             return;

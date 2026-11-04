@@ -188,8 +188,6 @@ public final class LeastWarpSearch {
                 s.rootBound)));
     }
 
-    // ------------------------------------------------------------------------------------------------- one problem
-
     private static final class Problem {
         final List<String> keys;
         final double[] f;
@@ -362,8 +360,6 @@ public final class LeastWarpSearch {
     private static boolean near(double a, double b) {
         return Math.abs(a - b) <= 1e-9;
     }
-
-    // ------------------------------------------------------------------------------------------------- the solver
 
     interface Improve {
         void found(int[] order, double travel, String how);
@@ -566,8 +562,6 @@ public final class LeastWarpSearch {
                 better(cand, "iterated local search");
             }
         }
-
-        // ---------------------------------------------------------------------------------------- branch and bound
 
         private static final int ROOT_ITERS = 400;
         private static final int NODE_ITERS = 10;

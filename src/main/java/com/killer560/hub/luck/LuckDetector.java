@@ -136,8 +136,6 @@ public final class LuckDetector {
         return LuckConfig.getInstance().isEnabled() && SkyblockGate.allows();
     }
 
-    // ---- chat --------------------------------------------------------------------------------------------------------
-
     static void onChat(String raw) {
         if (raw == null || !active()) {
             return;
@@ -490,8 +488,6 @@ public final class LuckDetector {
         Integer seen = MagicFindTracker.getLastMagicFind();
         return seen == null ? 0 : Math.max(0, seen);
     }
-
-    // ---- sidebar -----------------------------------------------------------------------------------------------------
 
     private static void refreshQuest() {
         Minecraft mc = Minecraft.getInstance();

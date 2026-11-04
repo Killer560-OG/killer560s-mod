@@ -84,7 +84,6 @@ public final class MenuAnim {
     public static final int VALUE_MS = 140;
     public static final int LAYOUT_MS = 180;
 
-    // ---- clock ------------------------------------------------------------------------------------------------------
     private static final boolean INSTANT_UNLESS_DRIVEN = "instant".equalsIgnoreCase(
             System.getProperty("killer560.test.menuAnimClock"));
     private static long testClockNanos = -1L;
@@ -192,8 +191,6 @@ public final class MenuAnim {
         return e >= d ? 1f : easeOut(e / (float) d);
     }
 
-    // ---- fade multiplier ----------------------------------------------------------------------------------------------
-
     /**
      * Opacity every color drawn right now is multiplied by (the menu fading in or out, a tooltip fading in). Read by
      * {@code gui/mixin/MenuFadeMixin} for every fill and text, and by {@code GuiRects}. 1 almost always.
@@ -220,8 +217,6 @@ public final class MenuAnim {
         int a = Math.round(((argb >>> 24) & 0xFF) * f);
         return (a << 24) | (argb & 0x00FFFFFF);
     }
-
-    // ---- tween ------------------------------------------------------------------------------------------------------
 
     /** One animated value. Allocated with its owner; reading and retargeting never allocate. */
     public static final class Tween {

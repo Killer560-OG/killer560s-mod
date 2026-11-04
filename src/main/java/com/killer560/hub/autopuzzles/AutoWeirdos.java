@@ -286,8 +286,6 @@ final class AutoWeirdos {
         openChest(client, player, chest, cfg);
     }
 
-    // ------------------------------------------------------------------ talking
-
     /** Every weirdo has spoken: all three talked to by the auto, or three different lines heard (he talked to some). */
     private static boolean allSpoken() {
         return talked.size() >= 3 || WeirdosSolverFeature.getHeardCount() >= 3;
@@ -409,8 +407,6 @@ final class AutoWeirdos {
         }
         return best;
     }
-
-    // ------------------------------------------------------------------ moving into reach
 
     /**
      * None of {@code left} is in reach: onto the spot that reaches the most of them (and their chests), by one etherwarp
@@ -727,8 +723,6 @@ final class AutoWeirdos {
         }
     }
 
-    // ------------------------------------------------------------------ the chest
-
     private static void openChest(Minecraft client, LocalPlayer player, BlockPos chest, AutoPuzzlesConfig cfg) {
         long now = System.currentTimeMillis();
         if (!chest.equals(pendingPos)) {
@@ -794,8 +788,6 @@ final class AutoWeirdos {
         CAMERA.release(player);
         AutoPuzzleActivity.ended(); // the right chest is the solve: nothing follows
     }
-
-    // ------------------------------------------------------------------ bookkeeping
 
     /** One INFO line per change of what the auto waits for, never one a tick. */
     private static void waitFor(String why) {

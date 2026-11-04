@@ -140,8 +140,6 @@ public final class CustomCrosshairConfig {
         return Math.max(min, Math.min(max, v));
     }
 
-    // ---- getters / setters ---------------------------------------------------------------------------------------
-
     /** The master switch through the "Skyblock Only" gate, like every other feature. */
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();
@@ -456,8 +454,6 @@ public final class CustomCrosshairConfig {
         return spreadMoving || spreadSprinting || spreadJumping;
     }
 
-    // ---- JSON ------------------------------------------------------------------------------------------------------
-
     /** Every appearance and behavior field; {@code enabled} only when asked (a preset never switches the feature). */
     public JsonObject toJson(boolean includeEnabled) {
         JsonObject o = new JsonObject();
@@ -639,8 +635,6 @@ public final class CustomCrosshairConfig {
         return true;
     }
 
-    // ---- saved presets -------------------------------------------------------------------------------------------
-
     /** A preset name as a file name: letters, digits, space, dash, underscore; at most 32 characters. */
     public static String sanitizePresetName(String raw) {
         if (raw == null) {
@@ -709,8 +703,6 @@ public final class CustomCrosshairConfig {
             return false;
         }
     }
-
-    // ---- share code ----------------------------------------------------------------------------------------------
 
     private static final int F_DOT = 1, F_TOP = 1 << 1, F_BOTTOM = 1 << 2, F_LEFT = 1 << 3, F_RIGHT = 1 << 4,
             F_SEP_DOT = 1 << 5, F_CHROMA = 1 << 6, F_INVERT = 1 << 7, F_OUTLINE = 1 << 8, F_MOVE = 1 << 9,

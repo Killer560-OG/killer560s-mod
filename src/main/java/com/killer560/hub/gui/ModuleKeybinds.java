@@ -83,8 +83,6 @@ public final class ModuleKeybinds {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ModuleKeybinds.tick", ModuleKeybinds::tick));
     }
 
-    // ---- persistence -----------------------------------------------------------------------------------------------
-
     public static void load() {
         Map<String, Integer> m = new LinkedHashMap<>();
         if (Files.exists(CONFIG_PATH)) {
@@ -150,8 +148,6 @@ public final class ModuleKeybinds {
     public static int toggles() {
         return toggles;
     }
-
-    // ---- the menu row --------------------------------------------------------------------------------------------
 
     /** The tab whose row is waiting for a key, or null. */
     private static String capturingId;
@@ -221,8 +217,6 @@ public final class ModuleKeybinds {
             }
         }
     };
-
-    // ---- in game ---------------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         Map<String, Integer> m = binds();

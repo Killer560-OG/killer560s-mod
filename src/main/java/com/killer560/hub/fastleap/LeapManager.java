@@ -145,9 +145,7 @@ public final class LeapManager {
     private LeapManager() {
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Public API
-    // ------------------------------------------------------------------------------------------------------------
 
     /** QUOI {@code LeapManager.leap(name)} - leap to a teammate by name. */
     public static void leap(String name, boolean blockInput, boolean fastMode, boolean swapBack) {
@@ -271,9 +269,7 @@ public final class LeapManager {
         return System.currentTimeMillis() - a.startedAtMs > watchdogMs();
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Driving
-    // ------------------------------------------------------------------------------------------------------------
 
     private static void submit(Request request) {
         incoming = request;
@@ -746,9 +742,7 @@ public final class LeapManager {
         restoreMovement();
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Helpers
-    // ------------------------------------------------------------------------------------------------------------
 
     static AbstractContainerScreen<?> leapMenuScreen(Screen screen) {
         if (screen instanceof AbstractContainerScreen<?> container) {

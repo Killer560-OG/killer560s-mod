@@ -58,7 +58,6 @@ final class BloodCampAim {
     /** Below this movement (degrees) a body change is our own rounding, not his mouse. */
     private static final float MOUSE_EPSILON = 0.001f;
 
-    // ---- what is aimed at ----
     private Object key;
     private Vec3 point;
     private boolean freecam;
@@ -87,11 +86,9 @@ final class BloodCampAim {
     /** Testkit: the biggest single-frame body turn while resting on a target that moved (the "snap"). */
     float maxRestingFrameYaw;
 
-    // ---- time ----
     private long ticks;
     private double lastT;
 
-    // ---- his mouse ----
     private float lastAppliedYaw = Float.NaN;
     private float lastAppliedPitch = Float.NaN;
     private float lastViewYaw = Float.NaN;
@@ -99,12 +96,10 @@ final class BloodCampAim {
     private long yieldUntil = Long.MIN_VALUE;
     private boolean yielded;
 
-    // ---- free camera ----
     private boolean ownsHold;
     private int idleTicks;
     private boolean handingBack;
 
-    // ---- testkit ----
     int takeovers;
     long approaches;
     /** Ticks from picking a target to the first write of its approach, last approach. */
@@ -273,8 +268,6 @@ final class BloodCampAim {
         lastAppliedYaw = Float.NaN;
         lastAppliedPitch = Float.NaN;
     }
-
-    // ------------------------------------------------------------------------------------------------------------
 
     private double now(Minecraft client) {
         double partial = 0.0;

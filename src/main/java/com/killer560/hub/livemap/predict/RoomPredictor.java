@@ -129,12 +129,10 @@ public final class RoomPredictor {
     private static final Map<Long, Integer> OBS_INDEX = new HashMap<>();
     private static final int[] EVIDENCE = new int[TILES * TILES];
 
-    // ---- block ids ----
     private static final Map<String, Integer> BLOCK_IDS = new HashMap<>();
     private static final List<String> BLOCK_NAMES = new ArrayList<>();
     private static boolean[] ignored = new boolean[64];
 
-    // ---- candidates ----
     private static final class Candidate {
         final RoomLibrary.Room room;
         final int[] norm;        // palette index -> block id, -1 = never compared
@@ -207,8 +205,6 @@ public final class RoomPredictor {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RoomPredictor", RoomPredictor::tick));
     }
 
-    // ------------------------------------------------------------------------------------------------- ticking
-
     private static void tick(Minecraft client) {
         int gen = LiveMapFeature.resetGeneration();
         if (gen != generation || client.level != level) {
@@ -240,8 +236,6 @@ public final class RoomPredictor {
         noteOpenedChange();
         step(client, client.player.getEyePosition(), client.player.getViewVector(1.0f));
     }
-
-    // ------------------------------------------------------------------------------------------------- the start room
 
     /**
      * The tile (tz * TILES + tx) he stood in when the floor began, before any held map existed: the start room, or -1.
@@ -356,8 +350,6 @@ public final class RoomPredictor {
         predictionsVersion++;
         dirty = false;
     }
-
-    // ------------------------------------------------------------------------------------------------- seeing
 
     /** One sweep of rays across his view. Only the first block each ray hits is read. */
     static void sample(Minecraft client, Vec3 eye, Vec3 f) {
@@ -777,8 +769,6 @@ public final class RoomPredictor {
         return !(Math.abs(eye.x - (c.getX() + 0.5)) < 15.5 && Math.abs(eye.z - (c.getZ() + 0.5)) < 15.5);
     }
 
-    // ------------------------------------------------------------------------------------------------- candidates
-
     private static void buildCandidates(Minecraft client, int tx, int tz, int[] floor) {
         List<Candidate> list = new ArrayList<>();
         BY_TILE[tz * TILES + tx] = list;
@@ -1062,8 +1052,6 @@ public final class RoomPredictor {
         return idx < 0 ? -1 : c.norm[idx];
     }
 
-    // ------------------------------------------------------------------------------------------------- deciding
-
     private static void decide() {
         Map<Integer, Prediction> next = new HashMap<>();
         for (int t = 0; t < TILES * TILES; t++) {
@@ -1178,8 +1166,6 @@ public final class RoomPredictor {
         return out.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    // ------------------------------------------------------------------------------------------------- blocks
-
     private static int blockId(String state) {
         String id = state;
         int bracket = id.indexOf('[');
@@ -1220,8 +1206,6 @@ public final class RoomPredictor {
                 || id.endsWith("fire") || id.equals("minecraft:light") || id.equals("minecraft:structure_void")
                 || id.equals("minecraft:piston_head") || id.equals("minecraft:moving_piston");
     }
-
-    // ------------------------------------------------------------------------------------------------- reading
 
     /** Every current prediction, by the tile it was made for. */
     public static List<Prediction> predictions() {

@@ -68,8 +68,6 @@ public class DvdTab extends BaseTab {
         return buildList(contentX, contentY, contentWidth, requestRebuild);
     }
 
-    // ---------------------------------------------------------------- list page
-
     private List<AbstractWidget> buildList(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
@@ -125,8 +123,6 @@ public class DvdTab extends BaseTab {
 
         return widgets;
     }
-
-    // ---------------------------------------------------------------- wizard steps
 
     private List<AbstractWidget> buildStep(DvdEntry e, int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         return switch (step) {

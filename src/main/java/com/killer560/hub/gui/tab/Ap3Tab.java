@@ -68,8 +68,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         return true;
     }
 
-    // ---- KeyCaptureTab ----
-
     @Override
     public boolean isListeningForKey() {
         return capturing != null;
@@ -93,8 +91,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         cfg.save();
         capturing = null;
     }
-
-    // ---- layout ----
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
@@ -290,8 +286,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         y[0] += GAP;
     }
 
-    // ---------------------------------------------------------------- search
-
     /** Search has to see the settings inside a collapsed section (Colors, Keybinds) without opening it on screen
      *  (ModScreen's rule: a match never force-expands a section), so the scan builds with both laid out open.
      *  Only ever run from the search field's responder, never per frame. */
@@ -343,8 +337,6 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         }
         return false;
     }
-
-    // ---- text helpers ----
 
     private Component keyText(Action action, int key) {
         if (capturing == action) {

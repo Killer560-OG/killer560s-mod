@@ -389,8 +389,6 @@ public final class AutoBoulder {
         return engaged && stage != Stage.DONE;
     }
 
-    // ------------------------------------------------------------------ starting
-
     private static void engage(Minecraft client, int[] c, String why) {
         engaged = true;
         cr = c;
@@ -496,8 +494,6 @@ public final class AutoBoulder {
     private static boolean outsideRoom(LocalPlayer player) {
         return cr != null && rel(player).getZ() <= -1;
     }
-
-    // ------------------------------------------------------------------ the chest
 
     private static void findChest(Minecraft client, LocalPlayer player) {
         RoomEntry entry = LiveMapFeature.currentRoomEntry();
@@ -1034,8 +1030,6 @@ public final class AutoBoulder {
                 && hit.getBlockPos().equals(target);
     }
 
-    // ------------------------------------------------------------------ out
-
     private static void exit(Minecraft client, LocalPlayer player) {
         if (running) {
             runOut(client, player);
@@ -1215,8 +1209,6 @@ public final class AutoBoulder {
                     + "it instead", fmt(d));
         }
     }
-
-    // ------------------------------------------------------------------ walking
 
     /** Plans with a fresh grid (the boxes move) and starts following it. @return false if no path */
     private static boolean startWalk(Minecraft client, LocalPlayer player, BoulderPath.GoalTest goal,
@@ -1595,8 +1587,6 @@ public final class AutoBoulder {
         return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
     }
 
-    // ------------------------------------------------------------------ rotation and keys
-
     /**
      * One human step toward (yaw, pitch). Secret Aura off: his REAL rotation, camera and all - he actually looks
      * where he walks and at what he clicks (killer560: "it needs to have the player actually looking at the button").
@@ -1771,8 +1761,6 @@ public final class AutoBoulder {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------ bookkeeping
 
     private static void finish(Minecraft client, String why) {
         stopWalk(client, null);

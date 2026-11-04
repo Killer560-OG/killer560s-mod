@@ -19,8 +19,6 @@ public final class BridgeTables {
     private BridgeTables() {
     }
 
-    // ================================================================== rooms
-
     /**
      * One dungeon room. {@code name} is the exact key NoammAddons' {@code roomsByName} uses (spec 2.4
      * "Field-format notes": case- and exact-string-sensitive) - and, because {@code roomdatabase.RoomDatabase}
@@ -226,8 +224,6 @@ public final class BridgeTables {
     public static int roomCount() {
         return ROOMS.size();
     }
-
-    // ================================================================== Odin melody
 
     /**
      * Odin {@code MelodyMessage} {@code UpdateMessage.type} values (spec 3.4 table, re-verified against the

@@ -44,8 +44,6 @@ final class Ap3RouteCollide {
     /** {@code Entity.collide}: the sliver the step-up search box is grown downward by when you did not just land. */
     private static final double STEP_SEARCH_SLIVER = 9.999999747378752E-6;
 
-    // ---- boxes ---------------------------------------------------------------------------------------------------
-
     /** An axis-aligned box - a block's collision shape, or the player's own. */
     static final class Box {
         double minX, minY, minZ, maxX, maxY, maxZ;
@@ -294,8 +292,6 @@ final class Ap3RouteCollide {
         }
     }
 
-    // ---- one axis ------------------------------------------------------------------------------------------------
-
     /**
      * {@code VoxelShape.collideX} for a cuboid: how far the box may travel along X before {@code b} stops it. The
      * 1.0E-7 margins are vanilla's own - they are what stops a box that is exactly flush with a wall from being
@@ -357,8 +353,6 @@ final class Ap3RouteCollide {
         }
         return d;
     }
-
-    // ---- a whole move --------------------------------------------------------------------------------------------
 
     /**
      * {@code Entity.collideWithShapes}: Y first, then the SMALLER of X and Z, then the other. The order matters -

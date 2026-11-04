@@ -234,8 +234,6 @@ public final class AutoCroesusFeature {
         return false;
     }
 
-    // ---- start button ----------------------------------------------------------------------------
-
     /** Whether the Start button should be drawn/clickable right now: cheat jar, feature on, nothing running
      *  yet, and the focused screen really is the Croesus menu. */
     public static boolean shouldShowStartButton() {
@@ -440,8 +438,6 @@ public final class AutoCroesusFeature {
     private static Long keyInstaBuy = null;
     private static Long keyBuyOffer = null;
 
-    // ---- state machine ---------------------------------------------------------------------------
-
     /** The body turn for re-opening Croesus when the reported look misses him (util/TurnFirst); camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
 
@@ -623,8 +619,6 @@ public final class AutoCroesusFeature {
         }
     }
 
-    // ---- run view --------------------------------------------------------------------------------
-
     private static void runView(Minecraft client, AbstractContainerScreen<?> screen, String title, boolean inRunView,
                                 long now, long inState) {
         if (!inRunView) {
@@ -746,8 +740,6 @@ public final class AutoCroesusFeature {
                 ModChat.dim(" (best " + (best == null ? "n/a" : DungeonChestValuer.formatCoins(best.profit())) + ")"));
     }
 
-    // ---- chest screen ----------------------------------------------------------------------------
-
     private static void chest(Minecraft client, AbstractContainerScreen<?> screen, String title, ChestType chestTitle,
                               long now, long inState) {
         if (chestTitle == null || chestTitle != targetType) {
@@ -865,8 +857,6 @@ public final class AutoCroesusFeature {
         }
         return sb.toString();
     }
-
-    // ---- transitions -----------------------------------------------------------------------------
 
     /** Shared handling after a claim click or a "go back" click: menu -> continue, closed -> re-open NPC,
      *  run view (after a claim) -> go back to the menu; anything else stops. */
@@ -1180,8 +1170,6 @@ public final class AutoCroesusFeature {
     public static String pendingKeyRevisitForTest() {
         return revisitRunKey;
     }
-
-    // ---- lifecycle -------------------------------------------------------------------------------
 
     private static void start(long now) {
         CroesusConfig cfg = CroesusConfig.getInstance();

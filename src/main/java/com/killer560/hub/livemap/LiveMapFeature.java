@@ -71,7 +71,6 @@ public final class LiveMapFeature {
         return namesShown;
     }
 
-
     static final int GRID = 11;
     public static final int START_X = -185;
     public static final int START_Z = -185;
@@ -654,9 +653,7 @@ public final class LiveMapFeature {
         return -1;
     }
 
-    // ---------------------------------------------------------------------------------------------
     // Grouping
-    // ---------------------------------------------------------------------------------------------
 
     private static void ensureGroups() {
         if (groupsDirty) {
@@ -954,8 +951,6 @@ public final class LiveMapFeature {
         int gid = idx >= 0 && idx < GRID * GRID ? groupOfCell[idx] : -1;
         return gid >= 0 ? groups.get(gid) : null;
     }
-
-    // ---------------------------------------------------------------------------------------------
 
     /** NoammAddons {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
      *  only trusted when y matches the room's database secret total. */
@@ -1303,9 +1298,7 @@ public final class LiveMapFeature {
         return new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
-    // ---------------------------------------------------------------------------------------------
     // Interactive map / pathing accessors (package-private, main thread)
-    // ---------------------------------------------------------------------------------------------
 
     public static int resetGeneration() {
         return resetGeneration;

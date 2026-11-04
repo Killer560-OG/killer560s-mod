@@ -116,8 +116,6 @@ public final class AutoRoutesFeature {
         LOGGER.debug("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
-    // ------------------------------------------------------------------------------------------- public API
-
     public static void setEditMode(boolean on) {
         if (on && !AutoRoutesConfig.getInstance().isEnabled()) {
             chatBad("Auto Routes is off (cheat build + Skyblock only).");
@@ -927,8 +925,6 @@ public final class AutoRoutesFeature {
         return hidden;
     }
 
-    // ------------------------------------------------------------------------------------------- ticking
-
     private static void tick(Minecraft client) {
         try {
             tickInner(client);
@@ -1432,8 +1428,6 @@ public final class AutoRoutesFeature {
             disableAfterError("render error (see log)");
         }
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     /** Logs an arming decision once per change - every gate between "standing on a node" and "the route started"
      *  says which one it is, so a node that never fires names its own reason in the log. */

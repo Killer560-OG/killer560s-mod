@@ -89,9 +89,7 @@ public final class I4AutoMask {
         return MaskSwapper.isBusy();
     }
 
-    // ------------------------------------------------------------------
     // Pops
-    // ------------------------------------------------------------------
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
@@ -137,9 +135,7 @@ public final class I4AutoMask {
         return 180_000L;
     }
 
-    // ------------------------------------------------------------------
     // Order
-    // ------------------------------------------------------------------
 
     /**
      * The order this feature hands {@link MaskSwapper#pickTarget}: Phoenix, then whichever mask the Order
@@ -187,9 +183,7 @@ public final class I4AutoMask {
         };
     }
 
-    // ------------------------------------------------------------------
     // Tick - a proc's swap, once nothing blocks it. The swap itself belongs to MaskSwapper.
-    // ------------------------------------------------------------------
 
     private static void tick() {
         Minecraft client = Minecraft.getInstance();

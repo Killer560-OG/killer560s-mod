@@ -66,8 +66,6 @@ public final class InteractiveMapFeature {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- ticking
-
     private static void tick(Minecraft client) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         boolean hasWindow = client.getWindow() != null && client.player != null;
@@ -163,8 +161,6 @@ public final class InteractiveMapFeature {
         return code != com.killer560.hub.util.KeyUtil.NONE
                 && (pollMouseBinds || !com.killer560.hub.util.KeyUtil.isMouseCode(code));
     }
-
-    // ------------------------------------------------------------------------------------------- map presses
 
     /** Last map press, for the double-press test. The mod had no double-press helper to reuse, so this is the
      *  whole of it: same room twice inside the configured window. */
@@ -304,8 +300,6 @@ public final class InteractiveMapFeature {
                 ModChat.dim(" - pathing to the room"));
         activateRoom(layout, room, tile);
     }
-
-    // ------------------------------------------------------------------------------------------- goal queue
 
     /** A queued map goal. It is re-resolved against a FRESH layout when it finally runs, because it can sit for
      *  a few ticks waiting for the canceled path to stop and a room INDEX is only valid for the capture it came
@@ -470,8 +464,6 @@ public final class InteractiveMapFeature {
         return peeking;
     }
 
-    // ------------------------------------------------------------------------------------------- HUD click
-
     private static boolean tryOpenFromHud(double mouseX, double mouseY) {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         if (!cfg.isOpenFromHudClick() || !cfg.isInteractiveMapEnabled() || !cfg.isEnabled() || !DungeonState.isInDungeon()) {
@@ -492,8 +484,6 @@ public final class InteractiveMapFeature {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------------------------------- cleared by
 
     private static void trackClears(Minecraft client) {
         if (seenGeneration != LiveMapFeature.resetGeneration()) {
@@ -546,8 +536,6 @@ public final class InteractiveMapFeature {
     static List<String> clearedBy(LiveMapFeature.RoomGroup group) {
         return clearedBy.get(roomKey(group));
     }
-
-    // ------------------------------------------------------------------------------------------- players
 
     /** One marker on the map: world position, heading, and how to draw it. No skin field any more - killer560,
      *  2026-09-20: "i do not want it showing the white heads for mobs", so every marker is always the arrow. */

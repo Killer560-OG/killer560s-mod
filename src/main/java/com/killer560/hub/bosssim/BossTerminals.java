@@ -102,8 +102,6 @@ public final class BossTerminals {
         return solved;
     }
 
-    // ---- one open terminal ----------------------------------------------------------------------------------------
-
     static final class Term {
         final Type type;
         final BossStations.Station station;
@@ -181,8 +179,6 @@ public final class BossTerminals {
         };
     }
 
-    // ---- stacks -------------------------------------------------------------------------------------------------
-
     static ItemStack stack(String id, int count) {
         Item item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(id));
         return new ItemStack(item, count);
@@ -217,8 +213,6 @@ public final class BossTerminals {
         }
         return out.stream().mapToInt(Integer::intValue).toArray();
     }
-
-    // ---- opening ------------------------------------------------------------------------------------------------
 
     /** A right-click on a terminal's stand: a fresh puzzle of a random type, as every open on Hypixel is. */
     static void open(ServerPlayer player, BossStations.Station station) {
@@ -329,7 +323,6 @@ public final class BossTerminals {
         LOGGER.info("[BossSim] terminal {} {} opened: {} ({})", "S" + station.section(), station.label(), type, t.title);
     }
 
-
     private static void fill(List<ItemStack> items, int rows) {
         items.clear();
         for (int i = 0; i < rows * 9; i++) {
@@ -345,8 +338,6 @@ public final class BossTerminals {
         Collections.shuffle(l, RNG);
         return l;
     }
-
-    // ---- Melody -------------------------------------------------------------------------------------------------
 
     private static void drawMelody(Term t, List<ItemStack> items) {
         for (int i = 0; i < items.size(); i++) {
@@ -400,8 +391,6 @@ public final class BossTerminals {
             }
         }
     }
-
-    // ---- clicks -------------------------------------------------------------------------------------------------
 
     private static boolean rubixSolved(List<ItemStack> items, Term t) {
         String first = id(items.get(t.grid[0]));

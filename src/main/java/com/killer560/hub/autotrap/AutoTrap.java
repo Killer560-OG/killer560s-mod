@@ -124,8 +124,6 @@ public final class AutoTrap {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoTrap.tick", AutoTrap::tick));
     }
 
-    // ------------------------------------------------------------------------------------------- state
-
     public static boolean isEnabled() {
         ensureLoaded();
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
@@ -198,8 +196,6 @@ public final class AutoTrap {
         return isEnabled() && routeFor(room) != null;
     }
 
-    // ------------------------------------------------------------------------------------------- leaving the room
-
     /**
      * Every tick: the moment he is no longer in the trap room he was in, all trap programming ends - a trap route of
      * Auto Trap's still playing is stopped, the run's mode choice is dropped, and Auto Routes' "just finished" / "you
@@ -264,8 +260,6 @@ public final class AutoTrap {
     public static String inTrapRoom() {
         return inTrap;
     }
-
-    // ------------------------------------------------------------------------------------------- capture / clear
 
     /** Copies his Auto Routes route for {@code room} into the {@code mode} slot and saves it. @return what happened. */
     public static String capture(String room, Mode mode) {
@@ -344,8 +338,6 @@ public final class AutoTrap {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------------------------------- files
 
     private static void ensureLoaded() {
         if (!loaded) {

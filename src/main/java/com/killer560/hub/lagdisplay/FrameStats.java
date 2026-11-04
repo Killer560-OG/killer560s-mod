@@ -52,7 +52,6 @@ public final class FrameStats {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-lagdisplay");
 
-    // ---- phases ----------------------------------------------------------------------------------------------------
     public static final int TICK = 0;
     public static final int TASKS = 1;
     public static final int EXTRACT = 2;
@@ -86,7 +85,6 @@ public final class FrameStats {
     private static final java.lang.management.ThreadMXBean THREADS = threadBean();
     private static long frames;
 
-    // ---- GC --------------------------------------------------------------------------------------------------------
     private static final GarbageCollectorMXBean[] GC = pauseCollectors();
     private static final long[] GC_COUNT = new long[GC.length];
     private static final long[] GC_TIME = new long[GC.length];
@@ -107,7 +105,6 @@ public final class FrameStats {
     private static volatile int lowFps = -1;
     private static volatile int stuttersLastMinute;
 
-    // ---- stutters ---------------------------------------------------------------------------------------------------
     /** One recorded stutter, for the testkit. */
     public record Stutter(long wallMs, String clock, double frameMs, String text) {
     }
@@ -196,8 +193,6 @@ public final class FrameStats {
             chunkHooksSeen = true;
         }
     }
-
-    // ---- frame end --------------------------------------------------------------------------------------------------
 
     private static void finishFrame(long now, LagDisplayConfig cfg) {
         long raw = now - frameStartNs;
@@ -545,8 +540,6 @@ public final class FrameStats {
         }
     }
 
-    // ---- GC ---------------------------------------------------------------------------------------------------------
-
     /** Every collector whose time is pause time. ZGC and Shenandoah also register "... Cycles" beans that count
      *  concurrent work; those are left out. G1's "G1 Concurrent GC" counts its Remark and Cleanup pauses (JDK 20+). */
     private static GarbageCollectorMXBean[] pauseCollectors() {
@@ -569,8 +562,6 @@ public final class FrameStats {
             GC_TIME[i] = GC[i].getCollectionTime();
         }
     }
-
-    // ---- reads ------------------------------------------------------------------------------------------------------
 
     /** Worst frame time (minus the limiter's sleep) in the last five seconds, in tenths of a millisecond, or -1. */
     public static int worstTenthsMs() {

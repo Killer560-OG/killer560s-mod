@@ -236,7 +236,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return new int[]{x, y + (room - h) / 2, w, h};
     }
 
-
     /**
      * Class picks, bundled into Leap Order (killer560, 2026-09-21: "I would like this to be bundled into the
      * leaporder in a sense"; the separate Class Overrides tab was removed 2026-10-15 and this is now the only editor):
@@ -280,8 +279,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             ClassOverrides.set(name, next);
         }
     }
-
-    // ---- the class wizard ----------------------------------------------------------------------------------------------
 
     /** Starts the wizard over the current teammates (at most 4). Unless {@code always}, only when one of them has no
      *  known class. @return true when it started. */
@@ -427,7 +424,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-
     /** The four spots keep the leap menu's proportions but grow to fill the panel (2026-10-15; before, they stopped at the
      *  Custom Leap Menu's own scale and sat as a small block in the middle of a big screen). */
     private float boxScale() {
@@ -525,8 +521,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         chat.draw(graphics, font, mouseX, mouseY);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
-
-    // ---- the chat panel ------------------------------------------------------------------------------------------------
 
     /** The left edge of what the stage may use: 0 (the whole width), or a little right of the chat panel when it is open
      *  (killer560, 2026-10-22: the panel moved from the right side to the left). The stage runs from here to the right edge. */

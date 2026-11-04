@@ -75,8 +75,6 @@ public final class TeleportUtils {
         return new Rotation(Mth.wrapDegrees(yaw), Mth.wrapDegrees(pitch), dist);
     }
 
-    // ------------------------------------------------------------------------------------------- block flags
-
     private static int[] flags() {
         int[] f = blockFlags;
         if (f == null) {
@@ -140,8 +138,6 @@ public final class TeleportUtils {
             Blocks.SNOW, Blocks.VINE, Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM,
             Blocks.SUGAR_CANE, Blocks.KELP, Blocks.CARROTS, Blocks.POTATOES, Blocks.WHEAT,
             Blocks.BEETROOTS, Blocks.SWEET_BERRY_BUSH, Blocks.DEAD_BUSH, Blocks.CANDLE);
-
-    // ------------------------------------------------------------------------------------------- raycasts
 
     private static Level level() {
         return Minecraft.getInstance().level;
@@ -578,8 +574,6 @@ public final class TeleportUtils {
         tMax = Math.min(tMax, Math.max(t1Z, t2Z));
         return tMax >= Math.max(0.0, tMin) && tMin <= 1.0;
     }
-
-    // ------------------------------------------------------------------------------------------- CachedSphere
 
     private static final int SPHERE_RADIUS = 25;
     private static volatile long[] sphere;

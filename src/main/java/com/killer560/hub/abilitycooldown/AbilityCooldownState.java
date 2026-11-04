@@ -81,8 +81,6 @@ public final class AbilityCooldownState {
     private AbilityCooldownState() {
     }
 
-    // ------------------------------------------------------------------ lifecycle
-
     public static void reset() {
         ENDS_AT.clear();
         lastItemClickMs = 0L;
@@ -107,8 +105,6 @@ public final class AbilityCooldownState {
     static void noteItemClick() {
         lastItemClickMs = System.currentTimeMillis();
     }
-
-    // ------------------------------------------------------------------ timers
 
     /** Starts (or restarts) {@code ability} for its table cooldown, after the mage multiplier. */
     private static void activate(ItemAbility ability) {
@@ -181,8 +177,6 @@ public final class AbilityCooldownState {
         return out;
     }
 
-    // ------------------------------------------------------------------ mage cooldown reduction
-
     /**
      * killer560, 2026-09-21: "implement auto mage reduction detection and class detection" - same pattern
      * {@code RagAxeConfig#effectiveCooldownSeconds} already uses. SkyHanni's real formula (50% as the only
@@ -202,8 +196,6 @@ public final class AbilityCooldownState {
                 ? 1.0 - cfg.getMageCooldownReductionPercent() / 100.0
                 : 1.0;
     }
-
-    // ------------------------------------------------------------------ action bar
 
     /** Fed the raw (color-coded) action bar text. */
     static void onActionBar(String raw) {
@@ -231,8 +223,6 @@ public final class AbilityCooldownState {
         }
     }
 
-    // ------------------------------------------------------------------ chat
-
     /** Wither Cloak. SkyHanni instead shows a purple "veil active" phase and starts the 10 s cooldown on the
      *  de-activation lines; this starts the table's 10 s cooldown right at activation, which is the same
      *  number without the second phase. */
@@ -246,8 +236,6 @@ public final class AbilityCooldownState {
             activate(ItemAbility.WITHER_CLOAK);
         }
     }
-
-    // ------------------------------------------------------------------ sounds
 
     /**
      * Every branch below is SkyHanni's {@code onPlaySound} verbatim (sound id, pitch, volume). Reached from
@@ -416,8 +404,6 @@ public final class AbilityCooldownState {
             }
         }
     }
-
-    // ------------------------------------------------------------------ helpers
 
     private static boolean eq(float a, float b) {
         return Math.abs(a - b) < 1.0e-4f;

@@ -239,8 +239,6 @@ public final class InvSortPlanner {
         return out;
     }
 
-    // ------------------------------------------------------------------------------------------- search
-
     private void search(int i) {
         if (budgetHit) {
             return;
@@ -306,8 +304,6 @@ public final class InvSortPlanner {
         }
         return need > sources.size();
     }
-
-    // ------------------------------------------------------------------------------------------- structure
 
     /** The cycles a choice of sources makes, and their cost. */
     private static final class Structure {
@@ -431,8 +427,6 @@ public final class InvSortPlanner {
         }
         return -1;
     }
-
-    // ------------------------------------------------------------------------------------------- clicks
 
     private List<Click> emit(Structure s) {
         List<Click> out = new ArrayList<>();

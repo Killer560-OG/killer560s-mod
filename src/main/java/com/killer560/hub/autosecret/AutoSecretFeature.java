@@ -194,8 +194,6 @@ public final class AutoSecretFeature {
         AutoStatusHud.register();
     }
 
-    // ------------------------------------------------------------------------------------------- public API
-
     public static boolean isRunning() {
         return phase != Phase.IDLE;
     }
@@ -429,8 +427,6 @@ public final class AutoSecretFeature {
             ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
         }
     }
-
-    // ------------------------------------------------------------------------------------------- ticking
 
     private static void tick(Minecraft client) {
         pollToggleKey(client);
@@ -867,8 +863,6 @@ public final class AutoSecretFeature {
         return false;
     }
 
-    // ------------------------------------------------------------------------------------------- player input
-
     private static KeyMapping[] movementKeys(Minecraft client) {
         var o = client.options;
         return new KeyMapping[]{o.keyUp, o.keyDown, o.keyLeft, o.keyRight, o.keyJump};
@@ -935,8 +929,6 @@ public final class AutoSecretFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- corrections
-
     /**
      * A server correction never stops anything (killer560, 2026-10-06). Two kinds are seen: one the Interactive Map's
      * executor caught on a path of ours (it plans again from where he was put, by itself), and a position packet while
@@ -971,8 +963,6 @@ public final class AutoSecretFeature {
                 + " - carrying on"));
         ModSounds.playCorrectionAlarm();
     }
-
-    // ------------------------------------------------------------------------------------------- deciding
 
     private static void decide(Minecraft client) {
         blockedSecrets = null;
@@ -1212,8 +1202,6 @@ public final class AutoSecretFeature {
         }
         return false;
     }
-
-    // ------------------------------------------------------------------------------------------- the Quiz
 
     /**
      * killer560, 2026-10-17: "have it open quiz as its first goal if the setting is on. Then after that go do ice fill then
@@ -1895,8 +1883,6 @@ public final class AutoSecretFeature {
         return out;
     }
 
-    // ------------------------------------------------------------------------------------------- Fastest Total
-
     /**
      * The Room Plan is Fastest Total and Auto Clear can take rooms (killer560, 2026-10-19: "It doesn't need to clear a room
      * first or secret it first; it can do either, or skip secreting a room it deems slow to secret in exchange for
@@ -2409,8 +2395,6 @@ public final class AutoSecretFeature {
         return new RoomTour.Site(key, goal, -1, true, end, weight, routeWorkTicks(rr.route()));
     }
 
-    // ------------------------------------------------------------------------------------------- Dungeon Autopilot
-
     /** One decision as Dungeon Autopilot: a known insta clear first (Auto Secret's), then whatever {@link Autopilot} says. */
     private static void decidePilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist, int here) {
         // Quiz First runs the Autopilot too (killer560, 2026-10-20 F6: Dungeon Autopilot ranked the Quiz like any puzzle
@@ -2517,8 +2501,6 @@ public final class AutoSecretFeature {
                 : " - over to you");
         stop(why, false);
     }
-
-    // ------------------------------------------------------------------------------------------- dropped keys
 
     /**
      * Goes to pick up a dropped key: an Interactive Map warp onto the standable block nearest to it
@@ -2861,8 +2843,6 @@ public final class AutoSecretFeature {
         return goSecret(layout, best, dist, best.name(), "none");
     }
 
-    // ------------------------------------------------------------------------------------------- wither doors
-
     /**
      * killer560, 2026-10-06: never wait at a door while anything else is useful; but when the ONLY thing left before it
      * can go further is a closed wither door, Auto Secret opens it - goes to it with the Interactive Map's own door
@@ -3152,8 +3132,6 @@ public final class AutoSecretFeature {
         return parts.isEmpty() ? "none" : String.join(", ", parts);
     }
 
-    // ------------------------------------------------------------------------------------------- trips
-
     private static boolean pathToRoom(DungeonLayout layout, RoomStatus.Room r, Trip t) {
         AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         ClearExecutor.setExternalOwner(true);
@@ -3324,8 +3302,6 @@ public final class AutoSecretFeature {
         setPhase(Phase.SETTLE);
     }
 
-    // ------------------------------------------------------------------------------------------- routes
-
     private static void tickAwaitRoute() {
         if (routeJustCompleted()) {
             onRouteDone(Minecraft.getInstance());
@@ -3387,8 +3363,6 @@ public final class AutoSecretFeature {
         }
         setPhase(Phase.SETTLE);
     }
-
-    // ------------------------------------------------------------------------------------------- puzzles
 
     private static void beginIceFill() {
         target = "Ice Fill";
@@ -3472,8 +3446,6 @@ public final class AutoSecretFeature {
         return false;
     }
 
-    // ------------------------------------------------------------------------------------------- Auto Clear
-
     private static void handToAutoClear() {
         int id = runId;
         String room = target;
@@ -3501,8 +3473,6 @@ public final class AutoSecretFeature {
             }
         }));
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static void setPhase(Phase p) {
         if (p == Phase.SETTLE) {

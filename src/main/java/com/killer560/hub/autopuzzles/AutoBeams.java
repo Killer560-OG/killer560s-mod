@@ -360,8 +360,6 @@ public final class AutoBeams {
         return null;
     }
 
-    // ------------------------------------------------------------------ Melee mode
-
     /**
      * Ticks a melee hit waits for its answer - the hurt sound at the lantern ({@link #onSound}) or the lantern turning to
      * prismarine - before it counts as missed and is tried again from another spot. A round trip to Hypixel is 2-6 ticks;

@@ -22,7 +22,6 @@ public final class MenuStyle {
     private MenuStyle() {
     }
 
-    // ---- palette ----------------------------------------------------------------------------------------------------
     // Every color the menu draws. Derived by use() from the active MenuTheme's five base colors; the initial values
     // are Amber's (the mockup's :root and depth pass). Mutable on purpose: ModScreen calls use() before it draws.
     public static int OR = 0xFFFF8A1F;
@@ -303,8 +302,6 @@ public final class MenuStyle {
         return r;
     }
 
-    // ---- shapes ---------------------------------------------------------------------------------------------------
-
     /** A raised beveled box: vertical gradient, black outline, light top-left inner edge, dark bottom-right inner edge. */
     public static void bevel(GuiRects r, int x, int y, int w, int h, int top, int bottom) {
         if (w <= 2 || h <= 2) {
@@ -573,8 +570,6 @@ public final class MenuStyle {
         r.fill(x + 1, y + s - 3, x + 2, y + s - 2, KNOB_EDGE);
         r.fill(x + s - 2, y + s - 3, x + s - 1, y + s - 2, KNOB_EDGE);
     }
-
-    // ---- text -----------------------------------------------------------------------------------------------------
 
     /** Text with the 1px black drop shadow (text-shadow: 1px 1px 0 #000c). */
     public static void text(GuiGraphicsExtractor g, String s, int x, int y, int color) {

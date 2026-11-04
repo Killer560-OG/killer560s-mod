@@ -71,8 +71,6 @@ public final class AutoSellCommands {
                                         })))));
     }
 
-    // ---- actions -----------------------------------------------------------------------------------
-
     private static boolean ready() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             ModChat.send(FEATURE, ModChat.bad("Not available in this build."));

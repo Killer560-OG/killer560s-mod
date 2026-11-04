@@ -105,9 +105,7 @@ public final class FastLeapFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("FastLeapFeature.onEndTick", FastLeapFeature::onEndTick));
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Events
-    // ------------------------------------------------------------------------------------------------------------
 
     private static void onStartTick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -288,9 +286,7 @@ public final class FastLeapFeature {
         leap(opener);
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Left click (called from FastLeapMouseHandlerMixin for a left-button press with no screen open)
-    // ------------------------------------------------------------------------------------------------------------
 
     /** QUOI {@code on<MouseEvent.Click>}. @return true to cancel the click. */
     public static boolean onLeftClick() {
@@ -412,9 +408,7 @@ public final class FastLeapFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Targets
-    // ------------------------------------------------------------------------------------------------------------
 
     /** QUOI {@code leapToConfigured(name, clazz)} + Posmsg mode. @return whether a leap was requested. */
     static boolean leapToConfigured(LeapTarget target) {
@@ -517,9 +511,7 @@ public final class FastLeapFeature {
         return lastUsedClassTarget;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Positions (QUOI isInX helpers)
-    // ------------------------------------------------------------------------------------------------------------
 
     private static boolean isIn(AABB box) {
         LocalPlayer player = Minecraft.getInstance().player;

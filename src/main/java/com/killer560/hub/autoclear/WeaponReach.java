@@ -57,8 +57,6 @@ public final class WeaponReach {
     public record Aim(float yaw, float pitch, Vec3 expectFeet, String what) {
     }
 
-    // ------------------------------------------------------------------------------------------- Hyperion
-
     /** Whether a Wither Impact going off with his feet at {@code feet} reaches the mob's box. */
     public static boolean hyperionHits(Vec3 feet, AABB mob) {
         double r = HYPERION_RADIUS - MARGIN;
@@ -126,8 +124,6 @@ public final class WeaponReach {
         }
         return -1;
     }
-
-    // ------------------------------------------------------------------------------------------- Spirit Sceptre
 
     /**
      * Where a bat fired from {@code eye} along {@code dir} explodes: the first block (collision shape) or living mob it
@@ -408,8 +404,6 @@ public final class WeaponReach {
         }
         return best;
     }
-
-    // ------------------------------------------------------------------------------------------- standing spots
 
     /**
      * A block to etherwarp ONTO (solid, two air above - what {@code ClearExecutor.etherPath} wants) from which the

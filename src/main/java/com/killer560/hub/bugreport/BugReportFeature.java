@@ -215,8 +215,6 @@ public final class BugReportFeature {
                 .orElse("unknown");
     }
 
-    // ------------------------------------------------------------------ configs
-
     public static List<Path> listConfigFiles() {
         List<Path> files = new ArrayList<>();
         try {
@@ -302,8 +300,6 @@ public final class BugReportFeature {
         return false;
     }
 
-    // ------------------------------------------------------------------ log
-
     /** @return the redacted contents of {@code logs/latest.log} from the run directory, or {@code null}
      *  if it doesn't exist / can't be read - never throws. */
     private static String readRedactedLog() {
@@ -347,8 +343,6 @@ public final class BugReportFeature {
         }
         return redacted;
     }
-
-    // ------------------------------------------------------------------ open folder
 
     private static void tryOpenContainingFolder(Path zipPath) {
         try {

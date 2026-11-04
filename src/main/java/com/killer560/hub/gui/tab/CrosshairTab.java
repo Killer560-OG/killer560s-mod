@@ -286,8 +286,6 @@ public class CrosshairTab extends BaseTab {
         return w;
     }
 
-    // ---- row helpers -----------------------------------------------------------------------------------------------
-
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
         w.add(SectionHeaders.row(x, y[0], width, title, false));
@@ -364,8 +362,6 @@ public class CrosshairTab extends BaseTab {
                     }));
         }).bounds(x, y, width, ROW).build());
     }
-
-    // ---- live preview ----------------------------------------------------------------------------------------------
 
     /**
      * The live preview: a sample background with the crosshair drawn at its real in-game size. Click the box for the

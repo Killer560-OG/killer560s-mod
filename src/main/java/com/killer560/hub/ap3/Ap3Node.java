@@ -410,8 +410,6 @@ public final class Ap3Node {
         // pulls you in from ALIGN_REACH once it fires, so a small box does not mean it is easy to miss.
     }
 
-    // ---- snapping -------------------------------------------------------------------------------------------
-
     /** The nearest half-block line: a block center ({@code n.5}) - killer560's ".5/.5 on the block" - or, when you
      *  stand closer to it, the seam between two blocks ({@code n.0}) (2026-09-21: "if I am closer to being halfway
      *  between blocks then the node snaps there as well. So it could snap in the middle of 4 blocks, or just 2").

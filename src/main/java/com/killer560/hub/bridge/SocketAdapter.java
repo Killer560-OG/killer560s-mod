@@ -113,7 +113,6 @@ abstract class SocketAdapter {
      *  to reset its own "already sent" bookkeeping, so a reconnect re-sends the current run's facts. */
     private volatile int outboundEpoch;
 
-    // ---- worker only
     private WebSocket socket;
     private String connectedTarget;
     private boolean connecting;
@@ -128,7 +127,6 @@ abstract class SocketAdapter {
     private double tokens = BURST;
     private long lastRefillMs = System.currentTimeMillis();
 
-    // ---- client thread only
     private int seenOutboundEpoch = -1;
 
     SocketAdapter(String displayName, String modId) {
@@ -138,8 +136,6 @@ abstract class SocketAdapter {
         this.worker = Executors.newSingleThreadScheduledExecutor(daemon("killer560smod-bridge-" + modId));
         worker.scheduleWithFixedDelay(this::pumpSafely, PUMP_MS, PUMP_MS, TimeUnit.MILLISECONDS);
     }
-
-    // ================================================================== subclass contract
 
     /** Client thread: what should this adapter be doing, given the context? */
     protected abstract Desire decide(BridgeContext ctx);
@@ -198,8 +194,6 @@ abstract class SocketAdapter {
     protected String connectedDetail() {
         return "";
     }
-
-    // ================================================================== client thread API
 
     public final String displayName() {
         return displayName;
@@ -262,8 +256,6 @@ abstract class SocketAdapter {
         }
         return detail;
     }
-
-    // ================================================================== worker
 
     private void pumpSafely() {
         try {

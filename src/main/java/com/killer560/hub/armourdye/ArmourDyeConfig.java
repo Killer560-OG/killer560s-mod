@@ -136,8 +136,6 @@ public final class ArmourDyeConfig {
         return id.trim().toUpperCase(Locale.ROOT);
     }
 
-    // --- master ---
-
     /** Master toggle, gated by "Skyblock Only" like every other feature's own enabled getter. */
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();
@@ -151,8 +149,6 @@ public final class ArmourDyeConfig {
     public void setEnabled(boolean value) {
         this.enabled = value;
     }
-
-    // --- entries ---
 
     /** Live view, insertion-ordered. Mutate through the methods below so {@link ArmourDye} gets invalidated. */
     public List<ArmourDyeEntry> getEntries() {

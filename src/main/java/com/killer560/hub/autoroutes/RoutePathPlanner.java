@@ -276,8 +276,6 @@ public final class RoutePathPlanner {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- background proofs
-
     /** Pairs whose proof is still running (identity): RouteExecutor holds a pair until its proof is in. */
     private static final java.util.Set<RouteNode> PROVING =
             java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());

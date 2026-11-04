@@ -289,7 +289,6 @@ public final class CroesusProfitLog {
         return entries.size();
     }
 
-    // ---- claim history / item log ------------------------------------------------------------------
     // killer560, 2026-09-20: "make sure it separates things by floors and keeps a running log of all items.
     // I should be able to open a menu that shows how many of each item from how many floors". Everything
     // below is DERIVED from the entries already in killer560smod-croesus-log.json - no second store, no new

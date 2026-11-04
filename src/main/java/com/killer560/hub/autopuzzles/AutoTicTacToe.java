@@ -360,8 +360,6 @@ final class AutoTicTacToe {
         }
     }
 
-    // ------------------------------------------------------------------ walking into reach
-
     /**
      * Walking closer to a move that is out of reach.
      *
@@ -477,8 +475,6 @@ final class AutoTicTacToe {
     private static long sinceVisit() {
         return visitStartTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - visitStartTick;
     }
-
-    // ------------------------------------------------------------------ the board spot
 
     /** Every board square within {@link #BOARD_REACH} of {@code eye}. */
     private static boolean allSquaresInReach(Vec3 eye, int[] cr) {

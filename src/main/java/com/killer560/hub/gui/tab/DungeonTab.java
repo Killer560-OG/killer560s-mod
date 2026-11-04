@@ -42,7 +42,6 @@ public class DungeonTab extends FolderTab {
                 new TeammatesTab(),
                 new TeamMelodyTab(),
                 new InteropTab(),
-                // ---- clearing ----
                 // One home for everything secret-related (killer560, 2026-09-20); the cheat half is its own red
                 // Secrets folder in the cheat block below.
                 new SecretsTab(),
@@ -87,7 +86,6 @@ public class DungeonTab extends FolderTab {
                 new PosmsgTab(),
                 new P4PlatformHighlightTab(),
                 new WitherDragonsTab(),
-                // ---- the sim ----
                 new SimSettingsTab(),
                 new SimKeybindsTab()
         ));

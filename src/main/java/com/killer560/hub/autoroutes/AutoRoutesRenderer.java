@@ -83,7 +83,6 @@ public final class AutoRoutesRenderer {
         int activeArgb = cfg.getActiveColorArgb();
         m.updatePalette(activeNode, activeArgb);
 
-        // ---- which nodes are on screen ----
         Frustum frustum = cullFrustum(ctx);
         int n = m.count;
         int drawn = 0;
@@ -179,8 +178,6 @@ public final class AutoRoutesRenderer {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- the cached mesh
-
     /** Render thread only. */
     private static Mesh mesh;
     private static long meshBuilds;
@@ -225,7 +222,6 @@ public final class AutoRoutesRenderer {
      * {@link #visible} (rewritten each frame before that frame's draw).
      */
     private static final class Mesh {
-        // ---- key ----
         Route route;
         int count;
         RouteNode[] nodes;          // route list order
@@ -269,7 +265,6 @@ public final class AutoRoutesRenderer {
         float[] fill;               // 3 floats per vertex
         int[] fillSlot;
 
-        // ---- palette ----
         RouteNode paletteActive;
         int paletteActiveArgb;
         boolean paletteBuilt;
@@ -678,8 +673,6 @@ public final class AutoRoutesRenderer {
         }
     }
 
-    // ---- the two replays ----
-
     /**
      * Each 4-float color as the ARGB int whose {@code BufferBuilder.setColor(int)} writes the same four bytes as
      * {@code setColor(r, g, b, a)}: VertexConsumer's {@code setColor(float x4)} is {@code setColor((int) (r * 255f), ...)}
@@ -866,8 +859,6 @@ public final class AutoRoutesRenderer {
     private static int stackIndex(Route route, RouteNode me) {
         return Math.max(0, route.stackOf(me).indexOf(me));
     }
-
-    // ------------------------------------------------------------------------------------------- edit mode
 
     /** The recorded path's polyline for one path in one room; rebuilt when the path or the room changes. */
     private static RoutePath pathKey;
@@ -1094,8 +1085,6 @@ public final class AutoRoutesRenderer {
             poseStack.popPose();
         }
     }
-
-    // ------------------------------------------------------------------------------------------- growable arrays
 
     private static final class Floats {
         float[] data;

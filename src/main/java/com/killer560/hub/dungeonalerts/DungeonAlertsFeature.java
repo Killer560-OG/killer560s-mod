@@ -103,8 +103,6 @@ public final class DungeonAlertsFeature {
         SecretClicked.onWorldRender(context);
     }
 
-    // ---- shared helpers ----
-
     static boolean isEditorOpen() {
         return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
     }

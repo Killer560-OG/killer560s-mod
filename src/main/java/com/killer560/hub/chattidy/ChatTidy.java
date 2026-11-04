@@ -133,9 +133,7 @@ public final class ChatTidy {
         });
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Hider
-    // ------------------------------------------------------------------------------------------------------------
 
     /** Called from the mixin. True drops the line from the chat window (it was already observed and is still logged). */
     public static boolean shouldHide(Component message, GuiMessageSource source) {
@@ -223,9 +221,7 @@ public final class ChatTidy {
         return false;
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Stacking
-    // ------------------------------------------------------------------------------------------------------------
 
     public static boolean stackingOn() {
         return ChatTidyConfig.getInstance().isStackDuplicates();
@@ -360,9 +356,7 @@ public final class ChatTidy {
         LOGGER.error("[ChatTidy] chat add hook threw; the line was added as normal", e);
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Test hooks (testkit, by reflection)
-    // ------------------------------------------------------------------------------------------------------------
 
     /** The newest {@code max} messages in the chat window, newest first, as plain text. Render thread only. */
     public static List<String> testChatLines(int max) {

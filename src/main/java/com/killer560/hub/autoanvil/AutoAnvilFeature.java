@@ -399,8 +399,6 @@ public final class AutoAnvilFeature {
         return true;
     }
 
-    // ---- reading the menu ---------------------------------------------------------------------------------------
-
     /** Title "Anvil" and the 6-row layout with the Combine Items anvil in slot 22. */
     static boolean isAnvil(AbstractContainerScreen<?> screen) {
         String title = ChatFormatting.stripFormatting(screen.getTitle().getString());
@@ -537,8 +535,6 @@ public final class AutoAnvilFeature {
         AnvilBooks.Book b = readBook(stack);
         return b != null ? b.toString() : ChatFormatting.stripFormatting(stack.getHoverName().getString());
     }
-
-    // ---- ending -------------------------------------------------------------------------------------------------
 
     private static void finish(Minecraft client) {
         int id = containerId;

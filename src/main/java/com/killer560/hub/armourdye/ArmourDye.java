@@ -191,8 +191,6 @@ public final class ArmourDye {
         }
     }
 
-    // --- resolution ---
-
     private static Object skinnedEquippable(ArmourDyeEntry entry, Object original) {
         if (!(original instanceof Equippable equippable)) {
             return original;

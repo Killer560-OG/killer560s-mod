@@ -89,7 +89,6 @@ public final class LightsDeviceFeature {
     private static int lastGeneration = Integer.MIN_VALUE;
     private static int lastSection = 1;
 
-    // ---- Aura ----
     private static final Map<Long, Long> inRangeSince = new HashMap<>();
     private static final Map<Long, Long> requiredDwell = new HashMap<>();
     /** ActionGate tick the next aura flick is due on, fractional so a CPS between whole ticks keeps its average. */
@@ -99,7 +98,6 @@ public final class LightsDeviceFeature {
     /** The body turn for a lever the reported look does not reach (see util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
 
-    // ---- Triggerbot ----
     private static BlockPos pendingPos = null;
     private static long pendingDueTick = 0L;
     private static long triggerReadyTick = 0L;
@@ -121,9 +119,7 @@ public final class LightsDeviceFeature {
         return LIGHTS_SET.contains(pos);
     }
 
-    // ------------------------------------------------------------------------------------------------------------
     // Tick
-    // ------------------------------------------------------------------------------------------------------------
 
     private static void tick(Minecraft client) {
         // First, always: a body turned for a flick is held for it and given back the tick after.
@@ -212,8 +208,6 @@ public final class LightsDeviceFeature {
         }
         return null;
     }
-
-    // ---- Aura ----------------------------------------------------------------------------------------------------
 
     private static void auraTick(Minecraft client, LightsDeviceConfig cfg, boolean s2Open) {
         boolean wanted = s2Open ? cfg.isFinish() : cfg.isPreFlick();
@@ -326,8 +320,6 @@ public final class LightsDeviceFeature {
         return 1000.0 / cfg.getCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
-    // ---- Triggerbot ----------------------------------------------------------------------------------------------
-
     /** True when the Triggerbot flicked this tick. */
     private static boolean triggerTick(Minecraft client, LightsDeviceConfig cfg, boolean s2Open) {
         if (McCompat.screen(client) != null) {
@@ -366,8 +358,6 @@ public final class LightsDeviceFeature {
         triggerReadyTick = tick + ActionGate.delayTicks(cfg.getTriggerCooldownMs());
         return true;
     }
-
-    // ---- shared --------------------------------------------------------------------------------------------------
 
     private static void send(Minecraft client, BlockPos pos, BlockHitResult hit, String reason, boolean s2Open, boolean swing,
                              String who) {

@@ -417,8 +417,6 @@ public final class BlinkCharge {
     private BlinkCharge() {
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
-
     /** Blink's send hook, before its own hold. True when the packet is not to be sent now. Any thread. */
     static boolean onSend(Connection c, Packet<?> packet, ChannelFutureListener listener, boolean flush) {
         if (!active) {
@@ -1155,8 +1153,6 @@ public final class BlinkCharge {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
-
     /**
      * Blink's START_CLIENT_TICK. Reads the Charge key (Toggle: a press starts charging, the next fires the bank, a press with
      * nothing banked or a shot already waiting switches Charge off; Hold: charging while the key is down, letting go fires
@@ -1832,8 +1828,6 @@ public final class BlinkCharge {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
-
     /**
      * The most ticks Charge banks: Charge Ticks, 1-20 (killer560, 2026-10-25: set to 20 it must bank 20, and past 20
      * Hypixel sets the shot back). The firing tick goes out with the burst, so a full shot is 21 ticks of movement: 1050 ms,
@@ -1852,7 +1846,6 @@ public final class BlinkCharge {
     /** The most a charge banks whoever drives it (Hypixel sets a longer shot back, killer560 2026-10-25). */
     public static final int MAX_TICKS = 20;
 
-    // ---------------------------------------------------------------------------------------------------------------
     // A feature driving Charge instead of the key (AP3's Blink Charge / Blink Release nodes, killer560 2026-10-26: "if i
     // do /ap3 add blinkcharge 3 it should charge 3 packets while frozen then /blinkrelease 3 would release 3. if no number
     // have it go to the max")

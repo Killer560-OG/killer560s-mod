@@ -265,8 +265,6 @@ final class BoulderPath {
         return i < 0 ? Double.NaN : standAt(i);
     }
 
-    // ------------------------------------------------------------------ grid
-
     private int index(int x, int y, int z) {
         int i = x - minX;
         int j = y - minY;

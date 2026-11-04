@@ -64,8 +64,6 @@ public final class BossFight {
 
     public enum Start { P1, P2, S1, S2, S3, S4, CORE, P4, P5 }
 
-    // ---- geometry shared with BossArena ---------------------------------------------------------------------------
-
     /** One Storm pillar: its 7x7 square's corner, its resting bottom, its pad's corner (null: no pad) and pad block. */
     record Pillar(String name, int minX, int minZ, int restBottom, int[] pad, String padBlock) {
         boolean under(Vec3 p) {
@@ -152,8 +150,6 @@ public final class BossFight {
     private static final String[] GOLDOR_SECTION_LINES = {
             "The little ants have a brain it seems.", "I will replace that gate with a stronger one!", "YOUR END IS NEAR!!"};
     private static final String[] KING_COUNTS = {"Oh, this one hurts!", "I have more of those.", "My soul is disposable."};
-
-    // ---- state ----------------------------------------------------------------------------------------------------
 
     private static Phase phase = Phase.IDLE;
     private static MinecraftServer server;
@@ -248,13 +244,9 @@ public final class BossFight {
         return phase != Phase.IDLE && phase != Phase.DONE;
     }
 
-    // ---- scheduling -----------------------------------------------------------------------------------------------
-
     static void later(int ticks, String what, Runnable r) {
         LATER.add(new Later(clock + Math.max(1, ticks), gen, what, r));
     }
-
-    // ---- start / stop ---------------------------------------------------------------------------------------------
 
     /** Clears every entity and all state; the blocks are the arena's (rebuilt before a new fight). */
     static void stop(String why) {
@@ -441,8 +433,6 @@ public final class BossFight {
         }
     }
 
-    // ---- the tick ---------------------------------------------------------------------------------------------------
-
     static void tick(MinecraftServer s) {
         if (phase == Phase.IDLE || phase == Phase.DONE || s != server) {
             return;
@@ -486,7 +476,6 @@ public final class BossFight {
         BossLava.tick(s, level);
     }
 
-    // ================================================================================================== P1 Maxor
     //
     // Facts from ADM's measurements of Hypixel after the 2026-10-05/06 boss update (Phases.kt): Maxor and the crystals
     // appear at t 5, the crystals' stands at 28, the pylons open at 80 (the two blocks under the beam go), the beacon is in
@@ -934,7 +923,6 @@ public final class BossFight {
         }
     }
 
-    // ================================================================================================== P2 Storm
     //
     // ADM's facts (P2Storm.kt, post-update): Storm appears at (103, 188, 53) and flies his opening route at 0.4 a tick,
     // (73, 183, 83) -> (43, 183, 53) -> (73, 183, 23) -> (103, 183, 53), parks at (102.375, 183, 52.375), and leaves 99
@@ -1342,7 +1330,6 @@ public final class BossFight {
         later(GOLDOR_LEAD, "goldor", () -> startP3(1));
     }
 
-    // ================================================================================================== P3 Goldor
     //
     // ADM's facts (GoldorPhase.kt): Goldor walks a closed loop round the four sections, S1 corner (99.55, 119, 40) ->
     // (99.55, 119, 131.7) -> (8.4, 118.5, 131.7) -> (8.4, 118, 40) and back, starting at (80, 119, 40) (s 344.7, 19.5
@@ -1668,7 +1655,6 @@ public final class BossFight {
         });
     }
 
-    // ================================================================================================== P4 Necron
     //
     // ADM's facts (P4Necron.kt, the post-update script measured on 176 F7 runs): Necron's lines at 0/42/84/126, a taunt
     // at 188, "ARGH!" at 270, "Let's make some space!" at 332; the fight runs on its own clock, not on damage. He holds at
@@ -1802,8 +1788,6 @@ public final class BossFight {
         // Since Hypixel's boss update Necron's fight runs on its own clock (ADM: "does not wait for damage").
     }
 
-    // ================================================================================================== P5
-
     private static void startP5() {
         phase(Phase.P5);
         if (bar != null) {
@@ -1880,8 +1864,6 @@ public final class BossFight {
         }
         com.killer560.hub.secrets.DungeonState.simBossEnds();
     }
-
-    // ---- hits ---------------------------------------------------------------------------------------------------
 
     private static int lastHitClock = -1;
     private static Object lastHitTarget;

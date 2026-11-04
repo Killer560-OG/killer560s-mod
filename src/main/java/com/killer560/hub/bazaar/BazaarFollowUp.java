@@ -141,8 +141,6 @@ public final class BazaarFollowUp {
         return BazaarOrderParser.strip(a).trim().toLowerCase(Locale.ROOT).equals(b.trim().toLowerCase(Locale.ROOT));
     }
 
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
-
     /** "clicks|armed?|last outcome". */
     public static String stateForTest() {
         return clicks + "|" + (isArmed() ? "armed" : "idle") + "|" + outcome;

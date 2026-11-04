@@ -222,8 +222,6 @@ public final class LuckStore {
         return k.matchesAccount(accountId);
     }
 
-    // ---- the view ---------------------------------------------------------------------------------------------------
-
     /** One drop's numbers across the selected profiles. */
     public record Row(String key, String name, String activity, long attempts, double expected, double expectedBase,
                       long got, DropTable.Drop drop) {
@@ -395,8 +393,6 @@ public final class LuckStore {
         }
         return new Summary(n, exp, got, n == 0 ? 0.5 : pSum / n, above, below);
     }
-
-    // ---- disk ---------------------------------------------------------------------------------------------------------
 
     private static void saveAsync() {
         JsonObject root = toJson();

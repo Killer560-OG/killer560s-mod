@@ -212,8 +212,6 @@ public final class ClearExecutor {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- public API
-
     public static boolean isActive() {
         return active;
     }
@@ -618,8 +616,6 @@ public final class ClearExecutor {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- before the run starts
-
     /**
      * killer560 (to-do Doc, 2026-11-01): "if i click on a room while in green room in interactive map before the dungeon
      * opens it will obviously always fail. same for if i activate the auto pilot. make those plan their route then but
@@ -796,8 +792,6 @@ public final class ClearExecutor {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------------------------------- planned ahead
 
     /**
      * A path searched before it is asked for (killer560, 2026-10-15: "it needs to predict when it is going to finish auto
@@ -1114,8 +1108,6 @@ public final class ClearExecutor {
         position = null;
     }
 
-    // ------------------------------------------------------------------------------------------- held at the start
-
     /**
      * Auto Secret's last-node wait (killer560, 2026-10-15: "It needs a wait timeout at the last node of 6 ticks at max if
      * all secrets are not collected by the time it hits that node. If during those 6 ticks the room is fully cleared then
@@ -1227,8 +1219,6 @@ public final class ClearExecutor {
         replanPending = false;
         startQueue(path, complete);
     }
-
-    // ------------------------------------------------------------------------------------------- improving as he flies
 
     /** When the plan now running was asked for (the press, or the replan), for the press-to-first-warp line. */
     private static long pressNanos;
@@ -1644,8 +1634,6 @@ public final class ClearExecutor {
                 || (current != null && !current.isEmpty() && current.get(0) instanceof ClearNode.EtherNode);
     }
 
-    // ------------------------------------------------------------------------------------------- ticking
-
     private static void onTickStart(Minecraft client) {
         // Every tick, so another feature's use is dated by when it went out, not by when a packet first asks about it.
         collectForeignUses();
@@ -1820,8 +1808,6 @@ public final class ClearExecutor {
     public static long lastFastArrivalTick() {
         return lastFastArrivalTick;
     }
-
-    // ------------------------------------------------------------------------------------------- keeping it honest
 
     /**
      * Matches the server's position packets against the landings issued so far. A packet that leaves him on the
@@ -2385,8 +2371,6 @@ public final class ClearExecutor {
             client.options.keyShift.setDown(false);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- items
 
     static String skyblockId(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

@@ -136,8 +136,6 @@ public final class AutoPuzzleUtil {
     private AutoPuzzleUtil() {
     }
 
-    // ------------------------------------------------------------------ rotation / use
-
     /** {yaw, pitch} from {@code from} to {@code to} (QUOI getDirection, wrapped - only ever used as a target). */
     public static float[] direction(Vec3 from, Vec3 to) {
         double dx = to.x - from.x;
@@ -252,8 +250,6 @@ public final class AutoPuzzleUtil {
         return pos == null ? "null" : pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
     }
 
-    // ------------------------------------------------------------------ player state
-
     public static Vec3 eyePosition(LocalPlayer player, boolean forceSneak) {
         float h = player.isCrouching() || forceSneak ? EYE_SNEAKING : EYE_STANDING;
         return new Vec3(player.getX(), player.getY() + h, player.getZ());
@@ -282,8 +278,6 @@ public final class AutoPuzzleUtil {
     public static boolean isMoving(LocalPlayer player) {
         return player.getDeltaMovement().x != 0.0 || player.getDeltaMovement().z != 0.0 || player.input.hasForwardImpulse();
     }
-
-    // ------------------------------------------------------------------ items
 
     public static String skyblockId(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
@@ -887,8 +881,6 @@ public final class AutoPuzzleUtil {
         return hit.getType() == HitResult.Type.MISS
                 || (hit instanceof BlockHitResult b && b.getBlockPos().equals(target));
     }
-
-    // ------------------------------------------------------------------ block interact
 
     /** Claims this client tick's single automated interaction for the puzzle autos.
      *  <p>

@@ -255,8 +255,6 @@ public final class ProfitScope {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- what is shown
-
     /**
      * What a screen's saved filter selects once the shared settings apply: the account from Show Profit (the
      * current account, every account, or the one picked on a screen), and under Per Mod Profile the current mod
@@ -352,8 +350,6 @@ public final class ProfitScope {
         return account;
     }
 
-    // ------------------------------------------------------------------------------------------- now
-
     /** The key for something recorded right now. */
     public static Key current() {
         return new Key(currentAccount(), currentAccountId(), currentSkyblockProfile(), currentModProfile());
@@ -415,8 +411,6 @@ public final class ProfitScope {
             NAMES.put(testAccountId, name);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- migration
 
     /** Whether the current account is known, so older records can be given one. */
     public static boolean canMigrate() {
@@ -492,8 +486,6 @@ public final class ProfitScope {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     /** 32 lower-case hex digits for a UUID written with or without dashes, or null for anything else. */
     public static String normalizeUuid(String s) {

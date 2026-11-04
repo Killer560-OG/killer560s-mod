@@ -122,7 +122,6 @@ public final class InstaClearWarningFeature {
     private static String pendingFloor = null;
     private static long pendingSince = 0;
 
-    // ---- testkit ----
     private static Snapshot testSnapshot = null;
     private static int warnings = 0;
     private static String lastWarnedRoom = null;

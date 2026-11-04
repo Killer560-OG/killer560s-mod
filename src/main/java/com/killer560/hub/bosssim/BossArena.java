@@ -56,7 +56,6 @@ public final class BossArena {
         }
     }
 
-    // ---- the slicer ----------------------------------------------------------------------------------------------
     private static List<Fill> jobs = List.of();
     private static int jobIndex;
     private static long jobCursor;
@@ -149,8 +148,6 @@ public final class BossArena {
             done.run();
         }
     }
-
-    // ---- the plan ------------------------------------------------------------------------------------------------
 
     private static void box(List<Fill> out, int x1, int y1, int z1, int x2, int y2, int z2, String state) {
         out.add(new Fill(x1, y1, z1, x2, y2, z2, BossBlocks.of(state)));
@@ -359,8 +356,6 @@ public final class BossArena {
         box(out, 60, 125, 32, 67, 125, 37, "minecraft:stone_bricks");
         platform(out, 63, 125, 34, 4, 2);
     }
-
-    // ---- the capture ---------------------------------------------------------------------------------------------
 
     /** A capture as read back: the box, its palette and one palette index per cell (x fastest, then z, then y). */
     record Captured(int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {

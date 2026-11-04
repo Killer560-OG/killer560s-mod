@@ -104,8 +104,6 @@ public final class AhPriceButtons {
         ScreenEvents.AFTER_INIT.register(AhPriceButtons::onScreenInit);
     }
 
-    // ---- prices ---------------------------------------------------------------------------------------------------
-
     /** True for Hypixel's Create BIN Auction menu title (color codes stripped). */
     public static boolean isCreateBinTitle(String title) {
         return AhPriceCopier.CREATE_BIN_TITLE.equals(title);
@@ -262,8 +260,6 @@ public final class AhPriceButtons {
         return compact ? k.compact : k.label;
     }
 
-    // ---- Hypixel's own menu ---------------------------------------------------------------------------------------
-
     private static final int PANEL_BG = 0xD0141008;
     private static final int PANEL_BORDER = 0xFF663D1A;
     private static final int BUTTON_BG = 0xFF2A1A0A;
@@ -359,8 +355,6 @@ public final class AhPriceButtons {
             g.setTooltipForNextFrame(font, tip, Optional.empty(), mx, my);
         }
     }
-
-    // ---- testkit --------------------------------------------------------------------------------------------------
 
     /** Testkit: the last value copied (-1: none) and which button copied it. */
     public static long lastCopiedForTest() {

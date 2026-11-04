@@ -236,8 +236,6 @@ public final class InventorySorterExecutor {
         return planProven;
     }
 
-    // ------------------------------------------------------------------------------------------- keybinds
-
     private static void pollKeys(Minecraft client) {
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
         if (!cfg.isEnabledRaw() || client.getWindow() == null) {
@@ -300,8 +298,6 @@ public final class InventorySorterExecutor {
                 ModChat.dim(" (" + layout.size() + " slot" + (layout.size() == 1 ? "" : "s")
                         + (layout.loadout() > 0 ? ", loadout " + layout.loadout() + " first" : "") + ")"));
     }
-
-    // ------------------------------------------------------------------------------------------- tick
 
     private static void tick(Minecraft client) {
         try {

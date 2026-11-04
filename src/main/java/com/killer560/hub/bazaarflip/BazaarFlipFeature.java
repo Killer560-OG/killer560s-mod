@@ -307,8 +307,6 @@ public final class BazaarFlipFeature {
         return lastStopReason;
     }
 
-    // ---- starting -------------------------------------------------------------------------------------
-
     /**
      * Starts a session. Every refusal returns a reason instead of failing silently.
      *
@@ -418,8 +416,6 @@ public final class BazaarFlipFeature {
         return !(stopped && code == com.killer560.hub.util.Keys.ESCAPE);
     }
 
-    // ---- the tick -------------------------------------------------------------------------------------
-
     private static void tick(Minecraft client) {
         try {
             tickUnsafe(client);
@@ -520,8 +516,6 @@ public final class BazaarFlipFeature {
         }
         keyWasDown = down;
     }
-
-    // ---- states ---------------------------------------------------------------------------------------
 
     private static void beginScan(double purse, String why) {
         scanPending = true;
@@ -1380,8 +1374,6 @@ public final class BazaarFlipFeature {
         return true;
     }
 
-    // ---- purse ----------------------------------------------------------------------------------------
-
     /**
      * The purse, off the Skyblock sidebar, through the same {@code ScoreboardPattern.COINS} the Custom
      * Scoreboard's own Purse line uses - not a second parser.
@@ -1406,8 +1398,6 @@ public final class BazaarFlipFeature {
             return null;
         }
     }
-
-    // ---- bookkeeping ----------------------------------------------------------------------------------
 
     private static void setState(State next) {
         state = next;

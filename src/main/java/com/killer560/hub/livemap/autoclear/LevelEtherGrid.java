@@ -222,8 +222,6 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         return out;
     }
 
-    // ------------------------------------------------------------------------------------------- the floor graph
-
     /** The floor graph to tell about sections whose flags changed (EtherwarpPathfinder sets it). */
     static volatile WarpGraph listener;
 
@@ -405,8 +403,6 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
                 || block instanceof BannerBlock;
     }
 
-    // ------------------------------------------------------------------------------------------- invalidation
-
     /** A block changed: forget its section. Called on the client thread after vanilla has applied it. */
     public static void invalidate(BlockPos pos) {
         markDirty(sectionKey(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4));
@@ -450,8 +446,6 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- sim mirror
 
     /**
      * THE SIM ONLY: the floor as the integrated server holds it, for the chunks his client has not been sent

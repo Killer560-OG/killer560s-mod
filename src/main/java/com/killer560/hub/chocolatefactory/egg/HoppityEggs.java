@@ -263,8 +263,6 @@ public final class HoppityEggs {
         return (long) Math.floor(cps * BASE_SECONDS[r] * FIRST_DUPLICATE);
     }
 
-    // ---------------------------------------------------------------------------------------------------- HUD
-
     /** Egglocator status: cooling down, ready, or the last answer it gave. */
     static String locatorLine(long now) {
         long cooling = locatorUsedMs + LOCATOR_COOLDOWN_MS - now;

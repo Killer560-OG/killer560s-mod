@@ -60,7 +60,6 @@ public final class AutoPuzzlesFeature {
     // QUOI Quiz: getEntities<ArmorStand>(20.0) { "ⓒ" in name }.
     private static final double QUIZ_HOLOGRAM_RADIUS_SQ = 20.0 * 20.0;
 
-    // ---- Quiz state ----
     private static boolean quizActed = false;
     private static BlockPos quizPendingPos = null;
     private static long quizPendingSinceMs = 0L;
@@ -263,9 +262,7 @@ public final class AutoPuzzlesFeature {
         AutoIceFill.tick(client, roomName);
     }
 
-    // ------------------------------------------------------------------
     // Auto Quiz
-    // ------------------------------------------------------------------
 
     private static void tickQuiz(Minecraft client, boolean inQuizRoom) {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();

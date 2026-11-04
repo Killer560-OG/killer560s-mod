@@ -34,7 +34,6 @@ public final class DungeonInfoConfig {
 
     private static DungeonInfoConfig instance;
 
-    // ---- Secrets HUD ----
     private boolean secretsHudEnabled = false;
     /** The HUD line's color (killer560, 2026-10-15: "make it so you can edit the text color of your secret hud"). */
     public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;

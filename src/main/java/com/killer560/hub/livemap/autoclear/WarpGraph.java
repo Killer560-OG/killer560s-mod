@@ -56,8 +56,6 @@ import java.util.function.Supplier;
  */
 public final class WarpGraph {
 
-    // ------------------------------------------------------------------------------------------- settings
-
     /** Hop range: the ray length, as the executor casts it. */
     public final double range;
     /** Feet above the landing block: EtherwarpPathfinder.STAND_OFFSET. */
@@ -87,8 +85,6 @@ public final class WarpGraph {
         Arrays.fill(mapKeys, EMPTY);
         owner = new Expander();
     }
-
-    // ------------------------------------------------------------------------------------------- statistics
 
     /** Nodes whose edges had to be worked out during the last call. */
     public int expandedCold;
@@ -125,8 +121,6 @@ public final class WarpGraph {
     public int nodeCount() {
         return count;
     }
-
-    // ------------------------------------------------------------------------------------------- keys
 
     private static final long EMPTY = Long.MIN_VALUE;
 
@@ -166,8 +160,6 @@ public final class WarpGraph {
         return k;
     }
 
-    // ------------------------------------------------------------------------------------------- landings
-
     /**
      * Representatives per chunk column (the buckets whose first column lies in it), packed positions. Written
      * only by the owning thread; workers only read it, and every column a batch needs is filled before it goes.
@@ -197,8 +189,6 @@ public final class WarpGraph {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- expansion
 
     /**
      * One thread's ray caster: its own grid wrapper (which records the 16^3 sections the rays read), its own
@@ -518,8 +508,6 @@ public final class WarpGraph {
         r.columns = Arrays.copyOf(x.usedColumns, x.usedColumnCount);
         return r;
     }
-
-    // ------------------------------------------------------------------------------------------- changes
 
     /** {@code {sx, sy, sz}} for a section, {@code {cx, Integer.MIN_VALUE, cz}} for a whole column. */
     private final ConcurrentLinkedQueue<int[]> changes = new ConcurrentLinkedQueue<>();
@@ -1256,8 +1244,6 @@ public final class WarpGraph {
         ePitch[node] = null;
     }
 
-    // ------------------------------------------------------------------------------------------- nodes
-
     private long[] mapKeys = new long[4096];
     private int[] mapVals = new int[4096];
     private int count;
@@ -1374,8 +1360,6 @@ public final class WarpGraph {
             byRepColumn.computeIfAbsent(col, q -> new IntList()).add(node);
         }
     }
-
-    // ------------------------------------------------------------------------------------------- tile fields
 
     /** Which map tile's click region a landing is in, for the distance fields. */
     public interface Tiles {
@@ -1540,8 +1524,6 @@ public final class WarpGraph {
         }
         return f;
     }
-
-    // ------------------------------------------------------------------------------------------- the search
 
     /** What a click is looking for. */
     public static final class Goal {
@@ -2602,8 +2584,6 @@ public final class WarpGraph {
     /** For the path {@link #reconstruct} returned last: the node each hop lands on, or -1 for an exact goal block. */
     private final ArrayList<Integer> lastLands = new ArrayList<>();
 
-    // ------------------------------------------------------------------------------------------- warming
-
     private boolean[] warmQueued = new boolean[1024];
     private int[] warmQueue = new int[1024];
     private int warmHead;
@@ -2833,8 +2813,6 @@ public final class WarpGraph {
         }
         warmQueue[warmTail++] = v;
     }
-
-    // ------------------------------------------------------------------------------------------- bench access
 
     /** The owner's search over this graph's grid, for checking a path hop by hop. */
     public EtherSearch probe() {

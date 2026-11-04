@@ -79,8 +79,6 @@ public final class FastLeapSection {
         return BuildVariant.CHEAT_FEATURES_ENABLED && FastLeapConfig.getInstance().isEnabledSetting();
     }
 
-    // ---- front page ---------------------------------------------------------------------------------------------
-
     public static int buildGeneral(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         return buildGeneral(widgets, x, y, width, requestRebuild, false);
     }
@@ -586,8 +584,6 @@ public final class FastLeapSection {
         return null;
     }
 
-    // ---- layout helpers -----------------------------------------------------------------------------------------
-
     /** @return how many equal columns of at least {@code minW} fit in {@code width}, capped at {@code max}. */
     private static int fitCols(int width, int max, int minW) {
         int cols = (width + GAP) / (minW + GAP);
@@ -610,8 +606,6 @@ public final class FastLeapSection {
     private static int colWidth(int width, int cols) {
         return (width - GAP * (cols - 1)) / cols;
     }
-
-    // ------------------------------------------------------------------------------------------------------------
 
     public interface BoolGetter {
         boolean get();

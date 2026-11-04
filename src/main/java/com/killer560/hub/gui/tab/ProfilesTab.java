@@ -71,7 +71,6 @@ public class ProfilesTab extends BaseTab {
             armedDelete = null;
         }
 
-        // ---- Active profile ----------------------------------------------------------------------------------------
         // killer560 (2026-10-04): "add a button to import a new file that opens the file location then you can remove
         // the text about receiving one." The background poll in ProfileManager imports any .zip dropped there within
         // two seconds and refreshes this list.
@@ -90,7 +89,6 @@ public class ProfilesTab extends BaseTab {
                 }).bounds(x + w - 10 - importW, y + 24, importW, 18).build());
         y += HEADER_H + 10;
 
-        // ---- New profile -------------------------------------------------------------------------------------------
         String saveLabel = "Save Current As New";
         String blankLabel = "New Blank Profile";
         int saveW = font.width(saveLabel) + 18;
@@ -142,7 +140,6 @@ public class ProfilesTab extends BaseTab {
                 }).bounds(bx + saveW + 6, by, blankW, 20).build());
         y += newH + 12;
 
-        // ---- Saved profiles ----------------------------------------------------------------------------------------
         int count = profiles.size();
         widgets.add(new PaintedPanel(x, y, w, 14, Component.literal("Saved profiles"),
                 (g, px, py, pw, ph, hov) -> paintHeading(g, px, py, pw, ph, count)));
@@ -238,8 +235,6 @@ public class ProfilesTab extends BaseTab {
         }
         return widgets;
     }
-
-    // ---- painting -----------------------------------------------------------------------------------------------------
 
     /** A Home-style box: drop shadow, bevel, the title band with its heading. */
     private static void box(GuiRects r, int x, int y, int w, int h) {

@@ -80,8 +80,6 @@ public final class GyroOverlayFeature {
         lastCentre = at;
     }
 
-    // ---- testkit ----
-
     public static long framesDrawn() {
         return framesDrawn;
     }

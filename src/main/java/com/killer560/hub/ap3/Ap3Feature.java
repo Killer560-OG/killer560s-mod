@@ -151,8 +151,6 @@ public final class Ap3Feature {
         LOGGER.debug("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
-    // ------------------------------------------------------------------------------------------- gate
-
     /**
      * The BOSS-ONLY gate, for every phase - killer560 (2026-09-20): "For ap3 it should work in p1 and p2 and p3 and
      * p4 and p5. Any part of boss phase it should work in." True while {@code Floor7Tracker.inF7Boss()} - the same
@@ -229,8 +227,6 @@ public final class Ap3Feature {
     public static DungeonClass selfClass() {
         return PartyTracker.selfClass();
     }
-
-    // ------------------------------------------------------------------------------------------- public API
 
     /** The chain nodes are added to / listed from: the area you stand in + the tab's edit class filter. The
      *  live list, or an empty list when there is no such chain yet. */
@@ -686,8 +682,6 @@ public final class Ap3Feature {
         suppressAutoArm();
     }
 
-    // ------------------------------------------------------------------------------------------- node capture
-
     private static Ap3Node captureNode(Ap3Node.Type type, boolean precise) {
         Ap3Config cfg = Ap3Config.getInstance();
         if (!cfg.isEnabled()) {
@@ -784,8 +778,6 @@ public final class Ap3Feature {
         }
         return true;
     }
-
-    // ------------------------------------------------------------------------------------------- ticking
 
     private static void tick(Minecraft client) {
         // Frozen: AP3's time stands still with the character and moves on only with it - one executor tick per
@@ -968,8 +960,6 @@ public final class Ap3Feature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- stopwatch HUD
-
     /** The stopped time stays on the HUD this long, then it hides until the next start. */
     static final long STOPWATCH_HUD_TIMEOUT_MS = 10_000L;
 
@@ -1087,8 +1077,6 @@ public final class Ap3Feature {
             // never take the HUD frame down over a reminder
         }
     }
-
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static void resetForWorld(String reason) {
         Ap3Executor.disarm(reason);

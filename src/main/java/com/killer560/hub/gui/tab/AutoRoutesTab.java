@@ -94,8 +94,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         return true;
     }
 
-    // ---- KeyCaptureTab ----
-
     @Override
     public boolean isListeningForKey() {
         return capturing != null;
@@ -119,8 +117,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         cfg.save();
         capturing = null;
     }
-
-    // ---- layout ----
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
@@ -442,8 +438,6 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         }
         return false;
     }
-
-    // ---- text helpers ----
 
     private static Component modeText(AutoRoutesConfig cfg) {
         return Component.literal("Mode: " + (cfg.isLegitMode() ? "§aLegit" : "§cObvious"));

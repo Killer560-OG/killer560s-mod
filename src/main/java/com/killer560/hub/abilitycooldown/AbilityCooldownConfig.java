@@ -44,22 +44,18 @@ public final class AbilityCooldownConfig {
 
     private static AbilityCooldownConfig instance;
 
-    // --- master ---
     private boolean enabled = false;
 
-    // --- display ---
     private boolean dungeonOnly = true;
     private boolean textOnly = false;
     private boolean showWhenReady = false;
     private boolean colorByRemaining = true;
     private int maxLines = 6;
 
-    // --- detection ---
     private boolean soundDetection = true;
     private boolean actionBarDetection = true;
     private int clickWindowMs = 400;
 
-    // --- mage cooldown reduction ---
     // killer560, 2026-09-21: "implement auto mage reduction detection and class detection" - class detection
     // is free from PartyTracker.selfClass() (see AbilityCooldownState#multiplier), same as RagAxeConfig. The
     // reduction's SIZE stays a setting because Hypixel never sends the real class-level-scaled number; 25 is

@@ -54,7 +54,6 @@ import java.util.List;
  */
 public final class BlinkFeature {
 
-
     /** A hold that sends no tick-end at all (the game frozen, a world loading) is released after this long. */
     public static final long MAX_HOLD_MS = 15_000L;
     /** A hold is released at once when it grows past this many packets. */
@@ -119,7 +118,6 @@ public final class BlinkFeature {
         BlinkRender.register();
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // The send hook
 
     /**
@@ -223,7 +221,6 @@ public final class BlinkFeature {
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // The tick
 
     static void tick(Minecraft client) {
@@ -346,7 +343,6 @@ public final class BlinkFeature {
         return screen == null || screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // Starting and releasing
 
     private static void start(Connection connection, String owner) {
@@ -481,7 +477,6 @@ public final class BlinkFeature {
         release(why);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // Server packets
 
     /**
@@ -647,7 +642,6 @@ public final class BlinkFeature {
         serverPos = null;
     }
 
-    // ---------------------------------------------------------------------------------------------------------------
     // State, for the HUD, the box, other features and the testkit
 
     public static boolean isHolding() {

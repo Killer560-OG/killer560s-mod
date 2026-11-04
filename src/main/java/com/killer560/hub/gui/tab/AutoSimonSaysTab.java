@@ -65,7 +65,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         // Auto Start -> Auto Solve; each is cheat-only so each gets its own red divider (SectionHeaders,
         // cheatOnly=true), same convention MaskInvincibilityTab/ObjectHiderTab use for cheat-only content.
 
-        // --- Trigger Bot ---
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Trigger Bot", true));
         y += 16;
 

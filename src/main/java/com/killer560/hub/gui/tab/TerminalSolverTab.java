@@ -208,10 +208,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 contentX, y, 220, 20));
         y += 26;
 
-        // ------------------------------------------------------------------ overlay colors
         y = buildColorSection(widgets, contentX, y, contentWidth, requestRebuild);
 
-        // ------------------------------------------------------------------ terminal QoL
         y = buildQolSection(widgets, contentX, y, contentWidth, requestRebuild);
 
         return widgets;
@@ -274,7 +272,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 24;
         }
 
-        // ---- Terminal Protection ----
         widgets.add(onOffButton("Terminal Protection", cfg::isProtectionEnabledRaw, cfg::setProtectionEnabled,
                 cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
@@ -300,7 +297,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 20;
         }
 
-        // ---- Drop Key ----
         widgets.add(onOffButton("Terminal Drop Key", cfg::isDropKeyEnabledRaw, cfg::setDropKeyEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
@@ -313,12 +309,10 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 20;
         }
 
-        // ---- Melody Keys ----
         widgets.add(onOffButton("Melody Keys", cfg::isMelodyKeysEnabledRaw, cfg::setMelodyKeysEnabled, cfg::save,
                 null, contentX, y, contentWidth, 20));
         y += 22;
 
-        // ---- Terminal GUI Scale ----
         int scaleSpan = TerminalQolConfig.MAX_GUI_SCALE - TerminalQolConfig.MIN_GUI_SCALE;
         widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, terminalScaleText(cfg),
                 (cfg.getTerminalGuiScaleRaw() - TerminalQolConfig.MIN_GUI_SCALE) / (double) scaleSpan) {
@@ -348,7 +342,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         });
         y += 20;
 
-        // ---- Hide Completion ----
         widgets.add(onOffButton("Hide Completion Titles", cfg::isHideCompletionTitlesRaw, cfg::setHideCompletionTitles,
                 cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 22;

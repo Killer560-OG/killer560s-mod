@@ -103,8 +103,6 @@ final class ImageFetcher {
     record Body(byte[] bytes, String contentType, String finalUrl) {
     }
 
-    // ------------------------------------------------------------------------------------------------- disk cache
-
     static Path cacheDir() {
         return ModPaths.config("killer560smod-imagepreview-cache");
     }
@@ -186,8 +184,6 @@ final class ImageFetcher {
             }
         }
     }
-
-    // ---------------------------------------------------------------------------------------------------- picture
 
     /** The bytes of the picture at {@code url}, from the disk cache when there. */
     static byte[] picture(String url, boolean anyHost) throws IOException {
@@ -322,8 +318,6 @@ final class ImageFetcher {
         }
         return null;
     }
-
-    // ------------------------------------------------------------------------------------------------------- HTTP
 
     /** The address the request really goes to: imgur's and Discord's hosts go through their {@link ModNet} services, so
      *  the testkit can stand fakes in for them. Unchanged in play. */

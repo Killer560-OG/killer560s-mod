@@ -46,7 +46,6 @@ public class AutoKickTab extends BaseTab {
             return widgets;
         }
 
-        // ---------------------------------------------------------------- Action
         // killer560, 2026-10-09: Party Finder only, and the "this can remove real ...", "0 = disabled" and "ships ..."
         // notes are gone. 2026-10-14: no Action Mode (Warn Only was removed); a joiner who misses the time is kicked.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Action", false));

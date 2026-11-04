@@ -115,8 +115,6 @@ public final class BazaarReskin {
         ScreenEvents.AFTER_INIT.register(DRAW_PHASE, BazaarReskin::onInitDraw);
     }
 
-    // ---- lifecycle ------------------------------------------------------------------------------------------------
-
     static String plainTitle(Screen screen) {
         String s = ChatFormatting.stripFormatting(screen.getTitle().getString());
         return s == null ? "" : s.trim();
@@ -354,8 +352,6 @@ public final class BazaarReskin {
         return out;
     }
 
-    // ---- input ----------------------------------------------------------------------------------------------------
-
     private static boolean onPress(State st, double x, double y, int button, boolean shift) {
         poll(st);
         if (!hiding(st)) {
@@ -408,8 +404,6 @@ public final class BazaarReskin {
         }
     }
 
-    // ---- drawing --------------------------------------------------------------------------------------------------
-
     private static void draw(State st, GuiGraphicsExtractor g, int mouseX, int mouseY) {
         poll(st);
         if (st.hold && st.followUpSentMs > 0 && System.currentTimeMillis() - st.followUpSentMs > HOLD_MS) {
@@ -452,8 +446,6 @@ public final class BazaarReskin {
         float f = com.killer560.hub.hud.AutoScale.menuFactor();
         return f > 0.05f ? f : 1.0f;
     }
-
-    // ---- testkit hooks --------------------------------------------------------------------------------------------
 
     /** The open menu's kind ("PRODUCT"...), "LOADING" while the previous page is still shown, or "NONE" when Hypixel's
      *  GUI shows (or no Bazaar menu is open). */

@@ -91,8 +91,6 @@ public final class ChatTabsFeature {
         ClientSendMessageEvents.ALLOW_COMMAND.register(ChatTabsFeature::allowCommand);
     }
 
-    // ---- what is shown ----
-
     /** Which tab a message belongs to (ALL when no channel prefix matches). */
     public static Tab channelOf(String plain) {
         if (plain == null) {
@@ -168,8 +166,6 @@ public final class ChatTabsFeature {
         chat.setVisibleMessageFilter(ChatTabsFilter.unwrap(current));
         LOGGER.info("[ChatTabs] chat shows {}", want.label);
     }
-
-    // ---- the tab row ----
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
         if (!(screen instanceof ChatScreen)) {
@@ -304,8 +300,6 @@ public final class ChatTabsFeature {
         }
         return true;
     }
-
-    // ---- testkit ----
 
     public static String selectedName() {
         return selected.name();

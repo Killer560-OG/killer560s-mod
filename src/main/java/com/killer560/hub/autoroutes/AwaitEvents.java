@@ -117,8 +117,6 @@ public final class AwaitEvents {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- route lifecycle
-
     /** A route starts: the first window opens - reaching back {@link #START_LOOKBACK} ticks for his own secrets. */
     static void begin(Minecraft client) {
         active = true;
@@ -276,8 +274,6 @@ public final class AwaitEvents {
         return out;
     }
 
-    // ------------------------------------------------------------------------------------------- per tick
-
     /** Every client tick while Auto Routes is on: the mimic watch always, bats and the crypt line during a route. */
     static void tick(Minecraft client) {
         ticks++;
@@ -381,8 +377,6 @@ public final class AwaitEvents {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------- events
 
     /** We sent a right click on {@code pos} on an unknown face (not refused client-side). */
     public static void onLocalBlockClick(BlockPos pos) {
@@ -495,8 +489,6 @@ public final class AwaitEvents {
                 + " refused client-side - nothing sent" + (com.killer560.hub.util.ShadowAssassinLeap.refuses(client, pos)
                 ? " (outside the world border: " + com.killer560.hub.util.ShadowAssassinLeap.describe(client) + ")" : ""));
     }
-
-    // ------------------------------------------------------------------------------------------- the Redstone Key
 
     /**
      * Ticks after a click on the redstone node that Hypixel's answer (the key put in) still counts it, plus any server

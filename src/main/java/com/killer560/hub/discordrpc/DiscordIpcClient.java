@@ -52,8 +52,6 @@ final class DiscordIpcClient implements Closeable {
         this.transport = transport;
     }
 
-    // ------------------------------------------------------------------------------------- transports
-
     private interface Transport extends Closeable {
         void write(byte[] data) throws IOException;
 
@@ -167,8 +165,6 @@ final class DiscordIpcClient implements Closeable {
         return null;
     }
 
-    // ------------------------------------------------------------------------------------ connecting
-
     /**
      * Opens the first available Discord IPC socket (0..9) and completes the handshake.
      *
@@ -213,8 +209,6 @@ final class DiscordIpcClient implements Closeable {
         }
     }
 
-    // -------------------------------------------------------------------------------------- activity
-
     /**
      * Sends a SET_ACTIVITY frame and drains the reply.
      *
@@ -246,8 +240,6 @@ final class DiscordIpcClient implements Closeable {
             LOGGER.warn("[DiscordRPC] Discord rejected the presence: {}", reply.payload());
         }
     }
-
-    // ----------------------------------------------------------------------------------- raw framing
 
     record Frame(int op, String payload) {
     }

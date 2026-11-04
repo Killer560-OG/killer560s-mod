@@ -31,7 +31,6 @@ final class RoomClock {
     private static int kills = 0;
     private static int usesSeen = -1;
 
-    // ---- the trip under way ----
     private static long tripStart = -1;
     private static int tripUses = 0;
     private static int tripPriced = -1;

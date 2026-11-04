@@ -29,7 +29,6 @@ public final class CheatUtilsConfig {
 
     private static CheatUtilsConfig instance;
 
-
     // ---- Secret Aura (QUOI SecretAura.kt) ----
     /**
      * 4.5 blocks, measured rather than chosen.
@@ -58,7 +57,6 @@ public final class CheatUtilsConfig {
      * distance half of that measurement is used here.
      */
     public static final double MEASURED_MAX_ENTITY_REACH = 3.0;
-
 
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
@@ -295,8 +293,6 @@ public final class CheatUtilsConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
     }
 
-
-    // ---- Secret Aura ----
     public boolean isSecretAuraEnabled() { return cheat() && secretAuraEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setSecretAuraEnabled(boolean v) { secretAuraEnabled = v; }
     public boolean isAuraChests() { return auraChests; }
@@ -324,7 +320,6 @@ public final class CheatUtilsConfig {
     public String getAuraPauseHolding() { return auraPauseHolding; }
     public void setAuraPauseHolding(String v) { auraPauseHolding = v == null ? "" : v; }
 
-    // ---- Auto GFS ----
     public boolean isAutoGfsEnabled() { return cheat() && autoGfsEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setAutoGfsEnabled(boolean v) { autoGfsEnabled = v; }
     public boolean isGfsPearls() { return gfsPearls; }
@@ -344,7 +339,6 @@ public final class CheatUtilsConfig {
     public boolean isGfsDungeonKuudraOnly() { return gfsDungeonKuudraOnly; }
     public void setGfsDungeonKuudraOnly(boolean v) { gfsDungeonKuudraOnly = v; }
 
-    // ---- Auto Ult ----
     public boolean isAutoUltEnabled() { return cheat() && autoUltEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setAutoUltEnabled(boolean v) { autoUltEnabled = v; }
     public boolean isUltMaxorEnraged() { return ultMaxorEnraged; }
@@ -380,7 +374,6 @@ public final class CheatUtilsConfig {
         ultClassOverride = order[Math.floorMod(idx + dir, order.length)];
     }
 
-    // ---- Auto Chocolate Factory ----
     public boolean isChocolateEnabled() { return cheat() && chocolateEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setChocolateEnabled(boolean v) { chocolateEnabled = v; }
     public boolean isCfClickCookie() { return cfClickCookie; }

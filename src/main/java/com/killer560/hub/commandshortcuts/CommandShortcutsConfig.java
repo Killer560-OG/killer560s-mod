@@ -222,8 +222,6 @@ public final class CommandShortcutsConfig {
         return isGroupOn(CommandShortcutsFeature.Group.forShortcut(s));
     }
 
-    // ---- custom shortcuts -----------------------------------------------------------------------------------------
-
     /** His own shortcuts, in the order the tab lists them. Read-only view; change them through the setters below. */
     public List<CustomShortcut> customs() {
         return Collections.unmodifiableList(customs);

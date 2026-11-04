@@ -105,8 +105,6 @@ public final class RouteRunMemory {
         generation = LiveMapFeature.resetGeneration();
     }
 
-    // ------------------------------------------------------------------------------------------- secrets
-
     /** A secret of his, by {@link AwaitEvents}' key ("block 123", "item 45", "bat 67", "mimic 89"). Once per key. */
     static void gotSecret(String key, Vec3 pos, String what) {
         check();
@@ -306,8 +304,6 @@ public final class RouteRunMemory {
         LOGGER.info("[RouteMemory] await met for {} ({}) with {} - {} secret(s) claimed this run", nodeKey,
                 newNode ? "first time" : "again", keys, claimed.size());
     }
-
-    // ------------------------------------------------------------------------------------------- rooms
 
     /** A route ran to its end in {@code room}. */
     static void routeCompleted(String room) {

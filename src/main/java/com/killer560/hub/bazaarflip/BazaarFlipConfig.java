@@ -152,8 +152,6 @@ public final class BazaarFlipConfig {
         return Math.max(MIN_SPEED, Math.min(MAX_SPEED, v));
     }
 
-    // ---- enabled ----
-
     /** Gated on the cheat build AND "Skyblock Only", same as every other automation's master getter. */
     public boolean isEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
@@ -169,8 +167,6 @@ public final class BazaarFlipConfig {
         this.enabled = enabled;
     }
 
-    // ---- start keybind ----
-
     public int getStartKeyCode() {
         return startKeyCode;
     }
@@ -178,8 +174,6 @@ public final class BazaarFlipConfig {
     public void setStartKeyCode(int code) {
         this.startKeyCode = KeyUtil.sanitizeBind(code);
     }
-
-    // ---- ranking ----
 
     public RankingMode getRankingMode() {
         return rankingMode;
@@ -198,8 +192,6 @@ public final class BazaarFlipConfig {
         RankingMode[] all = RankingMode.values();
         rankingMode = all[Math.floorMod(rankingMode.ordinal() + dir, all.length)];
     }
-
-    // ---- floors and targets ----
 
     public long getTargetPurse() {
         return targetPurse;
@@ -252,8 +244,6 @@ public final class BazaarFlipConfig {
         return v.longValue();
     }
 
-    // ---- speed ----
-
     public int getSpeed() {
         return speed;
     }
@@ -300,8 +290,6 @@ public final class BazaarFlipConfig {
     public int getSellDelayMaxMs() {
         return 220 - 18 * (clampSpeed(sellSpeed) - 1);
     }
-
-    // ---- autopilot ----
 
     /** Whether the start key runs the autopilot rather than the Insta Buy to /trades cycle. Cheat build only, like the
      *  whole feature: {@link #isEnabled()} already folds everything away in a legit jar. */
@@ -362,8 +350,6 @@ public final class BazaarFlipConfig {
     public void setStopAtMaxOrders(boolean stop) {
         this.stopAtMaxOrders = stop;
     }
-
-    // ---- minimum profit per cycle ----
 
     public long getMinProfitPerCycle() {
         return minProfitPerCycle;

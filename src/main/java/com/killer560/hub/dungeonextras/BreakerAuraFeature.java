@@ -260,7 +260,6 @@ public final class BreakerAuraFeature {
         SENT_WATCH.clear(); // logging-only state
     }
 
-    // ---- where the ticks go ------------------------------------------------------------------------------------
     //
     // killer560 chose to keep one break a tick and get the speed back from the ticks that are being wasted
     // (2026-09-23), so the first thing needed is to know which ticks those are. The ceiling is 20 a second (the

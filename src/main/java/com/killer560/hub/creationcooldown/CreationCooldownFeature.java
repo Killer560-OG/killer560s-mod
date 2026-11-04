@@ -173,8 +173,6 @@ public final class CreationCooldownFeature {
         return entrance < 0 || here == entrance;
     }
 
-    // ---- testkit ----
-
     public static int blockedCount() {
         return blockedCount;
     }

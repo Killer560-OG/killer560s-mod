@@ -123,7 +123,6 @@ public final class RouteExecutor {
      *  for what has a real wait (the server having the sneak, a legit-mode camera turn); DO / CONFIRM as named. */
     private enum Step { PREP, AIM, DO, CONFIRM }
 
-    // ---- session ----
     private static boolean running;
     private static Route route;
     private static RouteCoords.Frame frame;
@@ -136,7 +135,6 @@ public final class RouteExecutor {
     private static String stopReason;
     private static Object lastLevel;
 
-    // ---- action ----
     private static RouteNode activeNode;
     private static Step step;
     private static int stepTicks;
@@ -529,7 +527,6 @@ public final class RouteExecutor {
     /** The look the last boom send went out along (the recorded one, or one from this eye onto {@link #boomPlanned}). */
     private static float boomAimYaw;
     private static float boomAimPitch;
-    // ---- crypt ----
     /** The held slot before a crypt node swapped to its weapon, put back when it is done. */
     private static int cryptSlotBefore = -1;
     /** A crypt node is holding the use key down ({@link #holdUse}); {@link #releaseUse} lets go, and so does {@link #stop}. */
@@ -565,7 +562,6 @@ public final class RouteExecutor {
     private static boolean cryptHandled;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
-    // ---- await ----
     private static long awaitStartMs;
     /** The last whole second of the open await that {@link #tickAwait} logged its wait for. */
     private static int awaitLogSecond;
@@ -598,7 +594,6 @@ public final class RouteExecutor {
     /** The active node has sent its action (its "acted" line is written then). */
     private static boolean nodeActed;
 
-    // ---- input ----
     private static boolean mixinApplied;
     private static boolean fallbackKeysHeld;
     private static boolean warnedFallback;
@@ -654,7 +649,6 @@ public final class RouteExecutor {
     /** A held walk that has not moved for this many ticks has hit something and lets go. */
     private static final int WALK_HOLD_STALL_TICKS = 10;
 
-    // ---- stack ----
     /**
      * Every node on one tile fires, as one unit (killer560, 2026-10-04): the nodes still to run in the stack being
      * performed, in firing order ({@link Route#stackOf}). Each waits for the one before it to finish and for
@@ -672,8 +666,6 @@ public final class RouteExecutor {
 
     private RouteExecutor() {
     }
-
-    // ------------------------------------------------------------------------------------------- public API
 
     public static boolean isRunning() {
         return running;
@@ -824,8 +816,6 @@ public final class RouteExecutor {
         }
         return nextNode < ordered.size() ? ordered.get(nextNode) : null;
     }
-
-    // ------------------------------------------------------------------------------------------- session
 
     /** Starts playback of {@code route} from {@code startNode} (a node of that route). Only the feature's arming
      *  logic calls this, after every interlock in {@link AutoRoutesFeature} has passed. */
@@ -987,8 +977,6 @@ public final class RouteExecutor {
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         stop(null); // logged above, never said (killer560, 2026-10-16: "remove the auto routes ... complete lines")
     }
-
-    // ------------------------------------------------------------------------------------------- input hooks
 
     /** The input mixin asks this before touching anything. */
     public static boolean isSessionActive() {
@@ -1490,8 +1478,6 @@ public final class RouteExecutor {
             RouteRotation.frame();
         }
     }
-
-    // ------------------------------------------------------------------------------------------- ticking
 
     /** Call at the START of every client tick while {@link #isRunning()} (before the player's tick sends this tick's
      *  input and movement packets); the feature has already applied its own interlocks (map open, Blood Rush, room
@@ -2020,8 +2006,6 @@ public final class RouteExecutor {
         client.options.keyShift.setDown(false);
         client.options.keySprint.setDown(false);
     }
-
-    // ------------------------------------------------------------------------------------------- actions
 
     /**
      * Fires {@code trigger} and every node stacked on its tile, in {@link Route#stackOf} order. The first node begins
@@ -5885,8 +5869,6 @@ public final class RouteExecutor {
         return true;
     }
 
-    // ------------------------------------------------------------------------------------------- helpers
-
     /** Legit mode: humanized camera turn toward the node's recorded look (with the next node as the feint hint).
      *  Obvious mode: no camera movement at all - the rotation goes into the packet instead. */
     private static void aimAt(RouteNode node) {
@@ -5980,8 +5962,6 @@ public final class RouteExecutor {
         nodeSwapped = true;
         com.killer560.hub.util.HotbarSelect.select(client, player, slot);
     }
-
-    // ------------------------------------------------------------------------------------------- breaker linger
 
     /**
      * killer560 (2026-10-13): "if i step on a dungeon breaker node until another node fires it should still be able to

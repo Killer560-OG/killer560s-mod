@@ -45,7 +45,6 @@ public class DungeonQueueTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        // ---------------------------------------------------------------- Auto Requeue
         DungeonQueueConfig queue = DungeonQueueConfig.getInstance();
         widgets.add(onOffButton("Auto Requeue", queue::isEnabledRaw, queue::setEnabled, queue::save,
                 requestRebuild, contentX, y, contentWidth, 20));
@@ -76,7 +75,6 @@ public class DungeonQueueTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 30;
 
-        // ---------------------------------------------------------------- Party Finder Overlay
         PartyFinderOverlayConfig pf = PartyFinderOverlayConfig.getInstance();
         widgets.add(onOffButton("Party Finder Overlay", pf::isEnabledRaw, pf::setEnabled, pf::save,
                 requestRebuild, contentX, y, contentWidth, 20));
@@ -143,7 +141,6 @@ public class DungeonQueueTab extends BaseTab {
             y = buildCustomStyleEditor(widgets, pf, requestRebuild, contentX, y, contentWidth, colW, colBX);
         }
 
-        // ---------------------------------------------------------------- Style Preview
         // Always shown, no toggle (killer560, 2026-10-14: "it should always show down there").
         y += 4;
         int previewHeight = 8 + (PartyFinderOverlay.PREVIEW_LINE_COUNT + 1) * 10;

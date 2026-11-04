@@ -143,7 +143,6 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                     cfg, colB, y, colW));
             y += 24;
 
-            // ---------------------------------------------------------------- etherwarp path preview
             widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Etherwarp Path", true));
             y += 16;
             widgets.add(LiveMapTab.toggle("Show Etherwarp Path", cfg::isShowEtherwarpPathRaw, cfg::setShowEtherwarpPath,

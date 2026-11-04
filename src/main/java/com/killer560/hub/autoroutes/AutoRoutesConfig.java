@@ -339,8 +339,6 @@ public final class AutoRoutesConfig {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- master
-
     /** The legit jar can never report true here, even from a copied cheat-build config file. */
     public boolean isEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
@@ -402,8 +400,6 @@ public final class AutoRoutesConfig {
     public boolean isRunWhileMapOpen() { return runWhileMapOpen; }
     public void setRunWhileMapOpen(boolean v) { runWhileMapOpen = v; }
 
-    // ------------------------------------------------------------------------------------------- colors
-
     public boolean isUniformColor() { return uniformColor; }
     public void setUniformColor(boolean v) { uniformColor = v; }
 
@@ -434,8 +430,6 @@ public final class AutoRoutesConfig {
         }
         return getNodeColorArgb(node == null ? null : node.type);
     }
-
-    // ------------------------------------------------------------------------------------------- rendering
 
     public KillMimic getKillMimic() { return killMimic; }
     public void setKillMimic(KillMimic v) { killMimic = v == null ? KillMimic.OFF : v; }
@@ -489,8 +483,6 @@ public final class AutoRoutesConfig {
         height = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.round(v * 10f) / 10f));
     }
 
-    // ------------------------------------------------------------------------------------------- executor
-
     public int getInteractDelayTicks() { return interactDelayTicks; }
     public void setInteractDelayTicks(int v) {
         interactDelayTicks = Math.max(MIN_INTERACT_DELAY, Math.min(MAX_INTERACT_DELAY, v));
@@ -511,8 +503,6 @@ public final class AutoRoutesConfig {
 
     public boolean isChatFeedback() { return chatFeedback; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
-
-    // ------------------------------------------------------------------------------------------- keybinds
 
     /** GLFW key code for a command's keybind ({@link KeyUtil#NONE} when unbound). Ids are matched
      *  case-insensitively so {@code "addEtherwarp"} and {@code "addetherwarp"} are the same bind. */
@@ -562,8 +552,6 @@ public final class AutoRoutesConfig {
         }
         return m;
     }
-
-    // ------------------------------------------------------------------------------------------- tab layout
 
     /** Whether the progress HUD is switched on (the setting alone; the draw also needs the master Auto Routes switch). */
     public boolean isProgressHud() { return progressHud; }

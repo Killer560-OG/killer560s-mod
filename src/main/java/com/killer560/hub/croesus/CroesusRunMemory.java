@@ -537,8 +537,6 @@ final class CroesusRunMemory {
         return new int[]{u, c, seen, pageCount, k, q};
     }
 
-    // ---- persistence ----------------------------------------------------------------------------------------------
-
     private static void ensureLoaded() {
         if (!loaded) {
             load();

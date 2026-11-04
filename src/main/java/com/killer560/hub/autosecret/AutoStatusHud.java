@@ -64,8 +64,6 @@ public final class AutoStatusHud {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoStatusHud.refresh", c -> refresh()));
     }
 
-    // ------------------------------------------------------------------------------------------- inputs
-
     private static String stopReason;
     private static long stopMs;
 
@@ -358,8 +356,6 @@ public final class AutoStatusHud {
         };
     }
 
-    // ------------------------------------------------------------------------------------------- layout
-
     /** The text as drawn: built on a change, read by every frame. */
     static final class Layout {
         final String[] left;
@@ -549,8 +545,6 @@ public final class AutoStatusHud {
         Layout l = layout;
         return l == null ? new int[]{0, 0} : new int[]{l.width, l.height};
     }
-
-    // ------------------------------------------------------------------------------------------- element
 
     private static long avoidAtMs;
     private static int[] avoided;

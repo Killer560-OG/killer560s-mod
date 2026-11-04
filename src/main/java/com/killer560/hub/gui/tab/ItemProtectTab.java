@@ -90,7 +90,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
 
-        // ---------------- Protect Item ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Protect Item", false));
         y += 16;
 
@@ -141,7 +140,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
             y += 4;
         }
 
-        // ---------------- Starred ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto-Protect Starred Items", false));
         y += 16;
 
@@ -149,8 +147,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                 cfg::save, null, contentX, y, contentWidth, 18));
         y += 22;
 
-
-        // ---------------- Hotbar drops ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Prevent Hotbar Drops", false));
         y += 16;
 
@@ -187,7 +183,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
             }
         }
 
-        // ---------------- Feedback ----------------
         widgets.add(onOffButton("Block Sound", cfg::isBlockSound, cfg::setBlockSound, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;

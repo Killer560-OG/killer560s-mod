@@ -79,7 +79,6 @@ public class EnchantColorsTab extends BaseTab {
         }
         y += 26;
 
-        // ---------------- Tier colors ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Tier Colors", false));
         y += 16;
 
@@ -157,7 +156,6 @@ public class EnchantColorsTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 26;
 
-        // ---------------- Ultimate enchants ----------------
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Ultimate Enchants", false));
         y += 16;
 

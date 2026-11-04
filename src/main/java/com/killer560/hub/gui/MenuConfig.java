@@ -326,8 +326,6 @@ public final class MenuConfig {
         version++;
     }
 
-    // ---- saved themes ----
-
     /** The saved themes, in the order they were saved (read-only; change them through this class). */
     public List<SavedTheme> getSavedThemes() {
         return java.util.Collections.unmodifiableList(savedThemes);

@@ -95,8 +95,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
         return this;
     }
 
-    // ---- state -----------------------------------------------------------------------------------------------------
-
     public T selected() {
         return options.get(selected).value();
     }
@@ -152,8 +150,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
     private void updateMessage() {
         setMessage(Component.literal(options.get(selected).buttonLabel()));
     }
-
-    // ---- layout ----------------------------------------------------------------------------------------------------
 
     private int screenW() {
         return limitW > 0 ? limitW : Minecraft.getInstance().getWindow().getGuiScaledWidth();
@@ -212,8 +208,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
         return scroll + row;
     }
 
-    // ---- the screen's forward -------------------------------------------------------------------------------------
-
     /** True while a list is open and the mouse is over it (the screen then draws its widgets as un-hovered). */
     public static boolean coversMouse(double mx, double my) {
         return open != null && open.overList(mx, my);
@@ -268,8 +262,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
         graphics.nextStratum();
         d.drawList(graphics, mouseX, mouseY);
     }
-
-    // ---- drawing ---------------------------------------------------------------------------------------------------
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -337,8 +329,6 @@ public final class DropdownWidget<T> extends AbstractWidget {
         }
         return (Math.round(((argb >>> 24) & 0xFF) * a) << 24) | (argb & 0x00FFFFFF);
     }
-
-    // ---- input -----------------------------------------------------------------------------------------------------
 
     /** A left click on the closed button opens the list (an open one is closed by {@link #clickOpen}, or here when the
      *  screen does not forward clicks). */

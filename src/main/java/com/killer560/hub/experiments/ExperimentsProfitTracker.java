@@ -195,9 +195,7 @@ public final class ExperimentsProfitTracker {
     private ExperimentsProfitTracker() {
     }
 
-    // ------------------------------------------------------------------------------------------
     // Hooks (registered from ExperimentsFeature.register())
-    // ------------------------------------------------------------------------------------------
 
     static void tick(Minecraft client) {
         if (!ExperimentsConfig.getInstance().isProfitTrackerEnabled()) {
@@ -291,9 +289,7 @@ public final class ExperimentsProfitTracker {
         return m.find() ? Integer.parseInt(m.group(1)) : -1;
     }
 
-    // ------------------------------------------------------------------------------------------
     // Session tracking
-    // ------------------------------------------------------------------------------------------
 
     private static void onPuzzleScreen(String game, String tier, ChestMenu menu) {
         if (pending == null || !pending.game.equals(game)) {
@@ -557,9 +553,7 @@ public final class ExperimentsProfitTracker {
         return pending != null ? pending.game : (claimed == null ? "Unknown" : claimed);
     }
 
-    // ------------------------------------------------------------------------------------------
     // Reward parsing / pricing
-    // ------------------------------------------------------------------------------------------
 
     private static Reward parseReward(String rawLine) {
         Matcher m = REWARD_LINE.matcher(rawLine);
@@ -752,9 +746,7 @@ public final class ExperimentsProfitTracker {
         return String.format(Locale.US, "%.0f", value);
     }
 
-    // ------------------------------------------------------------------------------------------
     // Totals accessors (for ExperimentsTab) + persistence
-    // ------------------------------------------------------------------------------------------
 
     /** The buckets a filter selects. */
     private static List<Bucket> selected(ProfitScope.Filter f) {

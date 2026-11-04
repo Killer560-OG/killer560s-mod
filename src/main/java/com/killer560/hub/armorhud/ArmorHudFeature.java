@@ -195,8 +195,6 @@ public final class ArmorHudFeature {
         return stack != null && !stack.isEmpty() && com.killer560.hub.autoroutes.ItemIdentity.skyblockId(stack) != null;
     }
 
-    // ---- cache file ---------------------------------------------------------------------------------------------------
-
     private static void loadCache() {
         loaded = true;
         if (!Files.exists(CACHE_PATH)) {
@@ -311,8 +309,6 @@ public final class ArmorHudFeature {
         }
     }
 
-    // ---- layout and drawing -------------------------------------------------------------------------------------------
-
     private static int lanes(ArmorHudConfig cfg) {
         return cfg.isShowEquipment() ? 2 : 1;
     }
@@ -367,8 +363,6 @@ public final class ArmorHudFeature {
         }
         return icons;
     }
-
-    // ---- testkit hooks ------------------------------------------------------------------------------------------------
 
     public static int framesDrawn() {
         return framesDrawn;

@@ -77,8 +77,6 @@ public final class DiscordRpcFeature {
         lastSentMs = 0L;
     }
 
-    // ---------------------------------------------------------------------------------- client thread
-
     private static void tick(Minecraft client) {
         // Once a second is plenty: the presence can only change every 15 s anyway.
         if (++tickCounter % 20 != 0) {
@@ -173,8 +171,6 @@ public final class DiscordRpcFeature {
         status = "Off";
         LOGGER.info("[DiscordRPC] Stopped ({}).", reason);
     }
-
-    // ---------------------------------------------------------------------------------- worker thread
 
     private static void run() {
         DiscordIpcClient client = null;

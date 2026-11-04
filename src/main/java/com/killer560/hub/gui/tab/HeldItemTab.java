@@ -82,7 +82,6 @@ public class HeldItemTab extends BaseTab {
             y += 22;
         }
 
-        // ---- Main hand ----
         y += 4;
         widgets.add(label(contentX, y, contentWidth, cfg.isSeparateOffHand() ? "§6Main Hand" : "§6Both Hands"));
         y += 14;
@@ -92,7 +91,6 @@ public class HeldItemTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
-        // ---- Off hand ----
         if (cfg.isSeparateOffHand()) {
             widgets.add(label(contentX, y, contentWidth, "§6Off Hand"));
             y += 14;

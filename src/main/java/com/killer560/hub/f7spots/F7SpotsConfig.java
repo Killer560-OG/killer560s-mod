@@ -72,7 +72,6 @@ public final class F7SpotsConfig {
     private int walkColor = DEFAULT_WALK_COLOR;
     private final List<WalkWaypoint> walkWaypointList = new ArrayList<>();
 
-    // ---- aim spots ----
     private boolean aimSpots = false;
     private boolean aimLabels = true;
     private boolean aimDistance = false;
@@ -274,7 +273,6 @@ public final class F7SpotsConfig {
         return true;
     }
 
-    // ---- aim spots ----
     public boolean isAimSpotsEnabled() { return aimSpots && SkyblockGate.allows(); }
     public boolean getAimSpotsRaw() { return aimSpots; }
     public void setAimSpots(boolean v) { aimSpots = v; com.killer560.hub.util.FeatureBits.changed(); }

@@ -940,8 +940,6 @@ public final class SecretAuraFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- Shadow Assassin leap
-
     /** Secrets given up this session (attempts spent, never taken) - read by Auto Routes' await as "no click is coming". */
     private static int gaveUpCount;
     private static String lastGaveUp;

@@ -148,8 +148,6 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- start -----------------------------------------------------------------------------------------------------
-
     private void buildStart(int topY) {
         LfgCategory[] cats = LfgCategory.values();
         int cols = 2;
@@ -179,8 +177,6 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         LfgFeature.setScreen(true, c);
         rebuildWidgets();
     }
-
-    // ---- browse ----------------------------------------------------------------------------------------------------
 
     private void buildFilters(int y) {
         LfgConfig cfg = LfgConfig.getInstance();
@@ -345,8 +341,6 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- create ----------------------------------------------------------------------------------------------------
-
     private void buildCreate() {
         LfgConfig cfg = LfgConfig.getInstance();
         LfgConfig.Draft d = cfg.draft(tab);
@@ -480,8 +474,6 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         cfg.save();
         return reqs;
     }
-
-    // ---- frame -----------------------------------------------------------------------------------------------------
 
     @Override
     public void tick() {

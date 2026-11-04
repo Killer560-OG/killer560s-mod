@@ -179,8 +179,6 @@ public final class CopyChatFeature {
         Minecraft.getInstance().execute(() -> Minecraft.getInstance().keyboardHandler.setClipboard(text));
     }
 
-    // ---- test hooks ---------------------------------------------------------------------------------------------
-
     public static String testLastKind() {
         return lastKind;
     }

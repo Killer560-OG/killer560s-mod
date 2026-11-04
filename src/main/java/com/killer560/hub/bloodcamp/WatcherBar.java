@@ -161,8 +161,6 @@ final class WatcherBar {
         return Float.isNaN(p) ? -1 : left(p, total());
     }
 
-    // ---- testkit ----
-
     static int calibratedForTest() {
         return calibrated;
     }

@@ -64,7 +64,6 @@ public final class AhFlipConfig {
     /** Auto Relist (cheat build) lists at the price you listed the same item at a moment ago over the lowest BIN. */
     private boolean copierOwnPrice = true;
 
-    // ---- AH Flipper ----
     private boolean flipperEnabled = false;
     private RunMode runMode = RunMode.BACKGROUND;
     private int minProfitPercent = 10;
@@ -165,8 +164,6 @@ public final class AhFlipConfig {
         return stops[Math.floorMod(at + dir, stops.length)];
     }
 
-    // ---- AH Price Buttons ----
-
     /** Gated on "Skyblock Only" like every feature's master getter. */
     public boolean isPriceButtonsEnabled() {
         return priceButtonsEnabled && com.killer560.hub.util.SkyblockGate.allows();
@@ -202,8 +199,6 @@ public final class AhFlipConfig {
     public void setCopierOwnPrice(boolean on) {
         this.copierOwnPrice = on;
     }
-
-    // ---- AH Flipper ----
 
     public boolean isFlipperEnabled() {
         return flipperEnabled && com.killer560.hub.util.SkyblockGate.allows();

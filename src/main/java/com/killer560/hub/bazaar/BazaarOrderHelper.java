@@ -54,8 +54,6 @@ public final class BazaarOrderHelper {
     private BazaarOrderHelper() {
     }
 
-    // ---- judgment -------------------------------------------------------------------------------------------------
-
     /** The live product for an order, or null when there is none or it is too old to judge by. */
     static BazaarProduct live(BazaarOrderParser.Order o) {
         if (!pricesFresh()) {
@@ -105,8 +103,6 @@ public final class BazaarOrderHelper {
     static int rowColor(BazaarOrderParser.Order o) {
         return color(o);
     }
-
-    // ---- Hypixel's chest ------------------------------------------------------------------------------------------
 
     private static boolean isOrdersMenu(AbstractContainerScreen<?> screen) {
         if (screen != cachedScreen) {

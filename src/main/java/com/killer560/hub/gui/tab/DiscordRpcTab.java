@@ -49,7 +49,6 @@ public class DiscordRpcTab extends BaseTab {
                         + "  §8|  §7Now showing: §f" + safePreview()), font));
         y += 18;
 
-        // --- what to show
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "What To Show", false));
         y += 14;
 
