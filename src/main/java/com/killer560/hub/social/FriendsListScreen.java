@@ -329,7 +329,6 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
     private int trackX() {
         return listX + listW - SCROLLBAR_W;
@@ -454,7 +453,6 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {

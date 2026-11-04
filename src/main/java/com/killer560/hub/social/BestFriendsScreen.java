@@ -173,7 +173,6 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         visible = out;
     }
 
-    // ---- interaction -----------------------------------------------------------------------------
 
     /** Typing with no box focused goes into the search box (as on the Friends List), so typing a name narrows the list. */
     @Override
@@ -224,7 +223,6 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
@@ -355,10 +353,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         if (h > 0) {
             return h + "h " + m + "m";
         }
-        if (m > 0) {
-            return m + "m";
-        }
-        return total + "s";
+        return m > 0 ? m + "m" : total + "s";
     }
 
     /** A clicked player's form, to the second: "10d 3h 10m 5s", "1h 32m 5s", "45m 0s", "38s". */
@@ -374,10 +369,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         if (h > 0) {
             return h + "h " + m + "m " + sec + "s";
         }
-        if (m > 0) {
-            return m + "m " + sec + "s";
-        }
-        return sec + "s";
+        return m > 0 ? m + "m " + sec + "s" : sec + "s";
     }
 
     private static String formatDate(long epochMs) {

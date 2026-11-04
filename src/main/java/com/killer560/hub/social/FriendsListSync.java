@@ -170,7 +170,6 @@ public final class FriendsListSync {
         }
     }
 
-    // ---- reading -------------------------------------------------------------------------------
 
     /** @return true to drop this message from chat. */
     private static boolean onGameLine(Component message) {
@@ -339,7 +338,6 @@ public final class FriendsListSync {
         LOGGER.info("[FriendsList] Synced {} real friend(s) from /fl{}", parsed.size(), truncated ? " (incomplete)" : "");
     }
 
-    // ---- writing --------------------------------------------------------------------------------
 
     /** The screen's Refresh asks for a full sync - rate-limited, and refused while one is already walking.
      *  @return true if it actually started. */
