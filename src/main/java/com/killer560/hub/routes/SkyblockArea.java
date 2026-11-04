@@ -41,13 +41,9 @@ public final class SkyblockArea {
     private static String read(Minecraft client) {
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
-                continue;
-            }
+            if (plain == null) continue;
             Matcher m = AREA_PATTERN.matcher(plain.trim());
-            if (m.matches()) {
-                return m.group(1).trim();
-            }
+            if (m.matches()) return m.group(1).trim();
         }
         return "";
     }

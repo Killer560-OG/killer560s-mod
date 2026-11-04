@@ -177,9 +177,7 @@ public final class WaypointRoutesFeature {
     private static void advance(Minecraft client, Route route) {
         List<Route.Point> pts = route.points;
         int size = pts.size();
-        if (size == 0) {
-            return;
-        }
+        if (size == 0) return;
         Vec3 pos = client.player.position();
         double r2 = route.getRadius() * route.getRadius();
         int idx = getProgress(route);
@@ -190,9 +188,7 @@ public final class WaypointRoutesFeature {
             }
             return;
         }
-        if (pos.distanceToSqr(anchor(pts.get(idx))) > r2) {
-            return;
-        }
+        if (pos.distanceToSqr(anchor(pts.get(idx))) > r2) return;
         if (size == 1) {
             if (!route.loop) {
                 setProgress(route, 1);
@@ -261,9 +257,7 @@ public final class WaypointRoutesFeature {
             }
             case WaypointRoutesConfig.KEY_NEXT, WaypointRoutesConfig.KEY_PREVIOUS -> {
                 Route route = activeRoute();
-                if (route == null || route.points.isEmpty()) {
-                    return;
-                }
+                if (route == null || route.points.isEmpty()) return;
                 int size = route.points.size();
                 int idx = getProgress(route);
                 boolean forward = which == WaypointRoutesConfig.KEY_NEXT;
@@ -325,13 +319,9 @@ public final class WaypointRoutesFeature {
     private static void onWorldRender(LevelRenderContext context) {
         WaypointRoutesConfig cfg = WaypointRoutesConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.player == null || client.level == null) {
-            return;
-        }
+        if (!cfg.isEnabled() || client.player == null || client.level == null) return;
         Route route = activeRoute();
-        if (route == null || route.points.isEmpty()) {
-            return;
-        }
+        if (route == null || route.points.isEmpty()) return;
         List<Route.Point> pts = route.points;
         int size = pts.size();
         float[] c = WorldRenderUtils.argbToFloats(route.color);
@@ -379,9 +369,7 @@ public final class WaypointRoutesFeature {
         Vec3 playerPos = client.player.position();
         for (int i = 0; i < size; i++) {
             boolean isTarget = i == target;
-            if (!cfg.isShowNumbers() && !(isTarget && cfg.isShowDistance())) {
-                continue;
-            }
+            if (!cfg.isShowNumbers() && !(isTarget && cfg.isShowDistance())) continue;
             Route.Point p = pts.get(i);
             String label = null;
             if (cfg.isShowNumbers()) {
@@ -402,18 +390,14 @@ public final class WaypointRoutesFeature {
      *  numbers show through terrain. Grows with distance so far points stay readable. */
     private static void renderText(LevelRenderContext context, double x, double y, double z,
                                    String line1, int color1, String line2, int color2, float scaleMul) {
-        if ((line1 == null && line2 == null)) {
-            return;
-        }
+        if ((line1 == null && line2 == null)) return;
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
         float s = 0.025f * scaleMul * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
 
         PoseStack poseStack = context.poseStack();
-        if (poseStack == null) {
-            return;
-        }
+        if (poseStack == null) return;
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);

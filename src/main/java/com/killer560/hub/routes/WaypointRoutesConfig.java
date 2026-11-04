@@ -69,9 +69,7 @@ public final class WaypointRoutesConfig {
         AsyncFileWriter.flush(); // a save queued just before (profile apply) must reach the disk first
         WaypointRoutesConfig cfg = new WaypointRoutesConfig();
         instance = cfg;
-        if (!Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!Files.exists(CONFIG_PATH)) return;
         JsonObject obj;
         try {
             obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();

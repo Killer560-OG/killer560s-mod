@@ -41,13 +41,9 @@ public final class RouteStore {
     }
 
     public static Route byId(String id) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         for (Route route : all()) {
-            if (route.id.equals(id)) {
-                return route;
-            }
+            if (route.id.equals(id)) return route;
         }
         return null;
     }
@@ -62,22 +58,16 @@ public final class RouteStore {
 
     public static String uniqueName(String base) {
         String clean = base == null || base.isBlank() ? "Route" : base.trim();
-        if (!nameTaken(clean)) {
-            return clean;
-        }
+        if (!nameTaken(clean)) return clean;
         for (int i = 2; ; i++) {
             String candidate = clean + " " + i;
-            if (!nameTaken(candidate)) {
-                return candidate;
-            }
+            if (!nameTaken(candidate)) return candidate;
         }
     }
 
     private static boolean nameTaken(String name) {
         for (Route route : all()) {
-            if (route.name.toLowerCase(Locale.ROOT).equals(name.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
+            if (route.name.toLowerCase(Locale.ROOT).equals(name.toLowerCase(Locale.ROOT))) return true;
         }
         return false;
     }
@@ -85,15 +75,11 @@ public final class RouteStore {
     public static void load() {
         AsyncFileWriter.flush(); // a save queued just before (profile apply) must reach the disk first
         routes = new ArrayList<>();
-        if (!Files.exists(PATH)) {
-            return;
-        }
+        if (!Files.exists(PATH)) return;
         boolean damaged = false;
         try {
             JsonObject root = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            if (!root.has("routes")) {
-                return;
-            }
+            if (!root.has("routes")) return;
             for (JsonElement el : root.getAsJsonArray("routes")) {
                 // One bad route must not drop the ones after it.
                 try {
