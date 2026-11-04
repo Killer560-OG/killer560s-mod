@@ -5,6 +5,7 @@ import com.killer560.hub.gui.OverlayPalette;
 import com.killer560.hub.gui.OverlayThemes;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudEditorScreen;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import net.minecraft.client.Minecraft;
@@ -27,7 +28,11 @@ import net.minecraft.network.chat.Component;
  * marks itself drawn ({@link HudSeen}) so the editor lists it without Show Unseen. Per frame it allocates nothing: the batch
  * is reused, count strings are cached, the text line is rebuilt only when what it says changes.
  */
-final class BlinkHud implements HudElement {
+final class BlinkHud extends BasicHud {
+    BlinkHud() {
+        super("blink", "Blink", 10, 400);
+    }
+
 
     private static final Component EXAMPLE = Component.literal("§cCharge §f12§7/20  §cHold §f5§7/20");
 
@@ -67,26 +72,6 @@ final class BlinkHud implements HudElement {
     static volatile float holdFill;
     static volatile String chargeState = "none";
     static volatile long barFrames;
-
-    @Override
-    public String id() {
-        return "blink";
-    }
-
-    @Override
-    public String displayName() {
-        return "Blink";
-    }
-
-    @Override
-    public int defaultX() {
-        return 10;
-    }
-
-    @Override
-    public int defaultY() {
-        return 400;
-    }
 
     private static boolean editor() {
         return McCompat.screen(Minecraft.getInstance()) instanceof HudEditorScreen;
