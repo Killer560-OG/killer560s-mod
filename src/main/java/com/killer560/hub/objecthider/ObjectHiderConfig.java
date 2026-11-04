@@ -37,7 +37,6 @@ public final class ObjectHiderConfig {
 
     private static ObjectHiderConfig instance;
 
-    // --- Dungeon clutter -------------------------------------------------------------------------
     /** Object Hider as a whole (killer560, 2026-10-13): off, nothing in the pack hides anything (No Fire Overlay too),
      *  whatever the switches below say. On by default, so nothing changes until he flips it. */
     private boolean objectHiderEnabled = true;
@@ -57,12 +56,10 @@ public final class ObjectHiderConfig {
     private boolean hideDyingDragons = false;
     private boolean hideWitherKing = false;
 
-    // --- End of run ------------------------------------------------------------------------------
     private boolean hideBossDamageSplash = false;
     private boolean cleanEnd = false;
     private boolean cleanEndKeepGuardians = false;
 
-    // --- General vanilla tweaks ------------------------------------------------------------------
     private boolean hideGroundedArrows = false;
     private boolean disableBlindness = false;
     private boolean hideDeathAnimations = false;
@@ -74,7 +71,6 @@ public final class ObjectHiderConfig {
     private boolean hideWitherImpactExplosions = false;
     private boolean hideSmokeParticles = false;
 
-    // --- QUOI Render Optimizer ---------------------------------------------------------------------
     private boolean disableTextShadow = false;
     private boolean containerTextShadow = false;
     private boolean disableFog = false;
@@ -83,7 +79,6 @@ public final class ObjectHiderConfig {
     private boolean hideLightning = false;
     private boolean hideRecipeBookButton = false;
 
-    // --- QUOI Name Tags -----------------------------------------------------------------------------
     private boolean cancelVanillaNametags = false;
 
     // --- QUOI Player Display -> Hide (also surfaced as "Stat Bars", see item 3) ---------------------
@@ -94,10 +89,8 @@ public final class ObjectHiderConfig {
     private boolean hideArmorBar = false;
     private boolean hideHungerBar = false;
 
-    // --- QUOI Tweaks --------------------------------------------------------------------------------
     private boolean disableItemCooldowns = false;
 
-    // --- QUOI Item Animations ------------------------------------------------------------------------
     private boolean noEatAnimation = false;
     private boolean noShortbowSwing = false;
 
@@ -525,7 +518,6 @@ public final class ObjectHiderConfig {
         hideSmokeParticles = v;
     }
 
-    // --- QUOI Render Optimizer ---------------------------------------------------------------------
 
     public boolean isDisableTextShadow() {
         return objectHiderEnabled && disableTextShadow && SkyblockGate.allows();
@@ -611,7 +603,6 @@ public final class ObjectHiderConfig {
         hideRecipeBookButton = v;
     }
 
-    // --- QUOI Name Tags -----------------------------------------------------------------------------
 
     public boolean isCancelVanillaNametags() {
         return objectHiderEnabled && cancelVanillaNametags && SkyblockGate.allows();
@@ -625,7 +616,6 @@ public final class ObjectHiderConfig {
         cancelVanillaNametags = v;
     }
 
-    // --- QUOI Player Display -> Hide -----------------------------------------------------------------
 
     public boolean isHideHealthBar() {
         return objectHiderEnabled && hideHealthBar && SkyblockGate.allows();
@@ -699,7 +689,6 @@ public final class ObjectHiderConfig {
         hideHungerBar = v;
     }
 
-    // --- QUOI Tweaks --------------------------------------------------------------------------------
 
     public boolean isDisableItemCooldowns() {
         return objectHiderEnabled && disableItemCooldowns && SkyblockGate.allows();
@@ -713,7 +702,6 @@ public final class ObjectHiderConfig {
         disableItemCooldowns = v;
     }
 
-    // --- QUOI Item Animations ------------------------------------------------------------------------
 
     public boolean isNoEatAnimation() {
         return objectHiderEnabled && noEatAnimation && SkyblockGate.allows();

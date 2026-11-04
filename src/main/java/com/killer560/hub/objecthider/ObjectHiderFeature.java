@@ -220,9 +220,7 @@ public final class ObjectHiderFeature {
         ScreenEvents.AFTER_INIT.register(ObjectHiderFeature::onScreenInit);
     }
 
-    // -------------------------------------------------------------------------------------------
     // QUOI Chat Replacements (2026-09-20) - see the pattern block's own comment for scope
-    // -------------------------------------------------------------------------------------------
 
     /** @return false to drop a real chat-channel line (ALLOW_CHAT - party/guild/private/coop/global chat). */
     private static boolean allowsChatLine(Component message) {
@@ -293,9 +291,7 @@ public final class ObjectHiderFeature {
         return any;
     }
 
-    // -------------------------------------------------------------------------------------------
     // QUOI Render Optimizer "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
-    // -------------------------------------------------------------------------------------------
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
         if (!ObjectHiderConfig.getInstance().isHideRecipeBookButton()) {
@@ -310,9 +306,7 @@ public final class ObjectHiderFeature {
         }
     }
 
-    // -------------------------------------------------------------------------------------------
     // State
-    // -------------------------------------------------------------------------------------------
 
     private static void onChatMessage(net.minecraft.network.chat.Component message) {
         String text = ChatObserver.strip(message);
@@ -360,9 +354,7 @@ public final class ObjectHiderFeature {
         orbPositions = found.toArray(new double[0][]);
     }
 
-    // -------------------------------------------------------------------------------------------
     // Entity render gate - called once per entity per frame from ObjectHiderRenderMixin
-    // -------------------------------------------------------------------------------------------
 
     /** @return true to stop this entity rendering this frame. Never mutates or removes the entity. */
     public static boolean shouldHideEntity(Entity entity) {
@@ -451,9 +443,7 @@ public final class ObjectHiderFeature {
         return true;
     }
 
-    // -------------------------------------------------------------------------------------------
     // Particles
-    // -------------------------------------------------------------------------------------------
 
     /** The Witherborn minion: a wither at 800 invulnerable ticks (see the class doc). Never one of the F7 bosses. */
     public static boolean isWitherborn(Entity entity) {
@@ -558,9 +548,7 @@ public final class ObjectHiderFeature {
                 && packet.getEffect().value() == MobEffects.BLINDNESS.value();
     }
 
-    // -------------------------------------------------------------------------------------------
     // Predicates
-    // -------------------------------------------------------------------------------------------
 
     private static boolean hasSkullProfile(ArmorStand stand, EquipmentSlot slot, UUID id) {
         ItemStack stack = stand.getItemBySlot(slot);
