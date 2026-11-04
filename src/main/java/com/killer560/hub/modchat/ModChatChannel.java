@@ -52,9 +52,7 @@ public final class ModChatChannel {
     }
 
     static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientSendMessageEvents.ALLOW_COMMAND.register(ModChatChannel::allowCommand);
         ClientSendMessageEvents.ALLOW_CHAT.register(ModChatChannel::allowChat);
@@ -96,13 +94,9 @@ public final class ModChatChannel {
      * swallowed; any other {@code /chat} switches this channel off and still goes to Hypixel unchanged.
      */
     static boolean allowCommand(String command) {
-        if (command == null) {
-            return true;
-        }
+        if (command == null) return true;
         Matcher m = CHAT_COMMAND.matcher(command.trim());
-        if (!m.matches()) {
-            return true;
-        }
+        if (!m.matches()) return true;
         String arg = m.group(1);
         if (arg != null && MOD_CHANNEL_NAMES.contains(arg.toLowerCase(Locale.ROOT))) {
             switchToModChat();
@@ -118,9 +112,7 @@ public final class ModChatChannel {
 
     /** Fabric's ALLOW_CHAT: while the channel is Mod Chat, a plain line goes to the relay and never to Hypixel. */
     static boolean allowChat(String message) {
-        if (!active) {
-            return true;
-        }
+        if (!active) return true;
         sendLine(message);
         return false;
     }
@@ -143,9 +135,7 @@ public final class ModChatChannel {
      * {@code /cringe kc}, Spotify and Voice To Text set to Mod Chat, a typed {@code /kc} that went through Translate).
      */
     public static void sendLine(String message) {
-        if (message == null || message.isBlank()) {
-            return;
-        }
+        if (message == null || message.isBlank()) return;
         String result = ModChatFeature.send(message.trim());
         boolean failed = result.startsWith("§c");
         if (failed) {
