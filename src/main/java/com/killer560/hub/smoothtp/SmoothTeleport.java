@@ -98,16 +98,12 @@ public final class SmoothTeleport {
 
     /** From {@code SmoothTpOutboundMixin}, for every packet this client sends. Read-only. */
     public static void onPacketSent(Packet<?> packet) {
-        if (!(packet instanceof ServerboundUseItemPacket) && !(packet instanceof ServerboundUseItemOnPacket)) {
-            return;
-        }
+        if (!(packet instanceof ServerboundUseItemPacket) && !(packet instanceof ServerboundUseItemOnPacket)) return;
         InteractionHand hand;
         Vec3 look;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null) {
-            return;
-        }
+        if (player == null) return;
         if (!SmoothTeleportConfig.getInstance().isEnabled()) {
             // Off: no look vector, no tag copy. (PENDING is emptied on the next position packet.)
             if (mc.isSameThread() && !PENDING.isEmpty()) {
@@ -125,14 +121,10 @@ public final class SmoothTeleport {
         } else {
             return;
         }
-        if (!mc.isSameThread()) {
-            return;
-        }
+        if (!mc.isSameThread()) return;
         ItemStack held = player.getItemInHand(hand);
         Kind kind = kindOf(held, player.isShiftKeyDown());
-        if (kind == null) {
-            return;
-        }
+        if (kind == null) return;
         double range = rangeOf(kind, held);
         long now = System.currentTimeMillis();
         // A block click sends use-on-block AND use in the same tick; Hypixel teleports once.
@@ -149,14 +141,10 @@ public final class SmoothTeleport {
     /** Which teleport this item does, or null for an item that does not teleport. */
     static Kind kindOf(ItemStack stack, boolean sneaking) {
         CompoundTag tag = tag(stack);
-        if (tag == null) {
-            return null;
-        }
+        if (tag == null) return null;
         String id = tag.getStringOr("id", "");
         boolean ether = tag.getIntOr("ethermerge", 0) == 1 || "ETHERWARP_CONDUIT".equals(id);
-        if (ether && sneaking) {
-            return Kind.ETHERWARP;
-        }
+        if (ether && sneaking) return Kind.ETHERWARP;
         return switch (id) {
             case "ASPECT_OF_THE_END", "ASPECT_OF_THE_VOID", "ETHERWARP_CONDUIT" -> Kind.INSTANT_TRANSMISSION;
             case "HYPERION", "ASTRAEA", "SCYLLA", "VALKYRIE" -> Kind.WITHER_IMPACT;
@@ -179,9 +167,7 @@ public final class SmoothTeleport {
     }
 
     private static CompoundTag tag(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         return data == null ? null : data.copyTag();
     }
@@ -258,9 +244,7 @@ public final class SmoothTeleport {
 
     /** Null when this packet answers {@code use}; otherwise why it does not. */
     private static String judge(PendingUse use, Vec3 move, double dist) {
-        if (use == null) {
-            return "no teleport use pending";
-        }
+        if (use == null) return "no teleport use pending";
         if (dist > use.range() + RANGE_SLACK) {
             return String.format(Locale.ROOT, "%.1f blocks is past the %s's %.0f", dist, use.kind(), use.range());
         }
@@ -271,9 +255,7 @@ public final class SmoothTeleport {
             Vec3 fromEye = move.subtract(0, 1.62, 0);
             double cos = Math.max(dir.dot(use.look()),
                     fromEye.lengthSqr() < 1e-6 ? -1 : fromEye.normalize().dot(use.look()));
-            if (cos < MIN_COS) {
-                return String.format(Locale.ROOT, "not along the look (cos %.2f)", cos);
-            }
+            if (cos < MIN_COS) return String.format(Locale.ROOT, "not along the look (cos %.2f)", cos);
         }
         return null;
     }
