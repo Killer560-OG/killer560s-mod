@@ -83,9 +83,7 @@ public final class SimBuildQueue {
         // A paste walks z fastest, so nearly every call names the chunk the last one did: skip re-adding it (a boxed
         // Long and a hash lookup per block placed, ~60 MB per F7 build; fps-sim-1015). Safe across a clear(): an
         // emptied set always takes the add, and every add moves lastTouched on.
-        if (key == lastTouched && !touchedChunks.isEmpty()) {
-            return;
-        }
+        if (key == lastTouched && !touchedChunks.isEmpty()) return;
         lastTouched = key;
         touchedChunks.add(key);
     }
@@ -108,9 +106,7 @@ public final class SimBuildQueue {
     public static synchronized int[] touchedBounds() { return union(boundsOf(touchedChunks), lastBuiltBounds); }
 
     private static int[] union(int[] a, int[] b) {
-        if (a == null) {
-            return b;
-        }
+        if (a == null) return b;
         return b == null ? a : new int[]{Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])};
     }
 
@@ -118,9 +114,7 @@ public final class SimBuildQueue {
     private static int[] lastBuiltBounds;
 
     private static int[] boundsOf(Set<Long> chunks) {
-        if (chunks.isEmpty()) {
-            return null;
-        }
+        if (chunks.isEmpty()) return null;
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -180,9 +174,7 @@ public final class SimBuildQueue {
                 int cz = (int) k;
                 var chunk = level.getChunkSource().getChunkNow(cx, cz);
                 did++;
-                if (chunk == null) {
-                    continue;
-                }
+                if (chunk == null) continue;
                 var lights = level.getChunkSource().getLightEngine();
                 var chunkPos = new net.minecraft.world.level.ChunkPos(cx, cz);
                 var sections = chunk.getSections();
@@ -564,9 +556,7 @@ public final class SimBuildQueue {
                     for (int x = x0; x <= x1; x++) {
                         for (int z = z0; z <= z1; z++) {
                             var old = section.getBlockState(x & 15, y & 15, z & 15);
-                            if (old.isAir()) {
-                                continue;
-                            }
+                            if (old.isAir()) continue;
                             section.setBlockState(x & 15, y & 15, z & 15, air, false);
                             // Take the old block entity with it, for the same reason the paste does: a chest
                             // paved over behind Level.setBlock's back leaves a ChestBlockEntity attached to a
@@ -613,9 +603,7 @@ public final class SimBuildQueue {
     private static void tick(net.minecraft.server.MinecraftServer server) {
         Runnable done = null;
         synchronized (SimBuildQueue.class) {
-            if (JOBS.isEmpty()) {
-                return;
-            }
+            if (JOBS.isEmpty()) return;
             int budget = BLOCKS_PER_TICK;
             while (budget > 0 && !JOBS.isEmpty()) {
                 Job job = JOBS.peek();

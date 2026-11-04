@@ -382,18 +382,12 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         roomTotal = 0;
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room r = RoomLibrary.get(name);
-            if (r == null || !r.usable()) {
-                continue;
-            }
+            if (r == null || !r.usable()) continue;
             roomTotal++;
-            if (!SimRoomFilters.listMatches(name)) {
-                continue;
-            }
+            if (!SimRoomFilters.listMatches(name)) continue;
             if (!q.isEmpty()) {
                 String type = SimFloorGen.typeOf(name).toLowerCase(Locale.ROOT);
-                if (!name.toLowerCase(Locale.ROOT).contains(q) && !type.contains(q)) {
-                    continue;
-                }
+                if (!name.toLowerCase(Locale.ROOT).contains(q) && !type.contains(q)) continue;
             }
             listed.add(name);
         }
@@ -426,9 +420,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     /** Footprint in ROOM CELLS, read from the capture - the same measure the builder plans against. */
     private static int[] footprintOf(String name, int rotation) {
         RoomLibrary.Room r = RoomLibrary.get(name);
-        if (r == null) {
-            return new int[]{1, 1};
-        }
+        if (r == null) return new int[]{1, 1};
         // A quarter turn swaps the axes, exactly as RoomPlacer.rotateLocal does when it pastes.
         return rotation == 90 || rotation == 270
                 ? new int[]{tiles(r.sizeZ), tiles(r.sizeX)}
@@ -456,14 +448,10 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         int[] size = footprintOf(name, 0);
         int ax = slot % GRID;
         int az = slot / GRID;
-        if (ax + size[0] > floor.across || az + size[1] > floor.down) {
-            return false;
-        }
+        if (ax + size[0] > floor.across || az + size[1] > floor.down) return false;
         for (int dx = 0; dx < size[0]; dx++) {
             for (int dz = 0; dz < size[1]; dz++) {
-                if (occupiedBy.containsKey((az + dz) * GRID + ax + dx)) {
-                    return false;
-                }
+                if (occupiedBy.containsKey((az + dz) * GRID + ax + dx)) return false;
             }
         }
         return true;
@@ -815,19 +803,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      * @param maxWidth the space available before the next thing on the row
      */
     private String fit(String full, String shorter, int maxWidth) {
-        if (maxWidth <= 0 || this.font.width(full) <= maxWidth) {
-            return full;
-        }
-        if (shorter != null && this.font.width(shorter) <= maxWidth) {
-            return shorter;
-        }
+        if (maxWidth <= 0 || this.font.width(full) <= maxWidth) return full;
+        if (shorter != null && this.font.width(shorter) <= maxWidth) return shorter;
         String candidate = shorter != null ? shorter : full;
         int ellipsis = this.font.width("...");
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < candidate.length(); i++) {
-            if (this.font.width(sb.toString() + candidate.charAt(i)) + ellipsis > maxWidth) {
-                break;
-            }
+            if (this.font.width(sb.toString() + candidate.charAt(i)) + ellipsis > maxWidth) break;
             sb.append(candidate.charAt(i));
         }
         return sb + "...";
@@ -886,9 +868,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private int slotAt(double mx, double my) {
         double kx = mx * gridPx / gk;
         double ky = my * gridPx / gk;
-        if (kx < gx0 || ky < gy0) {
-            return -1;
-        }
+        if (kx < gx0 || ky < gy0) return -1;
         int cx = (int) ((kx - gx0) / gCell);
         int cz = (int) ((ky - gy0) / gCell);
         return cx >= floor.across || cz >= floor.down ? -1 : cz * GRID + cx;
@@ -965,9 +945,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }
         for (int dx = 0; dx < w; dx++) {
             for (int dz = 0; dz < h; dz++) {
-                if (!t[dx][dz]) {
-                    continue;
-                }
+                if (!t[dx][dz]) continue;
                 int[] b = cellsBox(ax + dx, az + dz, ax + dx + 1, az + dz + 1);
                 out.add(b);
                 if (dx + 1 < w && t[dx + 1][dz]) {
@@ -1052,9 +1030,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             java.util.List<String> lines = com.killer560.hub.livemap.MapPainter.labelLines(style,
                     SimFloorGen.typeOf(name), name.split(" "), secrets,
                     entry == null ? "?" : com.killer560.hub.livemap.MapPainter.unvisitedSecretsText(secrets), false);
-            if (lines.isEmpty()) {
-                continue;
-            }
+            if (lines.isEmpty()) continue;
             drawnNow.append(String.join("|", lines)).append(';');
             // The live map's own fitting, not a truncation. killer560 (2026-10-04): "make it so the text will
             // fit rooms that are too small to load the whole text, just like our normal map would." One word a
@@ -1100,9 +1076,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      */
     private void drawDoors(GuiGraphicsExtractor g) {
         MapCode.Decoded plan = generated != null ? generated.decoded() : drawnPlan;
-        if (plan == null) {
-            return;
-        }
+        if (plan == null) return;
         com.killer560.hub.livemap.LiveMapConfig cfg = com.killer560.hub.livemap.LiveMapConfig.getInstance();
         // Where a real floor would have its wither doors (the sim builds none) - see SimWitherDoors. Worked out
         // once per plan, not per frame.
@@ -1115,17 +1089,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             for (int gx = 0; gx < big; gx++) {
                 boolean betweenX = gx % 2 == 1 && gz % 2 == 0;
                 boolean betweenZ = gx % 2 == 0 && gz % 2 == 1;
-                if (!betweenX && !betweenZ) {
-                    continue;
-                }
+                if (!betweenX && !betweenZ) continue;
                 int idx = gz * com.killer560.hub.livemap.DungeonLayout.GRID + gx;
-                if (idx >= plan.cellDoor().length) {
-                    continue;
-                }
+                if (idx >= plan.cellDoor().length) continue;
                 int type = plan.cellDoor()[idx];
-                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_NONE) {
-                    continue;
-                }
+                if (type == com.killer560.hub.livemap.DungeonLayout.DOOR_NONE) continue;
                 boolean theoretical = idx < witherDoors.length && witherDoors[idx];
                 boolean normal = type == com.killer560.hub.livemap.DungeonLayout.DOOR_NORMAL && !theoretical;
                 int colour = theoretical ? cfg.getColorWitherDoor() : switch (type) {
@@ -1171,13 +1139,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             int nx = betweenX ? gx + (side == 0 ? -1 : 1) : gx;
             int nz = betweenX ? gz : gz + (side == 0 ? -1 : 1);
             int idx = nz * com.killer560.hub.livemap.DungeonLayout.GRID + nx;
-            if (nx < 0 || nz < 0 || idx >= plan.cellRoom().length) {
-                continue;
-            }
+            if (nx < 0 || nz < 0 || idx >= plan.cellRoom().length) continue;
             int id = plan.cellRoom()[idx];
-            if (id < 0 || id >= plan.nameTable().length) {
-                continue;
-            }
+            if (id < 0 || id >= plan.nameTable().length) continue;
             String name = plan.nameTable()[id];
             int prio = com.killer560.hub.livemap.MapPainter.typePriority(SimFloorGen.typeOf(name));
             if (prio < best) {
@@ -1195,9 +1159,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         g.enableScissor(listX, top, listX + listW, bottom);
         for (int i = 0; i < listed.size(); i++) {
             int y = top + i * ROW_H - scroll;
-            if (y + ROW_H < top || y > bottom) {
-                continue;
-            }
+            if (y + ROW_H < top || y > bottom) continue;
             String name = listed.get(i);
             boolean isSelected = panel == Panel.ROOMS && name.equals(selected);
             boolean hover = mouseX >= listX && mouseX < listX + listW && mouseY >= y && mouseY < y + ROW_H;

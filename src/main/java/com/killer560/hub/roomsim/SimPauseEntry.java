@@ -45,9 +45,7 @@ public final class SimPauseEntry {
         int bottom = -1;
         for (AbstractWidget w : Screens.getWidgets(screen)) {
             // Buttons only: a text label another mod parks at the bottom of the screen must not drag this down.
-            if (w == own || w == nextButton.get() || !w.visible || !(w instanceof Button)) {
-                continue;
-            }
+            if (w == own || w == nextButton.get() || !w.visible || !(w instanceof Button)) continue;
             if (w.getX() <= centre && centre < w.getX() + w.getWidth()) {
                 bottom = Math.max(bottom, w.getY() + w.getHeight());
             }
@@ -58,9 +56,7 @@ public final class SimPauseEntry {
     public static void register() { ScreenEvents.AFTER_INIT.register(SimPauseEntry::onScreenInit); }
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (!(screen instanceof PauseScreen) || !SimState.canAct(client)) {
-            return;
-        }
+        if (!(screen instanceof PauseScreen) || !SimState.canAct(client)) return;
         // DIRECTLY UNDER THE LAST VANILLA BUTTON, at vanilla's own width and spacing.
         //
         // killer560 (2026-10-04): it "sits alone at the very bottom of the Game Menu screen, far below the
@@ -110,9 +106,7 @@ public final class SimPauseEntry {
         // single room by itself without doing the one that goes through all rooms [...] it shouldnt have the next
         // room [...] work or the menu thing for it." Until then this was "Next room with no routes" on any room
         // loaded by itself.
-        if (!SimRoomCycle.isActive()) {
-            return;
-        }
+        if (!SimRoomCycle.isActive()) return;
         Button next = Button.builder(Component.literal(NEXT_LABEL), btn -> {
                     if (SimRoomCycle.step(client, 1)) {
                         McCompat.setScreen(client, null);

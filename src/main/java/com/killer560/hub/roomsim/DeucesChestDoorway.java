@@ -79,9 +79,7 @@ public final class DeucesChestDoorway {
      * paste turns them like every other block.
      */
     public static Map<Long, BlockState> overrides(RoomLibrary.Room room) {
-        if (!isRoom(room)) {
-            return Collections.emptyMap();
-        }
+        if (!isRoom(room)) return Collections.emptyMap();
         return table();
     }
 
@@ -108,9 +106,7 @@ public final class DeucesChestDoorway {
     /** {@link #SPEC} resolved, keyed by {@link RoomDoorPieces#key}. */
     private static Map<Long, BlockState> table() {
         Map<Long, BlockState> t = blocks;
-        if (t != null) {
-            return t;
-        }
+        if (t != null) return t;
         Map<Long, BlockState> out = new LinkedHashMap<>();
         int lo = Integer.MAX_VALUE;
         int hi = Integer.MIN_VALUE;
@@ -120,9 +116,7 @@ public final class DeucesChestDoorway {
             int[] yr = range(f[1]);
             int[] zr = range(f[2]);
             BlockState state = RoomPlacer.resolve(f[3].contains(":") ? f[3] : "minecraft:" + f[3]);
-            if (state == null) {
-                throw new IllegalStateException("DeucesChestDoorway: unknown block " + f[3]);
-            }
+            if (state == null) throw new IllegalStateException("DeucesChestDoorway: unknown block " + f[3]);
             for (int x = xr[0]; x <= xr[1]; x++) {
                 for (int y = yr[0]; y <= yr[1]; y++) {
                     for (int z = zr[0]; z <= zr[1]; z++) {

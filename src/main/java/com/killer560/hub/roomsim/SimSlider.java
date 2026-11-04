@@ -46,9 +46,7 @@ public final class SimSlider extends ThemedSliderButton {
 
     /** Where the handle sits for a given value. {@link #RANDOM} is the far right. Guards against min == top. */
     private static double fraction(int value, int min, int top) {
-        if (top <= min) {
-            return 0.0;
-        }
+        if (top <= min) return 0.0;
         return value == RANDOM ? 1.0 : (double) (Math.max(min, Math.min(top, value)) - min) / (top - min);
     }
 

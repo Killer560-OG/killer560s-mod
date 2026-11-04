@@ -75,9 +75,7 @@ public final class MapCode {
             out.writeByte(decoded.nameTable().length);
             for (String name : decoded.nameTable()) {
                 byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
-                if (bytes.length > 255) {
-                    throw new IllegalArgumentException("Room name too long to encode: " + name);
-                }
+                if (bytes.length > 255) throw new IllegalArgumentException("Room name too long to encode: " + name);
                 out.writeByte(bytes.length);
                 out.write(bytes);
             }
@@ -115,9 +113,7 @@ public final class MapCode {
      * ever have written. A corrupt or hand-edited code must come back as "no map", not as a wrong map.
      */
     public static Decoded decode(String code) {
-        if (code == null || !code.startsWith(PREFIX)) {
-            return null;
-        }
+        if (code == null || !code.startsWith(PREFIX)) return null;
         byte[] payload;
         try {
             payload = Base64.getUrlDecoder().decode(code.substring(PREFIX.length()));
@@ -127,9 +123,7 @@ public final class MapCode {
         try {
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(payload));
             int grid = in.readUnsignedByte();
-            if (grid != DungeonLayout.GRID) {
-                return null;
-            }
+            if (grid != DungeonLayout.GRID) return null;
             int nameCount = in.readUnsignedByte();
             String[] nameTable = new String[nameCount];
             for (int i = 0; i < nameCount; i++) {

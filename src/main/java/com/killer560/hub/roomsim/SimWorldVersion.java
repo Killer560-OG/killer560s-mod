@@ -38,9 +38,7 @@ public final class SimWorldVersion {
 
     public static boolean isVoidWorld() {
         try {
-            if (!Files.exists(FILE)) {
-                return false;
-            }
+            if (!Files.exists(FILE)) return false;
             return Integer.parseInt(Files.readString(FILE, StandardCharsets.UTF_8).trim()) >= CURRENT;
         } catch (Exception e) {
             // Unreadable means unknown, and unknown means regenerate - a wasted rebuild costs seconds, while

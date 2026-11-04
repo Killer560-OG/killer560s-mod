@@ -246,9 +246,7 @@ public final class SimRoomFilter {
     private static <E extends Enum<E>> E parse(Class<E> type, String raw, E fallback) {
         if (raw != null) {
             for (E e : type.getEnumConstants()) {
-                if (e.name().equalsIgnoreCase(raw)) {
-                    return e;
-                }
+                if (e.name().equalsIgnoreCase(raw)) return e;
             }
         }
         return fallback;
@@ -264,37 +262,23 @@ public final class SimRoomFilter {
         String kind = kindKey(name);
         boolean puzzle = "PUZZLE".equals(kind);
         if (!d.kinds.isEmpty()) {
-            if (!d.kinds.contains(kind)) {
-                return false;
-            }
+            if (!d.kinds.contains(kind)) return false;
         } else if (use == Use.CYCLE && CYCLE_DEFAULT_OUT.contains(kind)) {
             return false;
         }
-        if (puzzle && !d.puzzles.isEmpty() && !d.puzzles.contains(name.toLowerCase(Locale.ROOT))) {
-            return false;
-        }
-        if (puzzle && use == Use.DESIGNER) {
-            return true;
-        }
-        if (!d.sizes.isEmpty() && !d.sizes.contains(shapeKey(name))) {
-            return false;
-        }
+        if (puzzle && !d.puzzles.isEmpty() && !d.puzzles.contains(name.toLowerCase(Locale.ROOT))) return false;
+        if (puzzle && use == Use.DESIGNER) return true;
+        if (!d.sizes.isEmpty() && !d.sizes.contains(shapeKey(name))) return false;
         Rare r = rare();
-        if (r != Rare.ANY && isRare(name) != (r == Rare.YES)) {
-            return false;
-        }
+        if (r != Rare.ANY && isRare(name) != (r == Rare.YES)) return false;
         int secrets = secretsOf(name);
         Count s = secrets();
         if (s == Count.ANY) {
-            if (use == Use.CYCLE && d.kinds.isEmpty() && secrets <= 0) {
-                return false;
-            }
+            if (use == Use.CYCLE && d.kinds.isEmpty() && secrets <= 0) return false;
         } else if (!s.test(secrets)) {
             return false;
         }
-        if (!crypts().test(cryptsOf(name))) {
-            return false;
-        }
+        if (!crypts().test(cryptsOf(name))) return false;
         return SimRoomRoutes.matches(name, routes());
     }
 
@@ -320,13 +304,9 @@ public final class SimRoomFilter {
      */
     public static String shapeKey(String name) {
         String shape = SimFloorGen.shapeOf(name);
-        if (shape != null && SIZES.contains(shape)) {
-            return shape;
-        }
+        if (shape != null && SIZES.contains(shape)) return shape;
         RoomLibrary.Room r = RoomLibrary.get(name);
-        if (r == null) {
-            return "1x1";
-        }
+        if (r == null) return "1x1";
         int a = Math.max(1, (r.sizeX - 1) / (RoomLibrary.TILE + 1));
         int b = Math.max(1, (r.sizeZ - 1) / (RoomLibrary.TILE + 1));
         return a == 2 && b == 2 ? "2x2" : "1x" + Math.min(4, Math.max(a, b));

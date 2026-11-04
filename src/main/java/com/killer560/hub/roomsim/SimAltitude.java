@@ -71,9 +71,7 @@ public final class SimAltitude {
         boolean topAligned = false;
         for (String name : roomNames) {
             RoomLibrary.Room room = RoomLibrary.get(name);
-            if (room == null) {
-                continue;
-            }
+            if (room == null) continue;
             lowest = Math.min(lowest, room.contentMinY());
             highest = Math.max(highest, room.contentMaxY());
             if (TOP_ALIGNED_ROOM.equals(name.toLowerCase(Locale.ROOT))) {

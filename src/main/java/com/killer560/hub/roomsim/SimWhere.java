@@ -129,18 +129,14 @@ public final class SimWhere {
         long bestDist = Long.MAX_VALUE;
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
             RoomLibrary.Room lib = RoomLibrary.get(placed.name());
-            if (lib == null) {
-                continue;
-            }
+            if (lib == null) continue;
             BlockPos origin = DungeonLayout.cellCenter(placed.gridZ() * DungeonLayout.GRID + placed.gridX());
             int x0 = origin.getX() - RoomLibrary.TILE / 2 - lib.margin;
             int z0 = origin.getZ() - RoomLibrary.TILE / 2 - lib.margin;
             boolean turned = placed.pasteRotation() == 90 || placed.pasteRotation() == 270;
             int ex = turned ? lib.sizeZ : lib.sizeX;
             int ez = turned ? lib.sizeX : lib.sizeZ;
-            if (pos.getX() < x0 || pos.getX() >= x0 + ex || pos.getZ() < z0 || pos.getZ() >= z0 + ez) {
-                continue;
-            }
+            if (pos.getX() < x0 || pos.getX() >= x0 + ex || pos.getZ() < z0 || pos.getZ() >= z0 + ez) continue;
             long dx = 2L * (pos.getX() - x0) - (ex - 1);
             long dz = 2L * (pos.getZ() - z0) - (ez - 1);
             long dist = dx * dx + dz * dz;

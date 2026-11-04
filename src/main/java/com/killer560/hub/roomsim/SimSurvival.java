@@ -43,9 +43,7 @@ public final class SimSurvival {
         // silently changes what the game thinks happened, while refusing the damage leaves everything else -
         // the landing, the sound, the animation - exactly as it was.
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (!(entity instanceof ServerPlayer) || !SimState.isActive()) {
-                return true;
-            }
+            if (!(entity instanceof ServerPlayer) || !SimState.isActive()) return true;
             // The whole fall and fire TAGS rather than DamageTypes.FALL alone: IS_FIRE is what carries lava
             // (killer560, 2026-10-04: "Make it so lava doesn't do damage"), and IS_FALL is the set vanilla's own
             // FALL_DAMAGE rule switches off. SimWorld.freezeWorld turns both game rules off as well.
@@ -58,9 +56,7 @@ public final class SimSurvival {
         // Put the flames out too. Lava still sets him alight even when the burn does nothing, and a screen
         // full of fire in a practice room is the damage's noise without the damage.
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive()) {
-                return;
-            }
+            if (!SimState.isActive()) return;
             for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 if (sp.isOnFire()) {
                     sp.clearFire();
@@ -78,9 +74,7 @@ public final class SimSurvival {
             // NOT a miniboss: SimMiniboss places them as ServerPlayers, and this used to heal every one at death and put
             // it in the middle of the room, so a sim miniboss could never die (midas-1020: King Midas "died" eleven
             // times in 8 s under Auto Clear's Hyperion and stood up again each time).
-            if (!(entity instanceof ServerPlayer player) || SimMiniboss.isPlaced(entity) || !SimState.isActive()) {
-                return true;
-            }
+            if (!(entity instanceof ServerPlayer player) || SimMiniboss.isPlaced(entity) || !SimState.isActive()) return true;
             player.setHealth(player.getMaxHealth());
             player.getFoodData().eat(20, 1.0f);
             player.clearFire();
@@ -102,9 +96,7 @@ public final class SimSurvival {
         // Flight has to be re-asserted: the server resets abilities on respawn, on dimension change and
         // whenever it feels like syncing them, so setting the flag once does not keep it.
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!flying || !SimState.isActive()) {
-                return;
-            }
+            if (!flying || !SimState.isActive()) return;
             for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 if (!sp.getAbilities().mayfly) {
                     sp.getAbilities().mayfly = true;
@@ -129,9 +121,7 @@ public final class SimSurvival {
     private static void toggle() {
         Minecraft client = Minecraft.getInstance();
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         flying = !flying;
         boolean on = flying;
         server.execute(() -> {

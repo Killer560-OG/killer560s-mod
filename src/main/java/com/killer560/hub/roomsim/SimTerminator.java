@@ -212,9 +212,7 @@ public final class SimTerminator {
 
     /** Whether enough time has passed since the last shot, and claims the slot if so. */
     public static boolean readyToFire() {
-        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) {
-            return false;
-        }
+        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) return false;
         lastShotTick = tickCounter;
         return true;
     }
@@ -237,9 +235,7 @@ public final class SimTerminator {
      * @return whether anything was fired
      */
     public static boolean use(Minecraft client, boolean leftClick) {
-        if (!SimState.canAct(client)) {
-            return false;
-        }
+        if (!SimState.canAct(client)) return false;
         if (salvationArmed && leftClick) {
             salvation(client);
             salvationArmed = false;
@@ -259,9 +255,7 @@ public final class SimTerminator {
      */
     private static void shoot(Minecraft client) {
         var server = client.getSingleplayerServer();
-        if (server == null || client.player == null) {
-            return;
-        }
+        if (server == null || client.player == null) return;
         // SimAim: the rotation the use packet carried when the server fired this shot, his own otherwise.
         final float yaw = SimAim.yaw(client.player);
         final float pitch = SimAim.pitch(client.player);
@@ -277,9 +271,7 @@ public final class SimTerminator {
                 fromAngles(yaw, pitch), ARROW_RANGE);
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);
-            if (sp == null || !(sp.level() instanceof ServerLevel level)) {
-                return;
-            }
+            if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
             for (int i = 0; i < ARROWS_PER_SHOT; i++) {
                 double offset = (i - (ARROWS_PER_SHOT - 1) / 2.0) * SPREAD_DEGREES;
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
@@ -309,9 +301,7 @@ public final class SimTerminator {
      * thread, which is where {@code ModChat} belongs.
      */
     private static void recordHit(LivingEntity target) {
-        if (target == null || salvationArmed || !MOBS_HIT.add(target.getUUID())) {
-            return;
-        }
+        if (target == null || salvationArmed || !MOBS_HIT.add(target.getUUID())) return;
         if (MOBS_HIT.size() >= HITS_TO_ARM) {
             salvationArmed = true;
             Minecraft.getInstance().execute(() ->
@@ -328,9 +318,7 @@ public final class SimTerminator {
     private static void salvationParticles(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3 along = to.subtract(from);
         double length = along.length();
-        if (length < 1.0E-4) {
-            return;
-        }
+        if (length < 1.0E-4) return;
         Vec3 step = along.scale(1.0 / length).scale(0.33);
         var dust = new net.minecraft.core.particles.DustParticleOptions(0xFF3030, 1.0f);
         for (double travelled = 0; travelled <= length; travelled += 0.33) {
@@ -394,24 +382,16 @@ public final class SimTerminator {
     }
 
     private static void applyDamage(Minecraft client, List<UUID> ids) {
-        if (ids.isEmpty()) {
-            return;
-        }
+        if (ids.isEmpty()) return;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<UUID> copy = List.copyOf(ids);
         UUID shooter = client.player == null ? null : client.player.getUUID();
-        if (shooter == null) {
-            return;
-        }
+        if (shooter == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var sp = server.getPlayerList().getPlayer(shooter);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             // playerAttack, NOT magic() - see the same note in SimClass.fire. SimMobs treats a source with no
             // entity behind it as environmental and makes every 1 HP sim mob invulnerable to it, so the
             // terminator's shots landed and did nothing.

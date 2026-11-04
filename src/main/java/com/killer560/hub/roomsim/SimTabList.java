@@ -107,13 +107,9 @@ public final class SimTabList {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         String room = SimState.currentRoomName();
         if (room != null && !room.isBlank()) {
             VISITED.add(room);
@@ -127,9 +123,7 @@ public final class SimTabList {
         if (due) {
             republishTicks = REPUBLISH_EVERY;
         }
-        if (!header && !due && lines.equals(lastComposed)) {
-            return;
-        }
+        if (!header && !due && lines.equals(lastComposed)) return;
         lastComposed = lines;
         server.execute(() -> publish(server, lines, header));
     }
@@ -169,9 +163,7 @@ public final class SimTabList {
                 && self.equals(inSelf) && cleared == inCleared && Double.compare(percent, inPercent) == 0
                 && second == inSecond && deaths == inDeaths && crypts == inCrypts && found == inFound
                 && puzzles == inPuzzleCount && samePuzzles(puzzles);
-        if (same) {
-            return lastComposed;
-        }
+        if (same) return lastComposed;
         inSelf = self;
         inCleared = cleared;
         inPercent = percent;
@@ -191,9 +183,7 @@ public final class SimTabList {
 
     private static boolean samePuzzles(int count) {
         for (int i = 0; i < count; i++) {
-            if (curPuzzleStates[i] != inPuzzleStates[i] || !curPuzzleNames[i].equals(inPuzzleNames[i])) {
-                return false;
-            }
+            if (curPuzzleStates[i] != inPuzzleStates[i] || !curPuzzleNames[i].equals(inPuzzleNames[i])) return false;
         }
         return true;
     }
@@ -210,9 +200,7 @@ public final class SimTabList {
                 String pk = SimRoomPuzzles.puzzleKey(k);
                 return pk == null ? "" : pk;
             });
-            if (key.isEmpty()) {
-                continue;
-            }
+            if (key.isEmpty()) continue;
             byte state;
             if (!VISITED.contains(name)) {
                 state = 0;
@@ -259,9 +247,7 @@ public final class SimTabList {
         List<String> puzzles = puzzleRows(self);
         slot[b++] = " Puzzles: (" + puzzles.size() + ")";
         for (String row : puzzles) {
-            if (b >= 2 * ROWS) {
-                break;
-            }
+            if (b >= 2 * ROWS) break;
             slot[b++] = row;
         }
 
@@ -288,9 +274,7 @@ public final class SimTabList {
         List<String> rows = new ArrayList<>();
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
             String key = SimRoomPuzzles.puzzleKey(placed.name());
-            if (key == null) {
-                continue;
-            }
+            if (key == null) continue;
             if (!VISITED.contains(placed.name())) {
                 rows.add(" ???: [✦]");
                 continue;
@@ -338,9 +322,7 @@ public final class SimTabList {
 
     private static void publish(MinecraftServer server, List<String> lines, boolean header) {
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
-        if (players.isEmpty()) {
-            return;
-        }
+        if (players.isEmpty()) return;
         List<ClientboundPlayerInfoUpdatePacket.Entry> changed = new ArrayList<>();
         for (int i = 0; i < SLOTS; i++) {
             String line = lines.get(i);
@@ -353,9 +335,7 @@ public final class SimTabList {
         ClientboundPlayerInfoUpdatePacket full = null;
         ClientboundTabListPacket headerPacket = null;
         for (ServerPlayer real : players) {
-            if (real.connection == null) {
-                continue;
-            }
+            if (real.connection == null) continue;
             if (!ADDED.contains(real.connection)) {
                 if (full == null) {
                     List<ClientboundPlayerInfoUpdatePacket.Entry> all = new ArrayList<>(SLOTS);

@@ -80,9 +80,7 @@ public final class SimRoomIndex {
      *                  bounding box at this rotation
      */
     public static void add(RoomLibrary.Room room, int gridX, int gridZ, int rotation, int[] tileCells) {
-        if (room == null) {
-            return;
-        }
+        if (room == null) return;
         // Must match what SimSecrets actually did, or the waypoints point at where the secrets are not -
         // and the waypoints are the thing being practiced against.
         int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
@@ -142,9 +140,7 @@ public final class SimRoomIndex {
     public static boolean correct(int gridX, int gridZ, int clayX, int clayZ, int rotation) {
         for (int i = 0; i < ROOMS.size(); i++) {
             Placed p = ROOMS.get(i);
-            if (p.gridX() != gridX || p.gridZ() != gridZ) {
-                continue;
-            }
+            if (p.gridX() != gridX || p.gridZ() != gridZ) continue;
             ROOMS.set(i, new Placed(p.name(), clayX, clayZ, rotation, p.cells(), p.gridX(), p.gridZ(),
                     p.pasteRotation()));
             version++;
@@ -171,22 +167,16 @@ public final class SimRoomIndex {
     /** The room database entry for a placed room, or null when that room is not in the database. */
     public static RoomEntry roomEntryAt(int id) {
         List<Placed> rooms = List.copyOf(ROOMS);
-        if (id < 0 || id >= rooms.size()) {
-            return null;
-        }
+        if (id < 0 || id >= rooms.size()) return null;
         return RoomDatabase.lookupByName(rooms.get(id).name());
     }
 
     /** Whether a placed room covers a grid cell. */
     public static boolean roomHasCell(int id, int cell) {
         List<Placed> rooms = List.copyOf(ROOMS);
-        if (id < 0 || id >= rooms.size()) {
-            return false;
-        }
+        if (id < 0 || id >= rooms.size()) return false;
         for (int c : rooms.get(id).cells()) {
-            if (c == cell) {
-                return true;
-            }
+            if (c == cell) return true;
         }
         return false;
     }
@@ -195,9 +185,7 @@ public final class SimRoomIndex {
     public static String nameAtCell(int cell) {
         for (Placed p : ROOMS) {
             for (int c : p.cells()) {
-                if (c == cell) {
-                    return p.name();
-                }
+                if (c == cell) return p.name();
             }
         }
         return null;

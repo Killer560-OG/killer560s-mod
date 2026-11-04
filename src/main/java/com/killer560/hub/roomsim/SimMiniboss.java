@@ -203,9 +203,7 @@ public final class SimMiniboss {
      * session.
      */
     static void tick(ServerLevel level) {
-        if (PLACED.isEmpty()) {
-            return;
-        }
+        if (PLACED.isEmpty()) return;
         List<UUID> gone = new ArrayList<>();
         for (UUID id : PLACED) {
             Entity entity = level.getEntity(id);
@@ -213,9 +211,7 @@ public final class SimMiniboss {
                 // Missing is gone only where the server ticks entities; elsewhere it may just be unreachable, and
                 // withdrawing its profile then would make it invisible when he comes back.
                 BlockPos at = PLACED_AT.get(id);
-                if (at != null && !level.isPositionEntityTicking(at)) {
-                    continue;
-                }
+                if (at != null && !level.isPositionEntityTicking(at)) continue;
                 gone.add(id);
             } else if (entity.isRemoved()) {
                 gone.add(id);

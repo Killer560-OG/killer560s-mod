@@ -105,9 +105,7 @@ public final class SimBuildAudit {
         synchronized (SimBuildAudit.class) {
             rooms = new ArrayList<>(PASTED);
         }
-        if (rooms.isEmpty()) {
-            return;
-        }
+        if (rooms.isEmpty()) return;
         int worst = 100;
         String worstName = null;
         int reported = 0;
@@ -161,9 +159,7 @@ public final class SimBuildAudit {
         // something: it is the walls, floor and ceiling that differ between rooms.
         int minY = room.contentMinY();
         int maxY = room.contentMaxY();
-        if (maxY < minY) {
-            return -1;
-        }
+        if (maxY < minY) return -1;
         long volume = (long) room.sizeX * room.sizeZ * (maxY - minY + 1);
         int stride = (int) Math.max(1, volume / SAMPLES_PER_ROOM);
 
@@ -173,16 +169,12 @@ public final class SimBuildAudit {
         for (int y = minY; y <= maxY; y++) {
             for (int x = 0; x < room.sizeX; x++) {
                 for (int z = 0; z < room.sizeZ; z++, index++) {
-                    if (index % stride != 0) {
-                        continue;
-                    }
+                    if (index % stride != 0) continue;
                     if (!room.seenColumn[z * room.sizeX + x]) {
                         continue;   // never captured, so the world holds the red marker and not this
                     }
                     short paletteIdx = room.at(x, y, z);
-                    if (paletteIdx < 0 || paletteIdx >= room.palette.size()) {
-                        continue;
-                    }
+                    if (paletteIdx < 0 || paletteIdx >= room.palette.size()) continue;
                     int[] local = RoomPlacer.rotateLocal(x, z, room.sizeX, room.sizeZ, p.rotation());
                     BlockState state = level.getBlockState(new BlockPos(
                             worldX0 + local[0], SimAltitude.toWorld(y), worldZ0 + local[1]));

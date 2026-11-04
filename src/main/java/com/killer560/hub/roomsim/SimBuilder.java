@@ -193,13 +193,9 @@ public final class SimBuilder {
             DeucesChestDoorway.clearWorld();
             boolean[] handled = new boolean[decoded.cellRoom().length];
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
-                if (handled[cell]) {
-                    continue;
-                }
+                if (handled[cell]) continue;
                 int nameIndex = decoded.cellRoom()[cell];
-                if (nameIndex < 0) {
-                    continue;
-                }
+                if (nameIndex < 0) continue;
                 String name = decoded.nameTable()[nameIndex];
                 RoomLibrary.Room room = RoomLibrary.get(name);
                 // usable(), not merely present: a room captured at an older footprint is a different SIZE from
@@ -352,9 +348,7 @@ public final class SimBuilder {
             // pasted over, which is the same ordering mistake the secrets had.
             final java.util.List<int[]> doorCells = new java.util.ArrayList<>();
             for (int cell = 0; cell < decoded.cellDoor().length; cell++) {
-                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_NONE) {
-                    continue;
-                }
+                if (decoded.cellDoor()[cell] == DungeonLayout.DOOR_NONE) continue;
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
                 // A door cell is odd on exactly one axis; that axis is the one the rooms sit apart on.
@@ -372,13 +366,9 @@ public final class SimBuilder {
                 int nameIndex = decoded.cellRoom()[cell];
                 int gx = cell % DungeonLayout.GRID;
                 int gz = cell / DungeonLayout.GRID;
-                if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) {
-                    continue;
-                }
+                if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) continue;
                 RoomDoors.Mask mask = RoomDoors.of(decoded.nameTable()[nameIndex]);
-                if (mask == null) {
-                    continue;
-                }
+                if (mask == null) continue;
                 mask = RoomDoors.rotate(mask, decoded.cellRotation()[cell]);
                 for (int packed : mask.edges()) {
                     int side = RoomDoors.sideOf(packed);
@@ -387,9 +377,7 @@ public final class SimBuilder {
                     int[] anchorCellXz = anchorOf(decoded.cellRoom(), cell, nameIndex);
                     int[] door = RoomDoors.doorCell(anchorCellXz[0], anchorCellXz[1],
                             mask.tilesX(), mask.tilesZ(), side, RoomDoors.indexOf(packed));
-                    if (door[0] * 2 != gx || door[1] * 2 != gz) {
-                        continue;
-                    }
+                    if (door[0] * 2 != gx || door[1] * 2 != gz) continue;
                     int cx = gx + RoomDoors.DX[side];
                     int cz = gz + RoomDoors.DZ[side];
                     boolean inGrid = cx >= 0 && cz >= 0 && cx < DungeonLayout.GRID && cz < DungeonLayout.GRID;
@@ -422,22 +410,16 @@ public final class SimBuilder {
                     int nameIndex = decoded.cellRoom()[cell];
                     int gx = cell % DungeonLayout.GRID;
                     int gz = cell / DungeonLayout.GRID;
-                    if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) {
-                        continue;
-                    }
+                    if (nameIndex < 0 || gx % 2 != 0 || gz % 2 != 0) continue;
                     RoomDoors.Mask mask = RoomDoors.of(decoded.nameTable()[nameIndex]);
-                    if (mask == null) {
-                        continue;
-                    }
+                    if (mask == null) continue;
                     mask = RoomDoors.rotate(mask, decoded.cellRotation()[cell]);
                     int[] anchorCellXz = anchorOf(decoded.cellRoom(), cell, nameIndex);
                     for (int packed : mask.edges()) {
                         int side = RoomDoors.sideOf(packed);
                         int[] door = RoomDoors.doorCell(anchorCellXz[0], anchorCellXz[1],
                                 mask.tilesX(), mask.tilesZ(), side, RoomDoors.indexOf(packed));
-                        if (door[0] * 2 != gx || door[1] * 2 != gz) {
-                            continue;
-                        }
+                        if (door[0] * 2 != gx || door[1] * 2 != gz) continue;
                         int cx = gx + RoomDoors.DX[side];
                         int cz = gz + RoomDoors.DZ[side];
                         backing.computeIfAbsent((long) cz * DungeonLayout.GRID + cx,
@@ -450,9 +432,7 @@ public final class SimBuilder {
                     int gz = d[0] / DungeonLayout.GRID;
                     java.util.List<String> from = backing.getOrDefault(
                             (long) gz * DungeonLayout.GRID + gx, java.util.List.of());
-                    if (from.size() >= 2) {
-                        continue;
-                    }
+                    if (from.size() >= 2) continue;
                     unbacked++;
                     // NAME both rooms, because the one that is missing its doorway is the one to look at, and
                     // which of the two it is cannot be worked out from the cell number afterward.
@@ -676,9 +656,7 @@ public final class SimBuilder {
     /** The room's doorway mask turned to the rotation it was pasted at, or null. */
     private static RoomDoors.Mask doorsAsPasted(RoomLibrary.Room room, int gridX, int gridZ) {
         RoomDoors.Mask mask = RoomDoors.of(room.name);
-        if (mask == null) {
-            return null;
-        }
+        if (mask == null) return null;
         // Offsets are in the CAPTURE's orientation; a generated floor pastes rooms turned, so the doorway
         // side has to be turned with it or the spawn lands against a blank wall.
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
@@ -691,30 +669,22 @@ public final class SimBuilder {
 
     /** The tile cells {@link SimRoomIndex} holds for this room placed at {@code (gridX, gridZ)}, or null. */
     private static int[] placedCells(RoomLibrary.Room room, int gridX, int gridZ) {
-        if (room == null) {
-            return null;
-        }
+        if (room == null) return null;
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
-            if (placed.gridX() == gridX && placed.gridZ() == gridZ && room.name.equals(placed.name())) {
-                return placed.cells();
-            }
+            if (placed.gridX() == gridX && placed.gridZ() == gridZ && room.name.equals(placed.name())) return placed.cells();
         }
         return null;
     }
 
     private static boolean contains(int[] cells, int cell) {
         for (int c : cells) {
-            if (c == cell) {
-                return true;
-            }
+            if (c == cell) return true;
         }
         return false;
     }
 
     private static Spawn spawnFor(RoomLibrary.Room room, int gridX, int gridZ) {
-        if (room == null || room.name == null) {
-            return null;
-        }
+        if (room == null || room.name == null) return null;
         String name = room.name.toLowerCase(Locale.ROOT);
         com.killer560.hub.roomdatabase.RoomEntry dbEntry =
                 com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room.name);
@@ -802,15 +772,11 @@ public final class SimBuilder {
     private static int entranceSide(int gridX, int gridZ) {
         MapCode.Decoded plan = floorPlan;
         int g = DungeonLayout.GRID;
-        if (plan == null || gridX < 0 || gridZ < 0 || gridX >= g || gridZ >= g) {
-            return -1;
-        }
+        if (plan == null || gridX < 0 || gridZ < 0 || gridX >= g || gridZ >= g) return -1;
         int[] cellRoom = plan.cellRoom();
         int[] cellDoor = plan.cellDoor();
         int mine = cellRoom[gridZ * g + gridX];
-        if (mine < 0) {
-            return -1;
-        }
+        if (mine < 0) return -1;
         int[] dist = new int[g * g];
         java.util.Arrays.fill(dist, Integer.MAX_VALUE);
         java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
@@ -828,14 +794,10 @@ public final class SimBuilder {
             for (int s = 0; s < 4; s++) {
                 int nx = ax + RoomDoors.DX[s];
                 int nz = az + RoomDoors.DZ[s];
-                if (nx < 0 || nz < 0 || nx >= g || nz >= g) {
-                    continue;
-                }
+                if (nx < 0 || nz < 0 || nx >= g || nz >= g) continue;
                 int n = nz * g + nx;
                 boolean passable = cellRoom[n] >= 0 || cellDoor[n] != DungeonLayout.DOOR_NONE;
-                if (!passable || cellRoom[n] == mine || dist[n] != Integer.MAX_VALUE) {
-                    continue;
-                }
+                if (!passable || cellRoom[n] == mine || dist[n] != Integer.MAX_VALUE) continue;
                 dist[n] = dist[at] + 1;
                 queue.add(n);
             }
@@ -846,13 +808,9 @@ public final class SimBuilder {
         for (int s = 0; s < 4; s++) {
             int dx = gridX + RoomDoors.DX[s];
             int dz = gridZ + RoomDoors.DZ[s];
-            if (dx < 0 || dz < 0 || dx >= g || dz >= g) {
-                continue;
-            }
+            if (dx < 0 || dz < 0 || dx >= g || dz >= g) continue;
             int door = dz * g + dx;
-            if (cellDoor[door] == DungeonLayout.DOOR_NONE || cellRoom[door] == mine) {
-                continue;
-            }
+            if (cellDoor[door] == DungeonLayout.DOOR_NONE || cellRoom[door] == mine) continue;
             if (anyDoor < 0) {
                 anyDoor = s;
             }
@@ -902,9 +860,7 @@ public final class SimBuilder {
                         continue;   // the ring only; the inside was searched at a smaller r
                     }
                     int d = dx * dx + dz * dz;
-                    if (d >= bestD) {
-                        continue;
-                    }
+                    if (d >= bestD) continue;
                     int y = coveredStandable(level, x + dx, z + dz, fromTop);
                     if (y != Integer.MIN_VALUE) {
                         bestY = y;
@@ -938,13 +894,9 @@ public final class SimBuilder {
      * @return {@code {x, y, z, yaw}} or null when no doorway gives a safe spot
      */
     private static int[] doorwaySpot(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ) {
-        if (room == null) {
-            return null;
-        }
+        if (room == null) return null;
         RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
-        if (mask == null || mask.edges().isEmpty()) {
-            return null;
-        }
+        if (mask == null || mask.edges().isEmpty()) return null;
         java.util.List<int[]> doors = new java.util.ArrayList<>();   // {wallX, wallZ, side, floorY}
         int[] roomCells = placedCells(room, gridX, gridZ);
         for (int[] c : RoomDoors.doorCells(mask, 0, 0)) {
@@ -962,9 +914,7 @@ public final class SimBuilder {
                 doors.add(new int[]{wx, wz, side, floor});
             }
         }
-        if (doors.isEmpty()) {
-            return null;
-        }
+        if (doors.isEmpty()) return null;
         // The main floor: the height most doorways share, lowest on a tie.
         java.util.Map<Integer, Integer> count = new java.util.TreeMap<>();
         for (int[] d : doors) {
@@ -1035,9 +985,7 @@ public final class SimBuilder {
                     }
                 }
             }
-            if (hits >= 11) {
-                return base;
-            }
+            if (hits >= 11) return base;
         }
         return null;
     }
@@ -1045,9 +993,7 @@ public final class SimBuilder {
     private static boolean doorwayBlock(ServerLevel level, int x, int y, int z) {
         var p = new net.minecraft.core.BlockPos(x, y, z);
         var state = level.getBlockState(p);
-        if (state.getCollisionShape(level, p).isEmpty()) {
-            return true;
-        }
+        if (state.getCollisionShape(level, p).isEmpty()) return true;
         String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
         return id.equals("coal_block") || id.equals("red_terracotta") || id.equals("infested_chiseled_stone_bricks");
     }
@@ -1085,9 +1031,7 @@ public final class SimBuilder {
                 return true;   // standing IN a fluid; water under a floor (a waterlogged slab, a channel) is harmless
             }
             String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
-            if (HAZARDS.contains(id)) {
-                return true;
-            }
+            if (HAZARDS.contains(id)) return true;
         }
         return false;
     }
@@ -1248,9 +1192,7 @@ public final class SimBuilder {
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
         // starts and the place he returns to cannot drift apart.
         SimSurvival.setHome(new net.minecraft.core.BlockPos(fx, y, fz));
-        if (uuid == null) {
-            return;
-        }
+        if (uuid == null) return;
         level.getServer().execute(() -> {
             ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
             if (sp != null) {
@@ -1294,13 +1236,9 @@ public final class SimBuilder {
      */
     private static void closeGreenRoomShell(ServerLevel level) {
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
-            if (!"Entrance".equalsIgnoreCase(placed.name())) {
-                continue;
-            }
+            if (!"Entrance".equalsIgnoreCase(placed.name())) continue;
             RoomLibrary.Room room = RoomLibrary.get(placed.name());
-            if (room == null) {
-                continue;
-            }
+            if (room == null) continue;
             net.minecraft.core.BlockPos origin = DungeonLayout.cellCenter(
                     placed.gridZ() * DungeonLayout.GRID + placed.gridX());
             int worldX0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
@@ -1338,9 +1276,7 @@ public final class SimBuilder {
 
     /** The room name at a grid cell, or "(none)", for a log line that has to name both sides of a door. */
     private static String roomNameAtCell(MapCode.Decoded decoded, int gx, int gz) {
-        if (gx < 0 || gz < 0 || gx >= DungeonLayout.GRID || gz >= DungeonLayout.GRID) {
-            return "(off the grid)";
-        }
+        if (gx < 0 || gz < 0 || gx >= DungeonLayout.GRID || gz >= DungeonLayout.GRID) return "(off the grid)";
         int nameIndex = decoded.cellRoom()[gz * DungeonLayout.GRID + gx];
         return nameIndex < 0 ? "(none)" : decoded.nameTable()[nameIndex];
     }
@@ -1365,9 +1301,7 @@ public final class SimBuilder {
             for (int[] step : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
                 int nx = gx + step[0];
                 int nz = gz + step[1];
-                if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
-                    continue;
-                }
+                if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) continue;
                 int n = nz * DungeonLayout.GRID + nx;
                 if (!handled[n] && cellRoom[n] == nameIndex) {
                     handled[n] = true;
@@ -1450,14 +1384,10 @@ public final class SimBuilder {
         // One read: this runs on the server thread, where client.player can go null between a check and a use.
         var player = client.player;
         var uuid = player == null ? null : player.getUUID();
-        if (uuid == null) {
-            return;
-        }
+        if (uuid == null) return;
         level.getServer().execute(() -> {
             ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             level.setBlockAndUpdate(HOLDING_AREA.below(),
                     net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
             sp.teleportTo(level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
@@ -1598,9 +1528,7 @@ public final class SimBuilder {
     private static int ownTopAbove(ServerLevel level, int x, int z, int from, int maxY) {
         net.minecraft.core.BlockPos.MutableBlockPos p = new net.minecraft.core.BlockPos.MutableBlockPos();
         for (int y = maxY; y >= from; y--) {
-            if (!level.getBlockState(p.set(x, y, z)).isAir()) {
-                return y;
-            }
+            if (!level.getBlockState(p.set(x, y, z)).isAir()) return y;
         }
         return from - 1;
     }
@@ -1623,9 +1551,7 @@ public final class SimBuilder {
                 hi = y;
             }
         }
-        if (lo > hi) {
-            return 0;
-        }
+        if (lo > hi) return 0;
         int placed = 0;
         for (int y = lo; y <= Math.min(hi, fillTop); y++) {
             if (y >= skipFrom && y <= skipTo) {
@@ -1633,9 +1559,7 @@ public final class SimBuilder {
             }
             net.minecraft.core.BlockPos seam = new net.minecraft.core.BlockPos(sx, y, sz);
             var state = level.getBlockState(seam);
-            if (!state.getCollisionShape(level, seam).isEmpty() || state.hasBlockEntity()) {
-                continue;
-            }
+            if (!state.getCollisionShape(level, seam).isEmpty() || state.hasBlockEntity()) continue;
             var inner = level.getBlockState(in.set(ix, y, iz));
             var wall = inner.isCollisionShapeFullBlock(level, in) && !inner.hasBlockEntity()
                     ? inner : net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
@@ -1716,9 +1640,7 @@ public final class SimBuilder {
                 chestIds.add(i);
             }
         }
-        if (chestIds.isEmpty()) {
-            return;
-        }
+        if (chestIds.isEmpty()) return;
         // The paste's OWN transform, margin and rotation included.
         //
         // This took the tile corner and added the raw captured (x, z), so it was one block off on both axes
@@ -1820,9 +1742,7 @@ public final class SimBuilder {
      * load left him at. Render thread.
      */
     static void resetSingleRoom(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         SoloLoad solo = soloLoad();
         if (SimState.isGeneratedFloor() || solo == null) {
             ModChat.send("Sim", ModChat.text("/reset is for solo rooms"),
@@ -2055,9 +1975,7 @@ public final class SimBuilder {
         }
         for (int tx = 0; tx < tilesX; tx++) {
             for (int tz = 0; tz < tilesZ; tz++) {
-                if (!present[tx][tz]) {
-                    continue;
-                }
+                if (!present[tx][tz]) continue;
                 put(cellRoom, centre + tx * 2, centre + tz * 2);
                 if (tx + 1 < tilesX && present[tx + 1][tz]) {
                     put(cellRoom, centre + tx * 2 + 1, centre + tz * 2);

@@ -106,14 +106,10 @@ public final class SimMimic {
 
     /** Whether a room of this name can hold the mimic. */
     public static boolean roomEligible(String roomName) {
-        if (roomName == null) {
-            return false;
-        }
+        if (roomName == null) return false;
         String lower = roomName.toLowerCase(Locale.ROOT);
         for (String bad : INELIGIBLE) {
-            if (lower.contains(bad)) {
-                return false;
-            }
+            if (lower.contains(bad)) return false;
         }
         // A puzzle's name rarely says "puzzle" (Tic Tac Toe, Quiz, Boulder...): ask the room database for its type.
         // Tic Tac Toe's reward chest bit in fullclear-1016 run 047, and Kill Mimic then used the sceptre for 5 s while
@@ -122,9 +118,7 @@ public final class SimMimic {
         if (entry != null && entry.type != null) {
             String type = entry.type.toLowerCase(Locale.ROOT);
             for (String bad : INELIGIBLE) {
-                if (type.contains(bad)) {
-                    return false;
-                }
+                if (type.contains(bad)) return false;
             }
         }
         return true;
@@ -234,9 +228,7 @@ public final class SimMimic {
      * Kill Mimic) has something to see.
      */
     static boolean openOnServer(net.minecraft.server.level.ServerLevel level, BlockPos pos) {
-        if (found || mimic == null || !mimic.equals(pos)) {
-            return false;
-        }
+        if (found || mimic == null || !mimic.equals(pos)) return false;
         found = true;
         BlockPos at = pos.immutable();
         level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
@@ -250,9 +242,7 @@ public final class SimMimic {
     /** Server thread, every tick (from {@code SimMobs}): the mimic's death is the kill. */
     static void tickServer(net.minecraft.server.level.ServerLevel level) {
         java.util.UUID id = mimicMob;
-        if (id == null) {
-            return;
-        }
+        if (id == null) return;
         var e = level.getEntity(id);
         if (e == null && (mimicAt == null || !level.isPositionEntityTicking(mimicAt))) {
             return;   // missing in a section the server is not ticking: unknown, not killed

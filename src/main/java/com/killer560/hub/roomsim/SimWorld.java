@@ -56,9 +56,7 @@ public final class SimWorld {
         // survives that, and it costs a null check on the ticks when nothing is building.
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             drainUnload(client);
-            if (!buildInProgress) {
-                return;
-            }
+            if (!buildInProgress) return;
             // Only once the level is actually here. While it is still loading, vanilla owns the screen -
             // fighting it for that every tick means replacing its receiving-level screen over and over, which
             // is its own way to hang the client. Vanilla covers the world load; this covers the build after it.
@@ -149,9 +147,7 @@ public final class SimWorld {
      */
     public static boolean deleteWorld(Minecraft client) {
         try {
-            if (!exists(client)) {
-                return false;
-            }
+            if (!exists(client)) return false;
             try (var access = client.getLevelSource().createAccess(LEVEL_ID)) {
                 access.deleteLevel();
             }
@@ -177,9 +173,7 @@ public final class SimWorld {
         try (var access = client.getLevelSource().createAccess(LEVEL_ID)) {
             java.nio.file.Path dir = access.getDimensionPath(net.minecraft.world.level.Level.OVERWORLD)
                     .resolve("entities");
-            if (!java.nio.file.Files.isDirectory(dir)) {
-                return;
-            }
+            if (!java.nio.file.Files.isDirectory(dir)) return;
             int deleted = 0;
             try (var files = java.nio.file.Files.list(dir)) {
                 for (java.nio.file.Path f : files.toList()) {
@@ -401,9 +395,7 @@ public final class SimWorld {
      */
     public static void onWorldLoaded(Minecraft client) {
         // Every world join lands here, Hypixel's server changes included; only a pending sim request does anything.
-        if (pendingCode == null) {
-            return;
-        }
+        if (pendingCode == null) return;
         LOGGER.info("[SimPhase] world loaded, starting the build");
         String code = pendingCode;
         pendingCode = null;
@@ -541,9 +533,7 @@ public final class SimWorld {
      */
     private static void freezeWorld(Minecraft client) {
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             // A sim world created before 2026-10-05 is stored as PEACEFUL; see the LevelSettings comment above.
             server.setDifficulty(Difficulty.EASY, true);

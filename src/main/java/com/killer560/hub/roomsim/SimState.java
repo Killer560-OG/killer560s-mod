@@ -110,9 +110,7 @@ public final class SimState {
      */
     public static String currentRoomName() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return null;
-        }
+        if (client == null || client.player == null) return null;
         return roomNameAt(client.player.getBlockX(), client.player.getBlockZ());
     }
 
@@ -125,20 +123,14 @@ public final class SimState {
      */
     public static String roomNameAt(int blockX, int blockZ) {
         String code = mapCode();
-        if (code == null || code.isBlank()) {
-            return null;
-        }
+        if (code == null || code.isBlank()) return null;
         MapCode.Decoded decoded = decodedMap(code);
-        if (decoded == null) {
-            return null;
-        }
+        if (decoded == null) return null;
         // The grid's own origin and spacing, read from DungeonLayout rather than from LiveMapFeature's
         // package-private constants - one public accessor beats widening two fields.
         var origin = com.killer560.hub.livemap.DungeonLayout.cellCenter(0);
         int step = com.killer560.hub.livemap.DungeonLayout.cellCenter(1).getX() - origin.getX();
-        if (step == 0) {
-            return null;
-        }
+        if (step == 0) return null;
         // By TILE, not by nearest cell. Rooms sit on even cells two steps apart and a tile reaches a whole step
         // either side of its center; rounding to the nearest cell put the outer half of every 1x1 room's tile in
         // the odd connector cell beside it, which no 1x1 room covers - so anywhere within about eight blocks of a
@@ -147,13 +139,9 @@ public final class SimState {
         int gx = 2 * Math.floorDiv(blockX - origin.getX() + step, 2 * step);
         int gz = 2 * Math.floorDiv(blockZ - origin.getZ() + step, 2 * step);
         int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
-        if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) {
-            return null;
-        }
+        if (gx < 0 || gz < 0 || gx >= grid || gz >= grid) return null;
         int id = decoded.cellRoom()[gz * grid + gx];
-        if (id < 0 || id >= decoded.nameTable().length) {
-            return null;
-        }
+        if (id < 0 || id >= decoded.nameTable().length) return null;
         return decoded.nameTable()[id];
     }
 
@@ -175,9 +163,7 @@ public final class SimState {
      */
     private static MapCode.Decoded decodedMap(String code) {
         DecodedCode c = lastDecoded;
-        if (c != null && (c.code() == code || c.code().equals(code))) {
-            return c.decoded();
-        }
+        if (c != null && (c.code() == code || c.code().equals(code))) return c.decoded();
         MapCode.Decoded d = MapCode.decode(code);
         lastDecoded = new DecodedCode(code, d);
         return d;

@@ -190,9 +190,7 @@ public final class SimSecretItems {
      */
     public static boolean trapPendingChest(BlockPos at) {
         net.minecraft.world.level.block.state.BlockState s = at == null ? null : PENDING_CHESTS.get(at);
-        if (s == null) {
-            return false;
-        }
+        if (s == null) return false;
         var trapped = net.minecraft.world.level.block.Blocks.TRAPPED_CHEST.defaultBlockState();
         if (s.hasProperty(net.minecraft.world.level.block.ChestBlock.FACING)) {
             trapped = trapped.setValue(net.minecraft.world.level.block.ChestBlock.FACING,
@@ -204,9 +202,7 @@ public final class SimSecretItems {
 
     /** Spawns each secret chest he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingChests(ServerLevel level, double px, double py, double pz) {
-        if (PENDING_CHESTS.isEmpty()) {
-            return;
-        }
+        if (PENDING_CHESTS.isEmpty()) return;
         List<BlockPos> ready = null;
         for (BlockPos at : PENDING_CHESTS.keySet()) {
             double dx = at.getX() + 0.5 - px;
@@ -223,9 +219,7 @@ public final class SimSecretItems {
                 CHEST_IN_RANGE.remove(at);
             }
         }
-        if (ready == null) {
-            return;
-        }
+        if (ready == null) return;
         for (BlockPos at : ready) {
             var state = PENDING_CHESTS.remove(at);
             CHEST_IN_RANGE.remove(at);
@@ -286,9 +280,7 @@ public final class SimSecretItems {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive()) {
-                return;
-            }
+            if (!SimState.isActive()) return;
             try {
                 ServerLevel level = server.overworld();
                 // Not players().get(0): a placed miniboss is a ServerPlayer and so is in this list too
@@ -363,9 +355,7 @@ public final class SimSecretItems {
                 entry.setValue(0);
             }
         }
-        if (ready == null) {
-            return;
-        }
+        if (ready == null) return;
         for (BlockPos at : ready) {
             PENDING.remove(at);
             spawn(level, at);
@@ -379,9 +369,7 @@ public final class SimSecretItems {
      * reads) are all vanilla's. Server thread, sim world only.
      */
     private static void magneticPickup(ServerLevel level, net.minecraft.server.level.ServerPlayer player) {
-        if (player.isSpectator() || !player.isAlive()) {
-            return;
-        }
+        if (player.isSpectator() || !player.isAlive()) return;
         var box = player.getBoundingBox().inflate(PICKUP_X, PICKUP_Y, PICKUP_Z);
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, box, e -> e.isAlive())) {
             item.playerTouch(player);
@@ -394,9 +382,7 @@ public final class SimSecretItems {
      * {@code playerTouch} (pickup delay, full inventory) as {@link #magneticPickup}.
      */
     public static void pickupOnLanding(net.minecraft.server.level.ServerPlayer player) {
-        if (!SimState.isActive() || player == null || SimMiniboss.isPlaced(player)) {
-            return;
-        }
+        if (!SimState.isActive() || player == null || SimMiniboss.isPlaced(player)) return;
         try {
             magneticPickup((ServerLevel) player.level(), player);
         } catch (RuntimeException e) {
@@ -406,9 +392,7 @@ public final class SimSecretItems {
 
     /** Spawns each secret bat he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingBats(ServerLevel level, double px, double py, double pz) {
-        if (PENDING_BATS.isEmpty()) {
-            return;
-        }
+        if (PENDING_BATS.isEmpty()) return;
         List<BlockPos> ready = new ArrayList<>();
         for (BlockPos at : PENDING_BATS) {
             double dx = at.getX() + 0.5 - px;
@@ -507,9 +491,7 @@ public final class SimSecretItems {
      */
     private static void reportWhyNotCollected(ServerLevel level, net.minecraft.world.entity.Entity drop,
                                               BlockPos anchor) {
-        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || ++reportTicks % REPORT_EVERY_TICKS != 0) {
-            return;
-        }
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || ++reportTicks % REPORT_EVERY_TICKS != 0) return;
         var players = level.players();
         if (players.isEmpty()) {
             LOGGER.info("[SimSecretItems] drop at {} is waiting - no player on the server",
@@ -596,17 +578,11 @@ public final class SimSecretItems {
     }
 
     private static boolean isCollectedSecret(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return false;
-        }
+        if (data == null) return false;
         CompoundTag tag = data.copyTag();
-        if (!tag.contains(SECRET_MARK)) {
-            return false;
-        }
+        if (!tag.contains(SECRET_MARK)) return false;
         return !SimItems.ARCHITECT_DRAFT_ID.equals(tag.getStringOr("id", ""));
     }
 }

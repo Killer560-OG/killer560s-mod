@@ -155,9 +155,7 @@ public final class SimTeleportMazePuzzle {
 
     /** Registers the progress-polling tick hook. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.START_CLIENT_TICK.register(
                 FeatureGuard.start("SimTeleportMazePuzzle.tick", SimTeleportMazePuzzle::tick));
@@ -165,13 +163,9 @@ public final class SimTeleportMazePuzzle {
 
     /** Clears any previous arena and builds a fresh one, with fresh random correct pads, at {@code origin}. */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         clearBlocks(client);
         storedOrigin = origin;
         boundAnchor = null;   // a standalone arena, not a bind to a captured room
@@ -249,9 +243,7 @@ public final class SimTeleportMazePuzzle {
                 com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
                         com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.END_PORTAL_FRAME),
                         new int[]{0}, 24);
-        if (anchor == null) {
-            return false;
-        }
+        if (anchor == null) return false;
         // In-memory only, NOT clearBlocks(): that queues air writes at the PREVIOUS arena's positions for the
         // next server tick, which on a rebuild of the same room would be inside the room just pasted. The
         // build's own wipe has already removed the last floor.
@@ -390,9 +382,7 @@ public final class SimTeleportMazePuzzle {
         while (!q.isEmpty()) {
             int stepped = q.poll();
             int landed = l[stepped];
-            if (landed < 0) {
-                continue;
-            }
+            if (landed < 0) continue;
             if (landed == END) {
                 List<Integer> out = new ArrayList<>();
                 for (int p = stepped; p >= 0; p = cameFrom[p]) {
@@ -529,9 +519,7 @@ public final class SimTeleportMazePuzzle {
             if (chest == null || !SimState.isActive() || !chest.equals(hit.getBlockPos())) {
                 return net.minecraft.world.InteractionResult.PASS;
             }
-            if (insideCentre(player.blockPosition())) {
-                return net.minecraft.world.InteractionResult.PASS;
-            }
+            if (insideCentre(player.blockPosition())) return net.minecraft.world.InteractionResult.PASS;
             if (level.isClientSide()) {
                 long now = System.currentTimeMillis();
                 if (now - lastRefusalMs > 1000L) {
@@ -554,9 +542,7 @@ public final class SimTeleportMazePuzzle {
             lockedPad = -1;   // stepped off: the pad he landed on works again
             return;
         }
-        if (pad == lockedPad || link.length == 0) {
-            return;
-        }
+        if (pad == lockedPad || link.length == 0) return;
         if (pad == END) {
             // THE CENTER'S PAD IS THE WAY OUT. killer560 (2026-10-04): "the teleporter at the middle by the chest
             // should take me back right to the same block I would tp to into the room". Landing on it from the
@@ -570,9 +556,7 @@ public final class SimTeleportMazePuzzle {
             return;
         }
         int dest = link[pad];
-        if (dest < 0) {
-            return;
-        }
+        if (dest < 0) return;
         BlockPos to = boundPads[dest];
         lockedPad = dest;
         settleTicks = 5;
@@ -646,13 +630,9 @@ public final class SimTeleportMazePuzzle {
     private static void clearBlocks(Minecraft client) {
         Map<BlockPos, net.minecraft.world.level.block.state.BlockState> old = builtBlocks;
         builtBlocks = Map.of();
-        if (old.isEmpty() || !SimState.canAct(client)) {
-            return;
-        }
+        if (old.isEmpty() || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (Map.Entry<BlockPos, net.minecraft.world.level.block.state.BlockState> e : old.entrySet()) {
@@ -662,23 +642,17 @@ public final class SimTeleportMazePuzzle {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client) || !built) {
-            return;
-        }
+        if (!SimState.canAct(client) || !built) return;
         if (boundAnchor != null) {
             // Not stopped by completion: the center's pad is the way back out, and it is only ever stood on
             // after the maze is crossed.
             tickBound(client);
             return;
         }
-        if (complete) {
-            return;
-        }
+        if (complete) return;
         BlockPos feet = client.player.blockPosition();
         int[] hit = PAD_INDEX.get(feet);
-        if (hit == null) {
-            return;
-        }
+        if (hit == null) return;
         int cell = hit[0];
         int padIndex = hit[1];
         if (cell == ENTRY_CELL) {
@@ -788,16 +762,12 @@ public final class SimTeleportMazePuzzle {
 
     private static void teleport(Minecraft client, double x, double y, double z, float yaw) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         UUID uuid = client.player.getUUID();
         float pitch = client.player.getXRot();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             // level() rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2.
             sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.<Relative>of(), yaw, pitch, false);
         });

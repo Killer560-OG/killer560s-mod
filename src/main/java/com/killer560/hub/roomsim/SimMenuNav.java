@@ -126,9 +126,7 @@ public final class SimMenuNav {
         Minecraft mc = Minecraft.getInstance();
         for (Page p : Page.values()) {
             add.accept(new Item(p.nav, p == current, x, y, w, ITEM_H, () -> {
-                if (p == current) {
-                    return;
-                }
+                if (p == current) return;
                 if (local != null && p != Page.DESIGNER) {
                     local.accept(p);
                 } else {

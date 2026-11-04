@@ -62,18 +62,14 @@ public final class SimKeyRoom {
 
         boolean insideBefore(double x, double z) {
             for (int[] b : before) {
-                if (x >= b[0] && x < b[2] && z >= b[1] && z < b[3]) {
-                    return true;
-                }
+                if (x >= b[0] && x < b[2] && z >= b[1] && z < b[3]) return true;
             }
             return false;
         }
 
         boolean inside(double x, double z) {
             for (int[] b : boxes) {
-                if (x >= b[0] && x < b[2] && z >= b[1] && z < b[3]) {
-                    return true;
-                }
+                if (x >= b[0] && x < b[2] && z >= b[1] && z < b[3]) return true;
             }
             return false;
         }
@@ -87,9 +83,7 @@ public final class SimKeyRoom {
     }
 
     static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ServerTickEvents.END_SERVER_TICK.register(SimKeyRoom::tick);
     }
@@ -116,14 +110,10 @@ public final class SimKeyRoom {
      * insta clearing it 13 times of 15 and into a discovered one 1 of 75.
      */
     static boolean arm(Minecraft client, String roomName, boolean blood, String beforeRoom, int doorIn) {
-        if (!SimState.canAct(client) || roomName == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || roomName == null) return false;
         DungeonLayout layout = DungeonLayout.capture();
         List<int[]> out = boxes(layout, roomName);
-        if (out.isEmpty()) {
-            return false;
-        }
+        if (out.isEmpty()) return false;
         Armed armed = new Armed(roomName, blood, out);
         if (beforeRoom != null) {
             armed.before = boxes(layout, beforeRoom);
@@ -139,9 +129,7 @@ public final class SimKeyRoom {
     private static List<int[]> boxes(DungeonLayout layout, String roomName) {
         List<int[]> out = new ArrayList<>();
         for (int r = 0; r < layout.roomCount(); r++) {
-            if (!roomName.equalsIgnoreCase(layout.name(r))) {
-                continue;
-            }
+            if (!roomName.equalsIgnoreCase(layout.name(r))) continue;
             for (int t : layout.tiles(r)) {
                 BlockPos c = DungeonLayout.cellCenter(t);
                 out.add(new int[]{c.getX() - 15, c.getZ() - 15, c.getX() + 16, c.getZ() + 16});
@@ -184,9 +172,7 @@ public final class SimKeyRoom {
     /** {@code SimMobs.markClearedRooms}: {@code name} just cleared because its last starred mob died, at {@code at}. */
     static void onClearedByKills(String name, double[] at) {
         Armed a = name == null ? null : ARMED.get(key(name));
-        if (a == null || a.lost || a.dropped || at == null) {
-            return;
-        }
+        if (a == null || a.lost || a.dropped || at == null) return;
         a.dropped = true;
         Vec3 pos = new Vec3(at[0], at[1], at[2]);
         LOGGER.info("Sim key room: {}'s last starred mob died - its {} drops at {}", name,
@@ -197,9 +183,7 @@ public final class SimKeyRoom {
     /** A key room with no starred mob to kill (placement found no spot): its key drops at {@code at} straight away. */
     static void dropWithoutMobs(String name, Vec3 at) {
         Armed a = name == null ? null : ARMED.get(key(name));
-        if (a == null || a.dropped || a.lost || at == null) {
-            return;
-        }
+        if (a == null || a.dropped || a.lost || at == null) return;
         a.dropped = true;
         LOGGER.warn("Sim key room: {} has no starred mob - its {} drops at {} at once", name,
                 a.blood ? "Blood Key" : "Wither Key", BlockPos.containing(at).toShortString());
@@ -207,30 +191,22 @@ public final class SimKeyRoom {
     }
 
     private static void tick(MinecraftServer server) {
-        if (ARMED.isEmpty() || !SimState.isActive()) {
-            return;
-        }
+        if (ARMED.isEmpty() || !SimState.isActive()) return;
         try {
             List<ServerPlayer> players = server.getPlayerList().getPlayers();
-            if (players.isEmpty()) {
-                return;
-            }
+            if (players.isEmpty()) return;
             ServerPlayer sp = players.get(0);
             Vec3 pos = sp.position();
             Vec3 before = lastPos;
             lastPos = pos;
-            if (before == null) {
-                return;
-            }
+            if (before == null) return;
             for (Armed a : ARMED.values()) {
                 if (!a.discovered && a.doorIn >= 0 && a.insideBefore(pos.x, pos.z)
                         && SimDoors.isOpenAtCell(server.overworld(), a.doorIn)) {
                     a.discovered = true;
                     LOGGER.info("Sim key room: {} discovered (he is in the room before it and its door is open)", a.name);
                 }
-                if (a.entered || !a.inside(pos.x, pos.z)) {
-                    continue;
-                }
+                if (a.entered || !a.inside(pos.x, pos.z)) continue;
                 a.entered = true;
                 double jump = Math.hypot(pos.x - before.x, pos.z - before.z);
                 boolean teleport = jump > TELEPORT_BLOCKS && !a.inside(before.x, before.z);

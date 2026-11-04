@@ -166,9 +166,7 @@ public final class SimPrince {
     public static List<BlockPos> blocksOf(BlockPos pos) {
         Integer which = BLOCKS.get(pos);
         List<BlockPos> out = new ArrayList<>();
-        if (which == null) {
-            return out;
-        }
+        if (which == null) return out;
         for (Map.Entry<BlockPos, Integer> e : BLOCKS.entrySet()) {
             if (e.getValue().equals(which)) {
                 out.add(e.getKey());
@@ -192,9 +190,7 @@ public final class SimPrince {
     public static List<BlockPos> extrasOf(ServerLevel level, BlockPos pos) {
         List<BlockPos> blocks = blocksOf(pos);
         Set<BlockPos> out = new java.util.LinkedHashSet<>();
-        if (blocks.isEmpty()) {
-            return new ArrayList<>(out);
-        }
+        if (blocks.isEmpty()) return new ArrayList<>(out);
         Set<BlockPos> own = new HashSet<>(blocks);
         int minY = Integer.MAX_VALUE;
         for (BlockPos b : blocks) {
@@ -248,9 +244,7 @@ public final class SimPrince {
     public static List<BlockPos> tombOf(ServerLevel level, BlockPos pos) {
         List<BlockPos> blocks = blocksOf(pos);
         Set<BlockPos> out = new java.util.LinkedHashSet<>(blocks);
-        if (blocks.isEmpty()) {
-            return new ArrayList<>(out);
-        }
+        if (blocks.isEmpty()) return new ArrayList<>(out);
         int bx0 = Integer.MAX_VALUE, bx1 = Integer.MIN_VALUE, bz0 = Integer.MAX_VALUE, bz1 = Integer.MIN_VALUE;
         int by0 = Integer.MAX_VALUE, by1 = Integer.MIN_VALUE;
         for (BlockPos b : blocks) {
@@ -396,9 +390,7 @@ public final class SimPrince {
      * @return true exactly once per run, for the first prince blown; false for every one after it
      */
     public static boolean takeScore() {
-        if (scored) {
-            return false;
-        }
+        if (scored) return false;
         scored = true;
         return true;
     }
@@ -433,9 +425,7 @@ public final class SimPrince {
         int z1 = Math.max(min.getZ(), max.getZ()) + RoomLibrary.TILE;
         for (int cx = x0 >> 4; cx <= (x1 >> 4); cx++) {
             for (int cz = z0 >> 4; cz <= (z1 >> 4); cz++) {
-                if (!level.hasChunk(cx, cz)) {
-                    continue;
-                }
+                if (!level.hasChunk(cx, cz)) continue;
                 var chunk = level.getChunk(cx, cz);
                 var sections = chunk.getSections();
                 for (int i = 0; i < sections.length; i++) {
@@ -446,9 +436,7 @@ public final class SimPrince {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
-                    if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) {
-                        continue;
-                    }
+                    if (baseY + 15 < SimAltitude.minWorldY() || baseY > SimAltitude.maxWorldY()) continue;
                     for (int lx = 0; lx < 16; lx++) {
                         for (int lz = 0; lz < 16; lz++) {
                             for (int ly = 0; ly < 16; ly++) {
@@ -550,9 +538,7 @@ public final class SimPrince {
             for (int dy = -NEAR_SCAN; dy <= NEAR_SCAN; dy++) {
                 for (int dz = -NEAR_SCAN; dz <= NEAR_SCAN; dz++) {
                     at.set(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
-                    if (BLOCKS.containsKey(at) || !level.isLoaded(at)) {
-                        continue;
-                    }
+                    if (BLOCKS.containsKey(at) || !level.isLoaded(at)) continue;
                     var state = level.getBlockState(at);
                     BlockPos p = at.immutable();
                     if (state.is(CROWN)) {

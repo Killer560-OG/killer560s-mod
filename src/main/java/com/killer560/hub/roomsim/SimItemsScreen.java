@@ -171,20 +171,14 @@ public final class SimItemsScreen extends Screen implements MenuThemedScreen {
 
     /** Which cell a point is over, or -1. */
     private int cellAt(double mx, double my) {
-        if (mx < gridX || my < gridY) {
-            return -1;
-        }
+        if (mx < gridX || my < gridY) return -1;
         int col = (int) ((mx - gridX) / (double) (CELL + PAD));
         int row = (int) ((my - gridY) / (double) (CELL + PAD));
-        if (col < 0 || col >= COLUMNS || row < 0) {
-            return -1;
-        }
+        if (col < 0 || col >= COLUMNS || row < 0) return -1;
         // Reject the gaps between cells, so a click on the seam does nothing rather than the wrong thing.
         double inX = (mx - gridX) % (CELL + PAD);
         double inY = (my - gridY) % (CELL + PAD);
-        if (inX > CELL || inY > CELL) {
-            return -1;
-        }
+        if (inX > CELL || inY > CELL) return -1;
         int idx = row * COLUMNS + col;
         return idx < entries.size() ? idx : -1;
     }

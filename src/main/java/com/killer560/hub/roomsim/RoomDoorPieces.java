@@ -82,9 +82,7 @@ public final class RoomDoorPieces {
     static Map<Long, BlockState> overrides(RoomLibrary.Room room, int rotation) {
         Map<Long, BlockState> out = new HashMap<>();
         int turns = Math.floorMod(rotation / 90, 4);
-        if (room == null || turns == 0) {
-            return out;
-        }
+        if (room == null || turns == 0) return out;
         RoomDoors.Mask mask = RoomDoors.measure(room);
         int swapped = 0;
         for (int packed : mask.edges()) {
@@ -95,9 +93,7 @@ public final class RoomDoorPieces {
             }
             boolean capturedFill = westOrNorth(side);
             boolean worldFill = westOrNorth((side + turns) % 4);
-            if (capturedFill == worldFill) {
-                continue;
-            }
+            if (capturedFill == worldFill) continue;
             if (!matches(room, side, index, capturedFill)) {
                 continue;   // the room's own doorway, not the connector: left as captured
             }
@@ -131,14 +127,10 @@ public final class RoomDoorPieces {
                         return false;
                     }
                     short idx = room.at(p[0], p[1], p[2]);
-                    if (idx < 0) {
-                        return false;
-                    }
+                    if (idx < 0) return false;
                     BlockState have = RoomPlacer.resolve(room.palette.get(idx));
                     BlockState want = piece(side, k, u, y, fill);
-                    if (have == null || (want.isAir() ? !have.isAir() : !want.equals(have))) {
-                        return false;
-                    }
+                    if (have == null || (want.isAir() ? !have.isAir() : !want.equals(have))) return false;
                 }
             }
         }
@@ -154,9 +146,7 @@ public final class RoomDoorPieces {
             // By id, not Blocks.CYAN_TERRACOTTA: color blocks are named differently on 26.2 (see McBlocks).
             return k == 0 ? RoomPlacer.resolve("minecraft:cyan_terracotta") : Blocks.AIR.defaultBlockState();
         }
-        if (k == 0) {
-            return Blocks.STONE.defaultBlockState();
-        }
+        if (k == 0) return Blocks.STONE.defaultBlockState();
         return fill(side, u, y);
     }
 

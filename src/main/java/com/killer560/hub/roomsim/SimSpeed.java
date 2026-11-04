@@ -102,9 +102,7 @@ public final class SimSpeed {
     }
 
     private static void show(Minecraft client) {
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         double attr = client.player.getAttributeValue(Attributes.MOVEMENT_SPEED);
         ModChat.send("Sim", ModChat.text("Speed is "),
                 ModChat.value(String.valueOf(Math.round(attr * 1000))),
@@ -117,16 +115,12 @@ public final class SimSpeed {
             return;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         var uuid = client.player.getUUID();
         double value = hypixelSpeed / 1000.0;
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             var attr = sp.getAttribute(Attributes.MOVEMENT_SPEED);
             if (attr != null) {
                 attr.setBaseValue(value);

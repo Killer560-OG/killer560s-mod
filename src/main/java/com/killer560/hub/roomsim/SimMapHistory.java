@@ -63,9 +63,7 @@ public final class SimMapHistory {
 
         /** "Floor 1 · Generated", "Floor 7 · Drawn", "My Dungeon · Saved design" - a Load row's first line. */
         public String title() {
-            if (SAVED.equals(kind)) {
-                return (name == null || name.isBlank() ? "Untitled" : name) + " · Saved design";
-            }
+            if (SAVED.equals(kind)) return (name == null || name.isBlank() ? "Untitled" : name) + " · Saved design";
             return floorLabel + " · " + (DRAWN.equals(kind) ? "Drawn" : "Generated");
         }
 
@@ -95,13 +93,9 @@ public final class SimMapHistory {
     public static synchronized Entry recordGenerated(String floorCode, String floorLabel, String code, int rooms,
                                                      int puzzles) {
         load();
-        if (code == null || code.isBlank()) {
-            return null;
-        }
+        if (code == null || code.isBlank()) return null;
         for (Entry e : ENTRIES) {
-            if (code.equals(e.code())) {
-                return e;
-            }
+            if (code.equals(e.code())) return e;
         }
         return add(new Entry(System.currentTimeMillis(), GENERATED, null, floorCode, floorLabel, code, null, rooms,
                 puzzles));
@@ -110,13 +104,9 @@ public final class SimMapHistory {
     public static synchronized Entry recordDrawn(String floorCode, String floorLabel, Map<Integer, String> cells,
                                                  int puzzles) {
         load();
-        if (cells == null || cells.isEmpty()) {
-            return null;
-        }
+        if (cells == null || cells.isEmpty()) return null;
         for (Entry e : ENTRIES) {
-            if (e.cells() != null && e.cells().equals(cells)) {
-                return e;
-            }
+            if (e.cells() != null && e.cells().equals(cells)) return e;
         }
         return add(new Entry(System.currentTimeMillis(), DRAWN, null, floorCode, floorLabel, null,
                 new LinkedHashMap<>(cells), cells.size(), puzzles));
@@ -146,9 +136,7 @@ public final class SimMapHistory {
     }
 
     private static void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
         migrated = false;
         readFailed = false;
@@ -207,9 +195,7 @@ public final class SimMapHistory {
                 JsonObject root = JsonParser.parseString(Files.readString(OLD_PRESETS, StandardCharsets.UTF_8))
                         .getAsJsonObject();
                 for (String name : root.keySet()) {
-                    if (!root.get(name).isJsonObject()) {
-                        continue;
-                    }
+                    if (!root.get(name).isJsonObject()) continue;
                     Map<Integer, String> cells = new LinkedHashMap<>();
                     JsonObject obj = root.getAsJsonObject(name);
                     for (String cell : obj.keySet()) {
@@ -219,9 +205,7 @@ public final class SimMapHistory {
                             // one unreadable cell loses that room, not the design
                         }
                     }
-                    if (cells.isEmpty()) {
-                        continue;
-                    }
+                    if (cells.isEmpty()) continue;
                     ENTRIES.add(new Entry(when, SAVED, name, "F7", "Floor 7", null, cells, cells.size(), -1));
                     added++;
                 }
@@ -249,9 +233,7 @@ public final class SimMapHistory {
                     cells.put(Integer.parseInt(k), c.get(k).getAsString());
                 }
             }
-            if (code == null && (cells == null || cells.isEmpty())) {
-                return null;
-            }
+            if (code == null && (cells == null || cells.isEmpty())) return null;
             String kind = o.has("kind") ? o.get("kind").getAsString() : code != null ? GENERATED : DRAWN;
             return new Entry(o.get("created").getAsLong(), kind,
                     o.has("name") ? o.get("name").getAsString() : null,
@@ -266,9 +248,7 @@ public final class SimMapHistory {
     }
 
     private static void save() {
-        if (readFailed) {
-            return;
-        }
+        if (readFailed) return;
         try {
             Files.createDirectories(FILE.getParent());
             JsonArray arr = new JsonArray();

@@ -103,9 +103,7 @@ public final class SimLoadout {
      * save is a thing he can do in ten seconds, and typing nine item ids in the right order is not.
      */
     public static void save(Minecraft client) {
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         load();
         String[] next = new String[SLOTS];
         int filled = 0;
@@ -131,21 +129,15 @@ public final class SimLoadout {
             return;
         }
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         var uuid = client.player.getUUID();
         String[] wanted = slots.clone();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             for (int i = 0; i < SLOTS; i++) {
                 String id = wanted[i];
-                if (id == null) {
-                    continue;
-                }
+                if (id == null) continue;
                 ItemStack stack = SimItems.build(id);
                 if (!stack.isEmpty()) {
                     // setItem, not add: the slot IS the point. Adding would drop things wherever there was
@@ -166,9 +158,7 @@ public final class SimLoadout {
 
     private static boolean hasAnything() {
         for (String s : slots) {
-            if (s != null) {
-                return true;
-            }
+            if (s != null) return true;
         }
         return false;
     }
@@ -200,13 +190,9 @@ public final class SimLoadout {
     }
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
-        if (!Files.exists(FILE)) {
-            return;
-        }
+        if (!Files.exists(FILE)) return;
         try {
             JsonObject o = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8))
                     .getAsJsonObject();

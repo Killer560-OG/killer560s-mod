@@ -65,9 +65,7 @@ public final class SimResetCommand {
             return;
         }
         boolean now = SimState.canAct(client);
-        if (now == treeShowsSim) {
-            return;
-        }
+        if (now == treeShowsSim) return;
         treeShowsSim = now;
         try {
             ClientCommands.refreshCommandCompletions();

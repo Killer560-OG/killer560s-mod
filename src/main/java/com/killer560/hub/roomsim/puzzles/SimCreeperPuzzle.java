@@ -97,21 +97,13 @@ public final class SimCreeperPuzzle {
     /** Registers the right-click-to-connect handler. Reports back rather than wiring itself into a screen/menu -
      *  see the class handoff note for where this still needs to be called from. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            if (!level.isClientSide() || hitResult == null) {
-                return InteractionResult.PASS;
-            }
+            if (!level.isClientSide() || hitResult == null) return InteractionResult.PASS;
             Minecraft client = Minecraft.getInstance();
-            if (!SimState.canAct(client) || player != client.player) {
-                return InteractionResult.PASS;
-            }
-            if (!tryConnectAt(hitResult.getBlockPos())) {
-                return InteractionResult.PASS;
-            }
+            if (!SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            if (!tryConnectAt(hitResult.getBlockPos())) return InteractionResult.PASS;
             return InteractionResult.SUCCESS;
         });
     }
@@ -135,9 +127,7 @@ public final class SimCreeperPuzzle {
      */
     public static boolean tryConnectAt(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client) || pos == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || pos == null) return false;
         Integer idx = lanternToPairIndex.get(pos);
         if (idx == null) {
             sayNotAPairLantern(client, pos);
@@ -178,9 +168,7 @@ public final class SimCreeperPuzzle {
      */
     public static boolean struckAt(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client) || pos == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || pos == null) return false;
         Integer idx = lanternToPairIndex.get(pos);
         if (idx != null && client.player != null && client.level != null) {
             double d = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos));
@@ -228,13 +216,9 @@ public final class SimCreeperPuzzle {
         net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(
                 eye, end, net.minecraft.world.level.ClipContext.Block.COLLIDER,
                 net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
-        if (hit == null || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            return false;
-        }
+        if (hit == null || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) return false;
         BlockPos pos = hit.getBlockPos().immutable();
-        if (!lanternToPairIndex.containsKey(pos)) {
-            return false;
-        }
+        if (!lanternToPairIndex.containsKey(pos)) return false;
         LOGGER.info("Sim creeper beams: shot landed on lantern {} (pair {}) from {} blocks", pos,
                 lanternToPairIndex.get(pos), String.format(java.util.Locale.ROOT, "%.1f",
                         Math.sqrt(eye.distanceToSqr(hit.getLocation()))));
@@ -266,12 +250,8 @@ public final class SimCreeperPuzzle {
             return;
         }
         BlockState state = client.level.getBlockState(pos);
-        if (!state.is(Blocks.SEA_LANTERN) && !state.is(Blocks.PRISMARINE)) {
-            return;
-        }
-        if (!NOT_A_PAIR_SAID.add(pos.immutable())) {
-            return;
-        }
+        if (!state.is(Blocks.SEA_LANTERN) && !state.is(Blocks.PRISMARINE)) return;
+        if (!NOT_A_PAIR_SAID.add(pos.immutable())) return;
         com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.dim(
                 "That lantern is not part of a beam pair - this room has 13 of those as well as the 22 that are."));
     }
@@ -305,9 +285,7 @@ public final class SimCreeperPuzzle {
      */
     private static void hitSound(Minecraft client, BlockPos pos, float pitch) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> server.overworld().playSound(null, pos.getX(), pos.getY(), pos.getZ(),
                 net.minecraft.sounds.SoundEvents.ELDER_GUARDIAN_HURT,
                 net.minecraft.sounds.SoundSource.BLOCKS, 1.0f, pitch));
@@ -422,9 +400,7 @@ public final class SimCreeperPuzzle {
                 .register(context -> {
                     boolean[] c = connected;
                     List<Pair> world = worldPairs;
-                    if (!SimState.canAct(Minecraft.getInstance()) || c.length == 0 || world.isEmpty()) {
-                        return;
-                    }
+                    if (!SimState.canAct(Minecraft.getInstance()) || c.length == 0 || world.isEmpty()) return;
                     // The held end, drawn rather than built. See pendingPos: changing the block is what made
                     // BeamsSolverFeature call a correct first shot a misaligned pair.
                     BlockPos held = pendingPos;
@@ -445,9 +421,7 @@ public final class SimCreeperPuzzle {
                                 1.0f, 0.25f, 0.25f, 1f, 3f);
                     }
                     for (int i = 0; i < c.length && i < world.size(); i++) {
-                        if (!c[i]) {
-                            continue;
-                        }
+                        if (!c[i]) continue;
                         Pair pair = world.get(i);
                         List<net.minecraft.world.phys.Vec3> line = List.of(
                                 new net.minecraft.world.phys.Vec3(pair.a().getX() + 0.5,
@@ -462,13 +436,9 @@ public final class SimCreeperPuzzle {
 
     /** Clears any previous arena and places a fresh, unconnected one (all Sea Lantern) at {@code origin}. */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<Pair> pairs = PAIRS;
         storedOrigin = origin;
         arenaPairs = pairs;
@@ -514,9 +484,7 @@ public final class SimCreeperPuzzle {
      */
     public static boolean bindAt(ServerLevel level, com.killer560.hub.roomsim.SimRoomPuzzles.Placement p) {
         List<Pair> pairs = PAIRS;
-        if (pairs.isEmpty()) {
-            return false;
-        }
+        if (pairs.isEmpty()) return false;
         List<int[]> rels = new ArrayList<>(pairs.size() * 2);
         for (Pair pair : pairs) {
             rels.add(new int[]{pair.a().getX(), pair.a().getY(), pair.a().getZ()});
@@ -526,9 +494,7 @@ public final class SimCreeperPuzzle {
                 com.killer560.hub.roomsim.SimRoomPuzzles.bestAnchor(level, p, rels,
                         com.killer560.hub.roomsim.SimRoomPuzzles.is(Blocks.SEA_LANTERN, Blocks.PRISMARINE),
                         new int[]{0}, Math.max(4, rels.size() * 3 / 4));
-        if (anchor == null) {
-            return false;
-        }
+        if (anchor == null) return false;
         List<Pair> world = new ArrayList<>(pairs.size());
         for (Pair pair : pairs) {
             world.add(new Pair(anchor.world(pair.a().getX(), pair.a().getY(), pair.a().getZ()),
@@ -563,9 +529,7 @@ public final class SimCreeperPuzzle {
     /** True once every pair in the current arena has been connected. False when nothing has been built yet. */
     public static boolean isComplete() {
         boolean[] c = connected;
-        if (!built || c.length == 0) {
-            return false;
-        }
+        if (!built || c.length == 0) return false;
         int joined = 0;
         for (boolean b : c) {
             if (b) {
@@ -617,14 +581,10 @@ public final class SimCreeperPuzzle {
 
     public static void reset() {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
         List<Pair> world = worldPairs;
-        if (server == null || world.isEmpty()) {
-            return;
-        }
+        if (server == null || world.isEmpty()) return;
         connected = new boolean[world.size()];
         pendingPos = null;
         pendingIndex = -1;
@@ -643,18 +603,14 @@ public final class SimCreeperPuzzle {
     private static void connectPair(Minecraft client, int idx) {
         boolean[] c = connected;
         List<Pair> world = worldPairs;
-        if (idx < 0 || idx >= c.length || idx >= world.size() || c[idx]) {
-            return;
-        }
+        if (idx < 0 || idx >= c.length || idx >= world.size() || c[idx]) return;
         c[idx] = true;
         if (isComplete()) {
             com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.good("Creeper Beams"),
                     com.killer560.hub.util.ModChat.text(" solved - four beams through the creeper."));
         }
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         Pair pair = world.get(idx);
         server.execute(() -> {
             ServerLevel level = server.overworld();
@@ -669,16 +625,12 @@ public final class SimCreeperPuzzle {
     private static List<Pair> loadPairs() {
         try (InputStream stream = SimCreeperPuzzle.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/creeper-beams-solutions.json")) {
-            if (stream == null) {
-                return dedupe(FALLBACK_PAIRS);
-            }
+            if (stream == null) return dedupe(FALLBACK_PAIRS);
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 Type type = new TypeToken<List<int[]>>() {
                 }.getType();
                 List<int[]> raw = new Gson().fromJson(reader, type);
-                if (raw == null || raw.isEmpty()) {
-                    return dedupe(FALLBACK_PAIRS);
-                }
+                if (raw == null || raw.isEmpty()) return dedupe(FALLBACK_PAIRS);
                 return dedupe(raw.toArray(new int[0][]));
             }
         } catch (Exception e) {
@@ -693,9 +645,7 @@ public final class SimCreeperPuzzle {
         List<Pair> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (int[] entry : raw) {
-            if (entry.length != 6) {
-                continue;
-            }
+            if (entry.length != 6) continue;
             BlockPos a = new BlockPos(entry[0], entry[1], entry[2]);
             BlockPos b = new BlockPos(entry[3], entry[4], entry[5]);
             String key = canonicalKey(a, b);

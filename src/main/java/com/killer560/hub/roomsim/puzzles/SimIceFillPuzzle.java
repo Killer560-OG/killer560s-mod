@@ -226,9 +226,7 @@ public final class SimIceFillPuzzle {
 
     /** Registers the progress-polling tick hook. */
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         // The server's tick, not the client's - see serverTick. Every landing of a sim teleport is judged too,
         // from SimAbilities.teleport (onTeleport).
@@ -243,13 +241,9 @@ public final class SimIceFillPuzzle {
      * packed once walked, and a repeat breaks that section for {@link #REGEN_TICKS} ticks.
      */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         clearPlaced(client);
         forget();
         storedOrigin = origin;
@@ -324,9 +318,7 @@ public final class SimIceFillPuzzle {
                 SimRoomPuzzles.is(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);
         SimRoomPuzzles.Anchor anchor = SimRoomPuzzles.bestAnchor(level, p, rels, isIce,
                 new int[]{0, -1, 1, -2, 2}, rels.size() * 3 / 4);
-        if (anchor == null) {
-            return false;
-        }
+        if (anchor == null) return false;
         // In-memory only. clearPlaced() would queue air writes at the PREVIOUS arena's positions for the next
         // server tick, and on a rebuild of the same room those are inside the room just pasted.
         placedBlocks = List.of();
@@ -479,9 +471,7 @@ public final class SimIceFillPuzzle {
     /** Which section a bundled relative Y belongs to. The three floors are at three distinct heights. */
     private static int sectionOfRelativeY(int relY) {
         for (int f = FLOORS.length - 1; f >= 0; f--) {
-            if (relY >= FLOORS[f][0].y()) {
-                return f;
-            }
+            if (relY >= FLOORS[f][0].y()) return f;
         }
         return 0;
     }
@@ -609,13 +599,9 @@ public final class SimIceFillPuzzle {
     private static void clearPlaced(Minecraft client) {
         List<BlockPos> old = placedBlocks;
         placedBlocks = List.of();
-        if (old.isEmpty() || !SimState.canAct(client)) {
-            return;
-        }
+        if (old.isEmpty() || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (BlockPos tile : old) {
@@ -672,9 +658,7 @@ public final class SimIceFillPuzzle {
      * server made both teleports itself and saw every landing; so does this now, through {@link #onTeleport}.
      */
     private static void serverTick(MinecraftServer server) {
-        if (!SimState.canAct(Minecraft.getInstance())) {
-            return;
-        }
+        if (!SimState.canAct(Minecraft.getInstance())) return;
         traceTick++;
         if (regenCountdown > 0) {
             regenCountdown--;
@@ -683,13 +667,9 @@ public final class SimIceFillPuzzle {
             }
             return;
         }
-        if (TILE_SECTION.isEmpty() || complete) {
-            return;
-        }
+        if (TILE_SECTION.isEmpty() || complete) return;
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
-        if (players.isEmpty()) {
-            return;
-        }
+        if (players.isEmpty()) return;
         ServerPlayer sp = players.get(0);
         // A JUMP IS A FAIL. killer560 (2026-10-01): "if i leave the block that I am on by jumping or
         // teleporting then it should break that section." Airborne AND above standing height - a teleport's
@@ -714,14 +694,10 @@ public final class SimIceFillPuzzle {
      * and the once-a-tick judge would only see the second.
      */
     public static void onTeleport(ServerPlayer sp) {
-        if (!SimState.canAct(Minecraft.getInstance()) || TILE_SECTION.isEmpty()) {
-            return;
-        }
+        if (!SimState.canAct(Minecraft.getInstance()) || TILE_SECTION.isEmpty()) return;
         landingCount++;
         lastLandingTile = sp.blockPosition().below();
-        if (regenCountdown > 0 || complete) {
-            return;
-        }
+        if (regenCountdown > 0 || complete) return;
         airborneTicks = 0;
         judge(sp, sp.blockPosition().below(), "teleport");
     }
@@ -842,9 +818,7 @@ public final class SimIceFillPuzzle {
      */
     private static void breakSection(ServerPlayer sp, int section, String why) {
         List<Set<BlockPos>> all = sections;
-        if (section < 0 || section >= all.size()) {
-            return;
-        }
+        if (section < 0 || section >= all.size()) return;
         // NOT a puzzle failure, and so no SimPuzzles.reportFail. killer560 (2026-10-02): "ice fill should never be
         // red on the map." A broken section regenerates in two seconds and he tries again - nothing is lost, so
         // there is nothing for the map to mark and nothing for an Architect's First Draft to fix. This call is
@@ -896,13 +870,9 @@ public final class SimIceFillPuzzle {
     /** Every section back to plain, unwalked ice. */
     private static void restoreAll(Minecraft client) {
         List<Set<BlockPos>> all = sections;
-        if (all.isEmpty() || !SimState.canAct(client)) {
-            return;
-        }
+        if (all.isEmpty() || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         List<BlockPos> every = new ArrayList<>();
         for (Set<BlockPos> tiles : all) {
             every.addAll(tiles);

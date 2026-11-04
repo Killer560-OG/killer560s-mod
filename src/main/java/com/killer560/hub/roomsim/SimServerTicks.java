@@ -23,9 +23,7 @@ public final class SimServerTicks {
 
     private static void serverTick(MinecraftServer server) {
         for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            if (!SimAbilities.simServer(sp)) {
-                continue;
-            }
+            if (!SimAbilities.simServer(sp)) continue;
             int id = nextId++;
             if (nextId == 0) {
                 nextId = 1;

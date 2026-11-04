@@ -53,24 +53,16 @@ public final class SimArchitect {
      */
     public static void onPuzzleFail(String puzzleName) {
         ArchitectDraftConfig cfg = ArchitectDraftConfig.getInstance();
-        if (!cfg.isClickMessageRaw() && !cfg.isAutoGetRaw()) {
-            return;
-        }
+        if (!cfg.isClickMessageRaw() && !cfg.isAutoGetRaw()) return;
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         long now = System.currentTimeMillis();
-        if (now - lastMs < COOLDOWN_MS) {
-            return;
-        }
+        if (now - lastMs < COOLDOWN_MS) return;
         lastMs = now;
 
         String label = puzzleName == null || puzzleName.isBlank() ? "A puzzle" : puzzleName;
         client.execute(() -> {
-            if (client.player == null) {
-                return;
-            }
+            if (client.player == null) return;
             // Auto Get wins over Click Message when both are on, matching the chat path's ordering: the point of
             // auto-get is not having to click, so offering a click as well would be noise.
             if (cfg.isAutoGetRaw()) {

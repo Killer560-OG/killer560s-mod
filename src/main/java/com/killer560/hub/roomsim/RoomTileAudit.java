@@ -121,9 +121,7 @@ public final class RoomTileAudit {
         }
 
         for (List<String> holders : byTile.values()) {
-            if (holders.size() < 2) {
-                continue;
-            }
+            if (holders.size() < 2) continue;
             TreeSet<String> names = new TreeSet<>();
             for (String h : holders) {
                 names.add(h.substring(0, h.indexOf(" tile(")));

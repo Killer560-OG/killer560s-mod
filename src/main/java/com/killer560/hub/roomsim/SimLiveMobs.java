@@ -127,9 +127,7 @@ public final class SimLiveMobs {
         for (int i = 0; i < layout.roomCount(); i++) {
             RoomEntry e = layout.entry(i);
             String name = layout.name(i);
-            if (e == null || name == null || !"TRAP".equalsIgnoreCase(e.type)) {
-                continue;
-            }
+            if (e == null || name == null || !"TRAP".equalsIgnoreCase(e.type)) continue;
             int secrets = Math.max(0, e.secrets);
             SimScore.creditRoomSecrets(name, secrets);
             if (SimRoomState.markCleared(name)) {
@@ -142,9 +140,7 @@ public final class SimLiveMobs {
 
     private static void placeMobs(Minecraft client, DungeonLayout layout) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null || !SimState.canAct(client)) {
-            return;
-        }
+        if (server == null || !SimState.canAct(client)) return;
         String code = String.valueOf(SimState.mapCode());
         Map<String, List<BlockPos>> tiles = new TreeMap<>();
         Map<String, Boolean> champion = new TreeMap<>();
@@ -154,13 +150,9 @@ public final class SimLiveMobs {
         for (int i = 0; i < layout.roomCount(); i++) {
             RoomEntry e = layout.entry(i);
             String name = layout.name(i);
-            if (e == null || e.type == null || name == null || "Unknown".equals(name)) {
-                continue;
-            }
+            if (e == null || e.type == null || name == null || "Unknown".equals(name)) continue;
             String type = e.type.toUpperCase(Locale.ROOT);
-            if (!type.equals("NORMAL") && !type.equals("RARE") && !type.equals("CHAMPION")) {
-                continue;
-            }
+            if (!type.equals("NORMAL") && !type.equals("RARE") && !type.equals("CHAMPION")) continue;
             List<BlockPos> cs = new ArrayList<>();
             for (int t : layout.tiles(i)) {
                 cs.add(DungeonLayout.cellCenter(t));
@@ -214,9 +206,7 @@ public final class SimLiveMobs {
                     for (int tries = 0; tries < 400 && got.size() < want; tries++) {
                         int x = c.getX() + rng.nextInt(23) - 11;
                         int z = c.getZ() + rng.nextInt(23) - 11;
-                        if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
-                            continue;
-                        }
+                        if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) continue;
                         // c is a tile center at the doorways' feet level + 1: never under that floor less one, nor more than four
                         // above it - a pit or a high ledge was a mob Auto Clear could not reach and a key nobody could pick up
                         // (doc-adm-sim-1101: Flags' key 3 below the floor, then a zombie 8 above it).
@@ -316,9 +306,7 @@ public final class SimLiveMobs {
             int z = near.getZ() + rng.nextInt(9) - 4;
             int dx = x - near.getX();
             int dz = z - near.getZ();
-            if (dx * dx + dz * dz < 4 || layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
-                continue;
-            }
+            if (dx * dx + dz * dz < 4 || layout.roomAtWorld(x + 0.5, z + 0.5) != room) continue;
             for (int y = Math.max(near.getY() - 2, floorMin); y <= Math.min(near.getY() + 2, floorMin + 5); y++) {
                 BlockPos feet = new BlockPos(x, y, z);
                 if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
@@ -327,9 +315,7 @@ public final class SimLiveMobs {
                     for (BlockPos o : taken) {
                         far &= o.distSqr(feet) >= 4;
                     }
-                    if (far) {
-                        return feet;
-                    }
+                    if (far) return feet;
                     break;
                 }
             }

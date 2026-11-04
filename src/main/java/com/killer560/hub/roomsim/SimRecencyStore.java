@@ -34,13 +34,9 @@ public final class SimRecencyStore {
 
     /** Loads the saved memory into the generator, once per session. */
     public static synchronized void ensureLoaded() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
-        if (!Files.exists(PATH)) {
-            return;
-        }
+        if (!Files.exists(PATH)) return;
         try {
             JsonObject o = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             Map<String, Double> saved = new HashMap<>();

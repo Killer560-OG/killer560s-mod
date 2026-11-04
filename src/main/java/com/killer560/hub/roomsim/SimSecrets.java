@@ -107,9 +107,7 @@ public final class SimSecrets {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             BlockPos at = hit.getBlockPos().immutable();
-            if (!PLACED_WITHER.remove(at)) {
-                return net.minecraft.world.InteractionResult.PASS;
-            }
+            if (!PLACED_WITHER.remove(at)) return net.minecraft.world.InteractionResult.PASS;
             level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
             SimScore.secretFound(at);
             net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
@@ -132,9 +130,7 @@ public final class SimSecrets {
      * used - the id is what every feature reads; only the color would be lost.
      */
     static net.minecraft.world.item.component.ResolvableProfile essenceProfile() {
-        if (essenceProfile != null) {
-            return essenceProfile;
-        }
+        if (essenceProfile != null) return essenceProfile;
         net.minecraft.world.item.component.ResolvableProfile plain =
                 net.minecraft.world.item.component.ResolvableProfile.createResolved(
                         new com.mojang.authlib.GameProfile(ESSENCE_PROFILE_ID, "WitherEssence"));
@@ -418,9 +414,7 @@ public final class SimSecrets {
      */
     private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
                               boolean mimicEligible, boolean defer) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
@@ -485,15 +479,11 @@ public final class SimSecrets {
     }
 
     private static int bats(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             // REGISTERED, not spawned: the bat appears when he comes near it, as Hypixel's does - see
             // SimSecretItems.registerBat and SimMobs.spawnSecretBat.
             SimSecretItems.registerBat(at);
@@ -519,15 +509,11 @@ public final class SimSecrets {
      * been within three blocks of it for more than five ticks - and picking it up counts a secret.
      */
     private static int items(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             SimSecretItems.register(at);
             logPlaced("item", at);
             n++;
@@ -541,16 +527,12 @@ public final class SimSecrets {
     private static int markers(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
                                net.minecraft.world.level.block.state.BlockState marker,
                                java.util.Collection<BlockPos> record) {
-        if (list == null) {
-            return 0;
-        }
+        if (list == null) return 0;
         int n = 0;
         int blocked = 0;
         for (RoomEntry.Pos p : list) {
             BlockPos at = world(RoomDatabase.toRealCoord(p, clayX, clayZ, rotation));
-            if (!checkInside(at)) {
-                continue;
-            }
+            if (!checkInside(at)) continue;
             // THE DATABASE POSITION FIRST, and a head there is something to REPLACE rather than avoid.
             //
             // The old rule was "the first air at or within two blocks above", which is how a glowing lantern

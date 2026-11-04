@@ -128,9 +128,7 @@ public final class SimScore {
      * ({@link SimLiveMobs#setTrapCleared}): the run's total and the room's own count, as if each had been found there.
      */
     public static synchronized void creditRoomSecrets(String room, int n) {
-        if (room == null || n <= 0) {
-            return;
-        }
+        if (room == null || n <= 0) return;
         secretsFound += n;
         FOUND_BY_ROOM.merge(room, n, Integer::sum);
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim secrets credited: {} in {} ({} in the room)",
@@ -142,9 +140,7 @@ public final class SimScore {
 
     /** The placed room covering a world position, by the same tile rounding {@code DungeonLayout.roomAtWorld} uses. */
     public static String roomAt(net.minecraft.core.BlockPos at) {
-        if (at == null) {
-            return null;
-        }
+        if (at == null) return null;
         int grid = com.killer560.hub.livemap.DungeonLayout.GRID;
         int gx = Math.max(0, Math.min(grid - 1, (int) Math.round((at.getX()
                 - com.killer560.hub.livemap.LiveMapFeature.START_X) / 32.0) * 2));
@@ -166,9 +162,7 @@ public final class SimScore {
      * @return true when this call counted it
      */
     public static synchronized boolean countRoomOnce(String room) {
-        if (room == null || !COUNTED_ONCE.add(room)) {
-            return false;
-        }
+        if (room == null || !COUNTED_ONCE.add(room)) return false;
         roomsCleared++;
         return true;
     }
@@ -201,9 +195,7 @@ public final class SimScore {
     public static double secretsPercent() { return secretsTotal <= 0 ? 0.0 : 100.0 * secretsFound / secretsTotal; }
 
     public static int exploreScore() {
-        if (roomsTotal <= 0) {
-            return 0;
-        }
+        if (roomsTotal <= 0) return 0;
         // The real formula (wiki, 2026-09-28): floor(60 x clearedRooms/totalRooms) + floor(40 x secretsFound /
         // (secretRequirement x totalSecrets)), the secret half capped at 40. Floored SEPARATELY, because
         // flooring the sum instead quietly hands back a point that Hypixel does not.

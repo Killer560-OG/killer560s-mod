@@ -58,9 +58,7 @@ public final class SimRun {
      * after the floor is published and he has been put in the entrance. A single room never starts a run.
      */
     public static void autoStart(Minecraft client) {
-        if (!SimState.canAct(client) || !SimState.isGeneratedFloor()) {
-            return;
-        }
+        if (!SimState.canAct(client) || !SimState.isGeneratedFloor()) return;
         // A floor with mobs: its wither doors and key rooms, before the countdown (SimMobFloor).
         SimMobFloor.onFloorReady(client);
         begin(client, SimBuilder.entranceDoor());
@@ -118,9 +116,7 @@ public final class SimRun {
     public static long elapsedMs() { return running ? System.currentTimeMillis() - startedAtMs : 0L; }
 
     private static void tick(Minecraft client) {
-        if (!armed || !SimState.canAct(client)) {
-            return;
-        }
+        if (!armed || !SimState.canAct(client)) return;
         if (ticksLeft > 0) {
             ticksLeft--;
             int second = (ticksLeft + TICKS_PER_SECOND - 1) / TICKS_PER_SECOND;

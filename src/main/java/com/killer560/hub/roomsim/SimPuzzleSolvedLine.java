@@ -39,13 +39,9 @@ public final class SimPuzzleSolvedLine {
             level = client.level;
             said.clear();
         }
-        if (client.player == null || !SimState.isActive()) {
-            return;
-        }
+        if (client.player == null || !SimState.isActive()) return;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         for (String room : ROOMS) {
             // The blaze rooms share one puzzle class: isComplete(name) says which arena is solved.
             boolean done = room.endsWith("Blaze") ? SimPuzzles.isComplete(room) : SimPuzzles.isRoomComplete(room);
@@ -53,9 +49,7 @@ public final class SimPuzzleSolvedLine {
                 said.remove(room); // reset (a fail, an Architect's First Draft): say it again when solved again
                 continue;
             }
-            if (!said.add(room)) {
-                continue;
-            }
+            if (!said.add(room)) continue;
             UUID who = client.player.getUUID();
             String name = client.player.getGameProfile().name();
             String line = "PUZZLE SOLVED! " + name + " " + ("Tic Tac Toe".equals(room) ? "tied Tic Tac Toe"

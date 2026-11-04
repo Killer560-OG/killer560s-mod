@@ -171,13 +171,9 @@ public final class SimMobs {
     }
 
     private static void tick(Minecraft client) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         // Reading and mutating mob/armor-stand state has to happen on the server thread, same reasoning as
         // SimAbilities.teleport: the integrated server, not the client, owns these entities.
         server.execute(() -> {
@@ -207,17 +203,13 @@ public final class SimMobs {
      * in them, which clear-on-entry would have counted. Client thread, with the room checks.
      */
     private static void countOtherRooms(Minecraft client) {
-        if (!SimRun.hasStarted() || client.player == null) {
-            return;
-        }
+        if (!SimRun.hasStarted() || client.player == null) return;
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         int here = layout.roomAtWorld(client.player.getX(), client.player.getZ());
         for (int i = 0; i < layout.roomCount(); i++) {
             String name = layout.name(i);
             com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(i);
-            if (name == null || entry == null || entry.type == null) {
-                continue;
-            }
+            if (name == null || entry == null || entry.type == null) continue;
             String type = entry.type.toUpperCase(java.util.Locale.ROOT);
             boolean count = type.equals("PUZZLE") ? com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(name)
                     : !clearRoomsOnEntry && i == here && (type.equals("ENTRANCE") || type.equals("FAIRY"));
@@ -235,9 +227,7 @@ public final class SimMobs {
      * Puzzle rooms still clear by their puzzle and Blood by its own logic. Client thread, like {@link #markClearedRooms}.
      */
     private static void markEnteredRoomCleared(Minecraft client) {
-        if (!clearRoomsOnEntry || client.player == null) {
-            return;
-        }
+        if (!clearRoomsOnEntry || client.player == null) return;
         double x = client.player.getX();
         double z = client.player.getZ();
         // roomAtWorld clamps to the grid's edge, so a position outside the 6x6 grid (the boss room) must not count.
@@ -245,20 +235,14 @@ public final class SimMobs {
         int max = com.killer560.hub.livemap.LiveMapFeature.START_X + 6 * 32 - 16;
         int minZ = com.killer560.hub.livemap.LiveMapFeature.START_Z - 16;
         int maxZ = com.killer560.hub.livemap.LiveMapFeature.START_Z + 6 * 32 - 16;
-        if (x < min || x >= max || z < minZ || z >= maxZ) {
-            return;
-        }
+        if (x < min || x >= max || z < minZ || z >= maxZ) return;
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         int room = layout.roomAtWorld(x, z);
         String name = layout.name(room);
-        if (name == null || "Unknown".equals(name)) {
-            return;
-        }
+        if (name == null || "Unknown".equals(name)) return;
         com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(room);
         String type = entry == null ? null : entry.type;
-        if ("PUZZLE".equalsIgnoreCase(type) || "BLOOD".equalsIgnoreCase(type)) {
-            return;
-        }
+        if ("PUZZLE".equalsIgnoreCase(type) || "BLOOD".equalsIgnoreCase(type)) return;
         if (SimRoomState.markCleared(name)) {
             SimScore.roomCleared();
             com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room cleared: {} (entered; every room"
@@ -307,9 +291,7 @@ public final class SimMobs {
      * and counts it in the score. Client thread: the room of a position comes from the live map's own layout.
      */
     private static void markClearedRooms() {
-        if (STARRED_AT.isEmpty()) {
-            return;
-        }
+        if (STARRED_AT.isEmpty()) return;
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         java.util.Map<String, Boolean> allDead = new java.util.HashMap<>();
         java.util.Map<String, double[]> anyAt = new java.util.HashMap<>();
@@ -318,9 +300,7 @@ public final class SimMobs {
             double[] p = e.getValue();
             int room = layout.roomAtWorld(p[0], p[2]);
             String name = layout.name(room);
-            if (name == null || "Unknown".equals(name)) {
-                continue;
-            }
+            if (name == null || "Unknown".equals(name)) continue;
             boolean dead = STARRED_DEAD.contains(e.getKey());
             allDead.merge(name, dead, Boolean::logicalAnd);
             // The key drops where the room's LAST starred mob died (Hypixel's stand appears there), not at whichever
@@ -361,13 +341,9 @@ public final class SimMobs {
     }
 
     private static void spawn(Minecraft client, BlockPos pos, Kind kind, boolean starred, SimMiniboss.Name boss) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             switch (kind) {
@@ -482,19 +458,13 @@ public final class SimMobs {
 
     /** Server thread, every tick: each live starred mob's tag moved onto it and its health figure brought up to date. */
     private static void refreshLiveTags(ServerLevel level) {
-        if (LIVE.isEmpty()) {
-            return;
-        }
+        if (LIVE.isEmpty()) return;
         for (UUID id : LIVE) {
             Entity e = level.getEntity(id);
             UUID tagId = STAR_TAGS.get(id);
-            if (!(e instanceof net.minecraft.world.entity.LivingEntity mob) || !mob.isAlive() || tagId == null) {
-                continue;
-            }
+            if (!(e instanceof net.minecraft.world.entity.LivingEntity mob) || !mob.isAlive() || tagId == null) continue;
             Entity tag = level.getEntity(tagId);
-            if (tag == null) {
-                continue;
-            }
+            if (tag == null) continue;
             double ty = mob.getY() + mob.getBbHeight() + 0.1;
             if (Math.abs(tag.getX() - mob.getX()) > 1.0e-3 || Math.abs(tag.getY() - ty) > 1.0e-3
                     || Math.abs(tag.getZ() - mob.getZ()) > 1.0e-3) {
@@ -607,9 +577,7 @@ public final class SimMobs {
 
     /** Health the way Hypixel writes it on a name tag: 337.5k, 6.6M. */
     private static String shortHealth(double health) {
-        if (health >= 1_000_000) {
-            return String.format(java.util.Locale.ROOT, "%.1fM", health / 1_000_000);
-        }
+        if (health >= 1_000_000) return String.format(java.util.Locale.ROOT, "%.1fM", health / 1_000_000);
         return health >= 1_000 ? String.format(java.util.Locale.ROOT, "%.1fk", health / 1_000) : String.valueOf((long) health);
     }
 
@@ -652,13 +620,9 @@ public final class SimMobs {
      * left a client feature that watches for the kill (Auto Routes' crypt node) nothing to see.
      */
     public static void spawnCrypt(Minecraft client, BlockPos pos, boolean scoringPrince) {
-        if (!SimState.canAct(client)) {
-            return;
-        }
+        if (!SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             SimZombie undead = new SimZombie(McEntities.ZOMBIE, level);
@@ -696,9 +660,7 @@ public final class SimMobs {
     }
 
     private static void countDeadCrypts(ServerLevel level) {
-        if (CRYPT_MOBS.isEmpty()) {
-            return;
-        }
+        if (CRYPT_MOBS.isEmpty()) return;
         for (var it = CRYPT_MOBS.entrySet().iterator(); it.hasNext(); ) {
             var e = it.next();
             Entity mob = level.getEntity(e.getKey());
@@ -751,9 +713,7 @@ public final class SimMobs {
      * in the world.
      */
     private static void countDeadBats(ServerLevel level) {
-        if (BATS.isEmpty()) {
-            return;
-        }
+        if (BATS.isEmpty()) return;
         java.util.Iterator<java.util.Map.Entry<net.minecraft.world.entity.ambient.Bat, BlockPos>> it =
                 BATS.entrySet().iterator();
         while (it.hasNext()) {
@@ -860,25 +820,17 @@ public final class SimMobs {
 
     /** Checks every dormant Fel against every player each tick and wakes the ones close enough. */
     private static void wakeFels(ServerLevel level) {
-        if (FELS.isEmpty()) {
-            return;
-        }
+        if (FELS.isEmpty()) return;
         List<ServerPlayer> players = level.players();
-        if (players.isEmpty()) {
-            return;
-        }
+        if (players.isEmpty()) return;
         for (FelMarker fel : FELS) {
-            if (fel.woken || fel.skull.isRemoved()) {
-                continue;
-            }
+            if (fel.woken || fel.skull.isRemoved()) continue;
             double sx = fel.skull.getX();
             double sy = fel.skull.getY() + SKULL_DROP;
             double sz = fel.skull.getZ();
             for (ServerPlayer player : players) {
                 // A placed miniboss IS a ServerPlayer and so is in level.players() - it must not wake a Fel.
-                if (SimMiniboss.isPlaced(player)) {
-                    continue;
-                }
+                if (SimMiniboss.isPlaced(player)) continue;
                 double d2 = player.distanceToSqr(sx, sy, sz);
                 if (d2 <= FEL_WAKE_RADIUS_SQ) {
                     wake(level, fel);
@@ -1188,9 +1140,7 @@ public final class SimMobs {
         @Override
         public boolean hurtServer(net.minecraft.server.level.ServerLevel level,
                                   net.minecraft.world.damagesource.DamageSource source, float amount) {
-            if (dormant) {
-                return false;
-            }
+            if (dormant) return false;
             if (source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)
                     && source.getEntity() instanceof net.minecraft.world.entity.player.Player p) {
                 return super.hurtServer(level, level.damageSources().playerAttack(p), amount);

@@ -177,9 +177,7 @@ public final class SimDoors {
         java.util.Set<BlockPos> keep = new java.util.HashSet<>();
         int top = floorY + DOOR_HEIGHT - 1;
         for (int d = -depth; d <= depth; d++) {
-            if (d == 0) {
-                continue;
-            }
+            if (d == 0) continue;
             for (int w = -halfWidth; w <= halfWidth; w++) {
                 BlockPos trim = alongX
                         ? new BlockPos(centre.getX() + d, top, centre.getZ() + w)
@@ -249,9 +247,7 @@ public final class SimDoors {
                 BlockPos under = alongX
                         ? new BlockPos(centre.getX() + d, floorY - 1, centre.getZ() + w)
                         : new BlockPos(centre.getX() + w, floorY - 1, centre.getZ() + d);
-                if (!level.getBlockState(under).getCollisionShape(level, under).isEmpty()) {
-                    continue;
-                }
+                if (!level.getBlockState(under).getCollisionShape(level, under).isEmpty()) continue;
                 level.setBlockAndUpdate(under, Blocks.STONE_BRICKS.defaultBlockState());
                 // Recorded like the carve itself, or the next floor's clear does not reach it and the block is
                 // left standing in the middle of the next map.
@@ -316,9 +312,7 @@ public final class SimDoors {
      * the size assumption this bakes in.
      */
     public static void addDoor(BlockPos centre) {
-        if (centre == null) {
-            return;
-        }
+        if (centre == null) return;
         List<BlockPos> blocks = new ArrayList<>(DOOR_WIDTH * DOOR_HEIGHT);
         BlockPos min = centre.offset(-(DOOR_WIDTH / 2), 0, 0);
         BlockPos max = centre.offset(DOOR_WIDTH / 2, DOOR_HEIGHT - 1, 0);
@@ -347,9 +341,7 @@ public final class SimDoors {
             // level.isClientSide(): this event also fires server-side; without this check the door would
             // try to open twice per real click, exactly the double-fire AbilityCooldownFeature's own
             // UseBlockCallback registration guards against the same way.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) {
-                return InteractionResult.PASS;
-            }
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
             Door door = BLOCK_INDEX.get(hitResult.getBlockPos());
             if (door == null || PENDING.containsKey(door)) {
                 // Not a door block, or this door is already mid-open - do not consume a second key for a
@@ -362,13 +354,9 @@ public final class SimDoors {
             // it and consumes nothing; a key in hand is left alone. The off hand is ignored so one click is
             // one open, not two.
             if (door.type() == DungeonLayout.DOOR_BLOOD) {
-                if (hand != InteractionHand.MAIN_HAND) {
-                    return InteractionResult.PASS;
-                }
+                if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
                 // A floor with mobs (SimMobFloor) wants the team's Blood Key, dropped by the last mob room before it.
-                if (SimMobFloor.bloodDoorNeedsKey() && !SimKeys.hasBloodKey()) {
-                    return InteractionResult.PASS;
-                }
+                if (SimMobFloor.bloodDoorNeedsKey() && !SimKeys.hasBloodKey()) return InteractionResult.PASS;
                 SimKeys.useBloodKey();
                 openDoor(client, door, null);
                 SimMobFloor.onBloodDoorOpened(client);
@@ -377,9 +365,7 @@ public final class SimDoors {
             ItemStack held = player.getItemInHand(hand);
             if (!WITHER_KEY_ID.equals(CheatUtils.skyblockId(held))) {
                 // Hypixel's keys are the team's, not items (SimKeys): a picked-up key opens it with any hand.
-                if (hand != InteractionHand.MAIN_HAND || !SimKeys.useWitherKey()) {
-                    return InteractionResult.PASS;
-                }
+                if (hand != InteractionHand.MAIN_HAND || !SimKeys.useWitherKey()) return InteractionResult.PASS;
                 openDoor(client, door, null);
                 announceWitherDoor(client);
                 return InteractionResult.SUCCESS;
@@ -389,9 +375,7 @@ public final class SimDoors {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!SimState.isActive() || PENDING.isEmpty()) {
-                return;
-            }
+            if (!SimState.isActive() || PENDING.isEmpty()) return;
             try {
                 List<Door> ready = new ArrayList<>();
                 for (Map.Entry<Door, Integer> entry : PENDING.entrySet()) {
@@ -402,9 +386,7 @@ public final class SimDoors {
                         entry.setValue(remaining);
                     }
                 }
-                if (ready.isEmpty()) {
-                    return;
-                }
+                if (ready.isEmpty()) return;
                 ServerLevel level = server.overworld();
                 for (Door door : ready) {
                     PENDING.remove(door);
@@ -425,9 +407,7 @@ public final class SimDoors {
      */
     private static void openDoor(Minecraft client, Door door, InteractionHand hand) {
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         UUID uuid = client.player.getUUID();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
@@ -459,13 +439,9 @@ public final class SimDoors {
      */
     public static boolean openForTest(Minecraft client, BlockPos blockPos) {
         Door door = BLOCK_INDEX.get(blockPos);
-        if (door == null || PENDING.containsKey(door)) {
-            return false;
-        }
+        if (door == null || PENDING.containsKey(door)) return false;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return false;
-        }
+        if (server == null) return false;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             for (BlockPos p : door.blocks()) {
@@ -490,13 +466,9 @@ public final class SimDoors {
      * @return how many gate blocks were removed
      */
     public static int openEntranceGate(Minecraft client, BlockPos registered) {
-        if (!SimState.canAct(client)) {
-            return 0;
-        }
+        if (!SimState.canAct(client)) return 0;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return 0;
-        }
+        if (server == null) return 0;
         if (registered != null) {
             openForTest(client, registered);
         }
@@ -515,9 +487,7 @@ public final class SimDoors {
             // for: a dozen positions per door, no chunk scan, and no assumption about what is loaded. It also
             // cannot delete a room's own decorative infested brick, which the sweep could.
             for (Door door : DOORS) {
-                if (door.type() != DungeonLayout.DOOR_ENTRANCE) {
-                    continue;
-                }
+                if (door.type() != DungeonLayout.DOOR_ENTRANCE) continue;
                 for (BlockPos at : door.blocks()) {
                     if (!level.getBlockState(at).isAir()) {
                         level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
@@ -559,13 +529,9 @@ public final class SimDoors {
      * per room again - see docs/SIM.md.
      */
     public static void dropKeyAt(Minecraft client, Vec3 pos) {
-        if (!SimState.canAct(client) || pos == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || pos == null) return;
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             ItemEntity entity = new ItemEntity(level, pos.x, pos.y, pos.z, createWitherKey());
@@ -580,14 +546,10 @@ public final class SimDoors {
     /** Wither keys in his inventory, counted the same way the real key tracker would. */
     public static int keysHeld() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) {
-            return 0;
-        }
+        if (client == null || client.player == null) return 0;
         int n = 0;
         for (ItemStack stack : client.player.getInventory().getNonEquipmentItems()) {
-            if (stack == null || stack.isEmpty()) {
-                continue;
-            }
+            if (stack == null || stack.isEmpty()) continue;
             CustomData data = stack.get(DataComponents.CUSTOM_DATA);
             if (data != null && WITHER_KEY_ID.equals(data.copyTag().getStringOr("id", ""))) {
                 n += stack.getCount();
@@ -606,9 +568,7 @@ public final class SimDoors {
      */
     public static int witherDoorsAround(Minecraft client, String roomName) {
         var server = client.getSingleplayerServer();
-        if (!SimState.canAct(client) || server == null) {
-            return -1;
-        }
+        if (!SimState.canAct(client) || server == null) return -1;
         DungeonLayout layout = DungeonLayout.capture();
         int room = -1;
         for (int r = 0; r < layout.roomCount(); r++) {
@@ -616,9 +576,7 @@ public final class SimDoors {
                 room = r;
             }
         }
-        if (room < 0) {
-            return -1;
-        }
+        if (room < 0) return -1;
         List<Integer> doors = new ArrayList<>();
         int[][] dirs = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
         for (int tile : layout.tiles(room)) {
@@ -629,9 +587,7 @@ public final class SimDoors {
                 int dz = z + d[1];
                 int nx = x + d[0] * 2;
                 int nz = z + d[1] * 2;
-                if (nx < 0 || nx > 10 || nz < 0 || nz > 10) {
-                    continue;
-                }
+                if (nx < 0 || nx > 10 || nz < 0 || nz > 10) continue;
                 int idx = dz * DungeonLayout.GRID + dx;
                 int next = layout.roomOfCell(nz * DungeonLayout.GRID + nx);
                 if (layout.doorType(idx) == DungeonLayout.DOOR_NORMAL && next >= 0 && next != room) {
@@ -655,9 +611,7 @@ public final class SimDoors {
      */
     public static void makeWitherDoor(Minecraft client, int idx) {
         var server = client.getSingleplayerServer();
-        if (!SimState.canAct(client) || server == null || idx < 0 || idx >= DungeonLayout.GRID * DungeonLayout.GRID) {
-            return;
-        }
+        if (!SimState.canAct(client) || server == null || idx < 0 || idx >= DungeonLayout.GRID * DungeonLayout.GRID) return;
         boolean alongX = (idx % DungeonLayout.GRID) % 2 != 0;
         BlockPos centre = DungeonLayout.cellCenter(idx);
         server.execute(() -> carveDoorway(server.overworld(), centre, alongX, DungeonLayout.DOOR_WITHER));
@@ -672,9 +626,7 @@ public final class SimDoors {
         BlockPos centre = DungeonLayout.cellCenter(idx);
         for (Door door : DOORS) {
             for (BlockPos p : door.blocks()) {
-                if (p.getX() == centre.getX() && p.getZ() == centre.getZ()) {
-                    return openForTest(client, p);
-                }
+                if (p.getX() == centre.getX() && p.getZ() == centre.getZ()) return openForTest(client, p);
             }
         }
         return false;
@@ -686,9 +638,7 @@ public final class SimDoors {
         BlockPos centre = DungeonLayout.cellCenter(idx);
         for (Door door : DOORS) {
             for (BlockPos p : door.blocks()) {
-                if (p.getX() == centre.getX() && p.getZ() == centre.getZ() && !level.getBlockState(p).isAir()) {
-                    return false;
-                }
+                if (p.getX() == centre.getX() && p.getZ() == centre.getZ() && !level.getBlockState(p).isAir()) return false;
             }
         }
         return true;
@@ -697,9 +647,7 @@ public final class SimDoors {
     /** Hypixel's "<name> opened a WITHER door!" line, from the server. */
     private static void announceWitherDoor(Minecraft client) {
         var server = client.getSingleplayerServer();
-        if (server == null || client.player == null) {
-            return;
-        }
+        if (server == null || client.player == null) return;
         String name = client.player.getGameProfile().name();
         server.execute(() -> {
             for (ServerPlayer sp : server.getPlayerList().getPlayers()) {

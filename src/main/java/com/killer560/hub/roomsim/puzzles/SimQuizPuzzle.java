@@ -170,13 +170,9 @@ public final class SimQuizPuzzle {
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // resolve twice - the same double-fire guard SimDoors uses for its own UseBlockCallback. Returning
             // a non-PASS result here also stops the vanilla chest screen from opening, which is the point.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) {
-                return InteractionResult.PASS;
-            }
+            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
-            if (index == null || !built || complete) {
-                return InteractionResult.PASS;
-            }
+            if (index == null || !built || complete) return InteractionResult.PASS;
             onChestClick(client, index);
             // A BUTTON GETS TO BE A BUTTON. SUCCESS cancels the interaction, which is exactly right for a chest
             // (it stops the empty chest screen opening) and wrong for the Quiz room's pillar buttons: it threw
@@ -206,9 +202,7 @@ public final class SimQuizPuzzle {
                         return InteractionResult.SUCCESS;
                     }
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
-                    if (who == null) {
-                        return InteractionResult.PASS;
-                    }
+                    if (who == null) return InteractionResult.PASS;
                     if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer sp) {
                         speak(sp, who, "talked to");
                     }
@@ -219,21 +213,15 @@ public final class SimQuizPuzzle {
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
                     if (entity != null && ORUO_IDS.contains(entity.getUUID())) {
-                        if (level.isClientSide()) {
-                            return InteractionResult.PASS;
-                        }
+                        if (level.isClientSide()) return InteractionResult.PASS;
                         if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                             onOruoTalk(sp, "hit");
                         }
                         return InteractionResult.FAIL;
                     }
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
-                    if (who == null) {
-                        return InteractionResult.PASS;
-                    }
-                    if (level.isClientSide()) {
-                        return InteractionResult.PASS;
-                    }
+                    if (who == null) return InteractionResult.PASS;
+                    if (level.isClientSide()) return InteractionResult.PASS;
                     if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
                         speak(sp, who, "hit");
                     }
@@ -245,13 +233,9 @@ public final class SimQuizPuzzle {
      *  correct answer and two borrowed-real-answer distractors on three chests in random order, and announces
      *  the question and lettered options in chat the way the real Oruo statue line does. */
     public static void build(Minecraft client, BlockPos origin) {
-        if (!SimState.canAct(client) || origin == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || origin == null) return;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         reset();
         // reset() keeps the bind's own fields on purpose (it is also the mid-session "put it back" path), so a
         // standalone arena built after a bound room has to say it is one. Without this it would believe it had
@@ -341,9 +325,7 @@ public final class SimQuizPuzzle {
                             && lv.getBlockState(pos.above()).isAir()
                             && lv.getBlockState(pos.above(2)).isAir(),
                     new int[]{0}, 3);
-            if (anchor == null) {
-                return false;
-            }
+            if (anchor == null) return false;
             positions = new BlockPos[3];
             quizButtons = new java.util.ArrayList<>();
             for (int i = 0; i < 3; i++) {
@@ -509,9 +491,7 @@ public final class SimQuizPuzzle {
      */
     private static void newQuestion(ServerLevel level, BlockPos[] positions, boolean replaceLabels,
                                     boolean bound) {
-        if (ANSWERS.isEmpty()) {
-            return;
-        }
+        if (ANSWERS.isEmpty()) return;
         if (replaceLabels) {
             for (UUID id : List.copyOf(LABELS)) {
                 Entity entity = level.getEntity(id);
@@ -532,9 +512,7 @@ public final class SimQuizPuzzle {
         List<String> wrongPool = distractorPool(question, correctAnswers, questions);
         int wrongTaken = 0;
         for (int i = 0; i < 3 && wrongTaken < wrongPool.size(); i++) {
-            if (i == correctSlot) {
-                continue;
-            }
+            if (i == correctSlot) continue;
             text[i] = wrongPool.get(wrongTaken++);
         }
         for (int i = 0; i < 3; i++) {
@@ -652,13 +630,9 @@ public final class SimQuizPuzzle {
      * beats a room that stays silent, and the log says which it was.
      */
     private static void tick(Minecraft client) {
-        if (announced || pendingQuestion == null || !SimState.canAct(client)) {
-            return;
-        }
+        if (announced || pendingQuestion == null || !SimState.canAct(client)) return;
         BlockPos[] positions = chestPos;
-        if (positions == null || positions.length == 0 || positions[0] == null) {
-            return;
-        }
+        if (positions == null || positions.length == 0 || positions[0] == null) return;
         if (client.player.blockPosition().distSqr(positions[0]) > ANNOUNCE_RANGE_SQR) {
             settledTicks = 0;
             unmappedTicks = 0;
@@ -672,9 +646,7 @@ public final class SimQuizPuzzle {
                     && com.killer560.hub.livemap.LiveMapFeature.currentRoomClayAndRotation() != null;
             if (onIt) {
                 unmappedTicks = 0;
-                if (++settledTicks < ROOM_SETTLE_TICKS) {
-                    return;
-                }
+                if (++settledTicks < ROOM_SETTLE_TICKS) return;
             } else if (++unmappedTicks < MAP_GRACE_TICKS) {
                 settledTicks = 0;
                 return;
@@ -763,9 +735,7 @@ public final class SimQuizPuzzle {
         BlockPos[] positions = boundPositions;
         MinecraftServer server = client.getSingleplayerServer();
         int[] cr = com.killer560.hub.livemap.LiveMapFeature.currentRoomClayAndRotation();
-        if (positions == null || server == null || cr == null) {
-            return;
-        }
+        if (positions == null || server == null || cr == null) return;
         int y = 69 + com.killer560.hub.livemap.DungeonLayout.simYOffset();
         BlockPos[] spots = new BlockPos[3];
         for (int i = 0; i < 3 && i < positions.length; i++) {
@@ -780,9 +750,7 @@ public final class SimQuizPuzzle {
             ServerLevel level = server.overworld();
             int moved = 0;
             for (int i = 0; i < 3 && i < ids.size(); i++) {
-                if (spots[i] == null) {
-                    continue;
-                }
+                if (spots[i] == null) continue;
                 double x = spots[i].getX() + 0.5;
                 double z = spots[i].getZ() + 0.5;
                 double feet = positions[i].getY();
@@ -824,9 +792,7 @@ public final class SimQuizPuzzle {
         List<String> candidates = new ArrayList<>(allQuestions);
         java.util.Collections.shuffle(candidates, ThreadLocalRandom.current());
         for (String q : candidates) {
-            if (solverResolves(q)) {
-                return q;
-            }
+            if (solverResolves(q)) return q;
         }
         return allQuestions.get(ThreadLocalRandom.current().nextInt(allQuestions.size()));
     }
@@ -835,9 +801,7 @@ public final class SimQuizPuzzle {
      *  question itself. Written as that scan rather than as a substring test, so the two cannot drift. */
     private static boolean solverResolves(String question) {
         for (String key : ANSWERS.keySet()) {
-            if (question.contains(key)) {
-                return key.equals(question);
-            }
+            if (question.contains(key)) return key.equals(question);
         }
         return false;
     }
@@ -860,13 +824,9 @@ public final class SimQuizPuzzle {
         Set<String> seen = new HashSet<>();
         List<String> picked = new ArrayList<>(2);
         for (String q : candidates) {
-            if (picked.size() >= 2) {
-                break;
-            }
+            if (picked.size() >= 2) break;
             List<String> answers = ANSWERS.get(q);
-            if (answers == null || answers.isEmpty()) {
-                continue;
-            }
+            if (answers == null || answers.isEmpty()) continue;
             String answer = answers.get(0);
             boolean shadows = false;
             for (String right : correctAnswers) {
@@ -1179,9 +1139,7 @@ public final class SimQuizPuzzle {
             return;
         }
         for (net.minecraft.server.level.ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            if (sp.level() != oruoLevel) {
-                continue;
-            }
+            if (sp.level() != oruoLevel) continue;
             int x = net.minecraft.util.Mth.floor(sp.getX());
             int z = net.minecraft.util.Mth.floor(sp.getZ());
             boolean in = x >= area[0] && x <= area[2] && z >= area[1] && z <= area[3];
@@ -1205,9 +1163,7 @@ public final class SimQuizPuzzle {
 
     /** START_SERVER_TICK: the lines that are due go out, before this tick's ping (sent at END). */
     private static void oruoStart(MinecraftServer server) {
-        if (ORUO_PLAN.isEmpty()) {
-            return;
-        }
+        if (ORUO_PLAN.isEmpty()) return;
         long now = oruoTick;
         for (Object[] e : List.copyOf(ORUO_PLAN)) {
             if ((Long) e[0] <= now) {
@@ -1226,9 +1182,7 @@ public final class SimQuizPuzzle {
     /** Oruo speaks: a server system message to every player, as Hypixel sends his lines to the whole dungeon. */
     private static void oruoSay(String text) {
         ServerLevel level = oruoLevel;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         for (net.minecraft.server.level.ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
             sp.sendSystemMessage(Component.literal(ORUO + text));
         }
@@ -1236,9 +1190,7 @@ public final class SimQuizPuzzle {
 
     private static void sendRaw(Component c) {
         ServerLevel level = oruoLevel;
-        if (level == null) {
-            return;
-        }
+        if (level == null) return;
         for (net.minecraft.server.level.ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
             sp.sendSystemMessage(c);
         }
@@ -1247,9 +1199,7 @@ public final class SimQuizPuzzle {
     /** Server thread: he talked to (or hit) Oruo. Only after the last answer does that get a line; walking in starts him. */
     private static void onOruoTalk(net.minecraft.server.level.ServerPlayer sp, String how) {
         var log = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
-        if (!oruoRoom()) {
-            return;
-        }
+        if (!oruoRoom()) return;
         if ("DONE".equals(oruoFlow)) {
             oruoSay("You have already shown your vast knowledge of SkyBlock. Come back in another life to answer more"
                     + " questions!");
@@ -1286,9 +1236,7 @@ public final class SimQuizPuzzle {
     private static void oruoAsk(int q) {
         ServerLevel level = oruoLevel;
         BlockPos[] positions = boundPositions;
-        if (level == null || positions == null || !"RUNNING".equals(oruoFlow) || oruoQuestion != q) {
-            return;
-        }
+        if (level == null || positions == null || !"RUNNING".equals(oruoFlow) || oruoQuestion != q) return;
         List<String> pool = new ArrayList<>();
         for (String k : ANSWERS.keySet()) {
             if (!ORUO_ASKED.contains(k)) {
@@ -1383,9 +1331,7 @@ public final class SimQuizPuzzle {
         int next = q + 1;
         String lockLine = next == 2 ? "2 questions left... Then you will have proven your worth to me!" : "One more question!";
         at(now + LINE_GAP_TICKS, () -> {
-            if (!"RUNNING".equals(oruoFlow) || oruoQuestion != q) {
-                return;
-            }
+            if (!"RUNNING".equals(oruoFlow) || oruoQuestion != q) return;
             oruoQuestion = next;
             oruoBetween = false;
             oruoOpenAt = oruoTick + LATER_LOCK_TICKS;
@@ -1426,9 +1372,7 @@ public final class SimQuizPuzzle {
     private static Map<String, List<String>> loadAnswers() {
         try (InputStream stream = SimQuizPuzzle.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
-            if (stream == null) {
-                return Map.of();
-            }
+            if (stream == null) return Map.of();
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 Type type = new TypeToken<Map<String, List<String>>>() {
                 }.getType();

@@ -240,9 +240,7 @@ public final class RoomLibrary {
 
         /** A copy of every block as shorts (the file form, and for tests). */
         public short[] blockArray() {
-            if (narrow == null) {
-                return wide.clone();
-            }
+            if (narrow == null) return wide.clone();
             short[] out = new short[narrow.length];
             for (int i = 0; i < out.length; i++) {
                 out[i] = (short) ((narrow[i] & 0xFF) - 1);
@@ -252,9 +250,7 @@ public final class RoomLibrary {
 
         /** Moves the blocks to one byte each when the palette allows it. Called once a room is fully read. */
         synchronized void compact() {
-            if (narrow != null || palette.size() > 255) {
-                return;
-            }
+            if (narrow != null || palette.size() > 255) return;
             short[] w = wide;
             byte[] n = new byte[w.length];
             for (int i = 0; i < w.length; i++) {
@@ -270,9 +266,7 @@ public final class RoomLibrary {
 
         private synchronized void widen() {
             byte[] n = narrow;
-            if (n == null) {
-                return;
-            }
+            if (n == null) return;
             short[] w = new short[n.length];
             for (int i = 0; i < n.length; i++) {
                 w[i] = (short) ((n[i] & 0xFF) - 1);
@@ -283,9 +277,7 @@ public final class RoomLibrary {
 
         short paletteFor(String state) {
             Short existing = paletteIndex.get(state);
-            if (existing != null) {
-                return existing;
-            }
+            if (existing != null) return existing;
             short id = (short) palette.size();
             palette.add(state);
             paletteIndex.put(state, id);
@@ -308,9 +300,7 @@ public final class RoomLibrary {
          * already carries, and every caller already had to handle that.
          */
         public short at(int x, int y, int z) {
-            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
-                return -1;
-            }
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) return -1;
             return blockAt(index(x, y, z));
         }
 
@@ -321,9 +311,7 @@ public final class RoomLibrary {
          * "rest of it" still out of render distance.
          */
         void set(int x, int y, int z, String blockId) {
-            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
-                return;
-            }
+            if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) return;
             setBlockAt(index(x, y, z), paletteFor(blockId));
             seenColumn[z * sizeX + x] = true;
             fromJar = false;
@@ -398,9 +386,7 @@ public final class RoomLibrary {
         }
 
         private synchronized void measureContent() {
-            if (contentMinY != Integer.MIN_VALUE) {
-                return;
-            }
+            if (contentMinY != Integer.MIN_VALUE) return;
             // THIS room's band, not the global constants. index() is relative to minY, so walking the
             // constants over a room loaded at an older, narrower band indexes straight out of the array -
             // and SimAltitude calls this on every build.
@@ -469,9 +455,7 @@ public final class RoomLibrary {
      */
     public static void loadAsync() {
         synchronized (RoomLibrary.class) {
-            if (loaded || loading) {
-                return;
-            }
+            if (loaded || loading) return;
             loading = true;
         }
         Thread t = new Thread(RoomLibrary::load, "killer560smod-roomlibrary");
@@ -525,9 +509,7 @@ public final class RoomLibrary {
      */
     public static void load() {
         synchronized (RoomLibrary.class) {
-            if (loaded) {
-                return;
-            }
+            if (loaded) return;
         }
         long startedAt = System.currentTimeMillis();
         Map<String, Room> fresh = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -659,18 +641,14 @@ public final class RoomLibrary {
                 // The room's NAME is the one in the file, not the file name - the files are written through
                 // safeName(), so "Arrow Trap" is stored as Arrow_Trap.json and the map is keyed by the former.
                 String name = json.has("name") ? json.get("name").getAsString() : null;
-                if (name == null || name.isBlank()) {
-                    continue;
-                }
+                if (name == null || name.isBlank()) continue;
                 Room disk = fresh.get(name);
                 if (disk != null && disk.usable()) {
                     // His own capture wins; do not even decode the shipped blocks.
                     continue;
                 }
                 Room b = fromJson(json);
-                if (b == null) {
-                    continue;
-                }
+                if (b == null) continue;
                 b.fromJar = true;
                 if (disk == null) {
                     fresh.put(b.name, b);
@@ -763,9 +741,7 @@ public final class RoomLibrary {
 
     public static synchronized int cellFootprint(String name) {
         Room r = ROOMS.get(name);
-        if (r == null || !r.currentFormat()) {
-            return 0;
-        }
+        if (r == null || !r.currentFormat()) return 0;
         return Math.max(1, (r.sizeX - 1) / (TILE + 1)) * Math.max(1, (r.sizeZ - 1) / (TILE + 1));
     }
 
@@ -811,9 +787,7 @@ public final class RoomLibrary {
     static String safeName(String name) { return name.replaceAll("[^A-Za-z0-9._-]", "_"); }
 
     private static void decodeShorts(String encoded, short[] into) {
-        if (encoded == null || encoded.isEmpty()) {
-            return;
-        }
+        if (encoded == null || encoded.isEmpty()) return;
         try (var in = new java.io.DataInputStream(new java.util.zip.GZIPInputStream(
                 new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode(encoded))))) {
             for (int i = 0; i < into.length; i++) {
@@ -828,9 +802,7 @@ public final class RoomLibrary {
     }
 
     private static void decodeBits(String encoded, boolean[] into) {
-        if (encoded == null || encoded.isEmpty()) {
-            return;
-        }
+        if (encoded == null || encoded.isEmpty()) return;
         try {
             byte[] packed = java.util.Base64.getDecoder().decode(encoded);
             for (int i = 0; i < into.length && (i >> 3) < packed.length; i++) {

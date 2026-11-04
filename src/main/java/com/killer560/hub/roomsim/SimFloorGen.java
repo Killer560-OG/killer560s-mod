@@ -267,9 +267,7 @@ public final class SimFloorGen {
                                java.util.function.Predicate<String> allow) {
         // Before the database loads every room reads NORMAL, so a type filter would judge them all wrongly - and
         // the unfiltered path already says "still loading" in chat and returns null.
-        if (allow == null || !RoomDatabase.isReady()) {
-            return plan(floor, puzzles, roomsToBlood, pinned);
-        }
+        if (allow == null || !RoomDatabase.isReady()) return plan(floor, puzzles, roomsToBlood, pinned);
         Set<String> pinnedLower = new HashSet<>();
         if (pinned != null) {
             for (String n : pinned.values()) {
@@ -314,9 +312,7 @@ public final class SimFloorGen {
 
     /** Said here rather than only returned, so the reason reaches him even from a caller that ignores it. */
     private static void reportUnusedPins(Planned p) {
-        if (p == null) {
-            return;
-        }
+        if (p == null) return;
         for (String note : p.unusedPins()) {
             ModChat.send("Sim", ModChat.dim("could not keep your " + note));
         }
@@ -438,9 +434,7 @@ public final class SimFloorGen {
             int a = gridCell(new int[]{link.aX(), link.aZ()});
             int bCell = gridCell(new int[]{link.bX(), link.bZ()});
             int between = (a + bCell) / 2;
-            if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
-                continue;
-            }
+            if (cellDoor[between] != DungeonLayout.DOOR_NONE) continue;
             boolean toBlood = bloodCell != null
                     && (cellRoom[a] == cellRoom[gridCell(bloodCell)]
                         || cellRoom[bCell] == cellRoom[gridCell(bloodCell)]);
@@ -486,9 +480,7 @@ public final class SimFloorGen {
      */
     public static int buildExplicit(Minecraft client, Map<Integer, String> placements) {
         Planned planned = planExplicit(placements);
-        if (planned == null) {
-            return -1;
-        }
+        if (planned == null) return -1;
         ModChat.send("Sim", ModChat.text("Your map: "),
                 ModChat.value(String.valueOf(planned.decoded().nameTable().length)),
                 ModChat.text(" rooms, "), ModChat.value(String.valueOf(planned.bloodDistance())),
@@ -637,9 +629,7 @@ public final class SimFloorGen {
                 champions.add(name);
             }
         }
-        if (champions.size() <= 1) {
-            return usable;
-        }
+        if (champions.size() <= 1) return usable;
         String keep = null;
         if (pinned != null) {
             for (String name : champions) {
@@ -687,22 +677,14 @@ public final class SimFloorGen {
         for (int[] c : occupied) {
             for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
                 int[] n = {c[0] + step[0], c[1] + step[1]};
-                if (!filled.contains(key(n))) {
-                    continue;
-                }
+                if (!filled.contains(key(n))) continue;
                 int a = gridCell(c);
                 int bCell = gridCell(n);
-                if (cellRoom[a] < 0 || cellRoom[bCell] < 0 || cellRoom[a] == cellRoom[bCell]) {
-                    continue;
-                }
+                if (cellRoom[a] < 0 || cellRoom[bCell] < 0 || cellRoom[a] == cellRoom[bCell]) continue;
                 int between = (a + bCell) / 2;
-                if (cellDoor[between] != DungeonLayout.DOOR_NONE) {
-                    continue;
-                }
+                if (cellDoor[between] != DungeonLayout.DOOR_NONE) continue;
                 // Already reachable from each other: a door here would be a second way in.
-                if (find(parent, cellRoom[a]) == find(parent, cellRoom[bCell])) {
-                    continue;
-                }
+                if (find(parent, cellRoom[a]) == find(parent, cellRoom[bCell])) continue;
                 union(parent, cellRoom[a], cellRoom[bCell]);
                 boolean toBlood = blood != null && (same(c, blood) || same(n, blood));
                 boolean fromEntrance = entrance != null && (same(c, entrance) || same(n, entrance));

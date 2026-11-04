@@ -148,9 +148,7 @@ public final class SimMobFloor {
         fairyDoor = -1;
         fairyTicks = -1;
         plan = "";
-        if (!enabled || !SimState.canAct(client) || !SimState.isGeneratedFloor()) {
-            return;
-        }
+        if (!enabled || !SimState.canAct(client) || !SimState.isGeneratedFloor()) return;
         DungeonLayout layout = DungeonLayout.capture();
         int entrance = -1;
         int blood = -1;
@@ -178,13 +176,9 @@ public final class SimMobFloor {
         while (!queue.isEmpty() && from[blood] == -2) {
             int r = queue.poll();
             for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-                if (!layout.isDoor(idx)) {
-                    continue;
-                }
+                if (!layout.isDoor(idx)) continue;
                 int[] s = sides(layout, idx);
-                if (s == null || (s[0] != r && s[1] != r)) {
-                    continue;
-                }
+                if (s == null || (s[0] != r && s[1] != r)) continue;
                 int o = s[0] == r ? s[1] : s[0];
                 if (o < n && from[o] == -2) {
                     from[o] = r;
@@ -267,9 +261,7 @@ public final class SimMobFloor {
 
     /** {@link SimRun}, at GO, before the mobs are placed: Mort's line, the key rooms armed, the Fairy door's clock. */
     static void onGo(Minecraft client) {
-        if (!saysHypixelLines()) {
-            return;
-        }
+        if (!saysHypixelLines()) return;
         broadcast(client, MORT_LINE);
         for (String[] k : keyRooms) {
             armKey(client, k);
@@ -279,9 +271,7 @@ public final class SimMobFloor {
 
     /** Test aid: arms this floor's key rooms again, fresh (after a test disarmed them to move the player about). */
     public static void rearmKeyRoomsForTest(Minecraft client) {
-        if (!saysHypixelLines()) {
-            return;
-        }
+        if (!saysHypixelLines()) return;
         for (String[] k : keyRooms) {
             armKey(client, k);
         }
@@ -294,13 +284,9 @@ public final class SimMobFloor {
 
     /** {@link SimLiveMobs}, server thread, right after the GO placement: a key room that got no mob drops its key now. */
     static void onMobsPlaced(Minecraft client) {
-        if (!saysHypixelLines()) {
-            return;
-        }
+        if (!saysHypixelLines()) return;
         for (String[] k : keyRooms) {
-            if (SimLiveMobs.placedIn(k[0]) > 0) {
-                continue;
-            }
+            if (SimLiveMobs.placedIn(k[0]) > 0) continue;
             BlockPos at = SimLiveMobs.firstSpot(k[0]);
             Vec3 where = at != null ? Vec3.atBottomCenterOf(at) : CENTRES.get(k[0]);
             SimKeyRoom.dropWithoutMobs(k[0], where);
@@ -315,9 +301,7 @@ public final class SimMobFloor {
     }
 
     private static void tick(Minecraft client) {
-        if (fairyTicks < 0) {
-            return;
-        }
+        if (fairyTicks < 0) return;
         if (!SimState.canAct(client)) {
             fairyTicks = -1;
             return;
@@ -342,9 +326,7 @@ public final class SimMobFloor {
      */
     private static void forceChunks(Minecraft client, DungeonLayout layout) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         java.util.Set<Long> chunks = new java.util.HashSet<>();
         for (int r = 0; r < layout.roomCount(); r++) {
             for (int t : layout.tiles(r)) {
@@ -372,15 +354,11 @@ public final class SimMobFloor {
     }
 
     private static void releaseChunks(Minecraft client) {
-        if (FORCED.isEmpty()) {
-            return;
-        }
+        if (FORCED.isEmpty()) return;
         List<int[]> list = new ArrayList<>(FORCED);
         FORCED.clear();
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             for (int[] c : list) {
                 server.overworld().setChunkForced(c[0], c[1], false);
@@ -419,9 +397,7 @@ public final class SimMobFloor {
     /** A line from the server to every player, as Hypixel's server sends it. */
     private static void broadcast(Minecraft client, String line) {
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         server.execute(() -> {
             for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
                 if (!SimMiniboss.isPlaced(sp)) {

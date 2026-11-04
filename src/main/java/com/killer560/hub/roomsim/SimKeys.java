@@ -62,9 +62,7 @@ public final class SimKeys {
     /** Drops a key at {@code pos} (server side). Client thread or any. */
     public static void drop(Minecraft client, Vec3 pos, boolean blood) {
         var server = client.getSingleplayerServer();
-        if (!SimState.canAct(client) || server == null || pos == null) {
-            return;
-        }
+        if (!SimState.canAct(client) || server == null || pos == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             ArmorStand stand = new ArmorStand(level, pos.x, pos.y, pos.z);
@@ -107,9 +105,7 @@ public final class SimKeys {
 
     /** Spends one team wither key; false when there is none. */
     static boolean useWitherKey() {
-        if (witherKeys <= 0) {
-            return false;
-        }
+        if (witherKeys <= 0) return false;
         witherKeys--;
         return true;
     }
@@ -128,9 +124,7 @@ public final class SimKeys {
     }
 
     private static void tick(MinecraftServer server) {
-        if (!SimState.isActive() || DROPPED.isEmpty()) {
-            return;
-        }
+        if (!SimState.isActive() || DROPPED.isEmpty()) return;
         try {
             ServerLevel level = server.overworld();
             double range = pickupRange();
@@ -141,9 +135,7 @@ public final class SimKeys {
                 }
                 for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
                     double d = sp.position().distanceTo(stand.position());
-                    if (d > range) {
-                        continue;
-                    }
+                    if (d > range) continue;
                     boolean blood = e.getValue();
                     DROPPED.remove(e.getKey());
                     stand.discard();

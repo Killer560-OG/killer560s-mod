@@ -242,14 +242,10 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
      * mid-word, which is what a plain trim did beside the footer's two buttons.
      */
     private String fitNote(String text, int maxW) {
-        if (this.font.width(text) <= maxW) {
-            return text;
-        }
+        if (this.font.width(text) <= maxW) return text;
         for (int cut = text.lastIndexOf(". "); cut > 0; cut = text.lastIndexOf(". ", cut - 1)) {
             String head = text.substring(0, cut + 1);
-            if (this.font.width(head) <= maxW) {
-                return head;
-            }
+            if (this.font.width(head) <= maxW) return head;
         }
         return this.font.plainSubstrByWidth(text, Math.max(0, maxW - this.font.width("..."))) + "...";
     }

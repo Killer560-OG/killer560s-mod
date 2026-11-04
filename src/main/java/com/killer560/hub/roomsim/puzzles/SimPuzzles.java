@@ -81,16 +81,12 @@ public final class SimPuzzles {
      * solved Lower Blaze. False for an unknown name, and never throws.
      */
     public static boolean isComplete(String rawName) {
-        if (rawName == null) {
-            return false;
-        }
+        if (rawName == null) return false;
         String name = rawName.toLowerCase(Locale.ROOT);
         String key = COMPLETE.containsKey(name) ? name : com.killer560.hub.roomsim.SimRoomPuzzles.puzzleKey(rawName);
         java.util.function.BooleanSupplier s = key == null ? null : COMPLETE.get(key);
         try {
-            if (s == null || !s.getAsBoolean()) {
-                return false;
-            }
+            if (s == null || !s.getAsBoolean()) return false;
             if (name.equals("higher blaze") || name.equals("lower blaze")) {
                 return rawName.equalsIgnoreCase(SimBlazePuzzle.boundRoom());
             }
@@ -117,9 +113,7 @@ public final class SimPuzzles {
      * @return false for an unknown room name, or a room whose puzzle is not solved
      */
     public static boolean isRoomComplete(String roomName) {
-        if (roomName == null) {
-            return false;
-        }
+        if (roomName == null) return false;
         try {
             return switch (roomName.toLowerCase(Locale.ROOT)) {
                 case "three weirdos" -> SimQuizPuzzle.isWeirdosComplete();
@@ -178,9 +172,7 @@ public final class SimPuzzles {
      */
     public static boolean buildAt(Minecraft client, String rawName, BlockPos origin) {
         BiConsumer<Minecraft, BlockPos> builder = BUILDERS.get(rawName.toLowerCase(Locale.ROOT));
-        if (builder == null) {
-            return false;
-        }
+        if (builder == null) return false;
         builder.accept(client, origin);
         return true;
     }
@@ -243,9 +235,7 @@ public final class SimPuzzles {
      */
     public static boolean forget(String rawName) {
         Runnable r = FORGETS.get(rawName.toLowerCase(Locale.ROOT));
-        if (r == null) {
-            return false;
-        }
+        if (r == null) return false;
         try {
             r.run();
         } catch (Throwable ignored) {
@@ -262,9 +252,7 @@ public final class SimPuzzles {
      */
     public static boolean reset(String rawName) {
         Runnable r = RESETS.get(rawName.toLowerCase(Locale.ROOT));
-        if (r == null) {
-            return false;
-        }
+        if (r == null) return false;
         try {
             r.run();
         } catch (Throwable ignored) {
@@ -293,9 +281,7 @@ public final class SimPuzzles {
         keys.add("boulder");
         int n = 0;
         for (String key : keys) {
-            if (key.equals("boulder") && !BUILT_BOULDER.getAsBoolean()) {
-                continue;
-            }
+            if (key.equals("boulder") && !BUILT_BOULDER.getAsBoolean()) continue;
             if (reset(key)) {
                 n++;
             }

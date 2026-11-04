@@ -199,9 +199,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     private int cycleKeybindsY() { return contentY + 24 + 3 * 24 + 10; }
 
     private Component keyLabel(String label, int which, int code) {
-        if (capturing == which) {
-            return Component.literal(label + ": §ePress any key...");
-        }
+        if (capturing == which) return Component.literal(label + ": §ePress any key...");
         String name = code == com.killer560.hub.util.KeyUtil.NONE
                 ? "§7Not Set" : "§e" + com.killer560.hub.util.KeyUtil.bindDisplayName(code);
         return Component.literal(label + ": " + name);
@@ -329,9 +327,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                 chosen.add(k);
             }
         }
-        if (chosen.isEmpty()) {
-            return "Any";
-        }
+        if (chosen.isEmpty()) return "Any";
         return chosen.size() == 1 ? SimRoomFilter.kindLabel(chosen.get(0)) : chosen.size() + " kinds";
     }
 
@@ -399,13 +395,9 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         String query = search == null ? "" : search.getValue().toLowerCase(Locale.ROOT).trim();
         List<String> out = new ArrayList<>();
         for (String name : RoomLibrary.names()) {
-            if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) {
-                continue;
-            }
+            if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).contains(query)) continue;
             // The shared filter (SimRoomFilter): types come from the room database, never from the name.
-            if (!SimRoomFilters.PICKER.matches(name)) {
-                continue;
-            }
+            if (!SimRoomFilters.PICKER.matches(name)) continue;
             out.add(name);
         }
         out.sort(roomOrder(prefs.roomSort, prefs.roomDescending));
@@ -451,18 +443,14 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
      */
     static int routeRank(String name) {
         int nodes = SimRoomRoutes.routeNodes(name);
-        if (nodes > 0) {
-            return 1 + nodes;
-        }
+        if (nodes > 0) return 1 + nodes;
         return SimRoomRoutes.isEligible(name) ? 1 : 0;
     }
 
     /** The text at the right of a room's row, or null for a room the routes view leaves out and has no route. */
     static String routeMarker(String name) {
         int nodes = SimRoomRoutes.routeNodes(name);
-        if (nodes > 0) {
-            return nodes + (nodes == 1 ? " node" : " nodes");
-        }
+        if (nodes > 0) return nodes + (nodes == 1 ? " node" : " nodes");
         return SimRoomRoutes.isEligible(name) ? "no routes" : null;
     }
 
@@ -541,17 +529,13 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             for (int i = 0; i < SIDE_KEYS.length; i++) {
                 used += on[i] ? need[i] + COL_GAP : 0;
             }
-            if (right - left - used >= nameMin || drop >= DROP_ORDER.length) {
-                break;
-            }
+            if (right - left - used >= nameMin || drop >= DROP_ORDER.length) break;
             on[DROP_ORDER[drop]] = false;
         }
         List<Col> out = new ArrayList<>();
         int x = right;
         for (int i = 0; i < SIDE_KEYS.length; i++) {
-            if (!on[i]) {
-                continue;
-            }
+            if (!on[i]) continue;
             x -= need[i];
             boolean alignRight = SIDE_KEYS[i] != SimMenuPrefs.RoomSort.TYPE && SIDE_KEYS[i] != SimMenuPrefs.RoomSort.SIZE;
             out.add(new Col(SIDE_KEYS[i], SIDE_LABELS[i], x, need[i], alignRight));
@@ -601,9 +585,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     /** {x, y, w, h} of a column heading ("NAME", "SECRETS"...), or null when the page has no such column. */
     public int[] columnHeaderBounds(String key) {
         for (Col c : columns()) {
-            if (c.key().name().equalsIgnoreCase(key)) {
-                return new int[]{c.x(), roomWellTop(), c.w(), HEAD_H};
-            }
+            if (c.key().name().equalsIgnoreCase(key)) return new int[]{c.x(), roomWellTop(), c.w(), HEAD_H};
         }
         return null;
     }
@@ -611,9 +593,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     /** The room under a point, or -1. Only a point on a real row counts - not the empty well, not beside it. */
     private int roomAt(double mx, double my) {
         int top = roomRowsTop();
-        if (mx < contentX || mx >= contentX + contentW - 6 || my < top || my >= top + roomRowsHeight()) {
-            return -1;
-        }
+        if (mx < contentX || mx >= contentX + contentW - 6 || my < top || my >= top + roomRowsHeight()) return -1;
         int row = (int) Math.floor((my - top + scroll) / ROW_H);
         return row >= 0 && row < listed.size() ? row : -1;
     }
@@ -730,17 +710,13 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             GuiRects rr = GuiRects.begin(g);
             for (int i = first; i < listed.size(); i++) {
                 int rowY = top + i * ROW_H - scroll;
-                if (rowY > top + h) {
-                    break;
-                }
+                if (rowY > top + h) break;
                 ScreenChrome.row(rr, contentX, rowY, contentW - 6, ROW_H, i == hovered, false, i % 2 == 1);
             }
             rr.submit();
             for (int i = first; i < listed.size(); i++) {
                 int rowY = top + i * ROW_H - scroll;
-                if (rowY > top + h) {
-                    break;
-                }
+                if (rowY > top + h) break;
                 drawRoomRow(g, cols, listed.get(i), rowY + 3, i == hovered, ready);
             }
         } finally {
@@ -877,14 +853,10 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private int runAt(double mx, double my) {
-        if (my < cardsTop() || my >= cardsTop() + cardsHeight()) {
-            return -1;
-        }
+        if (my < cardsTop() || my >= cardsTop() + cardsHeight()) return -1;
         for (int i = 0; i < runs.size(); i++) {
             int[] c = runCardBounds(i);
-            if (mx >= c[0] && mx < c[0] + c[2] && my >= c[1] && my < c[1] + c[3]) {
-                return i;
-            }
+            if (mx >= c[0] && mx < c[0] + c[2] && my >= c[1] && my < c[1] + c[3]) return i;
         }
         return -1;
     }
@@ -921,17 +893,13 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             GuiRects r = GuiRects.begin(g);
             for (int i = 0; i < runs.size(); i++) {
                 int[] c = runCardBounds(i);
-                if (c[1] > top + h || c[1] + c[3] < top) {
-                    continue;
-                }
+                if (c[1] > top + h || c[1] + c[3] < top) continue;
                 ScreenChrome.card(r, c[0], c[1], c[2], c[3], i == hovered);
             }
             r.submit();
             for (int i = 0; i < runs.size(); i++) {
                 int[] c = runCardBounds(i);
-                if (c[1] > top + h || c[1] + c[3] < top) {
-                    continue;
-                }
+                if (c[1] > top + h || c[1] + c[3] < top) continue;
                 drawRunCard(g, runs.get(i), c, i == hovered);
             }
         } finally {
@@ -1005,9 +973,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         try {
             int y = top + 6 - detailScroll;
             for (String line : detailLines()) {
-                if (y > top + h) {
-                    break;
-                }
+                if (y > top + h) break;
                 if (!line.isEmpty() && y + 10 >= top) {
                     MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(line, tw)), tx, y,
                             MenuStyle.TXT);

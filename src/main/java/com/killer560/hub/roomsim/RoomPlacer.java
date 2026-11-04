@@ -227,9 +227,7 @@ public final class RoomPlacer {
         private final int markerY;
 
         public PasteJob(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
-            if (room == null) {
-                throw new IllegalArgumentException("room is null");
-            }
+            if (room == null) throw new IllegalArgumentException("room is null");
             this.level = level;
             this.room = room;
             this.rotation = rotation;
@@ -379,9 +377,7 @@ public final class RoomPlacer {
     static java.util.Map<Long, BlockState> doorOverrides(RoomLibrary.Room room, int rotation) {
         java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
         java.util.Map<Long, BlockState> deuces = DeucesChestDoorway.overrides(room);
-        if (deuces.isEmpty()) {
-            return pieces;
-        }
+        if (deuces.isEmpty()) return pieces;
         java.util.Map<Long, BlockState> out = new java.util.HashMap<>(pieces);
         out.putAll(deuces);
         return out;

@@ -84,9 +84,7 @@ public final class SimBreakerState {
      * @return whether the break may go ahead
      */
     public static synchronized boolean trySpend() {
-        if (charges <= 0) {
-            return false;
-        }
+        if (charges <= 0) return false;
         charges--;
         return true;
     }
@@ -238,9 +236,7 @@ public final class SimBreakerState {
                     continue;
                 }
                 var lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
-                if (lore == null) {
-                    continue;
-                }
+                if (lore == null) continue;
                 java.util.List<net.minecraft.network.chat.Component> lines = new java.util.ArrayList<>(lore.lines());
                 boolean changed = false;
                 for (int i = 0; i < lines.size(); i++) {

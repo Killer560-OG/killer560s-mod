@@ -84,13 +84,9 @@ public final class SimRoomCycle {
      */
     public static List<String> roomsFor(Choice c) {
         List<String> out = new ArrayList<>();
-        if (!RoomDatabase.isReady()) {
-            return out;
-        }
+        if (!RoomDatabase.isReady()) return out;
         for (String name : RoomLibrary.names()) {
-            if (!SimRoomFilters.CYCLE.matches(name)) {
-                continue;
-            }
+            if (!SimRoomFilters.CYCLE.matches(name)) continue;
             boolean keep = switch (c) {
                 case ALL -> true;
                 case WITHOUT_ROUTES -> SimRoomRoutes.routeNodes(name) == 0;
@@ -126,19 +122,13 @@ public final class SimRoomCycle {
     public static boolean isActive() {
         List<String> list;
         synchronized (SimRoomCycle.class) {
-            if (!cycling || rooms == null) {
-                return false;
-            }
+            if (!cycling || rooms == null) return false;
             list = rooms;
         }
         String standing = SimRoomRoutes.currentSoloRoom();
-        if (standing == null) {
-            return false;
-        }
+        if (standing == null) return false;
         for (String r : list) {
-            if (r.equalsIgnoreCase(standing)) {
-                return true;
-            }
+            if (r.equalsIgnoreCase(standing)) return true;
         }
         return false;
     }
@@ -325,18 +315,14 @@ public final class SimRoomCycle {
     }
 
     private static void loadKeys() {
-        if (keysLoaded) {
-            return;
-        }
+        if (keysLoaded) return;
         keysLoaded = true;
         try {
             if (java.nio.file.Files.exists(KEYS_FILE)) {
                 for (String line : java.nio.file.Files.readAllLines(KEYS_FILE,
                         java.nio.charset.StandardCharsets.UTF_8)) {
                     String[] kv = line.trim().split("=", 2);
-                    if (kv.length != 2) {
-                        continue;
-                    }
+                    if (kv.length != 2) continue;
                     int code;
                     try {
                         code = KeyUtil.sanitizeBind(Integer.parseInt(kv[1].trim()));

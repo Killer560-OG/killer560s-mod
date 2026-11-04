@@ -50,9 +50,7 @@ public final class SimWitherDoors {
      */
     public static boolean[] compute(int[] roomCells, int[] doorCells, String[] names) {
         boolean[] out = new boolean[GRID * GRID];
-        if (roomCells == null || doorCells == null || names == null) {
-            return out;
-        }
+        if (roomCells == null || doorCells == null || names == null) return out;
         int entrance = -1;
         int blood = -1;
         for (int i = 0; i < names.length; i++) {
@@ -64,9 +62,7 @@ public final class SimWitherDoors {
                 blood = i;
             }
         }
-        if (entrance < 0 || blood < 0) {
-            return out;
-        }
+        if (entrance < 0 || blood < 0) return out;
         // Room graph: for each room, the (door cell, other room) pairs.
         List<List<int[]>> adj = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -74,9 +70,7 @@ public final class SimWitherDoors {
         }
         int cells = Math.min(GRID * GRID, Math.min(roomCells.length, doorCells.length));
         for (int idx = 0; idx < cells; idx++) {
-            if (doorCells[idx] == DungeonLayout.DOOR_NONE || roomCells[idx] >= 0) {
-                continue;
-            }
+            if (doorCells[idx] == DungeonLayout.DOOR_NONE || roomCells[idx] >= 0) continue;
             int gx = idx % GRID;
             int gz = idx / GRID;
             int a;
@@ -90,9 +84,7 @@ public final class SimWitherDoors {
             } else {
                 continue;
             }
-            if (a < 0 || b < 0 || a == b || a >= names.length || b >= names.length) {
-                continue;
-            }
+            if (a < 0 || b < 0 || a == b || a >= names.length || b >= names.length) continue;
             adj.get(a).add(new int[]{idx, b});
             adj.get(b).add(new int[]{idx, a});
         }
@@ -112,9 +104,7 @@ public final class SimWitherDoors {
                 }
             }
         }
-        if (from[blood] == -2) {
-            return out;
-        }
+        if (from[blood] == -2) return out;
         for (int r = blood; from[r] >= 0; r = from[r]) {
             int door = viaDoor[r];
             if (doorCells[door] == DungeonLayout.DOOR_NORMAL) {

@@ -119,9 +119,7 @@ public final class SimSpiritSceptre {
      */
     private static void spawnBatEntity(Minecraft client, Bat bat) {
         var server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
+        if (server == null) return;
         Vec3 at = bat.at;
         // McEntities.BAT and snapTo, not EntityType.BAT and moveTo: the entity-type constant lives in the
         // version compat layer and moveTo is not what this version calls it (SimMiniboss and SimMobs are the
@@ -148,9 +146,7 @@ public final class SimSpiritSceptre {
     /** Moves this one's bat entity to where the flight has got to. */
     private static void moveBatEntity(Minecraft client, Bat bat, Vec3 to) {
         var server = client.getSingleplayerServer();
-        if (server == null || bat.entity == null) {
-            return;
-        }
+        if (server == null || bat.entity == null) return;
         java.util.UUID id = bat.entity;
         server.execute(() -> {
             Entity entity = server.overworld().getEntity(id);
@@ -163,9 +159,7 @@ public final class SimSpiritSceptre {
     /** Takes this one's bat entity away - it has exploded, or the sim has closed. */
     private static void removeBatEntity(Minecraft client, Bat bat) {
         var server = client.getSingleplayerServer();
-        if (server == null || bat.entity == null) {
-            return;
-        }
+        if (server == null || bat.entity == null) return;
         java.util.UUID id = bat.entity;
         bat.entity = null;
         server.execute(() -> {
@@ -190,9 +184,7 @@ public final class SimSpiritSceptre {
      * @return whether anything was fired, so the caller can fall through to normal item behavior if not
      */
     public static boolean fire(Minecraft client) {
-        if (!SimState.canAct(client) || client.player == null || client.level == null) {
-            return false;
-        }
+        if (!SimState.canAct(client) || client.player == null || client.level == null) return false;
         // SimAim: the aim the use packet carried when the server fired this, his own otherwise.
         Vec3 eye = SimAim.eye(client.player);
         Vec3 look = SimAim.look(client.player);
@@ -231,9 +223,7 @@ public final class SimSpiritSceptre {
     private static int blastCount;
 
     private static void tick(Minecraft client) {
-        if (FLYING.isEmpty()) {
-            return;
-        }
+        if (FLYING.isEmpty()) return;
         if (!SimState.canAct(client) || client.level == null) {
             clear();
             return;
@@ -268,9 +258,7 @@ public final class SimSpiritSceptre {
         for (Entity e : client.level.getEntities(client.player, sweep,
                 e -> e instanceof LivingEntity && e.isAlive() && e != client.player)) {
             var clip = e.getBoundingBox().inflate(0.3).clip(from, to);
-            if (clip.isEmpty()) {
-                continue;
-            }
+            if (clip.isEmpty()) continue;
             double d = from.distanceToSqr(clip.get());
             if (d < nearest) {
                 nearest = d;
@@ -326,15 +314,11 @@ public final class SimSpiritSceptre {
                 SoundSource.PLAYERS, 0.5f, 1.6f, false);
 
         var server = client.getSingleplayerServer();
-        if (server == null || client.player == null) {
-            return;
-        }
+        if (server == null || client.player == null) return;
         java.util.UUID uuid = client.player.getUUID();
         server.execute(() -> {
             var sp = server.getPlayerList().getPlayer(uuid);
-            if (sp == null) {
-                return;
-            }
+            if (sp == null) return;
             ServerLevel level = (ServerLevel) sp.level();
             AABB blast = AABB.ofSize(centre, BLAST_RADIUS * 2, BLAST_RADIUS * 2, BLAST_RADIUS * 2);
             var source = level.damageSources().playerAttack(sp);
@@ -342,9 +326,7 @@ public final class SimSpiritSceptre {
                     e -> e.isAlive() && e != sp)) {
                 // The BOX is a box; the blast is a sphere. Without this the corners reach 5.2 blocks while the
                 // faces reach 3, which is the same axis-dependent reach this file was written to get rid of.
-                if (target.getBoundingBox().distanceToSqr(centre) > BLAST_RADIUS * BLAST_RADIUS) {
-                    continue;
-                }
+                if (target.getBoundingBox().distanceToSqr(centre) > BLAST_RADIUS * BLAST_RADIUS) continue;
                 target.hurtServer(level, source, BLAST_DAMAGE);
                 // Vanilla's own convention: the vector points FROM the target TO the blast, and knockback()
                 // pushes the other way.

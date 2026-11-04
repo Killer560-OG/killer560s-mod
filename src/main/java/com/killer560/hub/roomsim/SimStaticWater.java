@@ -57,9 +57,7 @@ public final class SimStaticWater {
      * scheduled water tick in any level - so the cheap tests come first.
      */
     public static boolean shouldFreeze(ServerLevel level, BlockPos pos) {
-        if (!SimState.isActive() || level != level.getServer().overworld()) {
-            return false;
-        }
+        if (!SimState.isActive() || level != level.getServer().overworld()) return false;
         for (Box box : currentBoxes()) {
             if (box.contains(pos.getX(), pos.getZ())) {
                 allowed++;
@@ -84,9 +82,7 @@ public final class SimStaticWater {
     /** The Water Board box(es) currently exempt, as {@code minX,minZ..maxX,maxZ}; "none" without one. */
     public static String describe() {
         List<Box> list = currentBoxes();
-        if (list.isEmpty()) {
-            return "none";
-        }
+        if (list.isEmpty()) return "none";
         StringBuilder sb = new StringBuilder();
         for (Box b : list) {
             sb.append(sb.isEmpty() ? "" : " ").append(b.minX).append(',').append(b.minZ)
@@ -100,13 +96,9 @@ public final class SimStaticWater {
         if (v != boxesVersion) {
             List<Box> out = new ArrayList<>();
             for (SimRoomIndex.Placed p : SimRoomIndex.placed()) {
-                if (!"water board".equals(p.name().toLowerCase(Locale.ROOT))) {
-                    continue;
-                }
+                if (!"water board".equals(p.name().toLowerCase(Locale.ROOT))) continue;
                 RoomLibrary.Room room = RoomLibrary.get(p.name());
-                if (room == null) {
-                    continue;
-                }
+                if (room == null) continue;
                 BlockPos origin = DungeonLayout.cellCenter(p.gridZ() * DungeonLayout.GRID + p.gridX());
                 int x0 = origin.getX() - RoomLibrary.TILE / 2 - room.margin;
                 int z0 = origin.getZ() - RoomLibrary.TILE / 2 - room.margin;
