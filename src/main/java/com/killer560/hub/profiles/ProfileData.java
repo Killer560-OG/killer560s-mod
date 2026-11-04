@@ -120,30 +120,20 @@ public final class ProfileData {
                 || name.equals(".") || name.equals("..")) {
             return false;
         }
-        if (!isDirectory && name.endsWith(".json")) {
-            return false;
-        }
+        if (!isDirectory && name.endsWith(".json")) return false;
         String key = name.substring(ModPaths.PREFIX.length());
-        if (EXCLUDED_NAMES.contains(key) || ModPaths.isRetired(name)) {
-            return false;
-        }
+        if (EXCLUDED_NAMES.contains(key) || ModPaths.isRetired(name)) return false;
         for (String prefix : EXCLUDED_NAME_PREFIXES) {
-            if (key.startsWith(prefix)) {
-                return false;
-            }
+            if (key.startsWith(prefix)) return false;
         }
         return !isExcludedFileName(name);
     }
 
     /** Whether {@code rel} ("entry" or "entry/sub/file", forward slashes) may be carried. */
     static boolean isCarriedRelative(String rel) {
-        if (EXCLUDED_INNER.contains(rel)) {
-            return false;
-        }
+        if (EXCLUDED_INNER.contains(rel)) return false;
         for (String segment : rel.split("/")) {
-            if (segment.isEmpty() || segment.equals(".") || segment.equals("..") || isExcludedFileName(segment)) {
-                return false;
-            }
+            if (segment.isEmpty() || segment.equals(".") || segment.equals("..") || isExcludedFileName(segment)) return false;
         }
         return true;
     }
@@ -154,17 +144,13 @@ public final class ProfileData {
     static Map<String, Path> liveEntries() {
         Map<String, Path> out = new TreeMap<>();
         Path root = ModPaths.root();
-        if (!Files.isDirectory(root)) {
-            return out;
-        }
+        if (!Files.isDirectory(root)) return out;
         try (var walk = Files.walk(root, 3)) {
             // Never retired/ (a removed feature's leftovers, ModPaths.RETIRED_NAMES): a profile must not carry it.
             walk.filter(p -> root.relativize(p).getNameCount() == 3
                     && !root.relativize(p).getName(0).toString().equals(ModPaths.RETIRED)).forEach(p -> {
                 String name = p.getFileName().toString();
-                if (!isDataName(name, Files.isDirectory(p))) {
-                    return;
-                }
+                if (!isDataName(name, Files.isDirectory(p))) return;
                 Path existing = out.get(name);
                 if (existing == null || p.equals(ModPaths.config(name))) {
                     out.put(name, p);
@@ -189,9 +175,7 @@ public final class ProfileData {
     static Map<String, Path> storedFiles(Path profileDir) {
         Map<String, Path> out = new TreeMap<>();
         Path data = profileDir.resolve(DATA_DIR);
-        if (!Files.isDirectory(data)) {
-            return out;
-        }
+        if (!Files.isDirectory(data)) return out;
         try (var stream = Files.list(data)) {
             stream.forEach(p -> {
                 String name = p.getFileName().toString();
@@ -212,9 +196,7 @@ public final class ProfileData {
             }
             return;
         }
-        if (!Files.isDirectory(entry)) {
-            return;
-        }
+        if (!Files.isDirectory(entry)) return;
         try (var walk = Files.walk(entry)) {
             walk.filter(Files::isRegularFile).forEach(f -> {
                 String rel = name + "/" + entry.relativize(f).toString().replace('\\', '/');
@@ -292,9 +274,7 @@ public final class ProfileData {
         boolean stamped = Files.isRegularFile(profileDir.resolve(META_FILE));
         for (Map.Entry<String, Path> e : live.entrySet()) {
             Path target = data.resolve(e.getKey());
-            if (same(e.getValue(), target)) {
-                continue;
-            }
+            if (same(e.getValue(), target)) continue;
             try {
                 copyFile(e.getValue(), target);
                 counts[0]++;
@@ -338,9 +318,7 @@ public final class ProfileData {
      * for a format-1 profile (nothing touched).
      */
     static int[] apply(Path profileDir) {
-        if (!carriesData(profileDir)) {
-            return null;
-        }
+        if (!carriesData(profileDir)) return null;
         int[] result = new int[3];
         Map<String, Path> stored = storedFiles(profileDir);
         Set<String> storedEntries = new HashSet<>();
@@ -396,9 +374,7 @@ public final class ProfileData {
     /** Keeps only the named entries in a profile's data (New Blank). */
     static void keepOnly(Path profileDir, Set<String> names) throws IOException {
         Path data = profileDir.resolve(DATA_DIR);
-        if (!Files.isDirectory(data)) {
-            return;
-        }
+        if (!Files.isDirectory(data)) return;
         try (var stream = Files.list(data)) {
             for (Path p : stream.toList()) {
                 if (!names.contains(p.getFileName().toString())) {
@@ -428,9 +404,7 @@ public final class ProfileData {
     /** What a profile's stamp says. {@code format} 1 and nulls for a profile from before the stamp. */
     public record Meta(int format, String modVersion, String minecraft, String variant, boolean testing) {
         String describe() {
-            if (format <= 1) {
-                return "an older mod build";
-            }
+            if (format <= 1) return "an older mod build";
             return (modVersion == null ? "?" : modVersion) + " / " + (minecraft == null ? "?" : minecraft) + " "
                     + (variant == null ? "?" : variant) + (testing ? " testing" : "");
         }
@@ -439,9 +413,7 @@ public final class ProfileData {
     public static Meta readMeta(Path profileDir) { return parseMeta(profileDir.resolve(META_FILE)); }
 
     static Meta parseMeta(Path file) {
-        if (!Files.isRegularFile(file)) {
-            return new Meta(1, null, null, null, false);
-        }
+        if (!Files.isRegularFile(file)) return new Meta(1, null, null, null, false);
         try {
             return parseMeta(Files.readString(file, StandardCharsets.UTF_8));
         } catch (IOException e) {
@@ -467,9 +439,7 @@ public final class ProfileData {
 
 
     static void deleteRecursive(Path path) throws IOException {
-        if (!Files.exists(path)) {
-            return;
-        }
+        if (!Files.exists(path)) return;
         if (!Files.isDirectory(path)) {
             Files.deleteIfExists(path);
             return;
@@ -491,9 +461,7 @@ public final class ProfileData {
 
     /** Removes empty folders below {@code dir} (not {@code dir} itself). */
     private static void pruneEmptyDirs(Path dir) {
-        if (!Files.isDirectory(dir)) {
-            return;
-        }
+        if (!Files.isDirectory(dir)) return;
         try {
             Files.walkFileTree(dir, new SimpleFileVisitor<>() {
                 @Override

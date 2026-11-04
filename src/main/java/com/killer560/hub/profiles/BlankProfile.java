@@ -52,14 +52,10 @@ public final class BlankProfile {
     public static List<String> configClassNames() {
         Set<String> names = new TreeSet<>();
         Optional<ModContainer> mod = FabricLoader.getInstance().getModContainer("killer560smod");
-        if (mod.isEmpty()) {
-            return new ArrayList<>(names);
-        }
+        if (mod.isEmpty()) return new ArrayList<>(names);
         for (Path root : mod.get().getRootPaths()) {
             Path pkg = root.resolve("com/killer560/hub");
-            if (!Files.isDirectory(pkg)) {
-                continue;
-            }
+            if (!Files.isDirectory(pkg)) continue;
             try (var walk = Files.walk(pkg)) {
                 walk.forEach(p -> {
                     String rel = root.relativize(p).toString().replace('\\', '/');
@@ -99,15 +95,11 @@ public final class BlankProfile {
     static int switchEverythingOff() {
         int off = 0;
         for (String name : configClassNames()) {
-            if (LEFT_AT_DEFAULTS.contains(name)) {
-                continue;
-            }
+            if (LEFT_AT_DEFAULTS.contains(name)) continue;
             try {
                 Method getter = instanceGetter(name);
                 Object cfg = getter.invoke(null);
-                if (cfg == null) {
-                    continue;
-                }
+                if (cfg == null) continue;
                 off += zeroBooleans(cfg);
                 save(cfg);
             } catch (Throwable t) {
@@ -146,9 +138,7 @@ public final class BlankProfile {
         for (Class<?> c = cfg.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
             for (Field f : c.getDeclaredFields()) {
                 int mod = f.getModifiers();
-                if (Modifier.isStatic(mod) || Modifier.isTransient(mod)) {
-                    continue;
-                }
+                if (Modifier.isStatic(mod) || Modifier.isTransient(mod)) continue;
                 f.setAccessible(true);
                 if (STATE_FIELD.matcher(f.getName()).matches()) {
                     if (f.getType() == boolean.class && !Modifier.isFinal(mod)) {
