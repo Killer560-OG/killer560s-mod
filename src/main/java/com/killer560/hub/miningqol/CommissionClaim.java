@@ -111,9 +111,7 @@ public final class CommissionClaim {
     }
 
     /** The Royal Pigeon pulses: Highlight Royal Pigeon on and a claim due (independent of the route switches). */
-    public static boolean pigeonPulse() {
-        return MiningQolConfig.getInstance().isCommissionPigeon() && claimDue();
-    }
+    public static boolean pigeonPulse() { return MiningQolConfig.getInstance().isCommissionPigeon() && claimDue(); }
 
     /** Emissary spots (the ones the Commission HUD labels). */
     static List<BlockPos> emissaries() {
@@ -137,9 +135,7 @@ public final class CommissionClaim {
     }
 
     /** Pulse strength 0..1 at {@code ms}: a smooth beat about twice a second. */
-    static float pulse(long ms) {
-        return 0.5f + 0.5f * (float) Math.sin(ms / 1000.0 * Math.PI * 4);
-    }
+    static float pulse(long ms) { return 0.5f + 0.5f * (float) Math.sin(ms / 1000.0 * Math.PI * 4); }
 
     private static void renderPulse(GuiGraphicsExtractor graphics) {
         Minecraft mc = Minecraft.getInstance();
@@ -167,13 +163,9 @@ public final class CommissionClaim {
 
 
     /** Testkit: Emissary spots to use instead of the Mines' real ones (null: the real ones). */
-    public static void emissariesForTest(List<BlockPos> spots) {
-        emissaryOverride = spots;
-    }
+    public static void emissariesForTest(List<BlockPos> spots) { emissaryOverride = spots; }
 
-    public static void chatForTest(String raw) {
-        handle(raw, System.currentTimeMillis());
-    }
+    public static void chatForTest(String raw) { handle(raw, System.currentTimeMillis()); }
 
     public static void resetForTest() {
         chatUntil = 0;
@@ -186,11 +178,7 @@ public final class CommissionClaim {
         lastPulseSlot = -1;
     }
 
-    public static int pulseFrames() {
-        return pulseFrames;
-    }
+    public static int pulseFrames() { return pulseFrames; }
 
-    public static int lastPulseSlot() {
-        return lastPulseSlot;
-    }
+    public static int lastPulseSlot() { return lastPulseSlot; }
 }

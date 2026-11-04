@@ -94,13 +94,9 @@ public final class MinesAreaMap {
     }
 
     /** Bumped whenever the map changes (the callers re-decide then). */
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
-    public static boolean loaded() {
-        return map != null;
-    }
+    public static boolean loaded() { return map != null; }
 
     static Map3 build(IslandGraph g) {
         int n = g.nodes.length;

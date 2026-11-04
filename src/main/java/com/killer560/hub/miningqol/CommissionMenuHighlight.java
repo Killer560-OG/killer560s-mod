@@ -47,9 +47,7 @@ public final class CommissionMenuHighlight {
         return false;
     }
 
-    public static boolean isMenu(AbstractContainerScreen<?> screen) {
-        return TITLE.equals(screen.getTitle().getString());
-    }
+    public static boolean isMenu(AbstractContainerScreen<?> screen) { return TITLE.equals(screen.getTitle().getString()); }
 
     /** Whether {@code slot} of {@code screen} is drawn green now. */
     public static boolean highlighted(AbstractContainerScreen<?> screen, Slot slot) {
@@ -94,9 +92,7 @@ public final class CommissionMenuHighlight {
     private static long drawn;
 
     /** Testkit: slot draws so far. */
-    public static long drawnCount() {
-        return drawn;
-    }
+    public static long drawnCount() { return drawn; }
 
     /** Testkit: the menu slots of {@code screen} drawn green now. */
     public static List<Integer> highlightedSlots(AbstractContainerScreen<?> screen) {

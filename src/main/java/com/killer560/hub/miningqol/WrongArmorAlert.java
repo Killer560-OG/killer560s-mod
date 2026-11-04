@@ -103,9 +103,7 @@ public final class WrongArmorAlert {
     private static int soundCount = 0;
 
     /** Alarm beeps played since start (testkit). */
-    public static int soundCount() {
-        return soundCount;
-    }
+    public static int soundCount() { return soundCount; }
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
@@ -176,21 +174,13 @@ public final class WrongArmorAlert {
     }
 
 
-    public static boolean showing() {
-        return showing;
-    }
+    public static boolean showing() { return showing; }
 
-    public static int shownCount() {
-        return shownCount;
-    }
+    public static int shownCount() { return shownCount; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    public static String lastReason() {
-        return lastReason;
-    }
+    public static String lastReason() { return lastReason; }
 
     /** The movable "Wrong Armor!" line. */
     public static final class Popup implements HudElement {
@@ -198,14 +188,10 @@ public final class WrongArmorAlert {
         private static final float SCALE = 2.0f;
 
         @Override
-        public String id() {
-            return ID;
-        }
+        public String id() { return ID; }
 
         @Override
-        public String displayName() {
-            return "Wrong Armor Alert";
-        }
+        public String displayName() { return "Wrong Armor Alert"; }
 
         @Override
         public int defaultX() {
@@ -220,19 +206,13 @@ public final class WrongArmorAlert {
         }
 
         @Override
-        public int width() {
-            return (int) Math.ceil(Minecraft.getInstance().font.width(TEXT) * SCALE);
-        }
+        public int width() { return (int) Math.ceil(Minecraft.getInstance().font.width(TEXT) * SCALE); }
 
         @Override
-        public int height() {
-            return (int) (10 * SCALE);
-        }
+        public int height() { return (int) (10 * SCALE); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isWrongArmorRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isWrongArmorRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {

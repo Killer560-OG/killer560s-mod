@@ -301,9 +301,7 @@ public final class CommissionRoute {
         return out.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    private static Vec3 feetOf(IslandGraph.Node n) {
-        return new Vec3(n.x + 0.5, n.y, n.z + 0.5);
-    }
+    private static Vec3 feetOf(IslandGraph.Node n) { return new Vec3(n.x + 0.5, n.y, n.z + 0.5); }
 
     /** Per-search state, arrays indexed by node (the last index is the player's own spot). */
     private static final class Search {
@@ -581,9 +579,7 @@ public final class CommissionRoute {
         return out;
     }
 
-    public static int pointCount() {
-        return points.length;
-    }
+    public static int pointCount() { return points.length; }
 
     /** Hop blocks (etherwarp targets, or AOTE landing feet blocks) as "x,y,z". */
     public static List<String> hops() {
@@ -594,9 +590,7 @@ public final class CommissionRoute {
         return out;
     }
 
-    public static String currentTargetArea() {
-        return targetArea;
-    }
+    public static String currentTargetArea() { return targetArea; }
 
     /** Where the last drawn line started: the crosshair end of the camera's look (testkit). */
     public static double[] lastOrigin() {
@@ -605,15 +599,9 @@ public final class CommissionRoute {
     }
 
     /** How many patch boxes the last frame drew (testkit). */
-    public static int patches() {
-        return patches;
-    }
+    public static int patches() { return patches; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    public static int computes() {
-        return computes;
-    }
+    public static int computes() { return computes; }
 }

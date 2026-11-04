@@ -75,9 +75,7 @@ public final class AbilityReadyAlert {
     private AbilityReadyAlert() {
     }
 
-    static void register() {
-        ChatObserver.subscribe(AbilityReadyAlert::onChat);
-    }
+    static void register() { ChatObserver.subscribe(AbilityReadyAlert::onChat); }
 
     static void onChat(Component message) {
         if (!MiningQolConfig.getInstance().isAbilityAlert()) {
@@ -212,21 +210,13 @@ public final class AbilityReadyAlert {
     }
 
 
-    public static String popup() {
-        return System.currentTimeMillis() < popupUntil ? popupText : null;
-    }
+    public static String popup() { return System.currentTimeMillis() < popupUntil ? popupText : null; }
 
-    public static int popupsShown() {
-        return popupsShown;
-    }
+    public static int popupsShown() { return popupsShown; }
 
-    public static int popupFrames() {
-        return popupFrames;
-    }
+    public static int popupFrames() { return popupFrames; }
 
-    public static List<String> timer() {
-        return timerLines;
-    }
+    public static List<String> timer() { return timerLines; }
 
     /** Testkit: feeds tab lines at a given wall-clock time and returns the timer lines at {@code readAt}. */
     public static List<String> timerAtForTest(List<String> tab, long now, long readAt) {
@@ -249,9 +239,7 @@ public final class AbilityReadyAlert {
         LEARNED.clear();
     }
 
-    public static Long learnedMs(String name) {
-        return LEARNED.get(name);
-    }
+    public static Long learnedMs(String name) { return LEARNED.get(name); }
 
     /** The big "X READY" popup, centered by default; movable in the HUD editor. */
     public static final class Popup implements HudElement {
@@ -264,14 +252,10 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public String id() {
-            return POPUP_ID;
-        }
+        public String id() { return POPUP_ID; }
 
         @Override
-        public String displayName() {
-            return "Ability Ready Popup";
-        }
+        public String displayName() { return "Ability Ready Popup"; }
 
         @Override
         public int defaultX() {
@@ -292,14 +276,10 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public int height() {
-            return (int) (10 * SCALE);
-        }
+        public int height() { return (int) (10 * SCALE); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isAbilityAlertRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isAbilityAlertRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
@@ -335,24 +315,16 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public String id() {
-            return TIMER_ID;
-        }
+        public String id() { return TIMER_ID; }
 
         @Override
-        public String displayName() {
-            return "Ability Timer";
-        }
+        public String displayName() { return "Ability Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 200;
-        }
+        public int defaultY() { return 200; }
 
         @Override
         public int width() {
@@ -365,9 +337,7 @@ public final class AbilityReadyAlert {
         }
 
         @Override
-        public int height() {
-            return HudText.height(Math.max(1, shown().size()), 10);
-        }
+        public int height() { return HudText.height(Math.max(1, shown().size()), 10); }
 
         @Override
         public boolean isEnabledInSettings() {

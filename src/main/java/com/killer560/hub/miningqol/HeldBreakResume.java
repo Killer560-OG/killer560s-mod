@@ -93,12 +93,8 @@ public final class HeldBreakResume {
     }
 
 
-    public static int resumes() {
-        return resumes;
-    }
+    public static int resumes() { return resumes; }
 
     /** The testkit's button events reach MouseButtons but not the platform's button state: trust the events alone. */
-    public static void trustTrackedButtonForTest(boolean on) {
-        trustTrackedForTest = on;
-    }
+    public static void trustTrackedButtonForTest(boolean on) { trustTrackedForTest = on; }
 }

@@ -299,41 +299,23 @@ public final class PowderGhast {
     }
 
 
-    public static int alerts() {
-        return alerts;
-    }
+    public static int alerts() { return alerts; }
 
-    public static int partyCallouts() {
-        return partyCallouts;
-    }
+    public static int partyCallouts() { return partyCallouts; }
 
-    public static int boxFrames() {
-        return boxFrames;
-    }
+    public static int boxFrames() { return boxFrames; }
 
-    public static int tracerFrames() {
-        return tracerFrames;
-    }
+    public static int tracerFrames() { return tracerFrames; }
 
-    public static int kills() {
-        return kills;
-    }
+    public static int kills() { return kills; }
 
-    public static int targetId() {
-        return targetId;
-    }
+    public static int targetId() { return targetId; }
 
-    public static boolean visibleNow() {
-        return visible;
-    }
+    public static boolean visibleNow() { return visible; }
 
-    public static boolean throughWallsNow() {
-        return throughWalls;
-    }
+    public static boolean throughWallsNow() { return throughWalls; }
 
-    public static String placeNow() {
-        return place;
-    }
+    public static String placeNow() { return place; }
 
     /** Seconds until the despawn, or -1 with no event running. */
     public static long secondsLeft() {
@@ -341,9 +323,7 @@ public final class PowderGhast {
         return d == 0L ? -1L : Math.max(0L, (d - com.killer560.hub.util.PerTickServerClock.now()) / 20L);
     }
 
-    public static String hudLineNow() {
-        return hudLine();
-    }
+    public static String hudLineNow() { return hudLine(); }
 
     /** Pretends the minute is up now (testkit). */
     public static void expireNow() {
@@ -363,24 +343,16 @@ public final class PowderGhast {
         }
 
         @Override
-        public String id() {
-            return TIMER_ID;
-        }
+        public String id() { return TIMER_ID; }
 
         @Override
-        public String displayName() {
-            return "Powder Ghast Timer";
-        }
+        public String displayName() { return "Powder Ghast Timer"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 220;
-        }
+        public int defaultY() { return 220; }
 
         @Override
         public int width() {
@@ -389,9 +361,7 @@ public final class PowderGhast {
         }
 
         @Override
-        public int height() {
-            return 10;
-        }
+        public int height() { return 10; }
 
         @Override
         public boolean isEnabledInSettings() {

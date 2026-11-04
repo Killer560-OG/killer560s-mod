@@ -223,13 +223,9 @@ public final class CommissionMobs {
     }
 
     /** Glow mixin hook (cheatutils WitherGlowEntityMixin): the ARGB outline color, or null when not glowing. */
-    public static Integer glowColor(Entity entity) {
-        return shouldGlow(entity) ? glowArgb : null;
-    }
+    public static Integer glowColor(Entity entity) { return shouldGlow(entity) ? glowArgb : null; }
 
-    private static boolean isRealPlayer(LivingEntity e) {
-        return e instanceof Player p && p.getUUID().version() != 2;
-    }
+    private static boolean isRealPlayer(LivingEntity e) { return e instanceof Player p && p.getUUID().version() != 2; }
 
     /** The mob a name-tag stand rides above: the entity with the id before it, else the nearest living one under it. */
     private static LivingEntity mobUnder(Minecraft client, ArmorStand stand) {
@@ -334,23 +330,15 @@ public final class CommissionMobs {
         return out;
     }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 
-    public static boolean throughWallsNow() {
-        return throughWalls;
-    }
+    public static boolean throughWallsNow() { return throughWalls; }
 
     /** The style drawn now (testkit). */
-    public static String styleNow() {
-        return style.name();
-    }
+    public static String styleNow() { return style.name(); }
 
     /** How many identified mobs are remembered now (testkit). */
-    public static int knownCount() {
-        return KNOWN.size();
-    }
+    public static int knownCount() { return KNOWN.size(); }
 
     /** Glowing ids now (testkit). */
     public static List<Integer> glowIdsNow() {

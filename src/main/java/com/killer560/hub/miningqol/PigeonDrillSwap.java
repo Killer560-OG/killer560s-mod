@@ -214,17 +214,11 @@ public final class PigeonDrillSwap {
     }
 
 
-    public static void tickForTest(Minecraft client) {
-        tick(client);
-    }
+    public static void tickForTest(Minecraft client) { tick(client); }
 
-    public static int swaps() {
-        return swaps;
-    }
+    public static int swaps() { return swaps; }
 
-    public static int lastSwapSlot() {
-        return lastSwapSlot;
-    }
+    public static int lastSwapSlot() { return lastSwapSlot; }
 
     public static void resetForTest() {
         pendingTicks = 0;

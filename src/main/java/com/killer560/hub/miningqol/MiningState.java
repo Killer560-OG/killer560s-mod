@@ -72,9 +72,7 @@ public final class MiningState {
         }
     }
 
-    static void clearDoneOverrides() {
-        DONE_OVERRIDE.clear();
-    }
+    static void clearDoneOverrides() { DONE_OVERRIDE.clear(); }
 
     private static List<Commission> applyDone(List<Commission> coms, long now) {
         DONE_OVERRIDE.values().removeIf(e -> e[0] < now);
@@ -264,9 +262,7 @@ public final class MiningState {
     }
 
     /** Testkit: what the open Commissions menu read as on the last change. */
-    public static List<Commission> menuSeen() {
-        return menuSeen;
-    }
+    public static List<Commission> menuSeen() { return menuSeen; }
 
     private MiningState() {
     }
@@ -349,26 +345,16 @@ public final class MiningState {
         return out;
     }
 
-    public static List<Commission> commissions() {
-        return commissions;
-    }
+    public static List<Commission> commissions() { return commissions; }
 
     /** Whether the tab list shows the Commissions widget at all (false: nothing is known, so nothing is assumed). */
-    public static boolean commissionsKnown() {
-        return commissionsKnown;
-    }
+    public static boolean commissionsKnown() { return commissionsKnown; }
 
-    public static List<String> pickaxeAbilityLines() {
-        return pickaxeAbility;
-    }
+    public static List<String> pickaxeAbilityLines() { return pickaxeAbility; }
 
-    public static int version() {
-        return version;
-    }
+    public static int version() { return version; }
 
-    public static boolean anyDone() {
-        return anyDone(commissions);
-    }
+    public static boolean anyDone() { return anyDone(commissions); }
 
     public static boolean anyDone(List<Commission> coms) {
         for (Commission c : coms) {
@@ -391,13 +377,9 @@ public final class MiningState {
         return s.equals("DWARVEN_MINES") || s.equals("GLACITE_TUNNELS");
     }
 
-    public static boolean glaciteTunnels() {
-        return island().equals("GLACITE_TUNNELS");
-    }
+    public static boolean glaciteTunnels() { return island().equals("GLACITE_TUNNELS"); }
 
-    public static boolean crystalHollows() {
-        return island().equals("CRYSTAL_HOLLOWS");
-    }
+    public static boolean crystalHollows() { return island().equals("CRYSTAL_HOLLOWS"); }
 
     public static boolean onMiningIsland() {
         String s = island();
@@ -418,13 +400,9 @@ public final class MiningState {
     }
 
     /** Whether the sidebar area is the commission area {@code name} (case and the apostrophe's form ignored). */
-    static boolean areaIs(String area, String name) {
-        return norm(area).equals(norm(name));
-    }
+    static boolean areaIs(String area, String name) { return norm(area).equals(norm(name)); }
 
-    private static String norm(String s) {
-        return s.toLowerCase(Locale.ROOT).replace('’', '\'').trim();
-    }
+    private static String norm(String s) { return s.toLowerCase(Locale.ROOT).replace('’', '\'').trim(); }
 
     /**
      * Whether an open commission wants {@code ore} ("Mithril" or "Titanium") mined where the player stands: an anywhere
@@ -451,9 +429,7 @@ public final class MiningState {
             return a != null && areas.contains(norm(a));
         }
 
-        public boolean any() {
-            return anywhere || !areas.isEmpty();
-        }
+        public boolean any() { return anywhere || !areas.isEmpty(); }
     }
 
     /** {@link Wanted} for the current commissions. */

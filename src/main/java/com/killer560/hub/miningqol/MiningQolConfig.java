@@ -45,9 +45,7 @@ public final class MiningQolConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     /**
@@ -68,9 +66,7 @@ public final class MiningQolConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     /** How the Commission Route gets there (killer560, 2026-11-03: "one for etherwarp one for aote one for walking"). */
@@ -85,9 +81,7 @@ public final class MiningQolConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     public enum CommissionMobStyle {
@@ -108,9 +102,7 @@ public final class MiningQolConfig {
             this.glow = glow;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     private static MiningQolConfig instance;
@@ -331,82 +323,44 @@ public final class MiningQolConfig {
         MithrilStone.settingsChanged();
     }
 
-    public boolean isResumeHeldBreak() {
-        return resumeHeldBreak && sb();
-    }
+    public boolean isResumeHeldBreak() { return resumeHeldBreak && sb(); }
 
-    public boolean isResumeHeldBreakRaw() {
-        return resumeHeldBreak;
-    }
+    public boolean isResumeHeldBreakRaw() { return resumeHeldBreak; }
 
-    public void setResumeHeldBreak(boolean v) {
-        resumeHeldBreak = v;
-    }
+    public void setResumeHeldBreak(boolean v) { resumeHeldBreak = v; }
 
-    private static boolean sb() {
-        return SkyblockGate.allows();
-    }
+    private static boolean sb() { return SkyblockGate.allows(); }
 
-    public boolean isCommissionHud() {
-        return commissionHud && sb();
-    }
+    public boolean isCommissionHud() { return commissionHud && sb(); }
 
-    public boolean isCommissionHudRaw() {
-        return commissionHud;
-    }
+    public boolean isCommissionHudRaw() { return commissionHud; }
 
-    public void setCommissionHud(boolean v) {
-        commissionHud = v;
-    }
+    public void setCommissionHud(boolean v) { commissionHud = v; }
 
-    public boolean isCommissionColorProgress() {
-        return commissionColorProgress;
-    }
+    public boolean isCommissionColorProgress() { return commissionColorProgress; }
 
-    public void setCommissionColorProgress(boolean v) {
-        commissionColorProgress = v;
-    }
+    public void setCommissionColorProgress(boolean v) { commissionColorProgress = v; }
 
-    public boolean isCommissionInterpolate() {
-        return commissionInterpolate;
-    }
+    public boolean isCommissionInterpolate() { return commissionInterpolate; }
 
-    public void setCommissionInterpolate(boolean v) {
-        commissionInterpolate = v;
-    }
+    public void setCommissionInterpolate(boolean v) { commissionInterpolate = v; }
 
-    public boolean isCommissionWaypoints() {
-        return commissionWaypoints;
-    }
+    public boolean isCommissionWaypoints() { return commissionWaypoints; }
 
-    public void setCommissionWaypoints(boolean v) {
-        commissionWaypoints = v;
-    }
+    public void setCommissionWaypoints(boolean v) { commissionWaypoints = v; }
 
-    public boolean isCommissionEmissaries() {
-        return commissionEmissaries;
-    }
+    public boolean isCommissionEmissaries() { return commissionEmissaries; }
 
-    public void setCommissionEmissaries(boolean v) {
-        commissionEmissaries = v;
-    }
+    public void setCommissionEmissaries(boolean v) { commissionEmissaries = v; }
 
     /** Commission Mobs as set (the feature also needs the Commission HUD switch, see {@link CommissionMobs}). */
-    public boolean isCommissionMobs() {
-        return commissionMobs;
-    }
+    public boolean isCommissionMobs() { return commissionMobs; }
 
-    public void setCommissionMobs(boolean v) {
-        commissionMobs = v;
-    }
+    public void setCommissionMobs(boolean v) { commissionMobs = v; }
 
-    public boolean isHideCommissionsPowder() {
-        return hideCommissionsPowder;
-    }
+    public boolean isHideCommissionsPowder() { return hideCommissionsPowder; }
 
-    public void setHideCommissionsPowder(boolean v) {
-        hideCommissionsPowder = v;
-    }
+    public void setHideCommissionsPowder(boolean v) { hideCommissionsPowder = v; }
 
     /** The commissions' HUD, waypoints and route are hidden right now: the option is on and he is powder mining. */
     public boolean commissionsHiddenNow() {
@@ -414,30 +368,18 @@ public final class MiningQolConfig {
     }
 
     /** Commission Mobs through walls: cheat build only. */
-    public boolean isCommissionMobsEsp() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && commissionMobsEsp;
-    }
+    public boolean isCommissionMobsEsp() { return BuildVariant.CHEAT_FEATURES_ENABLED && commissionMobsEsp; }
 
-    public void setCommissionMobsEsp(boolean v) {
-        commissionMobsEsp = v;
-    }
+    public void setCommissionMobsEsp(boolean v) { commissionMobsEsp = v; }
 
     /** Swap To Drill On Pigeon: cheat jars only. */
-    public boolean isPigeonDrill() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && pigeonDrill;
-    }
+    public boolean isPigeonDrill() { return BuildVariant.CHEAT_FEATURES_ENABLED && pigeonDrill; }
 
-    public boolean isPigeonDrillRaw() {
-        return pigeonDrill;
-    }
+    public boolean isPigeonDrillRaw() { return pigeonDrill; }
 
-    public void setPigeonDrill(boolean v) {
-        pigeonDrill = v;
-    }
+    public void setPigeonDrill(boolean v) { pigeonDrill = v; }
 
-    public PigeonDrillMode getPigeonDrillMode() {
-        return pigeonDrillMode;
-    }
+    public PigeonDrillMode getPigeonDrillMode() { return pigeonDrillMode; }
 
     /** Left click forward, right click back, wrapping. */
     public void stepPigeonDrillMode(int dir) {
@@ -445,58 +387,32 @@ public final class MiningQolConfig {
         pigeonDrillMode = all[Math.floorMod(pigeonDrillMode.ordinal() + dir, all.length)];
     }
 
-    public String getPigeonDrillName() {
-        return pigeonDrillName;
-    }
+    public String getPigeonDrillName() { return pigeonDrillName; }
 
-    public void setPigeonDrillName(String v) {
-        pigeonDrillName = v == null ? "" : v;
-    }
+    public void setPigeonDrillName(String v) { pigeonDrillName = v == null ? "" : v; }
 
-    public boolean isCommissionPigeon() {
-        return commissionPigeon;
-    }
+    public boolean isCommissionPigeon() { return commissionPigeon; }
 
-    public void setCommissionPigeon(boolean v) {
-        commissionPigeon = v;
-    }
+    public void setCommissionPigeon(boolean v) { commissionPigeon = v; }
 
-    public boolean isCommissionRouteEmissary() {
-        return commissionRouteEmissary;
-    }
+    public boolean isCommissionRouteEmissary() { return commissionRouteEmissary; }
 
-    public void setCommissionRouteEmissary(boolean v) {
-        commissionRouteEmissary = v;
-    }
+    public void setCommissionRouteEmissary(boolean v) { commissionRouteEmissary = v; }
 
     /** Commission Route as set: its own switch, not gated by the Commission HUD (killer560, 2026-11-03). */
-    public boolean isCommissionRoute() {
-        return commissionRoute && sb();
-    }
+    public boolean isCommissionRoute() { return commissionRoute && sb(); }
 
-    public boolean isCommissionRouteRaw() {
-        return commissionRoute;
-    }
+    public boolean isCommissionRouteRaw() { return commissionRoute; }
 
-    public void setCommissionRoute(boolean v) {
-        commissionRoute = v;
-    }
+    public void setCommissionRoute(boolean v) { commissionRoute = v; }
 
-    public int getCommissionRouteColor() {
-        return commissionRouteColor;
-    }
+    public int getCommissionRouteColor() { return commissionRouteColor; }
 
-    public void setCommissionRouteColor(int v) {
-        commissionRouteColor = v;
-    }
+    public void setCommissionRouteColor(int v) { commissionRouteColor = v; }
 
-    public CommissionRouteMode getCommissionRouteMode() {
-        return commissionRouteMode;
-    }
+    public CommissionRouteMode getCommissionRouteMode() { return commissionRouteMode; }
 
-    public void setCommissionRouteMode(CommissionRouteMode v) {
-        commissionRouteMode = v == null ? CommissionRouteMode.WALK : v;
-    }
+    public void setCommissionRouteMode(CommissionRouteMode v) { commissionRouteMode = v == null ? CommissionRouteMode.WALK : v; }
 
     /** Left click forward, right click back, wrapping. */
     public void stepCommissionRouteMode(int dir) {
@@ -504,133 +420,69 @@ public final class MiningQolConfig {
         commissionRouteMode = all[Math.floorMod(commissionRouteMode.ordinal() + dir, all.length)];
     }
 
-    public int getCommissionMobColor() {
-        return commissionMobColor;
-    }
+    public int getCommissionMobColor() { return commissionMobColor; }
 
-    public void setCommissionMobColor(int v) {
-        commissionMobColor = v;
-    }
+    public void setCommissionMobColor(int v) { commissionMobColor = v; }
 
-    public boolean isCommissionMenuHighlight() {
-        return commissionMenuHighlight;
-    }
+    public boolean isCommissionMenuHighlight() { return commissionMenuHighlight; }
 
-    public void setCommissionMenuHighlight(boolean v) {
-        commissionMenuHighlight = v;
-    }
+    public void setCommissionMenuHighlight(boolean v) { commissionMenuHighlight = v; }
 
-    public boolean isPickobulus() {
-        return pickobulus && sb();
-    }
+    public boolean isPickobulus() { return pickobulus && sb(); }
 
-    public boolean isPickobulusRaw() {
-        return pickobulus;
-    }
+    public boolean isPickobulusRaw() { return pickobulus; }
 
-    public void setPickobulus(boolean v) {
-        pickobulus = v;
-    }
+    public void setPickobulus(boolean v) { pickobulus = v; }
 
-    public int getPickobulusColor() {
-        return pickobulusColor;
-    }
+    public int getPickobulusColor() { return pickobulusColor; }
 
-    public void setPickobulusColor(int v) {
-        pickobulusColor = v;
-    }
+    public void setPickobulusColor(int v) { pickobulusColor = v; }
 
-    public boolean isAbilityAlert() {
-        return abilityAlert && sb();
-    }
+    public boolean isAbilityAlert() { return abilityAlert && sb(); }
 
-    public boolean isAbilityAlertRaw() {
-        return abilityAlert;
-    }
+    public boolean isAbilityAlertRaw() { return abilityAlert; }
 
-    public void setAbilityAlert(boolean v) {
-        abilityAlert = v;
-    }
+    public void setAbilityAlert(boolean v) { abilityAlert = v; }
 
-    public boolean isAbilityTimer() {
-        return abilityTimer;
-    }
+    public boolean isAbilityTimer() { return abilityTimer; }
 
-    public void setAbilityTimer(boolean v) {
-        abilityTimer = v;
-    }
+    public void setAbilityTimer(boolean v) { abilityTimer = v; }
 
-    public boolean isAbilitySound() {
-        return abilitySound;
-    }
+    public boolean isAbilitySound() { return abilitySound; }
 
-    public void setAbilitySound(boolean v) {
-        abilitySound = v;
-    }
+    public void setAbilitySound(boolean v) { abilitySound = v; }
 
-    public boolean isWrongArmor() {
-        return wrongArmor && sb();
-    }
+    public boolean isWrongArmor() { return wrongArmor && sb(); }
 
-    public boolean isWrongArmorRaw() {
-        return wrongArmor;
-    }
+    public boolean isWrongArmorRaw() { return wrongArmor; }
 
-    public void setWrongArmor(boolean v) {
-        wrongArmor = v;
-    }
+    public void setWrongArmor(boolean v) { wrongArmor = v; }
 
-    public boolean isWrongArmorSound() {
-        return wrongArmorSound;
-    }
+    public boolean isWrongArmorSound() { return wrongArmorSound; }
 
-    public void setWrongArmorSound(boolean v) {
-        wrongArmorSound = v;
-    }
+    public void setWrongArmorSound(boolean v) { wrongArmorSound = v; }
 
-    public boolean isCarpet() {
-        return carpet && sb();
-    }
+    public boolean isCarpet() { return carpet && sb(); }
 
-    public boolean isCarpetRaw() {
-        return carpet;
-    }
+    public boolean isCarpetRaw() { return carpet; }
 
-    public void setCarpet(boolean v) {
-        carpet = v;
-    }
+    public void setCarpet(boolean v) { carpet = v; }
 
-    public boolean isMithrilStone() {
-        return mithrilStone && sb();
-    }
+    public boolean isMithrilStone() { return mithrilStone && sb(); }
 
-    public boolean isMithrilStoneRaw() {
-        return mithrilStone;
-    }
+    public boolean isMithrilStoneRaw() { return mithrilStone; }
 
-    public void setMithrilStone(boolean v) {
-        mithrilStone = v;
-    }
+    public void setMithrilStone(boolean v) { mithrilStone = v; }
 
-    public boolean isTitanium() {
-        return titanium && sb();
-    }
+    public boolean isTitanium() { return titanium && sb(); }
 
-    public boolean isTitaniumRaw() {
-        return titanium;
-    }
+    public boolean isTitaniumRaw() { return titanium; }
 
-    public void setTitanium(boolean v) {
-        titanium = v;
-    }
+    public void setTitanium(boolean v) { titanium = v; }
 
-    public CommissionMobStyle getCommissionMobStyle() {
-        return commissionMobStyle;
-    }
+    public CommissionMobStyle getCommissionMobStyle() { return commissionMobStyle; }
 
-    public void setCommissionMobStyle(CommissionMobStyle v) {
-        commissionMobStyle = v == null ? CommissionMobStyle.OUTLINE : v;
-    }
+    public void setCommissionMobStyle(CommissionMobStyle v) { commissionMobStyle = v == null ? CommissionMobStyle.OUTLINE : v; }
 
     /** Left click forward, right click back, wrapping. */
     public void stepCommissionMobStyle(int dir) {
@@ -638,153 +490,81 @@ public final class MiningQolConfig {
         commissionMobStyle = all[Math.floorMod(commissionMobStyle.ordinal() + dir, all.length)];
     }
 
-    public TitaniumMode getTitaniumMode() {
-        return titaniumMode;
-    }
+    public TitaniumMode getTitaniumMode() { return titaniumMode; }
 
-    public void setTitaniumMode(TitaniumMode v) {
-        titaniumMode = v == null ? TitaniumMode.COMMISSION : v;
-    }
+    public void setTitaniumMode(TitaniumMode v) { titaniumMode = v == null ? TitaniumMode.COMMISSION : v; }
 
-    public int getTitaniumColor() {
-        return titaniumColor;
-    }
+    public int getTitaniumColor() { return titaniumColor; }
 
-    public void setTitaniumColor(int v) {
-        titaniumColor = v;
-    }
+    public void setTitaniumColor(int v) { titaniumColor = v; }
 
     /** Through walls: cheat build only. */
-    public boolean isTitaniumEsp() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && titaniumEsp;
-    }
+    public boolean isTitaniumEsp() { return BuildVariant.CHEAT_FEATURES_ENABLED && titaniumEsp; }
 
-    public void setTitaniumEsp(boolean v) {
-        titaniumEsp = v;
-    }
+    public void setTitaniumEsp(boolean v) { titaniumEsp = v; }
 
-    public boolean isTitaniumExposedOnly() {
-        return titaniumExposedOnly;
-    }
+    public boolean isTitaniumExposedOnly() { return titaniumExposedOnly; }
 
-    public void setTitaniumExposedOnly(boolean v) {
-        titaniumExposedOnly = v;
-    }
+    public void setTitaniumExposedOnly(boolean v) { titaniumExposedOnly = v; }
 
-    public boolean isRaffle() {
-        return raffle && sb();
-    }
+    public boolean isRaffle() { return raffle && sb(); }
 
-    public boolean isRaffleRaw() {
-        return raffle;
-    }
+    public boolean isRaffleRaw() { return raffle; }
 
-    public void setRaffle(boolean v) {
-        raffle = v;
-    }
+    public void setRaffle(boolean v) { raffle = v; }
 
-    public int getRaffleColor() {
-        return raffleColor;
-    }
+    public int getRaffleColor() { return raffleColor; }
 
-    public void setRaffleColor(int v) {
-        raffleColor = v;
-    }
+    public void setRaffleColor(int v) { raffleColor = v; }
 
     /** Through walls: cheat build only. */
-    public boolean isRaffleEsp() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && raffleEsp;
-    }
+    public boolean isRaffleEsp() { return BuildVariant.CHEAT_FEATURES_ENABLED && raffleEsp; }
 
-    public void setRaffleEsp(boolean v) {
-        raffleEsp = v;
-    }
+    public void setRaffleEsp(boolean v) { raffleEsp = v; }
 
     // ---- Powder Ghast (killer560, 2026-11-03: "also add powder ghast alerts tracers and esp and such")
     /** The feature switch as gated: OFF outside Skyblock. {@link PowderGhast} also needs the Dwarven Mines. */
-    public boolean isPowderGhast() {
-        return powderGhast && sb();
-    }
+    public boolean isPowderGhast() { return powderGhast && sb(); }
 
-    public boolean isPowderGhastRaw() {
-        return powderGhast;
-    }
+    public boolean isPowderGhastRaw() { return powderGhast; }
 
-    public void setPowderGhast(boolean v) {
-        powderGhast = v;
-    }
+    public void setPowderGhast(boolean v) { powderGhast = v; }
 
-    public boolean isPowderGhastTitle() {
-        return powderGhastTitle;
-    }
+    public boolean isPowderGhastTitle() { return powderGhastTitle; }
 
-    public void setPowderGhastTitle(boolean v) {
-        powderGhastTitle = v;
-    }
+    public void setPowderGhastTitle(boolean v) { powderGhastTitle = v; }
 
-    public boolean isPowderGhastSound() {
-        return powderGhastSound;
-    }
+    public boolean isPowderGhastSound() { return powderGhastSound; }
 
-    public void setPowderGhastSound(boolean v) {
-        powderGhastSound = v;
-    }
+    public void setPowderGhastSound(boolean v) { powderGhastSound = v; }
 
     /** Party-chat callout: OFF by default, nothing is sent unless he turns it on. */
-    public boolean isPowderGhastParty() {
-        return powderGhastParty;
-    }
+    public boolean isPowderGhastParty() { return powderGhastParty; }
 
-    public void setPowderGhastParty(boolean v) {
-        powderGhastParty = v;
-    }
+    public void setPowderGhastParty(boolean v) { powderGhastParty = v; }
 
-    public boolean isPowderGhastBox() {
-        return powderGhastBox;
-    }
+    public boolean isPowderGhastBox() { return powderGhastBox; }
 
-    public void setPowderGhastBox(boolean v) {
-        powderGhastBox = v;
-    }
+    public void setPowderGhastBox(boolean v) { powderGhastBox = v; }
 
-    public int getPowderGhastBoxColor() {
-        return powderGhastBoxColor;
-    }
+    public int getPowderGhastBoxColor() { return powderGhastBoxColor; }
 
-    public void setPowderGhastBoxColor(int v) {
-        powderGhastBoxColor = v;
-    }
+    public void setPowderGhastBoxColor(int v) { powderGhastBoxColor = v; }
 
-    public boolean isPowderGhastTracer() {
-        return powderGhastTracer;
-    }
+    public boolean isPowderGhastTracer() { return powderGhastTracer; }
 
-    public void setPowderGhastTracer(boolean v) {
-        powderGhastTracer = v;
-    }
+    public void setPowderGhastTracer(boolean v) { powderGhastTracer = v; }
 
-    public int getPowderGhastTracerColor() {
-        return powderGhastTracerColor;
-    }
+    public int getPowderGhastTracerColor() { return powderGhastTracerColor; }
 
-    public void setPowderGhastTracerColor(int v) {
-        powderGhastTracerColor = v;
-    }
+    public void setPowderGhastTracerColor(int v) { powderGhastTracerColor = v; }
 
-    public boolean isPowderGhastTimer() {
-        return powderGhastTimer;
-    }
+    public boolean isPowderGhastTimer() { return powderGhastTimer; }
 
-    public void setPowderGhastTimer(boolean v) {
-        powderGhastTimer = v;
-    }
+    public void setPowderGhastTimer(boolean v) { powderGhastTimer = v; }
 
     /** Box through walls: cheat build only. */
-    public boolean isPowderGhastEsp() {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && powderGhastEsp;
-    }
+    public boolean isPowderGhastEsp() { return BuildVariant.CHEAT_FEATURES_ENABLED && powderGhastEsp; }
 
-    public void setPowderGhastEsp(boolean v) {
-        powderGhastEsp = v;
-    }
+    public void setPowderGhastEsp(boolean v) { powderGhastEsp = v; }
 }

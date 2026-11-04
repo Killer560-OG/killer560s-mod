@@ -153,9 +153,7 @@ public final class AttackHoldProbe {
         return true;
     }
 
-    public static int directionDrops() {
-        return directionDrops;
-    }
+    public static int directionDrops() { return directionDrops; }
 
     /** A packet this client is sending (MiningSendTapMixin, any thread that sends). */
     public static void onSend(Packet<?> packet) {
@@ -259,9 +257,7 @@ public final class AttackHoldProbe {
         }
     }
 
-    private static String clip(String s, int n) {
-        return s.length() > n ? s.substring(0, n) + "..." : s;
-    }
+    private static String clip(String s, int n) { return s.length() > n ? s.substring(0, n) + "..." : s; }
 
     /** The dump: the opened container, then the sent and heard rings oldest first. */
     private static void dump(Screen screen) {
@@ -440,9 +436,7 @@ public final class AttackHoldProbe {
         LOGGER.info(b.toString());
     }
 
-    public static int stallLines() {
-        return stallLines;
-    }
+    public static int stallLines() { return stallLines; }
 
     /** One line of each kind a second at most. */
     private static boolean gap(boolean screenLine) {
@@ -459,17 +453,11 @@ public final class AttackHoldProbe {
         return true;
     }
 
-    public static int screenLines() {
-        return screenLines;
-    }
+    public static int screenLines() { return screenLines; }
 
-    public static int releaseLines() {
-        return releaseLines;
-    }
+    public static int releaseLines() { return releaseLines; }
 
-    public static int dumps() {
-        return dumps;
-    }
+    public static int dumps() { return dumps; }
 
     /** The sent ring, oldest first (testkit: what the dump lists). */
     public static java.util.List<String> sentForTest() {

@@ -49,9 +49,7 @@ final class OreNodes {
     }
 
     /** Test hook: how many node counts were taken. */
-    public static int scans() {
-        return scans;
-    }
+    public static int scans() { return scans; }
 
     static void reset() {
         key = "";

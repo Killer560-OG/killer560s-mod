@@ -50,9 +50,7 @@ public final class RaffleLog {
     }
 
     /** Raffle entity dumps written since the game started (testkit). */
-    public static int dumps() {
-        return dumps;
-    }
+    public static int dumps() { return dumps; }
 
     static void tick(Minecraft client) {
         if (ticks++ % 5 != 0) {

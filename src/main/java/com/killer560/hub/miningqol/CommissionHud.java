@@ -216,9 +216,7 @@ public final class CommissionHud {
     }
 
 
-    public static List<String> lines() {
-        return hudLines;
-    }
+    public static List<String> lines() { return hudLines; }
 
     /** "label@x,y,z" per waypoint now shown. */
     public static List<String> waypointNames() {
@@ -229,14 +227,10 @@ public final class CommissionHud {
         return out;
     }
 
-    public static int labelFrames() {
-        return labelFrames;
-    }
+    public static int labelFrames() { return labelFrames; }
 
     /** The last waypoint label drawn, or null (testkit). */
-    public static Component lastLabel() {
-        return lastLabel;
-    }
+    public static Component lastLabel() { return lastLabel; }
 
     /** The movable HUD element. */
     public static final class Element implements HudElement {
@@ -253,24 +247,16 @@ public final class CommissionHud {
         }
 
         @Override
-        public String id() {
-            return HUD_ID;
-        }
+        public String id() { return HUD_ID; }
 
         @Override
-        public String displayName() {
-            return "Commission HUD";
-        }
+        public String displayName() { return "Commission HUD"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 120;
-        }
+        public int defaultY() { return 120; }
 
         @Override
         public int width() {
@@ -283,14 +269,10 @@ public final class CommissionHud {
         }
 
         @Override
-        public int height() {
-            return HudText.height(Math.max(1, shown().size()), 10);
-        }
+        public int height() { return HudText.height(Math.max(1, shown().size()), 10); }
 
         @Override
-        public boolean isEnabledInSettings() {
-            return MiningQolConfig.getInstance().isCommissionHudRaw();
-        }
+        public boolean isEnabledInSettings() { return MiningQolConfig.getInstance().isCommissionHudRaw(); }
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {

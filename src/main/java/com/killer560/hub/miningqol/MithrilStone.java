@@ -74,14 +74,10 @@ public final class MithrilStone {
         return s;
     }
 
-    public static boolean isMithril(BlockState state) {
-        return state != null && MITHRIL.contains(state.getBlock());
-    }
+    public static boolean isMithril(BlockState state) { return state != null && MITHRIL.contains(state.getBlock()); }
 
     /** Config saved or loaded: re-decide on the next tick. */
-    static void settingsChanged() {
-        dirtyRequested = true;
-    }
+    static void settingsChanged() { dirtyRequested = true; }
 
     /** Whether a mithril block at x, y, z is drawn as stone now (its own area, else the player's). Any thread. */
     public static boolean stoneAt(int x, int y, int z) {
@@ -131,24 +127,16 @@ public final class MithrilStone {
     }
 
     /** Whether a block of unknown area would be stone now (the player's area decides; the old whole-view answer). */
-    public static boolean isActive() {
-        return enabled && active;
-    }
+    public static boolean isActive() { return enabled && active; }
 
     /** Whether any mithril may be drawn as stone (setting, island, commissions, no anywhere commission). */
-    public static boolean isEnabled() {
-        return enabled;
-    }
+    public static boolean isEnabled() { return enabled; }
 
     /** The area the map gives the block at x, y, z, or null (testkit). */
-    public static String areaOf(int x, int y, int z) {
-        return MinesAreaMap.areaAt(x, y, z);
-    }
+    public static String areaOf(int x, int y, int z) { return MinesAreaMap.areaAt(x, y, z); }
 
     /** How many block draws were swapped to stone since start (testkit: the mixin acted). */
-    public static long swappedCount() {
-        return swapped.get();
-    }
+    public static long swappedCount() { return swapped.get(); }
 
     /** Testkit: record each position the mesher swaps (off by default; on clears the record). */
     public static void recordSwapsForTest(boolean on) {
@@ -157,18 +145,12 @@ public final class MithrilStone {
     }
 
     /** Testkit: whether the mesher drew the block at x, y, z as stone since recording started. */
-    public static boolean swappedAt(int x, int y, int z) {
-        return SWAPPED_AT.contains(BlockPosKey.of(x, y, z));
-    }
+    public static boolean swappedAt(int x, int y, int z) { return SWAPPED_AT.contains(BlockPosKey.of(x, y, z)); }
 
     /** Testkit: re-mesh the view now. */
-    public static void remeshForTest() {
-        remesh(Minecraft.getInstance());
-    }
+    public static void remeshForTest() { remesh(Minecraft.getInstance()); }
 
     private static final class BlockPosKey {
-        static long of(int x, int y, int z) {
-            return net.minecraft.core.BlockPos.asLong(x, y, z);
-        }
+        static long of(int x, int y, int z) { return net.minecraft.core.BlockPos.asLong(x, y, z); }
     }
 }

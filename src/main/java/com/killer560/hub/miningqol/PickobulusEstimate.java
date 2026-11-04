@@ -83,9 +83,7 @@ public final class PickobulusEstimate {
     private PickobulusEstimate() {
     }
 
-    static void register() {
-        com.killer560.hub.util.ChatObserver.subscribe(PickobulusEstimate::onChat);
-    }
+    static void register() { com.killer560.hub.util.ChatObserver.subscribe(PickobulusEstimate::onChat); }
 
     static void onChat(net.minecraft.network.chat.Component message) {
         String raw = com.killer560.hub.util.ChatObserver.strip(message);
@@ -249,15 +247,9 @@ public final class PickobulusEstimate {
     }
 
 
-    public static int count() {
-        return breaks.size();
-    }
+    public static int count() { return breaks.size(); }
 
-    public static String status() {
-        return status;
-    }
+    public static String status() { return status; }
 
-    public static int frames() {
-        return frames;
-    }
+    public static int frames() { return frames; }
 }

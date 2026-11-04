@@ -117,9 +117,7 @@ public final class MiningHighlights {
 
     /** Which titanium counts (wanted null: every block). */
     private record TitaniumRule(MiningState.Wanted wanted, String here) {
-        boolean test(BlockPos p) {
-            return wanted == null || wanted.at(MinesAreaMap.areaAt(p.getX(), p.getY(), p.getZ()), here);
-        }
+        boolean test(BlockPos p) { return wanted == null || wanted.at(MinesAreaMap.areaAt(p.getX(), p.getY(), p.getZ()), here); }
     }
 
     private static final TitaniumRule ALWAYS = new TitaniumRule(null, null);
@@ -234,19 +232,13 @@ public final class MiningHighlights {
     private static final java.util.concurrent.atomic.AtomicLong carpetAsked = new java.util.concurrent.atomic.AtomicLong();
     private static int carpetDirtied = 0;
 
-    public static int carpetDirtied() {
-        return carpetDirtied;
-    }
+    public static int carpetDirtied() { return carpetDirtied; }
 
     /** Mesher draws swapped to red carpet since start (testkit). */
-    public static long carpetSwapCount() {
-        return carpetSwaps.get();
-    }
+    public static long carpetSwapCount() { return carpetSwaps.get(); }
 
     /** Whether the block at x, y, z is drawn as red carpet now (testkit). */
-    public static boolean carpetRetextured(int x, int y, int z) {
-        return carpetKeys.contains(BlockPos.asLong(x, y, z));
-    }
+    public static boolean carpetRetextured(int x, int y, int z) { return carpetKeys.contains(BlockPos.asLong(x, y, z)); }
 
     /**
      * A block the server changed (client thread, after the change is in the level; from {@code MiningBlockUpdateMixin}):
@@ -315,9 +307,7 @@ public final class MiningHighlights {
         }
     }
 
-    static boolean isTitanium(BlockState s) {
-        return s.is(Blocks.POLISHED_DIORITE);
-    }
+    static boolean isTitanium(BlockState s) { return s.is(Blocks.POLISHED_DIORITE); }
 
     private static List<double[]> findTickets(Minecraft client) {
         java.util.ArrayList<double[]> out = new java.util.ArrayList<>();
@@ -456,63 +446,37 @@ public final class MiningHighlights {
     }
 
 
-    public static int carpetCount() {
-        return carpets.size();
-    }
+    public static int carpetCount() { return carpets.size(); }
 
     private static final java.util.ArrayList<BlockPos> drawnNow = new java.util.ArrayList<>();
     private static volatile List<BlockPos> drawnTitanium = List.of();
 
     /** Testkit: whether the last frame drew a titanium box at x,y,z (after line of sight and Exposed Only). */
-    public static boolean drewTitaniumAt(int x, int y, int z) {
-        return drawnTitanium.contains(new BlockPos(x, y, z));
-    }
+    public static boolean drewTitaniumAt(int x, int y, int z) { return drawnTitanium.contains(new BlockPos(x, y, z)); }
 
-    public static int titaniumCount() {
-        return titanium.size();
-    }
+    public static int titaniumCount() { return titanium.size(); }
 
-    public static int ticketCount() {
-        return tickets.size();
-    }
+    public static int ticketCount() { return tickets.size(); }
 
     private static volatile double[] lastCarpetBox = null;
 
     /** The last carpet fill box drawn (testkit: no face lies on the carpet's or the lantern's own face). */
-    public static double[] lastCarpetBox() {
-        return lastCarpetBox;
-    }
+    public static double[] lastCarpetBox() { return lastCarpetBox; }
 
-    public static int blockEvents() {
-        return events;
-    }
+    public static int blockEvents() { return events; }
 
-    public static boolean hasTitaniumAt(int x, int y, int z) {
-        return titanium.contains(new BlockPos(x, y, z));
-    }
+    public static boolean hasTitaniumAt(int x, int y, int z) { return titanium.contains(new BlockPos(x, y, z)); }
 
-    public static boolean hasCarpetAt(int x, int y, int z) {
-        return carpets.contains(new BlockPos(x, y, z));
-    }
+    public static boolean hasCarpetAt(int x, int y, int z) { return carpets.contains(new BlockPos(x, y, z)); }
 
-    public static int carpetFrames() {
-        return carpetFrames;
-    }
+    public static int carpetFrames() { return carpetFrames; }
 
-    public static int titaniumFrames() {
-        return titaniumFrames;
-    }
+    public static int titaniumFrames() { return titaniumFrames; }
 
-    public static int raffleFrames() {
-        return raffleFrames;
-    }
+    public static int raffleFrames() { return raffleFrames; }
 
     /** Whether the boxes drawn now go through walls (testkit: legit jars must say false). */
-    public static boolean titaniumThroughWalls() {
-        return MiningQolConfig.getInstance().isTitaniumEsp();
-    }
+    public static boolean titaniumThroughWalls() { return MiningQolConfig.getInstance().isTitaniumEsp(); }
 
-    public static boolean raffleThroughWalls() {
-        return MiningQolConfig.getInstance().isRaffleEsp();
-    }
+    public static boolean raffleThroughWalls() { return MiningQolConfig.getInstance().isRaffleEsp(); }
 }

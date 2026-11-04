@@ -179,14 +179,10 @@ public final class CommissionProgress {
     }
 
     /** Ore breaks counted that were not under his crosshair (Mining Spread; testkit). */
-    public static int spreadCounted() {
-        return spreadCounted;
-    }
+    public static int spreadCounted() { return spreadCounted; }
 
     /** Times the shown value was snapped back to the tab for being too far off (testkit). */
-    public static int resyncs() {
-        return resyncs;
-    }
+    public static int resyncs() { return resyncs; }
 
     /** Testkit: a dig at {@code target} with ore {@code neighbours} next to it, as the live tick would remember them. */
     public static void aimForTest(BlockPos target, List<BlockPos> neighbours, long now) {
@@ -320,9 +316,7 @@ public final class CommissionProgress {
         tr.learnedStep = Math.abs(learned - wiki) > wiki * 0.25 ? learned : 0;
     }
 
-    private static double step(String name, Track tr) {
-        return tr.learnedStep > 0 ? tr.learnedStep : stepWiki(name);
-    }
+    private static double step(String name, Track tr) { return tr.learnedStep > 0 ? tr.learnedStep : stepWiki(name); }
 
     /** "45%" -> 45, "12.5%" -> 12.5, else -1. */
     static double pct(String p) {
@@ -351,9 +345,7 @@ public final class CommissionProgress {
         return Math.abs(r - Math.rint(r)) < 1e-9 ? (long) Math.rint(r) + "%" : String.format(Locale.ROOT, "%.1f%%", r);
     }
 
-    static int version() {
-        return version;
-    }
+    static int version() { return version; }
 
     static void reset() {
         TRACKS.clear();
@@ -365,9 +357,7 @@ public final class CommissionProgress {
 
 
     /** Feeds the tab's commission lines ("Upper Mines Mithril: 40%") at {@code now}. */
-    public static void tabForTest(List<String> lines, long now) {
-        update(MiningState.parse(lines), now);
-    }
+    public static void tabForTest(List<String> lines, long now) { update(MiningState.parse(lines), now); }
 
     /** Counts a break of {@code ore} at {@code now} against the commissions in {@code lines}. */
     public static void breakForTest(String ore, String blockArea, String playerArea, List<String> lines, long now) {
@@ -384,23 +374,15 @@ public final class CommissionProgress {
         return null;
     }
 
-    public static void resetForTest() {
-        reset();
-    }
+    public static void resetForTest() { reset(); }
 
     /** Testkit: while true the live tab is not read, so only the hooks' tab lines and times count. */
-    public static void holdLiveForTest(boolean hold) {
-        holdForTest = hold;
-    }
+    public static void holdLiveForTest(boolean hold) { holdForTest = hold; }
 
-    public static int countedBreaks() {
-        return counted;
-    }
+    public static int countedBreaks() { return counted; }
 
     /** The block positions now remembered as being mined (testkit). */
-    public static int targets() {
-        return TARGETS.size();
-    }
+    public static int targets() { return TARGETS.size(); }
 
     public static Double learnedStep(String name) {
         Track tr = TRACKS.get(name);
