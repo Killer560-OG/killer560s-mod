@@ -31,10 +31,7 @@ public abstract class ContainerCoverMixin extends Screen {
 
     @ModifyReturnValue(method = "getHoveredSlot(DD)Lnet/minecraft/world/inventory/Slot;", at = @At("RETURN"))
     private Slot killer560smod$noSlotUnderCover(Slot original, double mouseX, double mouseY) {
-        if (original != null && ContainerCover.covers(this, mouseX, mouseY)) {
-            return null;
-        }
-        return original;
+        return original != null && ContainerCover.covers(this, mouseX, mouseY) ? null : original;
     }
 
     @Inject(method = "mouseClicked", cancellable = true, at = @At(value = "INVOKE",
