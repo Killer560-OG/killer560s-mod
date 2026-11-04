@@ -206,7 +206,6 @@ public final class MaskSwapper {
         return phoenixSummoned;
     }
 
-    // ------------------------------------------------------------------ api
 
     public static boolean isBusy() {
         return stage != Stage.IDLE;
@@ -293,7 +292,6 @@ public final class MaskSwapper {
         return true;
     }
 
-    // ------------------------------------------------------------------ state machine
 
     private static void tick(Minecraft client) {
         tickNo++;
@@ -586,7 +584,6 @@ public final class MaskSwapper {
         abort("not found");
     }
 
-    // ------------------------------------------------------------------ helpers
 
     /**
      * killer560 9.1: "Remove the rod text section as well it should auto detect the rod." Used to match a

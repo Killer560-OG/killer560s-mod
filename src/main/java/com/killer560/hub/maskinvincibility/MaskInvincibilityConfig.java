@@ -421,7 +421,6 @@ public final class MaskInvincibilityConfig {
         this.autoSwapEnabled = autoSwapEnabled;
     }
 
-    // ---- Mask Keybinds ----
     public boolean isMaskKeyEnabled() {
         return maskKeyEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
