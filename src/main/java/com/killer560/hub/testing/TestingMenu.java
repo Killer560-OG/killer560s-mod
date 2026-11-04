@@ -125,9 +125,7 @@ public final class TestingMenu {
     public static String tooltipCategory(String selectedTop, String scope) {
         if ((UNTESTED.equals(selectedTop) || BUGGED.equals(selectedTop)) && scope != null) {
             String c = CATEGORY.get(scope);
-            if (c != null) {
-                return c;
-            }
+            if (c != null) return c;
         }
         return selectedTop;
     }
