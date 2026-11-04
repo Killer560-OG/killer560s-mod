@@ -214,9 +214,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** Switches this same screen to a different player - used by the recent-views heads and the name box
      *  so picking someone doesn't stack a new screen on top of this one. */
     private void open(ProfileViewerFeature.Target newTarget) {
-        if (newTarget == null) {
-            return;
-        }
+        if (newTarget == null) return;
         target = newTarget;
         displayName = newTarget.name();
         uuid = newTarget.uuid();
@@ -237,13 +235,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** The typed-name box: reuses {@code /pv}'s own name/uuid resolution (including the tab-list shortcut),
      *  so an invalid name surfaces through the same error screen the command would show. */
     private void submitSwitch() {
-        if (switchBox == null) {
-            return;
-        }
+        if (switchBox == null) return;
         String name = switchBoxText.trim();
-        if (name.isEmpty()) {
-            return;
-        }
+        if (name.isEmpty()) return;
         switchBoxText = "";
         switchBox.setValue("");
         suggestions = List.of();
@@ -268,9 +262,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         resolved.thenCompose(player -> {
             minecraftExecute(() -> {
-                if (gen != generation) {
-                    return;
-                }
+                if (gen != generation) return;
                 uuid = player.uuid();
                 if (player.name() != null && ProfileViewerApi.isValidName(player.name())) {
                     displayName = player.name();
@@ -288,9 +280,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             });
             return ProfileViewerApi.fetchProfiles(player.uuid(), force);
         }).whenComplete((res, err) -> minecraftExecute(() -> {
-            if (gen != generation) {
-                return;
-            }
+            if (gen != generation) return;
             if (err != null) {
                 state = State.ERROR;
                 status = ProfileViewerApi.messageFor(err);
@@ -388,9 +378,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         for (int row = 0; row < TAB_ROWS; row++) {
             int from = row * perRow;
             int to = Math.min(PAGES.length, from + perRow);
-            if (from >= to) {
-                break;
-            }
+            if (from >= to) break;
             int gaps = (to - from - 1) * 3;
             int natural = 0;
             for (int i = from; i < to; i++) {
@@ -457,9 +445,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** Tab: fill the box with the next suggestion (cycling), keeping the list from what was actually typed. */
     private boolean cycleSuggestion(boolean backwards) {
-        if (switchBox == null || suggestions.isEmpty()) {
-            return false;
-        }
+        if (switchBox == null || suggestions.isEmpty()) return false;
         suggestionIndex = Math.floorMod(suggestionIndex + (backwards ? -1 : 1), suggestions.size());
         pickSuggestion(suggestions.get(suggestionIndex));
         return true;
@@ -477,9 +463,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawSuggestions(GuiGraphicsExtractor g, int mx, int my) {
-        if (switchBox == null || !switchBox.isFocused() || suggestions.isEmpty()) {
-            return;
-        }
+        if (switchBox == null || !switchBox.isFocused() || suggestions.isEmpty()) return;
         int x = switchBox.getX();
         int y = switchBox.getY() + switchBox.getHeight() + 1;
         int w = switchBox.getWidth();
@@ -488,9 +472,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         popup(g, x, y, w, n * SUGGESTION_ROW_H + 2);
         for (int r = 0; r < n; r++) {
             int i = first + r;
-            if (i >= suggestions.size()) {
-                break;
-            }
+            if (i >= suggestions.size()) break;
             String name = suggestions.get(i);
             int ry = y + 1 + r * SUGGESTION_ROW_H;
             boolean hover = inside(mx, my, x, ry, w, SUGGESTION_ROW_H);
@@ -506,9 +488,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void setPage(int newPage) {
-        if (newPage == page) {
-            return;
-        }
+        if (newPage == page) return;
         page = newPage;
         dropdownOpen = false;
         pageScroll = 0;
@@ -807,9 +787,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         int bottom = sidebarY + sidebarH - 4;
         for (ProfileViewerConfig.RecentView v : ProfileViewerConfig.getInstance().getRecentViews()) {
-            if (v.uuid().equals(self.uuid()) || y + SIDEBAR_ROW_H > bottom) {
-                continue;
-            }
+            if (v.uuid().equals(self.uuid()) || y + SIDEBAR_ROW_H > bottom) continue;
             y = sidebarRow(g, x, y, v.uuid(), v.name(), mx, my, () -> open(new ProfileViewerFeature.Target(
                     LIVE_NAME_CACHE.getOrDefault(v.uuid(), v.name()), v.uuid())));
         }
@@ -834,14 +812,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
      *  same way the Basic Info skin preview is - a plain head until the async lookup lands. */
     private static ItemStack headFor(UUID uuid) {
         ItemStack cached = HEAD_CACHE.get(uuid);
-        if (cached != null) {
-            return cached;
-        }
+        if (cached != null) return cached;
         if (HEAD_FETCHING.add(uuid)) {
             ProfileViewerApi.fetchSkinProfile(uuid).thenAccept(gp -> minecraftExecute(() -> {
-                if (gp == null) {
-                    return;
-                }
+                if (gp == null) return;
                 ItemStack head = new ItemStack(Items.PLAYER_HEAD);
                 head.set(DataComponents.PROFILE, ResolvableProfile.createResolved(gp));
                 if (HEAD_CACHE.size() >= MAX_HEADS) {
@@ -859,9 +833,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawDropdown(GuiGraphicsExtractor g, int mx, int my) {
-        if (result == null) {
-            return;
-        }
+        if (result == null) return;
         List<SbProfile> list = result.profiles();
         int w = 150;
         for (SbProfile p : list) {
@@ -1181,9 +1153,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     static String time(long ms) {
-        if (ms <= 0) {
-            return "-";
-        }
+        if (ms <= 0) return "-";
         long s = ms / 1000;
         return String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
     }
@@ -1371,9 +1341,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int maxScrollRow = panelRows - 1;
         int used = 0;
         for (int r = panelRows - 1; r >= 0; r--) {
-            if (used + rowH[r] - gap > visibleH) {
-                break;
-            }
+            if (used + rowH[r] - gap > visibleH) break;
             used += rowH[r];
             maxScrollRow = r;
         }
@@ -1431,9 +1399,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);
-            if (stack == null || stack.isEmpty()) {
-                continue;
-            }
+            if (stack == null || stack.isEmpty()) continue;
             int sx = gridX + (i % 9) * 18 + 1;
             int sy = gridY + (i / 9) * 18 + 1;
             rarity(g, stack, sx, sy);
@@ -1448,9 +1414,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private void pager(GuiGraphicsExtractor g, String title, int rx, int rw, int index, int count, int mx, int my) {
         tx(g, title, rx + 24, contentY + 7, ACCENT);
-        if (count <= 1) {
-            return;
-        }
+        if (count <= 1) return;
         String label = (index + 1) + " / " + count;
         int right = rx + rw - 6;
         button(g, right - 16, contentY + 3, 16, 14, ">", mx, my, false, () -> invPage++);
@@ -1524,9 +1488,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         SbProfile.Pet hovered = null;
         for (int i = petScroll * cols; i < p.pets.size(); i++) {
             int row = i / cols - petScroll;
-            if (row >= visibleRows) {
-                break;
-            }
+            if (row >= visibleRows) break;
             SbProfile.Pet pet = p.pets.get(i);
             int x = startX + (i % cols) * cell;
             int y = startY + row * cell;
@@ -1601,9 +1563,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private static SbProfile.Pet activePet(SbProfile p) {
         for (SbProfile.Pet pet : p.pets) {
-            if (pet.active) {
-                return pet;
-            }
+            if (pet.active) return pet;
         }
         return null;
     }
@@ -1665,24 +1625,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private static int tipColour(int c) {
-        if (c == VALUE) {
-            return TIP_VALUE;
-        }
-        if (c == DIM) {
-            return TIP_DIM;
-        }
-        if (c == TEXT) {
-            return TIP_TEXT;
-        }
-        if (c == ACCENT) {
-            return TIP_ACCENT;
-        }
-        if (c == BAD) {
-            return TIP_BAD;
-        }
-        if (c == MAXED) {
-            return TIP_MAXED;
-        }
+        if (c == VALUE) return TIP_VALUE;
+        if (c == DIM) return TIP_DIM;
+        if (c == TEXT) return TIP_TEXT;
+        if (c == ACCENT) return TIP_ACCENT;
+        if (c == BAD) return TIP_BAD;
+        if (c == MAXED) return TIP_MAXED;
         return c == GOOD ? TIP_GOOD : c;
     }
 
@@ -1698,12 +1646,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     static String shorten(double v) {
         double abs = Math.abs(v);
-        if (abs >= 1_000_000_000) {
-            return String.format(Locale.US, "%.2fB", v / 1_000_000_000);
-        }
-        if (abs >= 1_000_000) {
-            return String.format(Locale.US, "%.2fM", v / 1_000_000);
-        }
+        if (abs >= 1_000_000_000) return String.format(Locale.US, "%.2fB", v / 1_000_000_000);
+        if (abs >= 1_000_000) return String.format(Locale.US, "%.2fM", v / 1_000_000);
         return abs >= 10_000 ? String.format(Locale.US, "%.1fK", v / 1_000) : commas(v);
     }
 }

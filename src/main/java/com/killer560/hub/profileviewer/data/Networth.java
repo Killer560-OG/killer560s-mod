@@ -173,9 +173,7 @@ public final class Networth {
     private static Acc items(String name, List<ItemStack> stacks, Map<String, Double> bins) {
         Acc acc = new Acc(name);
         for (ItemStack s : stacks) {
-            if (s == null || s.isEmpty()) {
-                continue;
-            }
+            if (s == null || s.isEmpty()) continue;
             ItemValue v = itemValue(s, bins);
             acc.add(s.getHoverName().getString(), v.total(), v.cosmetic());
         }
@@ -201,9 +199,7 @@ public final class Networth {
      * from the item ids; SkyHelper's own constants were not reachable.)
      */
     public static boolean isCosmeticItem(String id) {
-        if (id == null || id.isEmpty()) {
-            return false;
-        }
+        if (id == null || id.isEmpty()) return false;
         String u = id.toUpperCase(Locale.ROOT);
         return u.startsWith("PET_SKIN_") || u.startsWith("DYE_") || u.equals("RUNE") || u.equals("UNIQUE_RUNE")
                 || u.startsWith("RUNE_") || u.contains("_RUNE") || u.startsWith("SKIN_") || u.contains("_SKIN");
@@ -215,9 +211,7 @@ public final class Networth {
      */
     public static ItemValue itemValue(ItemStack s, Map<String, Double> bins) {
         String id = LegacyItems.skyblockId(s);
-        if (id.isEmpty()) {
-            return ItemValue.ZERO;
-        }
+        if (id.isEmpty()) return ItemValue.ZERO;
         boolean pet = "PET".equals(id);
         int count = pet ? 1 : Math.max(1, s.getCount());
         double unit = 0;
@@ -261,32 +255,24 @@ public final class Networth {
             unit += base;
         }
         double total = unit * count;
-        if (isCosmeticItem(id)) {
-            return new ItemValue(total, total);
-        }
+        if (isCosmeticItem(id)) return new ItemValue(total, total);
         return new ItemValue(total, Math.min(total, cosmetic * count));
     }
 
     private static double petPrice(String type, String tier, Map<String, Double> bins) {
-        if (type == null || type.isEmpty()) {
-            return 0;
-        }
+        if (type == null || type.isEmpty()) return 0;
         Double v = bins.get(type.toUpperCase(Locale.ROOT) + ";" + LevelTables.rarityIndex(tier));
         return v == null ? 0 : v;
     }
 
     /** Bazaar first (shared RNG-meter price cache), then lowest BIN. */
     public static double price(String id, Map<String, Double> bins) {
-        if (id == null || id.isEmpty()) {
-            return 0;
-        }
+        if (id == null || id.isEmpty()) return 0;
         String key = id.toUpperCase(Locale.ROOT);
         try {
             Long bz = com.killer560.hub.rngmeter.RngMeterEngine.PRICES.getPrice(
                     new com.killer560.hub.rngmeter.RngItem("", "", key, com.killer560.hub.rngmeter.RngSource.BAZAAR, 0, false));
-            if (bz != null && bz > 0) {
-                return bz;
-            }
+            if (bz != null && bz > 0) return bz;
         } catch (Throwable ignored) {
         }
         Double v = bins.get(key);

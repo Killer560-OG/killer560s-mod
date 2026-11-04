@@ -99,9 +99,7 @@ public final class ProfileViewerFeature {
     /** Uses the tab list's UUID when that player is online, skipping the Mojang lookup. */
     public static Target targetForName(String name) {
         Minecraft client = Minecraft.getInstance();
-        if (name.equalsIgnoreCase(client.getUser().getName())) {
-            return self();
-        }
+        if (name.equalsIgnoreCase(client.getUser().getName())) return self();
         if (client.getConnection() != null) {
             for (PlayerInfo info : client.getConnection().getOnlinePlayers()) {
                 if (info.getProfile().name().equalsIgnoreCase(name) && isRealPlayer(info.getProfile().id(), info.getProfile().name())) {

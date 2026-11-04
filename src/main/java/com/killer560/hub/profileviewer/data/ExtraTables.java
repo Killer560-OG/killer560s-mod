@@ -72,9 +72,7 @@ public final class ExtraTables {
 
     public static long[] longs(JsonElement el) {
         JsonArray arr = SbProfile.asArr(el);
-        if (arr == null) {
-            return new long[0];
-        }
+        if (arr == null) return new long[0];
         long[] out = new long[arr.size()];
         for (int i = 0; i < out.length; i++) {
             out[i] = (long) SbProfile.num(arr.get(i));
@@ -132,14 +130,10 @@ public final class ExtraTables {
         JsonArray arr = SbProfile.asArr(list);
         String best = null;
         long bestT = Long.MIN_VALUE;
-        if (arr == null) {
-            return "";
-        }
+        if (arr == null) return "";
         for (JsonElement e : arr) {
             JsonObject o = SbProfile.asObj(e);
-            if (o == null) {
-                continue;
-            }
+            if (o == null) continue;
             long t = (long) SbProfile.num(o.get("threshold"));
             if (t <= amount && t >= bestT) {
                 bestT = t;
@@ -194,22 +188,16 @@ public final class ExtraTables {
     private static final Remote<List<CollectionCategory>> COLLECTIONS = new Remote<>(() ->
             ProfileViewerApi.getKeylessJson(COLLECTIONS_URL).thenApplyAsync(json -> {
                 JsonObject cols = json == null ? null : SbProfile.asObj(json.get("collections"));
-                if (cols == null) {
-                    return null;
-                }
+                if (cols == null) return null;
                 List<CollectionCategory> out = new ArrayList<>();
                 for (Map.Entry<String, JsonElement> c : cols.entrySet()) {
                     JsonObject cat = SbProfile.asObj(c.getValue());
                     JsonObject items = cat == null ? null : SbProfile.asObj(cat.get("items"));
-                    if (items == null) {
-                        continue;
-                    }
+                    if (items == null) continue;
                     List<CollectionItem> list = new ArrayList<>();
                     for (Map.Entry<String, JsonElement> i : items.entrySet()) {
                         JsonObject it = SbProfile.asObj(i.getValue());
-                        if (it == null) {
-                            continue;
-                        }
+                        if (it == null) continue;
                         JsonArray tiers = SbProfile.asArr(it.get("tiers"));
                         List<Long> amounts = new ArrayList<>();
                         if (tiers != null) {
@@ -249,9 +237,7 @@ public final class ExtraTables {
     public static CompletableFuture<List<BestiaryCategory>> bestiary() { return BESTIARY.get(); }
 
     private static List<BestiaryCategory> parseBestiary(JsonObject json) {
-        if (json == null) {
-            return null;
-        }
+        if (json == null) return null;
         Map<String, int[]> brackets = brackets(SbProfile.asObj(json.get("brackets")));
         Map<String, Map<String, int[]>> sets = new LinkedHashMap<>();
         JsonObject bs = SbProfile.asObj(json.get("bracketSets"));
@@ -262,13 +248,9 @@ public final class ExtraTables {
         }
         List<BestiaryCategory> out = new ArrayList<>();
         for (Map.Entry<String, JsonElement> e : json.entrySet()) {
-            if (e.getKey().equals("brackets") || e.getKey().equals("bracketSets")) {
-                continue;
-            }
+            if (e.getKey().equals("brackets") || e.getKey().equals("bracketSets")) continue;
             JsonObject cat = SbProfile.asObj(e.getValue());
-            if (cat == null || !cat.has("name")) {
-                continue;
-            }
+            if (cat == null || !cat.has("name")) continue;
             List<BestiaryFamily> families = new ArrayList<>();
             if (SbProfile.asArr(cat.get("mobs")) != null) {
                 addFamilies(families, SbProfile.asArr(cat.get("mobs")), brackets, sets);
@@ -291,9 +273,7 @@ public final class ExtraTables {
                                      Map<String, Map<String, int[]>> sets) {
         for (JsonElement el : mobs) {
             JsonObject m = SbProfile.asObj(el);
-            if (m == null) {
-                continue;
-            }
+            if (m == null) continue;
             int cap = (int) SbProfile.num(m.get("cap"));
             String bracket = String.valueOf((int) SbProfile.num(m.get("bracket")));
             String type = SbProfile.str(m, "bracketType", null);
@@ -323,9 +303,7 @@ public final class ExtraTables {
 
     private static Map<String, int[]> brackets(JsonObject obj) {
         Map<String, int[]> out = new LinkedHashMap<>();
-        if (obj == null) {
-            return out;
-        }
+        if (obj == null) return out;
         for (Map.Entry<String, JsonElement> e : obj.entrySet()) {
             long[] l = longs(e.getValue());
             int[] arr = new int[l.length];
@@ -341,9 +319,7 @@ public final class ExtraTables {
     private static String cleanName(String raw) { return raw == null ? "" : raw.replace("Â", "").replaceAll("§.", "").trim(); }
 
     private static String fixTexture(String tex) {
-        if (tex == null || tex.isBlank()) {
-            return null;
-        }
+        if (tex == null || tex.isBlank()) return null;
         String t = tex.split("\", \"")[0].trim();
         while (t.length() % 4 != 0) {
             t += "=";
@@ -358,9 +334,7 @@ public final class ExtraTables {
     private static final Remote<MuseumTables> MUSEUM = new Remote<>(() ->
             ProfileViewerApi.getKeylessJson(MUSEUM_URL).thenApplyAsync(json -> {
                 JsonObject items = json == null ? null : SbProfile.asObj(json.get("items"));
-                if (items == null) {
-                    return null;
-                }
+                if (items == null) return null;
                 Map<String, List<String>> cats = new LinkedHashMap<>();
                 for (Map.Entry<String, JsonElement> e : items.entrySet()) {
                     cats.put(e.getKey(), strings(e.getValue()));
@@ -380,9 +354,7 @@ public final class ExtraTables {
 
     private static final Remote<Map<String, Double>> LBIN = new Remote<>(() ->
             ProfileViewerApi.getKeylessJson(LBIN_URL).thenApplyAsync(json -> {
-                if (json == null) {
-                    return null;
-                }
+                if (json == null) return null;
                 Map<String, Double> out = new java.util.HashMap<>();
                 for (Map.Entry<String, JsonElement> e : json.entrySet()) {
                     double v = SbProfile.num(e.getValue());

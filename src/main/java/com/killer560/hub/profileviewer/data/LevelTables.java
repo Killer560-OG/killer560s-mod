@@ -65,9 +65,7 @@ public final class LevelTables {
     }
 
     public static synchronized void ensureLoaded() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         loaded = true;
         try {
             JsonObject obj = read("skills.json");
@@ -127,13 +125,9 @@ public final class LevelTables {
 
     /** One background refresh per session from Hypixel's keyless skills resource. */
     private static void requestLiveSkills() {
-        if (!LIVE_SKILLS_REQUESTED.compareAndSet(false, true)) {
-            return;
-        }
+        if (!LIVE_SKILLS_REQUESTED.compareAndSet(false, true)) return;
         ProfileViewerApi.getKeylessJson(ModNet.url("hypixel", "https://api.hypixel.net/v2/resources/skyblock/skills")).thenAccept(json -> {
-            if (json == null || !json.has("skills") || !json.get("skills").isJsonObject()) {
-                return;
-            }
+            if (json == null || !json.has("skills") || !json.get("skills").isJsonObject()) return;
             try {
                 JsonObject in = json.getAsJsonObject("skills");
                 JsonObject converted = new JsonObject();
@@ -215,9 +209,7 @@ public final class LevelTables {
      *             table's own max level. */
     public static Level skillLevel(String id, long xp, int cap) {
         Skill s = skill(id);
-        if (s == null || s.totalXp().length == 0) {
-            return new Level(0, 0, xp, 0, false);
-        }
+        if (s == null || s.totalXp().length == 0) return new Level(0, 0, xp, 0, false);
         int max = Math.min(s.totalXp().length, cap > 0 ? cap : s.maxLevel());
         return cumulative(s.totalXp(), xp, max);
     }
@@ -241,13 +233,9 @@ public final class LevelTables {
      */
     public static int uncappedSkillLevel(String id, long xp) {
         Skill s = skill(id);
-        if (s == null || s.totalXp().length == 0) {
-            return 0;
-        }
+        if (s == null || s.totalXp().length == 0) return 0;
         long[] t = s.totalXp();
-        if ("RUNECRAFTING".equals(id) || "SOCIAL".equals(id)) {
-            return cumulative(t, xp, t.length).level();
-        }
+        if ("RUNECRAFTING".equals(id) || "SOCIAL".equals(id)) return cumulative(t, xp, t.length).level();
         Skill standard = skill("COMBAT");
         if (standard != null && standard.totalXp().length > t.length) {
             t = standard.totalXp();
@@ -295,9 +283,7 @@ public final class LevelTables {
         ensureLoaded();
         Level base = cumulative(catacombsXp, xp, catacombsXp.length);
         // Empty table (bundled resource unreadable) reports "maxed" at level 0 - never index it.
-        if (!base.maxed() || !overflow || catacombsOverflow <= 0 || catacombsXp.length == 0) {
-            return base;
-        }
+        if (!base.maxed() || !overflow || catacombsOverflow <= 0 || catacombsXp.length == 0) return base;
         long over = xp - catacombsXp[catacombsXp.length - 1];
         int extra = (int) (over / catacombsOverflow);
         long into = over % catacombsOverflow;
@@ -359,9 +345,7 @@ public final class LevelTables {
             }
         }
         int level = idx + 1;
-        if (idx >= cum.length - 1) {
-            return new Level(level, 1, xp - cum[cum.length - 1], 0, true);
-        }
+        if (idx >= cum.length - 1) return new Level(level, 1, xp - cum[cum.length - 1], 0, true);
         long need = cum[idx + 1] - cum[idx];
         return new Level(level, need <= 0 ? 1 : (double) (xp - cum[idx]) / need, xp - cum[idx], need, false);
     }

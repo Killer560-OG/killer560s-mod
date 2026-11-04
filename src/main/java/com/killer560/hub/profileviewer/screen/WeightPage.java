@@ -204,12 +204,8 @@ final class WeightPage {
     private List<Row> rowsBList;
 
     private List<Row> rows(SkyblockWeight.Result r) {
-        if (r == rowsA) {
-            return rowsAList;
-        }
-        if (r == rowsB) {
-            return rowsBList;
-        }
+        if (r == rowsA) return rowsAList;
+        if (r == rowsB) return rowsBList;
         // Both systems are drawn every frame, so a miss refills the older slot (A first, then B).
         if (rowsA == null || rowsB != null) {
             rowsA = r;

@@ -98,9 +98,7 @@ public final class SbProfile {
 
         /** Skull icon once the NEU-repo texture has loaded (cached), a bone until then. */
         public ItemStack icon() {
-            if (icon != null) {
-                return icon;
-            }
+            if (icon != null) return icon;
             ItemStack now = PetIcons.icon(type, tier, skin);
             if (!now.is(net.minecraft.world.item.Items.BONE)) {
                 icon = now;
@@ -162,9 +160,7 @@ public final class SbProfile {
         JsonObject bosses = asObj(path(memberObj, "slayer.slayer_bosses"));
         if (bosses != null) {
             for (Map.Entry<String, JsonElement> e : bosses.entrySet()) {
-                if (!e.getValue().isJsonObject()) {
-                    continue;
-                }
+                if (!e.getValue().isJsonObject()) continue;
                 JsonObject b = e.getValue().getAsJsonObject();
                 Map<Integer, Integer> kills = new TreeMap<>();
                 for (Map.Entry<String, JsonElement> k : b.entrySet()) {
@@ -207,27 +203,17 @@ public final class SbProfile {
 
     public static List<SbProfile> parseAll(JsonObject root, UUID member) {
         List<SbProfile> out = new ArrayList<>();
-        if (root == null) {
-            return out;
-        }
+        if (root == null) return out;
         JsonArray arr = asArr(root.get("profiles"));
-        if (arr == null) {
-            return out;
-        }
+        if (arr == null) return out;
         String key = ProfileViewerApi.dashless(member);
         for (JsonElement el : arr) {
-            if (!el.isJsonObject()) {
-                continue;
-            }
+            if (!el.isJsonObject()) continue;
             JsonObject profile = el.getAsJsonObject();
             JsonObject memberObj = asObj(path(profile, "members." + key));
-            if (memberObj == null) {
-                continue;
-            }
+            if (memberObj == null) continue;
             // Profiles the player left/was removed from carry a deletion notice.
-            if (path(memberObj, "profile.deletion_notice") != null) {
-                continue;
-            }
+            if (path(memberObj, "profile.deletion_notice") != null) continue;
             try {
                 out.add(new SbProfile(profile, memberObj, member));
             } catch (Exception ignored) {
@@ -246,9 +232,7 @@ public final class SbProfile {
      * only for an empty list. One rule for every reader (Party Finder stats, Auto Kick's populate).
      */
     public static SbProfile dungeonProfile(List<SbProfile> profiles) {
-        if (profiles == null || profiles.isEmpty()) {
-            return null;
-        }
+        if (profiles == null || profiles.isEmpty()) return null;
         SbProfile selected = null;
         SbProfile most = null;
         for (SbProfile p : profiles) {
@@ -267,9 +251,7 @@ public final class SbProfile {
     }
 
     private static DungeonStats parseDungeons(JsonObject d) {
-        if (d == null) {
-            return new DungeonStats(0, "", Map.of(), 0, Map.of(), Map.of(), 0);
-        }
+        if (d == null) return new DungeonStats(0, "", Map.of(), 0, Map.of(), Map.of(), 0);
         JsonObject cata = asObj(path(d, "dungeon_types.catacombs"));
         JsonObject master = asObj(path(d, "dungeon_types.master_catacombs"));
         Map<String, Long> classes = new LinkedHashMap<>();
@@ -291,9 +273,7 @@ public final class SbProfile {
 
     private static Map<Integer, Floor> floors(JsonObject type) {
         Map<Integer, Floor> out = new TreeMap<>();
-        if (type == null) {
-            return out;
-        }
+        if (type == null) return out;
         JsonObject completions = asObj(type.get("tier_completions"));
         JsonObject sPlus = asObj(type.get("fastest_time_s_plus"));
         JsonObject s = asObj(type.get("fastest_time_s"));
@@ -361,9 +341,7 @@ public final class SbProfile {
             TreeMap<Integer, List<ItemStack>> bySet = new TreeMap<>();
             int maxSet = -1;
             for (Map.Entry<String, JsonElement> e : armorLoadout.entrySet()) {
-                if (e.getKey().equals("equipped_set")) {
-                    continue;
-                }
+                if (e.getKey().equals("equipped_set")) continue;
                 int setId = parseInt(e.getKey());
                 JsonObject set = asObj(e.getValue());
                 bySet.put(setId, List.of(pieceOrEmpty(set, "HELMET"), pieceOrEmpty(set, "CHESTPLATE"),
@@ -421,9 +399,7 @@ public final class SbProfile {
     /** One armor piece from a {@code loadout.armor.<set>} entry - each key decodes like any other item
      *  blob ({@code {"type":0,"data":...}}), just holding a single-item list. */
     private static ItemStack pieceOrEmpty(JsonObject set, String key) {
-        if (set == null) {
-            return ItemStack.EMPTY;
-        }
+        if (set == null) return ItemStack.EMPTY;
         List<ItemStack> decoded = LegacyItems.decodeInventory(set.get(key));
         return decoded.isEmpty() ? ItemStack.EMPTY : decoded.get(0);
     }
@@ -437,9 +413,7 @@ public final class SbProfile {
             List<ItemStack> page = new ArrayList<>(Collections.nCopies(36, ItemStack.EMPTY));
             for (int col = 0; col < 9 && pageStart + col <= maxSet; col++) {
                 List<ItemStack> pieces = bySet.get(pageStart + col);
-                if (pieces == null) {
-                    continue;
-                }
+                if (pieces == null) continue;
                 for (int row = 0; row < 4; row++) {
                     page.set(row * 9 + col, pieces.get(row));
                 }
@@ -453,9 +427,7 @@ public final class SbProfile {
     static JsonElement path(JsonObject root, String dotted) {
         JsonElement cur = root;
         for (String part : dotted.split("\\.")) {
-            if (cur == null || !cur.isJsonObject()) {
-                return null;
-            }
+            if (cur == null || !cur.isJsonObject()) return null;
             cur = cur.getAsJsonObject().get(part);
         }
         return cur == null || cur.isJsonNull() ? null : cur;
@@ -478,9 +450,7 @@ public final class SbProfile {
     static double num(JsonObject o, String key) { return o == null ? 0 : num(o.get(key)); }
 
     static String str(JsonObject o, String key, String def) {
-        if (o == null) {
-            return def;
-        }
+        if (o == null) return def;
         JsonElement el = o.get(key);
         try {
             return el != null && el.isJsonPrimitive() ? el.getAsString() : def;
@@ -498,14 +468,10 @@ public final class SbProfile {
     }
 
     public static String titleCase(String id) {
-        if (id == null || id.isEmpty()) {
-            return "";
-        }
+        if (id == null || id.isEmpty()) return "";
         StringBuilder sb = new StringBuilder();
         for (String part : id.toLowerCase(Locale.ROOT).split("_")) {
-            if (part.isEmpty()) {
-                continue;
-            }
+            if (part.isEmpty()) continue;
             if (sb.length() > 0) {
                 sb.append(' ');
             }

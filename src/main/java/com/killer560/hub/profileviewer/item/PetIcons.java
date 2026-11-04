@@ -61,16 +61,12 @@ public final class PetIcons {
 
     private static CompletableFuture<String> fetch(String key, String type) {
         return fetchOne(key).thenCompose(tex -> {
-            if (tex != null || key.startsWith("PET_SKIN_")) {
-                return CompletableFuture.completedFuture(tex);
-            }
+            if (tex != null || key.startsWith("PET_SKIN_")) return CompletableFuture.completedFuture(tex);
             // Some pets only exist at a few rarities in the repo - the head is the same at every rarity.
             CompletableFuture<String> chain = CompletableFuture.completedFuture(null);
             for (int r = 5; r >= 0; r--) {
                 String alt = type.toUpperCase(Locale.ROOT) + ";" + r;
-                if (alt.equals(key)) {
-                    continue;
-                }
+                if (alt.equals(key)) continue;
                 chain = chain.thenCompose(found -> found != null ? CompletableFuture.completedFuture(found) : fetchOne(alt));
             }
             return chain;
@@ -85,9 +81,7 @@ public final class PetIcons {
     }
 
     private static String extract(JsonObject json) {
-        if (json == null || !json.has("nbttag") || !json.get("nbttag").isJsonPrimitive()) {
-            return null;
-        }
+        if (json == null || !json.has("nbttag") || !json.get("nbttag").isJsonPrimitive()) return null;
         Matcher m = TEXTURE.matcher(json.get("nbttag").getAsString());
         return m.find() ? m.group(1) : null;
     }
