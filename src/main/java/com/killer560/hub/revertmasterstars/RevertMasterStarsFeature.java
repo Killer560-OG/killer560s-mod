@@ -35,7 +35,7 @@ public final class RevertMasterStarsFeature {
 
     public static Component modifyHoverName(Component component) {
         if (!RevertMasterStarsConfig.getInstance().isEnabled()) return component;
-        if (component == null) return rebuild(component);
+        if (component == null) return null;
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc == null || !mc.isSameThread()) return rebuild(component);
         Component known = CACHE.get(component);

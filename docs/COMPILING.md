@@ -62,3 +62,28 @@ Moved out of CLAUDE.md (2026-10-05), then out of LESSONS.md (2026-10-07). Proble
 
 Automation runtime lessons (Auto Routes on GrimAC, chain timing, ViewFreeze, held camera, key range) moved to
 [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md) on 2026-10-06 to keep this file under its size limit.
+
+## Static bug scans: SpotBugs and Error Prone (scanbugs-1104)
+
+Both run OUTSIDE the normal build (nothing in build.gradle; the owner's builds are no slower). Build the variant first
+(`./gradlew build [-PcheatBuild=true]`), then from the repo root, through Bash, with JDK 25 on JAVA_HOME:
+
+    bash tools/spotbugs/run-spotbugs.sh [-PcheatBuild=true]     # ~2.5 min -> build/spotbugs/report.xml + report.txt
+    bash tools/errorprone/run-errorprone.sh [-PcheatBuild=true] # ~3 min   -> build/errorprone/report.txt
+
+- Both get the compile classpath from the init script `tools/spotbugs/classpath.gradle` (task `writeSpotbugsClasspath`,
+  writes build/spotbugs/aux-classpath.txt), so Loom's mapped Minecraft jar is on it.
+- SpotBugs 4.10.5 (reads Java 25 class files): unzip the release to `C:/Users/Hunter/tools/spotbugs-4.10.5` or set
+  `SPOTBUGS_HOME`. It scans build/classes/java/main at `-effort:max -medium`; `tools/spotbugs/exclude.xml` drops
+  MALICIOUS_CODE, serialization, I18N and the unwritten/unused-field patterns in `.mixin.` classes (Mixin fills them).
+- Error Prone 2.50.0: a separate javac pass with `-Xplugin:ErrorProne` over src/main/java, src/mc26_3/java and the
+  generated BuildVariant; its class output (build/errorprone/classes) is thrown away. Put
+  `error_prone_core-2.50.0-with-dependencies.jar` and `dataflow-errorprone-3.41.0-eisop1.jar` (Maven Central) in
+  `C:/Users/Hunter/tools/errorprone-2.50.0` or set `ERRORPRONE_HOME`. Style checks are switched off in the script. It
+  exits 1 when an ERROR-level check fires; the report is still complete.
+- Triage helpers in tools/spotbugs: `summarize.py` (one line per finding, `--priority`), `lines.py` (source line per
+  finding of a pattern), `np_called.py` (null-return findings grouped by called method), `guard_check.py` (null guards
+  above each site). Run them with `python -I`.
+- Known false-positive families (do not re-triage): BC_IMPOSSIBLE_CAST on mixin `(Object) this`, IM_BAD_CHECK_FOR_ODD on
+  nonnegative grid indices, ES_COMPARING_STRINGS on identity caches, NP on `Path.getParent()` of absolute config paths,
+  AT_*/ST_WRITE_TO_STATIC (client-thread statics). The 2026-11-04 triage is killer560s-mod-logs/scan-scanbugs-1104.md.

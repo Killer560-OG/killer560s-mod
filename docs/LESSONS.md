@@ -398,6 +398,9 @@ project CLAUDE.md. Compiling lessons
 
 ## Testing and debugging
 
+- **`"\s"` in a plain Java string is a SPACE, not regex whitespace** (Java 15 made `\s` a string escape). A pattern
+  written `Pattern.compile("name\s+(.+)")` or `split("\s+")` matches spaces only: Translate's whisper recipient and Auto
+  Routes' saved path hops missed tabs until scanbugs-1104 (Error Prone MisleadingEscapedSpace). Write `"\\s"`.
 - The gametest client runs as **java.exe**, not javaw.exe. `run-scenario.ps1` filtered on javaw only, so every
   safeguard in it was inert — the freeze watcher never saw an unresponsive client and the deadline cleanup
   killed nothing, while the script reported success. That is why "it still doesn't close out on freeze"
