@@ -171,7 +171,6 @@ public final class SecretsFeature {
     public static final VoxelShape BUTTON_WEST_SHAPE = Shapes.box(0.875, 0.0, 0.0, 1.0, 1.0, 1.0);
     public static final VoxelShape BUTTON_EAST_SHAPE = Shapes.box(0.0, 0.0, 0.0, 0.125, 1.0, 1.0);
 
-    // ------------------------------------------------------------------ custom sizes
     // killer560 (2026-09-21): every block type gets a Custom shape with Width / Height / Length sliders from its
     // normal vanilla size to a full block. Normal sizes (pixels) are vanilla's own: button 6x4, 2 deep; lever 6x8,
     // 6 deep; chest 14 all round; skull 8 all round. See HitboxSizer for how each axis is measured.
