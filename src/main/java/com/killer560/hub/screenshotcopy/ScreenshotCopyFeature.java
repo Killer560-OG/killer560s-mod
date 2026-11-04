@@ -3,7 +3,6 @@ package com.killer560.hub.screenshotcopy;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
