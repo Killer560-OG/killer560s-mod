@@ -99,3 +99,11 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
   position lookups (`resolvePosition`, ~2.5% of an ALL ON frame), FeatureGuard wrappers, Mining QoL's 14 sub-ticks
   (0.2% in JFR). No single fix there is worth its risk; a per-frame position cache would be the next step.
 - `bench.sh` runs need the jar as `C:/Users/...`: run-scenario.ps1 reports "Mod under test not found" for `/c/Users/...`.
+- Round 2 (fps-1104): the HUD position path is already memoized end to end (`memoisedClamp`, HudConfig lookups are
+  plain map gets); the ~2 us per drawn element left is mostly the dev-only PerfProbe around it, so a further position
+  cache bought nothing measurable and was not built. Wrong Armor Alert's `defaultX()` measured its constant text every
+  frame (0.35 -> 0.01 KB/frame once cached). An identity memo of the tab list's text in `ScoreboardData.readTab` saved
+  nothing in the sim (SimTabList hands out new Components each refresh), so it was dropped; recheck on Hypixel before
+  retrying. Read-only Skyblock id helpers now use `ItemNbt.view(CustomData)`, never `copyTag()`.
+- Same-run us figures moved +30-50% between two runs on a busy machine (MsMpEng 180%); compare KB per frame, which is
+  stable, and treat us as a direction only.
