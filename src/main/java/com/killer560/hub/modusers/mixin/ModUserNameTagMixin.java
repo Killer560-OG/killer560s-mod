@@ -2,7 +2,6 @@ package com.killer560.hub.modusers.mixin;
 
 import com.killer560.hub.modusers.ModUserConfig;
 import com.killer560.hub.modusers.ModUsers;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.network.chat.Component;
