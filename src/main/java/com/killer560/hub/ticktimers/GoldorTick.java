@@ -354,17 +354,9 @@ public final class GoldorTick {
         return relocks;
     }
 
-    public static synchronized long testAnchor() {
-        return anchor;
-    }
-
     /** Testkit: a hit at the clock's current tick, as the client would observe it. */
     public static void testHitNow(boolean strong) {
         onHit(now(), strong, "the testkit");
     }
 
-    /** Testkit: a hit of one kind ("PROC", "MULTI", "SELF") at the clock's current tick. */
-    public static void testHitKindNow(String kind) {
-        onHit(now(), Kind.valueOf(kind), "the testkit (" + kind + ")");
-    }
 }
