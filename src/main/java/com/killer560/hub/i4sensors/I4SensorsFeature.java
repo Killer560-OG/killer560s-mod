@@ -49,11 +49,9 @@ public final class I4SensorsFeature {
     private static final String STORM_DEATH_LINE = "[BOSS] Storm: I should have known that I stood no chance.";
     /** P3's real start. Exact line, as in TickTimersFeature / Floor7Tracker. */
     private static final String GOLDOR_START_LINE = "[BOSS] Goldor: Who dares trespass into my domain?";
-    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: 17 server ticks, NoammAddons 1.2.9's
-     *  measurement (dev/Timer.kt), shared with Tick Timers' Goldor "Start:". Was 3000 ms from killer560's two runs
-     *  (Storm died 09:57:54 and 10:02:45, Goldor spoke 09:57:57 and 10:02:48, 1 s log resolution) - those disagree with
-     *  17 ticks and are unexplained; on that pacing the window below just opens about 2 s earlier than "a little". Before
-     *  0.27.2 it was 104 ticks. */
+    /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: 64 server ticks, shared with Tick Timers'
+     *  Goldor "Start:" (482 runs in his logs, 3.26 s on average; NoammAddons 1.2.9's 17 did not fit, tickfix2-1104).
+     *  Before 0.27.2 it was 104 ticks. */
     static final long STORM_TO_GOLDOR_MS = com.killer560.hub.ticktimers.TickTimersFeature.GOLDOR_START_TICKS * 50L;
 
     // --- session (player near the device) ---

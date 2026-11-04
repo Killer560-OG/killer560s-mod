@@ -95,8 +95,8 @@ public final class I4SensorsConfig {
     private boolean autoI4Rotate = true;
     // Defaults ported from NoammAddons' AutoI4.kt ("Rotation Time" 170ms, "Predictions" on).
     private int autoI4RotationTimeMs = 170;
-    // How long before P3's expected start (Goldor's line, 17 ticks after Storm's death since SkyBlock 0.27.2 per
-    // NoammAddons 1.2.9, so any lead past 850 ms opens the window at Storm's death) the
+    // How long before P3's expected start (Goldor's line, 64 ticks = 3.2 s after Storm's death since SkyBlock 0.27.2,
+    // TickTimersFeature.GOLDOR_START_TICKS; the default opens the window about 2.2 s after Storm's death) the
     // Terminator starts prefiring the device (killer560, 2026-10-06: "a little bit before it starts").
     private int autoI4PrefireLeadMs = 1000;
     private boolean autoI4Predictions = true;

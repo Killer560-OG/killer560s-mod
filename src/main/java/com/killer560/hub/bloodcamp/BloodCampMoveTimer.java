@@ -303,7 +303,7 @@ public final class BloodCampMoveTimer {
             return -1L;
         }
         return bloodOpenTick + moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks()
-                + com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark);
+                + com.killer560.hub.util.PerTickServerClock.deficitTicksSince(bloodOpenMark);
     }
 
     /** Whether the kill timer ("KILL") has gone off: what Blood Camp Stats counts lost ticks from. */

@@ -22,7 +22,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
  * while the server keeps time: with no lag every timeout is the same tick count it always was. It only ever EXTENDS a
  * deadline; an answer that arrives is acted on the moment it arrives, lag or not.
  * <p>
- * Nothing is counted until the server has been seen pinging once per tick in this world; a server that pings once a
+ * A gap counts only when the ping that opened it came while {@link PerTickServerClock#trusted()} (since tickfix2-1104;
+ * before, any second with 15 pings, which GrimAC's transaction pings reach on their own); a server that pings once a
  * second (or not at all) would otherwise read as permanently lagging, so there it reads 0 and every timeout is
  * unchanged. A world change drops that trust until the new world pings at the full rate again. One stall counts at
  * most {@link #MAX_STALL_MS}: a server that simply stopped pinging must not hold every wait open forever.
@@ -68,6 +69,7 @@ public final class ServerLag {
         }
         registered = true;
         ServerTickClock.register();
+        PerTickServerClock.register();
         ServerTickClock.subscribeRawPing(ServerLag::onPing);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
@@ -97,9 +99,11 @@ public final class ServerLag {
 
     private static synchronized void onPing() {
         long now = System.currentTimeMillis();
-        if (ServerTickClock.isPingDriven()) {
-            trusted = true;
-        }
+        // tickfix2-1104: a gap is measured only when the ping that OPENED it came from a server PerTickServerClock trusts
+        // (a ping on 19 of 20 ticks, two windows running). ServerTickClock's 15 pings a second, the old gate, is reached by
+        // GrimAC's transaction pings alone, so on the testkit every Grim gap read as a stall. Judged at the gap's start, so
+        // a real stall still counts when the clock drops trust during it (off Hypixel two short windows do that).
+        boolean perTick = PerTickServerClock.trusted();
         if (trusted && lastPingMs != 0L) {
             long gap = now - lastPingMs;
             if (gap > STALL_THRESHOLD_MS) {
@@ -115,6 +119,7 @@ public final class ServerLag {
         }
         lastPingMs = now;
         lastPingTick = clientTicks;
+        trusted = perTick;
     }
 
     /** The client ticks that ended since the last ping beyond the one a ping is due in, as ms. */

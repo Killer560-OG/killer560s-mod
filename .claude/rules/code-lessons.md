@@ -240,8 +240,9 @@ They are the same rules as before; only where they live changed.
   reads relay `data` must be named there, or nothing connects for it: Song Tag never was, so no song was ever shared with
   Mod Chat off and no party (fixed 2026-11-01, lobby room; testkit 2866/2867). Testing the receiver by feeding it packets
   does not prove the socket opens.
-- `ServerLag`/`ServerTickClock` take ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone
-  reach: on a Grim server they read jitter as stalls. Anything that must count exact server ticks uses `util.PerTickServerClock`
+- `ServerTickClock` takes ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone reach, so
+  it reads Grim jitter as stalls. `ServerLag` and the Lag Display / !tps TPS gate on `PerTickServerClock.trusted()` since
+  tickfix2-1104 (ServerLag judged at the ping that opens a gap, so a stall that outlasts the trust still counts). Anything that must count exact server ticks uses `util.PerTickServerClock`
   (19 of 20 ticks with a ping, two windows in a row) (doc-blood-1101, docs/LESSONS-DUNGEONS.md). A repeating timer keeps the
   server tick of one real event and works the rest out from it, never a counter decremented per `ServerTickClock` event:
   Goldor's Tick drifted 1.5 s that way (f7hud-1102, `ticktimers/GoldorTick`, resynced on observed hits).

@@ -79,7 +79,7 @@ import java.util.regex.Pattern;
  * <p>
  * <b>2026-10-06 SkyBlock 0.27.2 pacing</b> (NoammAddons 1.2.9 {@code floor7/TickTimers.kt} and its {@code dev/Timer.kt},
  * which measured each gap in server ticks on the new pacing): "Maxor Start" 83 ticks from Maxor's opening line (new
- * here); Goldor "Start:" 104 -&gt; 17 ticks from Storm's death line to Goldor's line, which still ends it; "Necron
+ * here); Goldor "Start:" 104 -&gt; 64 ticks (NoammAddons said 17; his logs say 64, tickfix2-1104) from Storm's death line to Goldor's line, which still ends it; "Necron
  * dropping in" 60 ticks now from "You went further than any human before, congratulations." (was "I'm afraid, your
  * journey ends now."); PY 95 -&gt; 62. The clear "Death Tick" line is gone: it was {@code 20 - now % 20} on a clock
  * counted from client launch, so its phase never matched any server cycle, and NoammAddons dropped both its death and
@@ -100,9 +100,12 @@ public final class TickTimersFeature {
     private static final Pattern MAXOR_START_REGEX = Pattern.compile("^\\[BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!$");
     /** NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" (was 167 before 0.27.2). */
     static final int MAXOR_START_TICKS = 83;
-    /** NoammAddons 1.2.9 dev/Timer.kt: Storm's death line to Goldor's line on 0.27.2 (Odin's/our old 104). The one
-     *  copy of this gap: Auto i4's prefire window ({@code I4SensorsFeature.inPrefireWindow}) reads it too. */
-    public static final int GOLDOR_START_TICKS = 17;
+    /** Storm's death line to Goldor's line since SkyBlock 0.27.2: 64 ticks (Odin's number). His logs since 2026-10-06
+     *  (tickfix2-1104, 482 runs at 1 s resolution) read 3 s in 357 and 4 s in 125, a steady gap of about 3.26 s, i.e. 65
+     *  ticks of wall time with lag in it; before 0.27.2 they read 5 s / 6 s (Odin's old 104). NoammAddons 1.2.9's 17
+     *  does not fit. The one copy of this gap: Auto i4's prefire window ({@code I4SensorsFeature.inPrefireWindow}) reads
+     *  it too. */
+    public static final int GOLDOR_START_TICKS = 64;
     private static final Pattern GOLDOR_REGEX = Pattern.compile("^\\[BOSS] Goldor: Who dares trespass into my domain\\?$");
     private static final Pattern CORE_OPENING_REGEX = Pattern.compile("^The Core entrance is opening!$");
     private static final Pattern STORM_END_REGEX = Pattern.compile("^\\[BOSS] Storm: I should have known that I stood no chance\\.$");
@@ -262,7 +265,7 @@ public final class TickTimersFeature {
         // 2026-09-15 hardening (one deliberate deviation from Odin): Odin also requires goldorStartTime <= 0 here,
         // which means the Tick timer dies for the rest of P3 if Goldor's taunt lands less than 44 ticks after
         // Storm's death line (Tick reaches 0 while the 104-tick Start countdown is still running, so it is never
-        // re-armed). Since 0.27.2 the gap is ~17 ticks (NoammAddons 1.2.9), so Odin's gate would now never trip, but it
+        // re-armed). Since 0.27.2 the gap is ~64 ticks, so Odin's gate would now never trip, but it
         // still buys nothing: while Start runs the
         // HUD shows "Start:" instead of "Tick:" anyway, and the Core-entrance line still sets both to -1. Dropping
         // it only removes that failure mode; the countdown's alignment is unchanged.
