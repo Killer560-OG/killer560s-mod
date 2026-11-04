@@ -1,6 +1,7 @@
 package com.killer560.hub.sounddisabler;
 
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
 
 /**
  * The sounds the Sound Disabler tab can mute (killer560, 2026-11-02: "add a sound disabler to hide stuff like bonzo staff
@@ -15,6 +16,11 @@ import net.minecraft.resources.Identifier;
  * ({@code mob.ghast.*} -> {@code entity.ghast.*}, {@code fireworks.*} -> {@code entity.firework_rocket.*}). The other rows
  * are the sound hiders other Skyblock mods offer: Skyblocker's Mute Endermen / Blaze / Wolf / Spider sounds and SkyHanni's
  * Mute Phantom, plus the common dungeon complaints (explosions, bow spam, the F7 Withers, rain).
+ *
+ * <p>{@link #SKYBLOCK_WEATHER} (wxmute-1104) is the island weather Hypixel added in 0.27.2 (2026-10-06): every sound in
+ * the game's Weather category plus the rain and lightning ids, only while {@code SkyblockGate} sees Skyblock. No public source
+ * names the ids the newer weathers play (wiki, changelogs, Hypixel's server pack holds only music); Show Sound IDs names
+ * them in chat with their category, and Custom Sound IDs takes any that still play.
  */
 public enum MutedSound {
     BONZO_STAFF("bonzo_staff", "Bonzo's Staff", false),
@@ -26,13 +32,14 @@ public enum MutedSound {
     SPIDERS("spiders", "Spiders", false),
     PHANTOMS("phantoms", "Phantoms", false),
     WITHERS("withers", "Withers", false),
-    RAIN_AND_THUNDER("rain_and_thunder", "Rain And Thunder", false);
+    RAIN_AND_THUNDER("rain_and_thunder", "Rain And Thunder", false),
+    SKYBLOCK_WEATHER("skyblock_weather", "Skyblock Weather", false);
 
     /** The key the config file uses. */
     public final String key;
     /** The row's name in the tab. */
     public final String label;
-    /** Whether the row is on in a fresh config (Bonzo's Staff, what he asked for; the master switch itself starts off). */
+    /** Whether the row is on in a fresh config (none: killer560 2026-11-02 "dont have it on by default"). */
     public final boolean defaultOn;
 
     MutedSound(String key, String label, boolean defaultOn) {
@@ -45,10 +52,14 @@ public enum MutedSound {
     static final MutedSound[] ALL = values();
 
     /**
-     * Whether {@code id} is one of this row's sounds by id alone. For {@link #BONZO_STAFF} this is only the candidate test
-     * (a ghast or firework sound); {@link SoundDisabler} decides whether that candidate was the staff.
+     * Whether {@code id} played in {@code source} is one of this row's sounds. For {@link #BONZO_STAFF} this is only the
+     * candidate test (a ghast or firework sound); {@link SoundDisabler} decides whether that candidate was the staff, and
+     * whether {@link #SKYBLOCK_WEATHER} applies where the player is.
      */
-    boolean idMatches(Identifier id) {
+    boolean matches(Identifier id, SoundSource source) {
+        if (this == SKYBLOCK_WEATHER && source == SoundSource.WEATHER) {
+            return true;
+        }
         if (!"minecraft".equals(id.getNamespace())) {
             return false;
         }
@@ -65,6 +76,7 @@ public enum MutedSound {
             // "entity.wither." leaves out entity.wither_skeleton.*: only the boss sounds (F7's Withers, their skulls).
             case WITHERS -> p.startsWith("entity.wither.");
             case RAIN_AND_THUNDER -> p.startsWith("weather.rain") || p.startsWith("entity.lightning_bolt.");
+            case SKYBLOCK_WEATHER -> p.startsWith("weather.") || p.startsWith("entity.lightning_bolt.");
         };
     }
 
