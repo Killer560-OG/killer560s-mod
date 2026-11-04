@@ -347,13 +347,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    private static String shortId(String id) {
-        if (id == null || id.isBlank()) {
-            return "§8Off";
-        }
-        int colon = id.indexOf(':');
-        return colon < 0 ? id : id.substring(colon + 1);
-    }
 
     // ------------------------------------------------------------------------------------------- layout
 

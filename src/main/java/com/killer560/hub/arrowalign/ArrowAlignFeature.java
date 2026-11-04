@@ -106,7 +106,6 @@ public final class ArrowAlignFeature {
     private static boolean syntheticClickInProgress = false;
     // Client ticks (ActionGate.currentTick), not ms: the clicks go out at the start of a tick.
     private static int triggerAimIndex = -1;
-    private static long triggerAimSinceTick = 0L;
     /** Fractional tick the Trigger Bot may next click: one rolled gap after the aim landed, then after each click. */
     private static double nextTriggerClickDueTick = 0.0;
     /** Fractional, so the Aura's rolled 15-17 CPS stays 15-17 on average instead of rounding to 10. */

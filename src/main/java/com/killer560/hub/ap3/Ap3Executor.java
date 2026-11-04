@@ -155,7 +155,6 @@ public final class Ap3Executor {
      *  this it fails instead of dragging you across the room. */
     private static final double ALIGN_REACH = 4.0;
     private static final double WALL_TOUCH = 0.02;
-    private static final int LOOK_TIMEOUT = 80;
     private static final long LOOK_TIMEOUT_MS = 3000L;
     /** At most one camera step per 2 ms of wall time, whatever fires the render hook. */
     private static final long MIN_FRAME_STEP_NANOS = 2_000_000L;
@@ -288,7 +287,6 @@ public final class Ap3Executor {
     private static boolean lookHeld;
     private static float lookYaw;
     private static float lookPitch;
-    private static long lookStartMs;
     private static long lastFrameStepNanos;
 
     // ---- boom ----

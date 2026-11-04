@@ -329,13 +329,6 @@ public final class BossTerminals {
         LOGGER.info("[BossSim] terminal {} {} opened: {} ({})", "S" + station.section(), station.label(), type, t.title);
     }
 
-    private static String[] otherColor(String[] not) {
-        String[] c;
-        do {
-            c = SELECT[RNG.nextInt(SELECT.length)];
-        } while (c == not);
-        return c;
-    }
 
     private static void fill(List<ItemStack> items, int rows) {
         items.clear();

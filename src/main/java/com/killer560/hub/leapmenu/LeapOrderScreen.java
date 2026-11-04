@@ -236,23 +236,6 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return new int[]{x, y + (room - h) / 2, w, h};
     }
 
-    /** The party as the dungeon tab list and the picks know it: you first, then the teammates in leap order. */
-    private static java.util.List<String> partyNames() {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            String self = client.player.getGameProfile().name();
-            if (self != null && !self.isBlank()) {
-                out.add(self);
-            }
-        }
-        for (String n : PartyTracker.teammatesInLeapOrder()) {
-            if (out.stream().noneMatch(n::equalsIgnoreCase)) {
-                out.add(n);
-            }
-        }
-        return out;
-    }
 
     /**
      * Class picks, bundled into Leap Order (killer560, 2026-09-21: "I would like this to be bundled into the

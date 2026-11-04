@@ -34,7 +34,6 @@ import java.util.Locale;
 public final class BazaarFlipProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bazaarflip");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     /** Oldest records are dropped past this, so the file stays small. */
     private static final int MAX_RECORDS = 5000;
 

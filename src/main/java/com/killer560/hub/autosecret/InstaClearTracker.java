@@ -79,7 +79,6 @@ public final class InstaClearTracker {
     /** A stand that disappears within this many blocks of him is a kill; farther, it may only have left his view. */
     private static final double KILL_SEEN_RANGE = 40.0;
     private static final int SCAN_EVERY_TICKS = 2;
-    private static final String FEATURE = "Insta Clear";
     /** Leaving a room sooner than this after entering it, with no flip, is a pass-through, not a stop. */
     static final long STOP_MS = 3000;
     /** A flip this soon after he left (map updates lag) still belongs to the entry; later, it is someone else's. */

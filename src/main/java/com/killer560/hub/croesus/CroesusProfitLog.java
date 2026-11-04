@@ -44,7 +44,6 @@ import java.util.concurrent.Executors;
 public final class CroesusProfitLog {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-croesus");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ExecutorService WRITER = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "killer560smod-croesus-log-writer");
         t.setDaemon(true);

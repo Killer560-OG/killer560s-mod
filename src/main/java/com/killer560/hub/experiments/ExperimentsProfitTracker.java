@@ -64,7 +64,6 @@ import com.killer560.hub.compat.McCompat;
 public final class ExperimentsProfitTracker {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-experiments-profit");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CHAT_FEATURE = "Experiments";
     private static final int MAX_LOGGED_SESSIONS = 1000;
     /** A reward-screen snapshot older than this when the claim message arrives is treated as stale

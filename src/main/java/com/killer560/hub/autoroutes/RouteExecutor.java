@@ -534,8 +534,6 @@ public final class RouteExecutor {
     private static int cryptSlotBefore = -1;
     /** A crypt node is holding the use key down ({@link #holdUse}); {@link #releaseUse} lets go, and so does {@link #stop}. */
     private static boolean useHeld;
-    /** A crypt node with no crypt or prince of his killed in this many ticks stops the route. */
-    private static final int CRYPT_TIMEOUT = 100;
     /** Legit crypt node: how long it aims for pitch 90.0 before moving on with nothing used. */
     private static final int CRYPT_AIM_GIVE_UP = 60;
     /** Crypt node: route ticks in a row that ended with the look at pitch 90.0 (the server has it once this is 2). */

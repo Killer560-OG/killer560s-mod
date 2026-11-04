@@ -31,7 +31,6 @@ public final class EggTracker {
     }
 
     private static final int KEEP_HUNTS = 50;
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static final List<Hunt> HUNTS = new ArrayList<>();
     private static boolean loaded;
