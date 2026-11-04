@@ -1615,30 +1615,13 @@ public final class Ap3Executor {
             gateCloseDone = true;
             gateSectionSkipped = true;
         } else if (node.leapCounter > 0) {
-            double radius = Ap3Config.getInstance().getLeapDetectRadius();
-            Vec3 me = player.position();
-            String self = Teammates.selfName();
-            for (AbstractClientPlayer p : client.level.players()) {
-                UUID id = p.getUUID();
-                Vec3 now = p.position();
-                Vec3 prev = lastPositions.put(id, now);
-                if (p == player || counted.contains(id) || (id.version() != 4 && !leapCountAnyPlayer)) {
-                    continue;
-                }
-                String name = ChatObserver.strip(p.getGameProfile().name());
-                if (name.equalsIgnoreCase(self) || (Teammates.isKnown() && Teammates.byName(name) == null)) {
-                    continue;
-                }
-                boolean teleported = prev != null && prev.distanceTo(now) >= TELEPORT_JUMP;
-                if (teleported && now.distanceTo(me) <= radius) {
-                    counted.add(id);
-                    leapGateArrived++;
-                    leapGateCountedReal++;
-                    LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
-                    if (Ap3Config.getInstance().isChatFeedback()) {
-                        chat(ModChat.value(name), ModChat.text(" leapt to you "),
-                                ModChat.dim("(" + leapGateArrived + "/" + node.leapCounter + ")"));
-                    }
+            for (String name : newLeapers(client, player, false)) {
+                leapGateArrived++;
+                leapGateCountedReal++;
+                LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
+                if (Ap3Config.getInstance().isChatFeedback()) {
+                    chat(ModChat.value(name), ModChat.text(" leapt to you "),
+                            ModChat.dim("(" + leapGateArrived + "/" + node.leapCounter + ")"));
                 }
             }
         }
@@ -4259,9 +4242,25 @@ public final class Ap3Executor {
             step = Step.CONFIRM;
             return;
         }
+        for (String name : newLeapers(client, player, true)) {
+            arrived++;
+            LOGGER.info("[AP3] {} leapt to you ({}/{})", name, arrived, node.leapCount);
+            if (Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.value(name), ModChat.text(" leapt to you "), ModChat.dim("(" + arrived + "/" + node.leapCount + ")"));
+            }
+        }
+        if (arrived >= node.leapCount) {
+            finishNode();
+        }
+    }
+
+    /** Teammates that teleported next to {@code player} since the last call (each is added to {@code counted}). A player
+     *  seen for the first time counts as having teleported only when {@code firstSightCounts}. */
+    private static List<String> newLeapers(Minecraft client, LocalPlayer player, boolean firstSightCounts) {
         double radius = Ap3Config.getInstance().getLeapDetectRadius();
         Vec3 me = player.position();
         String self = Teammates.selfName();
+        List<String> names = new ArrayList<>();
         for (AbstractClientPlayer p : client.level.players()) {
             UUID id = p.getUUID();
             Vec3 now = p.position();
@@ -4273,19 +4272,13 @@ public final class Ap3Executor {
             if (name.equalsIgnoreCase(self) || (Teammates.isKnown() && Teammates.byName(name) == null)) {
                 continue;
             }
-            boolean teleported = prev == null || prev.distanceTo(now) >= TELEPORT_JUMP;
+            boolean teleported = prev == null ? firstSightCounts : prev.distanceTo(now) >= TELEPORT_JUMP;
             if (teleported && now.distanceTo(me) <= radius) {
                 counted.add(id);
-                arrived++;
-                LOGGER.info("[AP3] {} leapt to you ({}/{})", name, arrived, node.leapCount);
-                if (Ap3Config.getInstance().isChatFeedback()) {
-                    chat(ModChat.value(name), ModChat.text(" leapt to you "), ModChat.dim("(" + arrived + "/" + node.leapCount + ")"));
-                }
+                names.add(name);
             }
         }
-        if (arrived >= node.leapCount) {
-            finishNode();
-        }
+        return names;
     }
 
     // ---- TERMINAL: only a completion by YOU, never a GUI close --------------------------------------------
