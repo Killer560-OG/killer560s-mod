@@ -179,9 +179,7 @@ public final class SecretWaypointsFeature {
                 }
                 continue;
             }
-            if (w.kind() != kind || COLLECTED.contains(w.pos())) {
-                continue;
-            }
+            if (w.kind() != kind || COLLECTED.contains(w.pos())) continue;
             double d = w.pos().distSqr(pos);
             if (d <= bestSq) {
                 bestSq = d;
@@ -302,9 +300,7 @@ public final class SecretWaypointsFeature {
      */
     public static void onItemTaken(net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket packet,
                                    net.minecraft.client.multiplayer.ClientLevel level) {
-        if (level == null || !DungeonState.isInDungeon()) {
-            return;
-        }
+        if (level == null || !DungeonState.isInDungeon()) return;
         WatchedItem watched = WATCHED_ITEMS.get(packet.getItemId());
         if (watched != null) {
             if (COLLECTED.add(watched.waypoint())) {
@@ -330,9 +326,7 @@ public final class SecretWaypointsFeature {
         boolean changed = false;
         for (var watched : WATCHED_ITEMS.entrySet()) {
             WatchedItem w = watched.getValue();
-            if (COLLECTED.contains(w.waypoint())) {
-                continue;
-            }
+            if (COLLECTED.contains(w.waypoint())) continue;
             var entity = level.getEntity(watched.getKey());
             if (entity instanceof net.minecraft.world.entity.item.ItemEntity && !entity.isRemoved()) {
                 next.put(watched.getKey(), new WatchedItem(w.waypoint(), entity.position()));
@@ -344,9 +338,7 @@ public final class SecretWaypointsFeature {
             }
         }
         for (Waypoint w : CACHED) {
-            if (w.kind() != Kind.ITEM || COLLECTED.contains(w.pos())) {
-                continue;
-            }
+            if (w.kind() != Kind.ITEM || COLLECTED.contains(w.pos())) continue;
             AABB at = new AABB(w.pos()).inflate(ITEM_AT_WAYPOINT);
             for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, at)) {
                 next.putIfAbsent(e.getId(), new WatchedItem(w.pos(), e.position()));
@@ -414,9 +406,7 @@ public final class SecretWaypointsFeature {
     static final long STRAY_WATCH_MS = 5000L;
 
     private static String roomNameAt(int idx) {
-        if (idx < 0) {
-            return "none";
-        }
+        if (idx < 0) return "none";
         try {
             String name = com.killer560.hub.roomsim.SimState.isActive()
                     ? com.killer560.hub.roomsim.SimRoomIndex.nameAtCell(idx)
@@ -463,9 +453,7 @@ public final class SecretWaypointsFeature {
         strayWatchUntilMs = System.currentTimeMillis() + STRAY_WATCH_MS;
         strayLogged = false;
         long now = System.currentTimeMillis();
-        if (now - lastRoomLogMs < ROOM_LOG_GAP_MS) {
-            return;
-        }
+        if (now - lastRoomLogMs < ROOM_LOG_GAP_MS) return;
         lastRoomLogMs = now;
         List<Waypoint> stray = outsideRoom(to);
         LOGGER.info("[SecretWaypoints] room change {} ({}) -> {} ({}): snapshot {} waypoint(s), {} outside the room he is in{}",
@@ -478,13 +466,9 @@ public final class SecretWaypointsFeature {
      * room he is in: the left room's waypoints still drawn (or any other room's). Logging only.
      */
     private static void watchStrayWaypoints(int roomNow) {
-        if (strayLogged || strayWatchUntilMs == 0L || System.currentTimeMillis() > strayWatchUntilMs || CACHED.isEmpty()) {
-            return;
-        }
+        if (strayLogged || strayWatchUntilMs == 0L || System.currentTimeMillis() > strayWatchUntilMs || CACHED.isEmpty()) return;
         List<Waypoint> stray = outsideRoom(roomNow);
-        if (stray.isEmpty()) {
-            return;
-        }
+        if (stray.isEmpty()) return;
         strayLogged = true;
         LOGGER.info("[SecretWaypoints] still drawing {} waypoint(s) outside room {} ({}) after leaving room {} ({}): {}",
                 stray.size(), roomNow, roomNameAt(roomNow), leftRoomIdx, roomNameAt(leftRoomIdx), describe(stray));
@@ -510,9 +494,7 @@ public final class SecretWaypointsFeature {
         long now = System.currentTimeMillis();
         double movedSq = Double.isNaN(cacheX) ? Double.MAX_VALUE
                 : (px - cacheX) * (px - cacheX) + (pz - cacheZ) * (pz - cacheZ);
-        if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS && movedSq < CACHE_MOVE_SQ) {
-            return;
-        }
+        if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS && movedSq < CACHE_MOVE_SQ) return;
         if (changed("idle", "active")) {
             LOGGER.info("[SecretWaypoints] active: in a dungeon with the feature on");
         }
@@ -545,9 +527,7 @@ public final class SecretWaypointsFeature {
             LOGGER.info("[SecretWaypoints] current room index now {}{}", currentIdx,
                     currentIdx < 0 ? " - not in a known room (boss, corridor or unmapped cell): no waypoints" : "");
         }
-        if (currentIdx < 0) {
-            return;
-        }
+        if (currentIdx < 0) return;
         java.util.Set<BlockPos> seen = new java.util.HashSet<>();
         // In the dungeon SIM the rooms come from the sim, not from a map item.
         //
@@ -622,9 +602,7 @@ public final class SecretWaypointsFeature {
     /** One INFO line per room entry: which room, and the rotation and clay origin its waypoints are placed from. */
     private static void logRoomFrame(String name, int clayX, int clayZ, int rotation) {
         String key = name + "|" + clayX + "|" + clayZ + "|" + rotation;
-        if (key.equals(lastLoggedFrame)) {
-            return;
-        }
+        if (key.equals(lastLoggedFrame)) return;
         lastLoggedFrame = key;
         LOGGER.info("[SecretWaypoints] Room {} - rotation {}, origin (clay) {},{}", name, rotation, clayX, clayZ);
     }
@@ -698,16 +676,10 @@ public final class SecretWaypointsFeature {
         boolean princesDone = princes && princesEnough(cfg);
         for (CryptState s : CRYPTS.values()) {
             CryptScanner.Found f = s.found;
-            if (s.done || f.maxX() < bounds[0] || f.minX() > bounds[2] || f.maxZ() < bounds[1] || f.minZ() > bounds[3]) {
-                continue;
-            }
+            if (s.done || f.maxX() < bounds[0] || f.minX() > bounds[2] || f.maxZ() < bounds[1] || f.minZ() > bounds[3]) continue;
             boolean isPrince = f.type() == CryptScanner.Type.PRINCE;
-            if (isPrince ? !princes || princesDone : !crypts || cryptsDone) {
-                continue;
-            }
-            if (judgeOpened(client, s)) {
-                continue;
-            }
+            if (isPrince ? !princes || princesDone : !crypts || cryptsDone) continue;
+            if (judgeOpened(client, s)) continue;
             int argb = isPrince ? cfg.getPrinceColor() : cfg.getCryptColor();
             float a = ((argb >> 24) & 0xFF) / 255f;
             float r = ((argb >> 16) & 0xFF) / 255f;
@@ -741,9 +713,7 @@ public final class SecretWaypointsFeature {
      * Superboom it should disappear - he does not kill what comes out, he only opens it.
      */
     private static boolean judgeOpened(Minecraft client, CryptState s) {
-        if (s.done) {
-            return true;
-        }
+        if (s.done) return true;
         CryptScanner.Found f = s.found;
         boolean readable = com.killer560.hub.util.ClientChunks.allLoaded(client.level, f.minX(), f.minZ(),
                 f.maxX(), f.maxZ());
@@ -778,9 +748,7 @@ public final class SecretWaypointsFeature {
      * block changes reach the client in the same packets that show the hole, so the box goes the tick the hole appears.
      */
     private static void dropOpenedCrypts(Minecraft client) {
-        if (client.level == null || CACHED.isEmpty()) {
-            return;
-        }
+        if (client.level == null || CACHED.isEmpty()) return;
         boolean any = false;
         for (Waypoint w : CACHED) {
             if (w.kind() == Kind.CRYPT || w.kind() == Kind.PRINCE) {
@@ -788,14 +756,10 @@ public final class SecretWaypointsFeature {
                 break;
             }
         }
-        if (!any) {
-            return;
-        }
+        if (!any) return;
         java.util.Set<BlockPos> gone = new java.util.HashSet<>();
         for (Waypoint w : CACHED) {
-            if (w.kind() != Kind.CRYPT && w.kind() != Kind.PRINCE) {
-                continue;
-            }
+            if (w.kind() != Kind.CRYPT && w.kind() != Kind.PRINCE) continue;
             CryptState s = CRYPTS.get(w.pos());
             if (s == null || judgeOpened(client, s)) {
                 gone.add(w.pos());
@@ -814,9 +778,7 @@ public final class SecretWaypointsFeature {
 
     /** killer560, 2026-11-01: no crypt waypoints once 5 crypts are counted ("after you get the 5 crypts"). */
     private static boolean cryptsEnough(SecretWaypointsConfig cfg, Minecraft client) {
-        if (!cfg.isHideCryptsAfterFive()) {
-            return false;
-        }
+        if (!cfg.isHideCryptsAfterFive()) return false;
         int n = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(client);
         boolean enough = n >= CRYPTS_ENOUGH;
         if (changed("cryptsEnough", String.valueOf(enough))) {
@@ -828,9 +790,7 @@ public final class SecretWaypointsFeature {
     /** killer560, 2026-11-01: no prince waypoints once a prince has fallen ("or 1 prince"). A party mate's kill counts:
      *  the bonus line is said to the whole party, and Party Interop's flag carries it from a mate's mod too. */
     private static boolean princesEnough(SecretWaypointsConfig cfg) {
-        if (!cfg.isHidePrincesAfterOne()) {
-            return false;
-        }
+        if (!cfg.isHidePrincesAfterOne()) return false;
         boolean enough = princeFallen
                 || com.killer560.hub.interop.PartyInteropState.flag(com.killer560.hub.interop.PartyInteropState.Flag.PRINCE_KILLED);
         if (changed("princesEnough", String.valueOf(enough))) {
@@ -868,9 +828,7 @@ public final class SecretWaypointsFeature {
     private static List<BlockPos> currentRoomSecrets(boolean items) {
         List<BlockPos> out = new ArrayList<>();
         int currentIdx = LiveMapFeature.currentRoomIndex();
-        if (currentIdx < 0) {
-            return out;
-        }
+        if (currentIdx < 0) return out;
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         int shift = sim ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
         java.util.List<int[]> rooms = sim
@@ -885,9 +843,7 @@ public final class SecretWaypointsFeature {
                     : roomHasCell(room[0], currentIdx);
             List<RoomEntry.Pos> list = entry == null || entry.secretCoords == null ? null
                     : items ? entry.secretCoords.item : entry.secretCoords.chest;
-            if (list == null || !hasCell) {
-                continue;
-            }
+            if (list == null || !hasCell) continue;
             for (RoomEntry.Pos relative : list) {
                 BlockPos at = RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift);
                 BlockPos real = items ? itemRestingBlock(at) : at;
@@ -956,13 +912,9 @@ public final class SecretWaypointsFeature {
 
     private static void scanLevers(SecretWaypointsConfig cfg, int currentIdx, java.util.Set<BlockPos> seen) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return;
-        }
+        if (client.level == null) return;
         int[] bounds = LiveMapFeature.roomWorldBounds(currentIdx);
-        if (bounds == null) {
-            return;
-        }
+        if (bounds == null) return;
         // killer560, 2026-11-01: "Secret waypoints for levers should not work in water board." Its seven levers are the
         // puzzle's controls (the capture's floor lever and six wall levers on the colored blocks), not secrets.
         String roomName = com.killer560.hub.roomsim.SimState.isActive()
@@ -1013,9 +965,7 @@ public final class SecretWaypointsFeature {
                         LOGGER.info("[SecretWaypoints] lever scan chunk {},{} not loaded: {}", cx, cz, levers == null
                                 ? "never read, no levers known" : "showing " + levers.size() + " remembered lever(s)");
                     }
-                    if (levers == null) {
-                        continue;
-                    }
+                    if (levers == null) continue;
                 } else {
                     int sectionCount = 0;
                     int leverSections = 0;
@@ -1029,9 +979,7 @@ public final class SecretWaypointsFeature {
                     for (int i = 0; i < sections.length; i++) {
                         int sectionMinY = chunk.getSectionYFromSectionIndex(i) << 4;
                         int sectionMaxY = sectionMinY + 15;
-                        if (sectionMaxY < leverMinY || sectionMinY > leverMaxY) {
-                            continue;
-                        }
+                        if (sectionMaxY < leverMinY || sectionMinY > leverMaxY) continue;
                         var section = sections[i];
                         sectionCount++;
                         if (section == null || section.hasOnlyAir()
@@ -1070,9 +1018,7 @@ public final class SecretWaypointsFeature {
                     // 2026-10-06: "clicking levers doesn't hide them from secret waypoints"). The click
                     // listener in register() always marked it; this scan put it straight back on the
                     // next rebuild because, unlike addGroup, it never asked COLLECTED.
-                    if (COLLECTED.contains(real) || !seen.add(real)) {
-                        continue;
-                    }
+                    if (COLLECTED.contains(real) || !seen.add(real)) continue;
                     // A dummy lever is no secret and opens nothing (Red Blue's cage nook, killer560 2026-10-17).
                     if (com.killer560.hub.secrets.DummyLevers.isDummy(real)) {
                         if (changed("dummy:" + real.toShortString(), "y")) {
@@ -1092,15 +1038,11 @@ public final class SecretWaypointsFeature {
 
     /** Whether {@code cell} is one of the tiles of the room whose main tile is {@code mainIdx} (2x2, L and 1x4 rooms). */
     private static boolean roomHasCell(int mainIdx, int cell) {
-        if (mainIdx == cell) {
-            return true;
-        }
+        if (mainIdx == cell) return true;
         int[] cells = LiveMapFeature.roomCellIndices(mainIdx);
         if (cells != null) {
             for (int c : cells) {
-                if (c == cell) {
-                    return true;
-                }
+                if (c == cell) return true;
             }
         }
         return false;
@@ -1108,9 +1050,7 @@ public final class SecretWaypointsFeature {
 
     private static void addGroup(List<RoomEntry.Pos> positions, int clayX, int clayZ, int rotation, int argb,
                                  Kind kind, String group, SecretWaypointsConfig cfg, java.util.Set<BlockPos> seen) {
-        if (positions == null || positions.isEmpty()) {
-            return;
-        }
+        if (positions == null || positions.isEmpty()) return;
         float a = ((argb >> 24) & 0xFF) / 255f;
         float r = ((argb >> 16) & 0xFF) / 255f;
         float g = ((argb >> 8) & 0xFF) / 255f;
@@ -1129,9 +1069,7 @@ public final class SecretWaypointsFeature {
             if ("item".equals(group)) {
                 real = itemRestingBlock(real);
             }
-            if (COLLECTED.contains(real) || !seen.add(real)) {
-                continue;
-            }
+            if (COLLECTED.contains(real) || !seen.add(real)) continue;
             float wr = r;
             float wg = g;
             float wb = b;
@@ -1168,14 +1106,10 @@ public final class SecretWaypointsFeature {
      */
     private static BlockPos itemRestingBlock(BlockPos pos) {
         var level = Minecraft.getInstance().level;
-        if (level == null || !level.isLoaded(pos)) {
-            return pos;
-        }
+        if (level == null || !level.isLoaded(pos)) return pos;
         var state = level.getBlockState(pos);
         var shape = state.getCollisionShape(level, pos);
-        if (shape.isEmpty() || shape.max(net.minecraft.core.Direction.Axis.Y) < 1.0) {
-            return pos;
-        }
+        if (shape.isEmpty() || shape.max(net.minecraft.core.Direction.Axis.Y) < 1.0) return pos;
         BlockPos up = pos.above();
         return level.getBlockState(up).isAir() ? up : pos;
     }
@@ -1192,9 +1126,7 @@ public final class SecretWaypointsFeature {
         double x = pos.getX();
         double y = pos.getY();
         double z = pos.getZ();
-        if (size == SecretWaypointsConfig.BoxSize.FULL_BLOCK) {
-            return new AABB(x, y, z, x + 1, y + 1, z + 1);
-        }
+        if (size == SecretWaypointsConfig.BoxSize.FULL_BLOCK) return new AABB(x, y, z, x + 1, y + 1, z + 1);
         return switch (kind) {
             case CHEST -> new AABB(x + 0.0625, y, z + 0.0625, x + 0.9375, y + 0.875, z + 0.9375);
             // killer560, 2026-10-01: "can you make the item waypoints a bit larger for the secret waypoints."
@@ -1222,9 +1154,7 @@ public final class SecretWaypointsFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         // The tick decides what is in here; an empty snapshot means "off, not in a dungeon, or nothing near".
-        if (CACHED.isEmpty()) {
-            return;
-        }
+        if (CACHED.isEmpty()) return;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         // Everything cached is in your room, so no distance limit is applied any more.
         SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), SecretWaypointsConfig.MAX_RENDER_DISTANCE);
@@ -1236,9 +1166,7 @@ public final class SecretWaypointsFeature {
     /** The secret's name floating just above its box, always facing you, drawn through walls. */
     private static void drawNames(LevelRenderContext ctx) {
         var poseStack = ctx.poseStack();
-        if (poseStack == null) {
-            return;
-        }
+        if (poseStack == null) return;
         Minecraft mc = Minecraft.getInstance();
         var cam = McRender.cameraPos(ctx);
         var font = mc.font;

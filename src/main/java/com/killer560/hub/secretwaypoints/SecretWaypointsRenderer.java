@@ -57,9 +57,7 @@ public final class SecretWaypointsRenderer {
      */
     static int draw(LevelRenderContext context, List<SecretWaypointsFeature.Waypoint> waypoints,
                     SecretWaypointsConfig.Style style, boolean throughWalls, double maxDistance) {
-        if (waypoints.isEmpty()) {
-            return 0;
-        }
+        if (waypoints.isEmpty()) return 0;
         boolean fill = style != SecretWaypointsConfig.Style.OUTLINE;
         boolean outline = style != SecretWaypointsConfig.Style.FILL;
         float fillAlphaScale = style == SecretWaypointsConfig.Style.FILL_OUTLINE ? 0.5f : 1.0f;
@@ -94,9 +92,7 @@ public final class SecretWaypointsRenderer {
                     waypoints.size(), drawn, style, throughWalls, maxDistance,
                     drawn == 0 ? " - every waypoint is beyond the render distance" : "");
         }
-        if (drawn == 0) {
-            return 0;
-        }
+        if (drawn == 0) return 0;
 
         // Captured for the lambdas below: `drawn` is reassigned in the catch, so it is not effectively final
         // and cannot be captured directly.
