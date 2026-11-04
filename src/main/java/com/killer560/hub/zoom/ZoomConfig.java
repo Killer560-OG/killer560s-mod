@@ -81,51 +81,27 @@ public final class ZoomConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getKeyCode() {
-        return keyCode;
-    }
+    public int getKeyCode() { return keyCode; }
 
-    public void setKeyCode(int keyCode) {
-        this.keyCode = KeyUtil.sanitizeBind(keyCode);
-    }
+    public void setKeyCode(int keyCode) { this.keyCode = KeyUtil.sanitizeBind(keyCode); }
 
-    public float getZoomLevel() {
-        return zoomLevel;
-    }
+    public float getZoomLevel() { return zoomLevel; }
 
-    public void setZoomLevel(float zoomLevel) {
-        this.zoomLevel = Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, zoomLevel));
-    }
+    public void setZoomLevel(float zoomLevel) { this.zoomLevel = Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, zoomLevel)); }
 
-    public boolean isScrollWhileZoomed() {
-        return scrollWhileZoomed;
-    }
+    public boolean isScrollWhileZoomed() { return scrollWhileZoomed; }
 
-    public void setScrollWhileZoomed(boolean scrollWhileZoomed) {
-        this.scrollWhileZoomed = scrollWhileZoomed;
-    }
+    public void setScrollWhileZoomed(boolean scrollWhileZoomed) { this.scrollWhileZoomed = scrollWhileZoomed; }
 
-    public boolean isSmooth() {
-        return smooth;
-    }
+    public boolean isSmooth() { return smooth; }
 
-    public void setSmooth(boolean smooth) {
-        this.smooth = smooth;
-    }
+    public void setSmooth(boolean smooth) { this.smooth = smooth; }
 
-    public float getScrollStep() {
-        return scrollStep;
-    }
+    public float getScrollStep() { return scrollStep; }
 
-    public void setScrollStep(float step) {
-        this.scrollStep = Math.max(MIN_SCROLL_STEP, Math.min(MAX_SCROLL_STEP, step));
-    }
+    public void setScrollStep(float step) { this.scrollStep = Math.max(MIN_SCROLL_STEP, Math.min(MAX_SCROLL_STEP, step)); }
 }

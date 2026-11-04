@@ -38,9 +38,7 @@ public final class ZoomFeature {
     private ZoomFeature() {
     }
 
-    public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(ZoomFeature::tick);
-    }
+    public static void register() { ClientTickEvents.END_CLIENT_TICK.register(ZoomFeature::tick); }
 
     private static void tick(Minecraft client) {
         ZoomConfig cfg = ZoomConfig.getInstance();
