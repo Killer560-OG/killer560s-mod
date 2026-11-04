@@ -34,9 +34,7 @@ public final class RelayEndpoint {
 
     /** Trailing slashes dropped so "https://x/" and "https://x" are the same endpoint (and the same cached token). */
     public static String normalise(String baseUrl) {
-        if (baseUrl == null) {
-            return "";
-        }
+        if (baseUrl == null) return "";
         String trimmed = baseUrl.trim();
         while (trimmed.endsWith("/")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
@@ -47,9 +45,7 @@ public final class RelayEndpoint {
     /** @return true only for a real http(s) URL that isn't still the not-yet-deployed placeholder. */
     public static boolean isUsable(String baseUrl) {
         String base = normalise(baseUrl);
-        if (base.isEmpty() || base.equalsIgnoreCase(PLACEHOLDER_BASE_URL)) {
-            return false;
-        }
+        if (base.isEmpty() || base.equalsIgnoreCase(PLACEHOLDER_BASE_URL)) return false;
         String lower = base.toLowerCase(Locale.ROOT);
         if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
             return false;

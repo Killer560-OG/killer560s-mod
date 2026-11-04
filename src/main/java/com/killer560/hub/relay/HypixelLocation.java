@@ -75,17 +75,13 @@ public final class HypixelLocation {
      *  selected and enabled and the last answer is stale enough to be worth refreshing; never sends
      *  otherwise (Party mode never touches this at all). */
     public static void tick(Minecraft client, boolean lobbyModeNeeded) {
-        if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)) {
-            return;
-        }
+        if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)) return;
         // Not in a local world. getConnection() is NOT null in singleplayer - the integrated server is reached
         // over a connection like any other - so that check alone let this type "/locraw" into the dungeon sim
         // and into an Ashfall practice room, where the answer is Minecraft's own "Unknown or incomplete
         // command" in his chat (seen 2026-09-28). Harmless but it is my mod talking nonsense to a world that
         // has no Hypixel in it, and it happened on every world join.
-        if (client.getSingleplayerServer() != null) {
-            return;
-        }
+        if (client.getSingleplayerServer() != null) return;
         if (client.level != lastLevel) {
             lastLevel = client.level;
             serverId = null;
@@ -95,13 +91,9 @@ public final class HypixelLocation {
         // Already know where we are: ask nothing. A world or server change calls reset() and only then does
         // this start asking again - that is the whole throttle, and it is why this cannot turn into a
         // command every N seconds no matter how long he leaves Lobby mode on.
-        if (serverId != null || attemptsThisJoin >= MAX_ATTEMPTS_PER_JOIN) {
-            return;
-        }
+        if (serverId != null || attemptsThisJoin >= MAX_ATTEMPTS_PER_JOIN) return;
         long now = System.currentTimeMillis();
-        if (now - lastSentAtMs < RETRY_INTERVAL_MS) {
-            return;
-        }
+        if (now - lastSentAtMs < RETRY_INTERVAL_MS) return;
         lastSentAtMs = now;
         attemptsThisJoin++;
         ensureRewriter();
@@ -111,9 +103,7 @@ public final class HypixelLocation {
     /** @return {@code lobby:<hash>} once Hypixel has answered, else {@code null} - see the class doc. */
     static String lobbyRoom() {
         String id = serverId;
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         String hash = RelayRoom.sha256Hex(id);
         return hash == null ? null : "lobby:" + hash.substring(0, RelayRoom.HEX_LENGTH);
     }
@@ -128,18 +118,14 @@ public final class HypixelLocation {
     }
 
     private static synchronized void ensureRewriter() {
-        if (rewriterRegistered) {
-            return;
-        }
+        if (rewriterRegistered) return;
         rewriterRegistered = true;
         // /locraw's raw JSON is not for humans - hide it once recognized, the same "clean up the noise" habit
         // this mod already applies to other server lines. Only lines carrying BOTH keys /locraw always answers
         // with are touched, so an unrelated JSON-shaped chat line is left alone.
         ChatObserver.addRewriter((message, plain) -> {
             String id = parseServerId(plain);
-            if (id == null) {
-                return null;
-            }
+            if (id == null) return null;
             serverId = id;
             return Component.empty();
         });
@@ -152,9 +138,7 @@ public final class HypixelLocation {
         }
         try {
             JsonElement parsed = JsonParser.parseString(trimmed);
-            if (!parsed.isJsonObject()) {
-                return null;
-            }
+            if (!parsed.isJsonObject()) return null;
             JsonObject obj = parsed.getAsJsonObject();
             if (!obj.has("server") || !obj.has("gametype")) {
                 return null; // /locraw's exact shape, not just any JSON-looking chat line

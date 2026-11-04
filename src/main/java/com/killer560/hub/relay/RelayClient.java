@@ -163,9 +163,7 @@ public final class RelayClient {
         // null/blank means the caller (ModChatFeature) couldn't compute a room - go NO_ROOM in reconcile()
         // rather than inventing a fallback. See RelayRoom's class doc on the removed Global option.
         String target = room == null || room.isBlank() ? "" : room;
-        if (on == wantOn && url.equals(wantUrl) && target.equals(wantRoom)) {
-            return;
-        }
+        if (on == wantOn && url.equals(wantUrl) && target.equals(wantRoom)) return;
         wantOn = on;
         wantUrl = url;
         wantRoom = target;
@@ -176,9 +174,7 @@ public final class RelayClient {
     /** Tells the relay which variant this build is and whether, and as which variant, it shows itself to others.
      *  Mod User Tag (killer560, 2026-10-19). The relay decides what is shown; nothing else is sent. */
     public static boolean sendHello(String variant, boolean share, String shareAs) {
-        if (state != State.CONNECTED || socket == null) {
-            return false;
-        }
+        if (state != State.CONNECTED || socket == null) return false;
         JsonObject packet = new JsonObject();
         packet.addProperty("type", "hello");
         packet.addProperty("variant", variant);
@@ -188,9 +184,7 @@ public final class RelayClient {
     }
 
     public static boolean sendChat(String message) {
-        if (message == null || message.isBlank() || state != State.CONNECTED || socket == null) {
-            return false;
-        }
+        if (message == null || message.isBlank() || state != State.CONNECTED || socket == null) return false;
         JsonObject packet = new JsonObject();
         packet.addProperty("type", "chat");
         packet.addProperty("message", message.length() > MAX_CHAT_CHARS
@@ -201,9 +195,7 @@ public final class RelayClient {
 
     /** Opaque per-run data sharing. Nothing calls this yet; it exists so the groundwork is real, not implied. */
     public static boolean sendData(String key, JsonElement value) {
-        if (key == null || state != State.CONNECTED || socket == null) {
-            return false;
-        }
+        if (key == null || state != State.CONNECTED || socket == null) return false;
         JsonObject packet = new JsonObject();
         packet.addProperty("type", "data");
         packet.addProperty("key", key);
@@ -378,9 +370,7 @@ public final class RelayClient {
     private static void startKeepAlive(long gen) {
         cancelKeepAlive();
         keepAlive = WORKER.scheduleAtFixedRate(() -> {
-            if (gen != generation) {
-                return;
-            }
+            if (gen != generation) return;
             send(ping());
         }, KEEPALIVE_SECONDS, KEEPALIVE_SECONDS, TimeUnit.SECONDS);
     }
@@ -396,9 +386,7 @@ public final class RelayClient {
         String json = packet.toString();
         WORKER.execute(() -> {
             WebSocket ws = socket;
-            if (ws == null) {
-                return;
-            }
+            if (ws == null) return;
             // WebSocket forbids a second sendText before the previous one completes, so sends are chained.
             sendChain = sendChain
                     .thenCompose(ignored -> ws.sendText(json, true))
@@ -484,9 +472,7 @@ public final class RelayClient {
 
     private static void dropped(long gen, String why) {
         WORKER.execute(() -> {
-            if (gen != generation) {
-                return;
-            }
+            if (gen != generation) return;
             if (!wantOn) {
                 shutdown(State.OFF, "");
                 return;
@@ -505,9 +491,7 @@ public final class RelayClient {
             LOGGER.warn("[Relay] Unreadable packet ({} chars): {}", text.length(), e.toString());
             return;
         }
-        if (parsed == null || !parsed.isJsonObject()) {
-            return;
-        }
+        if (parsed == null || !parsed.isJsonObject()) return;
         JsonObject packet = parsed.getAsJsonObject();
         RelayListener target = listener;
         switch (str(packet, "type")) {
@@ -567,9 +551,7 @@ public final class RelayClient {
 
     private static List<String> names(JsonObject packet) {
         JsonElement element = packet.get("online");
-        if (element == null || !element.isJsonArray()) {
-            return List.of();
-        }
+        if (element == null || !element.isJsonArray()) return List.of();
         JsonArray array = element.getAsJsonArray();
         List<String> out = new ArrayList<>(array.size());
         for (JsonElement entry : array) {
@@ -582,9 +564,7 @@ public final class RelayClient {
 
     private static String str(JsonObject packet, String key) {
         JsonElement element = packet.get(key);
-        if (element == null || !element.isJsonPrimitive()) {
-            return "";
-        }
+        if (element == null || !element.isJsonPrimitive()) return "";
         try {
             return element.getAsString();
         } catch (Exception e) {
@@ -599,18 +579,10 @@ public final class RelayClient {
                 && cause.getCause() != null) {
             cause = cause.getCause();
         }
-        if (cause instanceof RelayAuth.RelayAuthException) {
-            return cause.getMessage();
-        }
-        if (cause instanceof UnknownHostException) {
-            return "relay address not found";
-        }
-        if (cause instanceof ConnectException) {
-            return "couldn't reach the relay";
-        }
-        if (cause instanceof HttpTimeoutException || cause instanceof TimeoutException) {
-            return "relay timed out";
-        }
+        if (cause instanceof RelayAuth.RelayAuthException) return cause.getMessage();
+        if (cause instanceof UnknownHostException) return "relay address not found";
+        if (cause instanceof ConnectException) return "couldn't reach the relay";
+        if (cause instanceof HttpTimeoutException || cause instanceof TimeoutException) return "relay timed out";
         String message = cause == null ? null : cause.getMessage();
         return message == null || message.isBlank() ? "relay unavailable" : message;
     }
