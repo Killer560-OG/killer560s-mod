@@ -241,7 +241,7 @@ MultiBreak* only while it is on.
 (Added 2026-10-26, killer560:)
 - After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
   "Under no circumstances." Only dungeon/main work ships before 2.0.
-- Up to 9 testkit clients may run at once (slot waits: fewer than 9 `fabric.dli.env=client` java.exe processes).
+- No limit on testkit clients (killer560, 2026-11-04: "run as many clients at once as you like"; was 9).
 - A finished, tested main batch is deployed to EVERY instance, his play instance included (he said yes, 2026-10-26; that
   is `26.3` since 2026-11-01). Test or testing jars still never go into it, and it is never booted by us.
 
