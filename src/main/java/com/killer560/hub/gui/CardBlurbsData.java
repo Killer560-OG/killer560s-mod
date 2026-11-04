@@ -14,7 +14,7 @@ final class CardBlurbsData {
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
-        d.put("MiningWrongArmorTab", "Warns on non-mining armor.");
+        d.put("MiningWrongArmorTab", "Warns about wrong armor.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
@@ -25,10 +25,10 @@ final class CardBlurbsData {
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
-        d.put("TreasureChestHighlightTab", "Boxes chests, with a timer.");
-        d.put("TreasureChestAlertTab", "Sound when a chest spawns.");
-        d.put("MiningGoldenGoblinTab", "Box and tracer on Golden and Diamond Goblins.");
-        d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
+        d.put("TreasureChestHighlightTab", "Boxes your chests.");
+        d.put("TreasureChestAlertTab", "Chest spawn sound.");
+        d.put("MiningGoldenGoblinTab", "Boxes Golden and Diamond Goblins.");
+        d.put("PowderBreakSoundsTab", "Mutes or swaps mining sounds.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
         d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
@@ -215,7 +215,7 @@ final class CardBlurbsData {
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
         d.put("AhFlipperTab", "Finds underpriced BINs on the AH.");
-        d.put("AhPriceButtonsTab", "LBIN or value when listing.");
+        d.put("AhPriceButtonsTab", "Copies prices on click.");
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");
