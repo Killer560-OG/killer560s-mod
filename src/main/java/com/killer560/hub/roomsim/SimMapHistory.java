@@ -111,7 +111,6 @@ public final class SimMapHistory {
                 puzzles));
     }
 
-    /** Records a drawn floor on Play. */
     public static synchronized Entry recordDrawn(String floorCode, String floorLabel, Map<Integer, String> cells,
                                                  int puzzles) {
         load();

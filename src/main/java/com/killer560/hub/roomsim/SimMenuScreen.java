@@ -492,7 +492,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return new SimMenuScreen(parent, SimMenuNav.Page.ROOM);
     }
 
-    // ------------------------------------------------------------------------------------------- the room list
 
     private static final int ROW_H = 14;
     private static final int HEAD_H = 13;
@@ -813,7 +812,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         };
     }
 
-    // ------------------------------------------------------------------------------------------- saved runs
 
     /** The saved runs as listed, in the chosen order. */
     private List<com.killer560.hub.runsummary.RunRecord> runs = List.of();

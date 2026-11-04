@@ -49,10 +49,7 @@ public final class SimSlider extends ThemedSliderButton {
         if (top <= min) {
             return 0.0;
         }
-        if (value == RANDOM) {
-            return 1.0;
-        }
-        return (double) (Math.max(min, Math.min(top, value)) - min) / (top - min);
+        return value == RANDOM ? 1.0 : (double) (Math.max(min, Math.min(top, value)) - min) / (top - min);
     }
 
     /** @return the chosen number, or {@link #RANDOM} when the handle is at the far right */

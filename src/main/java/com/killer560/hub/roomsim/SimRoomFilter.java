@@ -109,7 +109,6 @@ public final class SimRoomFilter {
         this.file = file;
     }
 
-    // ------------------------------------------------------------------------------------------- storage
 
     private synchronized Data data() {
         if (data == null) {
@@ -157,7 +156,6 @@ public final class SimRoomFilter {
         save();
     }
 
-    // ------------------------------------------------------------------------------------------- rows
 
     public synchronized boolean hasSize(String size) {
         return data().sizes.contains(size);
@@ -276,7 +274,6 @@ public final class SimRoomFilter {
         return fallback;
     }
 
-    // ------------------------------------------------------------------------------------------- the test
 
     /** Whether a room passes these filters, read for this filter's {@link Use}. */
     public synchronized boolean matches(String name) {
@@ -321,7 +318,6 @@ public final class SimRoomFilter {
         return SimRoomRoutes.matches(name, routes());
     }
 
-    // ------------------------------------------------------------------------------------------- room facts
 
     /** The database's type upper case, with the two trap rooms read as TRAP like the generator does. */
     public static String typeKey(String name) {
@@ -355,10 +351,7 @@ public final class SimRoomFilter {
         }
         int a = Math.max(1, (r.sizeX - 1) / (RoomLibrary.TILE + 1));
         int b = Math.max(1, (r.sizeZ - 1) / (RoomLibrary.TILE + 1));
-        if (a == 2 && b == 2) {
-            return "2x2";
-        }
-        return "1x" + Math.min(4, Math.max(a, b));
+        return a == 2 && b == 2 ? "2x2" : "1x" + Math.min(4, Math.max(a, b));
     }
 
     public static int secretsOf(String name) {

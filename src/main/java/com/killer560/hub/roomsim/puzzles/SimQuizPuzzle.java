@@ -1125,7 +1125,6 @@ public final class SimQuizPuzzle {
     private static volatile ServerLevel oruoLevel;
     private static final List<String> ORUO_ASKED = new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    // ---- test hooks ----
     private static volatile int oruoRefused = 0;
     /** {question, tick accepted, tick it opened} for every answer that counted, this room. */
     private static final List<long[]> ORUO_ACCEPTED = new java.util.concurrent.CopyOnWriteArrayList<>();

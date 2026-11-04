@@ -508,10 +508,7 @@ public final class SimAbilities {
     /** Tuners on this item, read off its own tag - capped, because Hypixel caps it at four. */
     private static int tuners(ItemStack held) {
         var data = held.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return 0;
-        }
-        return Math.min(MAX_TUNERS, Math.max(0, data.copyTag().getIntOr("tuned_transmission", 0)));
+        return data == null ? 0 : Math.min(MAX_TUNERS, Math.max(0, data.copyTag().getIntOr("tuned_transmission", 0)));
     }
 
     /**

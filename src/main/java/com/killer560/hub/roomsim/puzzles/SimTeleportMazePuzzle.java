@@ -320,7 +320,6 @@ public final class SimTeleportMazePuzzle {
     /** Non-null while this puzzle is bound to a real room rather than to a standalone arena. */
     private static volatile com.killer560.hub.roomsim.SimRoomPuzzles.Anchor boundAnchor = null;
 
-    // ---------------------------------------------------------------- the real room's pad pairing
     //
     // killer560 (2026-10-01): "the pads are teleporting me but make it so the pad teleports me ontop of a pad in
     // another room, that second pad it teleports me onto will take me back to the first but I should have to walk

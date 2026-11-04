@@ -41,7 +41,6 @@ public final class SimRoomRoutes {
     private SimRoomRoutes() {
     }
 
-    // ------------------------------------------------------------------------------------------- questions
 
     /**
      * Whether a room belongs in the routes view at all: a non-puzzle, non-Blood, non-Entrance, non-Fairy room with

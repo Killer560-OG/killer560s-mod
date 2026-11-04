@@ -93,7 +93,6 @@ public final class SimTeleportCommands {
         });
     }
 
-    // ---------------------------------------------------------------- completion
 
     /**
      * The distinct rooms on the floor he is standing in, in paste order.
@@ -151,7 +150,6 @@ public final class SimTeleportCommands {
         return builder.buildFuture();
     }
 
-    // ---------------------------------------------------------------- /goto
 
     /**
      * Puts him in the named room on the current floor.
@@ -229,10 +227,7 @@ public final class SimTeleportCommands {
             }
         }
         SimRoomIndex.Placed prefix = unique(placed, want, true);
-        if (prefix != null) {
-            return prefix;
-        }
-        return unique(placed, want, false);
+        return prefix != null ? prefix : unique(placed, want, false);
     }
 
     /** The one placed room whose name prefixes/contains {@code want}, or null when none or several do. */
@@ -259,7 +254,6 @@ public final class SimTeleportCommands {
         return hit;
     }
 
-    // ---------------------------------------------------------------- /c
 
     /**
      * Moves him {@code blocks} along the direction he is looking. Negative goes backward.

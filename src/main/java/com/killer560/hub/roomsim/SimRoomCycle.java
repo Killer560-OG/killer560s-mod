@@ -76,7 +76,6 @@ public final class SimRoomCycle {
     private SimRoomCycle() {
     }
 
-    // ------------------------------------------------------------------------------------------- the set
 
     /**
      * The rooms a choice covers right now, in the picker's order: All Rooms' filter ({@link SimRoomFilters#CYCLE},
@@ -158,7 +157,6 @@ public final class SimRoomCycle {
                 ModChat.dim(" - Dungeon Sim > Route Practice"));
     }
 
-    // ------------------------------------------------------------------------------------------- actions
 
     /**
      * Picks a set and loads its first room. Works from the main menu (the world is opened) and from inside the sim.
@@ -296,7 +294,6 @@ public final class SimRoomCycle {
         SimBuilder.buildSingleRoom(client, name, true);
     }
 
-    // ------------------------------------------------------------------------------------------- keybinds
 
     /** Raw-polled keys like {@code AutoRoutesKeybinds}: never vanilla KeyMappings. Unbound by default. */
     private static final java.nio.file.Path KEYS_FILE = ModPaths.config("killer560smod-sim-roomcycle-keys.txt");
@@ -395,7 +392,6 @@ public final class SimRoomCycle {
         backWasDown = back;
     }
 
-    // ------------------------------------------------------------------------------------------- registration
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, beside the other sim registrations. */
     public static void register() {

@@ -198,7 +198,6 @@ public final class SimWaterPuzzle {
     private static volatile BlockState powerOn = null;
     private static volatile BlockState powerOff = null;
 
-    // ------------------------------------------------------------------------------------- where it is bound
 
     /** Non-null while bound to a real captured room. */
     private static volatile SimRoomPuzzles.Anchor anchor = null;
@@ -380,7 +379,6 @@ public final class SimWaterPuzzle {
         LOGGER.info("Sim Water Board: bottom path read - {} layer piston(s) over {} color(s)", found, LAYERS.size());
     }
 
-    // ------------------------------------------------------------------------------------------- the board
 
     /** The three colors this board starts with pushed out, in the order the water reaches them. */
     private static volatile List<WoolColor> board = List.of();
@@ -470,7 +468,6 @@ public final class SimWaterPuzzle {
                 rz - LeverBlock.WATER.relZ());
     }
 
-    // --------------------------------------------------------------------------------------------- binding
 
     /**
      * Arms this puzzle on a REAL captured Water Board room the sim has just pasted.
@@ -682,7 +679,6 @@ public final class SimWaterPuzzle {
         return state.setValue(FaceAttachedHorizontalDirectionalBlock.FACE, AttachFace.FLOOR);
     }
 
-    // ---------------------------------------------------------------------------------------- the mechanic
 
     private static void onLeverClicked(Minecraft client, LeverBlock lever) {
         MinecraftServer server = client.getSingleplayerServer();

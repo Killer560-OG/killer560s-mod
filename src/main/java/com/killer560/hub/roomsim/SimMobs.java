@@ -622,10 +622,7 @@ public final class SimMobs {
         if (health >= 1_000_000) {
             return String.format(java.util.Locale.ROOT, "%.1fM", health / 1_000_000);
         }
-        if (health >= 1_000) {
-            return String.format(java.util.Locale.ROOT, "%.1fk", health / 1_000);
-        }
-        return String.valueOf((long) health);
+        return health >= 1_000 ? String.format(java.util.Locale.ROOT, "%.1fk", health / 1_000) : String.valueOf((long) health);
     }
 
     /** Star tag per starred mob, so the tag can be removed when the mob is. */

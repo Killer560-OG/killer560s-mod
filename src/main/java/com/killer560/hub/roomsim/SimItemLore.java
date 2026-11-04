@@ -224,7 +224,6 @@ public final class SimItemLore {
         return true;
     }
 
-    // ------------------------------------------------------------------ stale tooltips in a reused save
 
     private static int refreshCounter;
 

@@ -123,10 +123,7 @@ public final class SimRoomState {
         // run were left short (Dip 0/2, Doors 1/5...). On Hypixel the map item's green check is what fills such a room in
         // (MapPainter.secretsText reads green as every secret found). The count is the SERVER's, per the secret's own
         // room (SimScore.foundInRoom, keyed by where the secret was, not where he is).
-        if (state == STATE_CLEARED && roomComplete(roomName)) {
-            return STATE_GREEN;
-        }
-        return state;
+        return state == STATE_CLEARED && roomComplete(roomName) ? STATE_GREEN : state;
     }
 
     /** Every secret of this room found this run, by the sim server's own per-room count. False for a room with none. */

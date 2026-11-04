@@ -542,10 +542,8 @@ public final class SimTicTacToePuzzle {
         return true;
     }
 
-    // ---------------------------------------------------------------------------------------------------------
     // Ported verbatim from com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature - the real win rule and the
     // real move-selection algorithm this puzzle has to honor. Not re-derived, not approximated.
-    // ---------------------------------------------------------------------------------------------------------
 
     private static Integer getBestMove(char[] b, boolean isPlayerTurn) {
         int bestScore = isPlayerTurn ? -1000 : 1000;

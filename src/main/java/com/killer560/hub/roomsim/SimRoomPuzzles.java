@@ -173,10 +173,7 @@ public final class SimRoomPuzzles {
 
     /** The nudge for a room, 0 when it needed none. Keyed by the room's own name, case-insensitively. */
     public static int dyFor(String roomName) {
-        if (roomName == null || ROOM_DY.isEmpty()) {
-            return 0;
-        }
-        return ROOM_DY.getOrDefault(roomName.toLowerCase(Locale.ROOT), 0);
+        return roomName == null || ROOM_DY.isEmpty() ? 0 : ROOM_DY.getOrDefault(roomName.toLowerCase(Locale.ROOT), 0);
     }
 
     /** A predicate for "is one of these blocks", for the self-checks below. */

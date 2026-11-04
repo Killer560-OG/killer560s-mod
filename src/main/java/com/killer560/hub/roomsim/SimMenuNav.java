@@ -88,7 +88,6 @@ public final class SimMenuNav {
         McCompat.setScreen(mc, screenFor(page, parent));
     }
 
-    // ------------------------------------------------------------------------------------------- geometry
 
     private static final int ITEM_H = 20;
     private static final int ITEM_GAP = 3;

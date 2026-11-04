@@ -913,10 +913,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }
         int cx = (int) ((kx - gx0) / gCell);
         int cz = (int) ((ky - gy0) / gCell);
-        if (cx >= floor.across || cz >= floor.down) {
-            return -1;
-        }
-        return cz * GRID + cx;
+        return cx >= floor.across || cz >= floor.down ? -1 : cz * GRID + cx;
     }
 
     /** Cells {@code x0..x1-1} by {@code z0..z1-1}'s room box {@code {x0, y0, x1, y1}} in grid units: their insides less

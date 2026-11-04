@@ -156,7 +156,6 @@ public final class SimBoulderPuzzle {
         });
     }
 
-    // ------------------------------------------------------------------------------------------- binding
 
     /**
      * Arms the puzzle on a REAL captured Boulder room: identifies the room by its own button row, clears the
@@ -395,7 +394,6 @@ public final class SimBoulderPuzzle {
         return -1;
     }
 
-    // ------------------------------------------------------------------------------------------ pressing
 
     /**
      * A button on side {@code d} of box {@code cell} was pressed: the box goes one cell the other way, or

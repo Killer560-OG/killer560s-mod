@@ -81,13 +81,11 @@ public final class SimTabList {
         }
     }
 
-    // ---- client thread ----
     private static List<String> lastComposed = List.of();
     private static int republishTicks;
     private static int headerTicks;
     private static final Set<String> VISITED = new HashSet<>();
 
-    // ---- server thread ----
     /** Connections that have been sent the ADD_PLAYER for every slot. Weak, so a closed one just drops out. */
     private static final Set<Object> ADDED = Collections.newSetFromMap(new WeakHashMap<>());
     private static String[] sent = new String[SLOTS];
@@ -312,10 +310,7 @@ public final class SimTabList {
     /** The two blaze rooms are one puzzle on Hypixel's tab list; every other room is listed under its own name. */
     private static String displayName(String roomName) {
         String lower = roomName.toLowerCase(Locale.ROOT);
-        if (lower.equals("higher blaze") || lower.equals("lower blaze")) {
-            return "Higher Or Lower";
-        }
-        return roomName;
+        return lower.equals("higher blaze") || lower.equals("lower blaze") ? "Higher Or Lower" : roomName;
     }
 
     /** Up to two decimals, trailing zeros dropped: 45.2, 100, 33.33. */
@@ -340,7 +335,6 @@ public final class SimTabList {
                 : String.format(Locale.ROOT, "%02dm %02ds", m, s);
     }
 
-    // ------------------------------------------------------------------ server thread
 
     private static void publish(MinecraftServer server, List<String> lines, boolean header) {
         List<ServerPlayer> players = server.getPlayerList().getPlayers();

@@ -123,10 +123,7 @@ public final class SimRunHistory {
         if (f.startsWith("F")) {
             return "1" + f;
         }
-        if (f.startsWith("M")) {
-            return "2" + f;
-        }
-        return "9" + f;
+        return f.startsWith("M") ? "2" + f : "9" + f;
     }
 
     /** The old label list (one line per run, newest first). Kept for anything that still picks by label. */

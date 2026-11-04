@@ -38,7 +38,6 @@ public final class SimRoomFilters {
     private SimRoomFilters() {
     }
 
-    // ------------------------------------------------------------------------------------------- the designer's
 
     /** Re-reads the designer's file. For the testkit. */
     public static void load() {
@@ -92,7 +91,6 @@ public final class SimRoomFilters {
         return n;
     }
 
-    // ------------------------------------------------------------------------------------------- shared
 
     public static String typeKey(String name) {
         return SimRoomFilter.typeKey(name);

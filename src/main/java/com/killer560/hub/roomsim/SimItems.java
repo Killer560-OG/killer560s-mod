@@ -352,12 +352,10 @@ public final class SimItems {
         SimItemLore.apply(stack, skyblockId);
     }
 
-    // ---------------------------------------------------------------------------------------------------
     // Ability behavior for the items SimAbilities does not cover, run on the integrated SERVER in answer to the
     // packet - the way Hypixel's server answers it. SimAbilities' server-side use handler delegates any skyblock
     // id it does not itself recognize to useOnServer; the left-click packet (START_DESTROY_BLOCK) arrives at
     // onServerAttack. Etherwarp items, the wither blades and Tactical Insertion stay in SimAbilities.
-    // ---------------------------------------------------------------------------------------------------
 
     /**
      * A use packet (or use-on-block packet) with one of this file's items, on the server thread.

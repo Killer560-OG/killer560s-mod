@@ -549,7 +549,6 @@ public final class SimIcePathPuzzle {
         });
     }
 
-    // ---------------------------------------------------------------- geometry
 
     /**
      * The world block of a room-relative coordinate, whichever way this puzzle is standing.
@@ -723,7 +722,6 @@ public final class SimIcePathPuzzle {
         return (float) Math.toDegrees(Math.atan2(-(to.getX() - from.getX()), to.getZ() - from.getZ()));
     }
 
-    // ---------------------------------------------------------------- the silverfish
 
     /** Spawns the silverfish on a cell. Server thread only. */
     private static void spawn(ServerLevel level, int[] at) {

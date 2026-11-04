@@ -142,7 +142,6 @@ public final class SimMobFloor {
         return out;
     }
 
-    // ---- the floor -----------------------------------------------------------------------------------------------------
 
     /**
      * {@link SimRun#autoStart}, the floor built and published, before the countdown: the doors on the path to Blood. Client
@@ -341,7 +340,6 @@ public final class SimMobFloor {
         }
     }
 
-    // ---- the floor's chunks stay loaded ---------------------------------------------------------------------------------
 
     /** Chunks this floor forced, as {x, z}. */
     private static final List<int[]> FORCED = new java.util.concurrent.CopyOnWriteArrayList<>();
@@ -400,7 +398,6 @@ public final class SimMobFloor {
         });
     }
 
-    // ---- helpers --------------------------------------------------------------------------------------------------------
 
     private static String type(DungeonLayout layout, int room) {
         RoomEntry e = layout.entry(room);

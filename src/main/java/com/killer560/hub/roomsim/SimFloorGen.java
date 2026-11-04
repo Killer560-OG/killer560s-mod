@@ -752,10 +752,7 @@ public final class SimFloorGen {
      * neighbor.
      */
     private static int[] cellFootprint(RoomLibrary.Room r) {
-        if (r == null) {
-            return new int[]{1, 1};
-        }
-        return new int[]{tilesAcross(r.sizeX), tilesAcross(r.sizeZ)};
+        return r == null ? new int[]{1, 1} : new int[]{tilesAcross(r.sizeX), tilesAcross(r.sizeZ)};
     }
 
     /**
