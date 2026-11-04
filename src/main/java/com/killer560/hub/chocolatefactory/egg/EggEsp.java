@@ -20,7 +20,6 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.phys.AABB;
-import org.joml.Matrix4f;
 import org.slf4j.Logger;
 
 import java.nio.charset.StandardCharsets;
@@ -223,24 +222,6 @@ public final class EggEsp {
             float dx = c[i1] - c[i0], dy = c[i1 + 1] - c[i0 + 1], dz = c[i1 + 2] - c[i0 + 2];
             buffer.addVertex(pose, c[i0], c[i0 + 1], c[i0 + 2]).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
             buffer.addVertex(pose, c[i1], c[i1 + 1], c[i1 + 2]).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        }
-    }
-
-    static void filledBox(Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
-        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
-        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        float[][] quads = {
-                {x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0},
-                {x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1},
-                {x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0},
-                {x1, y0, z1, x1, y1, z1, x0, y1, z1, x0, y0, z1},
-                {x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1},
-                {x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0}
-        };
-        for (float[] q : quads) {
-            for (int i = 0; i < 12; i += 3) {
-                buf.addVertex(m, q[i], q[i + 1], q[i + 2]).setColor(r, g, b, a);
-            }
         }
     }
 }
