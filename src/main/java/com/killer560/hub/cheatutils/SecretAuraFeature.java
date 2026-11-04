@@ -22,7 +22,6 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -182,13 +181,8 @@ public final class SecretAuraFeature {
     }
 
     private static String blockLabel(Block block) {
-        if (block == Blocks.CHEST) {
-            return "chest";
-        }
-        if (block == Blocks.TRAPPED_CHEST) {
-            return "trappedChest";
-        }
-        return block == Blocks.LEVER ? "lever" : block instanceof AbstractSkullBlock ? "skull" : "block";
+        return block == Blocks.CHEST ? "chest" : block == Blocks.TRAPPED_CHEST ? "trappedChest"
+                : block == Blocks.LEVER ? "lever" : block instanceof AbstractSkullBlock ? "skull" : "block";
     }
 
     /** Why classify() answered null for a chest, lever or skull (pure; for the log only). */
@@ -482,14 +476,14 @@ public final class SecretAuraFeature {
         // The Redstone Key's node is struck only on a face open to AIR (killer560, 2026-10-12); every other secret on the
         // face the eye-to-center ray meets.
         boolean node = "redstoneNode".equals(bestKind);
-        BlockHitResult aimHit = node
+        BlockHitResult hit = node
                 ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
                 : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
-        if (node && aimHit == null) {
+        if (node && hit == null) {
             logHeld("noFace", "Redstone block has no face open to air from here pos=" + xyz(bestPos));
             return; // no exposed face from here: never click a face against another block
         }
-        if (aimHit != null && !TURN.readyBlock(client.player, client.level, bestPos, aimHit.getLocation(),
+        if (hit != null && !TURN.readyBlock(client.player, client.level, bestPos, hit.getLocation(),
                 Math.sqrt(bestDist) + 2.0)) {
             logHeld("turn", "body turning first (reported look does not reach) target=" + bestKind + "@" + xyz(bestPos)
                     + " yaw=" + fmt(client.player.getYRot()) + " pitch=" + fmt(client.player.getXRot()));
@@ -512,9 +506,7 @@ public final class SecretAuraFeature {
         // was a point INSIDE the block on a face the player was not looking at. No raycast can produce that.
         // Breaker Aura, which has always clipped its hit from the eye through the shape, measured clean over
         // hundreds of interactions in the same harness. See BlockHits.
-        BlockHitResult hit = node
-                ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
-                : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
+        // (the surface found above for the turn: nothing since moves the eye or the world.)
         if (hit == null) {
             LOGGER.info("[SecretAura] click skipped: no outline to strike kind={} pos={} attempt={} tick={}", bestKind,
                     xyz(bestPos), count, tickNow());
@@ -597,15 +589,10 @@ public final class SecretAuraFeature {
         boolean[] may = new boolean[nsx * nsy * nsz];
         for (int ix = 0; ix < nsx; ix++) {
             for (int iz = 0; iz < nsz; iz++) {
-                net.minecraft.world.level.chunk.ChunkAccess chunk = null;
-                try {
-                    chunk = level.getChunk(sx0 + ix, sz0 + iz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
-                } catch (RuntimeException e) {
-                    chunk = null;
-                }
+                net.minecraft.world.level.chunk.LevelChunk lc = fullChunk(level, sx0 + ix, sz0 + iz);
                 for (int iy = 0; iy < nsy; iy++) {
                     int idx = (ix * nsy + iy) * nsz + iz;
-                    if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
+                    if (lc == null) {
                         may[idx] = true;
                         continue;
                     }
@@ -621,6 +608,16 @@ public final class SecretAuraFeature {
             }
         }
         return may;
+    }
+
+    /** The fully loaded chunk at (cx, cz), or null when the client does not have it. */
+    private static net.minecraft.world.level.chunk.LevelChunk fullChunk(net.minecraft.world.level.Level level, int cx, int cz) {
+        try {
+            return level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false)
+                    instanceof net.minecraft.world.level.chunk.LevelChunk lc ? lc : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** @return "chest"/"lever"/"essence"/"redstoneKey"/"redstoneNode"/"bossLever" when the aura may click it, else null. */
@@ -697,13 +694,8 @@ public final class SecretAuraFeature {
         int r = (int) Math.ceil(KEY_WATCH_RANGE);
         for (int cx = ((int) Math.floor(eye.x) - r) >> 4; cx <= ((int) Math.floor(eye.x) + r) >> 4; cx++) {
             for (int cz = ((int) Math.floor(eye.z) - r) >> 4; cz <= ((int) Math.floor(eye.z) + r) >> 4; cz++) {
-                net.minecraft.world.level.chunk.ChunkAccess chunk;
-                try {
-                    chunk = client.level.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
-                } catch (RuntimeException e) {
-                    continue;
-                }
-                if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
+                net.minecraft.world.level.chunk.LevelChunk lc = fullChunk(client.level, cx, cz);
+                if (lc == null) {
                     continue;
                 }
                 for (BlockPos p : lc.getBlockEntities().keySet()) {
@@ -732,17 +724,13 @@ public final class SecretAuraFeature {
     private static boolean isBossLeverClickable(Minecraft client, BlockPos pos, BlockState state) {
         // In Boss's own lever clicking owns S2's two section levers while its Section Levers option is on - don't
         // double-click them here: its whole point is clicking each of them exactly once.
-        if (com.killer560.hub.leveraura.LeverAuraFeature.owns(pos)) {
-            return false;
-        }
-        if (!BOSS_LEVERS.contains(pos)) {
+        if (com.killer560.hub.leveraura.LeverAuraFeature.owns(pos) || !BOSS_LEVERS.contains(pos)) {
             return false;
         }
         Vec3 above = Vec3.atCenterOf(pos.above());
         AABB box = new AABB(above, above).inflate(1.5);
-        List<ArmorStand> stands = client.level.getEntitiesOfClass(ArmorStand.class, box,
-                s -> s.getDisplayName() != null && "Not Activated".equals(s.getDisplayName().getString()));
-        return !stands.isEmpty();
+        return !client.level.getEntitiesOfClass(ArmorStand.class, box,
+                s -> s.getDisplayName() != null && "Not Activated".equals(s.getDisplayName().getString())).isEmpty();
     }
 
     private static void updateDone(Minecraft client, long now) {
@@ -1028,13 +1016,8 @@ public final class SecretAuraFeature {
         String id = CheatUtils.skyblockId(held);
         String idLower = id == null ? "" : id.toLowerCase(Locale.ROOT);
         String name = CheatUtils.plainName(held).toLowerCase(Locale.ROOT);
-        for (String token : list.split(",")) {
-            String t = token.trim().toLowerCase(Locale.ROOT);
-            if (!t.isEmpty() && (idLower.equals(t) || idLower.contains(t) || name.contains(t))) {
-                return true;
-            }
-        }
-        return false;
+        return java.util.Arrays.stream(list.split(",")).map(token -> token.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(t -> !t.isEmpty() && (idLower.contains(t) || name.contains(t)));
     }
 
     private static void reset(String why) {
