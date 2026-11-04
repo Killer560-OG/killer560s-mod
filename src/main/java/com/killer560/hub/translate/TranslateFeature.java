@@ -70,7 +70,7 @@ public final class TranslateFeature {
     private static final java.util.Set<String> WHISPER_COMMANDS =
             java.util.Set.of("w", "msg", "whisper", "tell", "t");
     /** "&lt;ign&gt; &lt;the actual message&gt;" - the IGN is validated so a non-name first word is left alone. */
-    private static final Pattern WHISPER_RECIPIENT = Pattern.compile("^([A-Za-z0-9_]{1,16})\s+(.+)$");
+    private static final Pattern WHISPER_RECIPIENT = Pattern.compile("^([A-Za-z0-9_]{1,16})\\s+(.+)$");
 
     private static final String GOOGLE_ENDPOINT = ModNet.url("google-translate", "https://translate.googleapis.com/translate_a/single");
     private static final String MYMEMORY_ENDPOINT = ModNet.url("mymemory", "https://api.mymemory.translated.net/get");

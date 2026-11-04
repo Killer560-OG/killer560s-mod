@@ -1,0 +1,19 @@
+// Init script for tools/spotbugs/run-spotbugs.sh: adds a task that writes the compile classpath to a file,
+// so SpotBugs can resolve Minecraft and library classes. Not part of the normal build.
+//   ./gradlew --init-script tools/spotbugs/classpath.gradle writeSpotbugsClasspath [-PcheatBuild=true]
+allprojects {
+    afterEvaluate { p ->
+        if (p.plugins.hasPlugin('java')) {
+            p.tasks.register('writeSpotbugsClasspath') {
+                def out = p.layout.buildDirectory.file('spotbugs/aux-classpath.txt')
+                outputs.upToDateWhen { false }
+                doLast {
+                    def f = out.get().asFile
+                    f.parentFile.mkdirs()
+                    f.text = p.sourceSets.main.compileClasspath.files.findAll { it.exists() }.join('\n') + '\n'
+                    println "spotbugs aux classpath: ${f} (${f.readLines().size()} entries)"
+                }
+            }
+        }
+    }
+}

@@ -38,7 +38,7 @@ public final class RevertMasterStarsFeature {
             return component;
         }
         if (component == null) {
-            return rebuild(component);
+            return null;
         }
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc == null || !mc.isSameThread()) {

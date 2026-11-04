@@ -605,7 +605,7 @@ public final class RouteStore {
     /** {@code "ox oy oz yaw pitch bx by bz lx ly lz"}, room-relative. */
     private static RouteNode.PathHop parseHop(JsonElement e) {
         try {
-            String[] p = e.getAsString().trim().split("\s+");
+            String[] p = e.getAsString().trim().split("\\s+");
             if (p.length != 11) {
                 return null;
             }

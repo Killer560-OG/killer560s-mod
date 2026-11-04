@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Categories excluded from tools/spotbugs/run-spotbugs.sh. Real bug false positives are NOT listed here or
+     annotated in code: they are reasoned in the scan report (killer560s-mod-logs/scan-scanbugs-1104.md). -->
+<FindBugsFilter>
+  <!-- Exposing mutable fields / serialization / mutable statics: API-hygiene advice for libraries, not bugs in a client mod. -->
+  <Match><Bug category="MALICIOUS_CODE"/></Match>
+  <Match><Bug code="Se,SnVI"/></Match>
+  <!-- Default charset: Java 18+ defaults to UTF-8 everywhere (JEP 400), so these never change behavior here. -->
+  <Match><Bug category="I18N"/></Match>
+  <!-- Mixin classes are rewritten into their targets; SpotBugs sees shadow fields as never written. -->
+  <Match><Class name="~.*\.mixin\..*"/><Bug pattern="UWF_UNWRITTEN_FIELD,NP_UNWRITTEN_FIELD,UUF_UNUSED_FIELD,URF_UNREAD_FIELD"/></Match>
+</FindBugsFilter>
