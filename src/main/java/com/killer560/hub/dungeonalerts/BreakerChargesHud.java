@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.secrets.DungeonState;
@@ -63,28 +64,8 @@ public final class BreakerChargesHud {
         return lastDrawn;
     }
 
-    static final HudElement HUD = new HudElement() {
+    static final HudElement HUD = new BasicHud("breaker_charges", "Breaker Charges", 10, 140) {
         private static final String LABEL = "Breaker: ";
-
-        @Override
-        public String id() {
-            return "breaker_charges";
-        }
-
-        @Override
-        public String displayName() {
-            return "Breaker Charges";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 140;
-        }
 
         @Override
         public int width() {

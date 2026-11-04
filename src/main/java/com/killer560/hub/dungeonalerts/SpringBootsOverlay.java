@@ -2,6 +2,7 @@ package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ItemNbt;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ModChat;
@@ -164,26 +165,7 @@ public final class SpringBootsOverlay {
         }
     }
 
-    static final HudElement HUD = new HudElement() {
-        @Override
-        public String id() {
-            return "spring_boots";
-        }
-
-        @Override
-        public String displayName() {
-            return "Spring Boots";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 120;
-        }
+    static final HudElement HUD = new BasicHud("spring_boots", "Spring Boots", 10, 120) {
 
         @Override
         public int width() {
