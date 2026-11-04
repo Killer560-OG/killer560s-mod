@@ -292,7 +292,6 @@ public final class WitherDragonsConfig {
         relicsEnabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
-    // ---- dragons ----
 
     public boolean isDragonTimer() { return dragonTimer; }
     public void setDragonTimer(boolean v) { dragonTimer = v; }
@@ -339,7 +338,6 @@ public final class WitherDragonsConfig {
     public ClassOverride getClassOverride() { return classOverride; }
     public void setClassOverride(ClassOverride v) { classOverride = v == null ? ClassOverride.AUTO : v; }
 
-    // ---- relics ----
 
     public boolean isRelicSpawnTimer() { return relicSpawnTimer; }
     public void setRelicSpawnTimer(boolean v) { relicSpawnTimer = v; }

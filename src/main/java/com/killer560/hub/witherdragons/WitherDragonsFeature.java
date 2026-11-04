@@ -105,7 +105,6 @@ public final class WitherDragonsFeature {
         return WitherDragonsConfig.getInstance().isEnabled();
     }
 
-    // ------------------------------------------------------------------ ticks / world change
 
     private static void onClientTick() {
         Minecraft client = Minecraft.getInstance();
@@ -346,7 +345,6 @@ public final class WitherDragonsFeature {
         }
     }
 
-    // ------------------------------------------------------------------ chat
 
     private static void onChat(Component message) {
         if (!trackingActive() || !P5State.inP5()) {
@@ -377,7 +375,6 @@ public final class WitherDragonsFeature {
         lastDragonDeath = null;
     }
 
-    // ------------------------------------------------------------------ output helpers
 
     private static void send(Component message) {
         ModChat.send("Wither Dragons", message);
@@ -551,7 +548,6 @@ public final class WitherDragonsFeature {
         poseStack.popPose();
     }
 
-    // ------------------------------------------------------------------ HUD
 
     /** Dragon spawn timers list (Odin "Dragon Timer HUD", extended to every spawning dragon; the priority one
      *  is marked with "»"). */

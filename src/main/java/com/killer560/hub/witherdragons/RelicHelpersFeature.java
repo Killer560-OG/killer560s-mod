@@ -96,7 +96,6 @@ public final class RelicHelpersFeature {
         return looksStarted;
     }
 
-    // ------------------------------------------------------------------------------------------- tick
 
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
@@ -133,7 +132,6 @@ public final class RelicHelpersFeature {
                 && DungeonState.isF7OrM7();
     }
 
-    // ------------------------------------------------------------------------------------------- triggerbot
 
     private static void tickTrigger(Minecraft client, LocalPlayer player, RelicHelpersConfig cfg, KingRelic held) {
         long now = ActionGate.currentTick();
@@ -205,7 +203,6 @@ public final class RelicHelpersFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- look
 
     private static void tickLook(Minecraft client, LocalPlayer player, RelicHelpersConfig cfg, KingRelic held) {
         if (RouteExecutor.isRunning() || MimicKiller.isBusy() || com.killer560.hub.ap3.Ap3Executor.isRunning()) {
@@ -278,7 +275,6 @@ public final class RelicHelpersFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------- helpers
 
     private static boolean recentlyClicked(int id, long now) {
         Long at = clickedStands.get(id);

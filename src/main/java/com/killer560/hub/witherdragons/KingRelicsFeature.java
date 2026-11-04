@@ -138,7 +138,6 @@ public final class KingRelicsFeature {
         warnedRelic = null;
     }
 
-    // ------------------------------------------------------------------ events
 
     private static void onChat(Component message) {
         if (!active()) {
@@ -285,7 +284,6 @@ public final class KingRelicsFeature {
         pendingMs = System.currentTimeMillis();
     }
 
-    // ------------------------------------------------------------------ Block Wrong Relic
 
     /** The relic the last "blocked" chat line was about: one line per relic carried, not one per click. */
     private static KingRelic warnedRelic = null;
@@ -367,7 +365,6 @@ public final class KingRelicsFeature {
         ModChat.send("King Relics", Component.literal(text));
     }
 
-    // ------------------------------------------------------------------ render
 
     private static void onWorldRender(LevelRenderContext context) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
@@ -392,7 +389,6 @@ public final class KingRelicsFeature {
         }
     }
 
-    // ------------------------------------------------------------------ HUD
 
     /** Odin "Relic Hud": "Relics: 1.85s" while the relic spawn countdown runs. */
     public static final class RelicTimerHudElement implements HudElement {
