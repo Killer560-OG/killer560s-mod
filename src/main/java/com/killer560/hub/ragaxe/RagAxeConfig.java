@@ -137,9 +137,7 @@ public final class RagAxeConfig {
      *  @return true if the old file existed and was read (the caller then persists the result immediately). */
     private boolean migrateFromDungeonAlerts() {
         JsonObject o = read(OLD_PATH);
-        if (o == null) {
-            return false;
-        }
+        if (o == null) return false;
         enabled = ConfigJson.getBool(o, "ragEnabled", enabled);
         castAlert = ConfigJson.getBool(o, "ragCastAlert", castAlert);
         cancelAlert = ConfigJson.getBool(o, "ragCancelAlert", cancelAlert);
@@ -154,9 +152,7 @@ public final class RagAxeConfig {
 
     private static JsonObject read(Path path) {
         try {
-            if (!Files.exists(path)) {
-                return null;
-            }
+            if (!Files.exists(path)) return null;
             return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
         } catch (Exception e) {
             LOGGER.warn("[RagAxe] Failed to read {}, using defaults", path.getFileName(), e);
@@ -249,9 +245,7 @@ public final class RagAxeConfig {
 
     /** The cooldown to actually count down, with Mage's reduction applied when he is playing Mage. */
     public float effectiveCooldownSeconds() {
-        if (!mageCooldownReduction) {
-            return cooldownSeconds;
-        }
+        if (!mageCooldownReduction) return cooldownSeconds;
         return com.killer560.hub.leapmenu.PartyTracker.selfClass() == com.killer560.hub.dungeonclass.DungeonClass.MAGE
                 ? cooldownSeconds * (1f - mageCooldownReductionPercent / 100f)
                 : cooldownSeconds;

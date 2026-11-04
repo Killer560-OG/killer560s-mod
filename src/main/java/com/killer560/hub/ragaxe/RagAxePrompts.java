@@ -73,9 +73,7 @@ final class RagAxePrompts {
     /** {@code promptAt = trigger + max(0, expectedOffset - lead)} - the buff then lands on the moment. */
     private static void schedule(RagAxePrompt prompt) {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
-        if (!cfg.isPromptEnabled(prompt) || skippedForClass(prompt)) {
-            return;
-        }
+        if (!cfg.isPromptEnabled(prompt) || skippedForClass(prompt)) return;
         long delay = Math.max(0L, prompt.expectedOffsetMs - (long) cfg.getPromptLeadMs(prompt));
         FIRE_AT_MS[prompt.ordinal()] = System.currentTimeMillis() + delay;
     }
@@ -85,9 +83,7 @@ final class RagAxePrompts {
         long now = System.currentTimeMillis();
         for (RagAxePrompt prompt : RagAxePrompt.values()) {
             int i = prompt.ordinal();
-            if (FIRE_AT_MS[i] == 0L || now < FIRE_AT_MS[i]) {
-                continue;
-            }
+            if (FIRE_AT_MS[i] == 0L || now < FIRE_AT_MS[i]) continue;
             FIRE_AT_MS[i] = 0L;
             if (cfg.isEnabled() && cfg.isPromptEnabled(prompt)) {
                 fire(prompt);
@@ -99,18 +95,12 @@ final class RagAxePrompts {
     private static void onServerTick() {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
         RagAxePrompt prompt = RagAxePrompt.M7_DRAGON_SPAWN;
-        if (!cfg.isEnabled() || !cfg.isPromptEnabled(prompt) || skippedForClass(prompt) || !P5State.inP5()) {
-            return;
-        }
+        if (!cfg.isEnabled() || !cfg.isPromptEnabled(prompt) || skippedForClass(prompt) || !P5State.inP5()) return;
         long lead = cfg.getPromptLeadMs(prompt);
         for (WitherDragon dragon : WitherDragon.values()) {
             int i = dragon.ordinal();
-            if (dragon.state() != WitherDragon.State.SPAWNING) {
-                continue;
-            }
-            if (DRAGON_PROMPTED[i] == dragon.timesSpawned()) {
-                continue;
-            }
+            if (dragon.state() != WitherDragon.State.SPAWNING) continue;
+            if (DRAGON_PROMPTED[i] == dragon.timesSpawned()) continue;
             if (dragon.timeToSpawn() * 50L <= lead) {
                 DRAGON_PROMPTED[i] = dragon.timesSpawned();
                 fire(prompt);

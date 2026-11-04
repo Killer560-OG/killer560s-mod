@@ -77,9 +77,7 @@ public final class RagAxeFeature {
     public static List<HudElement> hudElements() { return List.of(TIMERS_HUD, PROMPT_HUD); }
 
     private static void onChat(Component message) {
-        if (!RagAxeConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!RagAxeConfig.getInstance().isEnabled()) return;
         // Stripped once for both readers (each used to strip every chat line itself).
         String plain = ChatObserver.strip(message).trim();
         RagAxeState.onChat(plain);
@@ -186,9 +184,7 @@ public final class RagAxeFeature {
             RagAxeConfig cfg = RagAxeConfig.getInstance();
             boolean example = editorOpen();
             java.util.List<String[]> out = new java.util.ArrayList<>(3);
-            if (!example && !cfg.isEnabled()) {
-                return out;
-            }
+            if (!example && !cfg.isEnabled()) return out;
             if (cfg.isChannelTimer()) {
                 addRow(out, "Rag in: ", example ? 2_400L : RagAxeState.channelRemainingMs());
             }
@@ -283,9 +279,7 @@ public final class RagAxeFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             RagAxeConfig cfg = RagAxeConfig.getInstance();
             boolean example = editorOpen();
-            if (!example && (promptTicks <= 0 || !cfg.isEnabled())) {
-                return;
-            }
+            if (!example && (promptTicks <= 0 || !cfg.isEnabled())) return;
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, cfg.getPromptText(), x + 1, y + 1, 0xFFFFFFFF, true);
         }

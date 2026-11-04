@@ -81,13 +81,9 @@ public final class RagAxeState {
     static void onSoundPacket(ClientboundSoundPacket packet) {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
         LocalPlayer player = Minecraft.getInstance().player;
-        if (!cfg.isEnabled() || player == null || packet.getPitch() != CAST_PITCH) {
-            return;
-        }
+        if (!cfg.isEnabled() || player == null || packet.getPitch() != CAST_PITCH) return;
         ItemStack held = player.getMainHandItem();
-        if (!"RAGNAROCK_AXE".equals(skyblockId(held)) || !isWolfDeath(packet.getSound().value().location())) {
-            return;
-        }
+        if (!"RAGNAROCK_AXE".equals(skyblockId(held)) || !isWolfDeath(packet.getSound().value().location())) return;
         long now = System.currentTimeMillis();
         pendingStrength = (int) (loreStrength(held) * 1.5);
         buffStartMs = cfg.isSoundIsBuffStart() ? now : now + CHANNEL_MS;
@@ -108,12 +104,8 @@ public final class RagAxeState {
         // Deliberately NOT gated on isCancelAlert(): that setting only controls the title/sound. The state
         // clear has to happen either way, or a canceled rag would still run the buff timer down and still
         // announce "Gained strength" (and party-announce it) 3 s later for strength that was never gained.
-        if (!cfg.isEnabled()) {
-            return;
-        }
-        if (!CANCEL.matcher(plain).matches()) {
-            return;
-        }
+        if (!cfg.isEnabled()) return;
+        if (!CANCEL.matcher(plain).matches()) return;
         buffStartMs = 0L;
         buffEndMs = 0L;
         pendingStrength = 0;
@@ -127,9 +119,7 @@ public final class RagAxeState {
 
     static void tick() {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
-        if (!cfg.isEnabled() || !SkyblockGate.allows()) {
-            return;
-        }
+        if (!cfg.isEnabled() || !SkyblockGate.allows()) return;
         long now = System.currentTimeMillis();
         if (!strengthSent && buffStartMs > 0 && now >= buffStartMs) {
             // Announced when the channel actually completes, so a canceled rag never claims strength.
@@ -177,18 +167,14 @@ public final class RagAxeState {
 
     private static boolean isWolfDeath(Identifier id) {
         for (WolfSoundVariant variant : SoundEvents.WOLF_SOUNDS.values()) {
-            if (variant.adultSounds().deathSound().value().location().equals(id)) {
-                return true;
-            }
+            if (variant.adultSounds().deathSound().value().location().equals(id)) return true;
         }
         return false;
     }
 
     private static String skyblockId(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
+        if (data == null) return null;
         CompoundTag tag = data.copyTag();
         return tag.getStringOr("id", null);
     }
@@ -196,9 +182,7 @@ public final class RagAxeState {
     /** Odin: the buff is 1.5x the axe's own "Strength: +N" lore line. */
     private static int loreStrength(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return 0;
-        }
+        if (lore == null) return 0;
         for (Component line : lore.lines()) {
             String plain = ChatFormatting.stripFormatting(line.getString());
             if (plain != null && plain.startsWith("Strength:")) {
