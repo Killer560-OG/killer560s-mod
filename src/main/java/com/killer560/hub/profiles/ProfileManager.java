@@ -214,9 +214,7 @@ public final class ProfileManager {
 
     /** Filesystem-safe folder name for a profile - anything outside letters/digits/space/underscore/
      *  hyphen becomes an underscore, matching the mod's other simple sanitizers (e.g. Posmsg names). */
-    private static String sanitize(String name) {
-        return name.trim().replaceAll("[^A-Za-z0-9 _-]", "_");
-    }
+    private static String sanitize(String name) { return name.trim().replaceAll("[^A-Za-z0-9 _-]", "_"); }
 
     public static List<String> listProfiles() {
         List<String> names = new ArrayList<>();

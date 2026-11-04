@@ -436,9 +436,7 @@ public final class ProfileData {
         }
     }
 
-    public static Meta readMeta(Path profileDir) {
-        return parseMeta(profileDir.resolve(META_FILE));
-    }
+    public static Meta readMeta(Path profileDir) { return parseMeta(profileDir.resolve(META_FILE)); }
 
     static Meta parseMeta(Path file) {
         if (!Files.isRegularFile(file)) {
