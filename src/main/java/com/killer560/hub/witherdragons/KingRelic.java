@@ -49,15 +49,11 @@ public enum KingRelic {
     /** By Skyblock id first (Odin), then by item name color (NoammAddons) - e.g. on p3sim, where items may
      *  not carry Hypixel's custom data. */
     public static KingRelic fromStack(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
+        if (stack == null || stack.isEmpty()) return null;
         String id = skyblockId(stack);
         if (id != null) {
             for (KingRelic r : values()) {
-                if (r.id.equals(id)) {
-                    return r;
-                }
+                if (r.id.equals(id)) return r;
             }
         }
         String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
@@ -67,9 +63,7 @@ public enum KingRelic {
     /** Hypixel Skyblock item id from CUSTOM_DATA "id" (same technique as CheatUtils/DungeonBreakerFeature). */
     static String skyblockId(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
+        if (data == null) return null;
         CompoundTag tag = data.copyTag();
         return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
@@ -77,18 +71,14 @@ public enum KingRelic {
     public static KingRelic fromName(String name) {
         String trimmed = name.trim();
         for (KingRelic r : values()) {
-            if (r.itemName().equalsIgnoreCase(trimmed)) {
-                return r;
-            }
+            if (r.itemName().equalsIgnoreCase(trimmed)) return r;
         }
         return null;
     }
 
     public static KingRelic fromColour(String colour) {
         for (KingRelic r : values()) {
-            if (r.colourName.equalsIgnoreCase(colour.trim())) {
-                return r;
-            }
+            if (r.colourName.equalsIgnoreCase(colour.trim())) return r;
         }
         return null;
     }

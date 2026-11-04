@@ -99,17 +99,13 @@ public final class KingRelicsFeature {
         // drops the click before onBlockClick could record it as a placement.
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (hit != null) {
-                if (shouldBlockRelicClick(player, level, hit.getBlockPos())) {
-                    return InteractionResult.FAIL;
-                }
+                if (shouldBlockRelicClick(player, level, hit.getBlockPos())) return InteractionResult.FAIL;
                 onBlockClick(player, level, hit.getBlockPos());
             }
             return InteractionResult.PASS;
         });
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
-            if (shouldBlockRelicClick(player, level, pos)) {
-                return InteractionResult.FAIL;
-            }
+            if (shouldBlockRelicClick(player, level, pos)) return InteractionResult.FAIL;
             onBlockClick(player, level, pos);
             return InteractionResult.PASS;
         });
@@ -138,13 +134,9 @@ public final class KingRelicsFeature {
 
 
     private static void onChat(Component message) {
-        if (!active()) {
-            return;
-        }
+        if (!active()) return;
         String plain = com.killer560.hub.util.ChatObserver.strip(message);
-        if (plain == null) {
-            return;
-        }
+        if (plain == null) return;
         Minecraft client = Minecraft.getInstance();
         // NoammAddons gates on "in boss + M7" rather than Odin's y<=45 P5 check: players can still be above y 45
         // when Necron's last line arrives.
@@ -170,15 +162,11 @@ public final class KingRelicsFeature {
     }
 
     private static void onServerTick() {
-        if (!active()) {
-            return;
-        }
+        if (!active()) return;
         if (relicTicksToSpawn > 0) {
             relicTicksToSpawn--;
         }
-        if (!P5State.inP5()) {
-            return;
-        }
+        if (!P5State.inP5()) return;
         // heldRelic() reads every inventory slot's custom data (a tag copy each) - 20 times a second. A relic cannot be
         // held before Necron's line starts P5, and once all five are placed none matters unless a click is pending.
         if (p5StartTick == 0L || (pendingRelic == null && PLACED.size() == KingRelic.values().length)) {
@@ -205,17 +193,11 @@ public final class KingRelicsFeature {
             return;
         }
         for (Entity e : client.level.entitiesForRendering()) {
-            if (!(e instanceof ArmorStand stand)) {
-                continue;
-            }
+            if (!(e instanceof ArmorStand stand)) continue;
             ItemStack head = stand.getItemBySlot(EquipmentSlot.HEAD);
-            if (head.isEmpty() || !head.getHoverName().getString().contains("Relic")) {
-                continue;
-            }
+            if (head.isEmpty() || !head.getHoverName().getString().contains("Relic")) continue;
             for (KingRelic r : KingRelic.values()) {
-                if (PLACED.containsKey(r)) {
-                    continue;
-                }
+                if (PLACED.containsKey(r)) continue;
                 double dx = stand.getX() - r.placedX;
                 double dz = stand.getZ() - r.placedZ;
                 if (Math.sqrt(dx * dx + dz * dz) < 1.5) {
@@ -241,18 +223,12 @@ public final class KingRelicsFeature {
 
     /** Odin {@code EntityEvent.SetItemSlot}: a relic head on an armor stand = relics have spawned. */
     static void onEquipment(ClientboundSetEquipmentPacket packet) {
-        if (!active() || p5StartTick == 0L || announcedSpawn) {
-            return;
-        }
+        if (!active() || p5StartTick == 0L || announcedSpawn) return;
         for (var pair : packet.getSlots()) {
             ItemStack stack = pair.getSecond();
-            if (stack == null || !stack.is(Items.PLAYER_HEAD)) {
-                continue;
-            }
+            if (stack == null || !stack.is(Items.PLAYER_HEAD)) continue;
             KingRelic relic = KingRelic.fromStack(stack);
-            if (relic == null) {
-                continue;
-            }
+            if (relic == null) continue;
             announcedSpawn = true;
             double seconds = (PerTickServerClock.now() - p5StartTick) / 20.0;
             P5Splits.relicSpawned(System.currentTimeMillis());
@@ -270,13 +246,9 @@ public final class KingRelicsFeature {
             return;
         }
         BlockState state = level.getBlockState(pos);
-        if (!(state.getBlock() instanceof AbstractCauldronBlock) && !state.is(BlockTags.ANVIL)) {
-            return;
-        }
+        if (!(state.getBlock() instanceof AbstractCauldronBlock) && !state.is(BlockTags.ANVIL)) return;
         KingRelic held = heldRelic();
-        if (held == null) {
-            return;
-        }
+        if (held == null) return;
         pendingRelic = held;
         pendingTick = PerTickServerClock.now();
         pendingMs = System.currentTimeMillis();
@@ -307,13 +279,9 @@ public final class KingRelicsFeature {
                 break;
             }
         }
-        if (clicked == null || !P5State.inP5()) {
-            return false;
-        }
+        if (clicked == null || !P5State.inP5()) return false;
         KingRelic held = heldRelic();
-        if (held == null || held == clicked) {
-            return false;
-        }
+        if (held == null || held == clicked) return false;
         blockedRelicClicks++;
         LOGGER.info("[KingRelics] Block Wrong Relic: click on the {} cauldron at {} while carrying the {} relic - not sent"
                 + " ({} blocked so far)", clicked.colourName, pos.toShortString(), held.colourName, blockedRelicClicks);
@@ -344,15 +312,11 @@ public final class KingRelicsFeature {
     /** Odin: {@code Relic.entries.find { inventory contains item with that id }}. */
     private static KingRelic heldRelic() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return null;
-        }
+        if (client.player == null) return null;
         var inv = client.player.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             KingRelic r = KingRelic.fromStack(inv.getItem(i));
-            if (r != null) {
-                return r;
-            }
+            if (r != null) return r;
         }
         return null;
     }
@@ -412,20 +376,14 @@ public final class KingRelicsFeature {
         private static String text() {
             Minecraft client = Minecraft.getInstance();
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            if (!cfg.isRelicsEnabled() || !cfg.isRelicSpawnTimer()) {
-                return null;
-            }
-            if (McCompat.screen(client) instanceof HudEditorScreen) {
-                return "§3Relics: 1.90s";
-            }
+            if (!cfg.isRelicsEnabled() || !cfg.isRelicSpawnTimer()) return null;
+            if (McCompat.screen(client) instanceof HudEditorScreen) return "§3Relics: 1.90s";
             if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
                 // Changes once a server tick; it was a String.format every frame (and again for width()), 2026-10-15.
                 int ticks = relicTicksToSpawn;
                 if (ticks != cachedTicks || cachedText == null) {
                     String t = "§3Relics: " + String.format(Locale.US, "%.2f", ticks / 20f) + "s";
-                    if (!client.isSameThread()) {
-                        return t;
-                    }
+                    if (!client.isSameThread()) return t;
                     cachedText = t;
                     cachedTicks = ticks;
                 }
@@ -448,9 +406,7 @@ public final class KingRelicsFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             Minecraft client = Minecraft.getInstance();
             String text = text();
-            if (text == null) {
-                return;
-            }
+            if (text == null) return;
             HudSeen.markDrawn(id());
             graphics.text(client.font, text, x, y, 0xFFFFFFFF, true);
         }
