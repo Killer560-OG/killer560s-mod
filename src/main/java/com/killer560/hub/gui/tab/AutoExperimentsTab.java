@@ -52,12 +52,7 @@ public class AutoExperimentsTab extends BaseTab {
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
 
         // An ON/OFF switch, not a cycling setting: a click flips it either way.
-        widgets.add(SettingsButtonWidget.builder(autoText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setAutonomousMode(!c.isAutonomousMode());
-                    c.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(flag("Auto E-Table", ExperimentsConfig::isAutonomousMode, ExperimentsConfig::setAutonomousMode, requestRebuild, contentX, y, contentWidth));
         y += 24;
 
         // Same "the master toggle hides what it governs instead of showing it inert" rule the rest of the
@@ -67,12 +62,7 @@ public class AutoExperimentsTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(superpairsText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSuperpairsEnabled(!c.isSuperpairsEnabled());
-                    c.save();
-                    btn.setMessage(superpairsText());
-                }).bounds(contentX, y, half, 20).build());
+        widgets.add(flag("Auto-Solve Superpairs", ExperimentsConfig::isSuperpairsEnabled, ExperimentsConfig::setSuperpairsEnabled, null, contentX, y, half));
         widgets.add(SettingsButtonWidget.cycling(superpairsFilterText(), (btn, dir) -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setSuperpairsValuableOnly(!c.isSuperpairsValuableOnly());
@@ -82,40 +72,15 @@ public class AutoExperimentsTab extends BaseTab {
         y += 24;
         // killer560, 2026-10-05: two separate skips - Grand bottles only (Titanics still paired), Guardian pets of
         // every rarity.
-        widgets.add(SettingsButtonWidget.builder(skipGrandText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSkipGrandExpBottles(!c.isSkipGrandExpBottles());
-                    c.save();
-                    btn.setMessage(skipGrandText());
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(skipGuardianText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSkipGuardianPets(!c.isSkipGuardianPets());
-                    c.save();
-                    btn.setMessage(skipGuardianText());
-                }).bounds(contentX + half + GAP, y, half, 20).build());
+        widgets.add(flag("Skip Grand XP Bottles", ExperimentsConfig::isSkipGrandExpBottles, ExperimentsConfig::setSkipGrandExpBottles, null, contentX, y, half));
+        widgets.add(flag("Skip Guardian Pets", ExperimentsConfig::isSkipGuardianPets, ExperimentsConfig::setSkipGuardianPets, null, contentX + half + GAP, y, half));
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(skipSerumText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSkipMetaphysicalSerums(!c.isSkipMetaphysicalSerums());
-                    c.save();
-                    btn.setMessage(skipSerumText());
-                }).bounds(contentX, y, half, 20).build());
+        widgets.add(flag("Skip Metaphysical Serums", ExperimentsConfig::isSkipMetaphysicalSerums, ExperimentsConfig::setSkipMetaphysicalSerums, null, contentX, y, half));
         // killer560, 2026-10-19: a T7 book or the Nadeshiko Dye comes before anything else.
-        widgets.add(SettingsButtonWidget.builder(t7FirstText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSuperpairsT7First(!c.isSuperpairsT7First());
-                    c.save();
-                    btn.setMessage(t7FirstText());
-                }).bounds(contentX + half + GAP, y, half, 20).build());
+        widgets.add(flag("T7 Drops First", ExperimentsConfig::isSuperpairsT7First, ExperimentsConfig::setSuperpairsT7First, null, contentX + half + GAP, y, half));
         y += 24;
         // killer560, 2026-10-19: hold back rewards worth up to the slider's value until the board is known.
-        widgets.add(SettingsButtonWidget.builder(exploreFirstText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSuperpairsExploreFirst(!c.isSuperpairsExploreFirst());
-                    c.save();
-                    btn.setMessage(exploreFirstText());
-                }).bounds(contentX, y, half, 20).build());
+        widgets.add(flag("Explore Before Claiming", ExperimentsConfig::isSuperpairsExploreFirst, ExperimentsConfig::setSuperpairsExploreFirst, null, contentX, y, half));
         double skipRange = ExperimentsConfig.MAX_SUPERPAIRS_SKIP_VALUE - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE;
         widgets.add(new ThemedSliderButton(contentX + half + GAP, y, half, 20, skipValueText(),
                 (cfg.getSuperpairsSkipValueCoins() - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE) / skipRange) {
@@ -137,27 +102,12 @@ public class AutoExperimentsTab extends BaseTab {
         // Adaptive Timeout extends Superpairs' confirm wait by however long the server stalls (see
         // ExperimentSolver#superpairsConfirmTimeoutMs). Its Timeout Margin slider went on 2026-10-04 -
         // killer560: "that shouldn't have a margin it should sense when the server is lagging".
-        widgets.add(SettingsButtonWidget.builder(adaptiveTimeoutText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setSuperpairsAdaptiveTimeout(!c.isSuperpairsAdaptiveTimeout());
-                    c.save();
-                    btn.setMessage(adaptiveTimeoutText());
-                }).bounds(contentX, y, contentWidth, 20).build());
+        widgets.add(flag("Adaptive Timeout", ExperimentsConfig::isSuperpairsAdaptiveTimeout, ExperimentsConfig::setSuperpairsAdaptiveTimeout, null, contentX, y, contentWidth));
         y += 24;
 
         // Per killer560's request: Block Input and Auto-Swap Guardian side by side instead of stacked.
-        widgets.add(SettingsButtonWidget.builder(blockInputText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setBlockInputEnabled(!c.isBlockInputEnabled());
-                    c.save();
-                    btn.setMessage(blockInputText());
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(SettingsButtonWidget.builder(guardianSwapText(), btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setAutoSwapGuardianPet(!c.isAutoSwapGuardianPet());
-                    c.save();
-                    btn.setMessage(guardianSwapText());
-                }).bounds(contentX + half + GAP, y, half, 20).build());
+        widgets.add(flag("Block Input In Menu", ExperimentsConfig::isBlockInputEnabled, ExperimentsConfig::setBlockInputEnabled, null, contentX, y, half));
+        widgets.add(flag("Auto-Swap to Guardian Pet", ExperimentsConfig::isAutoSwapGuardianPet, ExperimentsConfig::setAutoSwapGuardianPet, null, contentX + half + GAP, y, half));
         y += 24;
 
         // Escape or the mod-wide Emergency Cancel Key (Home, macrostop/MacroStop) stops a run, nothing else (killer560,
@@ -331,36 +281,12 @@ public class AutoExperimentsTab extends BaseTab {
         }
     }
 
-    /** Replaces the old two-way "Mode: Solver Only / Autonomous" button - same {@code autonomousMode}
-     *  field and JSON key, but it no longer turns the solver off by being on. */
-    private static Component autoText() {
-        return Component.literal("Auto E-Table: "
-                + (ExperimentsConfig.getInstance().isAutonomousMode() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component superpairsText() {
-        return Component.literal("Auto-Solve Superpairs: "
-                + (ExperimentsConfig.getInstance().isSuperpairsEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component skipGrandText() {
-        return Component.literal("Skip Grand XP Bottles: "
-                + (ExperimentsConfig.getInstance().isSkipGrandExpBottles() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component skipSerumText() {
-        return Component.literal("Skip Metaphysical Serums: "
-                + (ExperimentsConfig.getInstance().isSkipMetaphysicalSerums() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component t7FirstText() {
-        return Component.literal("T7 Drops First: "
-                + (ExperimentsConfig.getInstance().isSuperpairsT7First() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component exploreFirstText() {
-        return Component.literal("Explore Before Claiming: "
-                + (ExperimentsConfig.getInstance().isSuperpairsExploreFirst() ? "§aON" : "§cOFF"));
+    /** An ON/OFF switch over one {@link ExperimentsConfig} flag (the config is read fresh at each click). */
+    private static SettingsButtonWidget flag(String label, java.util.function.Function<ExperimentsConfig, Boolean> get,
+            java.util.function.BiConsumer<ExperimentsConfig, Boolean> set, Runnable rebuild, int x, int y, int w) {
+        return onOffButton(label, () -> get.apply(ExperimentsConfig.getInstance()),
+                v -> set.accept(ExperimentsConfig.getInstance(), v), () -> ExperimentsConfig.getInstance().save(), rebuild,
+                x, y, w, 20);
     }
 
     private static Component skipValueText() {
@@ -368,33 +294,13 @@ public class AutoExperimentsTab extends BaseTab {
                 ExperimentsConfig.getInstance().getSuperpairsSkipValueCoins()));
     }
 
-    private static Component skipGuardianText() {
-        return Component.literal("Skip Guardian Pets: "
-                + (ExperimentsConfig.getInstance().isSkipGuardianPets() ? "§aON" : "§cOFF"));
-    }
-
     private static Component superpairsFilterText() {
         return Component.literal("Superpairs Pairs: §b"
                 + (ExperimentsConfig.getInstance().isSuperpairsValuableOnly() ? "Skip Plain XP" : "Every Pair"));
     }
 
-    private static Component adaptiveTimeoutText() {
-        return Component.literal("Adaptive Timeout: "
-                + (ExperimentsConfig.getInstance().isSuperpairsAdaptiveTimeout() ? "§aON" : "§cOFF"));
-    }
-
     private static Component stopStrategyText() {
         return Component.literal("Stop At: §b" + ExperimentsConfig.getInstance().getStopStrategy().displayName);
-    }
-
-    private static Component blockInputText() {
-        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        return Component.literal("Block Input In Menu: " + (cfg.isBlockInputEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component guardianSwapText() {
-        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
-        return Component.literal("Auto-Swap to Guardian Pet: " + (cfg.isAutoSwapGuardianPet() ? "§aON" : "§cOFF"));
     }
 
     private static Component renewCountText() {
