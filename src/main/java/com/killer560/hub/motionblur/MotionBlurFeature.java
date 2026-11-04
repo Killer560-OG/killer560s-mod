@@ -7,7 +7,5 @@ public final class MotionBlurFeature {
     private MotionBlurFeature() {
     }
 
-    public static void register() {
-        MotionBlurConfig.load();
-    }
+    public static void register() { MotionBlurConfig.load(); }
 }

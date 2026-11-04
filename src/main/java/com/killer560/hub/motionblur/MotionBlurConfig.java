@@ -67,31 +67,17 @@ public final class MotionBlurConfig {
         }
     }
 
-    private static int clampStrength(int v) {
-        return Math.max(MIN_STRENGTH, Math.min(MAX_STRENGTH, v));
-    }
+    private static int clampStrength(int v) { return Math.max(MIN_STRENGTH, Math.min(MAX_STRENGTH, v)); }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getStrength() {
-        return strength;
-    }
+    public int getStrength() { return strength; }
 
-    public void setStrength(int strength) {
-        this.strength = clampStrength(strength);
-    }
+    public void setStrength(int strength) { this.strength = clampStrength(strength); }
 
-    public boolean isBlurGui() {
-        return blurGui;
-    }
+    public boolean isBlurGui() { return blurGui; }
 
-    public void setBlurGui(boolean blurGui) {
-        this.blurGui = blurGui;
-    }
+    public void setBlurGui(boolean blurGui) { this.blurGui = blurGui; }
 }
