@@ -112,7 +112,6 @@ public final class P3StatusFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("P3StatusFeature.tick", P3StatusFeature::tick));
     }
 
-    // ------------------------------------------------------------------------------------------------- tracking
 
     private static void syncRun() {
         int g = P3SectionTracker.generation();
@@ -209,7 +208,6 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- titles
 
     /** From the title mixin: true cancels Hypixel's title/subtitle (a replacement may already have been shown). */
     public static boolean onTitle(Component text, boolean subtitle) {
@@ -283,7 +281,6 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- HUD
 
     /** The rows the HUD draws now (the editor's sample in the HUD editor). */
     static List<String> lines() {
@@ -373,7 +370,6 @@ public final class P3StatusFeature {
         }
     }
 
-    // ------------------------------------------------------------------------------------------------- test hooks
 
     private static volatile String lastDrawn = "";
 
