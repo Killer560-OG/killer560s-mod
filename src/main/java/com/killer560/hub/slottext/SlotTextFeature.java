@@ -73,12 +73,8 @@ public final class SlotTextFeature {
     /** Whether text should be drawn this frame: feature on, Skyblock gate, and the key rule of the chosen mode. */
     public static boolean visible() {
         SlotTextConfig cfg = SlotTextConfig.getInstance();
-        if (!cfg.isEnabledRaw()) {
-            return false;
-        }
-        if (cfg.isSkyblockOnly() && !SkyblockGate.allows()) {
-            return false;
-        }
+        if (!cfg.isEnabledRaw()) return false;
+        if (cfg.isSkyblockOnly() && !SkyblockGate.allows()) return false;
         SlotTextConfig.Mode mode = cfg.getMode();
         // Asked for every slot of an open menu every frame: in Always mode the key is never read, so it is not polled
         // (a GLFW call per slot) just to be ignored (mixin FPS pass, 2026-10-15).
@@ -100,9 +96,7 @@ public final class SlotTextFeature {
 
     private static boolean keyHeld(int code) {
         Boolean forced = keyHeldForTest;
-        if (forced != null) {
-            return forced;
-        }
+        if (forced != null) return forced;
         Minecraft mc = Minecraft.getInstance();
         return mc != null && KeyUtil.isBindDown(mc.getWindow(), code);
     }
@@ -111,15 +105,11 @@ public final class SlotTextFeature {
     /** Called from the slot mixin after the item and its count are drawn. {@code x}/{@code y} are slot-local. */
     public static void draw(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         ItemStack stack = slot.getItem();
-        if (stack.isEmpty() || !visible() || !anyTypeOn()) {
-            return;
-        }
+        if (stack.isEmpty() || !visible() || !anyTypeOn()) return;
         String title = titleOf(screen);
         boolean playerSlot = slot.container instanceof Inventory;
         List<Entry> entries = entriesFor(stack, title, slot.index, playerSlot);
-        if (entries.isEmpty()) {
-            return;
-        }
+        if (entries.isEmpty()) return;
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
     }
 
@@ -223,9 +213,7 @@ public final class SlotTextFeature {
      */
     public static List<Entry> compute(ItemStack stack, String title, int slotIndex, boolean playerSlot,
                                       Predicate<SlotTextType> on) {
-        if (stack == null || stack.isEmpty()) {
-            return List.of();
-        }
+        if (stack == null || stack.isEmpty()) return List.of();
         String name = stack.getHoverName().getString();
         CompoundTag tag = ItemNbt.view(stack);
         String id = tag == null ? "" : tag.getStringOr("id", "");
@@ -283,9 +271,7 @@ public final class SlotTextFeature {
     private static void bookText(CompoundTag tag, String name, Predicate<SlotTextType> on, List<Entry> out) {
         boolean wantLevel = on.test(SlotTextType.ENCHANT_LEVEL);
         boolean wantAbbr = on.test(SlotTextType.ENCHANT_ABBREVIATION);
-        if (!wantLevel && !wantAbbr) {
-            return;
-        }
+        if (!wantLevel && !wantAbbr) return;
         CompoundTag enchants = tag == null ? new CompoundTag() : tag.getCompoundOrEmpty("enchantments");
         if (enchants.size() == 1) {
             String key = enchants.keySet().iterator().next();
@@ -307,9 +293,7 @@ public final class SlotTextFeature {
     }
 
     private static void menuText(ItemStack stack, String title, int slot, String name, Predicate<SlotTextType> on, List<Entry> out) {
-        if (slot > 53) {
-            return;
-        }
+        if (slot > 53) return;
         int row = slot / 9;
         if (on.test(SlotTextType.SKILL_LEVEL) && title.startsWith("Your Skills")) {
             if (row >= 1 && row <= 4 && !name.isBlank() && !name.equals("Dungeoneering") && !stack.is(com.killer560.hub.compat.McItems.BLACK_STAINED_GLASS_PANE)) {
@@ -362,9 +346,7 @@ public final class SlotTextFeature {
 
     private static List<String> loreLines(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) {
-            return List.of();
-        }
+        if (lore == null) return List.of();
         List<String> lines = new ArrayList<>(lore.lines().size());
         for (var c : lore.lines()) {
             lines.add(c.getString());
@@ -542,18 +524,14 @@ public final class SlotTextFeature {
         boolean ultimate = lower.startsWith("ultimate_");
         String id = ultimate ? lower.substring("ultimate_".length()) : lower;
         String known = ultimate ? ULTIMATE_ABBREVIATIONS.get(id) : ABBREVIATIONS.get(id);
-        if (known != null) {
-            return known;
-        }
+        if (known != null) return known;
         List<String> words = new ArrayList<>();
         for (String w : id.split("_")) {
             if (!w.isEmpty() && !w.equals("of") && !w.equals("the")) {
                 words.add(w);
             }
         }
-        if (words.isEmpty()) {
-            return "?";
-        }
+        if (words.isEmpty()) return "?";
         StringBuilder sb = new StringBuilder();
         if (words.size() == 1) {
             String w = words.get(0);
@@ -581,9 +559,7 @@ public final class SlotTextFeature {
 
     /** Value of a Roman numeral (subtractive notation); 0 if {@code s} is not one. Public for the tests. */
     public static int roman(String s) {
-        if (!isRoman(s)) {
-            return 0;
-        }
+        if (!isRoman(s)) return 0;
         int total = 0;
         int prev = 0;
         for (int i = s.length() - 1; i >= 0; i--) {
