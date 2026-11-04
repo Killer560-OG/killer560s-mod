@@ -1581,6 +1581,29 @@ final class ExperimentSolver {
         return OptionalInt.of(slot);
     }
 
+    /** The group of two or more members whose first member is worth the most (the earliest on a tie), or null. */
+    private static <T> List<T> bestGroup(java.util.Collection<List<T>> groups, java.util.function.ToDoubleFunction<T> value) {
+        List<T> best = null;
+        double bestValue = -1;
+        for (List<T> group : groups) {
+            if (group.size() < 2) continue;
+            double v = value.applyAsDouble(group.get(0));
+            if (v > bestValue) {
+                bestValue = v;
+                best = group;
+            }
+        }
+        return best;
+    }
+
+    /** Queues a known pair: {@code first} is clicked now, {@code second} after it. */
+    private void queuePair(int first, int second) {
+        queuedPairSlots.add(first);
+        queuedPairSlots.add(second);
+        pairClicks.add(second);
+        superpairsPairFirstSlot = first;
+    }
+
     /** Explore Before Claiming's held-back money: the known pair worth the most coins, queued like any pair. */
     private OptionalInt matchBestLowValuePair(BoardFacts board) {
         Map<String, List<Integer>> byKey = new java.util.LinkedHashMap<>();
@@ -1590,27 +1613,15 @@ final class ExperimentSolver {
                     || !isLowValueDeferred(cell)) continue;
             byKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(slot);
         }
-        List<Integer> best = null;
-        double bestValue = -1;
-        for (List<Integer> group : byKey.values()) {
-            if (group.size() < 2) continue;
-            double value = coinValue(knownSuperpairsCells.get(group.get(0)));
-            if (value > bestValue) {
-                bestValue = value;
-                best = group;
-            }
-        }
+        List<Integer> best = bestGroup(byKey.values(), slot -> coinValue(knownSuperpairsCells.get(slot)));
         if (best == null) {
             return OptionalInt.empty();
         }
         int first = best.get(0);
         int second = best.get(1);
-        queuedPairSlots.add(first);
-        queuedPairSlots.add(second);
-        pairClicks.add(second);
-        superpairsPairFirstSlot = first;
+        queuePair(first, second);
         LOGGER.info("Superpairs: collecting held-back pair slot {} with slot {} (name='{}', {} coins)",
-                first, second, knownSuperpairsCells.get(first).name(), Math.round(bestValue));
+                first, second, knownSuperpairsCells.get(first).name(), Math.round(coinValue(knownSuperpairsCells.get(first))));
         return OptionalInt.of(first);
     }
 
@@ -1639,10 +1650,7 @@ final class ExperimentSolver {
             String key = pairKey(known);
             Integer first = firstSeenThisPass.putIfAbsent(key, slot);
             if (first != null) {
-                queuedPairSlots.add(first);
-                queuedPairSlots.add(slot);
-                pairClicks.add(slot);
-                superpairsPairFirstSlot = first;
+                queuePair(first, slot);
                 // Diagnostic (2026-09-24), per killer560's report of a Titanic getting queued against a Grand:
                 // logging both slots' full remembered identity settles whether a repeat is a genuine key
                 // collision (both names would print identical here) or something else.
@@ -1709,10 +1717,7 @@ final class ExperimentSolver {
             if (group.size() < 2) continue;
             int first = group.get(0).slot();
             int second = group.get(1).slot();
-            queuedPairSlots.add(first);
-            queuedPairSlots.add(second);
-            pairClicks.add(second);
-            superpairsPairFirstSlot = first;
+            queuePair(first, second);
             LOGGER.info("Superpairs: board explored, collecting skipped reward pair slot {} with slot {} (name='{}')",
                     first, second, group.get(0).name());
             return OptionalInt.of(first);
@@ -1729,25 +1734,13 @@ final class ExperimentSolver {
             if (cell == null || !board.coveredKnown.contains(slot) || !isSuperpairsXpTile(cell) || queuedPairSlots.contains(slot)) continue;
             byKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(cell);
         }
-        List<Cell> bestPair = null;
-        double bestValue = -1;
-        for (List<Cell> group : byKey.values()) {
-            if (group.size() < 2) continue;
-            double value = xpValue(group.get(0));
-            if (value > bestValue) {
-                bestValue = value;
-                bestPair = group;
-            }
-        }
+        List<Cell> bestPair = bestGroup(byKey.values(), ExperimentSolver::xpValue);
         if (bestPair == null) {
             return OptionalInt.empty();
         }
         int first = bestPair.get(0).slot();
         int second = bestPair.get(1).slot();
-        queuedPairSlots.add(first);
-        queuedPairSlots.add(second);
-        pairClicks.add(second);
-        superpairsPairFirstSlot = first;
+        queuePair(first, second);
         LOGGER.info("Superpairs: board explored, matching XP pair slot {} with slot {} (name='{}')",
                 first, second, bestPair.get(0).name());
         return OptionalInt.of(first);
