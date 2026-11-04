@@ -130,16 +130,23 @@ public class ColorPickerScreen extends Screen {
     }
 
     private void syncWidgets() {
-        if (hexBox != null && !fromHexBox) {
+        if (!fromHexBox) {
+            showHex();
+        }
+        if (alphaSlider != null) {
+            alphaSlider.sync(alpha);
+        }
+    }
+
+    /** Writes the current color into the hex box without its responder answering. */
+    private void showHex() {
+        if (hexBox != null) {
             syncingHex = true;
             try {
                 hexBox.setValue(ColourHex.format(argb));
             } finally {
                 syncingHex = false;
             }
-        }
-        if (alphaSlider != null) {
-            alphaSlider.sync(alpha);
         }
     }
 
@@ -225,9 +232,7 @@ public class ColorPickerScreen extends Screen {
         int btnW = (inW - hexW - 8) / 2;
         hexBox = new CommitEditBox(this.font, inX, hexY, hexW, 18, Component.literal("Hex"));
         hexBox.setMaxLength(16);
-        syncingHex = true;
-        hexBox.setValue(ColourHex.format(argb));
-        syncingHex = false;
+        showHex();
         hexBox.setResponder(this::onHexTyped);
         // Enter applies the typed color and closes, as Done does (Done is the picker's commit button).
         hexBox.onEnter(() -> {
@@ -235,10 +240,8 @@ public class ColorPickerScreen extends Screen {
             onClose();
         });
         this.addRenderableWidget(hexBox);
-        copyButton = this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Copy"), btn -> copyColour())
-                .bounds(inX + hexW + 4, hexY, btnW, 18).build());
-        pasteButton = this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Paste"), btn -> pasteColour())
-                .bounds(inX + hexW + 8 + btnW, hexY, inW - hexW - 8 - btnW, 18).build());
+        copyButton = addButton("Copy", btn -> copyColour(), inX + hexW + 4, hexY, btnW, 18);
+        pasteButton = addButton("Paste", btn -> pasteColour(), inX + hexW + 8 + btnW, hexY, inW - hexW - 8 - btnW, 18);
 
         statusY = hexY + 23;
         recentY = statusY + 14;
@@ -246,15 +249,16 @@ public class ColorPickerScreen extends Screen {
 
         int buttonY = recentY + SWATCH + 8;
         if (extraLabel != null && extraAction != null) {
-            this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(extraLabel), btn -> extraAction.accept(this))
-                    .bounds(inX, buttonY, inW, 20).build());
+            addButton(extraLabel, btn -> extraAction.accept(this), inX, buttonY, inW, 20);
             buttonY += 24;
         }
-        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Set Default"), btn -> applyArgb(defaultArgb))
-                .bounds(inX, buttonY, (inW - 10) / 2, 20).build());
-        this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
-                .bounds(inX + (inW - 10) / 2 + 10, buttonY, inW - (inW - 10) / 2 - 10, 20).build());
+        addButton("Set Default", btn -> applyArgb(defaultArgb), inX, buttonY, (inW - 10) / 2, 20);
+        addButton("Done", btn -> onClose(), inX + (inW - 10) / 2 + 10, buttonY, inW - (inW - 10) / 2 - 10, 20);
         panelH = buttonY + 20 + 10 - panelY;
+    }
+
+    private AbstractWidget addButton(String label, SettingsButtonWidget.OnPress press, int x, int y, int w, int h) {
+        return this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(label), press).bounds(x, y, w, h).build());
     }
 
     private void onHexTyped(String text) {
@@ -537,14 +541,7 @@ public class ColorPickerScreen extends Screen {
             alpha = (float) this.value;
             argb = (Math.round(alpha * 255) << 24) | (argb & 0x00FFFFFF);
             onChange.accept(argb);
-            if (hexBox != null) {
-                syncingHex = true;
-                try {
-                    hexBox.setValue(ColourHex.format(argb));
-                } finally {
-                    syncingHex = false;
-                }
-            }
+            showHex();
         }
     }
 }
