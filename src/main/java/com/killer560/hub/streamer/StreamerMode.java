@@ -57,9 +57,7 @@ public final class StreamerMode {
     }
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         try {
             readFile();
         } finally {
@@ -83,9 +81,7 @@ public final class StreamerMode {
     }
 
     private static void readFile() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) {
-            return;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) return;
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             active = ConfigJson.getBool(obj, "active", false);
@@ -108,9 +104,7 @@ public final class StreamerMode {
 
     /** Streamer mode is on (cheat build only). */
     public static boolean active() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         ensureLoaded();
         return active;
     }
@@ -134,9 +128,7 @@ public final class StreamerMode {
 
     /** Flips streamer mode; returns the new state. */
     public static boolean toggle() {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return false;
-        }
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED) return false;
         ensureLoaded();
         active = !active;
         save();
