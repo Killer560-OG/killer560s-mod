@@ -129,7 +129,6 @@ public final class RelayClient {
     private RelayClient() {
     }
 
-    // ---------------------------------------------------------------- public API
 
     public static void setListener(RelayListener value) {
         listener = value == null ? NO_LISTENER : value;
@@ -451,7 +450,6 @@ public final class RelayClient {
         }
     }
 
-    // ---------------------------------------------------------------- socket
 
     private static final class Socket implements WebSocket.Listener {
 

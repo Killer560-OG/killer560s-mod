@@ -110,9 +110,6 @@ public final class RelayRoom {
         if (room.startsWith("party:")) {
             return "Party (" + (PartyTracker.teammates().size() + 1) + ")";
         }
-        if (room.startsWith("lobby:")) {
-            return "Lobby";
-        }
-        return room;
+        return room.startsWith("lobby:") ? "Lobby" : room;
     }
 }
