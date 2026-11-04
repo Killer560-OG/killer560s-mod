@@ -137,6 +137,8 @@ public final class ScoreboardExtraData {
 
     /** -1 unknown, 0 not active, else epoch ms the buff expires. */
     private static long cookieExpiresAtMs = -1L;
+    /** The precision of the reading that set {@link #cookieExpiresAtMs} (0 = exact, from the menu). */
+    private static long cookieResolutionMs = Long.MAX_VALUE;
     private static String maxwellPower = null;
     private static int magicalPower = -1;
     /** null = never seen. */
@@ -412,7 +414,7 @@ public final class ScoreboardExtraData {
                 } else {
                     long d = parseDuration(c.get(c.size() - 1));
                     if (d > 0) {
-                        offerCookieDuration(d, false);
+                        offerCookieDuration(d, durationResolution(c.get(c.size() - 1)));
                     }
                 }
                 break;
@@ -427,7 +429,7 @@ public final class ScoreboardExtraData {
                 } else {
                     long d = parseDuration(duration);
                     if (d > 0) {
-                        offerCookieDuration(d, false);
+                        offerCookieDuration(d, durationResolution(duration));
                     }
                 }
                 break;
@@ -442,16 +444,42 @@ public final class ScoreboardExtraData {
         }
     }
 
-    /** Coarse sources ("3 Days, 2 Hours") only replace a close existing value when they're later; exact ones always. */
-    private static void offerCookieDuration(long durationMs, boolean exact) {
+    /**
+     * A reading of the buff's time left, {@code resolutionMs} the step of its smallest unit (0 = exact, the menu's lore).
+     * A reading replaces the countdown only when it is at least as precise as the one that set it, or the countdown
+     * falls outside the reading's own window (plus or minus one step). The footer's "3 Days" is read every second, and
+     * it used to restart the countdown at 3d each time, so the line pulsed between "3d" and "2d 23h" on a private
+     * island, where the tab has no Cookie Buff widget (killer560, 2026-11-04).
+     */
+    private static void offerCookieDuration(long durationMs, long resolutionMs) {
         long expires = System.currentTimeMillis() + durationMs;
         long old = cookieExpiresAtMs;
-        if (exact || old <= 0 || expires > old || Math.abs(expires - old) > 70 * 60 * 1000L) {
-            if (Math.abs(expires - old) > 1000L) {
+        boolean inWindow = old > 0 && Math.abs(expires - old) <= resolutionMs;
+        boolean finer = resolutionMs < cookieResolutionMs;
+        if (old <= 0 || resolutionMs == 0L || !inWindow || finer) {
+            if (Math.abs(expires - old) > 1000L || finer) {
                 cookieExpiresAtMs = expires;
+                cookieResolutionMs = resolutionMs;
                 dirty = true;
             }
         }
+    }
+
+    /** The step of the smallest unit a duration text shows: "3 Days" one day, "2d 23h" one hour, "5m 2s" one second. */
+    static long durationResolution(String text) {
+        long step = Long.MAX_VALUE;
+        Matcher m = DURATION_PART.matcher(text == null ? "" : text);
+        while (m.find()) {
+            long unit = switch (Character.toLowerCase(m.group(2).charAt(0))) {
+                case 'y' -> 365L * 86_400_000L;
+                case 'd' -> 86_400_000L;
+                case 'h' -> 3_600_000L;
+                case 'm' -> 60_000L;
+                default -> 1000L;
+            };
+            step = Math.min(step, unit);
+        }
+        return step == Long.MAX_VALUE ? 86_400_000L : step;
     }
 
     /** "3d 17h 2m", "3 Days, 17 Hours" ... in ms, or -1. */
@@ -547,7 +575,7 @@ public final class ScoreboardExtraData {
                     if (m.matches()) {
                         long d = parseDuration(m.group("duration"));
                         if (d > 0) {
-                            offerCookieDuration(d, true);
+                            offerCookieDuration(d, 0L);
                         }
                     } else if (COOKIE_NOT_ACTIVE_LORE.matcher(line).matches()) {
                         setCookieNotActive();
@@ -835,6 +863,7 @@ public final class ScoreboardExtraData {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(DATA_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             cookieExpiresAtMs = ConfigJson.getLong(obj, "cookieExpiresAtMs", -1L);
+            cookieResolutionMs = 3_600_000L; // a saved countdown: a footer "3 Days" inside its window keeps it
             maxwellPower = ConfigJson.getString(obj, "maxwellPower", null);
             magicalPower = ConfigJson.getInt(obj, "magicalPower", -1);
             JsonArray tuningArray = ConfigJson.getArray(obj, "tunings");

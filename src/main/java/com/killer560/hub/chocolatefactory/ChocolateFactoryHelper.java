@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McCompat;
  * cheat auto buys by) once you can afford it, and keeps that outline on an upgrade you have picked up until the pick-up
  * ends (see updateHeldBest below);</li>
  * <li>outlines stray rabbits gold, and plays a ping with a chat line the moment one appears;</li>
- * <li>outlines the Time Tower aqua while it has a charge and is not running, with one chat reminder per menu open;</li>
+ * <li>outlines the Time Tower aqua while it has a charge and is not running, with one reminder line in the log per menu open (not in chat: killer560 2026-11-04 "dont send this message");</li>
  * <li>prints one line above the menu: chocolate per second, the best upgrade, its cost and how long until you can
  * afford it.</li>
  * </ul>
@@ -174,7 +174,7 @@ public final class ChocolateFactoryHelper {
             if (cfg.isTimeTowerReminder() && state.timeTowerReady() && !towerReminded) {
                 towerReminded = true;
                 towerReminders++;
-                ModChat.send(CHAT, ModChat.text("Your Time Tower has "), ModChat.value(String.valueOf(state.timeTowerCharges())),
+                ModChat.log(CHAT, ModChat.text("Your Time Tower has "), ModChat.value(String.valueOf(state.timeTowerCharges())),
                         ModChat.text(" charge" + (state.timeTowerCharges() == 1 ? "" : "s") + " and is not running."));
             }
         } catch (RuntimeException e) {

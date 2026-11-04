@@ -21,6 +21,7 @@ final class CardBlurbsData {
         d.put("MiningMithrilStoneTab", "Hides mithril you don't need.");
         d.put("MiningPickobulusTab", "Outlines its break area.");
         d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
+        d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
         d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
