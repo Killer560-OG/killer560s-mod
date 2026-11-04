@@ -89,30 +89,9 @@ final class SplitLagClock {
         lastTickMs = now;
     }
 
-    /** Testkit (logic suite): one server tick seen at wall time {@code nowMs}, as {@link #onTick} would at a ping. */
-    static synchronized void tickAtForTest(long nowMs) {
-        pingClockSeen = true;
-        if (lastTickMs != 0L) {
-            accumulatedLagMs += (nowMs - lastTickMs) - NOMINAL_TICK_MS;
-            long rise = accumulatedLagMs - lowMs;
-            if (rise > STALL_MS) {
-                stallLagMs += rise;
-                lowMs = accumulatedLagMs;
-            } else if (rise < 0L) {
-                lowMs = accumulatedLagMs;
-            }
-        }
-        lastTickMs = nowMs;
-    }
-
     /** Testkit: start over (a fresh connection). */
     static synchronized void resetForTest() {
         reset();
-    }
-
-    /** Testkit: the lag {@link #accumulatedLagMs()} would read at wall time {@code nowMs}. */
-    static long lagAtForTest(long nowMs) {
-        return lagAt(nowMs);
     }
 
     /** Lag so far: committed per tick, plus the live stall since the last tick, so the lagless time (real minus lag) only ever climbs. Split
