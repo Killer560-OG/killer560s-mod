@@ -184,9 +184,7 @@ public final class DungeonState {
      *  list per floor rather than just the boolean F7/M7 check the rest of this mod uses. Forced to
      *  "F7" while {@link #isSimOverrideActive()}. */
     public static String getFloor() {
-        if (simOverrideActive) {
-            return "F7";
-        }
+        if (simOverrideActive) return "F7";
         // M7 for the sim: the clear features he practices with are the M7 ones, and Auto Debuff is M7-only.
         return roomSimActive ? "M7" : cachedFloor;
     }
@@ -219,9 +217,7 @@ public final class DungeonState {
      *  scoreboard on every call. */
     private static String computeCurrentFloor() {
         String sidebar = readSidebarText();
-        if (sidebar.isEmpty()) {
-            return null;
-        }
+        if (sidebar.isEmpty()) return null;
         if (sidebar == floorFromSidebar) {
             return floorFromSidebarResult; // the very text the last answer was read from (see readSidebarText)
         }
@@ -240,9 +236,7 @@ public final class DungeonState {
         // color codes MID-WORD (e.g. "The Catac§combs §7(F7)"), which the plain CATACOMBS_FLOOR_PATTERN
         // can't match through. Stripped first, the same way BOSS_START_PATTERN already handles it above.
         String plain = com.killer560.hub.util.ChatObserver.stripCodes(sidebar);
-        if (plain == null || plain.contains("Queue")) {
-            return null;
-        }
+        if (plain == null || plain.contains("Queue")) return null;
         Matcher matcher = CATACOMBS_FLOOR_PATTERN.matcher(plain);
         return matcher.find() ? matcher.group(1) : null;
     }
@@ -268,9 +262,7 @@ public final class DungeonState {
      */
     public static String sidebarRoomName() {
         String raw = readSidebarText();
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
+        if (raw == null || raw.isBlank()) return null;
         for (String line : raw.split("\n")) {
             // Stripped first: a color code in front of "Room:" made this miss the line entirely.
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
@@ -293,9 +285,7 @@ public final class DungeonState {
     /** The team's wither keys as the sidebar shows them, or -1 when there is no Keys line. */
     public static int sidebarWitherKeys() {
         java.util.regex.Matcher m = keysLine();
-        if (m == null) {
-            return -1;
-        }
+        if (m == null) return -1;
         try {
             return Integer.parseInt(m.group(2));
         } catch (NumberFormatException e) {
@@ -311,31 +301,23 @@ public final class DungeonState {
 
     private static java.util.regex.Matcher keysLine() {
         String raw = readSidebarText();
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
+        if (raw == null || raw.isBlank()) return null;
         for (String line : raw.split("\n")) {
             String plain = com.killer560.hub.util.ChatObserver.stripCodes(line);
             java.util.regex.Matcher m = KEYS_LINE.matcher(plain == null ? "" : plain.trim());
-            if (m.matches()) {
-                return m;
-            }
+            if (m.matches()) return m;
         }
         return null;
     }
 
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.level == null) {
-            return "";
-        }
+        if (client == null || client.level == null) return "";
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (sidebar == null) {
             for (DisplaySlot slot : DisplaySlot.values()) {
-                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) {
-                    continue;
-                }
+                if (slot == DisplaySlot.SIDEBAR || slot == DisplaySlot.LIST || slot == DisplaySlot.BELOW_NAME) continue;
                 Objective candidate = scoreboard.getDisplayObjective(slot);
                 if (candidate != null) {
                     sidebar = candidate;
@@ -343,9 +325,7 @@ public final class DungeonState {
                 }
             }
         }
-        if (sidebar == null) {
-            return "";
-        }
+        if (sidebar == null) return "";
         java.util.Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(sidebar);
         // Read every tick in every world (floor detection), so the text is rebuilt only when something it is made of
         // changed. Every input is compared by identity - a team's prefix/suffix and an entry's display are replaced,
@@ -355,9 +335,7 @@ public final class DungeonState {
         Object[] key = null;
         // Compared in place against the last key first: the usual tick (nothing changed) allocates no key array
         // (fps-idle-1015: ~330 B a tick in a dungeon, with every feature off).
-        if (onClientThread && sameAsLastKey(scoreboard, sidebar, entries)) {
-            return sidebarText;
-        }
+        if (onClientThread && sameAsLastKey(scoreboard, sidebar, entries)) return sidebarText;
         if (onClientThread) {
             key = new Object[3 + entries.size() * 5];
             int k = 0;
@@ -372,9 +350,7 @@ public final class DungeonState {
                 key[k++] = team == null ? null : team.getPlayerPrefix();
                 key[k++] = team == null ? null : team.getPlayerSuffix();
             }
-            if (sameSidebarKey(key, sidebarKey)) {
-                return sidebarText;
-            }
+            if (sameSidebarKey(key, sidebarKey)) return sidebarText;
         }
         StringBuilder sb = new StringBuilder();
         sb.append(sidebar.getDisplayName().getString()).append('\n');
@@ -397,9 +373,7 @@ public final class DungeonState {
     private static boolean sameAsLastKey(Scoreboard scoreboard, Objective sidebar,
                                          java.util.Collection<PlayerScoreEntry> entries) {
         Object[] b = sidebarKey;
-        if (b == null || b.length != 3 + entries.size() * 5) {
-            return false;
-        }
+        if (b == null || b.length != 3 + entries.size() * 5) return false;
         if (b[0] != sidebar || b[1] != sidebar.getDisplayName() || b[2] != net.minecraft.locale.Language.getInstance()) {
             return false;
         }
@@ -407,12 +381,8 @@ public final class DungeonState {
         for (PlayerScoreEntry entry : entries) {
             String owner = entry.owner();
             Object last = b[k];
-            if (owner != last && !(owner != null && owner.equals(last))) {
-                return false;
-            }
-            if (b[k + 1] != entry.display()) {
-                return false;
-            }
+            if (owner != last && !(owner != null && owner.equals(last))) return false;
+            if (b[k + 1] != entry.display()) return false;
             PlayerTeam team = scoreboard.getPlayersTeam(owner);
             if (b[k + 2] != team || b[k + 3] != (team == null ? null : team.getPlayerPrefix())
                     || b[k + 4] != (team == null ? null : team.getPlayerSuffix())) {
@@ -425,15 +395,11 @@ public final class DungeonState {
 
     /** Element by element: identity for components, teams and objectives; equals for the owner name strings. */
     private static boolean sameSidebarKey(Object[] a, Object[] b) {
-        if (b == null || a.length != b.length) {
-            return false;
-        }
+        if (b == null || a.length != b.length) return false;
         for (int i = 0; i < a.length; i++) {
             Object x = a[i];
             Object y = b[i];
-            if (x != y && !(x instanceof String && x.equals(y))) {
-                return false;
-            }
+            if (x != y && !(x instanceof String && x.equals(y))) return false;
         }
         return true;
     }
@@ -444,9 +410,7 @@ public final class DungeonState {
      *  cheaper/safer than returning nothing). */
     private static String realLineText(Scoreboard scoreboard, PlayerScoreEntry entry) {
         PlayerTeam team = scoreboard.getPlayersTeam(entry.owner());
-        if (team == null) {
-            return entry.display() != null ? entry.display().getString() : entry.owner();
-        }
+        if (team == null) return entry.display() != null ? entry.display().getString() : entry.owner();
         StringBuilder line = new StringBuilder();
         Component prefix = team.getPlayerPrefix();
         if (prefix != null) {

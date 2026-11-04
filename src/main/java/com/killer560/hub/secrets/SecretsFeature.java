@@ -58,20 +58,14 @@ public final class SecretsFeature {
      *  fixing chests alone. */
     private static boolean isOnDungeonServer() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null) {
-            return false;
-        }
+        if (client == null) return false;
         ServerData server = client.getCurrentServer();
-        if (server == null || server.ip == null) {
-            return false;
-        }
+        if (server == null || server.ip == null) return false;
         // Asked by every getShape of every button, lever, chest and skull (raycasts, the outline, the integrated
         // server's own lookups) while Secrets is on: a pure function of the address string, so it is worked out once
         // per address object instead of lower-casing a copy of it on each call (mixin FPS pass, 2026-10-15).
         IpVerdict last = lastIpVerdict;
-        if (last != null && last.ip == server.ip) {
-            return last.dungeon;
-        }
+        if (last != null && last.ip == server.ip) return last.dungeon;
         String ip = server.ip.toLowerCase(Locale.US);
         boolean dungeon = ip.contains("hypixel.net") || ip.contains("p3sim.net");
         lastIpVerdict = new IpVerdict(server.ip, dungeon);
@@ -128,9 +122,7 @@ public final class SecretsFeature {
     /** A skull wearing the Redstone Key's skin - by profile id, like {@link #isWitherEssence}, so no decorative head counts. */
     public static boolean isRedstoneKey(BlockGetter level, BlockPos pos) {
         BlockEntity entity = level.getBlockEntity(pos);
-        if (!(entity instanceof SkullBlockEntity skull)) {
-            return false;
-        }
+        if (!(entity instanceof SkullBlockEntity skull)) return false;
         ResolvableProfile owner = skull.getOwnerProfile();
         GameProfile partial = owner == null ? null : owner.partialProfile();
         return partial != null && REDSTONE_KEY_PROFILE_ID.equals(partial.id());
@@ -138,13 +130,9 @@ public final class SecretsFeature {
 
     public static boolean isWitherEssence(BlockGetter level, BlockPos pos) {
         BlockEntity entity = level.getBlockEntity(pos);
-        if (!(entity instanceof SkullBlockEntity skull)) {
-            return false;
-        }
+        if (!(entity instanceof SkullBlockEntity skull)) return false;
         ResolvableProfile owner = skull.getOwnerProfile();
-        if (owner == null) {
-            return false;
-        }
+        if (owner == null) return false;
         GameProfile partial = owner.partialProfile();
         return partial != null && partial.id() != null && WITHER_ESSENCE_PROFILE_IDS.contains(partial.id());
     }
@@ -154,9 +142,7 @@ public final class SecretsFeature {
     // - being in the F7/M7 boss phase already implies being in a dungeon, so having both on at once is
     // simply redundant, never contradictory.
     private static boolean passesDungeonsOnlyGate(SecretsConfig cfg) {
-        if (!cfg.isDungeonsOnly()) {
-            return true;
-        }
+        if (!cfg.isDungeonsOnly()) return true;
         boolean inDungeon = DungeonState.isInDungeon();
         return inDungeon;
     }

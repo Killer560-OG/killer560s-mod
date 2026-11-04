@@ -98,9 +98,7 @@ public final class DummyLevers {
         Snapshot s = snapshot;
         if (sim) {
             int version = com.killer560.hub.roomsim.SimRoomIndex.version();
-            if (s.sim() && s.simVersion() == version && s.shift() == shift) {
-                return s;
-            }
+            if (s.sim() && s.simVersion() == version && s.shift() == shift) return s;
             Set<Long> world = new HashSet<>();
             for (com.killer560.hub.roomsim.SimRoomIndex.Placed p : com.killer560.hub.roomsim.SimRoomIndex.placedView()) {
                 add(world, p.name(), p.clayX(), p.clayZ(), p.rotation(), shift);
@@ -111,9 +109,7 @@ public final class DummyLevers {
         }
         long now = System.currentTimeMillis();
         int generation = LiveMapFeature.resetGeneration();
-        if (!s.sim() && s.generation() == generation && now - s.atMs() < LIVE_REFRESH_MS) {
-            return s;
-        }
+        if (!s.sim() && s.generation() == generation && now - s.atMs() < LIVE_REFRESH_MS) return s;
         s = new Snapshot(fromLiveMap(0), false, -1, 0, generation, now);
         snapshot = s;
         return s;
