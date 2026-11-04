@@ -8,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -75,6 +76,34 @@ public final class DioriteGlassFeature {
         }
     }
 
+    /** The glass for a diorite block at {@code pos}, or null. Called by the level mixin the moment a server block change
+     *  is applied, so a pillar that is lowered or rebuilt shows glass the same tick (killer560, 2026-11-03). */
+    public static BlockState glassFor(BlockPos pos, BlockState state) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || state == null) {
+            return null;
+        }
+        Block block = state.getBlock();
+        if (block != Blocks.DIORITE && block != Blocks.POLISHED_DIORITE) {
+            return null;
+        }
+        if (!active()) {
+            return null;
+        }
+        for (Pillar pillar : PILLARS) {
+            BlockPos c = pillar.center();
+            if (Math.abs(pos.getX() - c.getX()) <= RADIUS && Math.abs(pos.getZ() - c.getZ()) <= RADIUS
+                    && pos.getY() >= c.getY() && pos.getY() <= c.getY() + HEIGHT) {
+                return pillar.glass();
+            }
+        }
+        return null;
+    }
+
+    /** In the F7/M7 boss with the setting on - the whole boss, not only Storm's phase. */
+    public static boolean active() {
+        return DioriteGlassConfig.getInstance().isEnabled() && DungeonState.isF7OrM7() && DungeonState.isBossPhaseActive();
+    }
+
     private static void tick(Minecraft client) {
         boolean inDungeon = DungeonState.isInDungeon();
         if (!inDungeon && wasInDungeon) {
@@ -83,7 +112,7 @@ public final class DioriteGlassFeature {
         wasInDungeon = inDungeon;
 
         DioriteGlassConfig cfg = DioriteGlassConfig.getInstance();
-        if (!cfg.isEnabled() || !stormPhaseActive || !DungeonState.isF7OrM7()
+        if (!cfg.isEnabled() || !active()
                 || client.level == null || client.player == null) {
             return;
         }
@@ -96,8 +125,8 @@ public final class DioriteGlassFeature {
             BlockPos min = pillar.center().offset(-RADIUS, 0, -RADIUS);
             BlockPos max = pillar.center().offset(RADIUS, HEIGHT, RADIUS);
             for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-                var block = client.level.getBlockState(pos).getBlock();
-                if (block == Blocks.DIORITE || block == Blocks.POLISHED_DIORITE) {
+                BlockState cur = client.level.getBlockState(pos);
+                if (glassFor(pos, cur) != null) {
                     client.level.setBlock(pos.immutable(), pillar.glass(), 19);
                 }
             }

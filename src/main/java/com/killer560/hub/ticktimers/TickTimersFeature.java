@@ -314,6 +314,34 @@ public final class TickTimersFeature {
             return lines.isEmpty() ? 160 : com.killer560.hub.hud.HudText.width(lines);
         }
 
+        /** The box is anchored on its center (killer560, 2026-11-03: "tick timers be adjusted by center align not an
+         *  edge"): the saved center, else the old saved left edge (or the default) plus half the empty 160 box it had. */
+        @Override
+        public int[] layoutPosition() {
+            float f = com.killer560.hub.hud.AutoScale.current();
+            TickTimersConfig cfg = TickTimersConfig.getInstance();
+            int centre;
+            if (cfg.getHudCenterX() >= 0) {
+                centre = Math.round(cfg.getHudCenterX() * f);
+            } else {
+                int[] saved = com.killer560.hub.hud.HudConfig.getInstance().savedPosition(id());
+                centre = (saved != null ? Math.round(saved[0] * f) : defaultX()) + 80;
+            }
+            int[] own = com.killer560.hub.hud.HudElementRegistry.ownPosition(this);
+            float scale = Math.max(0.01f, com.killer560.hub.hud.HudElementRegistry.resolveScale(this));
+            return new int[]{Math.round(centre - width() * scale / 2f), own[1]};
+        }
+
+        @Override
+        public boolean storeEditorPosition(int x, int y, int w, int h, int screenW, int screenH) {
+            int[] c = com.killer560.hub.hud.HudElementRegistry.toSaved(x + w / 2, y);
+            TickTimersConfig cfg = TickTimersConfig.getInstance();
+            cfg.setHudCenterX(c[0]);
+            cfg.save();
+            com.killer560.hub.hud.HudConfig.getInstance().setPosition(id(), c[0], c[1]);
+            return true;
+        }
+
         @Override
         public int height() {
             return com.killer560.hub.hud.HudText.height(activeLines().size(), 12);
@@ -340,7 +368,7 @@ public final class TickTimersFeature {
                 }
             }
             // Storm: ONE line (2026-11-02): lightning, then the purple pad, then the yellow pad (StormLine).
-            if (cfg.isStormLine() && StormLine.phase() != StormLine.Phase.NONE) {
+            if (cfg.isStormLine() && StormLine.visible()) {
                 lines.add(format(StormLine.remaining(), StormLine.max(), StormLine.prefix()));
             }
             return lines;
@@ -358,8 +386,11 @@ public final class TickTimersFeature {
                 return;
             }
             int lineY = y;
-            for (String line : activeLines()) {
-                graphics.text(Minecraft.getInstance().font, line, x, lineY, 0xFFFFFFFF, false);
+            List<String> shown = activeLines();
+            int boxW = shown.isEmpty() ? 0 : com.killer560.hub.hud.HudText.width(shown);
+            for (String line : shown) {
+                int dx = (boxW - com.killer560.hub.hud.HudText.width(line)) / 2;
+                graphics.text(Minecraft.getInstance().font, line, x + Math.max(0, dx), lineY, 0xFFFFFFFF, false);
                 lineY += 12;
             }
             if (lineY != y) {

@@ -67,6 +67,9 @@ public final class TickTimersConfig {
     private boolean maxorStartTimer = false;
     // One-off migration guard - see migrateFromGoldorFrenzy().
     private boolean goldorFrenzyMigrated = false;
+    // The HUD box is anchored on its CENTER (killer560, 2026-11-03), in baseline GUI pixels; -1 = never dragged since,
+    // so the old saved left edge is turned into a center on use.
+    private int hudCenterX = -1;
 
     // ---- Storm pads (F7/M7 P2), moved from f7spots.F7SpotsConfig 2026-09-21 ----
     // The crush countdown, its title and their settings (crushTimer, crushTitle, crushIntervalSeconds, crushWarnSeconds,
@@ -110,6 +113,7 @@ public final class TickTimersConfig {
                 parsed.goldorShowTotal = getBool(obj, "goldorShowTotal", false);
                 parsed.maxorStartTimer = getBool(obj, "maxorStartTimer", false);
                 parsed.goldorFrenzyMigrated = getBool(obj, "goldorFrenzyMigrated", false);
+                parsed.hudCenterX = obj.has("hudCenterX") ? obj.get("hudCenterX").getAsInt() : -1;
                 parsed.crushPadHighlight = getBool(obj, "crushPadHighlight", false);
                 parsed.crushAllPads = getBool(obj, "crushAllPads", false);
                 parsed.crushPadColor = ConfigJson.getInt(obj, "crushPadColor", DEFAULT_PAD_COLOR);
@@ -243,6 +247,7 @@ public final class TickTimersConfig {
             obj.addProperty("goldorShowTotal", goldorShowTotal);
             obj.addProperty("maxorStartTimer", maxorStartTimer);
             obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
+            obj.addProperty("hudCenterX", hudCenterX);
             obj.addProperty("crushPadHighlight", crushPadHighlight);
             obj.addProperty("crushAllPads", crushAllPads);
             obj.addProperty("crushPadColor", crushPadColor);
@@ -306,6 +311,15 @@ public final class TickTimersConfig {
 
     public void setGoldorStartTimer(boolean goldorStartTimer) {
         this.goldorStartTimer = goldorStartTimer;
+    }
+
+    /** The HUD box's center x in baseline GUI pixels, or -1 when never set. */
+    public int getHudCenterX() {
+        return hudCenterX;
+    }
+
+    public void setHudCenterX(int x) {
+        this.hudCenterX = x;
     }
 
     /** Storm's one line: lightning, then the purple pad, then the yellow pad ({@link StormLine}). */
