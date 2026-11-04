@@ -27,9 +27,10 @@ public final class SongShareConfig {
     private volatile boolean showOthers = false;
     /**
      * My Lyrics In F5 (2026-10-26): the lyric line being sung, over your own head in third person. Local only, never
-     * sent. Off by default, because turning it on starts the Spotify reader and the lyric lookups.
+     * sent. ON by default since 2026-11-03 (killer560: "spotify lyrics arent showing in f5"); a saved file without the
+     * {@code lyricsOverHeadV2} marker that still said false was only the old default, so it loads as ON once.
      */
-    private volatile boolean lyricsOverHead = false;
+    private volatile boolean lyricsOverHead = true;
     /**
      * Highlight Word In F5 (killer560, 2026-10-26: "have an option to highlight the word just like the hud as well"): the
      * F5 lyric line lights the word being sung exactly as the HUD does. On by default, as the HUD's Word Highlight is.
@@ -96,7 +97,7 @@ public final class SongShareConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
                 cfg.showOthers = ConfigJson.getBool(obj, "showOthers", false);
-                cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
+                cfg.lyricsOverHead = obj.has("lyricsOverHeadV2") ? ConfigJson.getBool(obj, "lyricsOverHead", true) : true;
                 cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
                 cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
                 cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
@@ -118,6 +119,7 @@ public final class SongShareConfig {
             obj.addProperty("shareSong", shareSong);
             obj.addProperty("showOthers", showOthers);
             obj.addProperty("lyricsOverHead", lyricsOverHead);
+            obj.addProperty("lyricsOverHeadV2", true);
             obj.addProperty("highlightWordInF5", highlightWordInF5);
             obj.addProperty("shareWhat", shareWhat.name());
             obj.addProperty("shareWord", shareWord);
