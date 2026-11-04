@@ -554,24 +554,12 @@ public final class VoiceToTextFeature {
         return finished;
     }
 
-    public static long testUtterances() {
-        return utterances.get();
-    }
-
     public static long testSent() {
         return sent.get();
     }
 
     public static long testIgnored() {
         return ignored.get();
-    }
-
-    public static String testLastSent() {
-        return lastSent;
-    }
-
-    public static int testLastUtteranceBytes() {
-        return lastUtteranceBytes;
     }
 
     /** @param restartIfOpenMic whether to start listening again once this utterance is transcribed and sent -

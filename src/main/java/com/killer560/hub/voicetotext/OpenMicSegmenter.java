@@ -104,10 +104,6 @@ public final class OpenMicSegmenter {
         return new Result(Action.CONTINUE, null, voicedMs, quiet);
     }
 
-    public boolean isSpeaking() {
-        return speaking;
-    }
-
     /** The quietest chunk of the last {@link #FLOOR_WINDOW_MS}, this one included. */
     private double floor(long nowMs, double rms) {
         floorWindow.addLast(new long[]{nowMs, Math.round(rms)});
