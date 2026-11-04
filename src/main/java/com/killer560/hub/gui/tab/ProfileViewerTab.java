@@ -62,6 +62,10 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
         widgets.add(onOffButton("Show Skin", cfg::isShowSkin, cfg::setShowSkin, cfg::save, null, colBX, y, colW, 18));
         y += 22;
 
+        widgets.add(onOffButton("Non-Cosmetic Networth", cfg::isNonCosmeticNetworth, cfg::setNonCosmeticNetworth, cfg::save,
+                null, contentX, y, colW, 18));
+        y += 22;
+
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.profileviewer.screen.ProfileViewerScreen.THEME_ID, contentX, y, colW, 18));
         y += 28;
 
