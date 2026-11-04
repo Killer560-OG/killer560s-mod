@@ -28,6 +28,7 @@ public final class DungeonQueueConfig {
     private boolean enabled = false;
     private int delaySeconds = DEFAULT_DELAY_SECONDS;
     private boolean disableOnLeave = true;
+    private boolean pvLinkOnJoin = true;
 
     private DungeonQueueConfig() {
     }
@@ -47,6 +48,7 @@ public final class DungeonQueueConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
                 cfg.disableOnLeave = ConfigJson.getBool(obj, "disableOnLeave", true);
+                cfg.pvLinkOnJoin = ConfigJson.getBool(obj, "pvLinkOnJoin", true);
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }
@@ -61,6 +63,7 @@ public final class DungeonQueueConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("delaySeconds", delaySeconds);
             obj.addProperty("disableOnLeave", disableOnLeave);
+            obj.addProperty("pvLinkOnJoin", pvLinkOnJoin);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -93,5 +96,14 @@ public final class DungeonQueueConfig {
 
     public void setDisableOnLeave(boolean disableOnLeave) {
         this.disableOnLeave = disableOnLeave;
+    }
+
+    /** PV Link on Join: a clickable [PV] line under a dungeon party joiner (raw switch; the feature applies the Skyblock gate). */
+    public boolean isPvLinkOnJoin() {
+        return pvLinkOnJoin;
+    }
+
+    public void setPvLinkOnJoin(boolean on) {
+        this.pvLinkOnJoin = on;
     }
 }
