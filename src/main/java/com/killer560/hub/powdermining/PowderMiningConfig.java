@@ -37,6 +37,10 @@ public final class PowderMiningConfig {
     private boolean treasureChestTimer = true;
     private boolean treasureChestFade = true;
     private boolean treasureChestEsp = false;
+    private boolean treasureChestHideOpened = false;
+    private boolean treasureChestTracer = false;
+    private int treasureChestTracerColor = DEFAULT_CHEST_COLOR;
+    private boolean treasureChestCountdown = true;
 
     private boolean chestAlert = true;
     private boolean chestAlertSound = true;
@@ -120,6 +124,10 @@ public final class PowderMiningConfig {
                 cfg.treasureChestTimer = ConfigJson.getBool(o, "treasureChestTimer", cfg.treasureChestTimer);
                 cfg.treasureChestFade = ConfigJson.getBool(o, "treasureChestFade", cfg.treasureChestFade);
                 cfg.treasureChestEsp = ConfigJson.getBool(o, "treasureChestEsp", cfg.treasureChestEsp);
+                cfg.treasureChestHideOpened = ConfigJson.getBool(o, "treasureChestHideOpened", cfg.treasureChestHideOpened);
+                cfg.treasureChestTracer = ConfigJson.getBool(o, "treasureChestTracer", cfg.treasureChestTracer);
+                cfg.treasureChestTracerColor = intOr(o, "treasureChestTracerColor", cfg.treasureChestTracerColor);
+                cfg.treasureChestCountdown = ConfigJson.getBool(o, "treasureChestCountdown", cfg.treasureChestCountdown);
                 cfg.chestAlert = ConfigJson.getBool(o, "chestAlert", cfg.chestAlert);
                 cfg.chestAlertSound = ConfigJson.getBool(o, "chestAlertSound", cfg.chestAlertSound);
                 cfg.chestAlertTitle = ConfigJson.getBool(o, "chestAlertTitle", cfg.chestAlertTitle);
@@ -165,6 +173,10 @@ public final class PowderMiningConfig {
             o.addProperty("treasureChestTimer", treasureChestTimer);
             o.addProperty("treasureChestFade", treasureChestFade);
             o.addProperty("treasureChestEsp", treasureChestEsp);
+            o.addProperty("treasureChestHideOpened", treasureChestHideOpened);
+            o.addProperty("treasureChestTracer", treasureChestTracer);
+            o.addProperty("treasureChestTracerColor", treasureChestTracerColor);
+            o.addProperty("treasureChestCountdown", treasureChestCountdown);
             o.addProperty("chestAlert", chestAlert);
             o.addProperty("chestAlertSound", chestAlertSound);
             o.addProperty("chestAlertTitle", chestAlertTitle);
@@ -238,6 +250,40 @@ public final class PowderMiningConfig {
 
     public void setTreasureChestEsp(boolean v) {
         treasureChestEsp = v;
+    }
+
+    /** Stop drawing a claimed chest once he has clicked it (client only; the block is never changed). */
+    public boolean isTreasureChestHideOpened() {
+        return treasureChestHideOpened;
+    }
+
+    public void setTreasureChestHideOpened(boolean v) {
+        treasureChestHideOpened = v;
+    }
+
+    public boolean isTreasureChestTracer() {
+        return treasureChestTracer;
+    }
+
+    public void setTreasureChestTracer(boolean v) {
+        treasureChestTracer = v;
+    }
+
+    public int getTreasureChestTracerColor() {
+        return treasureChestTracerColor;
+    }
+
+    public void setTreasureChestTracerColor(int v) {
+        treasureChestTracerColor = v;
+    }
+
+    /** The seconds left above each chest, green to red. */
+    public boolean isTreasureChestCountdown() {
+        return treasureChestCountdown;
+    }
+
+    public void setTreasureChestCountdown(boolean v) {
+        treasureChestCountdown = v;
     }
 
     // ---- Treasure Chest Alert

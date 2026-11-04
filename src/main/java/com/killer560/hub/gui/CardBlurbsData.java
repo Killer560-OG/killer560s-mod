@@ -24,6 +24,7 @@ final class CardBlurbsData {
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
+        d.put("MiningGoldenGoblinTab", "Box and tracer on Golden and Diamond Goblins.");
         d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
         d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
         d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
