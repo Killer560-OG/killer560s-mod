@@ -171,6 +171,35 @@ public final class MainMenuScenes {
         return Math.floorMod(ns, 3_600_000_000_000L) / 1.0e9 * speed;
     }
 
+    /** Starts decoding the picture the current look shows ({@link WebpPictures}), so the first title screen does not
+     *  wait about a second for it. Called once at client init; never throws. */
+    public static void preloadPictures() {
+        try {
+            WebpPictures.preload(pictureFor(MainMenuLook.current()));
+        } catch (RuntimeException ignored) {
+            // A config not readable yet: the picture then loads on its first draw instead.
+        }
+    }
+
+    /** The WebP picture {@link #draw} shows for {@code look}, or null for a scene without one. Mirrors draw's choice. */
+    static net.minecraft.resources.Identifier pictureFor(MainMenuLook look) {
+        MainMenuThemeConfig.Scene scene = look.scene();
+        if (scene == MainMenuThemeConfig.Scene.FIREFLIES && greenScene() == GreenScene.TARGET) {
+            return WebpPictures.id("green_boss_target");
+        }
+        if (scene == MainMenuThemeConfig.Scene.EMBERS && amberScene() == AmberScene.AURORA) {
+            return WebpPictures.id("amber_aurora");
+        }
+        DarkScene dark = darkScene();
+        if (scene == MainMenuThemeConfig.Scene.STARFIELD && (dark == DarkScene.MILKY_WAY || dark == DarkScene.MILKY_WAY_HERO)) {
+            return WebpPictures.id("milkyway");
+        }
+        if (scene == MainMenuThemeConfig.Scene.WATERFALL && oceanScene() == OceanScene.CAVERN_FALLS) {
+            return WebpPictures.id("ocean_falls");
+        }
+        return null;
+    }
+
     public static void draw(GuiGraphicsExtractor g, int w, int h, MainMenuLook look) {
         if (w <= 0 || h <= 0) return;
         // A theme's imported video or GIF (Theme Extras, 2026-10-21) replaces its scene once its first frame is ready.

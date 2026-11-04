@@ -24,7 +24,7 @@ import org.slf4j.Logger;
  * it"). Amber's Fancy scene in every instance since he approved it (2026-10-16, with the Fancy/Simple toggle); the old
  * embers stay reachable as {@code MainMenuScenes.AmberScene.EMBERS}.
  * <p>
- * The base is {@code textures/gui/amber_aurora.png}, built by {@code killer560s-mod-logs/aurora-picture/make_aurora.py}
+ * The base is {@code textures/gui/amber_aurora.webp}, built by {@code killer560s-mod-logs/aurora-picture/make_aurora.py}
  * from his picture with the baked-in title and buttons removed and every aurora band followed across the holes they left.
  * It is 2560x2880 (killer560, 2026-10-16: "make the high res version"; the softer, less streaky look he picked): the
  * picture on top at 2560x1440, its animation maps below at the same size, sampled linearly ({@code .mcmeta} blur, and the
@@ -54,7 +54,7 @@ final class AmberAuroraScene {
     /** The shader's loop, seconds; every motion in amber_aurora.fsh is a whole number of turns of it. */
     static final double LOOP = 600.0;
 
-    static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("killer560smod", "textures/gui/amber_aurora.png");
+    static final Identifier TEXTURE = WebpPictures.id("amber_aurora");
 
     private static RenderPipeline pipeline;
     private static boolean failed;
@@ -66,7 +66,7 @@ final class AmberAuroraScene {
     public static long stillFrames;
 
     /** A few soft embers drifting up at the sides, over the land and the lower sky; never across the title. */
-    private static final PictureScene OVERLAYS = PictureScene.of("textures/gui/amber_aurora.png", TW, TH)
+    private static final PictureScene OVERLAYS = PictureScene.of("textures/gui/amber_aurora.webp", TW, TH)
             .overlay(new PictureScene.Motes(22, 30, 520, 1400, 500, 1060, 560, 0.018, 0.026, 3, 0xFFFFB45A, 1691, true));
 
     /** Registers the pipeline at client init, so it is in RenderPipelines' static list before the shaders precompile. */
@@ -107,6 +107,9 @@ final class AmberAuroraScene {
 
     /** The picture, before the frame's batch. */
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
+        if (!WebpPictures.ensure(TEXTURE)) {
+            return; // still decoding in the background: the title screen's own background shows meanwhile
+        }
         if (pipeline != null && !failed) {
             try {
                 AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(TEXTURE);

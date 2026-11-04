@@ -7,7 +7,7 @@ package com.killer560.hub.mainmenu;
  * hills - graded almost black and white ("I still want it to be a black theme though, not so much colour"), a faint warm
  * hint left at the core.
  * <p>
- * The base is the picture itself ({@code textures/gui/milkyway.png}, 1920x1080, built from his image by
+ * The base is the picture itself ({@code textures/gui/milkyway.webp}, 1920x1080, built from his image by
  * {@code killer560s-mod-logs/scenes-dark-aurora/ref/make_textures.py}); without the character a small patch
  * ({@code milkyway_nochar_patch.png}) fills her place from the sky and hills beside her. On top, in the picture's own
  * 1920x1080 space: the bright stars twinkling as crisp crosses, a few faint ones flickering, a blocky shooting star every
@@ -21,7 +21,7 @@ final class MilkyWayTexScene {
     }
 
     /** The picture's space is its texture's: 2560x1440 (killer560, 2026-10-16: "You can make it high res"), sampled
-     *  linearly (milkyway.png.mcmeta). Every size below was laid out at 1920x1080 and is scaled by {@link #K}. */
+     *  linearly (milkyway.webp.mcmeta). Every size below was laid out at 1920x1080 and is scaled by {@link #K}. */
     private static final int TW = 2560;
     private static final int TH = 1440;
     private static final double K = TW / 1920.0;
@@ -37,7 +37,7 @@ final class MilkyWayTexScene {
     private static final int[] CALM = {(int) (634 * K), 0, (int) (1286 * K), (int) (194 * K)};
 
     private static PictureScene build(boolean hero) {
-        PictureScene s = PictureScene.of("textures/gui/milkyway.png", TW, TH);
+        PictureScene s = PictureScene.of("textures/gui/milkyway.webp", TW, TH);
         if (hero) {
             // her cape: attached along its right (her shoulders and back), free to the left and at its hem
             s.ripple(PictureScene.ripple(px(448), px(806), px(552), px(892)).tile(4)

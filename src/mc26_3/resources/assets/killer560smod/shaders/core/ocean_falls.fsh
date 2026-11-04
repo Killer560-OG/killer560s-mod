@@ -1,7 +1,7 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
-// Ocean's Cavern Falls main menu (killer560smod, mainmenu/OceanFallsScene). Sampler0 is textures/gui/ocean_falls.png,
+// Ocean's Cavern Falls main menu (killer560smod, mainmenu/OceanFallsScene). Sampler0 is textures/gui/ocean_falls.webp,
 // 2560x2880 (two 2560x1440 halves; everything here is in 1920x1080 units), sampled LINEAR: the PLATE on top (his picture with most of its streak lines lifted out where water falls) and
 // its maps below (r: where water falls, g: the picture's own streaks, b: where the water lands, a: the lake). The quad
 // covers the screen with v 0..0.5. Built by a local script (make_waterfall_maps.py).

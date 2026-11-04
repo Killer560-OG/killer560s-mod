@@ -1,6 +1,6 @@
 #version 330
 
-// Amber's Aurora main menu (killer560smod, mainmenu/AmberAuroraScene). Sampler0 is textures/gui/amber_aurora.png, 1920x2160:
+// Amber's Aurora main menu (killer560smod, mainmenu/AmberAuroraScene). Sampler0 is textures/gui/amber_aurora.webp, 1920x2160:
 // the picture on top, its animation maps below (r: how much the sky may move, g: the aurora's own light, b: the stars
 // baked into the picture, a: the river's bright water left of x 1600 and the lava right of it), sampled with a LINEAR
 // sampler so every displacement is smooth at sub-pixel scale. The quad covers the screen with v 0..0.5.
