@@ -139,10 +139,6 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         return Math.max(1, totalSlots());
     }
 
-    private int pageCount() {
-        return Math.max(1, (int) Math.ceil(totalSlots() / (double) sliceCount()));
-    }
-
     private int firstGlobalIndexOnPage(int p) {
         return Math.min(p * sliceCount(), totalSlots());
     }
