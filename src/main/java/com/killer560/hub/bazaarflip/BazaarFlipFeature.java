@@ -971,10 +971,7 @@ public final class BazaarFlipFeature {
             return String.format(Locale.US, "the instant-buy price (%,.1f each, quoted %,.1f) is no longer below the"
                     + " NPC's %,.1f", bookPrice(price / amount), price / amount, target.npcSellPrice());
         }
-        if (purse != null && price > purse) {
-            return "you can't afford " + amount;
-        }
-        return null;
+        return purse != null && price > purse ? "you can't afford " + amount : null;
     }
 
     private static void clickBuy(Minecraft client, AbstractContainerScreen<?> screen, BazaarFlipConfig cfg, String name,

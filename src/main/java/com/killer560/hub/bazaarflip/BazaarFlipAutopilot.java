@@ -713,10 +713,7 @@ final class BazaarFlipAutopilot {
             public long room(String productId, String displayName, int stackSize) {
                 long room = base.room(productId, displayName, stackSize);
                 Long cap = unitCap.get(productId);
-                if (cap == null) {
-                    return room;
-                }
-                return room < 0 ? cap : Math.min(room, cap);
+                return cap == null ? room : room < 0 ? cap : Math.min(room, cap);
             }
 
             @Override

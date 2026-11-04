@@ -97,10 +97,7 @@ public final class FlipPricing {
 
     /** Buy price per unit under these answers, or 0 when the side is empty. */
     public static double buyPrice(BazaarProduct p, boolean instaBuy) {
-        if (instaBuy) {
-            return p.topSellOfferPrice();
-        }
-        return p.topBuyOrderPrice() > 0 ? p.topBuyOrderPrice() + TICK : 0;
+        return instaBuy ? p.topSellOfferPrice() : p.topBuyOrderPrice() > 0 ? p.topBuyOrderPrice() + TICK : 0;
     }
 
     /** What a unit nets on the Bazaar after tax: Insta Sell into the best buy order, or a sell offer one tick under. */
@@ -232,10 +229,7 @@ public final class FlipPricing {
         if (a.percentGoal()) {
             double px = x.dayReturnPercent();
             double py = y.dayReturnPercent();
-            if (px != py) {
-                return px > py;
-            }
-            return x.expectedProfit() > y.expectedProfit();
+            return px != py ? px > py : x.expectedProfit() > y.expectedProfit();
         }
         if (x.expectedProfit() != y.expectedProfit()) {
             return x.expectedProfit() > y.expectedProfit();
