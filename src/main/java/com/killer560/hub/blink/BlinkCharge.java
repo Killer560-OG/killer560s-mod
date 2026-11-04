@@ -140,7 +140,7 @@ public final class BlinkCharge {
         // it is read and GrimAC's floor near its cap (TimerLimit.limitFallBehind: now - 1000 ms - drift; 1120 ms of room
         // for 1050). At 990 ms a leap batch's oldest answer was 907 ms and the shot drew TimerLimit on p3sim (owner's log
         // 16:54:28). 1150 ms drew TimerLimit on two kept-teleport shots at 150 ms (1027-blink-c-keep-delay, ts3).
-        return Math.min(ANSWER_DELAY_MS, Math.max(0L, 50L * need + 50L));
+        return Math.clamp(50L * need + 50L, 0L, ANSWER_DELAY_MS);
     }
 
     /**
@@ -1838,7 +1838,7 @@ public final class BlinkCharge {
 
     /** The Charge Ticks setting (1-20): the bank a charge with no number of its own fills. */
     public static int settingsCap() {
-        return Math.max(1, Math.min(MAX_TICKS, BlinkConfig.getInstance().getChargeTicks()));
+        return Math.clamp(BlinkConfig.getInstance().getChargeTicks(), 1, MAX_TICKS);
     }
 
     /** The most a charge banks whoever drives it (Hypixel sets a longer shot back, killer560 2026-10-25). */
