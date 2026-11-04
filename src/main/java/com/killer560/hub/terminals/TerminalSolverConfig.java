@@ -687,14 +687,6 @@ public final class TerminalSolverConfig {
         return blockInputWhileAutoClicking;
     }
 
-    public boolean isAnnounceCompletionTime() {
-        return announceCompletionTime;
-    }
-
-    public void setAnnounceCompletionTime(boolean announceCompletionTime) {
-        this.announceCompletionTime = announceCompletionTime;
-    }
-
     public void setBlockInputWhileAutoClicking(boolean blockInputWhileAutoClicking) {
         this.blockInputWhileAutoClicking = blockInputWhileAutoClicking;
     }
