@@ -1853,22 +1853,19 @@ public final class Ap3Executor {
         step = null;
     }
 
+    /** Hypixel's "gate destroyed" line is proof enough on its own; else any block of the snapshot changed. */
+    private static boolean boomGateBroke(Minecraft client) {
+        return boomChatConfirmed || boomBefore.entrySet().stream()
+                .anyMatch(e -> client.level.getBlockState(e.getKey()) != e.getValue());
+    }
+
     /** Every END: the background boom's gate check; its result is logged and said, and stops nothing. */
     private static void tickBoomBackground(Minecraft client) {
         Ap3Node node = boomBg;
         if (node == null || client.level == null) {
             return;
         }
-        boolean changed = boomChatConfirmed;
-        if (!changed) {
-            for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                    changed = true;
-                    break;
-                }
-            }
-        }
-        if (changed) {
+        if (boomGateBroke(client)) {
             boomLog(node, "result: the gate broke (checked in the background)");
         } else if (++boomBgTicks > BOOM_TIMEOUT) {
             boomLog(node, "result: nothing broke in " + BOOM_TIMEOUT + " ticks (checked in the background; the route went on)");
@@ -5285,16 +5282,7 @@ public final class Ap3Executor {
                 }
             }
             case CONFIRM -> {
-                boolean changed = boomChatConfirmed; // Hypixel's "gate destroyed" line is proof enough on its own
-                if (!changed) {
-                    for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                        if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                            changed = true;
-                            break;
-                        }
-                    }
-                }
-                if (changed) {
+                if (boomGateBroke(client)) {
                     boomLog(node, "result: the gate broke");
                     boomBefore.clear();
                     boomChatConfirmed = false;
