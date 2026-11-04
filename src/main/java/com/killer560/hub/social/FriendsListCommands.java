@@ -94,13 +94,9 @@ public final class FriendsListCommands {
     /** Sends the real {@code /f add <name>} - see {@link FriendsListSync}'s doc for why this no longer
      *  resolves a UUID or touches {@link FriendsListConfig} directly at all: Hypixel itself validates the
      *  name, and the list only ever updates from a real {@code /fl} re-sync afterward. */
-    private static int addByName(String name) {
-        return FriendsListSync.requestAdd(name) ? 1 : 0;
-    }
+    private static int addByName(String name) { return FriendsListSync.requestAdd(name) ? 1 : 0; }
 
-    private static int removeByName(String name) {
-        return FriendsListSync.requestRemove(name) ? 1 : 0;
-    }
+    private static int removeByName(String name) { return FriendsListSync.requestRemove(name) ? 1 : 0; }
 
     private static int openCustomScreen() {
         Minecraft client = Minecraft.getInstance();

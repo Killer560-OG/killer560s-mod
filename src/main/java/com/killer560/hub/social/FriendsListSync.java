@@ -124,9 +124,7 @@ public final class FriendsListSync {
     }
 
     /** True while a multi-page sync is walking the pages. */
-    public static boolean isSyncing() {
-        return walking;
-    }
+    public static boolean isSyncing() { return walking; }
 
     /** The screen's progress line while a sync walks the pages: "Syncing... page 3/7" (killer560, 2026-10-08:
      *  "make the 'already syncing' show how many pages it is through"), empty when not syncing. */
@@ -366,14 +364,10 @@ public final class FriendsListSync {
     }
 
     /** Sends the real {@code /f add <name>}; the list updates from the follow-up sync. */
-    public static boolean requestAdd(String name) {
-        return sendSocialCommand("add", name);
-    }
+    public static boolean requestAdd(String name) { return sendSocialCommand("add", name); }
 
     /** Sends the real {@code /f remove <name>}, same caveats as {@link #requestAdd}. */
-    public static boolean requestRemove(String name) {
-        return sendSocialCommand("remove", name);
-    }
+    public static boolean requestRemove(String name) { return sendSocialCommand("remove", name); }
 
     private static final long MIN_INVITE_INTERVAL_MS = 2_000L;
     private static final Pattern VALID_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");

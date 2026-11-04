@@ -241,9 +241,7 @@ public final class BestFriendsStore {
         write(target(), snapshotJson());
     }
 
-    private static SharedFile target() {
-        return file != null ? file : SharedRecords.file(RecordCatalog.BEST_FRIENDS);
-    }
+    private static SharedFile target() { return file != null ? file : SharedRecords.file(RecordCatalog.BEST_FRIENDS); }
 
     private static JsonObject snapshotJson() {
         ensureLoaded();
@@ -258,7 +256,5 @@ public final class BestFriendsStore {
     }
 
     /** Merged onto the shared file: time partied in another instance meanwhile is added, not overwritten. */
-    private static void write(SharedFile target, JsonObject json) {
-        SharedRecords.save(target, json);
-    }
+    private static void write(SharedFile target, JsonObject json) { SharedRecords.save(target, json); }
 }

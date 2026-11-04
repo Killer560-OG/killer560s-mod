@@ -113,9 +113,7 @@ public final class BestFriendsTracker {
     }
 
     /** True while time is accruing for this player. */
-    public static boolean isAccruing(UUID id) {
-        return id != null && SESSION_START.containsKey(id);
-    }
+    public static boolean isAccruing(UUID id) { return id != null && SESSION_START.containsKey(id); }
 
     private static void tick(Minecraft client) {
         if (pendingDisconnect) {

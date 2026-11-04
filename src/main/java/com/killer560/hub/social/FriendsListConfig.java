@@ -171,25 +171,15 @@ public final class FriendsListConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public boolean isEnabled() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public boolean isEverSynced() {
-        return everSynced;
-    }
+    public boolean isEverSynced() { return everSynced; }
 
-    public long getLastSyncedAtMs() {
-        return lastSyncedAtMs;
-    }
+    public long getLastSyncedAtMs() { return lastSyncedAtMs; }
 
-    public boolean isLastSyncTruncated() {
-        return lastSyncTruncated;
-    }
+    public boolean isLastSyncTruncated() { return lastSyncTruncated; }
 
     /** Read-only snapshot in Hypixel's own last-seen listing order. */
     public List<Friend> friends() {
@@ -204,9 +194,7 @@ public final class FriendsListConfig {
     /** The screen reads the list every frame; the copy is rebuilt only when a sync replaces the list. */
     private List<Friend> snapshot;
 
-    public Friend byName(String name) {
-        return name == null ? null : friends.get(name.toLowerCase(Locale.US));
-    }
+    public Friend byName(String name) { return name == null ? null : friends.get(name.toLowerCase(Locale.US)); }
 
     public void setNote(String name, String note) {
         Friend f = byName(name);

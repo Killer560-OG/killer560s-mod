@@ -121,17 +121,13 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         refilter();
     }
 
-    private static String sortText(BestFriendsConfig cfg) {
-        return sortText(cfg.getSortMode());
-    }
+    private static String sortText(BestFriendsConfig cfg) { return sortText(cfg.getSortMode()); }
 
     private static String sortText(BestFriendsConfig.SortMode mode) {
         return "Sort: §f" + mode.label; // white, not aqua (killer560, 2026-11-01)
     }
 
-    private static String filterText(boolean dungeonOnly) {
-        return dungeonOnly ? "§6Dungeon Only" : "§fAny Party Time";
-    }
+    private static String filterText(boolean dungeonOnly) { return dungeonOnly ? "§6Dungeon Only" : "§fAny Party Time"; }
 
     private int widestSortLabel() {
         int w = 0;
@@ -206,13 +202,9 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
-    private int contentHeight(List<String> lines) {
-        return lines != null ? lines.size() * 10 : visible.size() * ROW_H;
-    }
+    private int contentHeight(List<String> lines) { return lines != null ? lines.size() * 10 : visible.size() * ROW_H; }
 
-    private int maxScroll() {
-        return Math.max(0, contentHeight(selected != null ? detailLines(selected) : null) - listH);
-    }
+    private int maxScroll() { return Math.max(0, contentHeight(selected != null ? detailLines(selected) : null) - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -385,22 +377,14 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "bestfriends";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

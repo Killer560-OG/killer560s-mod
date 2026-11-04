@@ -243,9 +243,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The command a row's /pv button sends (without the slash), or null for a name that is not a valid username. */
-    static String pvCommand(String name) {
-        return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null;
-    }
+    static String pvCommand(String name) { return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null; }
 
     private void profileView(FriendsListConfig.Friend f) {
         String cmd = f == null ? null : pvCommand(f.name);
@@ -330,14 +328,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
 
-    private int trackX() {
-        return listX + listW - SCROLLBAR_W;
-    }
+    private int trackX() { return listX + listW - SCROLLBAR_W; }
 
     /** Right edge of a row's content: the scrollbar's column is always kept clear. */
-    private int rowRight() {
-        return trackX() - 2;
-    }
+    private int rowRight() { return trackX() - 2; }
 
     private int thumbHeight() {
         int contentH = Math.max(1, visible.size() * ROW_H);
@@ -437,9 +431,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
-    private int maxScroll() {
-        return Math.max(0, visible.size() * ROW_H - listH);
-    }
+    private int maxScroll() { return Math.max(0, visible.size() * ROW_H - listH); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -511,14 +503,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Left edge of the status line. */
-    private int statusX() {
-        return listX;
-    }
+    private int statusX() { return listX; }
 
     /** Top of the status line: in its own strip, two pixels under the list's outline. */
-    private int statusY() {
-        return listY + listH + 3;
-    }
+    private int statusY() { return listY + listH + 3; }
 
     /** A running sync's page progress first, then the last button's message, then the list's sync state. */
     private String statusText() {
@@ -674,14 +662,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     public static final String THEME_ID = "friendslist";
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
     public void onClose() {
@@ -690,7 +674,5 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 }

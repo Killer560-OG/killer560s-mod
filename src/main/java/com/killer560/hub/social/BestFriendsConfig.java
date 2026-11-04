@@ -96,33 +96,19 @@ public final class BestFriendsConfig {
 
     /** Gated on Skyblock like every other feature, and this is also the master switch for whether
      *  {@link BestFriendsTracker} accrues anything at all - see that class's doc comment for why. */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** Ungated stored value - for the tab's own toggle label and for gating the tracker (which must keep
      *  working even outside Skyblock's own gate the instant killer560 turns the setting on in the hub). */
-    public boolean getEnabledRaw() {
-        return enabled;
-    }
+    public boolean getEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public SortMode getSortMode() {
-        return sortMode;
-    }
+    public SortMode getSortMode() { return sortMode; }
 
-    public void setSortMode(SortMode sortMode) {
-        this.sortMode = sortMode;
-    }
+    public void setSortMode(SortMode sortMode) { this.sortMode = sortMode; }
 
-    public boolean isDungeonOnlyFilter() {
-        return dungeonOnlyFilter;
-    }
+    public boolean isDungeonOnlyFilter() { return dungeonOnlyFilter; }
 
-    public void setDungeonOnlyFilter(boolean dungeonOnlyFilter) {
-        this.dungeonOnlyFilter = dungeonOnlyFilter;
-    }
+    public void setDungeonOnlyFilter(boolean dungeonOnlyFilter) { this.dungeonOnlyFilter = dungeonOnlyFilter; }
 }
