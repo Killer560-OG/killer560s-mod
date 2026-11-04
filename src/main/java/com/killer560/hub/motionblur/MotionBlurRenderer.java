@@ -6,7 +6,6 @@ import com.killer560.hub.motionblur.mixin.PostChainAccessor;
 import com.killer560.hub.motionblur.mixin.PostPassAccessor;
 import com.killer560.hub.util.ModChat;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
