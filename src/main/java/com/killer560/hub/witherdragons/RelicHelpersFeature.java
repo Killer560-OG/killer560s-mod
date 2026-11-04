@@ -96,10 +96,6 @@ public final class RelicHelpersFeature {
         return looksStarted;
     }
 
-    public static boolean isLooking() {
-        return looking;
-    }
-
     // ------------------------------------------------------------------------------------------- tick
 
     private static void tick(Minecraft client) {
