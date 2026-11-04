@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -16,11 +15,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -104,33 +98,19 @@ public final class BeamsSolverFeature {
     }
 
     private static List<CandidatePair> loadCandidates() {
-        try (InputStream stream = BeamsSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/creeper-beams-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[BeamsSolver] candidate list resource missing - the solver will never highlight anything");
-                return List.of();
+        List<int[]> raw = SolverData.load("creeper-beams-solutions.json", new TypeToken<List<int[]>>() {
+        }.getType(), null, "killer560smod-puzzles", "[BeamsSolver]",
+                "candidate list resource missing - the solver will never highlight anything", "candidates");
+        if (raw == null) return List.of();
+        List<CandidatePair> pairs = new ArrayList<>();
+        for (int[] entry : raw) {
+            if (entry.length == 6) {
+                pairs.add(new CandidatePair(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]));
             }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<List<int[]>>() {
-                }.getType();
-                List<int[]> raw = new Gson().fromJson(reader, type);
-                if (raw == null) return List.of();
-                List<CandidatePair> pairs = new ArrayList<>();
-                for (int[] entry : raw) {
-                    if (entry.length == 6) {
-                        pairs.add(new CandidatePair(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]));
-                    }
-                }
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
-                        "[BeamsSolver] loaded {} candidate pairs ({} raw entries)", pairs.size(), raw.size());
-                return pairs;
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[BeamsSolver] Failed to load candidates", e);
-            return List.of();
         }
+        com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                "[BeamsSolver] loaded {} candidate pairs ({} raw entries)", pairs.size(), raw.size());
+        return pairs;
     }
 
     private static void tick(Minecraft client) { tickInner(client); }

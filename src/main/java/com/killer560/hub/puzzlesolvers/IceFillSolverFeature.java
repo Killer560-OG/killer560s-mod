@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
@@ -13,10 +12,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,22 +63,9 @@ public final class IceFillSolverFeature {
     }
 
     private static IceFillData loadData() {
-        try (InputStream stream = IceFillSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/ice-fill-floors.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[IceFillSolver] floors resource missing - no floor will ever be identified");
-                return new IceFillData(List.of(), List.of(), List.of());
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                IceFillData parsed = new Gson().fromJson(reader, IceFillData.class);
-                return parsed != null ? parsed : new IceFillData(List.of(), List.of(), List.of());
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[IceFillSolver] Failed to load floors data", e);
-            return new IceFillData(List.of(), List.of(), List.of());
-        }
+        return SolverData.load("ice-fill-floors.json", IceFillData.class, new IceFillData(List.of(), List.of(), List.of()),
+                "killer560smod-puzzles", "[IceFillSolver]", "floors resource missing - no floor will ever be identified",
+                "floors data");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }

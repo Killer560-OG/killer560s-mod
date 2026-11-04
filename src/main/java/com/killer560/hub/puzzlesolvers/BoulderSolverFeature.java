@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -15,11 +14,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -78,24 +72,9 @@ public final class BoulderSolverFeature {
     }
 
     private static Map<String, List<List<Integer>>> loadSolutions() {
-        try (InputStream stream = BoulderSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[BoulderSolver] solutions resource missing - no floor pattern will ever match");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<Map<String, List<List<Integer>>>>() {
-                }.getType();
-                Map<String, List<List<Integer>>> parsed = new Gson().fromJson(reader, type);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[BoulderSolver] Failed to load solutions", e);
-            return Map.of();
-        }
+        return SolverData.load("boulder-solutions.json", new TypeToken<Map<String, List<List<Integer>>>>() {
+        }.getType(), Map.of(), "killer560smod-puzzles", "[BoulderSolver]",
+                "solutions resource missing - no floor pattern will ever match", "solutions");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }

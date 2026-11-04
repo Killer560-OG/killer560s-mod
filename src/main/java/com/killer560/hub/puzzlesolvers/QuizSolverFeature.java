@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -14,11 +13,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -69,24 +63,9 @@ public final class QuizSolverFeature {
     }
 
     private static Map<String, List<String>> loadAnswers() {
-        try (InputStream stream = QuizSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn(
-                        "[QuizSolver] answers resource missing - no question will ever be recognized");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Type type = new TypeToken<Map<String, List<String>>>() {
-                }.getType();
-                Map<String, List<String>> parsed = new Gson().fromJson(reader, type);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn("[QuizSolver] Failed to load answers", e);
-            return Map.of();
-        }
+        return SolverData.load("quiz-answers.json", new TypeToken<Map<String, List<String>>>() {
+        }.getType(), Map.of(), "killer560smod-puzzlesolvers", "[QuizSolver]",
+                "answers resource missing - no question will ever be recognized", "answers");
     }
 
     private static void onTick() {

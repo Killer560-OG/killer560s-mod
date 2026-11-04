@@ -1,7 +1,6 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -19,11 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -159,23 +154,8 @@ public final class WaterSolverFeature {
     }
 
     private static Map<String, Map<String, Map<String, Map<String, List<Double>>>>> loadSolutions() {
-        try (InputStream stream = WaterSolverFeature.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/water-solutions.json")) {
-            if (stream == null) {
-                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
-                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
-                        "[WaterSolver] solutions resource missing - no board will ever get timings");
-                return Map.of();
-            }
-            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                Map<String, Map<String, Map<String, Map<String, List<Double>>>>> parsed =
-                        new Gson().fromJson(reader, SOLUTIONS_TYPE);
-                return parsed != null ? parsed : Map.of();
-            }
-        } catch (Exception e) {
-            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn("[WaterSolver] Failed to load solutions", e);
-            return Map.of();
-        }
+        return SolverData.load("water-solutions.json", SOLUTIONS_TYPE, Map.of(), "killer560smod-puzzles", "[WaterSolver]",
+                "solutions resource missing - no board will ever get timings", "solutions");
     }
 
     private static void tick(Minecraft client) { tickInner(client); }
