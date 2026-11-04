@@ -122,14 +122,10 @@ public final class MaskSwapper {
             this.skyblockId = skyblockId;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
 
         /** Null for Phoenix - it is a pet, not a helmet. */
-        public String skyblockId() {
-            return skyblockId;
-        }
+        public String skyblockId() { return skyblockId; }
     }
 
     private enum Stage {
@@ -202,14 +198,10 @@ public final class MaskSwapper {
     }
 
     /** True while Hypixel last said Phoenix is the summoned pet (see {@link #phoenixSummoned}). */
-    public static boolean isPhoenixSummoned() {
-        return phoenixSummoned;
-    }
+    public static boolean isPhoenixSummoned() { return phoenixSummoned; }
 
 
-    public static boolean isBusy() {
-        return stage != Stage.IDLE;
-    }
+    public static boolean isBusy() { return stage != Stage.IDLE; }
 
     /**
      * First target in {@code order} that is worth swapping to: not on cooldown (the caller owns that knowledge -
@@ -613,9 +605,7 @@ public final class MaskSwapper {
         }
     }
 
-    private static int stepDelayTicks() {
-        return MaskInvincibilityConfig.getInstance().getSwapStepDelayTicks();
-    }
+    private static int stepDelayTicks() { return MaskInvincibilityConfig.getInstance().getSwapStepDelayTicks(); }
 
     /** The stages whose action is not a click in this swap's own menu. */
     private static boolean sendsOutsideAMenu(Stage s) {
@@ -623,9 +613,7 @@ public final class MaskSwapper {
                 || s == Stage.ROD_RESTORE;
     }
 
-    private static String orEmpty(String s) {
-        return s == null ? "" : s;
-    }
+    private static String orEmpty(String s) { return s == null ? "" : s; }
 
     private static void abort(String why) {
         stage = Stage.IDLE;

@@ -71,13 +71,9 @@ public final class AutoMask {
                 ? PHOENIX_FIRST : MASK_FIRST;
     }
 
-    public static String lastDecision() {
-        return lastDecision;
-    }
+    public static String lastDecision() { return lastDecision; }
 
-    public static long decisionSeq() {
-        return decisionSeq;
-    }
+    public static long decisionSeq() { return decisionSeq; }
 
     /** Null when Dungeons Only / Boss Only allow acting here, otherwise the setting that refuses. */
     public static String gateRefusal() {

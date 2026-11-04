@@ -75,9 +75,7 @@ public final class MaskInvincibilityFeature {
     // Test hook: proc titles shown since start.
     private static volatile int procTitles = 0;
 
-    public static int procTitles() {
-        return procTitles;
-    }
+    public static int procTitles() { return procTitles; }
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
     private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     /** Last real stack seen for each type, so the icon keeps rendering after the mask leaves your inventory. */
@@ -295,24 +293,16 @@ public final class MaskInvincibilityFeature {
 
     public static final class MaskInvincibilityHudElement implements HudElement {
         @Override
-        public String id() {
-            return "mask_invincibility";
-        }
+        public String id() { return "mask_invincibility"; }
 
         @Override
-        public String displayName() {
-            return "Mask Invincibility Timers";
-        }
+        public String displayName() { return "Mask Invincibility Timers"; }
 
         @Override
-        public int defaultX() {
-            return 10;
-        }
+        public int defaultX() { return 10; }
 
         @Override
-        public int defaultY() {
-            return 440;
-        }
+        public int defaultY() { return 440; }
 
         /**
          * The box is the rows as drawn (2026-10-07, killer560: the editor box was "wider/taller than its 3 rows"):
@@ -420,9 +410,7 @@ public final class MaskInvincibilityFeature {
             }
         }
 
-        private static int rowHeight() {
-            return MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 18 : 12;
-        }
+        private static int rowHeight() { return MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 18 : 12; }
 
         /** killer560 9.1: "add an option to only show the invulnerabilites in dungeons, and one for boss
          *  only" - same shape as {@code SecretsFeature}'s own Boss Only gate (a plain "off, or the condition

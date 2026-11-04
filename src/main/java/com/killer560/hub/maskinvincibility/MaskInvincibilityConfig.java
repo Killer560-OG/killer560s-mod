@@ -83,9 +83,7 @@ public final class MaskInvincibilityConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     /** killer560, 2026-10-16: "an option of swap mask first or swap phoenix first". What an Auto Mask swap tries
@@ -101,9 +99,7 @@ public final class MaskInvincibilityConfig {
             this.label = label;
         }
 
-        public String label() {
-            return label;
-        }
+        public String label() { return label; }
     }
 
     private MaskInvincibilityConfig() {
@@ -210,206 +206,126 @@ public final class MaskInvincibilityConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     /** killer560, 2026-09-21: "For announce in chat make it send to party chat not client side." Kept as its
      *  own toggle next to the client-side one (same shape as {@code BlessingTracker}'s pair) and default OFF,
      *  so nothing starts typing in his party until he turns it on. */
-    public boolean isProcTitle() {
-        return procTitle;
-    }
+    public boolean isProcTitle() { return procTitle; }
 
-    public void setProcTitle(boolean procTitle) {
-        this.procTitle = procTitle;
-    }
+    public void setProcTitle(boolean procTitle) { this.procTitle = procTitle; }
 
-    public boolean isAnnounceToParty() {
-        return announceToParty;
-    }
+    public boolean isAnnounceToParty() { return announceToParty; }
 
-    public void setAnnounceToParty(boolean announceToParty) {
-        this.announceToParty = announceToParty;
-    }
+    public void setAnnounceToParty(boolean announceToParty) { this.announceToParty = announceToParty; }
 
     /** killer560 9.1: "allow them to select which invulnerabilities they actually own" - not just a HUD
      *  display toggle any more, since a proc timer for a mask you don't have is dead weight either way.
      *  {@link MaskInvincibilityFeature#unusable} also makes Auto Mask skip a type this is off for. */
-    public boolean isShowSpirit() {
-        return showSpirit;
-    }
+    public boolean isShowSpirit() { return showSpirit; }
 
-    public void setShowSpirit(boolean showSpirit) {
-        this.showSpirit = showSpirit;
-    }
+    public void setShowSpirit(boolean showSpirit) { this.showSpirit = showSpirit; }
 
     /** @see #isShowSpirit() */
-    public boolean isShowBonzo() {
-        return showBonzo;
-    }
+    public boolean isShowBonzo() { return showBonzo; }
 
-    public void setShowBonzo(boolean showBonzo) {
-        this.showBonzo = showBonzo;
-    }
+    public void setShowBonzo(boolean showBonzo) { this.showBonzo = showBonzo; }
 
     /** @see #isShowSpirit() */
-    public boolean isShowPhoenix() {
-        return showPhoenix;
-    }
+    public boolean isShowPhoenix() { return showPhoenix; }
 
-    public void setShowPhoenix(boolean showPhoenix) {
-        this.showPhoenix = showPhoenix;
-    }
+    public void setShowPhoenix(boolean showPhoenix) { this.showPhoenix = showPhoenix; }
 
     /** Auto Mask may swap to Spirit Mask (default on). Separate from the HUD's {@link #isShowSpirit()}, which
      *  also still stops a swap to a mask you have switched off there. */
-    public boolean isAutoSwapSpirit() {
-        return autoSwapSpirit;
-    }
+    public boolean isAutoSwapSpirit() { return autoSwapSpirit; }
 
-    public void setAutoSwapSpirit(boolean autoSwapSpirit) {
-        this.autoSwapSpirit = autoSwapSpirit;
-    }
+    public void setAutoSwapSpirit(boolean autoSwapSpirit) { this.autoSwapSpirit = autoSwapSpirit; }
 
     /** Auto Mask may swap to Bonzo's Mask (default on). See {@link #isAutoSwapSpirit()}. */
-    public boolean isAutoSwapBonzo() {
-        return autoSwapBonzo;
-    }
+    public boolean isAutoSwapBonzo() { return autoSwapBonzo; }
 
-    public void setAutoSwapBonzo(boolean autoSwapBonzo) {
-        this.autoSwapBonzo = autoSwapBonzo;
-    }
+    public void setAutoSwapBonzo(boolean autoSwapBonzo) { this.autoSwapBonzo = autoSwapBonzo; }
 
     /** Auto Mask may swap to Phoenix (default on). See {@link #isAutoSwapSpirit()}. */
-    public boolean isAutoSwapPhoenix() {
-        return autoSwapPhoenix;
-    }
+    public boolean isAutoSwapPhoenix() { return autoSwapPhoenix; }
 
-    public void setAutoSwapPhoenix(boolean autoSwapPhoenix) {
-        this.autoSwapPhoenix = autoSwapPhoenix;
-    }
+    public void setAutoSwapPhoenix(boolean autoSwapPhoenix) { this.autoSwapPhoenix = autoSwapPhoenix; }
 
     /** Draws the real item's texture next to each timer line (the stack out of your own inventory when it is
      *  there, a generic head otherwise). */
-    public boolean isShowItemIcons() {
-        return showItemIcons;
-    }
+    public boolean isShowItemIcons() { return showItemIcons; }
 
-    public void setShowItemIcons(boolean showItemIcons) {
-        this.showItemIcons = showItemIcons;
-    }
+    public void setShowItemIcons(boolean showItemIcons) { this.showItemIcons = showItemIcons; }
 
     /** Only the icon and the time, no "Spirit Mask:" label. Needs {@link #isShowItemIcons()} on to mean anything. */
-    public boolean isHideMaskNames() {
-        return hideMaskNames;
-    }
+    public boolean isHideMaskNames() { return hideMaskNames; }
 
-    public void setHideMaskNames(boolean hideMaskNames) {
-        this.hideMaskNames = hideMaskNames;
-    }
+    public void setHideMaskNames(boolean hideMaskNames) { this.hideMaskNames = hideMaskNames; }
 
     /** killer560 9.1: "add an option to only show the invulnerabilites in dungeons". */
-    public boolean isOnlyInDungeons() {
-        return onlyInDungeons;
-    }
+    public boolean isOnlyInDungeons() { return onlyInDungeons; }
 
-    public void setOnlyInDungeons(boolean onlyInDungeons) {
-        this.onlyInDungeons = onlyInDungeons;
-    }
+    public void setOnlyInDungeons(boolean onlyInDungeons) { this.onlyInDungeons = onlyInDungeons; }
 
     /** killer560 9.1: "and one for boss only" - same shape as {@code SecretsConfig#isBossOnly()}. Only
      *  meaningful together with {@link #isOnlyInDungeons()} (a boss fight is still a dungeon), but kept as
      *  its own independent flag rather than nested under it, the same way Secrets' own Boss Only stands
      *  alone next to its dungeon gating. */
-    public boolean isBossOnly() {
-        return bossOnly;
-    }
+    public boolean isBossOnly() { return bossOnly; }
 
-    public void setBossOnly(boolean bossOnly) {
-        this.bossOnly = bossOnly;
-    }
+    public void setBossOnly(boolean bossOnly) { this.bossOnly = bossOnly; }
 
     /** Pause between two steps of one automated swap (command -> menu -> click -> close), in whole client ticks. */
-    public int getSwapStepDelayTicks() {
-        return swapStepDelayTicks;
-    }
+    public int getSwapStepDelayTicks() { return swapStepDelayTicks; }
 
-    public void setSwapStepDelayTicks(int swapStepDelayTicks) {
-        this.swapStepDelayTicks = clampDelay(swapStepDelayTicks);
-    }
+    public void setSwapStepDelayTicks(int swapStepDelayTicks) { this.swapStepDelayTicks = clampDelay(swapStepDelayTicks); }
 
     /** Keybind or Full Auto - see {@link AutoMaskMode}. */
-    public AutoMaskMode getAutoMaskMode() {
-        return autoMaskMode == null ? AutoMaskMode.FULL_AUTO : autoMaskMode;
-    }
+    public AutoMaskMode getAutoMaskMode() { return autoMaskMode == null ? AutoMaskMode.FULL_AUTO : autoMaskMode; }
 
     public void setAutoMaskMode(AutoMaskMode autoMaskMode) {
         this.autoMaskMode = autoMaskMode == null ? AutoMaskMode.FULL_AUTO : autoMaskMode;
     }
 
     /** Mask First or Phoenix First - see {@link SwapOrder}. */
-    public SwapOrder getSwapOrder() {
-        return swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder;
-    }
+    public SwapOrder getSwapOrder() { return swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder; }
 
-    public void setSwapOrder(SwapOrder swapOrder) {
-        this.swapOrder = swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder;
-    }
+    public void setSwapOrder(SwapOrder swapOrder) { this.swapOrder = swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder; }
 
     /** The Keybind mode's key or mouse button ({@link com.killer560.hub.util.KeyUtil} code), unbound by default. */
-    public int getSwapKey() {
-        return swapKey;
-    }
+    public int getSwapKey() { return swapKey; }
 
-    public void setSwapKey(int swapKey) {
-        this.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(swapKey);
-    }
+    public void setSwapKey(int swapKey) { this.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(swapKey); }
 
     /** Auto Mask never acts outside the Catacombs (default on). Separate from the HUD's {@link #isOnlyInDungeons()}. */
-    public boolean isAutoMaskDungeonsOnly() {
-        return autoMaskDungeonsOnly;
-    }
+    public boolean isAutoMaskDungeonsOnly() { return autoMaskDungeonsOnly; }
 
-    public void setAutoMaskDungeonsOnly(boolean autoMaskDungeonsOnly) {
-        this.autoMaskDungeonsOnly = autoMaskDungeonsOnly;
-    }
+    public void setAutoMaskDungeonsOnly(boolean autoMaskDungeonsOnly) { this.autoMaskDungeonsOnly = autoMaskDungeonsOnly; }
 
     /** Auto Mask acts only in the floor's boss fight, never in the clear (default off); implies Dungeons Only.
      *  Separate from the HUD's {@link #isBossOnly()}. */
-    public boolean isAutoMaskBossOnly() {
-        return autoMaskBossOnly;
-    }
+    public boolean isAutoMaskBossOnly() { return autoMaskBossOnly; }
 
-    public void setAutoMaskBossOnly(boolean autoMaskBossOnly) {
-        this.autoMaskBossOnly = autoMaskBossOnly;
-    }
+    public void setAutoMaskBossOnly(boolean autoMaskBossOnly) { this.autoMaskBossOnly = autoMaskBossOnly; }
 
     /** Switch back to the slot you were holding once the rod has been thrown. */
-    public boolean isRodReturnToPreviousSlot() {
-        return rodReturnToPreviousSlot;
-    }
+    public boolean isRodReturnToPreviousSlot() { return rodReturnToPreviousSlot; }
 
     public void setRodReturnToPreviousSlot(boolean rodReturnToPreviousSlot) {
         this.rodReturnToPreviousSlot = rodReturnToPreviousSlot;
     }
 
     /** Which route {@link MaskSwapper} uses to put Phoenix out. See {@link PhoenixRoute}. */
-    public PhoenixRoute getPhoenixRoute() {
-        return phoenixRoute == null ? PhoenixRoute.ROD : phoenixRoute;
-    }
+    public PhoenixRoute getPhoenixRoute() { return phoenixRoute == null ? PhoenixRoute.ROD : phoenixRoute; }
 
     public void setPhoenixRoute(PhoenixRoute phoenixRoute) {
         this.phoenixRoute = phoenixRoute == null ? PhoenixRoute.ROD : phoenixRoute;
     }
 
-    private static int clampDelay(int ticks) {
-        return Math.max(MIN_STEP_DELAY_TICKS, Math.min(MAX_STEP_DELAY_TICKS, ticks));
-    }
+    private static int clampDelay(int ticks) { return Math.max(MIN_STEP_DELAY_TICKS, Math.min(MAX_STEP_DELAY_TICKS, ticks)); }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatically swaps
      *  your worn mask, a real automation. */
@@ -417,51 +333,27 @@ public final class MaskInvincibilityConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSwapEnabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public void setAutoSwapEnabled(boolean autoSwapEnabled) {
-        this.autoSwapEnabled = autoSwapEnabled;
-    }
+    public void setAutoSwapEnabled(boolean autoSwapEnabled) { this.autoSwapEnabled = autoSwapEnabled; }
 
-    public boolean isMaskKeyEnabled() {
-        return maskKeyEnabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isMaskKeyEnabled() { return maskKeyEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
-    public boolean isMaskKeyEnabledRaw() {
-        return maskKeyEnabled;
-    }
+    public boolean isMaskKeyEnabledRaw() { return maskKeyEnabled; }
 
-    public void setMaskKeyEnabled(boolean v) {
-        maskKeyEnabled = v;
-    }
+    public void setMaskKeyEnabled(boolean v) { maskKeyEnabled = v; }
 
-    public int getMaskKey() {
-        return maskKey;
-    }
+    public int getMaskKey() { return maskKey; }
 
-    public void setMaskKey(int code) {
-        maskKey = com.killer560.hub.util.KeyUtil.sanitize(code);
-    }
+    public void setMaskKey(int code) { maskKey = com.killer560.hub.util.KeyUtil.sanitize(code); }
 
-    public boolean isMaskKeyBonzoFirst() {
-        return maskKeyBonzoFirst;
-    }
+    public boolean isMaskKeyBonzoFirst() { return maskKeyBonzoFirst; }
 
-    public void setMaskKeyBonzoFirst(boolean v) {
-        maskKeyBonzoFirst = v;
-    }
+    public void setMaskKeyBonzoFirst(boolean v) { maskKeyBonzoFirst = v; }
 
-    public boolean isMaskKeyDungeonsOnly() {
-        return maskKeyDungeonsOnly;
-    }
+    public boolean isMaskKeyDungeonsOnly() { return maskKeyDungeonsOnly; }
 
-    public void setMaskKeyDungeonsOnly(boolean v) {
-        maskKeyDungeonsOnly = v;
-    }
+    public void setMaskKeyDungeonsOnly(boolean v) { maskKeyDungeonsOnly = v; }
 
-    public boolean isMaskKeyBossOnly() {
-        return maskKeyBossOnly;
-    }
+    public boolean isMaskKeyBossOnly() { return maskKeyBossOnly; }
 
-    public void setMaskKeyBossOnly(boolean v) {
-        maskKeyBossOnly = v;
-    }
+    public void setMaskKeyBossOnly(boolean v) { maskKeyBossOnly = v; }
 }

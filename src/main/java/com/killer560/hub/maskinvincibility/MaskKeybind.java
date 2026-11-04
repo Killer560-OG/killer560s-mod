@@ -199,11 +199,7 @@ public final class MaskKeybind {
     }
 
     /** For the testkit: clicks sent, and the last decision ("equip Spirit Mask", "blocked: Boss Only", ...). */
-    public static int clicks() {
-        return clicks;
-    }
+    public static int clicks() { return clicks; }
 
-    public static String lastDecision() {
-        return lastDecision;
-    }
+    public static String lastDecision() { return lastDecision; }
 }
