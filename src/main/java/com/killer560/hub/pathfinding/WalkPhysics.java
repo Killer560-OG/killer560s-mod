@@ -137,23 +137,6 @@ final class WalkPhysics {
         return h;
     }
 
-    /** Ticks after take-off the feet spend at or above {@code rise} (a ledge that high is landed on in those ticks). */
-    static int ticksAbove(double v0, double rise) {
-        double v = v0;
-        double h = 0;
-        int n = 0;
-        for (int i = 0; i < 80; i++) {
-            h += v;
-            v = (v - GRAVITY) * DRAG_Y;
-            if (h >= rise) {
-                n++;
-            } else if (v < 0) {
-                break;
-            }
-        }
-        return n;
-    }
-
     static double blockFriction(LocalPlayer player) {
         try {
             return player.level().getBlockState(player.getBlockPosBelowThatAffectsMyMovement()).getBlock().getFriction();
