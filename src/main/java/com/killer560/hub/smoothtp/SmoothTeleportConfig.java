@@ -82,56 +82,30 @@ public final class SmoothTeleportConfig {
     }
 
     /** The master switch as the game should obey it (Skyblock Only applies). */
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The saved master switch, for the settings screen. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    public int getDurationMs() {
-        return durationMs;
-    }
+    public int getDurationMs() { return durationMs; }
 
-    public void setDurationMs(int ms) {
-        this.durationMs = Math.max(MIN_DURATION_MS, Math.min(MAX_DURATION_MS, ms));
-    }
+    public void setDurationMs(int ms) { this.durationMs = Math.max(MIN_DURATION_MS, Math.min(MAX_DURATION_MS, ms)); }
 
-    public boolean isEtherwarp() {
-        return etherwarp;
-    }
+    public boolean isEtherwarp() { return etherwarp; }
 
-    public void setEtherwarp(boolean on) {
-        this.etherwarp = on;
-    }
+    public void setEtherwarp(boolean on) { this.etherwarp = on; }
 
-    public boolean isInstantTransmission() {
-        return instantTransmission;
-    }
+    public boolean isInstantTransmission() { return instantTransmission; }
 
-    public void setInstantTransmission(boolean on) {
-        this.instantTransmission = on;
-    }
+    public void setInstantTransmission(boolean on) { this.instantTransmission = on; }
 
-    public boolean isWitherImpact() {
-        return witherImpact;
-    }
+    public boolean isWitherImpact() { return witherImpact; }
 
-    public void setWitherImpact(boolean on) {
-        this.witherImpact = on;
-    }
+    public void setWitherImpact(boolean on) { this.witherImpact = on; }
 
-    public boolean isOtherTeleports() {
-        return otherTeleports;
-    }
+    public boolean isOtherTeleports() { return otherTeleports; }
 
-    public void setOtherTeleports(boolean on) {
-        this.otherTeleports = on;
-    }
+    public void setOtherTeleports(boolean on) { this.otherTeleports = on; }
 }

@@ -327,11 +327,7 @@ public final class SmoothTeleport {
 
 
     /** True while the camera is drawn somewhere other than where vanilla would put it. */
-    public static boolean isGliding() {
-        return offset != null || startFrom != null;
-    }
+    public static boolean isGliding() { return offset != null || startFrom != null; }
 
-    public static String lastDecision() {
-        return lastDecision;
-    }
+    public static String lastDecision() { return lastDecision; }
 }
