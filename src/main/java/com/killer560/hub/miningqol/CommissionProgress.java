@@ -37,6 +37,7 @@ import java.util.Map;
  */
 public final class CommissionProgress {
 
+    private static final org.slf4j.Logger LOG = com.killer560.hub.util.ModLog.get("killer560smod-miningqol");
     static final long LAG_MS = 5000;
     private static final long TARGET_MS = 1000;
     private static final double MAX_SHOWN = 99.9;
@@ -49,6 +50,7 @@ public final class CommissionProgress {
         int countedSinceTab = 0;
         double firstTab = -1;   // tab percent when counting began
         int totalCounted = 0;
+        long lastLogMs = 0;
         final ArrayDeque<Long> recent = new ArrayDeque<>();
     }
 
@@ -117,6 +119,12 @@ public final class CommissionProgress {
                 continue;
             }
             if (t != tr.tab) {
+                if (now - tr.lastLogMs >= 1000) {
+                    tr.lastLogMs = now;
+                    LOG.info("[CommissionProgress] refresh {}: predicted {} tab {} (was {}) counted {} (in lag window {}) step {}{}",
+                            c.name(), format(tr.shown), format(t), format(tr.tab), tr.countedSinceTab, tr.recent.size(),
+                            String.format(Locale.ROOT, "%.3f", step(c.name(), tr)), tr.learnedStep > 0 ? " learned" : "");
+                }
                 if (t < tr.tab - 1e-9) {
                     tr.shown = t; // a new commission under the same name
                     tr.firstTab = t;

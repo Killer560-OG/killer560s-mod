@@ -103,11 +103,195 @@ public final class MiningState {
         return changed ? List.copyOf(out) : coms;
     }
 
+
+    // ---- Commissions menu read (killer560, 2026-11-03: "read the comission from inside of the comissions menu") ----
+
+    private static final org.slf4j.Logger LOG = com.killer560.hub.util.ModLog.get("killer560smod-miningqol");
+    /** "Progress: 45.2%", "45%": bounded. */
+    private static final Pattern MENU_PCT = Pattern.compile("(\\d{1,3}(?:\\.\\d{1,2})?)\\s{0,2}%");
+    private static final Pattern MENU_PCT_ONLY = Pattern.compile("^[^A-Za-z0-9]{0,6}(\\d{1,3}(?:\\.\\d{1,2})?)\\s{0,2}%\\s{0,3}$");
+    /** How long a menu read stands in for a tab that has not caught up. */
+    static final long MENU_MS = 30_000;
+
+    /** One commission as read from the menu, and the tab's value when it was read. */
+    private record MenuEntry(double pct, boolean done, double snapPct, long expiry) {
+    }
+
+    private static final java.util.Map<String, MenuEntry> MENU = new java.util.concurrent.ConcurrentHashMap<>();
+    private static List<Commission> menuSeen = List.of();
+    private static List<Commission> rawTab = List.of();
+    private static int menuTicks = 0;
+    private static boolean menuDumped = false;
+
+    /**
+     * One menu item to a commission: name from the item, progress from its lore. Hypixel's exact lore is not on record
+     * (no log carries it), so this is tolerant: finished = COMPLETED / "Click to claim" / 100% (the highlight's rule);
+     * otherwise the percent on a "Progress" line, else on a line that is only a percent. Null: not a commission.
+     */
+    public static Commission parseMenuItem(String name, List<String> lore) {
+        try {
+            if (name == null || name.isBlank() || name.length() > 48 || lore == null) {
+                return null;
+            }
+            String n = name.trim();
+            if (CommissionMenuHighlight.completed(lore)) {
+                return new Commission(n, "DONE", true);
+            }
+            for (String raw : lore) {
+                String l = raw == null ? "" : raw.trim();
+                if (l.length() > 120 || !l.toLowerCase(Locale.ROOT).startsWith("progress")) {
+                    continue;
+                }
+                Matcher m = MENU_PCT.matcher(l);
+                if (m.find()) {
+                    return menuPct(n, m.group(1));
+                }
+            }
+            for (String raw : lore) {
+                String l = raw == null ? "" : raw.trim();
+                if (l.length() > 24) {
+                    continue;
+                }
+                Matcher m = MENU_PCT_ONLY.matcher(l);
+                if (m.matches()) {
+                    return menuPct(n, m.group(1));
+                }
+            }
+        } catch (RuntimeException e) {
+            LOG.warn("[Commissions] menu item parse failed: {}", e.toString());
+        }
+        return null;
+    }
+
+    private static Commission menuPct(String name, String num) {
+        double v = Double.parseDouble(num);
+        return v > 100 ? null : new Commission(name, CommissionProgress.format(v), false);
+    }
+
+    /** The commissions the open Commissions menu shows now, or null when there is no such menu or nothing changed. */
+    private static List<Commission> pollMenu(Minecraft client) {
+        if (com.killer560.hub.compat.McCompat.screen(client) instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen
+                && CommissionMenuHighlight.isMenu(screen)) {
+            if (menuTicks++ % 4 != 0) {
+                return null;
+            }
+            try {
+                List<Commission> out = new ArrayList<>();
+                StringBuilder dump = menuDumped ? null : new StringBuilder();
+                int top = Math.min(screen.getMenu().slots.size() - 36, 54);
+                for (int i = 0; i < top; i++) {
+                    net.minecraft.world.item.ItemStack st = screen.getMenu().slots.get(i).getItem();
+                    if (st.isEmpty()) {
+                        continue;
+                    }
+                    String name = st.getHoverName().getString();
+                    List<String> lore = com.killer560.hub.croesus.DungeonChestValuer.cleanLore(st);
+                    if (dump != null && lore.size() > 0 && dump.length() < 6000) {
+                        dump.append("\n  slot ").append(i).append(' ').append(name).append(" | ")
+                                .append(String.join(" / ", lore));
+                    }
+                    Commission c = parseMenuItem(name, lore);
+                    if (c != null) {
+                        out.add(c);
+                    }
+                }
+                if (dump != null && dump.length() > 0) {
+                    menuDumped = true;
+                    LOG.info("[Commissions] menu lore (first open, codes stripped):{}", dump);
+                }
+                if (out.equals(menuSeen)) {
+                    return null;
+                }
+                menuSeen = List.copyOf(out);
+                return menuSeen;
+            } catch (RuntimeException e) {
+                LOG.warn("[Commissions] menu read failed: {}", e.toString());
+            }
+        } else {
+            menuTicks = 0;
+            menuSeen = List.of();
+        }
+        return null;
+    }
+
+    /** Remembers {@code menu} against the tab as it reads right now ({@code tab}); only commissions the tab lists count. */
+    static void storeMenu(List<Commission> menu, List<Commission> tab, long now) {
+        for (Commission m : menu) {
+            for (Commission t : tab) {
+                if (!t.name().equalsIgnoreCase(m.name()) || t.done()) {
+                    continue;
+                }
+                double tp = CommissionProgress.pct(t.progress());
+                if (tp < 0) {
+                    continue;
+                }
+                MENU.put(t.name().toLowerCase(Locale.ROOT),
+                        new MenuEntry(m.done() ? 100 : CommissionProgress.pct(m.progress()), m.done(), tp, now + MENU_MS));
+            }
+        }
+    }
+
+    /**
+     * A menu read wins over the tab until the tab shows a newer state: the tab reaching the menu's value (or DONE), the tab
+     * reading lower than it did at the read (a new commission under that name), or {@link #MENU_MS}.
+     */
+    static List<Commission> applyMenu(List<Commission> coms, long now) {
+        MENU.values().removeIf(e -> e.expiry() < now);
+        if (MENU.isEmpty()) {
+            return coms;
+        }
+        List<Commission> out = new ArrayList<>(coms.size());
+        boolean changed = false;
+        for (Commission c : coms) {
+            String key = c.name().toLowerCase(Locale.ROOT);
+            MenuEntry e = MENU.get(key);
+            if (e != null) {
+                double t = CommissionProgress.pct(c.progress());
+                if (c.done() || (t >= 0 && (t < e.snapPct() - 0.05 || (!e.done() && t >= e.pct())))) {
+                    MENU.remove(key);
+                    e = null;
+                }
+            }
+            if (e != null) {
+                out.add(e.done() ? new Commission(c.name(), "DONE", true)
+                        : new Commission(c.name(), CommissionProgress.format(e.pct()), false));
+                changed = true;
+            } else {
+                out.add(c);
+            }
+        }
+        return changed ? List.copyOf(out) : coms;
+    }
+
+    /** Testkit: what the open Commissions menu read as on the last change. */
+    public static List<Commission> menuSeen() {
+        return menuSeen;
+    }
+
+    /** Testkit: forget menu reads. */
+    public static void resetMenuForTest() {
+        MENU.clear();
+        menuSeen = List.of();
+    }
+
+    /** Testkit: a menu read stored against {@code tabLines} and applied to them. */
+    public static List<Commission> menuForTest(List<Commission> menu, List<String> tabLines, long now) {
+        List<Commission> tab = parse(tabLines);
+        storeMenu(menu, tab, now);
+        return applyMenu(tab, now);
+    }
+
+    /** Testkit: the tab lines with any stored menu read applied. */
+    public static List<Commission> applyMenuForTest(List<String> tabLines, long now) {
+        return applyMenu(parse(tabLines), now);
+    }
+
     private MiningState() {
     }
 
     static void tick(Minecraft client) {
-        if (ticks++ % 10 != 0) {
+        List<Commission> menuNew = client.getConnection() != null ? pollMenu(client) : null;
+        if (ticks++ % 10 != 0 && menuNew == null) {
             return;
         }
         List<Commission> coms = List.of();
@@ -118,7 +302,13 @@ public final class MiningState {
             List<String> section = readSection(listed, COMMISSIONS);
             known = section != null;
             if (section != null) {
-                coms = applyDone(parse(section), System.currentTimeMillis());
+                long nowMs = System.currentTimeMillis();
+                List<Commission> raw = parse(section);
+                rawTab = raw;
+                if (menuNew != null) {
+                    storeMenu(menuNew, raw, nowMs);
+                }
+                coms = applyDone(applyMenu(raw, nowMs), nowMs);
             }
             List<String> ab = readSection(listed, PICKAXE_ABILITY);
             ability = ab == null ? List.of() : ab;
