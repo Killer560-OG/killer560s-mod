@@ -268,8 +268,31 @@ public class Killer560ModClient implements ClientModInitializer {
         if (com.killer560.hub.BuildVariant.TESTING) {
             com.killer560.hub.testing.TestingCommands.register();
         }
-        // Mining features (Profit Per Hour, Nucleus Run Profit, Crystal Hollows Map + sharing) are shelved until
-        // after the 2.0 release (killer560, 2026-10-07): code in shelved/mining/, restore steps in its README.md.
+        // The Mining category's features pulled from staging-mining-3 (killer560, 2026-11-04: mining ships before 2.0
+        // now). No macros: Auto Nucleus Run and Lobby Swapper stay on the staging branch.
+        com.killer560.hub.mining.profit.MiningProfitTracker.register();
+        com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
+        com.killer560.hub.mining.chmap.ChDiscovery.register();
+        com.killer560.hub.mining.chmap.ChShare.register();
+        com.killer560.hub.mining.MiningIsland.register();
+        com.killer560.hub.mining.metaldetector.MetalDetectorFeature.register();
+        com.killer560.hub.mining.events.MiningEventsFeature.register();
+        HudElementRegistry.register(com.killer560.hub.mining.events.MiningEventsFeature.HUD);
+        com.killer560.hub.mining.lobby.LobbyTrackerFeature.register();
+        HudElementRegistry.register(com.killer560.hub.mining.lobby.LobbyTrackerFeature.HUD);
+        com.killer560.hub.mining.crystals.CrystalTrackerFeature.register();
+        HudElementRegistry.register(com.killer560.hub.mining.crystals.CrystalTrackerFeature.HUD);
+        com.killer560.hub.mining.fetchur.FetchurSolver.register();
+        com.killer560.hub.mining.puzzler.PuzzlerSolver.register();
+        com.killer560.hub.mining.cold.ColdOverlay.register();
+        com.killer560.hub.mining.skymall.SkyMallDisplay.register();
+        com.killer560.hub.mining.worms.WormAlert.register();
+        com.killer560.hub.mining.fossil.FossilSolver.register();
+        com.killer560.hub.mining.compass.WishingCompassSolver.register();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            com.killer560.hub.mining.scanner.StructureScannerFeature.register();
+            com.killer560.hub.mining.ghosts.GhostEspFeature.register();
+        }
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);

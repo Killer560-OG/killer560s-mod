@@ -25,10 +25,17 @@ public abstract class LocatorTrailMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
             shift = At.Shift.AFTER), require = 0)
     private void killer560smod$locatorTrail(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
+        long now = System.currentTimeMillis();
         try {
-            LocatorTrail.onParticlePacket(packet, System.currentTimeMillis());
+            LocatorTrail.onParticlePacket(packet, now);
         } catch (RuntimeException e) {
             // A throw here would disconnect him (onPacketError); a particle packet is not worth that.
+        }
+        // The Wishing Compass Solver (Mining) reads the same happy-villager trails in the Crystal Hollows.
+        try {
+            com.killer560.hub.mining.compass.WishingCompassSolver.onParticlePacket(packet, now);
+        } catch (RuntimeException e) {
+            // Same: never disconnect over a particle.
         }
     }
 }

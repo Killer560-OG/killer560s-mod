@@ -436,8 +436,17 @@ public final class ProfileManager {
                 com.killer560.hub.intro.IntroConfig::load,
                 com.killer560.hub.sessionrecorder.SessionRecorderConfig::load,
                 com.killer560.hub.invsort.InventorySorterConfig::load,
-                // CrystalHollowsMapConfig, NucleusRunProfitConfig and MiningProfitConfig: shelved until after 2.0
-                // (shelved/mining/README.md); their files stay on disk unread.
+                // The Mining category's features from staging-mining-3 (2026-11-04).
+                com.killer560.hub.mining.profit.MiningProfitConfig::load,
+                com.killer560.hub.mining.nucleus.NucleusRunProfitConfig::load,
+                com.killer560.hub.mining.chmap.CrystalHollowsMapConfig::load,
+                com.killer560.hub.mining.metaldetector.MetalDetectorConfig::load,
+                com.killer560.hub.mining.events.MiningEventsConfig::load,
+                com.killer560.hub.mining.lobby.LobbyTrackerConfig::load,
+                com.killer560.hub.mining.crystals.CrystalTrackerConfig::load,
+                com.killer560.hub.mining.scanner.StructureScannerConfig::load,
+                com.killer560.hub.mining.ghosts.GhostEspConfig::load,
+                com.killer560.hub.islands.IslandConfig::loadAll,
                 com.killer560.hub.updatecheck.UpdateCheckConfig::load,
                 com.killer560.hub.autoupdate.AutoUpdateConfig::load,
                 com.killer560.hub.cringe.CringeConfig::load,
