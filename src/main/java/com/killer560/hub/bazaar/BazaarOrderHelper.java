@@ -121,10 +121,7 @@ public final class BazaarOrderHelper {
             return null;
         }
         ItemStack stack = slot.getItem();
-        if (stack == null || stack.isEmpty()) {
-            return null;
-        }
-        return orderOf(stack);
+        return stack == null || stack.isEmpty() ? null : orderOf(stack);
     }
 
     private static BazaarOrderParser.Order orderOf(ItemStack stack) {

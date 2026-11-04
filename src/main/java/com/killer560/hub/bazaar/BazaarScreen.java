@@ -59,10 +59,7 @@ public final class BazaarScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent keyEvent) {
-        if (BazaarView.key(keyEvent)) {
-            return true;
-        }
-        return super.keyPressed(keyEvent);
+        return BazaarView.key(keyEvent) || super.keyPressed(keyEvent);
     }
 
     @Override

@@ -117,10 +117,7 @@ final class BazaarFormat {
         if (a >= 1e6) {
             return String.format(Locale.US, "%.2fM", v / 1e6);
         }
-        if (a >= 1e5) {
-            return String.format(Locale.US, "%.1fk", v / 1e3);
-        }
-        return String.format(Locale.US, "%,.1f", v);
+        return a >= 1e5 ? String.format(Locale.US, "%.1fk", v / 1e3) : String.format(Locale.US, "%,.1f", v);
     }
 
     static String shortNumber(long n) {
@@ -134,10 +131,7 @@ final class BazaarFormat {
         if (n >= 1_000_000L) {
             return String.format(Locale.US, "%.2fM", n / 1e6);
         }
-        if (n >= 10_000L) {
-            return String.format(Locale.US, "%.1fk", n / 1e3);
-        }
-        return String.format(Locale.US, "%,d", n);
+        return n >= 10_000L ? String.format(Locale.US, "%.1fk", n / 1e3) : String.format(Locale.US, "%,d", n);
     }
 
     static String percent(double v) {
@@ -186,9 +180,6 @@ final class BazaarFormat {
         if (s < 3600) {
             return (s / 60) + "m ago";
         }
-        if (s < 86400 * 2) {
-            return (s / 3600) + "h ago";
-        }
-        return (s / 86400) + "d ago";
+        return s < 86400 * 2 ? (s / 3600) + "h ago" : (s / 86400) + "d ago";
     }
 }

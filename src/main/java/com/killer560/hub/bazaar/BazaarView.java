@@ -394,10 +394,7 @@ public final class BazaarView {
         if (mode == Mode.CONTAINER && (cp == null || cp.page == null || cp.page.kind() == BazaarPages.Kind.CATEGORY)) {
             return Mode.BROWSE;
         }
-        if (mode == Mode.PREVIEW && previewId == null) {
-            return Mode.BROWSE;
-        }
-        return mode;
+        return mode == Mode.PREVIEW && previewId == null ? Mode.BROWSE : mode;
     }
 
     // Header -------------------------------------------------------------------------------------------------------
