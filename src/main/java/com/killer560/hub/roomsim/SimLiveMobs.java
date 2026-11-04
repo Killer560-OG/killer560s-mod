@@ -89,10 +89,6 @@ public final class SimLiveMobs {
         fels = on;
     }
 
-    public static boolean isFels() {
-        return fels;
-    }
-
     public static boolean isOn() {
         return perTile > 0;
     }

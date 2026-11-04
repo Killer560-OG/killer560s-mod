@@ -51,11 +51,6 @@ public final class SimMenuNav {
      */
     private static SimMapEditorScreen designer;
 
-    /** The page the menu shows when it is opened now: the last one this session, else the designer. For the testkit. */
-    public static String openingPage() {
-        return (lastPage == null ? Page.DESIGNER : lastPage).name();
-    }
-
     /** Forgets the session's last page and drawing, as a fresh game start would. For the testkit. */
     public static void forgetSession() {
         lastPage = null;

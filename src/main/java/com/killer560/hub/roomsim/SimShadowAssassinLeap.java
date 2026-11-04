@@ -84,13 +84,6 @@ public final class SimShadowAssassinLeap {
         return true;
     }
 
-    /** Lands a leap that is on, on the next server tick (the testkit's cleanup). */
-    public static void landNow() {
-        if (landsAt >= 0) {
-            landsAt = 0;
-        }
-    }
-
     /** Server thread, every tick from {@link SimMobs}: the leap lands - the level's own border goes back to him. */
     static void tickServer(ServerLevel level) {
         int at = landsAt;

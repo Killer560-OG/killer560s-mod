@@ -130,11 +130,6 @@ public final class SimMobs {
         return FELS_PLACED.get();
     }
 
-    /** Fels woken since the last {@link #forget}. */
-    public static int felsWoken() {
-        return FELS_WOKEN.get();
-    }
-
     /** The last wake: "x y z|distance to the player|starred", or null. */
     public static String lastFelWake() {
         return lastFelWake;

@@ -919,11 +919,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return List.copyOf(runs);
     }
 
-    /** The run whose page is open, or null. For the testkit. */
-    public com.killer560.hub.runsummary.RunRecord detailRun() {
-        return detail;
-    }
-
     /** The open run page's text, § codes included. For the testkit. */
     public List<String> detailLines() {
         return detail == null ? List.of() : com.killer560.hub.runsummary.RunDetails.lines(detail);
