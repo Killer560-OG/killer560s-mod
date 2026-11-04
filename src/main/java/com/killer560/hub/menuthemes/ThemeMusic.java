@@ -82,9 +82,7 @@ public final class ThemeMusic {
     public static List<Bundled> bundled() { return BUNDLED; }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             try {
@@ -98,9 +96,7 @@ public final class ThemeMusic {
 
     /** The theme's own loop, or null (Custom, or a theme added later). */
     public static Bundled themeTrack(MenuTheme theme) {
-        if (theme == null) {
-            return null;
-        }
+        if (theme == null) return null;
         String id = switch (theme) {
             case AMBER -> "amber";
             case DARK -> "dark";
@@ -114,9 +110,7 @@ public final class ThemeMusic {
 
     static Bundled find(String id) {
         for (Bundled b : BUNDLED) {
-            if (b.id().equals(id)) {
-                return b;
-            }
+            if (b.id().equals(id)) return b;
         }
         return null;
     }
@@ -148,9 +142,7 @@ public final class ThemeMusic {
             Bundled own = themeTrack(theme);
             return "Theme Track (" + (own == null ? "none" : own.label()) + ")";
         }
-        if (ThemeExtrasConfig.MUSIC_NONE.equals(id)) {
-            return "Off";
-        }
+        if (ThemeExtrasConfig.MUSIC_NONE.equals(id)) return "Off";
         if (id.startsWith(BUNDLED_PREFIX)) {
             Bundled b = find(id.substring(BUNDLED_PREFIX.length()));
             return b == null ? "Off" : b.label();
@@ -203,9 +195,7 @@ public final class ThemeMusic {
     }
 
     static void tick(Minecraft mc) {
-        if (mc == null) {
-            return;
-        }
+        if (mc == null) return;
         if (preview != null) {
             // Play Preview: until it ends (the track ran out, a second press, the mod menu closed) the menu track waits.
             if (!(McCompat.screen(mc) instanceof com.killer560.hub.gui.ModScreen) || !mc.getSoundManager().isActive(preview)) {
@@ -238,9 +228,7 @@ public final class ThemeMusic {
             gaveUp = null;
         }
         if (key != null && key.equals(currentKey) && current != null) {
-            if (sounds.isActive(current)) {
-                return;
-            }
+            if (sounds.isActive(current)) return;
             // The engine dropped it (a sound reload, a stream error): start it again once; a second failure in a row
             // gives up on that track until the choice changes, so a broken file is not retried every tick.
             stopCurrent(sounds);
@@ -253,12 +241,8 @@ public final class ThemeMusic {
             failedKey = key;
             LOGGER.warn("[ThemeMusic] {} stopped by itself; starting it again", key);
         }
-        if (key != null && key.equals(gaveUp)) {
-            return;
-        }
-        if (key == null ? current == null : key.equals(currentKey)) {
-            return;
-        }
+        if (key != null && key.equals(gaveUp)) return;
+        if (key == null ? current == null : key.equals(currentKey)) return;
         stopCurrent(sounds);
         if (want == null) {
             failedKey = null;
@@ -315,9 +299,7 @@ public final class ThemeMusic {
             return false;
         }
         Track t = resolve(theme, ThemeExtrasConfig.getInstance().getMusic(theme));
-        if (t == null) {
-            return false;
-        }
+        if (t == null) return false;
         SoundManager sounds = mc.getSoundManager();
         stopCurrent(sounds); // the menu's own track waits for the preview, so the two never overlap
         mc.getMusicManager().stopPlaying();

@@ -117,9 +117,7 @@ public final class ThemeBackgrounds {
     }
 
     public static String label(String id) {
-        if (id == null || NONE.equals(id)) {
-            return "Theme Scene";
-        }
+        if (id == null || NONE.equals(id)) return "Theme Scene";
         if (id.startsWith(GIF_PREFIX)) {
             String f = id.substring(GIF_PREFIX.length());
             return (fileOf(id) == null ? "§c(missing) §r" : "") + f.substring(0, Math.max(0, f.length() - 4)) + " (GIF)";
@@ -132,9 +130,7 @@ public final class ThemeBackgrounds {
 
     /** The GIF file or video folder an id names, or null when it is gone (or names something outside the folder). */
     static Path fileOf(String id) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         Path dir = folder().normalize();
         if (id.startsWith(GIF_PREFIX)) {
             Path f = dir.resolve(id.substring(GIF_PREFIX.length())).normalize();
@@ -197,9 +193,7 @@ public final class ThemeBackgrounds {
 
     /** Copies a GIF in, or turns a video (or a huge GIF) into a frames folder. Blocking: the import thread only. */
     static String importFile(Path source) throws IOException {
-        if (source == null || !Files.isRegularFile(source)) {
-            throw new IOException("No such file.");
-        }
+        if (source == null || !Files.isRegularFile(source)) throw new IOException("No such file.");
         String name = source.getFileName().toString();
         int dot = name.lastIndexOf('.');
         String ext = dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
@@ -219,9 +213,7 @@ public final class ThemeBackgrounds {
     private static boolean gifFits(Path file) {
         try (ImageInputStream in = ImageIO.createImageInputStream(file.toFile())) {
             Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
-            if (!readers.hasNext()) {
-                return false;
-            }
+            if (!readers.hasNext()) return false;
             ImageReader reader = readers.next();
             try {
                 reader.setInput(in, false);

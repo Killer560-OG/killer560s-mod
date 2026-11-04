@@ -92,9 +92,7 @@ public final class ThemeMusicFiles {
 
     /** The file an {@code import:} id names, or null when it is gone (or names something outside the folder). */
     static Path fileOf(String id) {
-        if (id == null || !id.startsWith(IMPORT_PREFIX)) {
-            return null;
-        }
+        if (id == null || !id.startsWith(IMPORT_PREFIX)) return null;
         Path dir = folder().normalize();
         Path f = dir.resolve(id.substring(IMPORT_PREFIX.length())).normalize();
         return dir.equals(f.getParent()) && Files.isRegularFile(f) ? f : null;
@@ -130,9 +128,7 @@ public final class ThemeMusicFiles {
         String path = id.getPath();
         String key = path.substring("sounds/".length(), path.length() - (path.endsWith(".ogg") ? 4 : 0));
         Path file = KEYS.get(key);
-        if (file == null) {
-            return CompletableFuture.failedFuture(new IOException("unknown imported theme music " + key));
-        }
+        if (file == null) return CompletableFuture.failedFuture(new IOException("unknown imported theme music " + key));
         return CompletableFuture.supplyAsync(() -> {
             try {
                 InputStream in = new BufferedInputStream(Files.newInputStream(file));
@@ -190,9 +186,7 @@ public final class ThemeMusicFiles {
 
     /** Copies a readable .ogg in, or converts anything else with ffmpeg. Blocking: the import thread only. */
     static String importFile(Path source) throws IOException {
-        if (source == null || !Files.isRegularFile(source)) {
-            throw new IOException("No such file.");
-        }
+        if (source == null || !Files.isRegularFile(source)) throw new IOException("No such file.");
         String name = source.getFileName().toString();
         if (name.toLowerCase(Locale.ROOT).endsWith(".ogg") && Files.size(source) <= MAX_OGG_BYTES && readableOgg(source)) {
             Path target = folder().resolve(name);

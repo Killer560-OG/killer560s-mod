@@ -51,9 +51,7 @@ class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implem
 
     @Override
     protected WeighedSoundEvents resolveCustom(SoundManager soundManager) {
-        if (!imported) {
-            return null;
-        }
+        if (!imported) return null;
         Identifier id = getIdentifier();
         WeighedSoundEvents events = new WeighedSoundEvents(id, null);
         this.sound = new Sound(id, ConstantFloat.of(1.0f), ConstantFloat.of(1.0f), 1, Sound.Type.FILE, true, false, 16);

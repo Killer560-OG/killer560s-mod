@@ -200,12 +200,8 @@ public final class ThemeExtrasSettings {
     }
 
     static Component previewText() {
-        if (ThemeMusic.previewing()) {
-            return Component.literal("Stop Preview");
-        }
-        if (previewTrack() == null) {
-            return Component.literal("Play Preview: §7no track");
-        }
+        if (ThemeMusic.previewing()) return Component.literal("Stop Preview");
+        if (previewTrack() == null) return Component.literal("Play Preview: §7no track");
         MenuTheme t = editing();
         String choice = ThemeExtrasConfig.getInstance().getMusic(t);
         ThemeMusic.Bundled own = ThemeExtrasConfig.MUSIC_THEME.equals(choice) ? ThemeMusic.themeTrack(t) : null;

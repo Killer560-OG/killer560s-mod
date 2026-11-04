@@ -48,9 +48,7 @@ public final class ThemeFonts {
     }
 
     public static String label(String id) {
-        if (id == null || ThemeExtrasConfig.FONT_KEEP.equals(id)) {
-            return "Keep Current";
-        }
+        if (id == null || ThemeExtrasConfig.FONT_KEEP.equals(id)) return "Keep Current";
         return FontChoices.find(id) == null ? "Keep Current (font missing)" : FontChoices.label(id);
     }
 }

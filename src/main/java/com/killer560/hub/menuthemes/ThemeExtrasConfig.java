@@ -85,9 +85,7 @@ public final class ThemeExtrasConfig {
                 if (obj.has("themes") && obj.get("themes").isJsonObject()) {
                     for (Map.Entry<String, JsonElement> e : obj.getAsJsonObject("themes").entrySet()) {
                         MenuTheme t = parseTheme(e.getKey());
-                        if (t == null || !e.getValue().isJsonObject()) {
-                            continue;
-                        }
+                        if (t == null || !e.getValue().isJsonObject()) continue;
                         JsonObject o = e.getValue().getAsJsonObject();
                         Entry entry = cfg.themes.get(t);
                         entry.music = clean(ConfigJson.getString(o, "music", entry.music), MUSIC_THEME);
@@ -130,9 +128,7 @@ public final class ThemeExtrasConfig {
     /** An exact theme name, or null (unlike {@link MenuTheme#parse}, an unknown key is not Amber's). */
     private static MenuTheme parseTheme(String s) {
         for (MenuTheme t : MenuTheme.values()) {
-            if (t.name().equalsIgnoreCase(s)) {
-                return t;
-            }
+            if (t.name().equalsIgnoreCase(s)) return t;
         }
         return null;
     }
