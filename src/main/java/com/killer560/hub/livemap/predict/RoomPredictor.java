@@ -401,6 +401,10 @@ public final class RoomPredictor {
         }
         // Which tiles a hit may be recorded in, for this sweep (he does not move during it): isTarget, once per tile.
         boolean anyTarget = false;
+        int minTx = TILES;
+        int maxTx = -1;
+        int minTz = TILES;
+        int maxTz = -1;
         for (int tz = 0; tz < TILES; tz++) {
             for (int tx = 0; tx < TILES; tx++) {
                 boolean t = tx < floor[0] && tz < floor[1] && isTarget(eye, tz * 2 * DungeonLayout.GRID + tx * 2);
@@ -409,11 +413,23 @@ public final class RoomPredictor {
                 }
                 SWEEP_TARGET[tz * TILES + tx] = t;
                 anyTarget |= t;
+                if (t) {
+                    minTx = Math.min(minTx, tx);
+                    maxTx = Math.max(maxTx, tx);
+                    minTz = Math.min(minTz, tz);
+                    maxTz = Math.max(maxTz, tz);
+                }
             }
         }
         if (!anyTarget) {
             return; // every hit would be thrown away (all opened, or only the tile he stands in)
         }
+        // The blocks a hit can count in (record: its tile must be a target), for PredictClip's early end of a ray.
+        sweepMinX = ORIGIN + minTx * TILE_PITCH;
+        sweepMaxX = ORIGIN + (maxTx + 1) * TILE_PITCH - 1;
+        sweepMinZ = ORIGIN + minTz * TILE_PITCH;
+        sweepMaxZ = ORIGIN + (maxTz + 1) * TILE_PITCH - 1;
+        sweepClip = new ClipContext(eye, eye, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, client.player);
         int hits = 0;
         for (int i = 0; i < RAYS_X; i++) {
             for (int j = 0; j < RAYS_Y; j++) {
@@ -596,12 +612,63 @@ public final class RoomPredictor {
         if (!reachesTarget(Math.min(eye.x, ex), Math.min(eye.z, ez), Math.max(eye.x, ex), Math.max(eye.z, ez))) {
             return -1;
         }
-        HitResult hit = client.level.clip(new ClipContext(eye, new Vec3(ex, ey, ez), ClipContext.Block.VISUAL,
-                ClipContext.Fluid.NONE, client.player));
-        if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) {
+        Vec3 end = new Vec3(ex, ey, ez);
+        BlockHitResult bhr = PredictClip.clip(client.level, sweepClip, eye, end, sweepMinX, sweepMaxX, sweepMinZ,
+                sweepMaxZ);
+        if (VERIFY_CLIP) {
+            verifyClip(client, eye, end, bhr);
+        }
+        if (bhr == null || bhr.getType() != HitResult.Type.BLOCK) {
             return -1;
         }
         return record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
+    }
+
+    /** This sweep's {@link PredictClip} inputs: the target tiles' block box and one shared shape context. */
+    private static int sweepMinX;
+    private static int sweepMaxX;
+    private static int sweepMinZ;
+    private static int sweepMaxZ;
+    private static ClipContext sweepClip;
+
+    /** Test only (testkit): every ray is also cast with vanilla's {@code level.clip} and the answers compared. */
+    public static boolean VERIFY_CLIP = false;
+    private static long verifiedRays;
+    private static long clipMismatches;
+
+    /** Rays compared and mismatches found since {@link #VERIFY_CLIP} went on (testkit). */
+    public static long[] clipVerifyCounts() {
+        return new long[] {verifiedRays, clipMismatches};
+    }
+
+    private static void verifyClip(Minecraft client, Vec3 eye, Vec3 end, BlockHitResult fast) {
+        verifiedRays++;
+        HitResult v = client.level.clip(new ClipContext(eye, end, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE,
+                client.player));
+        BlockHitResult vb = v instanceof BlockHitResult b && v.getType() == HitResult.Type.BLOCK ? b : null;
+        boolean same;
+        if (fast == null) {
+            // A miss, or the ray left the target box: vanilla's hit (if any) must lie in a tile that cannot count.
+            same = vb == null || !hitTileIsTarget(vb.getBlockPos());
+        } else {
+            same = vb != null && vb.getBlockPos().equals(fast.getBlockPos()) && vb.getLocation().equals(fast.getLocation())
+                    && vb.getDirection() == fast.getDirection() && vb.isInside() == fast.isInside();
+        }
+        if (!same) {
+            clipMismatches++;
+            if (clipMismatches <= 5) {
+                LOGGER.warn("[Predict] clip mismatch: eye {} end {} fast {} vanilla {}", eye, end,
+                        fast == null ? "none" : fast.getBlockPos() + " " + fast.getLocation(),
+                        vb == null ? "none" : vb.getBlockPos() + " " + vb.getLocation());
+            }
+        }
+    }
+
+    /** Whether a block lies in a tile this sweep records hits in (record's tile test, without its side effects). */
+    private static boolean hitTileIsTarget(BlockPos pos) {
+        int tx = Math.floorDiv(pos.getX() - ORIGIN, TILE_PITCH);
+        int tz = Math.floorDiv(pos.getZ() - ORIGIN, TILE_PITCH);
+        return tx >= 0 && tz >= 0 && tx < TILES && tz < TILES && SWEEP_TARGET[tz * TILES + tx];
     }
 
     /** Tiles whose outcome {@link #reportClosed} has logged, once a floor. */

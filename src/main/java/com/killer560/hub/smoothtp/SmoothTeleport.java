@@ -184,7 +184,7 @@ public final class SmoothTeleport {
             return null;
         }
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        return data == null ? null : data.copyTag();
+        return data == null ? null : com.killer560.hub.util.ItemNbt.view(data);
     }
 
     private static boolean kindEnabled(SmoothTeleportConfig cfg, Kind kind) {

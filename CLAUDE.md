@@ -88,8 +88,8 @@ GrimAC on a real dedicated server. See its own `CLAUDE.md`. Harness system prope
 Source under `src/main/java/com/killer560/hub/`, one package per feature area (`ap3`, `dungeonextras`,
 `secrets`, `livemap`, `autopuzzles`, `terminals`, `leveraura`, `gui/tab`, `util`, …). Mixins live in a
 `mixin` subpackage of the feature that owns them. Docs: `docs/FEATURES.md` holds the full text for every
-feature; `README.md` holds the name list. Mining is shelved until after 2.0 (never compiled): **[shelved/mining/README.md](shelved/mining/README.md)**,
-except the seven pre-2.0 mining features he asked for (to-do Doc, 2026-11-01) in `miningqol/` and the menu's Mining category.
+feature; `README.md` holds the name list. Mining ships on main (killer560, 2026-11-04): `miningqol/`, `powdermining/` and `mining/` (pulled from staging-mining-3; its macros Auto Nucleus Run and Lobby Swapper stay there), all in the menu's Mining category (`MiningQolTab` groups); docs/CRYSTAL-HOLLOWS.md and docs/MINING-PLAN.md came back from the old shelf. The rest of
+the post-2.0 staging work stays unpushed.
 
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and

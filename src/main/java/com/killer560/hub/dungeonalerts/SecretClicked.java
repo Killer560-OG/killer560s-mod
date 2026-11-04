@@ -35,6 +35,7 @@ public final class SecretClicked {
     static final long BOX_MS = 7000L;
     /** A locked line further than this after the click belongs to no box of ours. */
     private static final long LOCKED_WINDOW_MS = 1500L;
+    private static volatile int soundsPassed;
     private static final String LOCKED_LINE = "That chest is locked!";
     private static final float[] GOLD = {1.0f, 0.67f, 0.0f, 0.8f};
     private static final float[] RED = {1.0f, 0.2f, 0.2f, 0.8f};
@@ -144,10 +145,34 @@ public final class SecretClicked {
         boolean chest = id.equals(SoundEvents.CHEST_OPEN.location()) || id.equals(SoundEvents.CHEST_CLOSE.location());
         boolean lever = id.equals(SoundEvents.LEVER_CLICK.location());
         if ((chest && cfg.isMuteChestSounds()) || (lever && cfg.isMuteLeverSounds())) {
+            // Only the sound OF a chest or lever: Hypixel's 1.8 "random.click" arrives as block.lever.click and is also
+            // the dungeon start countdown's tick ("Starting in 4 seconds."), played at the player, not at a lever.
+            // killer560 2026-11-04: "the sounds to the 5 4 3 2 1 for a run about to start dont come through".
+            if (!blockAtSoundIs(packet, chest)) {
+                soundsPassed++;
+                return false;
+            }
             soundsMuted++;
             return true;
         }
         return false;
+    }
+
+    /** Whether the block the sound was played in is a chest ({@code chest}) or a lever; a sound is played at its center. */
+    private static boolean blockAtSoundIs(ClientboundSoundPacket packet, boolean chest) {
+        net.minecraft.client.multiplayer.ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) {
+            return false;
+        }
+        BlockPos pos = BlockPos.containing(packet.getX(), packet.getY(), packet.getZ());
+        net.minecraft.world.level.block.Block b = level.getBlockState(pos).getBlock();
+        return chest ? b instanceof net.minecraft.world.level.block.ChestBlock
+                : b instanceof net.minecraft.world.level.block.LeverBlock;
+    }
+
+    /** For the testkit: chest/lever sounds let through because no chest or lever was where they played. */
+    public static int soundsPassed() {
+        return soundsPassed;
     }
 
     /** For the testkit: boxes added since the client started. */

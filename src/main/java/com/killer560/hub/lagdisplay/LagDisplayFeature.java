@@ -77,6 +77,7 @@ public final class LagDisplayFeature {
 
         // Idempotent - Wither Dragons and Tick Timers already call this.
         ServerTickClock.register();
+        com.killer560.hub.util.PerTickServerClock.register();
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
             LagDisplayConfig cfg = LagDisplayConfig.getInstance();
@@ -110,7 +111,7 @@ public final class LagDisplayFeature {
     }
 
     private static void onServerTick() {
-        if (!ServerTickClock.isPingDriven()) {
+        if (!perTickServer()) {
             return;
         }
         synchronized (TICK_TIMES) {
@@ -121,6 +122,12 @@ public final class LagDisplayFeature {
                 TICK_TIMES.pollFirst();
             }
         }
+    }
+
+    /** A TPS reading needs a server that pings once a tick: 15 pings a second ({@link ServerTickClock#isPingDriven()})
+     *  is reached by GrimAC's transaction pings alone, so the per-tick clock's 19-of-20 rule must agree (tickfix2-1104). */
+    private static boolean perTickServer() {
+        return ServerTickClock.isPingDriven() && com.killer560.hub.util.PerTickServerClock.trusted();
     }
 
     private static void pruneTicks() {
@@ -173,7 +180,7 @@ public final class LagDisplayFeature {
      *  there isn't enough data yet - same windowed-tick-time approach as {@code ChatCommandsFeature}'s
      *  own "!tps" command; see that method's doc for why this only ever trusts ping-driven ticks. */
     private static double tps() {
-        if (!ServerTickClock.isPingDriven()) {
+        if (!perTickServer()) {
             return -1.0;
         }
         synchronized (TICK_TIMES) {

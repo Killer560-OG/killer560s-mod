@@ -238,10 +238,17 @@ public final class WorldRenderUtils {
      */
     public static void renderLineStrip(LevelRenderContext context, Vec3[] pts, float r, float g, float b, float a,
                                        float thickness) {
+        renderLineStrip(context, pts, r, g, b, a, thickness, false);
+    }
+
+    /** As above; {@code throughWalls} draws with no depth test (needs {@link #initThroughWalls()} at init). */
+    public static void renderLineStrip(LevelRenderContext context, Vec3[] pts, float r, float g, float b, float a,
+                                       float thickness, boolean throughWalls) {
         if (pts.length < 2) {
             return;
         }
-        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
+                (pose, buffer) -> {
 
             for (int i = 0; i < pts.length - 1; i++) {
                 Vec3 start = pts[i];

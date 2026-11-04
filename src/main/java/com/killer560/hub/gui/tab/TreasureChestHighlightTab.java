@@ -29,6 +29,18 @@ public class TreasureChestHighlightTab extends BaseTab {
         y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Despawn Timer", cfg::isTreasureChestTimer,
                 cfg::setTreasureChestTimer, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Countdown Over Chests", cfg::isTreasureChestCountdown,
+                cfg::setTreasureChestCountdown, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Tracer", cfg::isTreasureChestTracer,
+                cfg::setTreasureChestTracer, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.color(w, contentX, y, contentWidth, "Tracer Color", cfg::getTreasureChestTracerColor,
+                cfg::setTreasureChestTracerColor, PowderMiningConfig.DEFAULT_CHEST_COLOR, cfg::save);
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Hide Opened Chests", cfg::isTreasureChestHideOpened,
+                cfg::setTreasureChestHideOpened, cfg::save);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             y += MiningQolRows.STEP + 4;
             MiningQolRows.cheatHeader(w, contentX, y, contentWidth);

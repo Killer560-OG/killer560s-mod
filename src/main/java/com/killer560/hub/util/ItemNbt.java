@@ -22,6 +22,12 @@ public final class ItemNbt {
     private ItemNbt() {
     }
 
+    /** The live tag inside {@code data} (read only, never null for a non-null {@code data}): {@code data.copyTag()}
+     *  without the copy, for code that already holds the component. */
+    public static CompoundTag view(CustomData data) {
+        return ((CustomDataTagAccessor) (Object) data).killer560smod$getTag();
+    }
+
     /** The live CUSTOM_DATA tag of {@code stack} (read only), or null for an empty stack or one without custom data. */
     public static CompoundTag view(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {

@@ -37,10 +37,20 @@ public final class PowderMiningConfig {
     private boolean treasureChestTimer = true;
     private boolean treasureChestFade = true;
     private boolean treasureChestEsp = false;
+    private boolean treasureChestHideOpened = false;
+    private boolean treasureChestTracer = false;
+    private int treasureChestTracerColor = DEFAULT_CHEST_COLOR;
+    private boolean treasureChestCountdown = true;
 
     private boolean chestAlert = true;
     private boolean chestAlertSound = true;
     private boolean chestAlertTitle = false;
+    private boolean breakSound = false;
+    private boolean breakSoundMute = true;
+    private com.killer560.hub.dungeonalerts.SecretSound.SoundChoice breakSoundChoice =
+            com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING;
+    private int breakSoundVolumeTenths = 10;
+    private int breakSoundPitchTenths = 10;
 
     private boolean lockpickHelper = true;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
@@ -54,6 +64,8 @@ public final class PowderMiningConfig {
 
     private boolean lootCompact = true;
     private boolean hideTreasureUncovered = true;
+    /** Chest Loot Compact leaves a rare reward's own line in chat (staging-mining-3's Powder Chest Chat Filter). */
+    private boolean keepRareRewards = true;
     private LootShow lootShow = LootShow.ALL;
 
     /** What Chest Loot Compact shows (killer560, 2026-11-03): left click forward, right click back, wrapping. */
@@ -114,9 +126,21 @@ public final class PowderMiningConfig {
                 cfg.treasureChestTimer = ConfigJson.getBool(o, "treasureChestTimer", cfg.treasureChestTimer);
                 cfg.treasureChestFade = ConfigJson.getBool(o, "treasureChestFade", cfg.treasureChestFade);
                 cfg.treasureChestEsp = ConfigJson.getBool(o, "treasureChestEsp", cfg.treasureChestEsp);
+                cfg.treasureChestHideOpened = ConfigJson.getBool(o, "treasureChestHideOpened", cfg.treasureChestHideOpened);
+                cfg.treasureChestTracer = ConfigJson.getBool(o, "treasureChestTracer", cfg.treasureChestTracer);
+                cfg.treasureChestTracerColor = intOr(o, "treasureChestTracerColor", cfg.treasureChestTracerColor);
+                cfg.treasureChestCountdown = ConfigJson.getBool(o, "treasureChestCountdown", cfg.treasureChestCountdown);
                 cfg.chestAlert = ConfigJson.getBool(o, "chestAlert", cfg.chestAlert);
                 cfg.chestAlertSound = ConfigJson.getBool(o, "chestAlertSound", cfg.chestAlertSound);
                 cfg.chestAlertTitle = ConfigJson.getBool(o, "chestAlertTitle", cfg.chestAlertTitle);
+                cfg.breakSound = ConfigJson.getBool(o, "breakSound", cfg.breakSound);
+                cfg.breakSoundMute = ConfigJson.getBool(o, "breakSoundMute", cfg.breakSoundMute);
+                cfg.breakSoundChoice = com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(
+                        ConfigJson.getString(o, "breakSoundChoice", cfg.breakSoundChoice.name()));
+                cfg.breakSoundVolumeTenths = Math.max(1, Math.min(20,
+                        ConfigJson.getInt(o, "breakSoundVolumeTenths", cfg.breakSoundVolumeTenths)));
+                cfg.breakSoundPitchTenths = Math.max(5, Math.min(20,
+                        ConfigJson.getInt(o, "breakSoundPitchTenths", cfg.breakSoundPitchTenths)));
                 cfg.lockpickHelper = ConfigJson.getBool(o, "lockpickHelper", cfg.lockpickHelper);
                 cfg.lockpickColor = intOr(o, "lockpickColor", cfg.lockpickColor);
                 cfg.powderTracker = ConfigJson.getBool(o, "powderTracker", cfg.powderTracker);
@@ -126,6 +150,7 @@ public final class PowderMiningConfig {
                 cfg.doublePowderSound = ConfigJson.getBool(o, "doublePowderSound", cfg.doublePowderSound);
                 cfg.lootCompact = ConfigJson.getBool(o, "lootCompact", cfg.lootCompact);
                 cfg.hideTreasureUncovered = ConfigJson.getBool(o, "hideTreasureUncovered", cfg.hideTreasureUncovered);
+                cfg.keepRareRewards = ConfigJson.getBool(o, "keepRareRewards", cfg.keepRareRewards);
                 cfg.lootShow = LootShow.byName(o.has("lootShow") && o.get("lootShow").isJsonPrimitive()
                         ? o.get("lootShow").getAsString() : null);
             } catch (Exception ignored) {
@@ -151,9 +176,18 @@ public final class PowderMiningConfig {
             o.addProperty("treasureChestTimer", treasureChestTimer);
             o.addProperty("treasureChestFade", treasureChestFade);
             o.addProperty("treasureChestEsp", treasureChestEsp);
+            o.addProperty("treasureChestHideOpened", treasureChestHideOpened);
+            o.addProperty("treasureChestTracer", treasureChestTracer);
+            o.addProperty("treasureChestTracerColor", treasureChestTracerColor);
+            o.addProperty("treasureChestCountdown", treasureChestCountdown);
             o.addProperty("chestAlert", chestAlert);
             o.addProperty("chestAlertSound", chestAlertSound);
             o.addProperty("chestAlertTitle", chestAlertTitle);
+            o.addProperty("breakSound", breakSound);
+            o.addProperty("breakSoundMute", breakSoundMute);
+            o.addProperty("breakSoundChoice", breakSoundChoice.name());
+            o.addProperty("breakSoundVolumeTenths", breakSoundVolumeTenths);
+            o.addProperty("breakSoundPitchTenths", breakSoundPitchTenths);
             o.addProperty("lockpickHelper", lockpickHelper);
             o.addProperty("lockpickColor", lockpickColor);
             o.addProperty("powderTracker", powderTracker);
@@ -163,6 +197,7 @@ public final class PowderMiningConfig {
             o.addProperty("doublePowderSound", doublePowderSound);
             o.addProperty("lootCompact", lootCompact);
             o.addProperty("hideTreasureUncovered", hideTreasureUncovered);
+            o.addProperty("keepRareRewards", keepRareRewards);
             o.addProperty("lootShow", lootShow.name());
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
@@ -221,6 +256,40 @@ public final class PowderMiningConfig {
         treasureChestEsp = v;
     }
 
+    /** Stop drawing a claimed chest once he has clicked it (client only; the block is never changed). */
+    public boolean isTreasureChestHideOpened() {
+        return treasureChestHideOpened;
+    }
+
+    public void setTreasureChestHideOpened(boolean v) {
+        treasureChestHideOpened = v;
+    }
+
+    public boolean isTreasureChestTracer() {
+        return treasureChestTracer;
+    }
+
+    public void setTreasureChestTracer(boolean v) {
+        treasureChestTracer = v;
+    }
+
+    public int getTreasureChestTracerColor() {
+        return treasureChestTracerColor;
+    }
+
+    public void setTreasureChestTracerColor(int v) {
+        treasureChestTracerColor = v;
+    }
+
+    /** The seconds left above each chest, green to red. */
+    public boolean isTreasureChestCountdown() {
+        return treasureChestCountdown;
+    }
+
+    public void setTreasureChestCountdown(boolean v) {
+        treasureChestCountdown = v;
+    }
+
     // ---- Treasure Chest Alert
     public boolean isChestAlert() {
         return chestAlert && sb();
@@ -232,6 +301,60 @@ public final class PowderMiningConfig {
 
     public void setChestAlert(boolean v) {
         chestAlert = v;
+    }
+
+    // ---- Powder Break Sounds (killer560, 2026-11-03): the local player's own block breaks while powder mining
+    public boolean isBreakSound() {
+        return breakSound && sb();
+    }
+
+    public boolean isBreakSoundRaw() {
+        return breakSound;
+    }
+
+    public void setBreakSound(boolean v) {
+        breakSound = v;
+    }
+
+    /** True: Mute; false: Custom (the selector has no Normal value, the switch is Normal when OFF). */
+    public boolean isBreakSoundMute() {
+        return breakSoundMute;
+    }
+
+    public void setBreakSoundMute(boolean v) {
+        breakSoundMute = v;
+    }
+
+    public com.killer560.hub.dungeonalerts.SecretSound.SoundChoice getBreakSoundChoice() {
+        return breakSoundChoice;
+    }
+
+    public void setBreakSoundChoice(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice v) {
+        breakSoundChoice = v == null ? com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.PLING : v;
+    }
+
+    public float getBreakSoundVolume() {
+        return breakSoundVolumeTenths / 10.0f;
+    }
+
+    public int getBreakSoundVolumeTenths() {
+        return breakSoundVolumeTenths;
+    }
+
+    public void stepBreakSoundVolume(int dir) {
+        breakSoundVolumeTenths = com.killer560.hub.gui.SettingsButtonWidget.step(breakSoundVolumeTenths - 1, dir, 20) + 1;
+    }
+
+    public float getBreakSoundPitch() {
+        return breakSoundPitchTenths / 10.0f;
+    }
+
+    public int getBreakSoundPitchTenths() {
+        return breakSoundPitchTenths;
+    }
+
+    public void stepBreakSoundPitch(int dir) {
+        breakSoundPitchTenths = com.killer560.hub.gui.SettingsButtonWidget.step(breakSoundPitchTenths - 5, dir, 16) + 5;
     }
 
     public boolean isChestAlertSound() {
@@ -333,6 +456,14 @@ public final class PowderMiningConfig {
 
     public void setHideTreasureUncovered(boolean v) {
         hideTreasureUncovered = v;
+    }
+
+    public boolean isKeepRareRewards() {
+        return keepRareRewards;
+    }
+
+    public void setKeepRareRewards(boolean v) {
+        keepRareRewards = v;
     }
 
     public boolean isLootCompact() {

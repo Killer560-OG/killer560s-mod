@@ -444,7 +444,7 @@ public final class AbilityCooldownState {
         if (data == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(data);
         return tag.getStringOr("id", null);
     }
 
@@ -464,7 +464,7 @@ public final class AbilityCooldownState {
         if (data == null) {
             return false;
         }
-        ListTag scrolls = data.copyTag().getListOrEmpty("ability_scroll");
+        ListTag scrolls = com.killer560.hub.util.ItemNbt.view(data).getListOrEmpty("ability_scroll");
         Set<String> found = new HashSet<>();
         for (int i = 0; i < scrolls.size(); i++) {
             found.add(scrolls.getStringOr(i, ""));

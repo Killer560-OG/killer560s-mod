@@ -33,6 +33,7 @@ public final class MiningQolConfig {
     public static final int DEFAULT_COMMISSION_MOB_COLOR = 0xFFFF5555;
     public static final int DEFAULT_COMMISSION_ROUTE_COLOR = 0xFF55FFFF;
     public static final int DEFAULT_POWDER_GHAST_COLOR = 0xFFFF55FF;
+    public static final int DEFAULT_GOLDEN_GOBLIN_COLOR = 0xFFFFD700;
 
     /** When the Titanium Highlight shows titanium. */
     public enum TitaniumMode {
@@ -153,6 +154,11 @@ public final class MiningQolConfig {
     // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
     private boolean wrongArmor = true;
     private boolean wrongArmorSound = true;
+    // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
+    private boolean chWalls = false;
+    private final int[] chWallColor = CrystalHollowsWalls.defaultColors();
+    private final int[] chWallOpacity = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_OPACITY);
+    private final int[] chWallNear = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_NEAR);
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
@@ -184,6 +190,13 @@ public final class MiningQolConfig {
     private int powderGhastTracerColor = DEFAULT_POWDER_GHAST_COLOR;
     private boolean powderGhastTimer = true;
     private boolean powderGhastEsp = false;
+    // Golden Goblin (killer560, 2026-11-03): box + tracer on the Golden and Diamond Goblins. Off by default.
+    private boolean goldenGoblin = false;
+    private boolean goldenGoblinBox = true;
+    private int goldenGoblinBoxColor = DEFAULT_GOLDEN_GOBLIN_COLOR;
+    private boolean goldenGoblinTracer = true;
+    private int goldenGoblinTracerColor = DEFAULT_GOLDEN_GOBLIN_COLOR;
+    private boolean goldenGoblinEsp = false;
 
     private MiningQolConfig() {
     }
@@ -229,6 +242,14 @@ public final class MiningQolConfig {
                 cfg.abilitySound = ConfigJson.getBool(o, "abilitySound", cfg.abilitySound);
                 cfg.wrongArmor = ConfigJson.getBool(o, "wrongArmor", cfg.wrongArmor);
                 cfg.wrongArmorSound = ConfigJson.getBool(o, "wrongArmorSound", cfg.wrongArmorSound);
+                cfg.chWalls = ConfigJson.getBool(o, "chWalls", cfg.chWalls);
+                for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
+                    int i = z.ordinal();
+                    cfg.chWallColor[i] = intOr(o, "chWall" + z.key + "Color", cfg.chWallColor[i]) & 0xFFFFFF;
+                    cfg.chWallOpacity[i] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100,
+                            intOr(o, "chWall" + z.key + "Opacity", cfg.chWallOpacity[i])));
+                    cfg.chWallNear[i] = Math.max(0, Math.min(1024, intOr(o, "chWall" + z.key + "Near", cfg.chWallNear[i])));
+                }
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
@@ -257,6 +278,12 @@ public final class MiningQolConfig {
                 cfg.powderGhastTracerColor = intOr(o, "powderGhastTracerColor", cfg.powderGhastTracerColor);
                 cfg.powderGhastTimer = ConfigJson.getBool(o, "powderGhastTimer", cfg.powderGhastTimer);
                 cfg.powderGhastEsp = ConfigJson.getBool(o, "powderGhastEsp", cfg.powderGhastEsp);
+                cfg.goldenGoblin = ConfigJson.getBool(o, "goldenGoblin", cfg.goldenGoblin);
+                cfg.goldenGoblinBox = ConfigJson.getBool(o, "goldenGoblinBox", cfg.goldenGoblinBox);
+                cfg.goldenGoblinBoxColor = intOr(o, "goldenGoblinBoxColor", cfg.goldenGoblinBoxColor);
+                cfg.goldenGoblinTracer = ConfigJson.getBool(o, "goldenGoblinTracer", cfg.goldenGoblinTracer);
+                cfg.goldenGoblinTracerColor = intOr(o, "goldenGoblinTracerColor", cfg.goldenGoblinTracerColor);
+                cfg.goldenGoblinEsp = ConfigJson.getBool(o, "goldenGoblinEsp", cfg.goldenGoblinEsp);
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
             }
@@ -303,6 +330,12 @@ public final class MiningQolConfig {
             o.addProperty("abilitySound", abilitySound);
             o.addProperty("wrongArmor", wrongArmor);
             o.addProperty("wrongArmorSound", wrongArmorSound);
+            o.addProperty("chWalls", chWalls);
+            for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
+                o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
+                o.addProperty("chWall" + z.key + "Opacity", chWallOpacity[z.ordinal()]);
+                o.addProperty("chWall" + z.key + "Near", chWallNear[z.ordinal()]);
+            }
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
@@ -325,6 +358,12 @@ public final class MiningQolConfig {
             o.addProperty("powderGhastTracerColor", powderGhastTracerColor);
             o.addProperty("powderGhastTimer", powderGhastTimer);
             o.addProperty("powderGhastEsp", powderGhastEsp);
+            o.addProperty("goldenGoblin", goldenGoblin);
+            o.addProperty("goldenGoblinBox", goldenGoblinBox);
+            o.addProperty("goldenGoblinBoxColor", goldenGoblinBoxColor);
+            o.addProperty("goldenGoblinTracer", goldenGoblinTracer);
+            o.addProperty("goldenGoblinTracerColor", goldenGoblinTracerColor);
+            o.addProperty("goldenGoblinEsp", goldenGoblinEsp);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
             // a failed save keeps the in-memory values
@@ -598,6 +637,46 @@ public final class MiningQolConfig {
         wrongArmorSound = v;
     }
 
+    // ---- Crystal Hollows Walls
+    public boolean isChWalls() {
+        return chWalls && sb();
+    }
+
+    public boolean isChWallsRaw() {
+        return chWalls;
+    }
+
+    public void setChWalls(boolean v) {
+        chWalls = v;
+    }
+
+    /** RGB (no alpha) of the zone's walls. */
+    public int getChWallColor(CrystalHollowsWalls.Zone z) {
+        return chWallColor[z.ordinal()];
+    }
+
+    public void setChWallColor(CrystalHollowsWalls.Zone z, int argb) {
+        chWallColor[z.ordinal()] = argb & 0xFFFFFF;
+    }
+
+    /** Percent, {@link CrystalHollowsWalls#MIN_OPACITY}..100. */
+    public int getChWallOpacity(CrystalHollowsWalls.Zone z) {
+        return chWallOpacity[z.ordinal()];
+    }
+
+    public void setChWallOpacity(CrystalHollowsWalls.Zone z, int v) {
+        chWallOpacity[z.ordinal()] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100, v));
+    }
+
+    /** Blocks: a wall shows only within this distance of the player; 0 = always. */
+    public int getChWallNear(CrystalHollowsWalls.Zone z) {
+        return chWallNear[z.ordinal()];
+    }
+
+    public void setChWallNear(CrystalHollowsWalls.Zone z, int v) {
+        chWallNear[z.ordinal()] = Math.max(0, Math.min(1024, v));
+    }
+
     // ---- Carpet Highlighter
     public boolean isCarpet() {
         return carpet && sb();
@@ -808,5 +887,60 @@ public final class MiningQolConfig {
 
     public void setPowderGhastEsp(boolean v) {
         powderGhastEsp = v;
+    }
+
+    // ---- Golden Goblin
+    /** The feature switch as gated: OFF outside Skyblock. {@link GoldenGoblin} also needs a mining island. */
+    public boolean isGoldenGoblin() {
+        return goldenGoblin && sb();
+    }
+
+    public boolean isGoldenGoblinRaw() {
+        return goldenGoblin;
+    }
+
+    public void setGoldenGoblin(boolean v) {
+        goldenGoblin = v;
+    }
+
+    public boolean isGoldenGoblinBox() {
+        return goldenGoblinBox;
+    }
+
+    public void setGoldenGoblinBox(boolean v) {
+        goldenGoblinBox = v;
+    }
+
+    public int getGoldenGoblinBoxColor() {
+        return goldenGoblinBoxColor;
+    }
+
+    public void setGoldenGoblinBoxColor(int v) {
+        goldenGoblinBoxColor = v;
+    }
+
+    public boolean isGoldenGoblinTracer() {
+        return goldenGoblinTracer;
+    }
+
+    public void setGoldenGoblinTracer(boolean v) {
+        goldenGoblinTracer = v;
+    }
+
+    public int getGoldenGoblinTracerColor() {
+        return goldenGoblinTracerColor;
+    }
+
+    public void setGoldenGoblinTracerColor(int v) {
+        goldenGoblinTracerColor = v;
+    }
+
+    /** Through walls: cheat build only. */
+    public boolean isGoldenGoblinEsp() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && goldenGoblinEsp;
+    }
+
+    public void setGoldenGoblinEsp(boolean v) {
+        goldenGoblinEsp = v;
     }
 }

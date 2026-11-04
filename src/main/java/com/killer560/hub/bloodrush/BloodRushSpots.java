@@ -30,6 +30,13 @@ import java.util.Map;
  * Sim's Spawn Starred Mobs places a room's mobs on these spots ({@code roomsim.SimLiveMobs}).
  *
  * <p>Stored in {@code killer560smod-bloodrush-spots.json}: {@code {"version":1,"rooms":{"Name":[[x,y,z,seen],...]}}}.
+ *
+ * <p>The jar also ships a table of spots ({@link #BUNDLED}, the same format), built by
+ * {@code tools/bloodrush/build-spots.py} from the spots learned on his own Hypixel runs, so a room shows boxes before
+ * its mobs are in view in a run that never saw the room (bloodrush2-1104, killer560 2026-11-03: "the blood rush helper
+ * boxes arent really loading in properly or at all"). A room's spots are its learned ones plus each shipped one no
+ * learned spot is within {@link #MERGE} of. There is no public table of starred mob spawns (adm's is All Rights
+ * Reserved), so the shipped table only covers rooms someone running this mod has learned.
  * Client thread only.
  */
 public final class BloodRushSpots {
@@ -42,6 +49,10 @@ public final class BloodRushSpots {
     /** At most this many spots a room: a bigger room has about 20 starred mobs. */
     static final int MAX_PER_ROOM = 48;
     private static final long SAVE_EVERY_MS = 10_000L;
+    /** The shipped table, inside the jar. */
+    static final String BUNDLED = "/assets/killer560smod/bloodrush/spawn-spots.json";
+
+    private static Map<String, List<int[]>> bundled;
 
     private static Map<String, List<int[]>> rooms;
     private static boolean dirty;
@@ -57,16 +68,73 @@ public final class BloodRushSpots {
         return rooms;
     }
 
-    /** A room's learned spots, room-relative {x, y, z, seen}; empty when none. A copy. */
+    private static Map<String, List<int[]>> bundled() {
+        if (bundled == null) {
+            bundled = new HashMap<>();
+            try (java.io.InputStream in = BloodRushSpots.class.getResourceAsStream(BUNDLED)) {
+                if (in != null) {
+                    bundled = parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                } else {
+                    LOGGER.warn("[BloodRush] no shipped spawn spot table in the jar ({})", BUNDLED);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[BloodRush] shipped spawn spot table unreadable: {}", e.toString());
+            }
+        }
+        return bundled;
+    }
+
+    /**
+     * A room's spots, room-relative {x, y, z, seen}: the learned ones, then each shipped one no learned spot is within
+     * {@link #MERGE} of; empty when none. A copy.
+     */
     public static List<int[]> spots(String room) {
-        List<int[]> got = room == null ? null : rooms().get(room);
         List<int[]> out = new ArrayList<>();
+        if (room == null) {
+            return out;
+        }
+        List<int[]> got = rooms().get(room);
         if (got != null) {
             for (int[] s : got) {
                 out.add(s.clone());
             }
         }
+        List<int[]> shipped = bundled().get(room);
+        if (shipped != null) {
+            int learned = out.size();
+            for (int[] s : shipped) {
+                boolean known = false;
+                for (int i = 0; i < learned && !known; i++) {
+                    int[] l = out.get(i);
+                    known = Math.abs(l[0] - s[0]) <= MERGE && Math.abs(l[1] - s[1]) <= MERGE
+                            && Math.abs(l[2] - s[2]) <= MERGE;
+                }
+                if (!known) {
+                    out.add(s.clone());
+                }
+            }
+        }
         return out;
+    }
+
+    /** Every room the shipped table has spots for, with its count, for the tab and tests. */
+    public static Map<String, Integer> bundledCounts() {
+        Map<String, Integer> out = new HashMap<>();
+        for (Map.Entry<String, List<int[]>> e : bundled().entrySet()) {
+            if (!e.getValue().isEmpty()) {
+                out.put(e.getKey(), e.getValue().size());
+            }
+        }
+        return out;
+    }
+
+    /** Test hook: sets a room's shipped spots (room-relative {x, y, z}) in memory, replacing what the jar had. */
+    public static void putBundledForTest(String room, List<int[]> spots) {
+        List<int[]> list = new ArrayList<>();
+        for (int[] s : spots) {
+            list.add(new int[]{s[0], s[1], s[2], 1});
+        }
+        bundled().put(room, list);
     }
 
     /** A room's learned spots as world blocks for the room's frame (rotation and clay corner). */
@@ -137,9 +205,13 @@ public final class BloodRushSpots {
         rooms().put(room, list);
     }
 
-    /** Test hook: forgets everything in memory (the file is left alone), or re-reads it with {@code reload}. */
+    /**
+     * Test hook: forgets every learned spot in memory (the file is left alone), or re-reads it with {@code reload}; the
+     * shipped table is read from the jar again either way.
+     */
     public static void resetForTest(boolean reload) {
         rooms = reload ? read() : new HashMap<>();
+        bundled = null;
         dirty = false;
     }
 
@@ -175,12 +247,21 @@ public final class BloodRushSpots {
     }
 
     private static Map<String, List<int[]>> read() {
-        Map<String, List<int[]>> out = new HashMap<>();
         if (!Files.exists(FILE)) {
-            return out;
+            return new HashMap<>();
         }
         try {
-            JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            return parse(Files.readString(FILE, StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            LOGGER.warn("[BloodRush] {} unreadable, starting empty: {}", FILE.getFileName(), e.toString());
+            return new HashMap<>();
+        }
+    }
+
+    private static Map<String, List<int[]>> parse(String json) {
+        Map<String, List<int[]>> out = new HashMap<>();
+        try {
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             JsonObject rs = root.getAsJsonObject("rooms");
             if (rs == null) {
                 return out;
@@ -201,7 +282,7 @@ public final class BloodRushSpots {
                 out.put(e.getKey(), list);
             }
         } catch (Exception e) {
-            LOGGER.warn("[BloodRush] {} unreadable, starting empty: {}", FILE.getFileName(), e.toString());
+            LOGGER.warn("[BloodRush] spawn spot table unreadable: {}", e.toString());
         }
         return out;
     }

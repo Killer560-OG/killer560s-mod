@@ -50,6 +50,10 @@ public final class ServerTickClock {
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ServerTickClock", client -> {
             rollWindow();
+            if (client.level != idLevel) {
+                idLevel = client.level;
+                idsLogged = 0;
+            }
             if (!pingDriven) {
                 fire();
             }
@@ -71,6 +75,7 @@ public final class ServerTickClock {
             return;
         }
         pingsInWindow++;
+        logId(id);
         for (Runnable listener : RAW_PING_LISTENERS) {
             try {
                 listener.run();
@@ -84,6 +89,26 @@ public final class ServerTickClock {
     }
 
     /** Server ticks counted since launch (ping-driven or client-tick fallback). */
+    private static final int IDS_TO_LOG = 6;
+    private static final int[] FIRST_IDS = new int[IDS_TO_LOG];
+    private static int idsLogged;
+    private static Object idLevel;
+
+    /** The first few ping ids in each world, one INFO line (tickfix2-1104). GrimAC's transaction pings are
+     *  {@code -(counter & 0x7FFF)} (javap GrimPlayer.sendTransaction, 2.3.74): non-positive and stepping down by one. If
+     *  Hypixel's per-tick ids prove to look different, Grim's can be left out of every tick count; this line is the evidence. */
+    private static void logId(int id) {
+        if (idsLogged >= IDS_TO_LOG) {
+            return;
+        }
+        FIRST_IDS[idsLogged++] = id;
+        if (idsLogged == IDS_TO_LOG) {
+            LOGGER.info("[ServerTickClock] first ping ids in this world: {}", java.util.Arrays.toString(FIRST_IDS));
+        }
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-servertick");
+
     public static long now() {
         return totalTicks;
     }

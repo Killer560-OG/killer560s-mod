@@ -14,7 +14,7 @@ final class CardBlurbsData {
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
-        d.put("MiningWrongArmorTab", "Warns when mining without mining armor.");
+        d.put("MiningWrongArmorTab", "Warns on non-mining armor.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
@@ -24,12 +24,32 @@ final class CardBlurbsData {
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
-        d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
-        d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
+        d.put("TreasureChestHighlightTab", "Boxes chests, with a timer.");
+        d.put("TreasureChestAlertTab", "Sound when a chest spawns.");
+        d.put("MiningGoldenGoblinTab", "Box and tracer on Golden and Diamond Goblins.");
+        d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
+        d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");
+        // staging-mining-3 cards (2026-11-04).
+        d.put("CrystalHollowsMapTab", "Map of the Hollows.");
+        d.put("CrystalTrackerTab", "Your crystals on a HUD.");
+        d.put("WishingCompassTab", "Where a Wishing Compass points.");
+        d.put("MetalDetectorTab", "Finds Mines of Divan treasure.");
+        d.put("WormAlertTab", "Alert when a worm spawns.");
+        d.put("LobbyTrackerTab", "Lobbies you've seen.");
+        d.put("NucleusRunProfitTab", "Profit of each Nucleus run.");
+        d.put("FetchurSolverTab", "Names Fetchur's item.");
+        d.put("PuzzlerSolverTab", "Marks the Puzzler's block.");
+        d.put("ColdOverlayTab", "Frost on screen as Cold rises.");
+        d.put("FossilSolverTab", "Where to dig for the fossil.");
+        d.put("MiningEventsTab", "Mining event alerts and timers.");
+        d.put("MiningProfitTab", "Mining profit per hour.");
+        d.put("SkyMallDisplayTab", "Today's Sky Mall buff.");
+        d.put("StructureScannerTab", "Finds Hollows structures.");
+        d.put("GhostEspTab", "Outlines the Mist's Ghosts.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");
         d.put("BreakerChargesTab", "Dungeon Breaker charges HUD.");
         d.put("CreationCooldownTab", "Dungeon join timer.");
@@ -194,7 +214,7 @@ final class CardBlurbsData {
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
         d.put("AhFlipperTab", "Finds underpriced BINs on the AH.");
-        d.put("AhPriceButtonsTab", "Copy LBIN, average or value when you list.");
+        d.put("AhPriceButtonsTab", "LBIN or value when listing.");
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");

@@ -220,9 +220,24 @@ public final class WrongArmorAlert {
             return mc.getWindow() == null ? 60 : mc.getWindow().getGuiScaledHeight() / 4;
         }
 
+        // defaultX() asks for the width, and the HUD layer asks for defaultX() every frame (before its clamp memo), so
+        // this measured the constant TEXT every frame in every world: ~3 us and 540 B a frame in a dungeon (fps-1104,
+        // 95-perf-features). TEXT never changes; only a resource reload can change the font's answer, so re-measure
+        // at most once a second, and at once for a different Font object.
+        private static net.minecraft.client.gui.Font widthFont;
+        private static long widthAtMs;
+        private static int widthValue;
+
         @Override
         public int width() {
-            return (int) Math.ceil(Minecraft.getInstance().font.width(TEXT) * SCALE);
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            long now = System.currentTimeMillis();
+            if (font != widthFont || now - widthAtMs >= 1000L || now < widthAtMs) {
+                widthValue = (int) Math.ceil(font.width(TEXT) * SCALE);
+                widthFont = font;
+                widthAtMs = now;
+            }
+            return widthValue;
         }
 
         @Override

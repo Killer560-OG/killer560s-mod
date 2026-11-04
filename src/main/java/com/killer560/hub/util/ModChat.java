@@ -80,6 +80,18 @@ public final class ModChat {
         }
     }
 
+    /** Like {@link #send} but with no "[feature]" prefix, for lines that read as the game's own (Chest Loot Compact). */
+    public static void sendBare(Component line) {
+        Minecraft client = Minecraft.getInstance();
+        if (!client.isSameThread()) {
+            client.execute(() -> sendBare(line));
+            return;
+        }
+        if (client.player != null) {
+            client.player.sendSystemMessage(line);
+        }
+    }
+
     private static final org.slf4j.Logger QUIET = ModLog.get("killer560smod-chat");
 
     /**

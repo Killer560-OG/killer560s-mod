@@ -106,7 +106,7 @@ public final class CroesusExtras {
         if (data == null) {
             return null;
         }
-        return data.copyTag().getStringOr("id", null);
+        return com.killer560.hub.util.ItemNbt.view(data).getStringOr("id", null);
     }
 
     private static void readTab(Minecraft client, CroesusConfig cfg) {

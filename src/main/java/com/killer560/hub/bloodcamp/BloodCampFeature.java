@@ -760,11 +760,12 @@ public final class BloodCampFeature {
         // timer, moved by Trigger Offset) is a reaction time plus the turn to it away ({@link #auraLeadTicks}): it starts as
         // late as it can and still be on the mob when it may click.
         // NEVER MISS (killer560, 2026-11-03: "it shouldn't control it. if never miss is on then it should just attack the
-        // tick after it spawns"): no Trigger Offset and no kill timer - killIn is 0, so the Aura picks a mob as soon as it
-        // is a target, and every attack gate below reads attackOpen, which Never Miss holds open.
+        // tick after it spawns"): no Trigger Offset. It still waits for the kill timer itself (killer560, 2026-11-04:
+        // "blood camp triggerbot still kills before the kill alert goes off"): KILL at offset 0, then each mob the tick
+        // it is there.
         boolean neverMiss = cfg.isNeverMiss();
         double clickBelowAura = triggerTargetTicks(cfg, client);
-        long killIn = neverMiss ? 0L : BloodCampMoveTimer.ticksUntilKillOpen(effectiveTriggerOffsetTicks(cfg));
+        long killIn = BloodCampMoveTimer.ticksUntilKillOpen(effectiveTriggerOffsetTicks(cfg));
         if (cfg.isAuraEnabled() && inRoom && killIn <= AURA_MAX_LEAD_TICKS) {
             double best = Double.MAX_VALUE;
             // Stay on the mob already being turned to while it is still a target (killer560, 2026-11-01: "it was doing kind
@@ -874,15 +875,15 @@ public final class BloodCampFeature {
         // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
         // moved by the Trigger Offset. A mob's own countdown only says when THAT mob can be hit; until then the
         // Trigger Bot clicked on it alone, 100 ticks before "KILL" in his run. See BloodCampMoveTimer#killTimerAllows.
-        // Never Miss does not wait for it at all (killer560, 2026-11-03): killTimerOpen is still worked out (at offset 0)
-        // for Blood Camp Stats and the Kill Sound, but attackOpen - what every attack below checks - is held open.
+        // Never Miss waits for it too, at offset 0 (bctrig-1104). From 2026-11-03 it held attackOpen open, and his
+        // 2026-11-03/04 camps show the cost: walking in at 00:25:21 it killed two floor mobs 11 and 4 ticks before KILL,
+        // and 5 of 27 camps had clicks before the gate (more once KILL moved onto the game time, 333-417 game ticks).
         boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(effectiveTriggerOffsetTicks(cfg));
-        boolean attackOpen = neverMiss || killTimerOpen;
+        boolean attackOpen = killTimerOpen;
         BloodCampStats.noteKillTimer(killTimerOpen);
         if (killTimerOpen != lastKillTimerOpen) {
             LOGGER.info("[BloodCamp] kill timer gate: {} (KILL shown at tick {}, offset {}) cooldown={} tick={}",
-                    neverMiss ? (killTimerOpen ? "open" : "closed") + ", not waited for (Never Miss)"
-                            : killTimerOpen ? "open, attacks allowed" : "closed, attacks held",
+                    (killTimerOpen ? "open, attacks allowed" : "closed, attacks held") + (neverMiss ? " (Never Miss)" : ""),
                     BloodCampMoveTimer.killShownTick(), effectiveTriggerOffsetTicks(cfg), cooldown, now);
         }
         lastKillTimerOpen = killTimerOpen;
@@ -2243,6 +2244,7 @@ public final class BloodCampFeature {
             CLAIMS.clear();
         }
         CLAIMS.put(data.mobId, data.endVector);
+        BloodCampStats.onTripMobLanded(data.mobId, data.firstSpawn);
     }
 
     private static boolean claimedByOther(BloodMobState s, Entity mob, Vec3 end, double mine, long now) {

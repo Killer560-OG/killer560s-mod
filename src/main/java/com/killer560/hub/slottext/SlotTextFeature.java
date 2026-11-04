@@ -124,6 +124,7 @@ public final class SlotTextFeature {
         if (entries.isEmpty()) {
             return;
         }
+        entries = clearOfCount(entries, stack.getCount());
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
     }
 
@@ -161,6 +162,47 @@ public final class SlotTextFeature {
             lastTitle = title;
         }
         return lastTitleText;
+    }
+
+    /** Vanilla draws a stack's count in the bottom-right corner, so with a count showing (above 1) an entry placed there
+     *  moves to the first corner no other entry of the item uses (top-left, top-right, bottom-left); a single item keeps
+     *  bottom-right. Public for the tests. */
+    public static List<Entry> clearOfCount(List<Entry> entries, int count) {
+        if (count <= 1) {
+            return entries;
+        }
+        boolean any = false;
+        for (Entry e : entries) {
+            any |= e.pos() == Pos.BOTTOM_RIGHT;
+        }
+        if (!any) {
+            return entries;
+        }
+        List<Entry> out = new ArrayList<>(entries.size());
+        for (Entry e : entries) {
+            if (e.pos() != Pos.BOTTOM_RIGHT) {
+                out.add(e);
+            }
+        }
+        List<Entry> result = new ArrayList<>(out);
+        for (Entry e : entries) {
+            if (e.pos() != Pos.BOTTOM_RIGHT) {
+                continue;
+            }
+            Pos free = Pos.BOTTOM_RIGHT;
+            for (Pos cand : new Pos[]{Pos.TOP_LEFT, Pos.TOP_RIGHT, Pos.BOTTOM_LEFT}) {
+                boolean used = false;
+                for (Entry o : result) {
+                    used |= o.pos() == cand;
+                }
+                if (!used) {
+                    free = cand;
+                    break;
+                }
+            }
+            result.add(new Entry(e.type(), free, e.text(), e.color()));
+        }
+        return result;
     }
 
     /** Paints entries into the 16x16 box at x,y. Text wider than the box is scaled down to fit it. Public for tests. */

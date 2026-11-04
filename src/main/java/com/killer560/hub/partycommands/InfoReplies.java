@@ -48,6 +48,7 @@ final class InfoReplies {
 
     static void register() {
         ServerTickClock.register();
+        com.killer560.hub.util.PerTickServerClock.register();
         ServerTickClock.subscribe(InfoReplies::onServerTick);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyCommands.InfoReplies", client -> pruneTicks()));
     }
@@ -99,7 +100,7 @@ final class InfoReplies {
 
     /** Only a real number while the server drives the clock with its own pings; otherwise says so. */
     private static String tpsReply() {
-        if (!ServerTickClock.isPingDriven() || TICK_TIMES.size() < 2) {
+        if (!ServerTickClock.isPingDriven() || !com.killer560.hub.util.PerTickServerClock.trusted() || TICK_TIMES.size() < 2) {
             return "TPS: Unknown (server isn't ping-driven right now)";
         }
         long spanMs = TICK_TIMES.peekLast() - TICK_TIMES.peekFirst();

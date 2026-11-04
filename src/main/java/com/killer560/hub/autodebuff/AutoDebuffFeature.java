@@ -324,7 +324,7 @@ public final class AutoDebuffFeature {
         if (data == null) {
             return false;
         }
-        CompoundTag ench = data.copyTag().getCompoundOrEmpty("enchantments");
+        CompoundTag ench = com.killer560.hub.util.ItemNbt.view(data).getCompoundOrEmpty("enchantments");
         return ench.contains(enchantId);
     }
 
@@ -334,7 +334,7 @@ public final class AutoDebuffFeature {
             return null;
         }
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        return data == null ? null : data.copyTag().getStringOr("id", null);
+        return data == null ? null : com.killer560.hub.util.ItemNbt.view(data).getStringOr("id", null);
     }
 
     private static boolean isMasterFloorSeven() {

@@ -153,6 +153,26 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   all; FairyDoor now paths to the Fairy room itself then, keeps a door already found, and a shut one is drawn by the
   wither highlight in the Fairy color (testkit 678 checks the color).
 
+## Blood Rush Helper
+
+- Boxes "not loading in" (killer560, 2026-11-03): a room showed boxes only from spawn spots learned on earlier runs or
+  from mobs already in view, and learning ran only during the rush (before the blood door) and only while the helper was
+  on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (adm's is All
+  Rights Reserved; the room captures' `mobSpawns` are 74 snapshot positions in 25 rooms, mostly bats). Fix (bloodrush2-1104):
+  the jar ships `assets/killer560smod/bloodrush/spawn-spots.json` (rebuild with `python -I tools/bloodrush/build-spots.py`,
+  which merges every Prism instance's learned file into it), spots are learned all run until the boss, and a spot is learned
+  only after the mob stood on it half a second. Visibility: 2 px outlines and 12% faces were hard to see; Outline Width
+  (default 4) and Filled Boxes (default on, 25%) were added, proven in pixels by testkit 1104-bloodrush-known.
+- Where spawn spots could come from (surveyed 2026-11-04, so nobody repeats it): the 134 room captures' `mobSpawns` hold
+  starred entries only for Archway (40: zombies, skeletons, 2 Fels), and Archway is a bad capture anchored a tile off
+  (docs/SIM-ROOMS.md), so its frame cannot be trusted; the rest are bats. The sim places mobs at random unless a room has
+  known spots (`SimLiveMobs.placeMobs`), so it is no source. His Hypixel logs name no starred mob positions with a room
+  frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The NoammAddons room data (rooms-modern.json), Hades'
+  rooms.json (LGPL, room ids and scores only), Nebulune, Athen and QUOI hold no spawn positions; only adm does (ARR, not
+  used). So the table grows only from learning: since bloodrush2-1104 Learn Spawn Spots also runs while the helper is off
+  (its row is built in the tab either way and is in masterToggles, so the card reads ON while it learns), and the table's `sources` map
+  names each room's origin.
+
 ## Blood Camp
 
 - Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
@@ -213,12 +233,29 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   or a multi-player hit in it, else three in a row). Testkit 1104-logic-goldor-trusted. Every hit and every predicted 0 logs a
   `[TickTimers] Goldor ...` line (ticks since Storm's death and Goldor's line, wall ms, pings, trust); every other tick timer
   logs a `[TickTimers] <name> proc:` line.
+- **Measured F7 gaps, every 26.x/26.1.2 log of his since SkyBlock 0.27.2 (2026-10-06), 1 s resolution** (tickfix2-1104,
+  `killer560s-mod-logs/tickfix2-1104/gaps.py`): Storm's death line to Goldor's line 3 s in 357 runs, 4 s in 125, 2 s in 9 -
+  a steady ~3.26 s, 65 ticks of wall time with any lag in it, so Odin's 64; before 2026-10-06 it read 5 s / 6 s (Odin's old
+  104). Maxor's opening line to "DON'T DISAPPOINT ME" 4 s in 403, 5 s in 118: ~4.23 s, MAXOR_START_TICKS 83 fits within lag.
+  Necron's "congratulations." to "I'm afraid, your journey ends now." 2 s (403) / 3 s (67) and to "Goodbye." 4 s / 5 s: the
+  60-tick drop sits between them and no chat line marks it, so it is not checked. Livid (4 runs), Spirit Bear, Terracotta,
+  the purple pad and the mask cooldowns have no chat line at their end to measure against; their values stay the references'.
+- **A stall reading and a tick conversion want different measures.** `PerTickServerClock.deficitTicksSince` is client
+  ticks minus pings since a mark, which a catch-up burst pays back: right for turning a server-tick target into a client tick
+  (Blood Camp's `killShownTick`). `stallTicksSince` counts every rise of that deficit past 2 ticks in full and keeps it after
+  the burst (tickfix2-1104; until then it was the net, so Blood Camp Stats' camp lag and a pong's stall read ~0 after
+  Hypixel caught up). Logic case 1104-logic-stall-burst.
+- **GrimAC's transaction pings can pass the per-tick test for a few seconds** (shipH-rr-argrim-a-26.3.log: "is a per-tick
+  pinger: 22 pings, 20 of 20" then "no longer" 3 s later). Grim's ids are `-(counter & 0x7FFF)`, non-positive and stepping
+  down by one (javap `GrimPlayer.sendTransaction`, 2.3.74). Hypixel's ids are not known yet, so nothing filters by id;
+  `ServerTickClock` logs "[ServerTickClock] first ping ids in this world: [...]" once a world, and his next Hypixel log
+  says whether Grim's can be told apart. `ServerLag` follows the per-tick clock's trust (logic case 1104-logic-serverlag-grim).
 - **Countdowns decremented inside a gated listener lose ticks.** Maxor Start, Goldor Start and Necron's drop were
   `x--` in the per-server-tick listener behind `DungeonState.isBossPhaseActive()`, so each tick the gate read false left
   them a tick behind for good. They keep their end tick now and are worked out from the clock every tick (tickfix-1104).
 - **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
-  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (60-80 ticks: Odin's 64 fits, the
-  `GOLDOR_START_TICKS` 17 from NoammAddons 1.2.9 does not - not changed, Goldor's line ends that countdown anyway); the
+  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (Odin's 64 fits, NoammAddons 1.2.9's 17
+  does not; `GOLDOR_START_TICKS` is 64 since tickfix2-1104, see "Measured F7 gaps" below); the
   party's mask procs 3 and 6 s after Goldor's line, so his damage tick was taken as phased on the line. It is NOT at one
   fixed place after the line: his first mask proc re-locked the phase 42, 9, 2, 21 and 25 ticks (mod 60) after Goldor's
   line in five 2026-11-03/04 runs (26.3 log, "[TickTimers] Goldor tick re-locked by a mask proc (N ticks off ..., the first
@@ -268,6 +305,20 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - **Ten client ticks are not ten server ticks.** Testkit 186 on the run-3 jar: the Trigger Bot clicked exactly 10 client
   ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
   attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
+- **In the Blood Room Hypixel sends more than one ping per tick, so the ping clock runs ahead of game time** (bctrig-1104,
+  his 2026-11-03/04 26.3 log, 25 camps). `PerTickServerClock` is trusted (sticky on Hypixel) and counts every ping, and the
+  Blood Room got 20-24 pings per 20 ticks: one camp read 417 clock ticks against 333 game ticks (`level.getGameTime()`,
+  which matched the wall clock), a 14 s last wave read 16.45 s. Two faults came of it. The long-gap table (gap >= 18 s ->
+  24-27 s) put KILL ~60 ticks after the move on fast Watchers ("the kill still comes up way too late"), and the gate opened
+  early elsewhere. Measured: the first skull after the move left the wall 446-474 game ticks after the greeting whatever the
+  gap (13.05-22.35 s), so the gap table is gone (the floor's time always, as NoammAddons 1.2.9), and `elapsedSinceGreeting`
+  is the lesser of clock and game time. Testkit 1104-bloodcamp-gametime runs the ping clock 400 ticks ahead.
+- **Never Miss waits for KILL** (killer560, 2026-11-04: "triggerbot still kills before the kill alert goes off"). It
+  ignored the kill timer by design (61f5f083d), so walking in it hit mobs already on the floor (his 00:25:01 camp: a giant
+  and a player-model mob 11 and 4 ticks before the gate). It still ignores Trigger Offset. Testkit 1104-bloodcamp-nevermiss-waits-kill.
+- **Mob Ticks start at the first spawn after the kill timer, not at the timer** (killer560, same day): the mobs still on the
+  floor when it goes off are not counted until a post-move trip's mob lands (`BloodCampStats` WAITING_SPAWN, `noteClaim` ->
+  `onTripMobLanded`; a first-spawn trip never starts it). Testkit 1104-bloodcamp-stats-spawn.
 
 ## Terminals and solvers
 
@@ -385,3 +436,4 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   into the void (testkit 78: "[Sim] back to the middle of the room", then "icepath: built nothing"; 26.1.2 and 26.2
   alike, only when he stood on the arena). It now records the prior states on the server and restores them. Tic Tac
   Toe's reset still leaves 1-3 blocks fewer than before (78's "arena after reset"; not traced).
+- Hypixel's 1.8 `random.click` reaches 26.x as `block.lever.click`, and it is also the dungeon start countdown's tick ("Starting in N seconds.", played at the player). Mute Lever Sounds dropped every one (killer560, 2026-11-04: "the sounds to the 5 4 3 2 1 ... dont come through"). A sound mute keyed on a vanilla id must also check its SOURCE: the chest/lever mutes now drop a sound only when a chest/lever block is where it played (testkit 1104-alerts-countdown-sound).

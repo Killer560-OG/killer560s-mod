@@ -43,13 +43,15 @@ final class SettingTooltipsData {
         d.put("blood rush helper/drop bottom after fairy", "With Door Kills After Fairy: once the rush reaches fairy, the highest numbered killer leaves the rush to clear (told in chat, only to you) and the rest go on with the door runner killing.");
         d.put("blood rush helper/show others' spots", "Also draws the other killers' spots, in gray, marked with their role and the player who claimed it in party chat. Once yours are done, theirs that are left show in gold as help either way.");
         d.put("blood rush helper/all rooms", "Shows spots in every mob room, not only rooms on the rush (the rooms beside a wither or blood door on your dungeon map).");
-        d.put("blood rush helper/learn spawn spots", "Remembers where each room's starred mobs spawn, in the room's own coordinates, so they show in later runs at any rotation. Only on Hypixel, never in the Dungeon Sim.");
-        d.put("blood rush helper/show learned spots", "Draws the learned spawn spots too, so a spot shows before its mob is in view. One with no mob on it once you are near is taken as done.");
+        d.put("blood rush helper/learn spawn spots", "Remembers where each room's starred mobs spawn (a mob first seen standing with nobody near it, all run long until the boss, even while the helper itself is off), in the room's own coordinates, so they show in later runs at any rotation. Only on Hypixel, never in the Dungeon Sim.");
+        d.put("blood rush helper/show learned spots", "Draws the known spawn spots too (the ones you learned and the ones the mod ships with), so a room shows its spots before its mobs are in view.");
+        d.put("blood rush helper/filled boxes", "Fills the boxes' faces in at the Fill Opacity, the next spot of yours more. Off draws outlines only.");
+        d.put("blood rush helper/outline width", "How thick the boxes' outlines are, 1-10.");
         d.put("blood rush helper/my spots color", "The color of your spots.");
         d.put("blood rush helper/others' spots color", "The color of the other killers' spots.");
-        d.put("blood rush helper/learned spot color", "The color of a learned spot whose mob is not in view yet.");
+        d.put("blood rush helper/learned spot color", "The color of a known spawn spot whose mob is not in view yet.");
         d.put("blood rush helper/fill opacity", "How solid the boxes' faces are. The next spot of yours is filled in more.");
-        d.put("blood rush helper/forget learned spots", "Deletes every learned spawn spot.");
+        d.put("blood rush helper/forget learned spots", "Deletes every spawn spot you learned. The ones the mod ships with stay.");
         d.put("blood rush helper/through walls", "Cheat build: draws the boxes and numbers through walls.");
         d.put("blood rush helper/whole rush path", "Cheat build: every room on the rush path from the scanned dungeon at once (Entrance to Blood), including rooms your dungeon map does not show yet.");
         d.put("requeue same floor", "Sends /joininstance for the floor you are on once the 30 s creation cooldown and Auto Requeue's Requeue Delay have passed. Once a run.");
@@ -86,7 +88,8 @@ final class SettingTooltipsData {
         part1(d);
         part2(d);
         part3(d);
-        // mining(d): shelved until after 2.0 (shelved/mining/README.md).
+        mining(d);
+        SettingTooltipsMining3.register(d);
         invSortAndAutoSell(d);
         autoKick(d);
         customPartyFinder(d);
@@ -101,6 +104,66 @@ final class SettingTooltipsData {
         settingsSweep(d);
         blink(d);
         miningQol(d);
+    }
+
+    /** The Mining tabs pulled from staging-mining-3 (2026-11-04). */
+    private static void mining(Map<String, String> d) {
+        d.put("chest loot compact/keep rare rewards", "On, a rare reward (Fine or Flawless gemstone, Prehistoric Egg, Pickonimbus 2000) keeps its own line in chat while Chest Loot Compact hides the rest of the chest's block.");
+        d.put("profit per hour/profit per hour tracker", "Tracks the items you gain while mining and their Bazaar or Auction House value, and shows coins per hour.");
+        d.put("profit per hour/mining islands only", "On, the clock only runs on mining islands. Off, it counts gains anywhere on Skyblock.");
+        d.put("profit per hour/refresh", "Reads the totals again.");
+        d.put("profit per hour/reset totals", "Clears the tracked items, value and time.");
+        d.put("profit per hour/open /profit", "Opens the profit trackers screen.");
+        d.put("nucleus run profit/nucleus run profit tracker", "Counts your Crystal Nucleus runs from Hypixel's loot bundle message and prices the rewards.");
+        d.put("nucleus run profit/refresh", "Reads the totals again.");
+        d.put("nucleus run profit/reset totals", "Clears the run count, value and time.");
+        d.put("nucleus run profit/open /profit", "Opens the profit trackers screen.");
+        d.put("crystal hollows map/crystal hollows map", "A top-down Crystal Hollows map showing you, the structures you have found and your waypoints.");
+        d.put("crystal hollows map/open map", "Opens the full map. Left click sets a travel target, right click clears it. It never moves you.");
+        d.put("crystal hollows map/map scale", "How far the map is zoomed in, 0.5x to 4x.");
+        d.put("crystal hollows map/show borders", "Draws a box around each structure you have found, covering the part you have walked.");
+        d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
+        d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");
+        d.put("crystal hollows map/receive others'", "Shows structures other mod users found in this lobby, with a dashed border.");
+        d.put("crystal hollows map/add waypoint here", "Saves where you stand as a Crystal Hollows waypoint.");
+        d.put("crystal hollows map/remove last", "Removes the waypoint you added last.");
+        d.put("metal detector/metal detector", "In the Mines of Divan, works out where the Metal Detector's treasure is from its readout and marks it, with a line to it. It never moves you or clicks.");
+        d.put("metal detector/line to treasure", "Draws a line from you to the treasure once one spot is left.");
+        d.put("metal detector/show possible spots", "Outlines every spot the treasure can still be while more than one is left.");
+        d.put("metal detector/chat updates", "Says in chat when the center is found and how many spots are left.");
+        d.put("metal detector/treasure color", "The color of the treasure's box and line.");
+        d.put("metal detector/spot color", "The color of the possible spots' outlines.");
+        d.put("mining events/mining events", "Alerts you when a Dwarven Mines or Crystal Hollows event is about to start, and shows a timer of the events running. Read from chat only.");
+        d.put("mining events/event title", "Shows a title 20 seconds before an event starts.");
+        d.put("mining events/event sound", "Plays a sound 20 seconds before an event starts.");
+        d.put("mining events/event sound choice", "Which sound plays for an event. Left click goes forward, right click back.");
+        d.put("mining events/ending soon", "Alerts again when a running event has 20 seconds left.");
+        d.put("mining events/event timer hud", "A HUD with each running event and the time it has left. Move it in the HUD editor.");
+        d.put("mining events/2x powder", "Alerts for 2x Powder.");
+        d.put("mining events/goblin raid", "Alerts for Goblin Raid.");
+        d.put("mining events/raffle", "Alerts for Raffle.");
+        d.put("mining events/mithril gourmand", "Alerts for Mithril Gourmand.");
+        d.put("mining events/better together", "Alerts for Better Together.");
+        d.put("mining events/gone with the wind", "Alerts for Gone With The Wind.");
+        d.put("lobby tracker/lobby tracker", "Remembers the mining lobbies you have been in, by the tab list's server id, and tells you when you join one again.");
+        d.put("lobby tracker/seen before message", "On joining a lobby you have been in, says how long ago and how many times.");
+        d.put("lobby tracker/lobby hud", "A HUD with this lobby's id and your visits. Move it in the HUD editor.");
+        d.put("lobby tracker/show world day", "Adds the world's day counter (its tick count divided by 24000) to the HUD. A low number means a young lobby.");
+        d.put("lobby tracker/forget lobbies", "Clears every remembered lobby.");
+        d.put("crystal tracker/crystal tracker", "In the Crystal Hollows, shows the tab list's Crystals widget on a HUD: placed green, found yellow, still needed red.");
+        d.put("crystal tracker/all found title", "Shows a title once every crystal is found or placed.");
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Mining's cheat block. Inside the constant, so a legit jar carries none of these strings.
+            d.put("structure scanner/structure scanner", "Cheat build only. Reads the loaded chunks around you for Crystal Hollows structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
+            d.put("structure scanner/structure waypoints", "Outlines each found structure's spot, through walls.");
+            d.put("structure scanner/chat on find", "Says in chat what was found and where.");
+            d.put("structure scanner/show on map", "Adds the finds to the Crystal Hollows Map as scanned. Scanned finds are never shared with other players.");
+            d.put("structure scanner/fairy grottos", "Also looks for Fairy Grottos (magenta glass).");
+            d.put("structure scanner/scan again", "Forgets what was scanned in this lobby and starts over.");
+            d.put("ghost esp/ghost esp", "Cheat build only. Outlines the invisible Ghosts in the Dwarven Mines' Mist. It only draws.");
+            d.put("ghost esp/ghosts through walls", "Shows the outlines through blocks.");
+            d.put("ghost esp/ghost color", "The color of the Ghost outlines.");
+        }
     }
 
     /** The pre-2.0 Mining category (miningqol/, to-do Doc 2026-11-01). */
@@ -128,6 +191,12 @@ final class SettingTooltipsData {
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
         d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability every second until it is ready again (the tab list only refreshes every few seconds).");
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
+        d.put("powder break sounds", "While powder mining (Crystal Hollows, or a treasure chest in the last 2 minutes), changes the sound of the blocks you break yourself. OFF is the normal Minecraft sound. Client-side only.");
+        d.put("powder break sounds/mode", "Mute silences your breaks (the break particles stay). Custom plays the sound below instead. Left click forward, right click back.");
+        d.put("powder break sounds/sound", "The sound played for each block you break in Custom mode.");
+        d.put("powder break sounds/volume", "Volume of the custom break sound, 0.1 to 2.0.");
+        d.put("powder break sounds/pitch", "Pitch of the custom break sound, 0.5 to 2.0.");
+        d.put("powder break sounds/test", "Plays the custom sound once with the current volume and pitch.");
         d.put("carpet highlighter", "In the Dwarven Mines, fills the unbreakable carpets in ore veins so you stop swinging at them.");
         d.put("carpet highlighter/carpet color", "The color the carpets are filled with.");
         d.put("resume held break after menus", "On a mining island, when a menu closes while you are still holding left click, you go on breaking without pressing it again.");
@@ -137,6 +206,25 @@ final class SettingTooltipsData {
         d.put("titanium highlight/titanium color", "The color of the titanium outline.");
         d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
         d.put("titanium highlight/exposed only", "Cheat build, with Through Walls: only titanium with a face open to air, so you can actually reach and mine it.");
+        d.put("crystal hollows walls", "In the Crystal Hollows, draws each zone's border as translucent colored walls: the Jungle, Mithril Deposits, Goblin Holdout and Precursor Remnants quadrants, the Magma Fields layer (Y 64 and under) and the Crystal Nucleus box. Only draws; the real zone edge is cave terrain, so a wall marks the nominal line.");
+        d.put("crystal hollows walls/jungle color", "The color of the Jungle walls.");
+        d.put("crystal hollows walls/jungle opacity", "How solid the Jungle walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/jungle near only", "The Jungle walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("crystal hollows walls/mithril deposits color", "The color of the Mithril Deposits walls.");
+        d.put("crystal hollows walls/mithril deposits opacity", "How solid the Mithril Deposits walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/mithril deposits near only", "The Mithril Deposits walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("crystal hollows walls/goblin holdout color", "The color of the Goblin Holdout walls.");
+        d.put("crystal hollows walls/goblin holdout opacity", "How solid the Goblin Holdout walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/goblin holdout near only", "The Goblin Holdout walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("crystal hollows walls/precursor remnants color", "The color of the Precursor Remnants walls.");
+        d.put("crystal hollows walls/precursor remnants opacity", "How solid the Precursor Remnants walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/precursor remnants near only", "The Precursor Remnants walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("crystal hollows walls/magma fields color", "The color of the Magma Fields walls.");
+        d.put("crystal hollows walls/magma fields opacity", "How solid the Magma Fields walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/magma fields near only", "The Magma Fields walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("crystal hollows walls/crystal nucleus color", "The color of the Crystal Nucleus walls.");
+        d.put("crystal hollows walls/crystal nucleus opacity", "How solid the Crystal Nucleus walls are, 5 to 100 percent.");
+        d.put("crystal hollows walls/crystal nucleus near only", "The Crystal Nucleus walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
         d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
         d.put("raffle ticket highlight/ticket color", "The color of the ticket boxes.");
         d.put("raffle ticket highlight/through walls", "Cheat build: draws the ticket boxes through blocks.");
@@ -2349,7 +2437,7 @@ final class SettingTooltipsData {
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Cheat build: clicks a blood mob on its kill timer when you aim at it, never faster than your attack speed. Needs Blood Camp on.");
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
-            d.put("auto blood camp/never miss", "No timer at all: attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on) and does not wait for the Kill Popup's KILL.");
+            d.put("auto blood camp/never miss", "No mob timer: once the Kill Popup's KILL is up, attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on).");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
