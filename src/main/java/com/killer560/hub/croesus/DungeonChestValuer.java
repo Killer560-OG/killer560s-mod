@@ -102,8 +102,6 @@ public final class DungeonChestValuer {
     public static final int CLAIM_BUTTON_SLOT = 31;
     /** The Kismet "Reroll Chest" button in an open chest screen - quoi AutoCroesus.kt reads {@code slots[50]}. */
     public static final int REROLL_BUTTON_SLOT = 50;
-    /** The "Go Back" arrow in an open chest screen - quoi clicks 49 after a reroll it can't use. */
-    public static final int CHEST_BACK_SLOT = 49;
     /** The Croesus run head lore line that marks a run with nothing claimed yet (quoi AutoCroesus.kt). */
     public static final String RUN_UNOPENED_LORE = "No chests opened yet!";
     /** Where the Croesus menu puts its run heads (quoi AutoCroesus.kt) - shared by Auto Croesus and the

@@ -1269,8 +1269,6 @@ public final class MapPainter {
 
     /** Map units from one room's origin to the next: the room plus the gap after it. */
     public static final int ROOM_PITCH_UNITS = ROOM_UNITS + GAP_UNITS;
-    /** Map units a room is wide; the rest of a pitch is the gap a doorway crosses. */
-    public static final int ROOM_SIZE_UNITS = ROOM_UNITS;
 
     /**
      * NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the

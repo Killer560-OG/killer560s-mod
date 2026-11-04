@@ -22,7 +22,6 @@ public final class HoppityCalendar {
     public static final long HOUR_MS = 50_000L;
     public static final long DAY_MS = 24 * HOUR_MS;
     public static final int DAYS_PER_YEAR = 12 * 31;
-    public static final long YEAR_MS = DAYS_PER_YEAR * DAY_MS;
     public static final int HUNT_DAYS = 3 * 31;
     public static final int EGGS_PER_HUNT = HUNT_DAYS * 3;
 

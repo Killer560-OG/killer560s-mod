@@ -85,8 +85,6 @@ public final class AhRelistMacro {
     static final int ITEM_SLOT = 13;
     static final int CREATE_SLOT = 29;
     static final int PRICE_SLOT = 31;
-    /** NEU / Hypixel confirm pages: Confirm on the left. */
-    static final int CONFIRM_SLOT = 11;
 
     /** "Status: Sold!", "Status: Expired!" (SkyHanni), "Status: Ended!" on a bid page. Anchored, on stripped lore. */
     static final Pattern CLAIMABLE_LORE = Pattern.compile("^Status: (Sold|Expired|Ended)!?$", Pattern.CASE_INSENSITIVE);

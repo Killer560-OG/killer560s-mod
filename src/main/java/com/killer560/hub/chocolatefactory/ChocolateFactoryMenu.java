@@ -28,9 +28,7 @@ public final class ChocolateFactoryMenu {
     public static final int INFO_SLOT = 13;
     public static final int PRODUCTION_SLOT = 45;
     public static final int TIME_TOWER_SLOT = 38;
-    public static final int SHRINE_SLOT = 39;
     public static final int COACH_SLOT = 41;
-    public static final int HAND_BAKED_SLOT = 37;
     public static final Map<Integer, Integer> RABBIT_SLOT_GAINS = Map.of(28, 1, 29, 2, 30, 3, 31, 4, 32, 5, 33, 6, 34, 7);
     /** Never clicked by the auto: they open other menus, the leaderboard, or close the factory. */
     public static final Set<Integer> DESTRUCTIVE_SLOTS = Set.of(42, 43, 47, 48, 49, 50, 51, 53);

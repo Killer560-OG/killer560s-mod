@@ -796,9 +796,6 @@ public final class AutoRoutesCommands {
         }
     }
 
-    /** Name of the single shareable routes file inside {@link RouteStore#routesDirectory()}. Must match the store. */
-    public static final String ROUTES_FILE_NAME = "killer560smod-autoroutes.json";
-
     /** The one routes file - {@link RouteStore#routesDirectory()} is the folder the "Open Routes Folder" button opens. */
     public static Path routesFile() {
         return RouteStore.routesFile();

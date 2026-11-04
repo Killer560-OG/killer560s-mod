@@ -38,44 +38,6 @@ final class Ap3RouteMath {
     // (flat), 19.2 (jump held), 30.5-31 (looking up). A bounce against a wall gives only 0.30 - killer560: "the ones
     // where it didn't bounce very high (the really low ones) I ran up against a wall" - so a wall kills it.
 
-    /**
-     * How long after touching lava the launch lands, nominally. killer560 (2026-09-22): "sometimes when you enter
-     * lava the server lags a hair and you can spend more time in it. It will apply the bounce no matter what,
-     * sometimes it's just because of lag in the lava." So the bounce is CERTAIN and only its timing wanders (2-5
-     * ticks in his recordings, occasionally much longer): a route plans on this figure and the runner re-plans from
-     * the real launch when it actually happens.
-     */
-    static final int LAVA_BOUNCE_DELAY = 3;
-
-    /**
-     * What lava does to a run: horizontal velocity HALVES every tick you are in it (vanilla's lava drag), and the
-     * bounce adds none back. Measured 2026-09-22: entering at 0.35-0.40 blocks/tick leaves 0.04-0.07 by the launch
-     * tick and 0.010 just after it, recovering only to about 0.10 five ticks later on air control alone. So a bounce
-     * buys height (18.5 blocks, or 30 looking up) at the price of the whole run - worth planning for the height, never
-     * as a shortcut across flat ground.
-     */
-    static final double LAVA_HORIZONTAL_DRAG = 0.5;
-    /** killer560 (2026-09-22): "there are no deeper pools that exist" - the feet always reach the floor before the bounce. */
-    static final boolean LAVA_ALWAYS_SHALLOW = true;
-
-    /** The impulse a lava bounce gives, in blocks of rise on the launch tick. */
-    static final double LAVA_BOUNCE = 2.25;
-    /** Looking up multiplies it - killer560: "You go higher looking up". */
-    static final double LAVA_BOUNCE_LOOK_UP = 1.35;
-    /** Holding jump adds vanilla's in-fluid nudge on top. */
-    static final double LAVA_BOUNCE_JUMP = 0.04;
-    /**
-     * The pitch at which the "looking up" bonus kicks in - a step, not a slope. Pinned by a 60-bounce sweep on
-     * 2026-09-22: every bounce at -40.4 degrees and higher up gave the big impulse, every one at -30.0 and below it
-     * gave the small one, with nothing else mattering. So the step is in (-40.4, -30.0) and this is the midpoint; the
-     * server is probably testing the look vector's y against 0.6 (-36.87 degrees). Operationally it does not matter
-     * much: when AP3 wants the big bounce it looks far past this, not at the edge of it.
-     */
-    static final double LAVA_LOOK_UP_PITCH = -35.0;
-    /** What the launch tick keeps: lava's own drag, then the tick's gravity. */
-    static final double LAVA_EXIT_DRAG = 0.8;
-    static final double LAVA_EXIT_DROP = 0.025;
-
     /** Endless floor at y = 0: what {@link #topSpeed} and the harness's flat tests stand on. */
     static final Ap3RouteCollide.Shapes FLAT_GROUND = Ap3RouteCollide.flat(0.0);
 

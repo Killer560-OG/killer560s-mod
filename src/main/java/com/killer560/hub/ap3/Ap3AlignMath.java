@@ -97,15 +97,6 @@ final class Ap3AlignMath {
         return new double[]{dvx, dvz};
     }
 
-    /** Shaping profile: the fraction of the remaining distance still left after each approach tick (0.3 = cover 70%
-     *  of what is left every tick). The velocity that leaves is always LESS than the distance that remains, so the
-     *  brake is a tap that slows the run, never a reversal - killer560 (2026-09-21) was "spat back the way I entered"
-     *  by the old rule, which landed from up to a full press away and had to reverse to hold the point. */
-    static final double LAND_DECAY = 0.3;
-    /** The exact landing tick is taken only from within this (or a tenth of a press's slide, if smaller), so the
-     *  residual it leaves - and the brake that cancels it - is a few percent of a press. */
-    static final double LAND_ZONE_MAX = 0.05;
-
     /**
      * The {@code moveVector} (x = strafe, left positive; y = forward) whose journey through {@code modifyInput} and
      * {@code getInputVector} at speed {@code speed} and camera {@code (cos, sin)} produces exactly the world velocity
