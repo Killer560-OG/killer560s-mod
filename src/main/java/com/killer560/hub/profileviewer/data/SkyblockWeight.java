@@ -78,7 +78,6 @@ public final class SkyblockWeight {
     public record Both(Result senither, Result lily) {
     }
 
-    // ------------------------------------------------------------------ profile adapter
 
     public static Both compute(SbProfile p) {
         Input in = inputOf(p);
@@ -132,7 +131,6 @@ public final class SkyblockWeight {
         return id.isEmpty() ? id : Character.toUpperCase(id.charAt(0)) + id.substring(1).toLowerCase(Locale.ROOT);
     }
 
-    // =================================================================== Senither
 
     private static final double SEN_LEVEL_50_SKILL_XP = 55172425;
     private static final double SEN_LEVEL_60_SKILL_XP = 111672425;
@@ -284,7 +282,6 @@ public final class SkyblockWeight {
         return Math.floor(v + 0.5);
     }
 
-    // =================================================================== Lily
 
     /** lib/index.js: "Order of skills: enchanting, taming, alchemy, mining, farming, foraging, combat, fishing". */
     private static final List<String> LILY_SKILLS = List.of(
@@ -402,7 +399,6 @@ public final class SkyblockWeight {
         return 60;
     }
 
-    /** dungeonExpWeight.js getDungeonExpWeight. */
     static double lilyDungeonExpWeight(double cataXP) {
         int intLevel = -1;
         for (double t : LILY_DUNGEON_XP_TABLE) {

@@ -89,7 +89,6 @@ public final class ProfileExtras {
         misc = parseMisc(profile, member);
     }
 
-    // ------------------------------------------------------------------ collections
 
     private static Map<String, Long> parseCollections(JsonObject profile) {
         JsonObject members = asObj(profile.get("members"));
@@ -112,7 +111,6 @@ public final class ProfileExtras {
         return any ? Collections.unmodifiableMap(out) : null;
     }
 
-    // ------------------------------------------------------------------ mining / foraging
 
     private static Mining parseMining(JsonObject member) {
         JsonObject core = asObj(member.get("mining_core"));
@@ -216,7 +214,6 @@ public final class ProfileExtras {
         return out;
     }
 
-    // ------------------------------------------------------------------ crimson isle
 
     private static final List<String> KUUDRA_IDS = List.of("none", "hot", "burning", "fiery", "infernal");
     private static final List<String> DOJO_IDS = List.of("mob_kb", "wall_jump", "archer", "snake", "sword_swap", "fireball", "lock_head");
@@ -243,7 +240,6 @@ public final class ProfileExtras {
                 (long) num(path(data, "matriarch.last_attempt")));
     }
 
-    // ------------------------------------------------------------------ rift
 
     private static Rift parseRift(JsonObject member) {
         JsonObject r = asObj(member.get("rift"));
@@ -269,7 +265,6 @@ public final class ProfileExtras {
                 r == null ? null : asObj(r.get("inventory")));
     }
 
-    // ------------------------------------------------------------------ farming
 
     private static Farming parseFarming(JsonObject member) {
         JsonObject j = asObj(member.get("jacobs_contest"));
@@ -316,7 +311,6 @@ public final class ProfileExtras {
                 garden == null ? 0 : (int) num(garden.get("copper")), garden == null ? 0 : (int) num(garden.get("larva_consumed")));
     }
 
-    // ------------------------------------------------------------------ misc
 
     private static Misc parseMisc(JsonObject profile, JsonObject member) {
         JsonObject stats = asObj(member.get("player_stats"));
@@ -362,7 +356,6 @@ public final class ProfileExtras {
                 (long) num(path(member, "leveling.experience")), sacksObj != null);
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static boolean isTrue(JsonElement el) {
         try {

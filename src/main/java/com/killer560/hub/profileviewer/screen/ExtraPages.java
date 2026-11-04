@@ -123,7 +123,6 @@ final class ExtraPages {
         }
     }
 
-    // ------------------------------------------------------------------ shared helpers
 
     private Font f() {
         return s.font();
@@ -296,7 +295,6 @@ final class ExtraPages {
         return n;
     }
 
-    // ------------------------------------------------------------------ collections
 
     // The Collections page's category names and maxed counts, worked out once per (profile extras, category list)
     // instead of walking every collection item each frame.
@@ -415,7 +413,6 @@ final class ExtraPages {
         scrollbar(g, rx + rw - 5, top, visible * rowH, rows, visible);
     }
 
-    // ------------------------------------------------------------------ mining
 
     private static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
             "ruby_crystal", "jasper_crystal", "opal_crystal", "aquamarine_crystal", "citrine_crystal", "peridot_crystal", "onyx_crystal"};
@@ -650,7 +647,6 @@ final class ExtraPages {
         perkList(g, "Perks", fo.nodes(), cx, s.contentY + 5, rx + rw - 6 - cx, mx, my);
     }
 
-    // ------------------------------------------------------------------ bestiary
 
     private void drawBestiary(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
@@ -809,7 +805,6 @@ final class ExtraPages {
         });
     }
 
-    // ------------------------------------------------------------------ crimson isle
 
     private void drawCrimson(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
@@ -945,7 +940,6 @@ final class ExtraPages {
         };
     }
 
-    // ------------------------------------------------------------------ museum
 
     // The Museum page's category list, button labels and per-category item lists, built once per (museum view,
     // tables) rather than every frame.
@@ -1161,7 +1155,6 @@ final class ExtraPages {
         }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
     }
 
-    // ------------------------------------------------------------------ rift
 
     private void drawRift(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
@@ -1293,7 +1286,6 @@ final class ExtraPages {
         return y;
     }
 
-    // ------------------------------------------------------------------ farming / garden
 
     private static final Map<String, String> CROP_NAMES = Map.of("INK_SACK:3", "Cocoa Beans", "CARROT_ITEM", "Carrot",
             "POTATO_ITEM", "Potato", "MUSHROOM_COLLECTION", "Mushroom", "NETHER_STALK", "Nether Wart", "DOUBLE_PLANT", "Sunflower",
@@ -1459,7 +1451,6 @@ final class ExtraPages {
         };
     }
 
-    // ------------------------------------------------------------------ networth
 
     /** A networth estimate for {@code p}: the result, or null with {@code failed} saying whether it is still coming. */
     record NetworthState(Networth.Result result, boolean failed) {
@@ -1598,7 +1589,6 @@ final class ExtraPages {
         scrollbar(g, rx + rw - 5, top, visible * rowH, cats.size(), visible);
     }
 
-    // ------------------------------------------------------------------ misc
 
     private void drawMisc(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);

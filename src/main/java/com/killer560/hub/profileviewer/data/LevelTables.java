@@ -197,7 +197,6 @@ public final class LevelTables {
         return out;
     }
 
-    // ------------------------------------------------------------------ skills
 
     /** Skill ids in display order (NEU order), keyed without the {@code SKILL_} prefix. */
     public static final List<String> SKILL_ORDER = List.of(
@@ -256,10 +255,7 @@ public final class LevelTables {
             t = standard.totalXp();
         }
         Level within = cumulative(t, xp, t.length);
-        if (!within.maxed()) {
-            return within.level();
-        }
-        return overflowLevel(t.length, xp - t[t.length - 1]);
+        return !within.maxed() ? within.level() : overflowLevel(t.length, xp - t[t.length - 1]);
     }
 
     /** Levels past {@code fromLevel} for {@code remaining} XP above it, on SkyHanni's growing-step curve. */
@@ -294,7 +290,6 @@ public final class LevelTables {
         return new Level(level, progress, xp - prev, need, false);
     }
 
-    // ------------------------------------------------------------------ catacombs / classes
 
     /** Catacombs and class levels share the one table. Past 50 the overflow levels use a flat
      *  {@code experience_per_overflow} step (skyblock-pv's "withOverflow"). */
@@ -311,7 +306,6 @@ public final class LevelTables {
         return new Level(catacombsXp.length + extra, (double) into / catacombsOverflow, into, catacombsOverflow, false);
     }
 
-    // ------------------------------------------------------------------ slayers
 
     public static List<Slayer> slayers() {
         ensureLoaded();
@@ -322,7 +316,6 @@ public final class LevelTables {
         return cumulative(slayer.leveling(), xp, slayer.leveling().length);
     }
 
-    // ------------------------------------------------------------------ pets
 
     public static final List<String> RARITIES = List.of(
             "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE", "SPECIAL", "VERY_SPECIAL");

@@ -123,7 +123,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private enum State { LOADING, ERROR, EMPTY, READY }
 
-    // ------------------------------------------------------------------ recent-views sidebar
     // killer560: a right-hand section showing the last people you've pv'd (head + name, your own head
     // pinned on top) that you can click back into, plus a box to type someone else's name.
 
@@ -254,7 +253,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         open(ProfileViewerFeature.targetForName(name));
     }
 
-    // ------------------------------------------------------------------ loading
 
     private void load(boolean force) {
         int gen = ++generation;
@@ -332,7 +330,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 ? result.profiles().get(Math.min(profileIndex, result.profiles().size() - 1)) : null;
     }
 
-    // ------------------------------------------------------------------ layout / widgets
 
     @Override
     protected void init() {
@@ -413,7 +410,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    // ------------------------------------------------------------------ name box tab-completion
 
     private void updateSuggestions() {
         suggestionIndex = -1;
@@ -530,7 +526,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         rebuildSafe();
     }
 
-    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -648,7 +643,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    // ------------------------------------------------------------------ render
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -729,7 +723,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
 
         int right = panelX + panelW - 6;
-        // Refresh
         String refresh = "⟳ Refresh";
         int rw = this.font.width(refresh) + 10;
         right -= rw;
@@ -749,7 +742,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             button(g, right, panelY + 4, pw, 16, label, mx, my, dropdownOpen, () -> dropdownOpen = !dropdownOpen);
         }
 
-        // Page tabs
         for (int i = 0; i < PAGES.length && i < tabRects.size(); i++) {
             int[] rect = tabRects.get(i);
             int tx = panelX + rect[0];
@@ -807,7 +799,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         });
     }
 
-    // ------------------------------------------------------------------ recent-views sidebar
 
     private void drawSidebar(GuiGraphicsExtractor g, int mx, int my) {
         box(g, sidebarX, sidebarY, sidebarW, sidebarH);
@@ -937,7 +928,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         button(g, contentX + contentW / 2 - 30, y, 60, 16, "Retry", mx, my, false, () -> load(true));
     }
 
-    // ------------------------------------------------------------------ basic info
 
     private void drawBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int leftW = 118;
@@ -1035,7 +1025,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             sy += 12 + ((skills.size() + 1) / 2) * rowH + 2;
         }
 
-        // Slayers
         tx(g, "Slayers", rx + 6, sy, ACCENT);
         List<LevelTables.Slayer> slayers = LevelTables.slayers();
         int colW = (rw - 24) / 3;
@@ -1122,7 +1111,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         });
     }
 
-    // ------------------------------------------------------------------ dungeons
 
     private void drawDungeons(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         SbProfile.DungeonStats d = p.dungeons;
@@ -1216,7 +1204,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
     }
 
-    // ------------------------------------------------------------------ inventories
 
     private void drawInventories(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int navW = 84;
@@ -1533,7 +1520,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return n;
     }
 
-    // ------------------------------------------------------------------ pets
 
     private void drawPets(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int infoW = 150;
@@ -1642,7 +1628,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return null;
     }
 
-    // ------------------------------------------------------------------ drawing helpers
 
     net.minecraft.client.gui.Font font() {
         return this.font;
@@ -1724,10 +1709,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         if (c == MAXED) {
             return TIP_MAXED;
         }
-        if (c == GOOD) {
-            return TIP_GOOD;
-        }
-        return c;
+        return c == GOOD ? TIP_GOOD : c;
     }
 
     /** Page text in the theme (readable on Light; shadow on dark themes only). */
@@ -1752,9 +1734,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         if (abs >= 1_000_000) {
             return String.format(Locale.US, "%.2fM", v / 1_000_000);
         }
-        if (abs >= 10_000) {
-            return String.format(Locale.US, "%.1fK", v / 1_000);
-        }
-        return commas(v);
+        return abs >= 10_000 ? String.format(Locale.US, "%.1fK", v / 1_000) : commas(v);
     }
 }

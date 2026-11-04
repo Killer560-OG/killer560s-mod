@@ -154,7 +154,6 @@ public final class ProfileViewerApi {
     private ProfileViewerApi() {
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static String userAgent() {
         String version = FabricLoader.getInstance().getModContainer("killer560smod")
@@ -215,7 +214,6 @@ public final class ProfileViewerApi {
         }
     }
 
-    // ------------------------------------------------------------------ names / skins
 
     public static boolean isValidName(String name) {
         return name != null && NAME.matcher(name).matches();
@@ -304,7 +302,6 @@ public final class ProfileViewerApi {
         }, EXECUTOR);
     }
 
-    // ------------------------------------------------------------------ profiles
 
     public static ProfilesResult getCached(UUID uuid) {
         Cached c = CACHE.get(uuid);
@@ -388,7 +385,6 @@ public final class ProfileViewerApi {
         USER_KEY, BACKEND
     }
 
-    // ------------------------------------------------------------------ auxiliary endpoints
 
     /** Per-profile / per-player endpoints beyond the profile list. Same source fallback, same response
      *  shape from Hypixel and the SkyBlockPV backend (skyblock-pv's {@code CachedApis}). */

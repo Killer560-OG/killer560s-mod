@@ -239,7 +239,6 @@ public final class SbProfile {
         return out;
     }
 
-    // ------------------------------------------------------------------ dungeons
 
     /**
      * The profile whose dungeon stats speak for this player: the SELECTED one (Hypixel marks it per player, and it is
@@ -316,7 +315,6 @@ public final class SbProfile {
         return out;
     }
 
-    // ------------------------------------------------------------------ extra pages
 
     /** Parses everything the extra pages need (collections, mining, bestiary, ...) once, off-thread. */
     public synchronized CompletableFuture<ProfileExtras> extras() {
@@ -326,7 +324,6 @@ public final class SbProfile {
         return extras;
     }
 
-    // ------------------------------------------------------------------ inventories
 
     /** Decodes every inventory blob for this profile once, on the API executor. */
     public synchronized CompletableFuture<Inventories> inventories() {
@@ -454,7 +451,6 @@ public final class SbProfile {
         return pages;
     }
 
-    // ------------------------------------------------------------------ json helpers
 
     static JsonElement path(JsonObject root, String dotted) {
         JsonElement cur = root;

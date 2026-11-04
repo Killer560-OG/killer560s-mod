@@ -116,7 +116,6 @@ final class WeightPage {
         int right = x + w - 8;
         int y = s.contentY + 5;
 
-        // Title
         String title = r.system() + " Weight";
         ProfileViewerScreen.tx(g, title, lx, y, ACCENT);
         if (hover(mx, my, lx, y - 1, f().width(title), 10)) {

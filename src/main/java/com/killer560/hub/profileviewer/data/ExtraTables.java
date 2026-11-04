@@ -49,7 +49,6 @@ public final class ExtraTables {
     private ExtraTables() {
     }
 
-    // ------------------------------------------------------------------ bundled
 
     private static JsonObject bundled;
 
@@ -150,7 +149,6 @@ public final class ExtraTables {
         return best == null ? "" : best;
     }
 
-    // ------------------------------------------------------------------ remote loader
 
     private static final class Remote<T> {
         private final java.util.function.Supplier<CompletableFuture<T>> loader;
@@ -186,7 +184,6 @@ public final class ExtraTables {
         return f.isDone() && !f.isCompletedExceptionally() ? f.getNow(null) : null;
     }
 
-    // ------------------------------------------------------------------ collections
 
     public record CollectionItem(String id, String name, int maxTiers, long[] tiers) {
     }
@@ -238,7 +235,6 @@ public final class ExtraTables {
         return COLLECTIONS.get();
     }
 
-    // ------------------------------------------------------------------ bestiary
 
     /** @param icon a vanilla item id ("dragon_egg") or null; @param texture a skull texture or null. */
     public record BestiaryFamily(String name, String icon, String texture, int cap, List<String> mobs, int[] tiers) {
@@ -361,7 +357,6 @@ public final class ExtraTables {
         return t;
     }
 
-    // ------------------------------------------------------------------ museum categories
 
     public record MuseumTables(Map<String, List<String>> categories, Map<String, Integer> maxValues) {
     }
@@ -390,7 +385,6 @@ public final class ExtraTables {
         return MUSEUM.get();
     }
 
-    // ------------------------------------------------------------------ lowest BIN
 
     private static final Remote<Map<String, Double>> LBIN = new Remote<>(() ->
             ProfileViewerApi.getKeylessJson(LBIN_URL).thenApplyAsync(json -> {
