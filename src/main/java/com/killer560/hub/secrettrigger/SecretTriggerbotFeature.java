@@ -86,9 +86,7 @@ public final class SecretTriggerbotFeature {
             reset("map reset (new run)");
         }
         LocalPlayer player = client.player;
-        if (client.level == null || player == null || client.gameMode == null) {
-            return;
-        }
+        if (client.level == null || player == null || client.gameMode == null) return;
         SecretTriggerbotConfig cfg = SecretTriggerbotConfig.getInstance();
         if (!cfg.isEnabled()) {
             // Switched off mid-swap: forget the slot to swap back to, or a later enable swaps to a stale one.
@@ -131,32 +129,22 @@ public final class SecretTriggerbotFeature {
         }
 
         if (pendingPos == null) {
-            if (now - lastClickMs < cfg.getCooldownMs()) {
-                return;
-            }
+            if (now - lastClickMs < cfg.getCooldownMs()) return;
             BlockHitResult hit = crosshairBlock(client);
-            if (hit == null) {
-                return;
-            }
+            if (hit == null) return;
             BlockPos pos = hit.getBlockPos();
-            if (isDone(pos) || !isSecret(client, pos, client.level.getBlockState(pos), roomName)) {
-                return;
-            }
+            if (isDone(pos) || !isSecret(client, pos, client.level.getBlockState(pos), roomName)) return;
             pendingPos = pos.immutable();
             triggerAtMs = now + cfg.getDelayMs();
         }
-        if (now < triggerAtMs) {
-            return;
-        }
+        if (now < triggerAtMs) return;
 
         BlockHitResult hit = crosshairBlock(client);
         if (hit == null || !hit.getBlockPos().equals(pendingPos) || isDone(pendingPos)) {
             dropPending(cfg);
             return;
         }
-        if (standsDown()) {
-            return;
-        }
+        if (standsDown()) return;
         if (cfg.isSwapEnabled()) {
             int slot = cfg.getSwapSlot() - 1;
             int selected = player.getInventory().getSelectedSlot();
@@ -225,18 +213,12 @@ public final class SecretTriggerbotFeature {
     /** QUOI {@code Dungeon.isSecret} plus the room lever rule. */
     private static boolean isSecret(Minecraft client, BlockPos pos, BlockState state, String roomName) {
         Block block = state.getBlock();
-        if (isChest(block)) {
-            return true;
-        }
+        if (isChest(block)) return true;
         if (block == Blocks.LEVER) {
             // The S2 Lights levers are the Lights Device's (its own Triggerbot), even if the boss latch was missed.
-            if (DungeonState.isF7OrM7() && com.killer560.hub.lightsdevice.LightsDeviceFeature.isLightsLever(pos)) {
-                return false;
-            }
+            if (DungeonState.isF7OrM7() && com.killer560.hub.lightsdevice.LightsDeviceFeature.isLightsLever(pos)) return false;
             // Dummy levers (Red Blue's cage nook) are no secret: the one list, secrets/DummyLevers.
-            if (com.killer560.hub.secrets.DummyLevers.isDummy(pos)) {
-                return false;
-            }
+            if (com.killer560.hub.secrets.DummyLevers.isDummy(pos)) return false;
             return roomName == null || !NO_LEVER_ROOMS.contains(roomName);
         }
         if (block instanceof AbstractSkullBlock) {
