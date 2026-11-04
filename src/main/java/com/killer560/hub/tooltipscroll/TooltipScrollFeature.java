@@ -156,7 +156,6 @@ public final class TooltipScrollFeature {
         }));
     }
 
-    // ---------------------------------------------------------------- hover tracking
 
     /** Called every frame from the container-screen mixin with whatever stack is under the cursor (null when
      *  nothing is). Changing item resets the scroll - killer560: "scroll resets when you hover a different
@@ -190,7 +189,6 @@ public final class TooltipScrollFeature {
         nudgeOffset = 0;
     }
 
-    // ---------------------------------------------------------------- the wheel
 
     /** @return true if the scroll was consumed, in which case the container screen must not also act on it. */
     public static boolean onMouseScrolled(double scrollY) {
@@ -252,13 +250,9 @@ public final class TooltipScrollFeature {
     public static int horizontalOffset() {
         // Only while the feature is on and a container slot is hovered: nudgeX otherwise lingered after closing the
         // inventory (or turning the feature off) and shifted every later tooltip, widgets on other screens included.
-        if (nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled()) {
-            return 0;
-        }
-        return nudgeX;
+        return nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled() ? 0 : nudgeX;
     }
 
-    // ---------------------------------------------------------------- rendering
 
     /**
      * How many pixels {@link com.killer560.hub.tooltipscroll.mixin.TooltipScrollGraphicsMixin} should
