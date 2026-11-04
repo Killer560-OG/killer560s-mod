@@ -1476,7 +1476,7 @@ final class ExtraPages {
         // The Basic Info page asks every frame. A finished estimate only changes when Bazaar prices arrive for one
         // calculated without them, so hand it back as is until then.
         NetworthState settled = networthSettled.get(p);
-        if (settled != null && !(settled.result().bazaarPrices() == 0 && Networth.bazaarCount() > 0)) {
+        if (settled != null && !Networth.stale(settled.result())) {
             return settled;
         }
         CompletableFuture<ProfileExtras> ef = p.extras();
@@ -1506,7 +1506,7 @@ final class ExtraPages {
         boolean withMuseum = mv != null;
         CompletableFuture<Networth.Result> nf = networth.get(p);
         Networth.Result done = nf == null ? null : ExtraTables.now(nf);
-        boolean pricesArrived = done != null && done.bazaarPrices() == 0 && Networth.bazaarCount() > 0;
+        boolean pricesArrived = done != null && Networth.stale(done);
         if (nf == null || pricesArrived || (withMuseum && !networthHasMuseum.getOrDefault(p, false))) {
             SbProfile.Inventories inventories = inv == null || inv.isCompletedExceptionally() ? null : inv.getNow(null);
             Map<String, Double> lbin = ExtraTables.now(bins);
@@ -1533,23 +1533,36 @@ final class ExtraPages {
             return;
         }
 
+        com.killer560.hub.profileviewer.ProfileViewerConfig cfgNw = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance();
+        boolean nonCos = cfgNw.isNonCosmeticNetworth();
         int lw = 150;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
         int x = s.contentX + 6;
         int w = lw - 12;
         int y = s.contentY + 5;
-        title(g, "Networth (estimate)", x, y);
+        title(g, nonCos ? "Networth (non-cosmetic)" : "Networth (estimate)", x, y);
         y += 13;
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(1.5f, 1.5f);
-        tx(g, shorten(r.total()), 0, 0, MAXED);
+        tx(g, shorten(r.total(nonCos)), 0, 0, MAXED);
         g.pose().popMatrix();
         if (hover(mx, my, x, y, w, 13)) {
-            tip(List.of(line(commas(r.total()) + " coins", VALUE)));
+            tip(List.of(line(commas(r.total(nonCos)) + " coins", VALUE)));
         }
         y += 18;
-        y = s.stat2(g, x, y, w, "Priced at", "base value");
+        s.button(g, x, y, w, 14, nonCos ? "Showing: Non-Cosmetic" : "Showing: All Value", mx, my, nonCos, () -> {
+            cfgNw.setNonCosmeticNetworth(!cfgNw.isNonCosmeticNetworth());
+            cfgNw.save();
+        });
+        if (hover(mx, my, x, y, w, 14)) {
+            tip(List.of(line("Click to switch between the total with everything and the total without cosmetics", DIM),
+                    line("Pet skins, armor/helmet skins, dyes, runes and cosmetic-only items", DIM)));
+        }
+        y += 18;
+        y = s.stat2(g, x, y, w, "All Value", shorten(r.total()));
+        y = s.stat2(g, x, y, w, "Non-Cosmetic", shorten(r.totalNonCosmetic()));
+        y = s.stat2(g, x, y, w, "Priced at", "Est. Item Value");
         y = s.stat2(g, x, y, w, "Bazaar Prices", commas(r.bazaarPrices()));
         y = s.stat2(g, x, y, w, "Lowest BIN Prices", commas(r.binPrices()));
         y = s.stat2(g, x, y, w, "Museum", r.museumIncluded() ? "Included" : "Not included");
@@ -1562,7 +1575,7 @@ final class ExtraPages {
         int top = s.contentY + 18;
         int rowH = 16;
         int visible = Math.max(1, (s.contentH - 22) / rowH);
-        List<Networth.Category> cats = r.categories();
+        List<Networth.Category> cats = r.categories(nonCos);
         int scroll = clampScroll(cats.size(), visible);
         long maxCat = cats.isEmpty() ? 1 : Math.max(1, cats.get(0).total());
         for (int i = scroll; i < cats.size() && i - scroll < visible; i++) {
@@ -1570,7 +1583,7 @@ final class ExtraPages {
             int cy = top + (i - scroll) * rowH;
             int cw = rw - 20;
             tx(g, c.name(), rx + 6, cy, c.total() > 0 ? TEXT : DIM);
-            String val = shorten(c.total()) + (r.total() > 0 ? String.format(Locale.ROOT, "  %.1f%%", 100.0 * c.total() / r.total()) : "");
+            String val = shorten(c.total()) + (r.total(nonCos) > 0 ? String.format(Locale.ROOT, "  %.1f%%", 100.0 * c.total() / r.total(nonCos)) : "");
             rightText(g, val, rx + 6 + cw, cy, VALUE);
             progressBar(g, rx + 6, cy + 10, (int) Math.max(0, (long) cw * c.total() / maxCat), 1, false);
             if (hover(mx, my, rx + 4, cy - 1, cw + 4, rowH)) {

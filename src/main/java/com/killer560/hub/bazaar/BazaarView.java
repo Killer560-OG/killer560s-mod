@@ -303,7 +303,7 @@ public final class BazaarView {
             int ty = Math.round(my * tooltipScale);
             if (hoveredStack != null && !hoveredStack.isEmpty()) {
                 // The real item's own tooltip, every lore line Hypixel sent: nothing on the menu is hidden from him.
-                g.setTooltipForNextFrame(font, hoveredStack, tx, ty);
+                com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(g, font, hoveredStack, tx, ty);
             } else if (hoveredLines != null) {
                 g.setTooltipForNextFrame(font, hoveredLines, Optional.empty(), tx, ty);
             }

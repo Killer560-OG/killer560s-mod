@@ -1088,6 +1088,7 @@ final class SettingTooltipsData {
         d.put("source", "Where profile data comes from: your Hypixel API key, SkyBlockPV, or Auto.");
         d.put("remember last page", "Reopens the profile viewer on the page you last used.");
         d.put("show skin", "Shows the player's 3D skin on the profile viewer's main page.");
+        d.put("non-cosmetic networth", "The profile viewer's networth leaves out cosmetic value: pet skins, armor and helmet skins, dyes, runes, and items that are only cosmetic. The Networth page shows both totals either way.");
         d.put("hypixel api key", "Optional. Paste your own Hypixel API key for faster lookups.");
         d.put("clear", "Deletes the saved Hypixel API key.");
         d.put("player stats hud", "Shows a HUD line with your health, mana and defense.");

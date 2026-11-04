@@ -69,6 +69,8 @@ public final class ProfileViewerConfig {
     private boolean rememberLastPage = true;
     private int lastPage = 0;
     private boolean showSkin = true;
+    /** Networth page and Basic Info line show the total without cosmetic value (killer560, 2026-11-04). */
+    private boolean nonCosmeticNetworth = false;
     /** Most-recently-viewed first. */
     private final List<RecentView> recentViews = new ArrayList<>();
 
@@ -98,6 +100,7 @@ public final class ProfileViewerConfig {
                 cfg.rememberLastPage = ConfigJson.getBool(obj, "rememberLastPage", true);
                 cfg.lastPage = ConfigJson.getInt(obj, "lastPage", 0);
                 cfg.showSkin = ConfigJson.getBool(obj, "showSkin", true);
+                cfg.nonCosmeticNetworth = ConfigJson.getBool(obj, "nonCosmeticNetworth", false);
                 JsonArray recent = ConfigJson.getArray(obj, "recentViews");
                 if (recent != null) {
                     for (JsonElement el : recent) {
@@ -134,6 +137,7 @@ public final class ProfileViewerConfig {
             obj.addProperty("rememberLastPage", rememberLastPage);
             obj.addProperty("lastPage", lastPage);
             obj.addProperty("showSkin", showSkin);
+            obj.addProperty("nonCosmeticNetworth", nonCosmeticNetworth);
             JsonArray recent = new JsonArray();
             for (RecentView v : recentViews) {
                 JsonObject o = new JsonObject();
@@ -227,6 +231,14 @@ public final class ProfileViewerConfig {
 
     public synchronized void setShowSkin(boolean showSkin) {
         this.showSkin = showSkin;
+    }
+
+    public synchronized boolean isNonCosmeticNetworth() {
+        return nonCosmeticNetworth;
+    }
+
+    public synchronized void setNonCosmeticNetworth(boolean nonCosmeticNetworth) {
+        this.nonCosmeticNetworth = nonCosmeticNetworth;
     }
 
     public synchronized List<RecentView> getRecentViews() {

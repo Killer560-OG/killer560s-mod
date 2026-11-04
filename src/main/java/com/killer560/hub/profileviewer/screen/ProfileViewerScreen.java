@@ -707,7 +707,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
 
         if (!pendingItemTooltip.isEmpty()) {
-            g.setTooltipForNextFrame(this.font, pendingItemTooltip, mouseX, mouseY);
+            com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(g, this.font, pendingItemTooltip, mouseX, mouseY);
         } else if (pendingTooltip != null && !pendingTooltip.isEmpty()) {
             g.setTooltipForNextFrame(this.font, pendingTooltip, Optional.empty(), mouseX, mouseY);
         }
@@ -964,11 +964,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // Networth page (shared cache), and a click opens that page.
         ExtraPages.NetworthState nw = extraPages.networthState(p);
         int ny = y;
-        lastBasicNetworth = nw.result() == null ? null : nw.result().total();
-        y = stat2(g, lx, y, 106, "Networth", nw.result() != null ? shorten(nw.result().total()) : nw.failed() ? "-" : "...");
+        boolean nonCos = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance().isNonCosmeticNetworth();
+        lastBasicNetworth = nw.result() == null ? null : nw.result().total(nonCos);
+        y = stat2(g, lx, y, 106, "Networth", nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...");
         if (inside(mx, my, lx, ny, leftW - 12, 10) && !dropdownOpen) {
             pendingTooltip = List.of(
-                    Component.literal(nw.result() != null ? commas(nw.result().total()) + " coins (estimate)"
+                    Component.literal(nw.result() != null ? commas(nw.result().total(nonCos)) + " coins (estimate)"
                             : nw.failed() ? "Couldn't calculate networth." : "Calculating...").withStyle(style(VALUE)),
                     Component.literal("Click for the Networth page").withStyle(style(DIM)));
         }

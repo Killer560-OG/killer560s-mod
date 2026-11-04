@@ -1158,7 +1158,7 @@ public final class StorageOverlayFeature {
             if (hoveredStack != null) {
                 // Real screen mouse coordinates for the tooltip itself, not the local ones used above
                 // for hit-testing - same reasoning as renderGrid's own tooltip call.
-                graphics.setTooltipForNextFrame(font, hoveredStack, mouseX, mouseY);
+                com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(graphics, font, hoveredStack, mouseX, mouseY);
             }
         } finally {
             graphics.pose().popMatrix();
@@ -1578,7 +1578,7 @@ public final class StorageOverlayFeature {
             // Real screen mouse coordinates, not the local grid-space ones used for hit-testing above -
             // setTooltipForNextFrame renders later in the frame using these directly, unaffected by the
             // pose translate/scale/scroll this method is currently drawing under.
-            graphics.setTooltipForNextFrame(font, hoveredStack, realMouseX, realMouseY);
+            com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(graphics, font, hoveredStack, realMouseX, realMouseY);
         }
     }
 
