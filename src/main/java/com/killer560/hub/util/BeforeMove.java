@@ -78,9 +78,7 @@ public final class BeforeMove {
     /** From {@code Ap3RotationSendMixin} at the RETURN of {@code sendPosition}: a held flush goes now if no movement
      *  packet flushed it (no movement packet this tick). */
     public static void afterSendPosition(net.minecraft.client.player.LocalPlayer self) {
-        if (!flushOwed) {
-            return;
-        }
+        if (!flushOwed) return;
         flushOwed = false;
         if (self.connection != null && self.connection.getConnection().isConnected()) {
             self.connection.getConnection().flushChannel();
@@ -88,9 +86,7 @@ public final class BeforeMove {
     }
 
     private static void flush() {
-        if (!Minecraft.getInstance().isSameThread()) {
-            return;
-        }
+        if (!Minecraft.getInstance().isSameThread()) return;
         List<Runnable> now = new ArrayList<>(QUEUE);
         QUEUE.clear();
         for (Runnable r : now) {

@@ -56,9 +56,7 @@ public final class BoundedDownload {
         int read;
         while ((read = in.read(buffer)) > 0) {
             total += read;
-            if (total > maxBytes) {
-                throw new IOException(what + " exceeded " + maxBytes + " bytes - refusing to keep writing");
-            }
+            if (total > maxBytes) throw new IOException(what + " exceeded " + maxBytes + " bytes - refusing to keep writing");
             out.write(buffer, 0, read);
             if (onBytes != null) {
                 onBytes.accept(total);

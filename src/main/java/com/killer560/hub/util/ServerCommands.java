@@ -43,19 +43,13 @@ public final class ServerCommands {
      * @return true if it went.
      */
     public static boolean toServer(String command) {
-        if (command == null || command.isBlank()) {
-            return false;
-        }
+        if (command == null || command.isBlank()) return false;
         // Creation Cooldown's Block Instance Creation: the mod's own /joininstance sends (the /f7 shortcuts, Party
         // Commands, Insta Clear Warning's requeue) leave here, below Fabric's ALLOW_COMMAND that catches typed ones.
-        if (com.killer560.hub.creationcooldown.CreationCooldownFeature.blocks(command)) {
-            return false;
-        }
+        if (com.killer560.hub.creationcooldown.CreationCooldownFeature.blocks(command)) return false;
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || player.connection == null) {
-            return false;
-        }
+        if (player == null || player.connection == null) return false;
         player.connection.send(new ServerboundChatCommandPacket(command));
         return true;
     }

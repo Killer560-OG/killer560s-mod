@@ -40,9 +40,7 @@ public final class AfterStartup {
         // The first screen (the title screen, or first-launch onboarding) is only set once the initial resource load
         // has finished; before that there is no screen, just the loading overlay. (Minecraft.getOverlay() would say
         // it directly but is gone in 26.2.)
-        if (PENDING.isEmpty() || (com.killer560.hub.compat.McCompat.screen(client) == null && client.level == null)) {
-            return;
-        }
+        if (PENDING.isEmpty() || (com.killer560.hub.compat.McCompat.screen(client) == null && client.level == null)) return;
         List<Runnable> now = new ArrayList<>(PENDING);
         PENDING.clear();
         for (Runnable r : now) {

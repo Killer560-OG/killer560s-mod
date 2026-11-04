@@ -393,9 +393,7 @@ public final class ActionGate {
      * own delay still applies on top, and the gate only ever delays.
      */
     private static long rollSpacing() {
-        if (minSpacingTicks <= 0) {
-            return 0L;
-        }
+        if (minSpacingTicks <= 0) return 0L;
         // Jitter is 0-20ms, not 0-50ms. A full tick of jitter on top of a one-tick floor averages 75ms,
         // which silently caps every automation at ~13 clicks/second - and killer560 had just asked Arrow
         // Align for 15-17 cps (59-67ms), a rate the gate would then have made unreachable while looking
@@ -519,9 +517,7 @@ public final class ActionGate {
      * frame; anything the mod decides to do on its own goes through {@link #tryAct}.
      */
     public static void noteCommand(Actor actor) {
-        if (actor.kind != Kind.COMMAND) {
-            throw new IllegalArgumentException(actor + " is not a command actor");
-        }
+        if (actor.kind != Kind.COMMAND) throw new IllegalArgumentException(actor + " is not a command actor");
         if (armed && claimedTick != tick) {
             claimedTick = tick;
             claimant = actor;
@@ -538,9 +534,7 @@ public final class ActionGate {
 
     private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
         // Streamer mode, Disable cheats option (killer560, 2026-10-19): no automated action goes out at all.
-        if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) {
-            return false;
-        }
+        if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) return false;
         // The Emergency Cancel Key's hold (macrostop/MacroStop, killer560 2026-11-01): nothing automatic acts until he
         // releases it. His own binds (Slot Binds, Pet Wheel, Loadout Keybinds) are his input, not automation.
         if (com.killer560.hub.macrostop.MacroStop.emergencyHeld() && !playerBind(actor)) {
@@ -548,9 +542,7 @@ public final class ActionGate {
         }
         WANTED_THIS_TICK[actor.ordinal()] = true;
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null || client.level == null) {
-            return false;
-        }
+        if (client == null || client.player == null || client.level == null) return false;
         Screen screen = McCompat.screen(client);
         switch (actor.kind) {
             case WORLD -> {
@@ -562,9 +554,7 @@ public final class ActionGate {
                 // id 0, so that state is server-visible as well. A purely client-side screen - this mod's
                 // menu, the HUD editor, chat, the pause menu, Termism - is invisible to the server, so acting
                 // with one open looks exactly like ordinary play on the wire and blocking it bought nothing.
-                if (screen instanceof AbstractContainerScreen<?>) {
-                    return deny(actor, "a container screen is open");
-                }
+                if (screen instanceof AbstractContainerScreen<?>) return deny(actor, "a container screen is open");
                 // A headless container (Fast Leap's hidden leap menu, Pet Wheel's hidden /pets) is open on the
                 // server just the same, with no screen to show it - so it blocks world actions too.
                 if (client.player.containerMenu != client.player.inventoryMenu) {
@@ -587,20 +577,14 @@ public final class ActionGate {
                     }
                     break;
                 }
-                if (ownScreen == null || screen != ownScreen) {
-                    return deny(actor, "its own screen is not the focused one");
-                }
-                if (!(screen instanceof AbstractContainerScreen<?>)) {
-                    return deny(actor, "focused screen is not a container");
-                }
+                if (ownScreen == null || screen != ownScreen) return deny(actor, "its own screen is not the focused one");
+                if (!(screen instanceof AbstractContainerScreen<?>)) return deny(actor, "focused screen is not a container");
                 if (armed && tick - lastWorldTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastWorldActor)) {
                     return deny(actor, "a world aura just clicked");
                 }
             }
             case HOTBAR -> {
-                if (screen instanceof AbstractContainerScreen<?>) {
-                    return deny(actor, "a container screen is open");
-                }
+                if (screen instanceof AbstractContainerScreen<?>) return deny(actor, "a container screen is open");
                 if (client.player.containerMenu != client.player.inventoryMenu) {
                     return deny(actor, "a headless container is open");
                 }
@@ -609,9 +593,7 @@ public final class ActionGate {
                 // No screen rules - a command is legal with a menu open - but it still takes the tick's slot.
             }
         }
-        if (armed && tick < settleUntilTick) {
-            return deny(actor, "settling after a world transition");
-        }
+        if (armed && tick < settleUntilTick) return deny(actor, "settling after a world transition");
         // A fresh-each-tick WORLD actor waives the screen settle: the WORLD rule above already refuses while any container
         // is open, client-side or headless, and once none is, the server has it closed too - it closed it (a Spirit Leap's
         // menu closes as he is teleported), or the client's close packet went out before anything this tick sends. The
@@ -623,16 +605,10 @@ public final class ActionGate {
                 && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
-        if (armed && claimedTick == tick) {
-            return deny(actor, "this tick is already taken by " + claimant);
-        }
+        if (armed && claimedTick == tick) return deny(actor, "this tick is already taken by " + claimant);
         long now = System.nanoTime();
-        if (now - lastActionNanos < spacingNanos) {
-            return deny(actor, "min spacing");
-        }
-        if (armed && shouldYield(actor)) {
-            return deny(actor, "yielding one tick to a higher-priority action");
-        }
+        if (now - lastActionNanos < spacingNanos) return deny(actor, "min spacing");
+        if (armed && shouldYield(actor)) return deny(actor, "yielding one tick to a higher-priority action");
         claimedTick = tick;
         claimant = actor;
         lastActionNanos = now;
@@ -657,9 +633,7 @@ public final class ActionGate {
      */
     private static boolean shouldYield(Actor actor) {
         int self = actor.ordinal();
-        if (YIELD_STREAK[self] >= MAX_YIELD_TICKS) {
-            return false;
-        }
+        if (YIELD_STREAK[self] >= MAX_YIELD_TICKS) return false;
         for (int i = 0; i < self; i++) {
             if (WANTED_LAST_TICK[i]) {
                 YIELD_STREAK[self]++;

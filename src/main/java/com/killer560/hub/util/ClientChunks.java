@@ -27,12 +27,8 @@ public final class ClientChunks {
 
     /** Whether chunk ({@code cx}, {@code cz}) has real blocks to read (chunk coordinates). */
     public static boolean isLoaded(Level level, int cx, int cz) {
-        if (level == null) {
-            return false;
-        }
-        if (level instanceof ClientLevel client) {
-            return client.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false) != null;
-        }
+        if (level == null) return false;
+        if (level instanceof ClientLevel client) return client.getChunkSource().getChunk(cx, cz, ChunkStatus.FULL, false) != null;
         return level.hasChunk(cx, cz);
     }
 
@@ -50,9 +46,7 @@ public final class ClientChunks {
     public static boolean allLoaded(Level level, int minX, int minZ, int maxX, int maxZ) {
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
-                if (!isLoaded(level, cx, cz)) {
-                    return false;
-                }
+                if (!isLoaded(level, cx, cz)) return false;
             }
         }
         return true;

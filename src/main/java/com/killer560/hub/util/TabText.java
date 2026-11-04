@@ -49,9 +49,7 @@ public final class TabText {
 
     private static Memo memo(PlayerInfo info) {
         Component display = info == null ? null : info.getTabListDisplayName();
-        if (display == null) {
-            return null;
-        }
+        if (display == null) return null;
         Language language = Language.getInstance();
         Minecraft client = Minecraft.getInstance();
         if (client == null || !client.isSameThread()) {

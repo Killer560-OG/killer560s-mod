@@ -38,13 +38,9 @@ public final class ChestWindows {
 
     /** From the open-screen packet hook, any thread. Never throws. */
     public static void noteOpenPacket(ClientboundOpenScreenPacket packet) {
-        if (packet == null || !CHEST_TYPES.contains(packet.getType())) {
-            return;
-        }
+        if (packet == null || !CHEST_TYPES.contains(packet.getType())) return;
         synchronized (ChestWindows.class) {
-            if (packet == lastPacket) {
-                return;
-            }
+            if (packet == lastPacket) return;
             lastPacket = packet;
             count++;
         }

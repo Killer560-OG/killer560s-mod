@@ -82,18 +82,14 @@ public final class ViewFreeze {
      * screen on every aim even though the camera stays put.
      */
     public static void followHandSway(LocalPlayer player) {
-        if (player == null || !isHeld()) {
-            return;
-        }
+        if (player == null || !isHeld()) return;
         player.yBob = player.yBobO + (yaw - player.yBobO) * 0.5f;
         player.xBob = player.xBobO + (pitch - player.xBobO) * 0.5f;
     }
 
     /** His mouse, moving the held view instead of his body. */
     public static void turnView(float dYaw, float dPitch) {
-        if (!isHeld()) {
-            return;
-        }
+        if (!isHeld()) return;
         yaw += dYaw;
         pitch = Mth.clamp(pitch + dPitch, -90f, 90f);
     }

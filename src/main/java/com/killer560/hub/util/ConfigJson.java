@@ -20,9 +20,7 @@ public final class ConfigJson {
     }
 
     private static JsonElement prim(JsonObject obj, String key) {
-        if (obj == null || key == null || !obj.has(key)) {
-            return null;
-        }
+        if (obj == null || key == null || !obj.has(key)) return null;
         JsonElement el = obj.get(key);
         return el != null && el.isJsonPrimitive() ? el : null;
     }
@@ -58,9 +56,7 @@ public final class ConfigJson {
     public static float getFloat(JsonObject obj, String key, float def) {
         try {
             JsonElement el = prim(obj, key);
-            if (el == null) {
-                return def;
-            }
+            if (el == null) return def;
             float v = el.getAsFloat();
             return Float.isFinite(v) ? v : def;
         } catch (Exception e) {
@@ -72,9 +68,7 @@ public final class ConfigJson {
     public static double getDouble(JsonObject obj, String key, double def) {
         try {
             JsonElement el = prim(obj, key);
-            if (el == null) {
-                return def;
-            }
+            if (el == null) return def;
             double v = el.getAsDouble();
             return Double.isFinite(v) ? v : def;
         } catch (Exception e) {
@@ -95,9 +89,7 @@ public final class ConfigJson {
      *  Case-insensitive so a hand-edited lowercase value still loads. */
     public static <E extends Enum<E>> E getEnum(JsonObject obj, String key, Class<E> type, E def) {
         String s = getString(obj, key, null);
-        if (s == null) {
-            return def;
-        }
+        if (s == null) return def;
         try {
             return Enum.valueOf(type, s.trim().toUpperCase(Locale.ROOT));
         } catch (Exception e) {
@@ -111,9 +103,7 @@ public final class ConfigJson {
 
     /** @return the nested object at {@code key}, or {@code null} if missing / not an object. */
     public static JsonObject getObject(JsonObject obj, String key) {
-        if (obj == null || key == null || !obj.has(key)) {
-            return null;
-        }
+        if (obj == null || key == null || !obj.has(key)) return null;
         JsonElement el = obj.get(key);
         return el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
     }
@@ -129,9 +119,7 @@ public final class ConfigJson {
      */
     public static java.nio.file.Path backupBroken(java.nio.file.Path file) {
         try {
-            if (file == null || !java.nio.file.Files.isRegularFile(file)) {
-                return null;
-            }
+            if (file == null || !java.nio.file.Files.isRegularFile(file)) return null;
             String name = file.getFileName().toString();
             String stem = name.endsWith(".json") ? name.substring(0, name.length() - 5) : name;
             java.nio.file.Path backup = file.resolveSibling(stem + ".broken.json");
@@ -139,9 +127,7 @@ public final class ConfigJson {
                 java.nio.file.Files.copy(file, backup);
                 return backup;
             }
-            if (java.nio.file.Files.mismatch(file, backup) == -1L) {
-                return backup;
-            }
+            if (java.nio.file.Files.mismatch(file, backup) == -1L) return backup;
             java.nio.file.Path second = file.resolveSibling(stem + ".broken-" + System.currentTimeMillis() + ".json");
             java.nio.file.Files.copy(file, second);
             return second;
@@ -153,9 +139,7 @@ public final class ConfigJson {
 
     /** @return the nested array at {@code key}, or {@code null} if missing / not an array. */
     public static JsonArray getArray(JsonObject obj, String key) {
-        if (obj == null || key == null || !obj.has(key)) {
-            return null;
-        }
+        if (obj == null || key == null || !obj.has(key)) return null;
         JsonElement el = obj.get(key);
         return el != null && el.isJsonArray() ? el.getAsJsonArray() : null;
     }

@@ -40,12 +40,8 @@ public final class TypingDetector {
         if (screen instanceof ChatScreen || screen instanceof AbstractSignEditScreen || screen instanceof BookEditScreen) {
             return true;
         }
-        if (screen instanceof com.killer560.hub.gui.ModScreen menu && menu.isCapturingKey()) {
-            return true;
-        }
-        if (screen instanceof com.killer560.hub.auction.screen.AuctionHouseScreen ah && ah.isSearchFocused()) {
-            return true;
-        }
+        if (screen instanceof com.killer560.hub.gui.ModScreen menu && menu.isCapturingKey()) return true;
+        if (screen instanceof com.killer560.hub.auction.screen.AuctionHouseScreen ah && ah.isSearchFocused()) return true;
         if (com.killer560.hub.bazaar.BazaarView.isSearchFocused()
                 && (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
                 || screen.getClass().getName().startsWith("com.killer560.hub.bazaar."))) {
@@ -57,16 +53,12 @@ public final class TypingDetector {
         }
         if (screen instanceof CreativeModeInventoryScreen) {
             EditBox search = ((com.killer560.hub.hud.mixin.CreativeSearchAccessor) screen).killer560smod$getSearchBox();
-            if (takesText(search)) {
-                return true;
-            }
+            if (takesText(search)) return true;
         }
         // The focus chain first: what key presses actually go to.
         GuiEventListener focused = screen.getFocused();
         for (int depth = 0; focused != null && depth < 8; depth++) {
-            if (takesText(focused)) {
-                return true;
-            }
+            if (takesText(focused)) return true;
             focused = focused instanceof ContainerEventHandler c ? c.getFocused() : null;
         }
         // Then any focused field among the widgets (a field can be focused without being the screen's focused child).
@@ -74,22 +66,14 @@ public final class TypingDetector {
     }
 
     private static boolean anyFocusedField(List<? extends GuiEventListener> children, int depth) {
-        if (depth > 6) {
-            return false;
-        }
+        if (depth > 6) return false;
         for (GuiEventListener child : children) {
-            if (takesText(child)) {
-                return true;
-            }
+            if (takesText(child)) return true;
             if (child instanceof RecipeBookComponent<?> book) {
                 EditBox search = ((com.killer560.hub.hud.mixin.RecipeBookSearchAccessor) book).killer560smod$getSearchBox();
-                if (takesText(search)) {
-                    return true;
-                }
+                if (takesText(search)) return true;
             }
-            if (child instanceof ContainerEventHandler c && anyFocusedField(c.children(), depth + 1)) {
-                return true;
-            }
+            if (child instanceof ContainerEventHandler c && anyFocusedField(c.children(), depth + 1)) return true;
         }
         return false;
     }
@@ -98,9 +82,7 @@ public final class TypingDetector {
         if (l instanceof EditBox box) {
             return box.canConsumeInput(); // visible, focused and editable (javap, both versions)
         }
-        if (l instanceof AbstractTextAreaWidget area) {
-            return area.isFocused() && area.visible;
-        }
+        if (l instanceof AbstractTextAreaWidget area) return area.isFocused() && area.visible;
         return false;
     }
 }

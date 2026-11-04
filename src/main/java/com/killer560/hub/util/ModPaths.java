@@ -437,9 +437,7 @@ public final class ModPaths {
                             if (parent != null) {
                                 Files.createDirectories(parent);
                             }
-                            if (!move(old, target)) {
-                                return old;
-                            }
+                            if (!move(old, target)) return old;
                         }
                     }
                     return target;
@@ -449,9 +447,7 @@ public final class ModPaths {
             if (Files.exists(legacy)) {
                 synchronized (ModPaths.class) {
                     if (!Files.exists(target) && Files.exists(legacy)) {
-                        if (!move(legacy, target)) {
-                            return legacy;
-                        }
+                        if (!move(legacy, target)) return legacy;
                     }
                 }
             }
@@ -677,9 +673,7 @@ public final class ModPaths {
      */
     static int removeEmptyFolders() {
         Path r = root();
-        if (!Files.isDirectory(r)) {
-            return 0;
-        }
+        if (!Files.isDirectory(r)) return 0;
         List<Path> folders = new ArrayList<>();
         try (var walk = Files.walk(r, 2)) {
             walk.filter(p -> !p.equals(r) && Files.isDirectory(p, java.nio.file.LinkOption.NOFOLLOW_LINKS))
@@ -716,9 +710,7 @@ public final class ModPaths {
         int moved = 0;
         for (String former : FORMER_FOLDERS) {
             Path dir = root().resolve(former);
-            if (!Files.isDirectory(dir)) {
-                continue;
-            }
+            if (!Files.isDirectory(dir)) continue;
             List<String> names = new ArrayList<>();
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
                 for (Path entry : stream) {
@@ -730,9 +722,7 @@ public final class ModPaths {
             }
             for (String name : names) {
                 try {
-                    if (!name.startsWith(PREFIX) || folderFor(name).equals(former)) {
-                        continue;
-                    }
+                    if (!name.startsWith(PREFIX) || folderFor(name).equals(former)) continue;
                     Path old = dir.resolve(name);
                     Path now = config(name);
                     if (!now.equals(old)) {
@@ -753,9 +743,7 @@ public final class ModPaths {
     /** {@code config/killer560smod/<file>} -> {@code dungeons/ap3/<file>}, then the emptied folder is removed. */
     private static int migrateLegacyAp3Dir() throws IOException {
         Path dir = configDir().resolve(LEGACY_AP3_DIR);
-        if (!Files.isDirectory(dir)) {
-            return 0;
-        }
+        if (!Files.isDirectory(dir)) return 0;
         List<String> children = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path child : stream) {
@@ -815,9 +803,7 @@ public final class ModPaths {
      *  (Zoom, Cape, Legit GFS, Streamer, Mod Users) out of profiles. */
     private static boolean isFeatureFolderDepth(Path relative) {
         int n = relative.getNameCount();
-        if (n >= 1 && relative.getName(0).toString().equals(RETIRED)) {
-            return false;
-        }
+        if (n >= 1 && relative.getName(0).toString().equals(RETIRED)) return false;
         return n == 3 || (n == 2 && relative.getName(0).toString().equals(OTHER));
     }
 

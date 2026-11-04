@@ -57,9 +57,7 @@ public final class PerTickServerClock {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ServerTickClock.register();
         ServerTickClock.subscribeRawPing(PerTickServerClock::onPing);

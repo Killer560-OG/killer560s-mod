@@ -85,9 +85,7 @@ public final class ModLog {
         @Override
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
                                                    Object[] arguments, Throwable throwable) {
-            if (level != Level.ERROR && !((level == Level.INFO || level == Level.WARN) && kept())) {
-                return;
-            }
+            if (level != Level.ERROR && !((level == Level.INFO || level == Level.WARN) && kept())) return;
             Object[] args = arguments == null ? new Object[0] : arguments;
             if (throwable != null) {
                 args = Arrays.copyOf(args, args.length + 1);
@@ -264,9 +262,7 @@ public final class ModLog {
         @Override
         protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
                                                    Object[] arguments, Throwable throwable) {
-            if (level != Level.ERROR) {
-                return;
-            }
+            if (level != Level.ERROR) return;
             Object[] args = arguments == null ? new Object[0] : arguments;
             if (throwable != null) {
                 // SLF4J pulls a trailing Throwable back out itself, so this keeps the stack trace.

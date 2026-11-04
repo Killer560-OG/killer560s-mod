@@ -88,9 +88,7 @@ public final class DigWindow {
 
     /** {@link #mayDig}, counting a refusal (for the testkit's "held" number). */
     public static boolean mayDigOrHold(BlockPos pos) {
-        if (mayDig(pos)) {
-            return true;
-        }
+        if (mayDig(pos)) return true;
         holds++;
         return false;
     }

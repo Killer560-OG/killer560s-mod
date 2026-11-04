@@ -103,9 +103,7 @@ public final class OutgoingChat {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("OutgoingChat", client -> drain()));
         ClientSendMessageEvents.CHAT.register(message -> noteOther());
@@ -123,12 +121,8 @@ public final class OutgoingChat {
      * line already waiting. @return false only when there is nobody to send it as (not connected).
      */
     public static boolean command(String command) {
-        if (command == null || command.isBlank()) {
-            return false;
-        }
-        if (!connected()) {
-            return false;
-        }
+        if (command == null || command.isBlank()) return false;
+        if (!connected()) return false;
         Slot s;
         synchronized (OutgoingChat.class) {
             s = new Slot(now());
@@ -188,18 +182,14 @@ public final class OutgoingChat {
                     }
                     return;
                 }
-                if (t - lastSentMs < MIN_GAP_MS) {
-                    return;
-                }
+                if (t - lastSentMs < MIN_GAP_MS) return;
                 send = QUEUE.pollFirst();
                 lastSentMs = t;
                 lastOurs = send;
                 break;
             }
         }
-        if (send == null) {
-            return;
-        }
+        if (send == null) return;
         if (send.command) {
             ServerCommands.toServer(send.line);
         } else if (client.player != null) {
@@ -215,14 +205,10 @@ public final class OutgoingChat {
     }
 
     private static void onServerLine(String text) {
-        if (!RATE_LIMIT_LINE.equals(text)) {
-            return;
-        }
+        if (!RATE_LIMIT_LINE.equals(text)) return;
         synchronized (OutgoingChat.class) {
             Slot ours = lastOurs;
-            if (ours == null || ours.retried || now() - lastSentMs > REJECT_WINDOW_MS) {
-                return;
-            }
+            if (ours == null || ours.retried || now() - lastSentMs > REJECT_WINDOW_MS) return;
             ours.retried = true;
             lastOurs = null;
             // Hypixel refused it: send it again first, a full gap from now.

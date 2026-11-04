@@ -118,9 +118,7 @@ public final class ChatObserver {
      * are left alone. Idempotent; called from {@link #subscribe}, which every client start reaches.
      */
     public static synchronized void registerScopes() {
-        if (scopesRegistered) {
-            return;
-        }
+        if (scopesRegistered) return;
         scopesRegistered = true;
         net.fabricmc.fabric.api.event.Event<?>[] events = {ClientReceiveMessageEvents.CHAT,
                 ClientReceiveMessageEvents.GAME, ClientReceiveMessageEvents.MODIFY_GAME};
@@ -180,9 +178,7 @@ public final class ChatObserver {
     /** Called from {@code ChatComponentMixin} for every line added to chat. Returns the (possibly rewritten)
      *  line to display; subscribers are notified with the ORIGINAL incoming line. */
     public static Component onChatComponentAdd(Component message) {
-        if (message == null) {
-            return null;
-        }
+        if (message == null) return null;
         // One text scope for the rewriters and the dispatch (which reuses it), restored after: not inside any Fabric
         // event here.
         Component outerMsg = scopeMsg;
@@ -235,16 +231,12 @@ public final class ChatObserver {
         }
         try {
             String plain = strip(message);
-            if (plain.isBlank()) {
-                return;
-            }
+            if (plain.isBlank()) return;
             boolean duplicate;
             synchronized (ChatObserver.class) {
                 duplicate = isRecentDuplicate(plain, System.currentTimeMillis());
             }
-            if (duplicate) {
-                return;
-            }
+            if (duplicate) return;
             for (Consumer<Component> listener : listeners) {
                 try {
                     listener.accept(message);
@@ -295,15 +287,11 @@ public final class ChatObserver {
             }
         }
         for (Recent r : RECENT) {
-            if (r.plain().equals(plain)) {
-                return true;
-            }
+            if (r.plain().equals(plain)) return true;
             boolean recentIsShorter = r.plain().length() <= plain.length();
             String shorter = recentIsShorter ? r.plain() : plain;
             String longer = recentIsShorter ? plain : r.plain();
-            if (shorter.length() >= MIN_PREFIX_DEDUPE_LENGTH && longer.startsWith(shorter)) {
-                return true;
-            }
+            if (shorter.length() >= MIN_PREFIX_DEDUPE_LENGTH && longer.startsWith(shorter)) return true;
         }
         RECENT.addLast(new Recent(plain, now));
         while (RECENT.size() > 64) {
@@ -342,9 +330,7 @@ public final class ChatObserver {
     /** The same stripping for a raw string that is not a chat line - item/entity names, container titles - trimmed
      *  (the {@code stripName} the puzzle solvers use, shared so name comparisons all normalize the same way). */
     public static String strip(String raw) {
-        if (raw == null) {
-            return "";
-        }
+        if (raw == null) return "";
         String plain = stripCodes(raw);
         return (plain == null ? raw : plain).trim();
     }

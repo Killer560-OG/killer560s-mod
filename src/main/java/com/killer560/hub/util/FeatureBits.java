@@ -68,9 +68,7 @@ public final class FeatureBits {
     /** Called by a wrapper that skipped bit {@code id}: every {@link #RECHECK_EVERY}th skip asks the gate again. */
     static void skipped(int id) {
         int[] s = skips;
-        if (++s[id] < RECHECK_EVERY) {
-            return;
-        }
+        if (++s[id] < RECHECK_EVERY) return;
         s[id] = 0;
         if (evaluate(id)) {
             LOGGER.error("[FeatureBits] '{}' was switched on without FeatureBits.changed() - its listener was skipped"

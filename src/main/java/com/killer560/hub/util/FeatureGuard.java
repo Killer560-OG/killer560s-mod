@@ -51,9 +51,7 @@ public final class FeatureGuard {
         // in the wrapper itself).
         int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
-            if (anyDisabled && DISABLED.contains(name)) {
-                return;
-            }
+            if (anyDisabled && DISABLED.contains(name)) return;
             long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onStartTick(client);
@@ -71,9 +69,7 @@ public final class FeatureGuard {
         ClientTickEvents.EndTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded);
         int slot = com.killer560.hub.lagdisplay.ModCallbackTimes.slot(name);
         return client -> {
-            if (anyDisabled && DISABLED.contains(name)) {
-                return;
-            }
+            if (anyDisabled && DISABLED.contains(name)) return;
             long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onEndTick(client);
@@ -108,9 +104,7 @@ public final class FeatureGuard {
             } else {
                 ranOn[0] = true;
             }
-            if (anyDisabled && DISABLED.contains(name)) {
-                return;
-            }
+            if (anyDisabled && DISABLED.contains(name)) return;
             long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onStartTick(client);
@@ -139,9 +133,7 @@ public final class FeatureGuard {
             } else {
                 ranOn[0] = true;
             }
-            if (anyDisabled && DISABLED.contains(name)) {
-                return;
-            }
+            if (anyDisabled && DISABLED.contains(name)) return;
             long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
             try {
                 handler.onEndTick(client);
@@ -236,9 +228,7 @@ public final class FeatureGuard {
      * other listener stays what it was.
      */
     public static ClientTickEvents.EndTick endAll(String[] names, ClientTickEvents.EndTick... guarded) {
-        if (names.length != guarded.length) {
-            throw new IllegalArgumentException("one name per handler");
-        }
+        if (names.length != guarded.length) throw new IllegalArgumentException("one name per handler");
         ClientTickEvents.EndTick[] handlers = new ClientTickEvents.EndTick[guarded.length];
         for (int i = 0; i < guarded.length; i++) {
             handlers[i] = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded[i]);
@@ -250,9 +240,7 @@ public final class FeatureGuard {
         }
         return client -> {
             for (int i = 0; i < handlers.length; i++) {
-                if (anyDisabled && DISABLED.contains(ns[i])) {
-                    continue;
-                }
+                if (anyDisabled && DISABLED.contains(ns[i])) continue;
                 long t0 = com.killer560.hub.lagdisplay.ModCallbackTimes.active ? System.nanoTime() : 0L;
                 try {
                     handlers[i].onEndTick(client);

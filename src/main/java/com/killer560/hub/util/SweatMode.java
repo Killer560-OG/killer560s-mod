@@ -74,9 +74,7 @@ public final class SweatMode {
             return;
         }
         List<String> cmd = List.of(chrome.toString(), URL);
-        if (ExternalOpen.suppress(cmd)) {
-            return;
-        }
+        if (ExternalOpen.suppress(cmd)) return;
         try {
             new ProcessBuilder(cmd).start();
         } catch (Exception e) {
@@ -87,9 +85,7 @@ public final class SweatMode {
 
     /** chrome.exe in its usual Windows places, or null (another OS, or not installed). */
     private static Path findChrome() {
-        if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
-            return null;
-        }
+        if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) return null;
         List<Path> where = new ArrayList<>();
         for (String env : new String[]{"ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"}) {
             String base = System.getenv(env);
@@ -98,9 +94,7 @@ public final class SweatMode {
             }
         }
         for (Path p : where) {
-            if (Files.isRegularFile(p)) {
-                return p;
-            }
+            if (Files.isRegularFile(p)) return p;
         }
         return null;
     }

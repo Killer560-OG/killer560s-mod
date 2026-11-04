@@ -48,9 +48,7 @@ public final class SessionLogTap {
     public static boolean wants(String logger) { return active && logger != null && !SKIP.contains(logger); }
 
     public static void record(String logger, String level, String message, Throwable thrown) {
-        if (!wants(logger)) {
-            return;
-        }
+        if (!wants(logger)) return;
         String text = message == null ? "" : message.replace('\r', ' ').replace('\n', ' ');
         if (thrown != null) {
             text += " | " + thrown.getClass().getName() + ": " + thrown.getMessage();

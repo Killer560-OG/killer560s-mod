@@ -63,9 +63,7 @@ public final class ServerLag {
     }
 
     public static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ServerTickClock.register();
         ServerTickClock.subscribeRawPing(ServerLag::onPing);
@@ -126,9 +124,7 @@ public final class ServerLag {
 
     /** The stall in progress right now, in ms (0 when the last ping was on time or the source is not trusted). */
     private static long stallNowMs() {
-        if (!trusted || lastPingMs == 0L) {
-            return 0L;
-        }
+        if (!trusted || lastPingMs == 0L) return 0L;
         long gap = System.currentTimeMillis() - lastPingMs;
         return gap > STALL_THRESHOLD_MS ? Math.min(MAX_STALL_MS, gap - NOMINAL_TICK_MS) : 0L;
     }

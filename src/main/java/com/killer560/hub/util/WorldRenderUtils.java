@@ -162,9 +162,7 @@ public final class WorldRenderUtils {
 
     private static SphereTrig sphereTrig(int ns, int nl) {
         SphereTrig t = sphereTrig;
-        if (t != null && t.ns() == ns && t.nl() == nl) {
-            return t;
-        }
+        if (t != null && t.ns() == ns && t.nl() == nl) return t;
         double[] sinP = new double[ns + 1];
         double[] cosP = new double[ns + 1];
         for (int i = 0; i <= ns; i++) {
@@ -219,9 +217,7 @@ public final class WorldRenderUtils {
      *  solve path) - each consecutive pair of points gets one line segment, in order. */
     public static void renderLineStrip(LevelRenderContext context, java.util.List<Vec3> points,
                                         float r, float g, float b, float a, float thickness) {
-        if (points.size() < 2) {
-            return;
-        }
+        if (points.size() < 2) return;
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists the tick
         // rewrites (Ice Fill's currentPath, the solvers' routes).
         renderLineStrip(context, points.toArray(new Vec3[0]), r, g, b, a, thickness);
@@ -234,9 +230,7 @@ public final class WorldRenderUtils {
      */
     public static void renderLineStrip(LevelRenderContext context, Vec3[] pts, float r, float g, float b, float a,
                                        float thickness) {
-        if (pts.length < 2) {
-            return;
-        }
+        if (pts.length < 2) return;
         McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.LINES, (pose, buffer) -> {
 
             for (int i = 0; i < pts.length - 1; i++) {
@@ -282,9 +276,7 @@ public final class WorldRenderUtils {
             boolean front = sx == ex && faces[sx == x0 ? 0 : 1]
                     || sy == ey && faces[sy == y0 ? 2 : 3]
                     || sz == ez && faces[sz == z0 ? 4 : 5];
-            if (!front) {
-                continue;
-            }
+            if (!front) continue;
             float dx = ex - sx, dy = ey - sy, dz = ez - sz;
             buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
             buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
@@ -416,9 +408,7 @@ public final class WorldRenderUtils {
      */
     public static void renderOutlineBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
                                           float thickness, boolean throughWalls) {
-        if (count <= 0) {
-            return;
-        }
+        if (count <= 0) return;
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {
@@ -431,9 +421,7 @@ public final class WorldRenderUtils {
     /** Filled counterpart of {@link #renderOutlineBoxes}; each box's alpha is multiplied by {@code alphaScale}. */
     public static void renderFilledBoxes(LevelRenderContext context, AABB[] boxes, float[] rgba, int count,
                                          float alphaScale, boolean throughWalls) {
-        if (count <= 0) {
-            return;
-        }
+        if (count <= 0) return;
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                 (pose, buffer) -> {
                     for (int i = 0; i < count; i++) {

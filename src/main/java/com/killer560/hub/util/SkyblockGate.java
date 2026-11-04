@@ -54,9 +54,7 @@ public final class SkyblockGate {
     public static void register() {
         load();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SkyblockGate", client -> {
-            if (++tickCounter < 5) {
-                return;
-            }
+            if (++tickCounter < 5) return;
             tickCounter = 0;
             try {
                 update(client);
@@ -68,9 +66,7 @@ public final class SkyblockGate {
 
     /** @return false only when "Skyblock Only" is on and you're somewhere other than Skyblock / p3sim. */
     public static boolean allows() {
-        if (!isEnabled() || onSkyblock) {
-            return true;
-        }
+        if (!isEnabled() || onSkyblock) return true;
         Minecraft client = Minecraft.getInstance();
         // The mod's own screens (settings menu, HUD editor, pickers) show the real saved values.
         // Read once: some gated getters run off the render thread (e.g. block-shape mixins on the integrated
@@ -133,9 +129,7 @@ public final class SkyblockGate {
     }
 
     private static synchronized void load() {
-        if (loaded) {
-            return;
-        }
+        if (loaded) return;
         // "loaded" is only published after "enabled" holds the file's value, so an unsynchronized isEnabled()
         // on another thread either blocks here (loaded still false) or sees the finished value.
         // Starts from the default (off) every time, so a reload of a missing or unreadable file (a profile without it)

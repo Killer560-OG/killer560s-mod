@@ -97,13 +97,9 @@ public final class HotbarSelect {
      * when vanilla tells it at the start of the next tick (called outside a tick).
      */
     public static boolean select(Minecraft client, LocalPlayer player, int slot) {
-        if (player.getInventory().getSelectedSlot() == slot) {
-            return false;
-        }
+        if (player.getInventory().getSelectedSlot() == slot) return false;
         player.getInventory().setSelectedSlot(slot);
-        if (!inTick()) {
-            return false;
-        }
+        if (!inTick()) return false;
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeEnsureHasSentCarriedItem();
         } else {

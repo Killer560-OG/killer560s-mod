@@ -102,12 +102,8 @@ public final class ChromaWave {
 
     /** Color {@code phase} (0..1) of the way round a looping gradient through {@code stops}. Returns 0xRRGGBB. */
     public static int gradientAt(float phase, int[] stops) {
-        if (stops == null || stops.length == 0) {
-            return 0xFFFFFF;
-        }
-        if (stops.length == 1) {
-            return stops[0] & 0xFFFFFF;
-        }
+        if (stops == null || stops.length == 0) return 0xFFFFFF;
+        if (stops.length == 1) return stops[0] & 0xFFFFFF;
         float f = (phase - (float) Math.floor(phase)) * stops.length;
         int i = Math.min(stops.length - 1, (int) f);
         float k = f - i;
@@ -144,15 +140,11 @@ public final class ChromaWave {
 
     /** The spec whose {@link Spec#textColor()} is exactly this instance, or null (the per-glyph check). */
     public static Spec specFor(TextColor color) {
-        if (color == null) {
-            return null;
-        }
+        if (color == null) return null;
         Spec[] a = few;
         if (a != null) {
             for (Spec spec : a) {
-                if (spec.textColor == color) {
-                    return spec;
-                }
+                if (spec.textColor == color) return spec;
             }
             return null;
         }

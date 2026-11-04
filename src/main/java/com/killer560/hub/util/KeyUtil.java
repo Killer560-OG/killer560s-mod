@@ -32,13 +32,9 @@ public final class KeyUtil {
     /** Polls a STORED keyboard code (never with an invalid one). For a code from Minecraft (a {@code KeyMapping}
      *  value, {@code InputConstants.KEY_*}) use {@link McInput#isNativeKeyDown} instead. */
     public static boolean isKeyDown(Window window, int code) {
-        if (window == null) {
-            return false;
-        }
+        if (window == null) return false;
         // A mouse bind polls its button: every raw-polled bind accepts one (2026-11-02).
-        if (isMouseCode(code)) {
-            return isMouseDown(window, mouseButton(code));
-        }
+        if (isMouseCode(code)) return isMouseDown(window, mouseButton(code));
         return isValidKey(code) && McInput.isStoredKeyDown(window, code);
     }
 
@@ -65,9 +61,7 @@ public final class KeyUtil {
 
     /** Polls a key or a mouse button, whichever the code is. */
     public static boolean isBindDown(Window window, int code) {
-        if (window == null || code == NONE) {
-            return false;
-        }
+        if (window == null || code == NONE) return false;
         return isKeyDown(window, code);
     }
 
@@ -75,9 +69,7 @@ public final class KeyUtil {
      *  runs straight into the column beside it: "LMB"/"RMB"/"MMB"/"M4"... for a mouse bind, the key's own name
      *  otherwise. */
     public static String bindShortName(int code) {
-        if (code == NONE || !isMouseCode(code)) {
-            return bindDisplayName(code);
-        }
+        if (code == NONE || !isMouseCode(code)) return bindDisplayName(code);
         int button = mouseButton(code);
         return switch (button) {
             case 0 -> "LMB";
@@ -89,9 +81,7 @@ public final class KeyUtil {
 
     /** Display name for either kind of bind ("Left Button", "Middle Button", "R", "Not Set"). */
     public static String bindDisplayName(int code) {
-        if (code == NONE) {
-            return "Not Set";
-        }
+        if (code == NONE) return "Not Set";
         return isMouseCode(code) ? mouseName(mouseButton(code)) : keyName(code);
     }
 

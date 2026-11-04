@@ -54,9 +54,7 @@ public final class BodyAim {
      * releases the camera.
      */
     public void tick(LocalPlayer player, boolean acting) {
-        if (!held) {
-            return;
-        }
+        if (!held) return;
         if (player == null) {
             held = false;
             ViewFreeze.release();

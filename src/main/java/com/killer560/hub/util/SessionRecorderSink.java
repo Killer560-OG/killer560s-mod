@@ -168,9 +168,7 @@ public final class SessionRecorderSink {
 
     /** One recorded line. {@code level} is "INFO", "WARN" or "ERROR". No-op unless a session is open. */
     public static void record(String feature, String level, String message, Throwable throwable) {
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         String msg = message == null ? "" : message;
         String event = "-";
         if (msg.startsWith("[")) {
@@ -184,9 +182,7 @@ public final class SessionRecorderSink {
             msg = msg + " ! " + throwable;
         }
         synchronized (LOCK) {
-            if (!active) {
-                return;
-            }
+            if (!active) return;
             long now = tick;
             Long last = LAST_TICK.put(feature, now);
             StringBuilder line = new StringBuilder(64 + msg.length());
@@ -205,9 +201,7 @@ public final class SessionRecorderSink {
     public static void note(String event, String message) { record("recorder", "INFO", "[" + event + "] " + message, null); }
 
     private static void writeLocked(String line) {
-        if (out == null) {
-            return;
-        }
+        if (out == null) return;
         byte[] encoded = (line + "\n").getBytes(StandardCharsets.UTF_8);
         try {
             if (bytes + encoded.length > MAX_BYTES - CUT_RESERVE) {
@@ -261,9 +255,7 @@ public final class SessionRecorderSink {
 
     /** One event per line: newlines and tabs inside a message become " | " and a space. */
     private static String clean(String s) {
-        if (s.indexOf('\n') < 0 && s.indexOf('\r') < 0 && s.indexOf('\t') < 0) {
-            return s;
-        }
+        if (s.indexOf('\n') < 0 && s.indexOf('\r') < 0 && s.indexOf('\t') < 0) return s;
         return s.replace("\r\n", " | ").replace('\r', ' ').replace("\n", " | ").replace('\t', ' ');
     }
 }

@@ -58,9 +58,7 @@ public final class BoxBatch {
 
     /** Every box filled, in one call. */
     public void drawFilled(LevelRenderContext context, RenderType type) {
-        if (count == 0) {
-            return;
-        }
+        if (count == 0) return;
         if (McRender.CALLBACK_RUNS_LATER) {
             float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
             int n = count;
@@ -72,9 +70,7 @@ public final class BoxBatch {
 
     /** Every box outlined, {@code width} wide, in one call. */
     public void drawOutlines(LevelRenderContext context, RenderType type, float width) {
-        if (count == 0) {
-            return;
-        }
+        if (count == 0) return;
         if (McRender.CALLBACK_RUNS_LATER) {
             float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
             int n = count;
