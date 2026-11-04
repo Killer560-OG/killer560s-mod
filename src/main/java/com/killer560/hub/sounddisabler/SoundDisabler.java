@@ -53,25 +53,19 @@ public final class SoundDisabler {
     /** Whether {@code in} is muted. Never throws: a sound that cannot be judged plays. */
     public static boolean mute(SoundInstance in) {
         SoundDisablerConfig cfg = SoundDisablerConfig.getInstance();
-        if (!cfg.isEnabled() || in == null) {
-            return false;
-        }
+        if (!cfg.isEnabled() || in == null) return false;
         Identifier id;
         try {
             id = in.getIdentifier();
         } catch (RuntimeException e) {
             return false;
         }
-        if (id == null) {
-            return false;
-        }
+        if (id == null) return false;
         checked++;
         String row = null;
         try {
             for (MutedSound s : MutedSound.ALL) {
-                if (!cfg.isOn(s) || !s.idMatches(id)) {
-                    continue;
-                }
+                if (!cfg.isOn(s) || !s.idMatches(id)) continue;
                 if (s == MutedSound.BONZO_STAFF && !isBonzo(in, id.getPath())) {
                     bonzoCandidatesPassed++;
                     continue;
@@ -90,9 +84,7 @@ public final class SoundDisabler {
         if (cfg.isShowIds()) {
             show(id, row != null);
         }
-        if (row == null) {
-            return false;
-        }
+        if (row == null) return false;
         muted++;
         lastMutedId = id.toString();
         lastMutedRow = row;
@@ -105,18 +97,14 @@ public final class SoundDisabler {
         double y = in.getY();
         double z = in.getZ();
         if (MutedSound.isBonzoShotId(path)) {
-            if (!isBonzoShot(x, y, z)) {
-                return false;
-            }
+            if (!isBonzoShot(x, y, z)) return false;
             lastShotNanos = System.nanoTime();
             shotX = x;
             shotY = y;
             shotZ = z;
             return true;
         }
-        if (System.nanoTime() - lastShotNanos > BLAST_WINDOW_NANOS) {
-            return false;
-        }
+        if (System.nanoTime() - lastShotNanos > BLAST_WINDOW_NANOS) return false;
         double dx = x - shotX;
         double dy = y - shotY;
         double dz = z - shotZ;
@@ -126,42 +114,30 @@ public final class SoundDisabler {
     /** Whether a player holding a Bonzo's Staff (or the Starred one) stands within {@link #SHOT_RADIUS} of the sound. */
     static boolean isBonzoShot(double x, double y, double z) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return false;
-        }
+        if (mc.level == null) return false;
         for (AbstractClientPlayer p : mc.level.players()) {
-            if (p.distanceToSqr(x, y, z) <= SHOT_RADIUS * SHOT_RADIUS && isBonzoStaff(p.getMainHandItem())) {
-                return true;
-            }
+            if (p.distanceToSqr(x, y, z) <= SHOT_RADIUS * SHOT_RADIUS && isBonzoStaff(p.getMainHandItem())) return true;
         }
         return false;
     }
 
     /** Hypixel's {@code BONZO_STAFF} / {@code STARRED_BONZO_STAFF} by Skyblock id, or by name when the id is not sent. */
     static boolean isBonzoStaff(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
+        if (stack == null || stack.isEmpty()) return false;
         CompoundTag tag = ItemNbt.view(stack);
         String sbId = tag == null ? null : tag.getStringOr("id", null);
-        if (sbId != null) {
-            return sbId.equals("BONZO_STAFF") || sbId.equals("STARRED_BONZO_STAFF");
-        }
+        if (sbId != null) return sbId.equals("BONZO_STAFF") || sbId.equals("STARRED_BONZO_STAFF");
         return stack.getHoverName().getString().contains("Bonzo's Staff");
     }
 
     /** Show Sound IDs: the id in chat (once per {@link #SHOW_EVERY_NANOS} per id), marked when it was muted. */
     private static void show(Identifier id, boolean wasMuted) {
         Minecraft mc = Minecraft.getInstance();
-        if (!mc.isSameThread() || mc.player == null) {
-            return;
-        }
+        if (!mc.isSameThread() || mc.player == null) return;
         String key = id.toString();
         long now = System.nanoTime();
         Long last = SHOWN.get(key);
-        if (last != null && now - last < SHOW_EVERY_NANOS) {
-            return;
-        }
+        if (last != null && now - last < SHOW_EVERY_NANOS) return;
         SHOWN.put(key, now);
         if (SHOWN.size() > 512) {
             SHOWN.clear();
@@ -178,13 +154,9 @@ public final class SoundDisabler {
 
     /** Sounds muted by row {@code key} ("custom" for the Custom Sound IDs list), 0 for an unknown key. */
     public static int muted(String key) {
-        if ("custom".equals(key)) {
-            return mutedCustom;
-        }
+        if ("custom".equals(key)) return mutedCustom;
         for (MutedSound s : MutedSound.ALL) {
-            if (s.key.equals(key)) {
-                return MUTED_BY_ROW[s.ordinal()];
-            }
+            if (s.key.equals(key)) return MUTED_BY_ROW[s.ordinal()];
         }
         return 0;
     }

@@ -49,9 +49,7 @@ public enum MutedSound {
      * (a ghast or firework sound); {@link SoundDisabler} decides whether that candidate was the staff.
      */
     boolean idMatches(Identifier id) {
-        if (!"minecraft".equals(id.getNamespace())) {
-            return false;
-        }
+        if (!"minecraft".equals(id.getNamespace())) return false;
         String p = id.getPath();
         return switch (this) {
             case BONZO_STAFF -> isBonzoShotId(p) || isBonzoBlastId(p);

@@ -140,14 +140,10 @@ public final class SoundDisablerConfig {
     /** Whether the full id {@code id} ({@code namespace:path}) is on the Custom Sound IDs list. */
     public boolean customMatches(String id) {
         for (String e : customExact) {
-            if (e.equals(id)) {
-                return true;
-            }
+            if (e.equals(id)) return true;
         }
         for (String p : customPrefix) {
-            if (id.startsWith(p)) {
-                return true;
-            }
+            if (id.startsWith(p)) return true;
         }
         return false;
     }
