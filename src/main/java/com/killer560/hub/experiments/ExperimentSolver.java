@@ -1514,10 +1514,7 @@ final class ExperimentSolver {
      */
     private Integer activeT7(BoardFacts board, Integer reveal) {
         Integer dye = focusSlot(board, reveal, ExperimentSolver::isPriorityDye);
-        if (dye != null) {
-            return dye;
-        }
-        return t7First() ? focusSlot(board, reveal, ExperimentSolver::isT7Drop) : null;
+        return dye != null ? dye : t7First() ? focusSlot(board, reveal, ExperimentSolver::isT7Drop) : null;
     }
 
     /**

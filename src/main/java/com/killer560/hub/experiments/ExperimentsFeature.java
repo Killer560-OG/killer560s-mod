@@ -578,10 +578,7 @@ public final class ExperimentsFeature {
             return null;
         }
         Matcher xpMatch = XP_AMOUNT_LABEL.matcher(stripped);
-        if (xpMatch.matches()) {
-            return xpMatch.group(1);
-        }
-        return stripped;
+        return xpMatch.matches() ? xpMatch.group(1) : stripped;
     }
 
     private record LabelLayout(List<String> lines, float scale) {
