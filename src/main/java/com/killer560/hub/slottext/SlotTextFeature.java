@@ -124,6 +124,13 @@ public final class SlotTextFeature {
         if (entries.isEmpty()) {
             return;
         }
+        if (stack.getCount() > 1) {
+            // vanilla draws the stack count in the bottom-right corner: text there would garble it (Attribute Shard stack, 2026-11-04)
+            entries = entries.stream().filter(e -> e.pos() != Pos.BOTTOM_RIGHT).toList();
+            if (entries.isEmpty()) {
+                return;
+            }
+        }
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
     }
 
