@@ -134,9 +134,7 @@ public final class RunSummaryFeature {
             finishRun();
             return;
         }
-        if (!RunSummaryConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!RunSummaryConfig.getInstance().isEnabled()) return;
         if (client.level != lastLevel) {
             lastLevel = client.level;
             if (active) {
@@ -151,9 +149,7 @@ public final class RunSummaryFeature {
                 }
             }
         }
-        if (!active) {
-            return;
-        }
+        if (!active) return;
         pollSplits();
         String liveFloor = DungeonState.getFloor();
         if (liveFloor != null && !liveFloor.isBlank()) {
@@ -181,14 +177,10 @@ public final class RunSummaryFeature {
      * solver), so with all of those off there is simply no map to log and the record stores none.
      */
     private static void pollMap() {
-        if (!DungeonState.isInDungeon()) {
-            return;
-        }
+        if (!DungeonState.isInDungeon()) return;
         try {
             RunRecord.MapSnapshot snapshot = snapshotMap(com.killer560.hub.livemap.DungeonLayout.current());
-            if (snapshot == null) {
-                return;
-            }
+            if (snapshot == null) return;
             // Keep the richest map seen: a late warp can reset the grid to a handful of rooms. A rotation the live
             // map read earlier is kept when a later read of the same room has none (its marker went unread).
             if (mapSnapshot == null || snapshot.rooms().size() >= mapSnapshot.rooms().size()) {
@@ -206,9 +198,7 @@ public final class RunSummaryFeature {
      */
     public static RunRecord.MapSnapshot snapshotMap(com.killer560.hub.livemap.DungeonLayout layout) {
         int roomCount = layout.roomCount();
-        if (roomCount <= 0) {
-            return null;
-        }
+        if (roomCount <= 0) return null;
         int cells = RunRecord.MapSnapshot.GRID * RunRecord.MapSnapshot.GRID;
         int[] rooms = new int[cells];
         int[] doors = new int[cells];
@@ -233,9 +223,7 @@ public final class RunSummaryFeature {
 
     /** {@code fresh}, with any room it has no rotation for taking the one {@code older} read for the same name. */
     private static RunRecord.MapSnapshot keepRotations(RunRecord.MapSnapshot fresh, RunRecord.MapSnapshot older) {
-        if (older == null) {
-            return fresh;
-        }
+        if (older == null) return fresh;
         java.util.Map<String, Integer> known = new java.util.HashMap<>();
         for (RunRecord.MapRoom r : older.rooms()) {
             if (r.name() != null && r.rotation() >= 0) {
@@ -255,12 +243,8 @@ public final class RunSummaryFeature {
     private static void pollSplits() {
         String label = SplitTimersFeature.getCurrentSegmentLabel();
         long start = SplitTimersFeature.getCurrentSegmentStartedAtMs();
-        if (label == null || start <= 0L) {
-            return;
-        }
-        if (label.equals(currentSplitLabel) && start == currentSplitStartMs) {
-            return;
-        }
+        if (label == null || start <= 0L) return;
+        if (label.equals(currentSplitLabel) && start == currentSplitStartMs) return;
         closeCurrentSplit(start);
         currentSplitLabel = label;
         currentSplitStartMs = start;
@@ -275,17 +259,13 @@ public final class RunSummaryFeature {
     }
 
     private static void readTabList(Minecraft client) {
-        if (client.getConnection() == null) {
-            return;
-        }
+        if (client.getConnection() == null) return;
         int failed = 0;
         boolean sawPuzzleHeader = false;
         boolean sawPuzzleRow = false;
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null || plain.isBlank()) {
-                continue;
-            }
+            if (plain == null || plain.isBlank()) continue;
             Matcher m;
             if ((m = TAB_SECRETS_COUNT.matcher(plain)).matches()) {
                 secretsFound = parseInt(m.group(1), secretsFound);
@@ -386,14 +366,10 @@ public final class RunSummaryFeature {
     /** The real account UUID behind an IGN, from the tab list. Hypixel's filler/NPC entries use non-v4
      *  UUIDs, so those are rejected the same way {@code profileviewer/ProfileViewerFeature} rejects them. */
     private static String uuidOf(Minecraft client, String name) {
-        if (client.getConnection() == null) {
-            return null;
-        }
+        if (client.getConnection() == null) return null;
         for (PlayerInfo info : client.getConnection().getOnlinePlayers()) {
             java.util.UUID id = info.getProfile().id();
-            if (id != null && id.version() == 4 && name.equalsIgnoreCase(info.getProfile().name())) {
-                return id.toString();
-            }
+            if (id != null && id.version() == 4 && name.equalsIgnoreCase(info.getProfile().name())) return id.toString();
         }
         return null;
     }
@@ -401,9 +377,7 @@ public final class RunSummaryFeature {
     /** The CURRENT IGN for a stored party member: looked up by UUID so a rename still resolves, falling back
      *  to the name the run was logged with. Used by the {@code /log} run log. */
     public static String currentIgn(RunRecord.PartyMember member) {
-        if (member == null) {
-            return "?";
-        }
+        if (member == null) return "?";
         if (member.uuid() != null) {
             try {
                 Minecraft client = Minecraft.getInstance();
@@ -422,9 +396,7 @@ public final class RunSummaryFeature {
     }
 
     private static Integer romanOrNumber(String text) {
-        if (text == null || text.isBlank()) {
-            return null;
-        }
+        if (text == null || text.isBlank()) return null;
         return com.killer560.hub.croesus.DungeonChestValuer.roman(text.trim());
     }
 
@@ -442,9 +414,7 @@ public final class RunSummaryFeature {
 
 
     private static void onChat(Component message) {
-        if (!RunSummaryConfig.getInstance().isEnabled()) {
-            return;
-        }
+        if (!RunSummaryConfig.getInstance().isEnabled()) return;
         String raw = ChatObserver.strip(message);
         String trimmed = raw.trim();
 
@@ -452,9 +422,7 @@ public final class RunSummaryFeature {
             startRun();
             return;
         }
-        if (!active) {
-            return;
-        }
+        if (!active) return;
 
         Matcher defeated = DEFEATED.matcher(raw);
         if (defeated.matches()) {
@@ -496,9 +464,7 @@ public final class RunSummaryFeature {
 
     private static void recordDevice(String plain) {
         Matcher m = DEVICE_COMPLETE.matcher(plain);
-        if (!m.matches()) {
-            return;
-        }
+        if (!m.matches()) return;
         long now = System.currentTimeMillis();
         // The same real line can reach chat twice (another mod re-adding its own annotated copy) - the
         // annotated one is a prefix-extension of the original, so compare both ways inside a short window.
@@ -601,23 +567,17 @@ public final class RunSummaryFeature {
 
 
     private static void announce(RunRecord stored, RunHistoryStore.BestFlags flags) {
-        if (stored == null) {
-            return;
-        }
+        if (stored == null) return;
         RunSummaryConfig cfg = RunSummaryConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
-        }
+        if (client.player == null) return;
         if (cfg.isAnnouncePersonalBests() && flags.any()) {
             ModChat.send(FEATURE, ModChat.good("Personal best! "),
                     ModChat.text(flags.time() && flags.score() ? "Fastest time AND best score on "
                             : flags.time() ? "Fastest time on " : "Best score on "),
                     ModChat.value(stored.floorLabel()), ModChat.text("."));
         }
-        if (!cfg.isChatSummary()) {
-            return;
-        }
+        if (!cfg.isChatSummary()) return;
         // Split Timers already prints its own per-phase "X took Ys" block at the end of a run. When it is
         // doing that, our compact summary drops its phase lines and prints only the stats Split Timers
         // never covers, so the two never post the same thing twice.
@@ -714,9 +674,7 @@ public final class RunSummaryFeature {
     }
 
     private static String formatCoins(long coins) {
-        if (Math.abs(coins) >= 1_000_000L) {
-            return String.format(Locale.US, "%.2fM", coins / 1_000_000.0);
-        }
+        if (Math.abs(coins) >= 1_000_000L) return String.format(Locale.US, "%.2fM", coins / 1_000_000.0);
         return Math.abs(coins) >= 1_000L ? String.format(Locale.US, "%.1fk", coins / 1_000.0) : String.valueOf(coins);
     }
 
@@ -725,9 +683,7 @@ public final class RunSummaryFeature {
     private static String orDashInt(int value) { return value < 0 ? "-" : String.valueOf(value); }
 
     private static int parseInt(String s, int def) {
-        if (s == null) {
-            return def;
-        }
+        if (s == null) return def;
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException e) {

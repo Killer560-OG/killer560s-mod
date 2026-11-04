@@ -32,9 +32,7 @@ public final class RunDetails {
                 out.add("");
                 out.add("§6§lRooms cleared");
                 for (RunRecord.PartyMember member : run.party()) {
-                    if (member.soloRoomNames().isEmpty() && member.stackedRoomNames().isEmpty()) {
-                        continue;
-                    }
+                    if (member.soloRoomNames().isEmpty() && member.stackedRoomNames().isEmpty()) continue;
                     String line = "§7" + RunSummaryFeature.currentIgn(member) + "§f: "
                             + (member.soloRoomNames().isEmpty() ? "§7-" : "§f" + String.join(", ", member.soloRoomNames()));
                     if (!member.stackedRoomNames().isEmpty()) {
@@ -76,9 +74,7 @@ public final class RunDetails {
     }
 
     public static String colorFor(DungeonClass cls) {
-        if (cls == null) {
-            return "§f";
-        }
+        if (cls == null) return "§f";
         return switch (cls) {
             case MAGE -> "§9";
             case TANK -> "§a";

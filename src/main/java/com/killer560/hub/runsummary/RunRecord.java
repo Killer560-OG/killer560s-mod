@@ -108,9 +108,7 @@ public record RunRecord(
 
         /** "{@code 4}" when nobody stacked with them, otherwise "{@code 4-7}" - same shape Run Stats prints. */
         public String roomsLabel() {
-            if (soloRooms < 0) {
-                return "-";
-            }
+            if (soloRooms < 0) return "-";
             return stackedRooms <= 0 ? String.valueOf(soloRooms) : soloRooms + "-" + (soloRooms + stackedRooms);
         }
     }
@@ -176,9 +174,7 @@ public record RunRecord(
 
     /** The score to rank this run by: Hypixel's if it was seen, otherwise the mod's estimate, else -1. */
     public int effectiveScore() {
-        if (hypixelScore >= 0) {
-            return hypixelScore;
-        }
+        if (hypixelScore >= 0) return hypixelScore;
         return estimatedScore >= 0 ? estimatedScore : UNKNOWN_INT;
     }
 
@@ -199,9 +195,7 @@ public record RunRecord(
     /** "12m 34.56s" - the same shape SplitTimersFeature prints, kept here so the GUI and the chat summary
      *  never format a duration two different ways. */
     public static String formatTime(long timeMs) {
-        if (timeMs <= 0L) {
-            return "-";
-        }
+        if (timeMs <= 0L) return "-";
         long remaining = timeMs;
         long hours = remaining / 3600000L;
         remaining -= hours * 3600000L;
@@ -320,9 +314,7 @@ public record RunRecord(
     }
 
     private static void putStrings(JsonObject into, String key, List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return;
-        }
+        if (values == null || values.isEmpty()) return;
         JsonArray a = new JsonArray();
         for (String v : values) {
             a.add(v);
@@ -357,9 +349,7 @@ public record RunRecord(
     private static int[] splitInts(String text, int expected) {
         int[] out = new int[expected];
         java.util.Arrays.fill(out, -1);
-        if (text == null || text.isBlank()) {
-            return out;
-        }
+        if (text == null || text.isBlank()) return out;
         String[] parts = text.split(",");
         for (int i = 0; i < expected && i < parts.length; i++) {
             try {
@@ -374,9 +364,7 @@ public record RunRecord(
     /** Never throws: a malformed field falls back to "unknown" for that field only (the same per-key rule
      *  {@link ConfigJson} exists for), so one bad entry can't take the whole history file down. */
     public static RunRecord fromJson(JsonElement element) {
-        if (element == null || !element.isJsonObject()) {
-            return null;
-        }
+        if (element == null || !element.isJsonObject()) return null;
         JsonObject o = element.getAsJsonObject();
         List<Split> splits = new ArrayList<>();
         JsonArray splitArray = ConfigJson.getArray(o, "splits");

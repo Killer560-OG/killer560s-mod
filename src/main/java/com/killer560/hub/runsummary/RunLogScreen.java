@@ -145,17 +145,13 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
     }
 
     private RunRecord runAt(double mx, double my) {
-        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) {
-            return null;
-        }
+        if (mx < listX || mx > listX + listW || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
     private int contentHeight() {
-        if (mode == Mode.KUUDRA) {
-            return 0;
-        }
+        if (mode == Mode.KUUDRA) return 0;
         return selected == null ? visible.size() * ROW_H : detailLines(selected).size() * 10 + mapHeight(selected);
     }
 
@@ -217,9 +213,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         int first = Math.max(0, scroll / ROW_H);
         for (int i = first; i < visible.size(); i++) {
             int rowY = listY + i * ROW_H - scroll;
-            if (rowY > listY + listH) {
-                break;
-            }
+            if (rowY > listY + listH) break;
             RunRecord run = visible.get(i);
             ScreenChrome.row(graphics, listX, rowY, listW - 6, ROW_H, run == hovered, false, (i) % 2 == 1);
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(RunSummaryFeature.listLine(run),
@@ -241,9 +235,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
             textWidth = Math.max(90, mapX - textX - 8);
         }
         for (String line : detailLines(run)) {
-            if (y > listY + listH) {
-                break;
-            }
+            if (y > listY + listH) break;
             // Once the text has scrolled past the map it gets the full width back.
             int width = y >= mapBottom ? listW - 16 : textWidth;
             if (!line.isEmpty()) {

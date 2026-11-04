@@ -163,9 +163,7 @@ public final class RunHistoryStore {
      */
     public static synchronized BestFlags add(RunRecord record) {
         ensureLoaded();
-        if (record == null) {
-            return new BestFlags(false, false);
-        }
+        if (record == null) return new BestFlags(false, false);
         String key = floorKey(record);
         long previousBestTime = bestTimeMs(key);
         int previousBestScore = bestScore(key);
@@ -250,9 +248,7 @@ public final class RunHistoryStore {
         ensureLoaded();
         Map<String, long[]> out = new LinkedHashMap<>();
         for (RunRecord r : RUNS) {
-            if (!r.countsForPb(pbMin())) {
-                continue;
-            }
+            if (!r.countsForPb(pbMin())) continue;
             String key = floorKey(r);
             long[] entry = out.computeIfAbsent(key, k -> new long[]{-1L, -1L});
             if (r.totalMs() > 0 && (entry[0] < 0 || r.totalMs() < entry[0])) {
