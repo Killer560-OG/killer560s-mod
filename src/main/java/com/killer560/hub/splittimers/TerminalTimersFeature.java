@@ -81,18 +81,12 @@ public final class TerminalTimersFeature {
     // Splits
 
     private static Component rewrite(Component message, String plain) {
-        if (plain == null || !TerminalTimersConfig.getInstance().isSplits()) {
-            return message;
-        }
+        if (plain == null || !TerminalTimersConfig.getInstance().isSplits()) return message;
         Matcher m = COMPLETE_REGEX.matcher(plain);
-        if (!m.find()) {
-            return message;
-        }
+        if (!m.find()) return message;
         long now = System.currentTimeMillis();
         // The same real line can be offered twice (e.g. a mod re-adding its own copy) - only time it once.
-        if (plain.equals(lastRewrittenPlain) && now - lastRewrittenAtMs < 250L) {
-            return message;
-        }
+        if (plain.equals(lastRewrittenPlain) && now - lastRewrittenAtMs < 250L) return message;
         lastRewrittenPlain = plain;
         lastRewrittenAtMs = now;
         String name = m.group(1);
@@ -142,9 +136,7 @@ public final class TerminalTimersFeature {
 
     private static void onChatLine(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain == null) {
-            return;
-        }
+        if (plain == null) return;
         Minecraft client = Minecraft.getInstance();
         Matcher m = plain.contains("d a ") ? COMPLETE_REGEX.matcher(plain) : null; // "activated a"/"completed a"
         if (m != null && m.find()) {
@@ -155,9 +147,7 @@ public final class TerminalTimersFeature {
             }
             return;
         }
-        if (!TerminalTimersConfig.getInstance().isSplits()) {
-            return;
-        }
+        if (!TerminalTimersConfig.getInstance().isSplits()) return;
         if (plain.equals(GATE_DESTROYED)) {
             if (completedCurrent == completedTotal) {
                 resetSection(false);
@@ -205,9 +195,7 @@ public final class TerminalTimersFeature {
     }
 
     private static void tryPostSolve() {
-        if (pendingSolveName == null || ownTerminalLineAtMs == 0L) {
-            return;
-        }
+        if (pendingSolveName == null || ownTerminalLineAtMs == 0L) return;
         if (Math.abs(pendingSolveAtMs - ownTerminalLineAtMs) > SOLVE_MATCH_WINDOW_MS) {
             // Only the older of the two is stale - keep the newer one waiting for its partner.
             if (pendingSolveAtMs < ownTerminalLineAtMs) {

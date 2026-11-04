@@ -126,17 +126,13 @@ public final class BloodRushSplits {
 
 
     static void onLine(String raw, Stamp at) {
-        if (raw == null) {
-            return;
-        }
+        if (raw == null) return;
         String msg = raw.trim();
         if ("Starting in 1 second.".equals(msg)) {
             reset();
             return;
         }
-        if (done) {
-            return;
-        }
+        if (done) return;
         if (!started) {
             if (MORT.matcher(msg).matches()) {
                 reset();
@@ -146,9 +142,7 @@ public final class BloodRushSplits {
             return;
         }
         Room r = current;
-        if (r == null || !DungeonKeys.mayBeKeyOrDoorLine(msg)) {
-            return;
-        }
+        if (r == null || !DungeonKeys.mayBeKeyOrDoorLine(msg)) return;
         var key = KEY_PICKED.matcher(msg);
         if (key.matches()) {
             if (r.keyPicked == null) {
@@ -184,9 +178,7 @@ public final class BloodRushSplits {
      */
     static void onDoorDown(Stamp at, Side earlier, Side later) {
         Room r = current;
-        if (r == null || r.doorDown != null || rooms.isEmpty() || at.ms() < r.start.ms() - 250L) {
-            return;
-        }
+        if (r == null || r.doorDown != null || rooms.isEmpty() || at.ms() < r.start.ms() - 250L) return;
         r.doorDown = at;
         Room previous = rooms.get(rooms.size() - 1);
         if (later != null && UNNAMED.equals(r.name)) {
@@ -208,9 +200,7 @@ public final class BloodRushSplits {
     /** A key's stand appeared {@code distance} blocks away, in map room {@code room} (null when unknown). */
     static void onKeySpawned(Stamp at, double distance, Side room) {
         Room r = current;
-        if (r == null || r.keyDrop != null) {
-            return;
-        }
+        if (r == null || r.keyDrop != null) return;
         r.keyDrop = at;
         r.keySeenAt = distance;
         if (room != null && room.name() != null) {
@@ -235,18 +225,12 @@ public final class BloodRushSplits {
         int[] dist = null;
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
             int type = layout.doorType(idx);
-            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) {
-                continue;
-            }
+            if (type != DungeonLayout.DOOR_WITHER && type != DungeonLayout.DOOR_BLOOD) continue;
             boolean locked = layout.isLocked(idx);
             Boolean before = doorLocked.put(idx, locked);
-            if (before == null || !before || locked) {
-                continue;
-            }
+            if (before == null || !before || locked) continue;
             int[] sides = sides(layout, idx);
-            if (sides == null) {
-                continue;
-            }
+            if (sides == null) continue;
             if (dist == null) {
                 dist = distanceFromEntrance(layout);
             }
@@ -294,17 +278,13 @@ public final class BloodRushSplits {
                 break;
             }
         }
-        if (entrance < 0) {
-            return dist;
-        }
+        if (entrance < 0) return dist;
         List<List<Integer>> adj = new ArrayList<>();
         for (int r = 0; r < n; r++) {
             adj.add(new ArrayList<>());
         }
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-            if (!layout.isDoor(idx)) {
-                continue;
-            }
+            if (!layout.isDoor(idx)) continue;
             int[] s = sides(layout, idx);
             if (s != null && s[0] < n && s[1] < n) {
                 adj.get(s[0]).add(s[1]);
@@ -334,9 +314,7 @@ public final class BloodRushSplits {
 
     /** {real ms, lagless ms} from {@code a} to {@code b}, or null when either is missing. */
     private static long[] span(Stamp a, Stamp b) {
-        if (a == null || b == null) {
-            return null;
-        }
+        if (a == null || b == null) return null;
         long t = Math.max(0L, b.ms() - a.ms());
         return new long[]{t, Math.max(0L, t - Math.max(0L, b.lagMs() - a.lagMs()))};
     }
@@ -362,9 +340,7 @@ public final class BloodRushSplits {
     }
 
     private static String time(long[] s, boolean lagless) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         String real = SplitTimersFeature.formatTime(s[0]);
         return lagless ? real + " §7(" + SplitTimersFeature.formatTime(s[1]) + ")" : real;
     }
@@ -376,9 +352,7 @@ public final class BloodRushSplits {
     /** The rows the HUD draws now ({@link BloodRushSplitsConfig#getStyle}). Empty before Mort's line. */
     static List<String> rows(Stamp now, BloodRushSplitsConfig.Style style) {
         List<String> out = new ArrayList<>();
-        if (!started) {
-            return out;
-        }
+        if (!started) return out;
         boolean lagless = lagless();
         out.add("§4Blood Rush" + (done ? "" : " §7(" + all().size() + ")"));
         for (Room r : all()) {
@@ -533,9 +507,7 @@ public final class BloodRushSplits {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!isEnabledInSettings() || HudVisibility.hidesHud()) {
-                return;
-            }
+            if (!isEnabledInSettings() || HudVisibility.hidesHud()) return;
             List<String> lines = lines();
             int dy = 0;
             for (String s : lines) {

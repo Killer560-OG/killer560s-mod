@@ -87,45 +87,29 @@ final class WatcherMoveTracker {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now - dialogueEndMs < DIALOGUE_SETTLE_MS) {
-            return;
-        }
+        if (now - dialogueEndMs < DIALOGUE_SETTLE_MS) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null) {
-            return;
-        }
+        if (client.level == null) return;
         Entity watcher = watcherId == -1 ? null : client.level.getEntity(watcherId);
         if (watcher == null) {
             // The search walks every rendered entity; until he is found it runs every 5th tick, not every tick.
-            if (++searchTicks % 5 != 1) {
-                return;
-            }
+            if (++searchTicks % 5 != 1) return;
             watcher = findWatcher(client);
-            if (watcher == null) {
-                return;
-            }
+            if (watcher == null) return;
             watcherId = watcher.getId();
         }
-        if (watcher.xo == watcher.getX() && watcher.yo == watcher.getY() && watcher.zo == watcher.getZ()) {
-            return;
-        }
+        if (watcher.xo == watcher.getX() && watcher.yo == watcher.getY() && watcher.zo == watcher.getZ()) return;
         moveMs = now;
     }
 
     /** The entity one id below the "The Watcher" nametag stand - see this class's doc. */
     private static Entity findWatcher(Minecraft client) {
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand stand)) {
-                continue;
-            }
+            if (!(entity instanceof ArmorStand stand)) continue;
             String name = ChatFormatting.stripFormatting(stand.getName().getString());
-            if (name == null || !name.contains(WATCHER_NAME)) {
-                continue;
-            }
+            if (name == null || !name.contains(WATCHER_NAME)) continue;
             Entity below = client.level.getEntity(stand.getId() - 1);
-            if (below != null && !(below instanceof ArmorStand)) {
-                return below;
-            }
+            if (below != null && !(below instanceof ArmorStand)) return below;
         }
         return null;
     }

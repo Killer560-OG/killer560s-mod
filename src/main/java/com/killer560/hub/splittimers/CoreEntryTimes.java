@@ -73,9 +73,7 @@ final class CoreEntryTimes {
     /** "The Core entrance is opening!" - starts the clock and snapshots who is expected. */
     static void onCoreOpening() {
         reset();
-        if (!DungeonState.isF7OrM7()) {
-            return;
-        }
+        if (!DungeonState.isF7OrM7()) return;
         openedMs = System.currentTimeMillis();
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
@@ -102,13 +100,9 @@ final class CoreEntryTimes {
     }
 
     static void tick() {
-        if (openedMs == 0L || !SplitTimersConfig.getInstance().isCoreEntryActive()) {
-            return;
-        }
+        if (openedMs == 0L || !SplitTimersConfig.getInstance().isCoreEntryActive()) return;
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null) {
-            return;
-        }
+        if (client.player == null || client.level == null) return;
         // Real bug found and fixed (2026-09-20, killer560: "It did pick up one person but it was the wrong
         // person and the wrong time"): EXPECTED used to be snapshotted ONCE in onCoreOpening() and only grew
         // afterward as a side effect of record()'s own "unexpected arrival" fallback below. If the party tab
@@ -153,13 +147,9 @@ final class CoreEntryTimes {
     }
 
     private static boolean containsIgnoreCase(List<String> list, String name) {
-        if (name == null) {
-            return false;
-        }
+        if (name == null) return false;
         for (String s : list) {
-            if (s.equalsIgnoreCase(name)) {
-                return true;
-            }
+            if (s.equalsIgnoreCase(name)) return true;
         }
         return false;
     }
@@ -170,12 +160,8 @@ final class CoreEntryTimes {
         // EXPECTED name and this entity's real GameProfile name aren't guaranteed to match case-for-case -
         // a mismatch here would silently create a duplicate "ghost" entry that never resolves (see this
         // batch's staging notes for how that could also produce a wrong slowest-person result).
-        if (containsKeyIgnoreCase(ENTRIES, name)) {
-            return;
-        }
-        if (!inCore(player.getX(), player.getY(), player.getZ())) {
-            return;
-        }
+        if (containsKeyIgnoreCase(ENTRIES, name)) return;
+        if (!inCore(player.getX(), player.getY(), player.getZ())) return;
         if (!containsIgnoreCase(EXPECTED, name)) {
             // The party list wasn't complete when the core opened (tab list not parsed yet, late join) - they are
             // clearly in this run, so they join the expected list instead of being timed but never shown.
@@ -186,21 +172,15 @@ final class CoreEntryTimes {
 
     private static Long getIgnoreCase(Map<String, Long> map, String name) {
         for (Map.Entry<String, Long> e : map.entrySet()) {
-            if (e.getKey().equalsIgnoreCase(name)) {
-                return e.getValue();
-            }
+            if (e.getKey().equalsIgnoreCase(name)) return e.getValue();
         }
         return null;
     }
 
     private static boolean containsKeyIgnoreCase(Map<String, Long> map, String name) {
-        if (name == null) {
-            return false;
-        }
+        if (name == null) return false;
         for (String key : map.keySet()) {
-            if (key.equalsIgnoreCase(name)) {
-                return true;
-            }
+            if (key.equalsIgnoreCase(name)) return true;
         }
         return false;
     }
@@ -210,9 +190,7 @@ final class CoreEntryTimes {
 
     /** HUD/chat rows: everyone expected, in party order, with a dash for anyone never seen inside the core. */
     static List<String> lines() {
-        if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryActive()) {
-            return List.of();
-        }
+        if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryActive()) return List.of();
         List<String> out = new ArrayList<>(EXPECTED.size());
         for (String name : EXPECTED) {
             Long ms = getIgnoreCase(ENTRIES, name);   // the tab list's name and the entity's may differ in case
@@ -226,9 +204,7 @@ final class CoreEntryTimes {
 
     private static String colorFor(String name) {
         DungeonClass clazz = PartyTracker.classOf(name);
-        if (clazz == null) {
-            return "§f";
-        }
+        if (clazz == null) return "§f";
         return switch (clazz) {
             case MAGE -> "§9";
             case TANK -> "§a";
@@ -254,18 +230,12 @@ final class CoreEntryTimes {
 
     /** Slowest player into the core, once per run, to Mod Chat and/or party chat - both off by default. */
     private static void announce() {
-        if (announced || openedMs == 0L) {
-            return;
-        }
+        if (announced || openedMs == 0L) return;
         announced = true;
         SplitTimersConfig cfg = SplitTimersConfig.getInstance();
-        if (!cfg.isCoreEntryActive() || (!cfg.isCoreEntrySlowestChat() && !cfg.isCoreEntrySlowestParty())) {
-            return;
-        }
+        if (!cfg.isCoreEntryActive() || (!cfg.isCoreEntrySlowestChat() && !cfg.isCoreEntrySlowestParty())) return;
         Map.Entry<String, Long> slowest = slowestEntry();
-        if (slowest == null) {
-            return;
-        }
+        if (slowest == null) return;
         int missing = EXPECTED.size() - ENTRIES.size();
         String suffix = missing > 0 ? " (" + missing + " never seen entering)" : "";
         if (cfg.isCoreEntrySlowestChat()) {
@@ -287,13 +257,9 @@ final class CoreEntryTimes {
      *  chat/party toggles and of {@link #announced}, so it can show live (whoever is slowest so far) while
      *  the run is still going, using the exact same data {@link #announce()} does. Null before any entry. */
     static String slowestHudLine() {
-        if (openedMs == 0L) {
-            return null;
-        }
+        if (openedMs == 0L) return null;
         Map.Entry<String, Long> slowest = slowestEntry();
-        if (slowest == null) {
-            return null;
-        }
+        if (slowest == null) return null;
         return colorFor(slowest.getKey()) + slowest.getKey() + "§f: " + format(slowest.getValue());
     }
 }

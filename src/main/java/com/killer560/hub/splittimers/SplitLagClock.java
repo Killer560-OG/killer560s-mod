@@ -48,9 +48,7 @@ final class SplitLagClock {
     }
 
     static synchronized void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         PerTickServerClock.register();
         PerTickServerClock.subscribe(SplitLagClock::onTick);

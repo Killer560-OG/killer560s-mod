@@ -74,9 +74,7 @@ public final class P5Splits {
     /** First placement per relic color wins. {@code who} may be null. */
     public static synchronized void relicPlaced(String key, String coloredLabel, long nowMs, String who) {
         for (RelicRow row : RELICS) {
-            if (row.key().equals(key)) {
-                return;
-            }
+            if (row.key().equals(key)) return;
         }
         RELICS.add(new RelicRow(key, coloredLabel, nowMs, who));
     }
@@ -89,9 +87,7 @@ public final class P5Splits {
             for (DragonRow row : DRAGONS) {
                 boolean alive = row.killMs() == 0L;
                 long t = (alive ? now : row.killMs()) - row.spawnMs();
-                if (forChat && alive) {
-                    continue;
-                }
+                if (forChat && alive) continue;
                 out.add(row.label() + " §8#" + row.number() + "§f: " + (alive ? "§7" : "") + seconds(t));
             }
         }
