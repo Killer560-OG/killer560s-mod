@@ -111,28 +111,18 @@ public final class SpiritLeapOverlayFeature {
 
     private static volatile boolean lastContainerPacketFull;
 
-    public static double lastOpenToReadyMs() {
-        return lastOpenToReadyMs;
-    }
+    public static double lastOpenToReadyMs() { return lastOpenToReadyMs; }
 
-    public static double lastOpenToDrawMs() {
-        return lastOpenToDrawMs;
-    }
+    public static double lastOpenToDrawMs() { return lastOpenToDrawMs; }
 
     /** The names the last box frame drew in spots 0-3 ("" = empty) (testkit). */
     private static volatile List<String> lastDrawnSpots = List.of();
 
-    public static List<String> lastDrawnSpots() {
-        return lastDrawnSpots;
-    }
+    public static List<String> lastDrawnSpots() { return lastDrawnSpots; }
 
-    public static String lastView() {
-        return lastView;
-    }
+    public static String lastView() { return lastView; }
 
-    public static List<com.killer560.hub.livemap.LeapMapView.Head> lastHeads() {
-        return lastHeads;
-    }
+    public static List<com.killer560.hub.livemap.LeapMapView.Head> lastHeads() { return lastHeads; }
 
     /** True when the leap menu draws the dungeon map: the Map in Clear style, in a dungeon, before the boss. */
     public static boolean mapStyleNow() {
