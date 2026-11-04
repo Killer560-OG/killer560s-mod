@@ -184,7 +184,6 @@ public final class StorageSearchFeature {
         }
     }
 
-    // ------------------------------------------------------------------ clicks from the screen
 
     /** Handles a result click. Always echoes the location to chat so it's still useful with "Open on Click" off.
      *  {@code allResults} is the list currently on screen, used only for killer560's "if i search for an item and
@@ -330,7 +329,6 @@ public final class StorageSearchFeature {
         pendingChestPos = null;
     }
 
-    // ------------------------------------------------------------------ screen hooks
 
     private static void onScreenInit(Screen screen) {
         StorageSearchConfig cfg = StorageSearchConfig.getInstance();

@@ -89,9 +89,6 @@ public final class StorageSearchTimestamps {
             return min + "m ago";
         }
         long hours = min / 60;
-        if (hours < 48) {
-            return hours + "h ago";
-        }
-        return (hours / 24) + "d ago";
+        return hours < 48 ? hours + "h ago" : (hours / 24) + "d ago";
     }
 }

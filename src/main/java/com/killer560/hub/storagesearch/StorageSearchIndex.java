@@ -401,10 +401,7 @@ public final class StorageSearchIndex {
         if (local.startsWith("enderchest_")) {
             return new int[]{0, parseInt(local.substring("enderchest_".length()))};
         }
-        if (local.startsWith("backpack_")) {
-            return new int[]{1, parseInt(local.substring("backpack_".length()))};
-        }
-        return new int[]{2, 0};
+        return local.startsWith("backpack_") ? new int[]{1, parseInt(local.substring("backpack_".length()))} : new int[]{2, 0};
     }
 
     private static int parseInt(String s) {

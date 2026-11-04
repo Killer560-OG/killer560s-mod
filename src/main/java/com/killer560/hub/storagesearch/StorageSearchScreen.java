@@ -313,10 +313,7 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
         if (age < 3_600_000L) {
             return MenuStyle.OR;
         }
-        if (age < 86_400_000L) {
-            return MenuStyle.DIM;
-        }
-        return ScreenChrome.bad();
+        return age < 86_400_000L ? MenuStyle.DIM : ScreenChrome.bad();
     }
 
     private static Component onOff(String label, boolean value) {
