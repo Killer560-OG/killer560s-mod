@@ -18,6 +18,7 @@ final class PowderMiningTabs {
         out.add(new DoublePowderAlertTab());
         out.add(new ChestLootCompactTab());
         out.add(new LockpickHelperTab());
+        out.add(new CrystalHollowsWallsTab());
         return out;
     }
 }
