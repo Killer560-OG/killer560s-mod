@@ -84,12 +84,6 @@ public final class PartyRoomIntel {
         }
     }
 
-    public static Map<String, Integer> playerSecretsSnapshot() {
-        synchronized (LOCK) {
-            return new LinkedHashMap<>(PLAYER_SECRETS);
-        }
-    }
-
     /** New dungeon run (or left the dungeon) - everything here is per-run, same lifecycle as
      *  {@link com.killer560.hub.interop.PartyInteropState#reset()}. */
     static void reset() {

@@ -253,12 +253,6 @@ final class PartyDataProtocol {
 
     // ------------------------------------------------------------------ player secrets
 
-    static JsonObject playerSecretsPayload(int secrets) {
-        JsonObject o = new JsonObject();
-        o.addProperty("secrets", secrets);
-        return o;
-    }
-
     static int readPlayerSecrets(JsonElement value) {
         Integer v = intField(value, "secrets");
         return v != null && v >= 0 && v <= MAX_COUNT ? v : -1;
