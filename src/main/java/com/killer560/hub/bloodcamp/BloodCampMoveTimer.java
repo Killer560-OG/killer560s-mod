@@ -33,6 +33,8 @@ import java.util.regex.Pattern;
  * i.e. the move lands on the next 3-second boundary a couple of seconds after the last wave goes out. SkyHanni fires
  * its own "Kill Blood" title 150 ms (3 ticks) before that instant; that lead is {@link BloodCampConfig#getKillPopupLeadTicks()}
  * here so killer560 can tune it against his own ping instead of living with a hardcoded number.
+ * <b>The table is no longer used</b> (bctrig-1104): since SkyBlock 0.27.2 every Watcher moves at a fixed time per floor
+ * after his greeting whatever the gap ({@link #fastWatcherMoveTicks}), timed on {@link #elapsedSinceGreeting}.
  * <p>
  * Timed in {@code ClientLevel#getGameTime()} ticks, not wall clock, for the same reason the rest of this feature is:
  * it is the one clock the Watcher and this mod share. Unlike SkyHanni there is no separate server-time mark to take a
@@ -111,13 +113,29 @@ public final class BloodCampMoveTimer {
         return bloodOpenTick >= 0;
     }
 
-    /** Lag-free ticks since the greeting (server ticks: client ticks less every server stall), or -1 without one. */
+    /**
+     * Server ticks since the greeting, or -1 without one: the LOWER of the per-tick ping clock and the level's game time.
+     * Hypixel sends more pings than ticks in the Blood Room: his 2026-11-04 log has trusted windows of 20-24 pings per 20
+     * ticks, and over whole camps the ping clock ran up to 84 ticks ahead of the game time (00:09 camp: 417 pings to 333
+     * game ticks between the greeting and KILL, wall 16-18 s), so KILL came up to 4 s early in some camps and the "Last
+     * wave out" gap read 2-3 s long in others. The game time is the server's own tick count (set-time packets) and does
+     * not count extra pings; the ping clock stands still through a stall, where the game time runs on until the next
+     * set-time packet. Either one only ever runs AHEAD of the server, so the lower one is the server (bctrig-1104).
+     */
     static long elapsedSinceGreeting() {
         long now = nowTick();
         if (bloodOpenTick < 0 || now < 0) {
             return -1L;
         }
-        return com.killer560.hub.util.PerTickServerClock.now() - bloodOpenClock;
+        long byClock = com.killer560.hub.util.PerTickServerClock.now() - bloodOpenClock;
+        long byGameTime = now - bloodOpenTick;
+        return byGameTime < 0 ? byClock : Math.min(byClock, byGameTime);
+    }
+
+    /** Game ticks since the greeting, or -1 without one (the client's game time, stalls included until corrected). */
+    private static long gameTicksSinceGreeting() {
+        long now = nowTick();
+        return bloodOpenTick < 0 || now < bloodOpenTick ? -1L : now - bloodOpenTick;
     }
 
     /** The server's stall since the greeting, ms (Blood Camp Stats' camp lag). */
@@ -155,19 +173,17 @@ public final class BloodCampMoveTimer {
             }
             long elapsed = elapsedSinceGreeting();
             double gapSeconds = elapsed / 20.0;
-            if (gapSeconds < FAST_WATCHER_GAP_SECONDS) {
-                moveAtElapsed = fastWatcherMoveTicks(com.killer560.hub.secrets.DungeonState.getFloor());
-                LOGGER.info("[BloodCamp] Last wave out {} s after the greeting - the 0.27.2 fast Watcher on {} -> kill {} "
-                        + "server ticks after the greeting ({} ticks away, {} ms of server lag left out).",
-                        String.format(Locale.US, "%.2f", gapSeconds), com.killer560.hub.secrets.DungeonState.getFloor(),
-                        moveAtElapsed, moveAtElapsed - elapsed, lagMsSinceGreeting());
-                return;
-            }
-            double moveAtSeconds = moveAtSeconds(gapSeconds);
-            moveAtElapsed = Math.round(moveAtSeconds * 20.0);
-            LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away, KILL shown "
-                            + "at tick {}).", String.format(Locale.US, "%.2f", gapSeconds),
-                    String.format(Locale.US, "%.0f", moveAtSeconds), moveAtElapsed - elapsed, killShownTick());
+            // Every Watcher moves at the floor's fixed time now, whatever the gap (bctrig-1104; killer560, 2026-11-04: "some
+            // watchers the kill still comes up way too late"). In 25 camps of his 2026-11-03/04 logs the first skull after
+            // the move left the wall 446-474 game ticks after the greeting with gaps from 13.05 s to 22.35 s, the same for
+            // the gaps the old table took (18 s and up: 24-27 s, KILL 60 ticks late) as for the rest. The gap is logged only.
+            moveAtElapsed = fastWatcherMoveTicks(com.killer560.hub.secrets.DungeonState.getFloor());
+            LOGGER.info("[BloodCamp] Last wave out {} s after the greeting ({} game ticks, {} on the ping clock) on {} -> kill"
+                            + " {} server ticks after the greeting ({} ticks away, {} ms of server lag left out).",
+                    String.format(Locale.US, "%.2f", gapSeconds), gameTicksSinceGreeting(),
+                    com.killer560.hub.util.PerTickServerClock.now() - bloodOpenClock,
+                    com.killer560.hub.secrets.DungeonState.getFloor(), moveAtElapsed, moveAtElapsed - elapsed,
+                    lagMsSinceGreeting());
         } else if (SPAWNING_DONE.matcher(plain).matches()) {
             spawningDone = true;
             LOGGER.info("[BloodCamp] Watcher: last mob sent (\"That will be enough for now.\") at tick {}", now);
@@ -190,17 +206,10 @@ public final class BloodCampMoveTimer {
         }
     }
 
-    /** Greeting to last wave shorter than this is SkyBlock 0.27.2's sped-up Watcher ("Sped up Boss/Watcher dialogue",
-     *  "The Watcher now spawns its summons faster"): killer560's two post-update runs measured 16 s and 15 s
-     *  (09:55:42-09:55:58, 10:00:39-10:00:54), below every bucket of the old table, whose move times were measured on
-     *  the old pacing. The fast Watcher gets {@link #FAST_WATCHER_MOVE_TICKS} instead of the table. */
-    static final double FAST_WATCHER_GAP_SECONDS = 18.0;
-
-    /** Kill time for the 0.27.2 fast Watcher, in ticks after his first line: NoammAddons 1.2.9
-     *  {@code dungeon/BloodCamp.kt} dropped the gap table and its speed alert and shows "Kill Mobs" 400 server ticks
-     *  after its new {@code BloodOpenEvent} (the run's first Watcher line). killer560's two runs put the last wave 15-16 s
-     *  after the greeting, so this lands 4-5 s after it. The table above stays for a gap of 18 s or more, in case the
-     *  old pacing still happens; Noamm applies 400 to every run. */
+    /** Kill time for a floor this cannot read, in ticks after the Watcher's first line: NoammAddons 1.2.9
+     *  {@code dungeon/BloodCamp.kt} dropped the gap table (SkyHanni/Odin's, which this class's doc describes) and applies
+     *  its per-floor time to every run. Since bctrig-1104 so does this class: the old table's long-gap buckets put KILL
+     *  60 ticks after the Watcher had moved (see onChat). */
     static final int FAST_WATCHER_MOVE_TICKS = 400;
 
     /**
@@ -236,26 +245,6 @@ public final class BloodCampMoveTimer {
     /** "You have proven yourself. You may pass." - the Blood Room is cleared. */
     private static final Pattern CAMP_DONE =
             Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.$");
-
-    /** Seconds after the greeting at which the Watcher moves - see this class's own doc for the source. */
-    private static double moveAtSeconds(double gapSeconds) {
-        if (gapSeconds >= 31.0 && gapSeconds <= 34.0) {
-            return 36.0;
-        }
-        if (gapSeconds >= 28.0 && gapSeconds <= 31.0) {
-            return 33.0;
-        }
-        if (gapSeconds >= 25.0 && gapSeconds <= 28.0) {
-            return 30.0;
-        }
-        if (gapSeconds >= 22.0 && gapSeconds <= 25.0) {
-            return 27.0;
-        }
-        if (gapSeconds >= 1.0 && gapSeconds <= 22.0) {
-            return 24.0;
-        }
-        return gapSeconds + 3.0;
-    }
 
     private static long nowTick() {
         Minecraft client = Minecraft.getInstance();
@@ -302,8 +291,11 @@ public final class BloodCampMoveTimer {
         if (moveAtElapsed < 0 || bloodOpenTick < 0) {
             return -1L;
         }
-        return bloodOpenTick + moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks()
-                + com.killer560.hub.util.PerTickServerClock.deficitTicksSince(bloodOpenMark);
+        // The game ticks the server has not run yet (a stall the ping clock stood through) push KILL later by as much.
+        long game = gameTicksSinceGreeting();
+        long elapsed = elapsedSinceGreeting();
+        long behind = game < 0 || elapsed < 0 ? 0L : Math.max(0L, game - elapsed);
+        return bloodOpenTick + moveAtElapsed - BloodCampConfig.getInstance().getKillPopupLeadTicks() + behind;
     }
 
     /** Whether the kill timer ("KILL") has gone off: what Blood Camp Stats counts lost ticks from. */

@@ -2349,7 +2349,7 @@ final class SettingTooltipsData {
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Cheat build: clicks a blood mob on its kill timer when you aim at it, never faster than your attack speed. Needs Blood Camp on.");
             d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
-            d.put("auto blood camp/never miss", "No timer at all: attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on) and does not wait for the Kill Popup's KILL.");
+            d.put("auto blood camp/never miss", "No mob timer: once the Kill Popup's KILL is up, attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on).");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");

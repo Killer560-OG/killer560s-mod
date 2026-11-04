@@ -285,6 +285,20 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - **Ten client ticks are not ten server ticks.** Testkit 186 on the run-3 jar: the Trigger Bot clicked exactly 10 client
   ticks apart, but after a client stall those 10 ran in 400 ms and the server saw 8- and 9-tick gaps (3 of 5 runs). The
   attack cap now also holds on `PerTickServerClock` when it is trusted at both clicks; the stall's cause was not found.
+- **In the Blood Room Hypixel sends more than one ping per tick, so the ping clock runs ahead of game time** (bctrig-1104,
+  his 2026-11-03/04 26.3 log, 25 camps). `PerTickServerClock` is trusted (sticky on Hypixel) and counts every ping, and the
+  Blood Room got 20-24 pings per 20 ticks: one camp read 417 clock ticks against 333 game ticks (`level.getGameTime()`,
+  which matched the wall clock), a 14 s last wave read 16.45 s. Two faults came of it. The long-gap table (gap >= 18 s ->
+  24-27 s) put KILL ~60 ticks after the move on fast Watchers ("the kill still comes up way too late"), and the gate opened
+  early elsewhere. Measured: the first skull after the move left the wall 446-474 game ticks after the greeting whatever the
+  gap (13.05-22.35 s), so the gap table is gone (the floor's time always, as NoammAddons 1.2.9), and `elapsedSinceGreeting`
+  is the lesser of clock and game time. Testkit 1104-bloodcamp-gametime runs the ping clock 400 ticks ahead.
+- **Never Miss waits for KILL** (killer560, 2026-11-04: "triggerbot still kills before the kill alert goes off"). It
+  ignored the kill timer by design (61f5f083d), so walking in it hit mobs already on the floor (his 00:25:01 camp: a giant
+  and a player-model mob 11 and 4 ticks before the gate). It still ignores Trigger Offset. Testkit 1104-bloodcamp-nevermiss-waits-kill.
+- **Mob Ticks start at the first spawn after the kill timer, not at the timer** (killer560, same day): the mobs still on the
+  floor when it goes off are not counted until a post-move trip's mob lands (`BloodCampStats` WAITING_SPAWN, `noteClaim` ->
+  `onTripMobLanded`; a first-spawn trip never starts it). Testkit 1104-bloodcamp-stats-spawn.
 
 ## Terminals and solvers
 
