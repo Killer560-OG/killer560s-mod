@@ -50,10 +50,7 @@ public final class SupportersAutoShare {
      *  your own model; a smaller size shares as 0.5, or the push would 400 on every retry and take your name, trail and
      *  mob down with it. */
     public static double sharedScale(double scale) {
-        if (Double.isNaN(scale)) {
-            return 1.0;
-        }
-        return Math.max(0.5, Math.min(2.0, scale));
+        return Double.isNaN(scale) ? 1.0 : Math.max(0.5, Math.min(2.0, scale));
     }
 
     /**

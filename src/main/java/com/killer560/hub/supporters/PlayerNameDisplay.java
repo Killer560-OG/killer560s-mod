@@ -91,10 +91,7 @@ public final class PlayerNameDisplay {
         if (localPlayer) {
             return cfg.getOwnScale();
         }
-        if (id != null && id.version() == 2) {
-            return 1.0f;
-        }
-        return SupportersFeature.scaleFor(id) * cfg.getOthersScale();
+        return id != null && id.version() == 2 ? 1.0f : SupportersFeature.scaleFor(id) * cfg.getOthersScale();
     }
 
     /** @return the text to paint instead of {@code candidateIgn} at a chat line's sender position, or
