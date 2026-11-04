@@ -227,13 +227,7 @@ public final class BreakerAuraStore {
             return "Type a name first.";
         }
         List<String> names = listConfigNames();
-        String match = null;
-        for (String n : names) {
-            if (n.equalsIgnoreCase(name)) {
-                match = n;
-                break;
-            }
-        }
+        String match = names.stream().filter(n -> n.equalsIgnoreCase(name)).findFirst().orElse(null);
         if (match == null) {
             LOGGER.info("[BreakerStore] delete refused: name={} reason=no such config ({} known)", name, names.size());
             return "No config called " + name + ".";
