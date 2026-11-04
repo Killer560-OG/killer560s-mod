@@ -31,9 +31,7 @@ public final class WorldExportCommand {
     }
 
     public static void register() {
-        if (!(BuildVariant.DEV_TOOLS && BuildVariant.CHEAT_FEATURES_ENABLED)) {
-            return;
-        }
+        if (!(BuildVariant.DEV_TOOLS && BuildVariant.CHEAT_FEATURES_ENABLED)) return;
         EntityRecorder.register();
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("k560worldexport")
@@ -123,9 +121,7 @@ public final class WorldExportCommand {
                 maxZ = Math.max(maxZ, ChunkPos.getZ(k));
             }
         }
-        if (minX > maxX) {
-            return new Coverage(0, 0, 0, 0, 0, 0, 0, 0, List.of(), "");
-        }
+        if (minX > maxX) return new Coverage(0, 0, 0, 0, 0, 0, 0, 0, List.of(), "");
         Minecraft mc = Minecraft.getInstance();
         int px = mc.player == null ? 0 : mc.player.blockPosition().getX() >> 4;
         int pz = mc.player == null ? 0 : mc.player.blockPosition().getZ() >> 4;

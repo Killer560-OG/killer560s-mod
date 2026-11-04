@@ -61,9 +61,7 @@ public final class WorldExporter {
         if (prop.isBlank()) {
             prop = System.getenv().getOrDefault("KILLER560_WORLD_CAPTURES", "");
         }
-        if (!prop.isBlank()) {
-            return Path.of(prop);
-        }
+        if (!prop.isBlank()) return Path.of(prop);
         return FabricLoader.getInstance().getGameDir().resolve("killer560-world-captures");
     }
 
@@ -82,9 +80,7 @@ public final class WorldExporter {
                 for (int dz = -LIVE_RADIUS; dz <= LIVE_RADIUS; dz++) {
                     int cx = pcx + dx;
                     int cz = pcz + dz;
-                    if (!level.getChunkSource().hasChunk(cx, cz)) {
-                        continue;
-                    }
+                    if (!level.getChunkSource().hasChunk(cx, cz)) continue;
                     LevelChunk chunk = ChunkCacheManager.vanillaGetChunk(level, cx, cz);
                     if (chunk != null && !(chunk instanceof EmptyLevelChunk)) {
                         out.put(ChunkPos.pack(cx, cz), chunk);
@@ -104,9 +100,7 @@ public final class WorldExporter {
     public static Result export(ClientLevel level, String name) throws IOException {
         Minecraft mc = Minecraft.getInstance();
         Map<Long, LevelChunk> chunks = collect(level);
-        if (chunks.isEmpty()) {
-            throw new IOException("no chunks are loaded or cached");
-        }
+        if (chunks.isEmpty()) throw new IOException("no chunks are loaded or cached");
         Path folder = baseDir().resolve(name);
         Path regionDir = folder.resolve("dimensions").resolve("minecraft").resolve("overworld").resolve("region");
         if (Files.exists(regionDir)) {

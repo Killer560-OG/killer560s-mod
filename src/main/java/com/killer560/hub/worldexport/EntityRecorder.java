@@ -41,9 +41,7 @@ public final class EntityRecorder {
     }
 
     public static void register() {
-        if (registered) {
-            return;
-        }
+        if (registered) return;
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level != lastLevel) {
@@ -67,9 +65,7 @@ public final class EntityRecorder {
     private static void scan(ClientLevel level) {
         Minecraft mc = Minecraft.getInstance();
         for (Entity e : level.entitiesForRendering()) {
-            if (e == mc.player || e.isRemoved()) {
-                continue;
-            }
+            if (e == mc.player || e.isRemoved()) continue;
             if (e instanceof ArmorStand || e instanceof Player) {
                 SEEN.put(e.getUUID(), describe(level, e));
             }
