@@ -487,10 +487,7 @@ public final class AutoPuzzleUtil {
         Vec3 eye = eyePosition(player, true);
         com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r =
                 com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eye, to, 57.0);
-        if (r != null) {
-            return new float[]{r.yaw(), r.pitch()};
-        }
-        return etherwarpDirection(level, eye, to, 61.0);
+        return r != null ? new float[]{r.yaw(), r.pitch()} : etherwarpDirection(level, eye, to, 61.0);
     }
 
     private static final double[][] VISIBLE_OFFSETS = {

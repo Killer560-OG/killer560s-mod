@@ -1038,10 +1038,7 @@ public final class AutoBeams {
             }
         }
         Vec3 up = dashLanding(client, player, feet, player.getYRot(), -90f);
-        if (up != null && reachesFromFeet(client, up, lantern)) {
-            return new AotvPlan(from, player.getYRot(), -90f, up);
-        }
-        return null;
+        return up != null && reachesFromFeet(client, up, lantern) ? new AotvPlan(from, player.getYRot(), -90f, up) : null;
     }
 
     /**

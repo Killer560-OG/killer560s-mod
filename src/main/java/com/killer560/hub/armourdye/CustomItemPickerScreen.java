@@ -1,7 +1,6 @@
 package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.MenuStyle;
-import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
@@ -29,7 +28,7 @@ import java.util.List;
  * for it"), and reopening the page shows the item applied last, picked and scrolled to (the entry keeps its key,
  * {@link ArmourDyeEntry#customItem}).
  */
-public final class CustomItemPickerScreen extends Screen implements MenuThemedScreen {
+public final class CustomItemPickerScreen extends ListScreenBase {
 
     /** One searchable item: a Minecraft item or a Hypixel catalog entry. */
     private record Choice(String name, String source, Item minecraft, SkyblockItemEntry hypixel) {
@@ -47,23 +46,17 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
     private final List<Choice> all = new ArrayList<>();
     private final List<Choice> shown = new ArrayList<>();
     private String query = "";
-    private int scroll;
     private Choice picked;
     private ItemStack pickedStack = ItemStack.EMPTY;
 
-    private int panelX;
-    private int panelY;
-    private int panelW;
-    private int panelH;
     private int leftW;
     private int rightX;
     private int rightW;
     private int listY;
-    private int rows;
     private EditBox search;
 
     public CustomItemPickerScreen(CustomItemsScreen main) {
-        super(Component.literal("Custom Item"));
+        super(Component.literal("Custom Item"), main);
         this.main = main;
     }
 
@@ -187,10 +180,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
 
     /** The stack a choice shows as. Built on pick, not per frame. */
     private static ItemStack stackFor(Choice c) {
-        if (c.hypixel() != null) {
-            return SkyblockItemStackFactory.build(c.hypixel());
-        }
-        return new ItemStack(c.minecraft());
+        return c.hypixel() != null ? SkyblockItemStackFactory.build(c.hypixel()) : new ItemStack(c.minecraft());
     }
 
     @Override
@@ -251,28 +241,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(scroll - (int) Math.signum(scrollY), Math.max(0, shown.size() - rows)));
-        return true;
-    }
-
-    @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(main);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
-
-    @Override
-    public String themeId() {
-        return "custom_items";
+    protected int listSize() {
+        return shown.size();
     }
 }

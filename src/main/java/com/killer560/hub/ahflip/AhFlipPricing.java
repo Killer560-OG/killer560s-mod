@@ -56,26 +56,17 @@ public final class AhFlipPricing {
         if (price >= 100_000_000L) {
             return 0.025;
         }
-        if (price >= 10_000_000L) {
-            return 0.02;
-        }
-        return 0.01;
+        return price >= 10_000_000L ? 0.02 : 0.01;
     }
 
     /** The tax taken when the coins of a sale at {@code price} are collected: 1% above 1,000,000, never under 1,000,000. */
     public static long collectTax(long price) {
-        if (price <= 1_000_000L) {
-            return 0L;
-        }
-        return Math.min((long) Math.ceil(price * 0.01), price - 1_000_000L);
+        return price <= 1_000_000L ? 0L : Math.min((long) Math.ceil(price * 0.01), price - 1_000_000L);
     }
 
     /** What a BIN sold at {@code price} puts in the purse: the price less its listing fee and the collection tax. */
     public static long netOfSale(long price) {
-        if (price <= 0) {
-            return 0L;
-        }
-        return price - (long) Math.ceil(price * listingFeeRate(price)) - collectTax(price);
+        return price <= 0 ? 0L : price - (long) Math.ceil(price * listingFeeRate(price)) - collectTax(price);
     }
 
     /** The relist price: {@code lowestOther} less the undercut (tenths of a percent), and at least one coin under it. */
@@ -93,13 +84,7 @@ public final class AhFlipPricing {
      */
     public static Flip evaluate(java.util.UUID uuid, String key, String name, long price, Market market, Settings s,
                                 long purse) {
-        if (key == null || key.isEmpty() || market == null || price <= 0) {
-            return null;
-        }
-        if (s.maxBuyPrice() > 0 && price > s.maxBuyPrice()) {
-            return null;
-        }
-        if (purse > 0 && price > purse) {
+        if (key == null || key.isEmpty() || market == null || price <= 0 || s.maxBuyPrice() > 0 && price > s.maxBuyPrice() || purse > 0 && price > purse) {
             return null;
         }
         long lowestOther = market.lowestExcept(uuid);

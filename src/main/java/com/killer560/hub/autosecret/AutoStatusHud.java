@@ -322,10 +322,7 @@ public final class AutoStatusHud {
         if (a.contains(" -> ")) {
             return "attacking";
         }
-        if (a.startsWith("landing") || a.contains("hop")) {
-            return "hopping";
-        }
-        return "working";
+        return a.startsWith("landing") || a.contains("hop") ? "hopping" : "working";
     }
 
     /** Auto Secret's / Autopilot's step in a word or two. */
@@ -489,10 +486,7 @@ public final class AutoStatusHud {
     }
 
     static String fit(Font font, String s, int max) {
-        if (font.width(s) <= max) {
-            return s;
-        }
-        return font.plainSubstrByWidth(s, Math.max(0, max - font.width(".."))) + "..";
+        return font.width(s) <= max ? s : font.plainSubstrByWidth(s, Math.max(0, max - font.width(".."))) + "..";
     }
 
     /** What is drawn right now: the live layout, the editor's sample while a menu is open, or null. */

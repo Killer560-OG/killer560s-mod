@@ -1,5 +1,6 @@
 package com.killer560.hub.autosell;
 
+import java.util.function.Predicate;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -117,71 +118,36 @@ public final class AutoSellCommands {
     }
 
     private static void add(String raw) {
-        if (!ready()) {
-            return;
-        }
-        String identity = resolveIdentity(raw);
-        if (identity == null) {
-            ModChat.send(FEATURE, ModChat.bad("Hold the item and use "), ModChat.value("/autosell add held"),
-                    ModChat.text(", or type its identity directly."));
-            return;
-        }
-        AutoSellConfig cfg = AutoSellConfig.getInstance();
-        boolean added = cfg.addSellIdentity(identity);
-        cfg.save();
-        ModChat.send(FEATURE, added ? ModChat.good("Added ") : ModChat.text("Already on the list: "),
-                ModChat.value(identity), ModChat.text("."));
+        edit(raw, "/autosell add held", AutoSellConfig.getInstance()::addSellIdentity, "Added ", "Already on the list: ");
     }
 
     private static void remove(String raw) {
-        if (!ready()) {
-            return;
-        }
-        String identity = resolveIdentity(raw);
-        if (identity == null) {
-            ModChat.send(FEATURE, ModChat.bad("Hold the item and use "), ModChat.value("/autosell remove held"),
-                    ModChat.text(", or type its identity directly."));
-            return;
-        }
-        AutoSellConfig cfg = AutoSellConfig.getInstance();
-        boolean removed = cfg.removeSellIdentity(identity);
-        cfg.save();
-        ModChat.send(FEATURE, removed ? ModChat.good("Removed ") : ModChat.text("Wasn't on the list: "),
-                ModChat.value(identity), ModChat.text("."));
+        edit(raw, "/autosell remove held", AutoSellConfig.getInstance()::removeSellIdentity, "Removed ", "Wasn't on the list: ");
     }
 
     private static void neverSellAdd(String raw) {
-        if (!ready()) {
-            return;
-        }
-        String identity = resolveIdentity(raw);
-        if (identity == null) {
-            ModChat.send(FEATURE, ModChat.bad("Hold the item and use "), ModChat.value("/autosell neversell add held"),
-                    ModChat.text(", or type its identity directly."));
-            return;
-        }
-        AutoSellConfig cfg = AutoSellConfig.getInstance();
-        boolean added = cfg.addNeverSellIdentity(identity);
-        cfg.save();
-        ModChat.send(FEATURE, added ? ModChat.good("Added ") : ModChat.text("Already on the never-sell list: "),
-                ModChat.value(identity), ModChat.text("."));
+        edit(raw, "/autosell neversell add held", AutoSellConfig.getInstance()::addNeverSellIdentity, "Added ",
+                "Already on the never-sell list: ");
     }
 
     private static void neverSellRemove(String raw) {
+        edit(raw, "/autosell neversell remove held", AutoSellConfig.getInstance()::removeNeverSellIdentity, "Removed ",
+                "Wasn't on the never-sell list: ");
+    }
+
+    private static void edit(String raw, String heldCommand, Predicate<String> change, String done, String unchanged) {
         if (!ready()) {
             return;
         }
         String identity = resolveIdentity(raw);
         if (identity == null) {
-            ModChat.send(FEATURE, ModChat.bad("Hold the item and use "), ModChat.value("/autosell neversell remove held"),
+            ModChat.send(FEATURE, ModChat.bad("Hold the item and use "), ModChat.value(heldCommand),
                     ModChat.text(", or type its identity directly."));
             return;
         }
-        AutoSellConfig cfg = AutoSellConfig.getInstance();
-        boolean removed = cfg.removeNeverSellIdentity(identity);
-        cfg.save();
-        ModChat.send(FEATURE, removed ? ModChat.good("Removed ") : ModChat.text("Wasn't on the never-sell list: "),
-                ModChat.value(identity), ModChat.text("."));
+        boolean changed = change.test(identity);
+        AutoSellConfig.getInstance().save();
+        ModChat.send(FEATURE, changed ? ModChat.good(done) : ModChat.text(unchanged), ModChat.value(identity), ModChat.text("."));
     }
 
     /** Opens the sell list as a menu, where items can be added or taken off it (killer560, 2026-10-18). */

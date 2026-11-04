@@ -46,10 +46,7 @@ public final class MenuSearch {
         }
         String s = text.startsWith("/") ? text.substring(1) : text;
         int sp = s.indexOf(' ');
-        if (sp < 0 || !names.contains(s.substring(0, sp).toLowerCase(Locale.ROOT))) {
-            return null;
-        }
-        return s.substring(sp + 1).trim();
+        return sp < 0 || !names.contains(s.substring(0, sp).toLowerCase(Locale.ROOT)) ? null : s.substring(sp + 1).trim();
     }
 
     /** A search box's text after a typed character or paste: "/bazaar sugar" becomes "sugar"; anything else is kept. */

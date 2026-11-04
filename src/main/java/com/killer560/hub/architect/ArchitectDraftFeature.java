@@ -2,6 +2,7 @@ package com.killer560.hub.architect;
 
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.SackCommands;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
@@ -61,26 +62,25 @@ public final class ArchitectDraftFeature {
         }
         String text = ChatObserver.strip(message);
         String trimmed = text == null ? "" : text.trim();
-        String matchedName = null;
+        String failer = null;
         for (Pattern pattern : FAIL_PATTERNS) {
             Matcher m = pattern.matcher(trimmed);
             if (m.find()) {
-                matchedName = m.group(1);
+                failer = m.group(1);
                 break;
             }
         }
-        if (matchedName == null) {
+        if (failer == null) {
             return;
         }
-        // Lambda capture needs an effectively-final variable - matchedName above is reassigned in the loop.
-        String failer = matchedName;
+        String name = failer;
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             if (client.player == null) {
                 return;
             }
             String self = client.player.getGameProfile().name();
-            boolean mine = self != null && self.equalsIgnoreCase(failer);
+            boolean mine = self != null && self.equalsIgnoreCase(name);
             // The cooldown is spent only by a fail that does something here. It used to be spent before the
             // "is it mine" check, so a teammate's fail with only Auto Get on blocked his own a moment later.
             if (!mine && !cfg.isClickMessage()) {
@@ -94,7 +94,7 @@ public final class ArchitectDraftFeature {
             // Through SackCommands: Hypixel Skyblock only, and never on a server that answered /gfs "unknown command".
             // When it cannot send, the click message (if on) is still offered below.
             if (mine && cfg.isAutoGet()
-                    && com.killer560.hub.util.SackCommands.send(client, COMMAND.substring("gfs ".length()))) {
+                    && SackCommands.send(client, COMMAND.substring("gfs ".length()))) {
                 ModChat.send("Architect", ModChat.text("Puzzle failed - getting an "), ModChat.value("Architect's First Draft"),
                         ModChat.text(" from your sack."));
                 return;

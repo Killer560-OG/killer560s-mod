@@ -29,10 +29,7 @@ public final class HypixelJoinWatcher {
             return;
         }
         ServerData server = minecraft.getCurrentServer();
-        if (server == null || server.ip == null) {
-            return;
-        }
-        if (!server.ip.toLowerCase(Locale.US).contains("hypixel.net")) {
+        if (server == null || server.ip == null || !server.ip.toLowerCase(Locale.US).contains("hypixel.net")) {
             return;
         }
         PendingConnection.clear();

@@ -181,10 +181,7 @@ public final class RouteNode {
     }
 
     public static double clampAlignSize(double v) {
-        if (Double.isNaN(v)) {
-            return DEFAULT_ALIGN_SIZE;
-        }
-        return Math.max(MIN_ALIGN_SIZE, Math.min(MAX_ALIGN_SIZE, v));
+        return Double.isNaN(v) ? DEFAULT_ALIGN_SIZE : Math.max(MIN_ALIGN_SIZE, Math.min(MAX_ALIGN_SIZE, v));
     }
 
     private static final java.util.regex.Pattern SIZE = java.util.regex.Pattern.compile("\\d{1,3}(?:\\.\\d{1,3})?|\\.\\d{1,3}");

@@ -102,10 +102,7 @@ public final class AutoUpdateFeature {
             return "the mod is not a jar in this game's mods folder (a dev or test run)";
         }
         int copies = modJarsIn(jar.getParent()).size();
-        if (copies != 1) {
-            return copies + " killer560smod jars in mods/ - sort that out by hand";
-        }
-        return null;
+        return copies != 1 ? copies + " killer560smod jars in mods/ - sort that out by hand" : null;
     }
 
     /** This mod's own jar, when it is a regular {@code .jar} directly inside {@code <game dir>/mods}; else null. */

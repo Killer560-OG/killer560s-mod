@@ -136,10 +136,7 @@ public final class AbilityCooldownState {
     /** @return remaining ms, or 0 when ready. */
     public static long remainingMs(ItemAbility ability) {
         Long end = ENDS_AT.get(ability);
-        if (end == null) {
-            return 0L;
-        }
-        return Math.max(0L, end - System.currentTimeMillis());
+        return end == null ? 0L : Math.max(0L, end - System.currentTimeMillis());
     }
 
     /** True while nothing has fired this session, so the HUD has no rows and can skip building any. */

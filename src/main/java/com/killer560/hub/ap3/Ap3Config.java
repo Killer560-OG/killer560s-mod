@@ -27,7 +27,7 @@ import java.util.Map;
  * Same split as {@code autoroutes/AutoRoutesConfig}: every getter that can make the feature act is gated on
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and {@link com.killer560.hub.util.SkyblockGate},
  * the {@code ...Raw()} getters are for tab labels. Per-key {@link ConfigJson} readers, defaults on any bad key.
- * Every keybind is stored under a stable id ({@link #KEYBIND_IDS}) AND exposed as a typed getter/setter pair, all
+ * Every keybind is stored under a stable id ({@link #KEYBIND_IDS}), all
  * defaulting to unbound ({@link KeyUtil#NONE}).
  */
 public final class Ap3Config {
@@ -752,48 +752,4 @@ public final class Ap3Config {
         }
         return m;
     }
-
-    // Typed pairs, one per command, for the UI agent (all delegate to the id map above).
-    public int getAddAlignKey() { return getKeybind(KEY_ADD_ALIGN); }
-    public void setAddAlignKey(int code) { setKeybind(KEY_ADD_ALIGN, code); }
-    public int getAddAxisAlignKey() { return getKeybind(KEY_ADD_AXIS_ALIGN); }
-    public void setAddAxisAlignKey(int code) { setKeybind(KEY_ADD_AXIS_ALIGN, code); }
-    public int getAddWalkKey() { return getKeybind(KEY_ADD_WALK); }
-    public void setAddWalkKey(int code) { setKeybind(KEY_ADD_WALK, code); }
-    public int getAddRunKey() { return getKeybind(KEY_ADD_RUN); }
-    public void setAddRunKey(int code) { setKeybind(KEY_ADD_RUN, code); }
-    public int getAddLeapKey() { return getKeybind(KEY_ADD_LEAP); }
-    public void setAddLeapKey(int code) { setKeybind(KEY_ADD_LEAP, code); }
-    public int getAddLeapCounterKey() { return getKeybind(KEY_ADD_LEAP_COUNTER); }
-    public void setAddLeapCounterKey(int code) { setKeybind(KEY_ADD_LEAP_COUNTER, code); }
-    public int getAddTerminalKey() { return getKeybind(KEY_ADD_TERMINAL); }
-    public void setAddTerminalKey(int code) { setKeybind(KEY_ADD_TERMINAL, code); }
-    public int getAddStopKey() { return getKeybind(KEY_ADD_STOP); }
-    public void setAddStopKey(int code) { setKeybind(KEY_ADD_STOP, code); }
-    public int getAddLookKey() { return getKeybind(KEY_ADD_LOOK); }
-    public void setAddLookKey(int code) { setKeybind(KEY_ADD_LOOK, code); }
-    public int getAddBoomKey() { return getKeybind(KEY_ADD_BOOM); }
-    public void setAddBoomKey(int code) { setKeybind(KEY_ADD_BOOM, code); }
-    public int getAddStopwatchKey() { return getKeybind(KEY_ADD_STOPWATCH); }
-    public void setAddStopwatchKey(int code) { setKeybind(KEY_ADD_STOPWATCH, code); }
-    public int getListKey() { return getKeybind(KEY_LIST); }
-    public void setListKey(int code) { setKeybind(KEY_LIST, code); }
-    public int getUndoKey() { return getKeybind(KEY_UNDO); }
-    public void setUndoKey(int code) { setKeybind(KEY_UNDO, code); }
-    public int getRedoKey() { return getKeybind(KEY_REDO); }
-    public void setRedoKey(int code) { setKeybind(KEY_REDO, code); }
-    public int getDeleteKey() { return getKeybind(KEY_DELETE); }
-    public void setDeleteKey(int code) { setKeybind(KEY_DELETE, code); }
-    public int getReplaceLastKey() { return getKeybind(KEY_REPLACE_LAST); }
-    public void setReplaceLastKey(int code) { setKeybind(KEY_REPLACE_LAST, code); }
-    public int getClearKey() { return getKeybind(KEY_CLEAR); }
-    public void setClearKey(int code) { setKeybind(KEY_CLEAR, code); }
-    public int getReloadKey() { return getKeybind(KEY_RELOAD); }
-    public void setReloadKey(int code) { setKeybind(KEY_RELOAD, code); }
-    public int getStartKey() { return getKeybind(KEY_START); }
-    public void setStartKey(int code) { setKeybind(KEY_START, code); }
-    public int getStopKey() { return getKeybind(KEY_STOP); }
-    public void setStopKey(int code) { setKeybind(KEY_STOP, code); }
-    public int getTestModeKey() { return getKeybind(KEY_TEST_MODE); }
-    public void setTestModeKey(int code) { setKeybind(KEY_TEST_MODE, code); }
 }

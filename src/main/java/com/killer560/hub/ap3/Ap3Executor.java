@@ -11,6 +11,7 @@ import com.killer560.hub.fastleap.PosmsgTargets;
 import com.killer560.hub.fastleap.Teammates;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.HeldKeys;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ServerCorrections;
 import net.minecraft.client.Minecraft;
@@ -1615,30 +1616,13 @@ public final class Ap3Executor {
             gateCloseDone = true;
             gateSectionSkipped = true;
         } else if (node.leapCounter > 0) {
-            double radius = Ap3Config.getInstance().getLeapDetectRadius();
-            Vec3 me = player.position();
-            String self = Teammates.selfName();
-            for (AbstractClientPlayer p : client.level.players()) {
-                UUID id = p.getUUID();
-                Vec3 now = p.position();
-                Vec3 prev = lastPositions.put(id, now);
-                if (p == player || counted.contains(id) || (id.version() != 4 && !leapCountAnyPlayer)) {
-                    continue;
-                }
-                String name = ChatObserver.strip(p.getGameProfile().name());
-                if (name.equalsIgnoreCase(self) || (Teammates.isKnown() && Teammates.byName(name) == null)) {
-                    continue;
-                }
-                boolean teleported = prev != null && prev.distanceTo(now) >= TELEPORT_JUMP;
-                if (teleported && now.distanceTo(me) <= radius) {
-                    counted.add(id);
-                    leapGateArrived++;
-                    leapGateCountedReal++;
-                    LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
-                    if (Ap3Config.getInstance().isChatFeedback()) {
-                        chat(ModChat.value(name), ModChat.text(" leapt to you "),
-                                ModChat.dim("(" + leapGateArrived + "/" + node.leapCounter + ")"));
-                    }
+            for (String name : newLeapers(client, player, false)) {
+                leapGateArrived++;
+                leapGateCountedReal++;
+                LOGGER.info("[AP3] leap gate: {} leapt to you ({}/{})", name, leapGateArrived, node.leapCounter);
+                if (Ap3Config.getInstance().isChatFeedback()) {
+                    chat(ModChat.value(name), ModChat.text(" leapt to you "),
+                            ModChat.dim("(" + leapGateArrived + "/" + node.leapCounter + ")"));
                 }
             }
         }
@@ -1870,22 +1854,19 @@ public final class Ap3Executor {
         step = null;
     }
 
+    /** Hypixel's "gate destroyed" line is proof enough on its own; else any block of the snapshot changed. */
+    private static boolean boomGateBroke(Minecraft client) {
+        return boomChatConfirmed || boomBefore.entrySet().stream()
+                .anyMatch(e -> client.level.getBlockState(e.getKey()) != e.getValue());
+    }
+
     /** Every END: the background boom's gate check; its result is logged and said, and stops nothing. */
     private static void tickBoomBackground(Minecraft client) {
         Ap3Node node = boomBg;
         if (node == null || client.level == null) {
             return;
         }
-        boolean changed = boomChatConfirmed;
-        if (!changed) {
-            for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                    changed = true;
-                    break;
-                }
-            }
-        }
-        if (changed) {
+        if (boomGateBroke(client)) {
             boomLog(node, "result: the gate broke (checked in the background)");
         } else if (++boomBgTicks > BOOM_TIMEOUT) {
             boomLog(node, "result: nothing broke in " + BOOM_TIMEOUT + " ticks (checked in the background; the route went on)");
@@ -4259,9 +4240,25 @@ public final class Ap3Executor {
             step = Step.CONFIRM;
             return;
         }
+        for (String name : newLeapers(client, player, true)) {
+            arrived++;
+            LOGGER.info("[AP3] {} leapt to you ({}/{})", name, arrived, node.leapCount);
+            if (Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.value(name), ModChat.text(" leapt to you "), ModChat.dim("(" + arrived + "/" + node.leapCount + ")"));
+            }
+        }
+        if (arrived >= node.leapCount) {
+            finishNode();
+        }
+    }
+
+    /** Teammates that teleported next to {@code player} since the last call (each is added to {@code counted}). A player
+     *  seen for the first time counts as having teleported only when {@code firstSightCounts}. */
+    private static List<String> newLeapers(Minecraft client, LocalPlayer player, boolean firstSightCounts) {
         double radius = Ap3Config.getInstance().getLeapDetectRadius();
         Vec3 me = player.position();
         String self = Teammates.selfName();
+        List<String> names = new ArrayList<>();
         for (AbstractClientPlayer p : client.level.players()) {
             UUID id = p.getUUID();
             Vec3 now = p.position();
@@ -4273,19 +4270,13 @@ public final class Ap3Executor {
             if (name.equalsIgnoreCase(self) || (Teammates.isKnown() && Teammates.byName(name) == null)) {
                 continue;
             }
-            boolean teleported = prev == null || prev.distanceTo(now) >= TELEPORT_JUMP;
+            boolean teleported = prev == null ? firstSightCounts : prev.distanceTo(now) >= TELEPORT_JUMP;
             if (teleported && now.distanceTo(me) <= radius) {
                 counted.add(id);
-                arrived++;
-                LOGGER.info("[AP3] {} leapt to you ({}/{})", name, arrived, node.leapCount);
-                if (Ap3Config.getInstance().isChatFeedback()) {
-                    chat(ModChat.value(name), ModChat.text(" leapt to you "), ModChat.dim("(" + arrived + "/" + node.leapCount + ")"));
-                }
+                names.add(name);
             }
         }
-        if (arrived >= node.leapCount) {
-            finishNode();
-        }
+        return names;
     }
 
     // ---- TERMINAL: only a completion by YOU, never a GUI close --------------------------------------------
@@ -5292,16 +5283,7 @@ public final class Ap3Executor {
                 }
             }
             case CONFIRM -> {
-                boolean changed = boomChatConfirmed; // Hypixel's "gate destroyed" line is proof enough on its own
-                if (!changed) {
-                    for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
-                        if (client.level.getBlockState(e.getKey()) != e.getValue()) {
-                            changed = true;
-                            break;
-                        }
-                    }
-                }
-                if (changed) {
+                if (boomGateBroke(client)) {
                     boomLog(node, "result: the gate broke");
                     boomBefore.clear();
                     boomChatConfirmed = false;
@@ -5519,10 +5501,7 @@ public final class Ap3Executor {
      * Null = no constraint.
      */
     public static float[] walkKeyedYaws() {
-        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden()) {
-            return null;
-        }
-        if (activeNode != null && activeNode.type.ownsMovement()) {
+        if (!isRunning() || holdDir == null || aiming || aimLock || actNode != null || isInputOverridden() || activeNode != null && activeNode.type.ownsMovement()) {
             return null;
         }
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
@@ -5791,13 +5770,7 @@ public final class Ap3Executor {
             }
             return;
         }
-        client.options.keyUp.setDown(wantForward);
-        client.options.keyDown.setDown(wantBackward);
-        client.options.keyLeft.setDown(wantLeft);
-        client.options.keyRight.setDown(wantRight);
-        client.options.keyShift.setDown(wantSneak);
-        client.options.keySprint.setDown(wantSprint);
-        client.options.keyJump.setDown(wantJump);
+        HeldKeys.set(client, wantForward, wantBackward, wantLeft, wantRight, wantJump, wantSneak, wantSprint);
         fallbackKeysHeld = true;
     }
 
@@ -5808,13 +5781,7 @@ public final class Ap3Executor {
         }
         fallbackKeysHeld = false;
         Minecraft client = Minecraft.getInstance();
-        client.options.keyUp.setDown(false);
-        client.options.keyDown.setDown(false);
-        client.options.keyLeft.setDown(false);
-        client.options.keyRight.setDown(false);
-        client.options.keyJump.setDown(false);
-        client.options.keyShift.setDown(false);
-        client.options.keySprint.setDown(false);
+        HeldKeys.releaseAll(client);
     }
 
     /**

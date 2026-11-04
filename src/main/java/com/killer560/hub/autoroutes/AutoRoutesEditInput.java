@@ -57,10 +57,7 @@ public final class AutoRoutesEditInput {
         UseBlockCallback.EVENT.addPhaseOrdering(EDIT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
         UseBlockCallback.EVENT.register(EDIT_PHASE, (player, level, hand, hit) -> {
             try {
-                if (hit == null || level == null || !level.isClientSide()) {
-                    return InteractionResult.PASS;
-                }
-                if (!AutoRoutesFeature.isEditMode() || !AutoRoutesConfig.getInstance().isEnabledRaw()) {
+                if (hit == null || level == null || !level.isClientSide() || !AutoRoutesFeature.isEditMode() || !AutoRoutesConfig.getInstance().isEnabledRaw()) {
                     return InteractionResult.PASS;
                 }
                 // Only with the Dungeon Breaker in hand (killer560, 2026-10-06: holding his AOTV or Hyperion in edit

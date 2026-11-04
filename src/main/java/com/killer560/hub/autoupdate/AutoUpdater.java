@@ -113,10 +113,7 @@ public final class AutoUpdater {
         if (r.currentCommit() == null || !r.currentCommit().matches("[0-9a-f]{40}")) {
             return "this jar has no build commit";
         }
-        if (r.minecraft() == null || r.variant() == null) {
-            return "this jar has no Minecraft version or variant";
-        }
-        return null;
+        return r.minecraft() == null || r.variant() == null ? "this jar has no Minecraft version or variant" : null;
     }
 
     static String releaseApiUrl(Channel channel) {

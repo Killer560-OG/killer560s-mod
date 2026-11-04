@@ -244,10 +244,7 @@ public final class Ap3Feature {
     /** Label for the tab / chat: {@code "S3"}, {@code "S3 (Mage)"}, {@code "P1"}, or {@code "no area"}. */
     public static String currentChainLabel() {
         Ap3Area area = currentArea();
-        if (area == null) {
-            return "no area";
-        }
-        return Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
+        return area == null ? "no area" : Ap3Chain.label(area, Ap3Config.getInstance().getEditClassFilter());
     }
 
     /**
@@ -398,6 +395,16 @@ public final class Ap3Feature {
         return i;
     }
 
+    /** The current chain when it has node {@code index} (0-based); else says so in chat and returns null. */
+    private static Ap3Chain chainWithNode(int index) {
+        Ap3Chain chain = currentChain();
+        if (chain == null || index < 0 || index >= chain.nodes().size()) {
+            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+            return null;
+        }
+        return chain;
+    }
+
     /** Deletes node {@code index} (0-BASED here; show it to the player as {@code index + 1}). */
     public static boolean deleteNode(int index) {
         return deleteNode(index, false);
@@ -405,9 +412,8 @@ public final class Ap3Feature {
 
     /** {@code fromUndo}: undo's fallback delete, which redo puts back rather than undo (see {@link Ap3History}). */
     private static boolean deleteNode(int index, boolean fromUndo) {
-        Ap3Chain chain = currentChain();
-        if (chain == null || index < 0 || index >= chain.nodes().size()) {
-            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+        Ap3Chain chain = chainWithNode(index);
+        if (chain == null) {
             return false;
         }
         Ap3Node removed = chain.nodes().remove(index);
@@ -529,9 +535,8 @@ public final class Ap3Feature {
      * the tab's edit page can stay open on it across the move.
      */
     public static boolean moveNode(int index, int newIndex) {
-        Ap3Chain chain = currentChain();
-        if (chain == null || index < 0 || index >= chain.nodes().size()) {
-            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+        Ap3Chain chain = chainWithNode(index);
+        if (chain == null) {
             return false;
         }
         int size = chain.nodes().size();
@@ -558,9 +563,8 @@ public final class Ap3Feature {
      * are touching when the position moves and refuses when you are not touching one, same rule as placing one.
      */
     public static boolean replaceNode(int index, boolean position, boolean look) {
-        Ap3Chain chain = currentChain();
-        if (chain == null || index < 0 || index >= chain.nodes().size()) {
-            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+        Ap3Chain chain = chainWithNode(index);
+        if (chain == null) {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
@@ -620,9 +624,8 @@ public final class Ap3Feature {
      * a slider fires on every pixel of a drag and must not print a chat line per pixel.
      */
     public static boolean editNode(int index, String what, java.util.function.Consumer<Ap3Node> edit) {
-        Ap3Chain chain = currentChain();
-        if (chain == null || index < 0 || index >= chain.nodes().size()) {
-            chatBad("No node #" + (index + 1) + " in " + currentChainLabel() + ".");
+        Ap3Chain chain = chainWithNode(index);
+        if (chain == null) {
             return false;
         }
         Ap3Node node = chain.nodes().get(index);

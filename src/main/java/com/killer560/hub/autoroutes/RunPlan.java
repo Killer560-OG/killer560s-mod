@@ -47,10 +47,7 @@ public final class RunPlan {
          * NaN when the planner gave no estimate. The next pick replaces it with a fresh estimate.
          */
         public double secondsLeft(long nowMs) {
-            if (Double.isNaN(etaSeconds)) {
-                return Double.NaN;
-            }
-            return Math.max(0.0, etaSeconds - Math.max(0L, nowMs - atMs) / 1000.0);
+            return Double.isNaN(etaSeconds) ? Double.NaN : Math.max(0.0, etaSeconds - Math.max(0L, nowMs - atMs) / 1000.0);
         }
 
         /** Rooms finished plus rooms left. */

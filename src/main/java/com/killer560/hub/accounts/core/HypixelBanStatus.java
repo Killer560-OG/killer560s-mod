@@ -63,9 +63,6 @@ public record HypixelBanStatus(Status status, String rawMessage, Instant estimat
             totalSeconds += Long.parseLong(minuteMatch.group(1)) * 60L;
             found = true;
         }
-        if (!found) {
-            return null;
-        }
-        return Instant.now().plusSeconds(totalSeconds);
+        return found ? Instant.now().plusSeconds(totalSeconds) : null;
     }
 }

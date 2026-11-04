@@ -2,6 +2,7 @@ package com.killer560.hub.abilitycooldown;
 
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
+import com.killer560.hub.hud.HudText;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -13,9 +14,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 
 /**
  * Automatic item/ability cooldown HUD - gap-analysis item 1.9 ("Automatic item / ability cooldown HUD").
@@ -44,7 +49,7 @@ public final class AbilityCooldownFeature {
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
             if (overlay) {
                 try {
-                    AbilityCooldownState.onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
+                    AbilityCooldownState.onActionBar(ChatObserver.raw(message));
                 } catch (RuntimeException ignored) {
                     // Never let a regex bug eat the player's action bar.
                 }
@@ -58,23 +63,20 @@ public final class AbilityCooldownFeature {
 
         // "You clicked an item just now" - the 400 ms gate that keeps a teammate's ability sound from
         // starting your countdown (SkyHanni's ItemAbilityCooldown.onItemClick).
-        UseItemCallback.EVENT.register((player, level, hand) -> {
-            if (level.isClientSide() && player == Minecraft.getInstance().player) {
-                AbilityCooldownState.noteItemClick();
-            }
-            return InteractionResult.PASS;
-        });
-        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            if (level.isClientSide() && player == Minecraft.getInstance().player) {
-                AbilityCooldownState.noteItemClick();
-            }
-            return InteractionResult.PASS;
-        });
+        UseItemCallback.EVENT.register((player, level, hand) -> noteOwnClick(player, level));
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> noteOwnClick(player, level));
 
         // DISCONNECT runs on the Netty thread while the render thread reads the timer map, so it only raises a
         // flag; the next client tick clears (a client.execute task can be dropped by a pause-menu leave).
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AbilityCooldownState.requestReset());
         ClientTickEvents.END_CLIENT_TICK.register(client -> AbilityCooldownState.drainReset());
+    }
+
+    private static InteractionResult noteOwnClick(Player player, Level level) {
+        if (level.isClientSide() && player == Minecraft.getInstance().player) {
+            AbilityCooldownState.noteItemClick();
+        }
+        return InteractionResult.PASS;
     }
 
     /**
@@ -127,7 +129,7 @@ public final class AbilityCooldownFeature {
 
         @Override
         public int height() {
-            return com.killer560.hub.hud.HudText.height(lines().size(), 12);
+            return HudText.height(lines().size(), 12);
         }
 
         @Override
@@ -152,7 +154,6 @@ public final class AbilityCooldownFeature {
                         textOnly ? line.color : COLOR_FAR, false);
                 lineY += 12;
             }
-            // lineY only moves if a row was actually drawn, so this is the draw itself reporting in.
             if (lineY != y) {
                 HudSeen.markDrawn(id());
             }
@@ -166,7 +167,7 @@ public final class AbilityCooldownFeature {
                 return List.of();
             }
             AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
-            java.util.List<Line> out = new java.util.ArrayList<>();
+            List<Line> out = new ArrayList<>();
             for (ItemAbility ability : AbilityCooldownState.running()) {
                 long ms = AbilityCooldownState.remainingMs(ability);
                 double remaining = ms / 1000.0;
@@ -208,16 +209,13 @@ public final class AbilityCooldownFeature {
         }
 
         private static int colorFor(double remainingSeconds) {
-            if (remainingSeconds <= 1.0) {
-                return COLOR_SOON;
-            }
-            return remainingSeconds <= 3.0 ? COLOR_MID : COLOR_FAR;
+            return remainingSeconds <= 1.0 ? COLOR_SOON : remainingSeconds <= 3.0 ? COLOR_MID : COLOR_FAR;
         }
     }
 
     /** Entry point for the existing {@code DungeonAlertsPackets.onSound} bridge - same shape as
      *  {@code RagAxeFeature.onSoundPacket}, so the bridge gets one more guarded line and no new mixin. */
-    public static void onSoundPacket(net.minecraft.network.protocol.game.ClientboundSoundPacket packet) {
+    public static void onSoundPacket(ClientboundSoundPacket packet) {
         AbilityCooldownState.onSoundPacket(packet);
     }
 

@@ -35,10 +35,7 @@ public final class LauncherAccounts {
         if (javaCommand != null && javaCommand.startsWith("com.modrinth.theseus.")) {
             return PrismAccount.Source.MODRINTH;
         }
-        if (ModrinthAccountStore.appDbAbove(gameDir) != null) {
-            return PrismAccount.Source.MODRINTH;
-        }
-        return PrismAccount.Source.PRISM;
+        return ModrinthAccountStore.appDbAbove(gameDir) != null ? PrismAccount.Source.MODRINTH : PrismAccount.Source.PRISM;
     }
 
     /** The current launcher's accounts. */

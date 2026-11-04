@@ -933,10 +933,7 @@ final class Ap3RoutePlanner {
         if (a.jumps != b.jumps) {
             return a.jumps < b.jumps;
         }
-        if (a.clips != b.clips) {
-            return a.clips < b.clips;
-        }
-        return a.f < b.f;
+        return a.clips != b.clips ? a.clips < b.clips : a.f < b.f;
     }
 
     private static int gatesBefore(List<int[]> groups, int group) {
@@ -1017,10 +1014,7 @@ final class Ap3RoutePlanner {
         double fromZ = s.z;
         boolean wasOnGround = s.onGround;
         Ap3RouteMath.step(s, a, yaw, jump, sprint, m, terrain.shapes());
-        if (hits(blocked, fromX, fromZ, s.x, s.z, s.y)) {
-            return;
-        }
-        if (terrain.deny(s.x, s.y, s.z)) {
+        if (hits(blocked, fromX, fromZ, s.x, s.z, s.y) || terrain.deny(s.x, s.y, s.z)) {
             return;
         }
         // A move the world ate entirely is not a move: it is the search sitting still against a wall, and every
@@ -1461,10 +1455,7 @@ final class Ap3RoutePlanner {
                 cj = bj;
             }
             float f = surface[ci * h + cj];
-            if (Float.isNaN(f)) {
-                return null;
-            }
-            return new double[]{minX + ci * CELL, f, minZ + cj * CELL};
+            return Float.isNaN(f) ? null : new double[]{minX + ci * CELL, f, minZ + cj * CELL};
         }
 
         double at(int gate, double x, double z) {
@@ -1640,10 +1631,7 @@ final class Ap3RoutePlanner {
             return true;
         }
         double sp = s.speed();
-        if (g.minSpeed >= 0 && sp < g.minSpeed) {
-            return false;
-        }
-        if (g.maxSpeed >= 0 && sp > g.maxSpeed) {
+        if (g.minSpeed >= 0 && sp < g.minSpeed || g.maxSpeed >= 0 && sp > g.maxSpeed) {
             return false;
         }
         if (g.hasDir) {
@@ -1850,11 +1838,7 @@ final class Ap3RoutePlanner {
             }
             boolean improved = false;
             for (int tries = 0; tries < 6 && !improved; tries++) {
-                double[][] aa = new double[k][k];
-                for (int i = 0; i < k; i++) {
-                    System.arraycopy(a[i], 0, aa[i], 0, k);
-                    aa[i][i] += lambda * (a[i][i] + 1e-12);
-                }
+                double[][] aa = Ap3FastAlign.damped(a, k, lambda, 1e-12);
                 double[] dy = solveLinear(aa, grad.clone());
                 if (dy == null) {
                     lambda *= 10;
@@ -1907,10 +1891,7 @@ final class Ap3RoutePlanner {
                     || (int) Math.floor(landed.z + HALF_WIDTH) != gate.cellMaxZ) {
                 nz += Math.copySign(EDGE_NUDGE, gate.z - landed.z);
             }
-            if (nx == tx && nz == tz) {
-                return false;
-            }
-            return polish(plan, start, gate, m, terrain, from, at, o, nx, nz, false);
+            return (nx != tx || nz != tz) && polish(plan, start, gate, m, terrain, from, at, o, nx, nz, false);
         }
         for (int i = 0; i < k; i++) {
             Step s = plan.steps[from + i];

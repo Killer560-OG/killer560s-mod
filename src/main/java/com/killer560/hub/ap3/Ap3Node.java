@@ -451,10 +451,7 @@ public final class Ap3Node {
      * float as 167.9 and is shown and saved as 167.9 from then on.
      */
     public static double savedAngle(float v) {
-        if (!Float.isFinite(v)) {
-            return 0.0;
-        }
-        return roundSaved(Double.parseDouble(Float.toString(v)));
+        return !Float.isFinite(v) ? 0.0 : roundSaved(Double.parseDouble(Float.toString(v)));
     }
 
     /**

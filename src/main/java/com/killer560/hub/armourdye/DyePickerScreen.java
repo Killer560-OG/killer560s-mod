@@ -1,7 +1,6 @@
 package com.killer560.hub.armourdye;
 
 import com.killer560.hub.gui.MenuStyle;
-import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -19,32 +18,24 @@ import java.util.function.IntConsumer;
  * piece, so the whole list shows for whatever item is selected. Left click hands the dye's color (opaque ARGB) to
  * {@code onPick}; on an animated dye, which has two colors, right click picks the second one.
  */
-public final class DyePickerScreen extends Screen implements MenuThemedScreen {
+public final class DyePickerScreen extends ListScreenBase {
 
     private static final int PANEL_MAX_W = 260;
     private static final int PANEL_MAX_H = 260;
     private static final int ROW_H = 18;
 
-    private final Screen parent;
     private final IntConsumer onPick;
     /** Clear Dye (killer560, 2026-11-01: "Make the dye option for this have a clear option as well"), or null. */
     private final Runnable onClear;
     private final List<HypixelDyes.Dye> dyes = HypixelDyes.all();
-    private int scroll;
-    private int panelX;
-    private int panelY;
-    private int panelW;
-    private int panelH;
     private int listY;
-    private int rows;
 
     public DyePickerScreen(Screen parent, IntConsumer onPick) {
         this(parent, onPick, null);
     }
 
     public DyePickerScreen(Screen parent, IntConsumer onPick, Runnable onClear) {
-        super(Component.literal("Dyes"));
-        this.parent = parent;
+        super(Component.literal("Dyes"), parent);
         this.onPick = onPick;
         this.onClear = onClear;
     }
@@ -114,28 +105,7 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(scroll - (int) Math.signum(scrollY), Math.max(0, dyes.size() - rows)));
-        return true;
-    }
-
-    @Override
-    public void onClose() {
-        this.minecraft.setScreenAndShow(parent);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
-
-    @Override
-    public String themeId() {
-        return "custom_items";
+    protected int listSize() {
+        return dyes.size();
     }
 }

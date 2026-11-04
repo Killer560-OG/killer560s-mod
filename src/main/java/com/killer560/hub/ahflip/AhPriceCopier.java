@@ -164,10 +164,7 @@ public final class AhPriceCopier {
      *  into Hypixel's price sign. */
     public static long relistPrice(String key, int count, AhFlipConfig cfg) {
         long each = eachFor(key, cfg);
-        if (each <= 0) {
-            return -1;
-        }
-        return Math.max(1, each * Math.max(1, count) - cfg.getCopierUndercut());
+        return each <= 0 ? -1 : Math.max(1, each * Math.max(1, count) - cfg.getCopierUndercut());
     }
 
     /** Forgets the remembered price of {@code key} (an expired listing: it did not sell at that price). */

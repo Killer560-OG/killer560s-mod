@@ -197,10 +197,7 @@ public final class AutoClearTargets {
             if (sx != sy) {
                 return Integer.compare(sy, sx);
             }
-            if (branch[x] != branch[y]) {
-                return Integer.compare(branch[x], branch[y]);
-            }
-            return Integer.compare(fromHere[x], fromHere[y]);
+            return branch[x] != branch[y] ? Integer.compare(branch[x], branch[y]) : Integer.compare(fromHere[x], fromHere[y]);
         });
         if (rush != null) {
             path.sort(java.util.Comparator.comparingInt(rush::indexOf));

@@ -499,11 +499,7 @@ final class Ap3FastAlign {
             }
             boolean improved = false;
             for (int tries = 0; tries < 5 && !improved; tries++) {
-                double[][] aa = new double[k][k];
-                for (int i = 0; i < k; i++) {
-                    System.arraycopy(a[i], 0, aa[i], 0, k);
-                    aa[i][i] += lambda * (a[i][i] + 1e-12);
-                }
+                double[][] aa = damped(a, k, lambda, 1e-12);
                 double[] dy = solveLinear(aa, g.clone());
                 if (dy == null) {
                     lambda *= 10;
@@ -581,10 +577,7 @@ final class Ap3FastAlign {
             resid[2] = speed > 1e-9 ? over * s.vx / speed : 0.0;
             resid[3] = speed > 1e-9 ? over * s.vz / speed : 0.0;
         }
-        if (speed >= REST_SPEED) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return Math.max(Math.abs(s.ex), Math.abs(s.ez));
+        return speed >= REST_SPEED ? Double.POSITIVE_INFINITY : Math.max(Math.abs(s.ex), Math.abs(s.ez));
     }
 
     /** Levenberg-Marquardt over the k yaws from a few starting guesses; null when nothing converges. */
@@ -640,11 +633,7 @@ final class Ap3FastAlign {
                 }
                 boolean improved = false;
                 for (int tries = 0; tries < 6 && !improved; tries++) {
-                    double[][] aa = new double[k][k];
-                    for (int i = 0; i < k; i++) {
-                        System.arraycopy(a[i], 0, aa[i], 0, k);
-                        aa[i][i] += lambda * (a[i][i] + 1e-9);
-                    }
+                    double[][] aa = damped(a, k, lambda, 1e-9);
                     double[] dy = solveLinear(aa, g.clone());
                     if (dy == null) {
                         lambda *= 10;
@@ -680,10 +669,7 @@ final class Ap3FastAlign {
 
     /** Where an action pushes relative to the facing, in degrees (W = 0, W+A = -45, A = -90). */
     private static double keyOffset(Ap3DiscretePlanner.Action a) {
-        if (a.none()) {
-            return 0.0;
-        }
-        return Math.toDegrees(Math.atan2(-a.st(), a.fw())) ;
+        return a.none() ? 0.0 : Math.toDegrees(Math.atan2(-a.st(), a.fw())) ;
     }
 
     private static float[] toFloat(double[] y) {
@@ -700,6 +686,16 @@ final class Ap3FastAlign {
             s += a[i] * b[i];
         }
         return s;
+    }
+
+    /** Levenberg-Marquardt damping: {@code a} with {@code lambda * (diagonal + eps)} added on its diagonal. */
+    static double[][] damped(double[][] a, int k, double lambda, double eps) {
+        double[][] aa = new double[k][k];
+        for (int i = 0; i < k; i++) {
+            System.arraycopy(a[i], 0, aa[i], 0, k);
+            aa[i][i] += lambda * (a[i][i] + eps);
+        }
+        return aa;
     }
 
     private static double[] solveLinear(double[][] a, double[] b) {

@@ -58,10 +58,7 @@ public final class AutoCorrectFeature {
      * do, returns null rather than guess.
      */
     private static String fixDoubledLetter(String lower) {
-        if (lower.length() < 3 || DICTIONARY.contains(lower)) {
-            return null;
-        }
-        return collapseDoubledRun(lower, DICTIONARY);
+        return lower.length() < 3 || DICTIONARY.contains(lower) ? null : collapseDoubledRun(lower, DICTIONARY);
     }
 
     /** Shortest word the collapse is allowed to produce. killer560 (2026-09-20): "make it so i can type

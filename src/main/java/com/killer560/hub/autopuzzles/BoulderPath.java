@@ -269,10 +269,7 @@ final class BoulderPath {
         int i = x - minX;
         int j = y - minY;
         int k = z - minZ;
-        if (i < 0 || j < 0 || k < 0 || i >= w || j >= h || k >= d) {
-            return -1;
-        }
-        return (j * d + k) * w + i;
+        return i < 0 || j < 0 || k < 0 || i >= w || j >= h || k >= d ? -1 : (j * d + k) * w + i;
     }
 
     private int xOf(int idx) {
@@ -319,10 +316,7 @@ final class BoulderPath {
             s = y - 1 + top;
         } else {
             double top = hereShape.max(Direction.Axis.Y);
-            if (top > 0.9) {
-                return Double.NaN;
-            }
-            if (avoidBarrier && here.is(Blocks.BARRIER)) {
+            if (top > 0.9 || avoidBarrier && here.is(Blocks.BARRIER)) {
                 return Double.NaN;
             }
             s = y + top;

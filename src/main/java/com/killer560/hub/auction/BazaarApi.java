@@ -139,6 +139,18 @@ public final class BazaarApi {
     public record InstantBuyBooks(Map<String, List<BazaarOrderLevel>> books, long lastUpdatedMs) {
     }
 
+    private static HttpResponse<String> fetchUncached() throws Exception {
+        String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(30))
+                .header("User-Agent", "Killer560sMod-Bazaar/1.0")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .GET()
+                .build();
+        return ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
+    }
+
     /**
      * One on-demand GET that returns every product's real <b>instant-buy</b> order book, cheapest level
      * first. Used by the Bazaar-to-NPC Flipper, which has to walk the book level by level to price a real
@@ -172,15 +184,7 @@ public final class BazaarApi {
      */
     public static InstantBuyBooks fetchInstantBuyBooks() {
         try {
-            String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(30))
-                    .header("User-Agent", "Killer560sMod-Bazaar/1.0")
-                    .header("Cache-Control", "no-cache")
-                    .header("Pragma", "no-cache")
-                    .GET()
-                    .build();
-            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = fetchUncached();
             if (response.statusCode() / 100 != 2) {
                 LOGGER.warn("[Bazaar] Order-book fetch returned HTTP {}", response.statusCode());
                 return new InstantBuyBooks(Map.of(), 0L);
@@ -247,15 +251,7 @@ public final class BazaarApi {
         try {
             // Past every cache, as fetchInstantBuyBooks does: the Bazaar Flipper refuses a snapshot older than a few
             // minutes, and Cloudflare's s-maxage=300 could otherwise hand back one five minutes old.
-            String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(30))
-                    .header("User-Agent", "Killer560sMod-Bazaar/1.0")
-                    .header("Cache-Control", "no-cache")
-                    .header("Pragma", "no-cache")
-                    .GET()
-                    .build();
-            HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = fetchUncached();
             if (response.statusCode() / 100 != 2) {
                 // Thrown, not swallowed: refreshAsync's error branch logs it and puts the status in getLastError.
                 throw new IllegalStateException("Bazaar API returned HTTP " + response.statusCode());

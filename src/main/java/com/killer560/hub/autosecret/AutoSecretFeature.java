@@ -430,20 +430,11 @@ public final class AutoSecretFeature {
 
     private static void tick(Minecraft client) {
         pollToggleKey(client);
-        if (phase == Phase.IDLE) {
-            return;
-        }
-        if (stopChecks(client)) {
-            return;
-        }
-        if (playerTookOver(client)) {
+        if (phase == Phase.IDLE || stopChecks(client) || playerTookOver(client)) {
             return;
         }
         watchCorrections(client);
-        if (holdForPuzzle()) {
-            return;
-        }
-        if (holdForMimic()) {
+        if (holdForPuzzle() || holdForMimic()) {
             return;
         }
         phaseTicks++;
@@ -1028,22 +1019,7 @@ public final class AutoSecretFeature {
         }
         // The Quiz before everything, Blood First included (killer560, 2026-10-20: "It should have focused quiz from the
         // start prioritizing opening it as fast as possible").
-        if (decideQuiz(layout, rooms, dist)) {
-            return;
-        }
-        if (decideBloodFirst(layout, rooms, dist)) {
-            return;
-        }
-        if (decideIceFill(layout, rooms, dist)) {
-            return;
-        }
-        if (decideClearHere(layout, rooms, here)) {
-            return;
-        }
-        if (decideInstaClear(layout, rooms, dist, here)) {
-            return;
-        }
-        if (decideSecrets(layout, rooms, dist)) {
+        if (decideQuiz(layout, rooms, dist) || decideBloodFirst(layout, rooms, dist) || decideIceFill(layout, rooms, dist) || decideClearHere(layout, rooms, here) || decideInstaClear(layout, rooms, dist, here) || decideSecrets(layout, rooms, dist)) {
             return;
         }
         decideEndgame(layout, rooms, dist);
@@ -1605,10 +1581,7 @@ public final class AutoSecretFeature {
                     instaFrom = f.name();
                     target = r.name();
                     targetRoomId = r.room();
-                    if (f.room() == here) {
-                        return etherPathTo(landing, Trip.INSTA_INTO);
-                    }
-                    return pathToRoom(layout, f, Trip.INSTA_FROM);
+                    return f.room() == here ? etherPathTo(landing, Trip.INSTA_INTO) : pathToRoom(layout, f, Trip.INSTA_FROM);
                 }
             }
             LOGGER.info("[AutoSecret] insta clear {}: {} known entr(ies), none matched a landing reachable from a near room",
@@ -1682,10 +1655,7 @@ public final class AutoSecretFeature {
                 goClear(layout, s.room(), dist, "clear stop (its turn on the tour, Fastest Total): ");
                 return true;
             }
-            if (decideClearFirst(layout, s.room())) {
-                return true;
-            }
-            if (goSecret(layout, s.room(), dist, describe(open), blockedText)) {
+            if (decideClearFirst(layout, s.room()) || goSecret(layout, s.room(), dist, describe(open), blockedText)) {
                 return true;
             }
         }
@@ -2899,10 +2869,7 @@ public final class AutoSecretFeature {
                 bestWhat = unfound + " unfound secret(s), " + others + " room(s) to explore or clear";
             }
         }
-        if (best < 0) {
-            return false;
-        }
-        if (DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
+        if (best < 0 || DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
             return false;
         }
         // A shut wither door and no key, while a Wither Key lies in a room it can reach: the key first (simmobs2-1101, a sim
