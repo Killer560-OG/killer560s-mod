@@ -74,6 +74,12 @@ public final class MaskInvincibilityFeature {
     }
 
     private static final Map<Type, Integer> activeRemaining = new EnumMap<>(Type.class);
+    // Test hook: proc titles shown since start.
+    private static volatile int procTitles = 0;
+
+    public static int procTitles() {
+        return procTitles;
+    }
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
     private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     /** Last real stack seen for each type, so the icon keeps rendering after the mask leaves your inventory. */
@@ -123,6 +129,13 @@ public final class MaskInvincibilityFeature {
                 cooldownRemaining.put(t, t.cooldownTicks);
                 if (!cfg.isEnabled()) {
                     return;
+                }
+                if (cfg.isProcTitle()) {
+                    procTitles++;
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setTimes(mc, 2, 30, 8);
+                    com.killer560.hub.compat.McCompat.setTitle(mc, net.minecraft.network.chat.Component.literal("\u00a7c\u00a7l" + t.label + " Popped!"));
+                    com.killer560.hub.compat.McCompat.setSubtitle(mc, net.minecraft.network.chat.Component.literal(""));
                 }
                 if (cfg.isAnnounceToParty()) {
                     sendPartyChat(t.label + " popped!");

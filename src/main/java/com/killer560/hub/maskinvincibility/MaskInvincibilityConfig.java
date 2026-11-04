@@ -31,6 +31,8 @@ public final class MaskInvincibilityConfig {
 
     private boolean enabled = false;
     private boolean announceToParty = false;
+    /** A title on screen when a mask procs (killer560, 2026-11-03: "not a title that pops up"). */
+    private boolean procTitle = true;
     private boolean showSpirit = true;
     private boolean showBonzo = true;
     private boolean showPhoenix = true;
@@ -125,6 +127,7 @@ public final class MaskInvincibilityConfig {
             MaskInvincibilityConfig cfg = new MaskInvincibilityConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
+            cfg.procTitle = ConfigJson.getBool(obj, "procTitle", true);
             cfg.showSpirit = ConfigJson.getBool(obj, "showSpirit", true);
             cfg.showBonzo = ConfigJson.getBool(obj, "showBonzo", true);
             cfg.showPhoenix = ConfigJson.getBool(obj, "showPhoenix", true);
@@ -177,6 +180,7 @@ public final class MaskInvincibilityConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("announceToParty", announceToParty);
+            obj.addProperty("procTitle", procTitle);
             obj.addProperty("showSpirit", showSpirit);
             obj.addProperty("showBonzo", showBonzo);
             obj.addProperty("showPhoenix", showPhoenix);
@@ -217,6 +221,14 @@ public final class MaskInvincibilityConfig {
     /** killer560, 2026-09-21: "For announce in chat make it send to party chat not client side." Kept as its
      *  own toggle next to the client-side one (same shape as {@code BlessingTracker}'s pair) and default OFF,
      *  so nothing starts typing in his party until he turns it on. */
+    public boolean isProcTitle() {
+        return procTitle;
+    }
+
+    public void setProcTitle(boolean procTitle) {
+        this.procTitle = procTitle;
+    }
+
     public boolean isAnnounceToParty() {
         return announceToParty;
     }

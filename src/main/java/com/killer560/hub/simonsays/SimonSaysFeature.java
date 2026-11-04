@@ -962,8 +962,27 @@ public final class SimonSaysFeature {
      *  just the manual "Announce Reset Key" press. Killer560's explicit request (2026-09-14): "make sure
      *  that works if i ever press the reset button after the first time or if you sense it reset via
      *  removing all buttons and no new highlights." */
+    private static long lastResetAnnounceAtMs = 0L;
+    // Test hooks: reset lines sent, and start presses that were not announced (a skip, no grid click yet).
+    private static volatile int resetAnnounces = 0;
+    private static volatile int resetAnnouncesSkipped = 0;
+
+    public static int resetAnnounces() {
+        return resetAnnounces;
+    }
+
+    public static int resetAnnouncesSkipped() {
+        return resetAnnouncesSkipped;
+    }
+
     private static void maybeAutoAnnounceReset(Minecraft client, SimonSaysConfig cfg) {
+        long now = System.currentTimeMillis();
+        if (now - lastResetAnnounceAtMs < 5_000L) {
+            return;
+        }
         if (cfg.isAutoSendResetMessage() && client.player != null) {
+            lastResetAnnounceAtMs = now;
+            resetAnnounces++;
             com.killer560.hub.util.OutgoingChat.command("pc " + cfg.getResetMessageText());
         }
     }
@@ -1044,6 +1063,9 @@ public final class SimonSaysFeature {
             // rapid repeats killer560 specifically wanted timing on ("it should be 3 or 4 clicks really
             // close together" - his real log only ever showed multi-SECOND gaps). See that method's own
             // doc comment for the real fix: hooking the actual click event instead of polling state.
+            // A skip is a burst of start presses before any grid click: not a reset to announce (killer560,
+            // 2026-11-03: "every time i simon says skip it says it reset").
+            boolean hadProgress = totalClicksThisAttempt > 0 || !clickInOrder.isEmpty();
             resetSolveState();
             // A new attempt's lanterns are not a fifth round: drop a round-4 verdict still waiting.
             roundVerdictPending = false;
@@ -1075,7 +1097,11 @@ public final class SimonSaysFeature {
             // genuinely attempted", uninterrupted by this same reset.
             idleSuppressedAfterCompletion = false;
             rememberedFirstButton = null;
-            maybeAutoAnnounceReset(client, cfg);
+            if (hadProgress) {
+                maybeAutoAnnounceReset(client, cfg);
+            } else {
+                resetAnnouncesSkipped++;
+            }
         }
     }
 

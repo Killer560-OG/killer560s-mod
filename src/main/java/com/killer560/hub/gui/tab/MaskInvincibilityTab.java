@@ -65,6 +65,9 @@ public class MaskInvincibilityTab extends BaseTab {
         widgets.add(onOffButton("Announce To Party", cfg::isAnnounceToParty, cfg::setAnnounceToParty, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 24;
+        widgets.add(onOffButton("Proc Title", cfg::isProcTitle, cfg::setProcTitle, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 24;
 
         return widgets;
     }
