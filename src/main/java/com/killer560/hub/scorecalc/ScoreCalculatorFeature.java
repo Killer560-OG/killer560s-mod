@@ -103,6 +103,7 @@ public final class ScoreCalculatorFeature {
     public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
+    private static final Pattern RUN_START = Pattern.compile("^\\[NPC] Mort: Here, I found this map when I first entered the dungeon\\.$");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
     private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)"); // testkit fixture chat.team-score reads it
     // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
@@ -511,6 +512,10 @@ public final class ScoreCalculatorFeature {
                     TranslateFeature.sendGenerated(cfg.getBatAlertMessage(), "pc");
                 }
             }
+            return;
+        }
+        if (RUN_START.matcher(plain).find()) {
+            ScoreWarnings.onRunStart();
             return;
         }
         if (WATCHER_DONE.matcher(plain).find()) {

@@ -28,6 +28,8 @@ public final class ScoreWarnings {
     private static int watcherDoneTick = -1;
     private static boolean preBossWarned = false;
     private static boolean cryptReminded = false;
+    /** Wall time of Mort's "found this map" line, the first gate dropping; 0 until then (the Crypt Reminder counts from it). */
+    private static long gateMs = 0L;
     private static int warningsShown = 0;
     private static String lastWarning = null;
 
@@ -44,6 +46,7 @@ public final class ScoreWarnings {
         watcherDoneTick = -1;
         preBossWarned = false;
         cryptReminded = false;
+        gateMs = 0L;
         portalColor = 0;
         portalBlocks = java.util.List.of();
     }
@@ -155,6 +158,10 @@ public final class ScoreWarnings {
         return portalFrames;
     }
 
+    static void onRunStart() {
+        gateMs = System.currentTimeMillis();
+    }
+
     static void onWatcherDone(int runTicks) {
         if (watcherDoneTick < 0) {
             watcherDoneTick = runTicks;
@@ -193,7 +200,8 @@ public final class ScoreWarnings {
                 }
             }
         }
-        if (cfg.isCryptReminder() && !cryptReminded && in.secondsElapsed() >= cfg.getCryptReminderSeconds()) {
+        if (cfg.isCryptReminder() && !cryptReminded && gateMs > 0L
+                && System.currentTimeMillis() - gateMs >= cfg.getCryptReminderSeconds() * 1000L) {
             cryptReminded = true;
             if (in.crypts() < 5) {
                 String count = "Crypts: " + Math.max(0, in.crypts()) + "/5";
