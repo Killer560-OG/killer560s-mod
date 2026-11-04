@@ -746,7 +746,8 @@ public final class TerminalSolverFeature {
         if (!cfg.isAutoTerminalsEnabled()) {
             return;
         }
-        if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS) {
+        // First Click Delay (2026-11-03): the owner's extra wait on top of the settle, for the first click of every terminal.
+        if (System.currentTimeMillis() - stabilizedAtMs < INITIAL_CLICK_SETTLE_MS + cfg.getFirstClickDelayMs()) {
             // Round 31 - see stabilizedAtMs's own doc. Lets a freshly-opened terminal's real double-open
             // finish before this class ever attempts its first click against it. Stream Safe's hand already sets off
             // meanwhile (killer560, 2026-11-01: "The first click is really slow"): it used to start its reaction and move

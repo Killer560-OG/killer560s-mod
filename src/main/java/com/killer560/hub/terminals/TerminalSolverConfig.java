@@ -49,6 +49,8 @@ public final class TerminalSolverConfig {
     public static final int MAX_FAKE_CURSOR_SPEED = 300;
     /** Stream Safe's Reaction Time: the median pause before each move, ms. Not a simple reaction test (~200 ms): the next
      *  slot is already in view while the hand is moving, so a practiced player's pause between clicks is shorter. */
+    public static final int MIN_FIRST_CLICK_DELAY_MS = 0;
+    public static final int MAX_FIRST_CLICK_DELAY_MS = 300;
     public static final int MIN_CURSOR_REACTION_MS = 60;
     public static final int MAX_CURSOR_REACTION_MS = 400;
     /** Stream Safe's Miss Chance and Overshoot Chance, percent of moves. */
@@ -205,6 +207,8 @@ public final class TerminalSolverConfig {
      *  arrived and pressed; the Min/Max delays are replaced by the cursor's Speed / Reaction Time. Off: the Min/Max timing,
      *  and no cursor is ever drawn (Hide Mouse Cursor may hide the real one). Replaces the 2026-10-26 Fake Cursor toggle. */
     private boolean autoStreamSafe = false;
+    /** First Click Delay (killer560, 2026-11-03): extra ms Auto Terminals waits, on top of the opening settle, before the first click of a terminal. 0 = today's timing. */
+    private int firstClickDelayMs = 0;
     private int cursorReactionMs = 130;
     private int cursorMissChance = 6;
     private int cursorOvershootChance = 18;
@@ -309,6 +313,7 @@ public final class TerminalSolverConfig {
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
             cfg.hideMouseCursor = ConfigJson.getBool(obj, "hideMouseCursor", false);
             cfg.autoStreamSafe = ConfigJson.getBool(obj, "autoStreamSafe", false);
+            cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 0), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
             cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
             cfg.cursorOvershootChance = clamp(ConfigJson.getInt(obj, "cursorOvershootChance", 18), 0, MAX_CURSOR_OVERSHOOT_CHANCE);
@@ -375,6 +380,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("hideMouseCursor", hideMouseCursor);
             obj.addProperty("autoStreamSafe", autoStreamSafe);
+            obj.addProperty("firstClickDelayMs", firstClickDelayMs);
             obj.addProperty("cursorReactionMs", cursorReactionMs);
             obj.addProperty("cursorMissChance", cursorMissChance);
             obj.addProperty("cursorOvershootChance", cursorOvershootChance);
@@ -643,6 +649,14 @@ public final class TerminalSolverConfig {
 
     public void setAutoStreamSafe(boolean autoStreamSafe) {
         this.autoStreamSafe = autoStreamSafe;
+    }
+
+    public int getFirstClickDelayMs() {
+        return firstClickDelayMs;
+    }
+
+    public void setFirstClickDelayMs(int ms) {
+        this.firstClickDelayMs = clamp(ms, MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
     }
 
     public int getCursorReactionMs() {

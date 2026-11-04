@@ -435,7 +435,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         }
         long now = System.currentTimeMillis();
         // A real terminal waits its opening settle before the first click, the hand already on its way.
-        boolean settling = streamSafe && now - startedAtMs < com.killer560.hub.terminals.PracticeCursor.SETTLE_MS;
+        boolean settling = now - startedAtMs < (streamSafe ? com.killer560.hub.terminals.PracticeCursor.SETTLE_MS : 0L) + cfg.getFirstClickDelayMs();
         if (type == TerminalType.MELODY) {
             tickMelodyAutoClick(now, settling);
             return;
