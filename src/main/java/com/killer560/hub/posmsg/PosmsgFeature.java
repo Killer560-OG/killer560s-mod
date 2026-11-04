@@ -119,9 +119,7 @@ public final class PosmsgFeature {
         wasInDungeon = inDungeonNow;
 
         Player player = client.player;
-        if (player == null || client.level == null) {
-            return;
-        }
+        if (player == null || client.level == null) return;
         // Inside/outside membership is tracked every tick regardless of any gate, and only the SEND is
         // gated - so a ring you're already standing in when the feature (master, per-waypoint, or the
         // boss fight itself) becomes live does not fire the instant it goes live; walking out and back
@@ -138,9 +136,7 @@ public final class PosmsgFeature {
                 && now - leapLineSeenMs > LEAP_HOLD_MAX_MS;
         releaseHeld(now);
         for (PosmsgEntry e : PosmsgConfig.getInstance().entries()) {
-            if (!e.configured) {
-                continue;
-            }
+            if (!e.configured) continue;
             // Squared distances: no Vec3 per entry per tick and no sqrt.
             double distSq = pos.distanceToSqr(e.x, e.y, e.z);
             double exit = e.radius + EXIT_MARGIN;
@@ -162,14 +158,10 @@ public final class PosmsgFeature {
     /** Sends the rings held for a leap once its line has come (Leap Message has queued its lines by then: chat is
      *  handled before the end of the tick), or once they have waited {@link #LEAP_HOLD_MAX_MS}. */
     private static void releaseHeld(long now) {
-        if (held.isEmpty() || (leapLineSeenMs < heldSinceMs && now - heldSinceMs < LEAP_HOLD_MAX_MS)) {
-            return;
-        }
+        if (held.isEmpty() || (leapLineSeenMs < heldSinceMs && now - heldSinceMs < LEAP_HOLD_MAX_MS)) return;
         List<PosmsgEntry> go = new ArrayList<>(held);
         held.clear();
-        if (!active()) {
-            return;
-        }
+        if (!active()) return;
         for (PosmsgEntry e : go) {
             trySend(e);
         }
@@ -177,9 +169,7 @@ public final class PosmsgFeature {
 
     /** Hypixel's leap menus, by exact title (Spirit Leap; Infinileap's "Teleport to Player"). */
     private static boolean isLeapMenu(net.minecraft.client.gui.screens.Screen screen) {
-        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container)) {
-            return false;
-        }
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> container)) return false;
         String t = ChatObserver.stripCodes(container.getTitle().getString()).trim().toLowerCase(Locale.ROOT);
         return t.equals("spirit leap") || t.equals("teleport to player");
     }
@@ -191,12 +181,8 @@ public final class PosmsgFeature {
      *  would be worse than the missed callout). */
     private static void trySend(PosmsgEntry entry) {
         long now = System.currentTimeMillis();
-        if (now - lastSendMs < MIN_SEND_GAP_MS) {
-            return;
-        }
-        if (entry.onceOnlyPerRun && usedThisRun.contains(entry.id)) {
-            return;
-        }
+        if (now - lastSendMs < MIN_SEND_GAP_MS) return;
+        if (entry.onceOnlyPerRun && usedThisRun.contains(entry.id)) return;
         if (dispatch(entry)) {
             lastSendMs = now;
         }
@@ -217,17 +203,11 @@ public final class PosmsgFeature {
 
     private static boolean dispatch(PosmsgEntry entry) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !SkyblockGate.allows()) {
-            return false;
-        }
+        if (client.player == null || !SkyblockGate.allows()) return false;
         String text = entry.sendText();
-        if (text.isBlank()) {
-            return false;
-        }
+        if (text.isBlank()) return false;
         // In line behind any other line of this mod's (a leap's "Leaping to" first), spaced so Hypixel takes both.
-        if (!OutgoingChat.command("pc " + text)) {
-            return false;
-        }
+        if (!OutgoingChat.command("pc " + text)) return false;
         usedThisRun.add(entry.id);
         return true;
     }

@@ -80,9 +80,7 @@ public final class PosmsgConfig {
                 if (array != null) {
                     for (var el : array) {
                         try {
-                            if (el == null || !el.isJsonObject()) {
-                                continue;
-                            }
+                            if (el == null || !el.isJsonObject()) continue;
                             JsonObject obj = el.getAsJsonObject();
                             PosmsgEntry e = new PosmsgEntry();
                             e.id = ConfigJson.getString(obj, "id", e.id);
@@ -179,13 +177,9 @@ public final class PosmsgConfig {
             }
         }
         for (PosmsgEntry e : entries) {
-            if (!e.builtin) {
-                continue;
-            }
+            if (!e.builtin) continue;
             String newName = RENAMED_PRESETS.get(e.name);
-            if (newName == null) {
-                continue;
-            }
+            if (newName == null) continue;
             if (presentNames.contains(newName)) {
                 // Both the old and the new row exist (a config that was hand-edited, or round-tripped
                 // through a build that already knew the new name). The new one wins; mark the old one
@@ -343,14 +337,10 @@ public final class PosmsgConfig {
      *  {@code /killer560 posmsg send at hee2} works as well as the full preset name. */
     public PosmsgEntry byName(String name) {
         for (PosmsgEntry e : entries) {
-            if (e.name.equalsIgnoreCase(name)) {
-                return e;
-            }
+            if (e.name.equalsIgnoreCase(name)) return e;
         }
         for (PosmsgEntry e : entries) {
-            if (e.sendText().equalsIgnoreCase(name)) {
-                return e;
-            }
+            if (e.sendText().equalsIgnoreCase(name)) return e;
         }
         return null;
     }
