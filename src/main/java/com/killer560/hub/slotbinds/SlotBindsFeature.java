@@ -150,9 +150,7 @@ public final class SlotBindsFeature {
      * Slot Binds is not active, so Protect keeps its press behavior there.
      */
     public static boolean ownsSharedKey(Screen screen, int key) {
-        if (key == KeyUtil.NONE || !(screen instanceof InventoryScreen)) {
-            return false;
-        }
+        if (key == KeyUtil.NONE || !(screen instanceof InventoryScreen)) return false;
         SlotBindsConfig cfg = SlotBindsConfig.getInstance();
         ItemProtectConfig protect = ItemProtectConfig.getInstance();
         return cfg.isEnabled() && cfg.getBindKey() == key && protect.isProtectItemEnabled()
@@ -160,9 +158,7 @@ public final class SlotBindsFeature {
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (!SlotBindsConfig.getInstance().isEnabled() || !(screen instanceof InventoryScreen)) {
-            return;
-        }
+        if (!SlotBindsConfig.getInstance().isEnabled() || !(screen instanceof InventoryScreen)) return;
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         // Tracks the slot picked while setting up a new bind (-1 = not currently placing one) - a fresh
         // holder per real screen open, matching a fresh Inventory screen instance every time. Also read
@@ -178,13 +174,9 @@ public final class SlotBindsFeature {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
             Slot hovered = accessor.killer560smod$getHoveredSlot();
 
-            if (hovered == null || !event.hasShiftDown() || hovered.index < 5 || hovered.index >= 45) {
-                return true;
-            }
+            if (hovered == null || !event.hasShiftDown() || hovered.index < 5 || hovered.index >= 45) return true;
             Integer bound = cfg.getBinds().get(hovered.index);
-            if (bound == null) {
-                return true;
-            }
+            if (bound == null) return true;
             int from;
             int to;
             if (hovered.index >= 36 && hovered.index < 45) {
@@ -213,9 +205,7 @@ public final class SlotBindsFeature {
         // The bind may be a key or a mouse button (2026-11-02): one press/release path, fed by both kinds of event.
         java.util.function.IntPredicate bindPress = code -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (cfg.getBindKey() == -1 || code != cfg.getBindKey()) {
-                return true;
-            }
+            if (cfg.getBindKey() == -1 || code != cfg.getBindKey()) return true;
             if (gesture[0] != null) {
                 // Key repeat while the press is already held: the gesture is still the same press.
                 return false;
@@ -230,18 +220,14 @@ public final class SlotBindsFeature {
                 return false;
             }
             boolean shared = ownsSharedKey(screen, code);
-            if (!shared && (hovered == null || hovered.index < 5 || hovered.index >= 45)) {
-                return true;
-            }
+            if (!shared && (hovered == null || hovered.index < 5 || hovered.index >= 45)) return true;
             // Nothing happens yet: the press is decided on key-up (see resolve), from where the cursor is then.
             gesture[0] = new Gesture(hovered, mouse[0], mouse[1], System.currentTimeMillis(), shared);
             return false;
         };
         java.util.function.IntPredicate bindRelease = code -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-            if (gesture[0] == null || cfg.getBindKey() == -1 || code != cfg.getBindKey()) {
-                return true;
-            }
+            if (gesture[0] == null || cfg.getBindKey() == -1 || code != cfg.getBindKey()) return true;
             Gesture held = gesture[0];
             gesture[0] = null;
             Slot released = accessor.killer560smod$getHoveredSlot();
@@ -338,9 +324,7 @@ public final class SlotBindsFeature {
     /** Sends a queued drag's SWAP click once {@link ActionGate} grants this tick. Dropped if the inventory closed. */
     private static void onStartTick(Minecraft client) {
         QueuedDrag drag = queuedDrag;
-        if (drag == null) {
-            return;
-        }
+        if (drag == null) return;
         if (McCompat.screen(client) != drag.screen || client.gameMode == null || client.player == null
                 || drag.ticksLeft-- <= 0) {
             queuedDrag = null;
@@ -360,9 +344,7 @@ public final class SlotBindsFeature {
     public static boolean finishBind(SlotBindsConfig cfg, int[] pendingSlot, Integer target) {
         int first = pendingSlot[0];
         pendingSlot[0] = -1;
-        if (first == -1 || target == null || target < 5 || target >= 45 || target == first) {
-            return false;
-        }
+        if (first == -1 || target == null || target < 5 || target >= 45 || target == first) return false;
         boolean firstIsHotbar = first >= 36 && first < 45;
         boolean secondIsHotbar = target >= 36 && target < 45;
         if (!firstIsHotbar && !secondIsHotbar) {
@@ -382,9 +364,7 @@ public final class SlotBindsFeature {
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics,
                                double mouseX, double mouseY, int pendingSlot, Gesture held) {
         SlotBindsConfig cfg = SlotBindsConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
+        if (!cfg.isEnabled()) return;
         ContainerScreenPositionAccessor pos = (ContainerScreenPositionAccessor) screen;
         int leftPos = pos.killer560smod$getLeftPos();
         int topPos = pos.killer560smod$getTopPos();
@@ -408,20 +388,14 @@ public final class SlotBindsFeature {
             drawLink(graphics, sx + 8, sy + 8, (int) mouseX, (int) mouseY, color);
         }
 
-        if (cfg.getBinds().isEmpty()) {
-            return;
-        }
+        if (cfg.getBinds().isEmpty()) return;
         for (Map.Entry<Integer, Integer> entry : cfg.getBinds().entrySet()) {
             // The map stores both directions of every pair (a->b and b->a) so shift-click lookup works
             // from either end - only draw once per pair.
-            if (entry.getKey() >= entry.getValue()) {
-                continue;
-            }
+            if (entry.getKey() >= entry.getValue()) continue;
             Slot slotA = findSlot(screen, entry.getKey());
             Slot slotB = findSlot(screen, entry.getValue());
-            if (slotA == null || slotB == null) {
-                continue;
-            }
+            if (slotA == null || slotB == null) continue;
             int ax = leftPos + slotA.x;
             int ay = topPos + slotA.y;
             int bx = leftPos + slotB.x;
@@ -440,9 +414,7 @@ public final class SlotBindsFeature {
 
     private static Slot findSlot(AbstractContainerScreen<?> screen, int index) {
         for (Slot slot : screen.getMenu().slots) {
-            if (slot.index == index) {
-                return slot;
-            }
+            if (slot.index == index) return slot;
         }
         return null;
     }
@@ -460,9 +432,7 @@ public final class SlotBindsFeature {
         float dx = bx - ax;
         float dy = by - ay;
         float length = (float) Math.sqrt(dx * dx + dy * dy);
-        if (length < 1f) {
-            return;
-        }
+        if (length < 1f) return;
         float angle = (float) Math.atan2(dy, dx);
         graphics.pose().pushMatrix();
         graphics.pose().translate((float) ax, (float) ay);
