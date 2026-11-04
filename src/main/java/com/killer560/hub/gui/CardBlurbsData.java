@@ -27,6 +27,7 @@ final class CardBlurbsData {
         d.put("TreasureChestHighlightTab", "Boxes your treasure chests, with a timer.");
         d.put("TreasureChestAlertTab", "Sound when a treasure chest spawns.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
+        d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");

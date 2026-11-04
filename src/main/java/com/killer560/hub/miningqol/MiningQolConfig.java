@@ -153,6 +153,11 @@ public final class MiningQolConfig {
     // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
     private boolean wrongArmor = true;
     private boolean wrongArmorSound = true;
+    // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
+    private boolean chWalls = false;
+    private final int[] chWallColor = CrystalHollowsWalls.defaultColors();
+    private final int[] chWallOpacity = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_OPACITY);
+    private final int[] chWallNear = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_NEAR);
     // Carpet Highlighter
     private boolean carpet = false;
     private int carpetColor = DEFAULT_CARPET_COLOR;
@@ -229,6 +234,14 @@ public final class MiningQolConfig {
                 cfg.abilitySound = ConfigJson.getBool(o, "abilitySound", cfg.abilitySound);
                 cfg.wrongArmor = ConfigJson.getBool(o, "wrongArmor", cfg.wrongArmor);
                 cfg.wrongArmorSound = ConfigJson.getBool(o, "wrongArmorSound", cfg.wrongArmorSound);
+                cfg.chWalls = ConfigJson.getBool(o, "chWalls", cfg.chWalls);
+                for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
+                    int i = z.ordinal();
+                    cfg.chWallColor[i] = intOr(o, "chWall" + z.key + "Color", cfg.chWallColor[i]) & 0xFFFFFF;
+                    cfg.chWallOpacity[i] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100,
+                            intOr(o, "chWall" + z.key + "Opacity", cfg.chWallOpacity[i])));
+                    cfg.chWallNear[i] = Math.max(0, Math.min(1024, intOr(o, "chWall" + z.key + "Near", cfg.chWallNear[i])));
+                }
                 cfg.carpet = ConfigJson.getBool(o, "carpet", cfg.carpet);
                 cfg.carpetColor = intOr(o, "carpetColor", cfg.carpetColor);
                 cfg.mithrilStone = ConfigJson.getBool(o, "mithrilStone", cfg.mithrilStone);
@@ -303,6 +316,12 @@ public final class MiningQolConfig {
             o.addProperty("abilitySound", abilitySound);
             o.addProperty("wrongArmor", wrongArmor);
             o.addProperty("wrongArmorSound", wrongArmorSound);
+            o.addProperty("chWalls", chWalls);
+            for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
+                o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
+                o.addProperty("chWall" + z.key + "Opacity", chWallOpacity[z.ordinal()]);
+                o.addProperty("chWall" + z.key + "Near", chWallNear[z.ordinal()]);
+            }
             o.addProperty("carpet", carpet);
             o.addProperty("carpetColor", carpetColor);
             o.addProperty("mithrilStone", mithrilStone);
@@ -596,6 +615,46 @@ public final class MiningQolConfig {
 
     public void setWrongArmorSound(boolean v) {
         wrongArmorSound = v;
+    }
+
+    // ---- Crystal Hollows Walls
+    public boolean isChWalls() {
+        return chWalls && sb();
+    }
+
+    public boolean isChWallsRaw() {
+        return chWalls;
+    }
+
+    public void setChWalls(boolean v) {
+        chWalls = v;
+    }
+
+    /** RGB (no alpha) of the zone's walls. */
+    public int getChWallColor(CrystalHollowsWalls.Zone z) {
+        return chWallColor[z.ordinal()];
+    }
+
+    public void setChWallColor(CrystalHollowsWalls.Zone z, int argb) {
+        chWallColor[z.ordinal()] = argb & 0xFFFFFF;
+    }
+
+    /** Percent, {@link CrystalHollowsWalls#MIN_OPACITY}..100. */
+    public int getChWallOpacity(CrystalHollowsWalls.Zone z) {
+        return chWallOpacity[z.ordinal()];
+    }
+
+    public void setChWallOpacity(CrystalHollowsWalls.Zone z, int v) {
+        chWallOpacity[z.ordinal()] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100, v));
+    }
+
+    /** Blocks: a wall shows only within this distance of the player; 0 = always. */
+    public int getChWallNear(CrystalHollowsWalls.Zone z) {
+        return chWallNear[z.ordinal()];
+    }
+
+    public void setChWallNear(CrystalHollowsWalls.Zone z, int v) {
+        chWallNear[z.ordinal()] = Math.max(0, Math.min(1024, v));
     }
 
     // ---- Carpet Highlighter

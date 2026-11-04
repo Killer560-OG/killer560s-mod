@@ -67,6 +67,7 @@ public final class MiningQolFeatures {
                 PickobulusEstimate.render(context);
                 CommissionHud.render(context);
                 CommissionMobs.render(context);
+                CrystalHollowsWalls.render(context);
                 CommissionRoute.render(context);
                 PowderGhast.render(context);
             } catch (RuntimeException e) {
