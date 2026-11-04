@@ -132,9 +132,7 @@ public final class P4PlatformHighlightFeature {
     }
 
     /** @return true when the highlight should be on screen. */
-    private static boolean shouldShow() {
-        return (platformActive || nearPlatform) && !platformBroken;
-    }
+    private static boolean shouldShow() { return (platformActive || nearPlatform) && !platformBroken; }
 
     private static void onWorldRender(LevelRenderContext context) {
         P4PlatformHighlightConfig cfg = P4PlatformHighlightConfig.getInstance();

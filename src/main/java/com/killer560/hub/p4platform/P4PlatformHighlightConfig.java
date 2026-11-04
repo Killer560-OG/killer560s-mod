@@ -69,25 +69,17 @@ public final class P4PlatformHighlightConfig {
         }
     }
 
-    public boolean isEnabled() {
-        return enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
+    public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
-    public boolean isEnabledRaw() {
-        return enabled;
-    }
+    public boolean isEnabledRaw() { return enabled; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
-    public boolean isFilled() {
-        return filled;
-    }
+    public boolean isFilled() { return filled; }
 
-    public void setFilled(boolean filled) {
-        this.filled = filled;
-    }
+    public void setFilled(boolean filled) { this.filled = filled; }
 }
