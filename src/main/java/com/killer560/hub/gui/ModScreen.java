@@ -1990,6 +1990,17 @@ public class ModScreen extends Screen {
         return new ArrayList<>(results);
     }
 
+    /** Categories holding a search hit (the old menu's "visible tabs"), for the testkit. */
+    private List<BaseTab> visibleTabs() {
+        if (searchQuery.isBlank()) {
+            return tabs;
+        }
+        Set<BaseTab> out = new java.util.LinkedHashSet<>();
+        for (Result r : results) {
+            out.add(MenuCategories.category(r.tab()));
+        }
+        return new ArrayList<>(out);
+    }
 
     /** The search (killer560, 2026-11-02): every typed word, in any order, against each feature's name, description,
      *  rows and tooltips, with partial words, plurals and synonyms, best first - see {@link MenuSearch}. The text is read
