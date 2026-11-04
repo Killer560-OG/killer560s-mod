@@ -72,17 +72,11 @@ final class WeightPage {
                 "Overflow: skill XP past level 60. Dungeons = catacombs XP + floor completions.");
     }
 
-    private Font f() {
-        return s.font();
-    }
+    private Font f() { return s.font(); }
 
-    private static Component line(String str, int color) {
-        return Component.literal(str).withStyle(style(color));
-    }
+    private static Component line(String str, int color) { return Component.literal(str).withStyle(style(color)); }
 
-    private boolean hover(int mx, int my, int x, int y, int w, int h) {
-        return inside(mx, my, x, y, w, h) && !s.dropdownOpen;
-    }
+    private boolean hover(int mx, int my, int x, int y, int w, int h) { return inside(mx, my, x, y, w, h) && !s.dropdownOpen; }
 
     private void tip(List<Component> lines) {
         if (!s.dropdownOpen) {
@@ -90,13 +84,9 @@ final class WeightPage {
         }
     }
 
-    static String num(double v) {
-        return String.format(Locale.US, "%,.1f", v);
-    }
+    static String num(double v) { return String.format(Locale.US, "%,.1f", v); }
 
-    static String exact(double v) {
-        return String.format(Locale.US, "%,.2f", v);
-    }
+    static String exact(double v) { return String.format(Locale.US, "%,.2f", v); }
 
     /** Draws "value" (VALUE) with "+overflow" (DIM) right-aligned at {@code right}. */
     private void valueWithOverflow(GuiGraphicsExtractor g, double weight, double overflow, int right, int y, int valueColor) {

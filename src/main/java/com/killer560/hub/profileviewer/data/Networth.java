@@ -39,19 +39,13 @@ public final class Networth {
      */
     public record Result(long total, List<Category> categories, int bazaarPrices, int binPrices, boolean museumIncluded,
                          long totalNonCosmetic, List<Category> categoriesNonCosmetic, boolean calcReady) {
-        public long total(boolean nonCosmetic) {
-            return nonCosmetic ? totalNonCosmetic : total;
-        }
+        public long total(boolean nonCosmetic) { return nonCosmetic ? totalNonCosmetic : total; }
 
-        public List<Category> categories(boolean nonCosmetic) {
-            return nonCosmetic ? categoriesNonCosmetic : categories;
-        }
+        public List<Category> categories(boolean nonCosmetic) { return nonCosmetic ? categoriesNonCosmetic : categories; }
     }
 
     /** One stack's value: {@code total} for the whole stack, {@code cosmetic} the part of it that is cosmetic. */
-    public record ItemValue(double total, double cosmetic) {
-        static final ItemValue ZERO = new ItemValue(0, 0);
-    }
+    public record ItemValue(double total, double cosmetic) { static final ItemValue ZERO = new ItemValue(0, 0); }
 
     /** True when a finished result should be calculated again: Bazaar prices or the item price table arrived since. */
     public static boolean stale(Result r) {

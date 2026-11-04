@@ -231,9 +231,7 @@ public final class ExtraTables {
                 return out.isEmpty() ? null : Collections.unmodifiableList(out);
             }, ProfileViewerApi.EXECUTOR), 0);
 
-    public static CompletableFuture<List<CollectionCategory>> collections() {
-        return COLLECTIONS.get();
-    }
+    public static CompletableFuture<List<CollectionCategory>> collections() { return COLLECTIONS.get(); }
 
 
     /** @param icon a vanilla item id ("dragon_egg") or null; @param texture a skull texture or null. */
@@ -248,9 +246,7 @@ public final class ExtraTables {
                     .thenCompose(j -> j != null ? CompletableFuture.completedFuture(j) : ProfileViewerApi.getKeylessJson(BESTIARY_FALLBACK))
                     .thenApplyAsync(ExtraTables::parseBestiary, ProfileViewerApi.EXECUTOR), 0);
 
-    public static CompletableFuture<List<BestiaryCategory>> bestiary() {
-        return BESTIARY.get();
-    }
+    public static CompletableFuture<List<BestiaryCategory>> bestiary() { return BESTIARY.get(); }
 
     private static List<BestiaryCategory> parseBestiary(JsonObject json) {
         if (json == null) {
@@ -342,9 +338,7 @@ public final class ExtraTables {
     }
 
     /** The NEU file has mis-decoded "Â§" pairs; drop those and the color codes. */
-    private static String cleanName(String raw) {
-        return raw == null ? "" : raw.replace("Â", "").replaceAll("§.", "").trim();
-    }
+    private static String cleanName(String raw) { return raw == null ? "" : raw.replace("Â", "").replaceAll("§.", "").trim(); }
 
     private static String fixTexture(String tex) {
         if (tex == null || tex.isBlank()) {
@@ -381,9 +375,7 @@ public final class ExtraTables {
                 return new MuseumTables(cats, max);
             }, ProfileViewerApi.EXECUTOR), 0);
 
-    public static CompletableFuture<MuseumTables> museum() {
-        return MUSEUM.get();
-    }
+    public static CompletableFuture<MuseumTables> museum() { return MUSEUM.get(); }
 
 
     private static final Remote<Map<String, Double>> LBIN = new Remote<>(() ->
@@ -401,7 +393,5 @@ public final class ExtraTables {
                 return out.isEmpty() ? null : out;
             }, ProfileViewerApi.EXECUTOR), PRICE_TTL_MS);
 
-    public static CompletableFuture<Map<String, Double>> lowestBins() {
-        return LBIN.get();
-    }
+    public static CompletableFuture<Map<String, Double>> lowestBins() { return LBIN.get(); }
 }

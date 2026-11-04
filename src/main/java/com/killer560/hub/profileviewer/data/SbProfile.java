@@ -94,9 +94,7 @@ public final class SbProfile {
             level = LevelTables.petLevel(type, tier, exp);
         }
 
-        public String displayName() {
-            return titleCase(type);
-        }
+        public String displayName() { return titleCase(type); }
 
         /** Skull icon once the NEU-repo texture has loaded (cached), a bone until then. */
         public ItemStack icon() {
@@ -463,17 +461,11 @@ public final class SbProfile {
         return cur == null || cur.isJsonNull() ? null : cur;
     }
 
-    static JsonObject obj(JsonObject o, String key) {
-        return o == null ? null : asObj(o.get(key));
-    }
+    static JsonObject obj(JsonObject o, String key) { return o == null ? null : asObj(o.get(key)); }
 
-    public static JsonObject asObj(JsonElement el) {
-        return el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
-    }
+    public static JsonObject asObj(JsonElement el) { return el != null && el.isJsonObject() ? el.getAsJsonObject() : null; }
 
-    static JsonArray asArr(JsonElement el) {
-        return el != null && el.isJsonArray() ? el.getAsJsonArray() : null;
-    }
+    static JsonArray asArr(JsonElement el) { return el != null && el.isJsonArray() ? el.getAsJsonArray() : null; }
 
     public static double num(JsonElement el) {
         try {
@@ -483,9 +475,7 @@ public final class SbProfile {
         }
     }
 
-    static double num(JsonObject o, String key) {
-        return o == null ? 0 : num(o.get(key));
-    }
+    static double num(JsonObject o, String key) { return o == null ? 0 : num(o.get(key)); }
 
     static String str(JsonObject o, String key, String def) {
         if (o == null) {

@@ -39,30 +39,20 @@ public final class SkyblockWeight {
 
     /** One weight contributor (a skill, a slayer, catacombs, a class...). {@code detail} is tooltip text. */
     public record Part(String name, double weight, double overflow, List<String> detail) {
-        public double total() {
-            return weight + overflow;
-        }
+        public double total() { return weight + overflow; }
     }
 
     /** A category (skills / slayers / dungeons) with its summed weight and overflow. */
     public record Group(String name, double weight, double overflow, List<Part> parts) {
-        public double total() {
-            return weight + overflow;
-        }
+        public double total() { return weight + overflow; }
     }
 
     public record Result(String system, Group skills, Group slayers, Group dungeons, boolean skillsApi) {
-        public double weight() {
-            return skills.weight() + slayers.weight() + dungeons.weight();
-        }
+        public double weight() { return skills.weight() + slayers.weight() + dungeons.weight(); }
 
-        public double overflow() {
-            return skills.overflow() + slayers.overflow() + dungeons.overflow();
-        }
+        public double overflow() { return skills.overflow() + slayers.overflow() + dungeons.overflow(); }
 
-        public double total() {
-            return weight() + overflow();
-        }
+        public double total() { return weight() + overflow(); }
     }
 
     /**
@@ -119,13 +109,9 @@ public final class SkyblockWeight {
         return v == null || v.isNaN() ? 0 : Math.max(0, v);
     }
 
-    private static String fmt(double v) {
-        return String.format(Locale.US, "%,.2f", v);
-    }
+    private static String fmt(double v) { return String.format(Locale.US, "%,.2f", v); }
 
-    private static String xp(double v) {
-        return String.format(Locale.US, "%,d", (long) Math.floor(v));
-    }
+    private static String xp(double v) { return String.format(Locale.US, "%,d", (long) Math.floor(v)); }
 
     private static String cap(String id) {
         return id.isEmpty() ? id : Character.toUpperCase(id.charAt(0)) + id.substring(1).toLowerCase(Locale.ROOT);
@@ -278,9 +264,7 @@ public final class SkyblockWeight {
     }
 
     /** JavaScript Math.round (round half toward +infinity). */
-    private static double jsRound(double v) {
-        return Math.floor(v + 0.5);
-    }
+    private static double jsRound(double v) { return Math.floor(v + 0.5); }
 
 
     /** lib/index.js: "Order of skills: enchanting, taming, alchemy, mining, farming, foraging, combat, fishing". */

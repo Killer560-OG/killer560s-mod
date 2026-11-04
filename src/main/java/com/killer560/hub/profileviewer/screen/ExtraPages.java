@@ -124,21 +124,15 @@ final class ExtraPages {
     }
 
 
-    private Font f() {
-        return s.font();
-    }
+    private Font f() { return s.font(); }
 
-    private void title(GuiGraphicsExtractor g, String str, int x, int y) {
-        tx(g, str, x, y, ACCENT);
-    }
+    private void title(GuiGraphicsExtractor g, String str, int x, int y) { tx(g, str, x, y, ACCENT); }
 
     private void rightText(GuiGraphicsExtractor g, String str, int right, int y, int color) {
         tx(g, str, right - f().width(str), y, color);
     }
 
-    private static Component line(String str, int color) {
-        return Component.literal(str).withStyle(style(color));
-    }
+    private static Component line(String str, int color) { return Component.literal(str).withStyle(style(color)); }
 
     private void tip(List<Component> lines) {
         if (!s.dropdownOpen) {
@@ -146,9 +140,7 @@ final class ExtraPages {
         }
     }
 
-    private boolean hover(int mx, int my, int x, int y, int w, int h) {
-        return inside(mx, my, x, y, w, h) && !s.dropdownOpen;
-    }
+    private boolean hover(int mx, int my, int x, int y, int w, int h) { return inside(mx, my, x, y, w, h) && !s.dropdownOpen; }
 
     private void center(GuiGraphicsExtractor g, String str, int x, int w, int color) {
         s.centeredIn(g, str, x, w, s.contentY + s.contentH / 2 - 4, color);
@@ -276,9 +268,7 @@ final class ExtraPages {
         return d > 0 ? d + "d " + h + "h" : h > 0 ? h + "h " + m + "m" : m + "m " + (seconds % 60) + "s";
     }
 
-    private static String pct(double v) {
-        return String.format(Locale.ROOT, "%.1f%%", v * 100);
-    }
+    private static String pct(double v) { return String.format(Locale.ROOT, "%.1f%%", v * 100); }
 
     /** Level from a "level n starts at table[n-1]" threshold table (HOTM / HOTF / garden). */
     private static LevelTables.Level thresholdLevel(long[] table, long xp) {

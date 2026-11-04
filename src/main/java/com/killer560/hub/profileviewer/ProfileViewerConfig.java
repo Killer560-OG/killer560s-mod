@@ -185,65 +185,37 @@ public final class ProfileViewerConfig {
         return sb.length() > 64 ? sb.substring(0, 64) : sb.toString();
     }
 
-    public synchronized String getApiKey() {
-        return apiKey;
-    }
+    public synchronized String getApiKey() { return apiKey; }
 
-    public synchronized void setApiKey(String apiKey) {
-        this.apiKey = sanitizeKey(apiKey);
-    }
+    public synchronized void setApiKey(String apiKey) { this.apiKey = sanitizeKey(apiKey); }
 
-    public synchronized Source getSource() {
-        return source;
-    }
+    public synchronized Source getSource() { return source; }
 
-    public synchronized void setSource(Source source) {
-        this.source = source == null ? Source.AUTO : source;
-    }
+    public synchronized void setSource(Source source) { this.source = source == null ? Source.AUTO : source; }
 
-    public synchronized int getOpenKeyCode() {
-        return openKeyCode;
-    }
+    public synchronized int getOpenKeyCode() { return openKeyCode; }
 
-    public synchronized void setOpenKeyCode(int openKeyCode) {
-        this.openKeyCode = openKeyCode;
-    }
+    public synchronized void setOpenKeyCode(int openKeyCode) { this.openKeyCode = openKeyCode; }
 
-    public synchronized boolean isRememberLastPage() {
-        return rememberLastPage;
-    }
+    public synchronized boolean isRememberLastPage() { return rememberLastPage; }
 
-    public synchronized void setRememberLastPage(boolean rememberLastPage) {
-        this.rememberLastPage = rememberLastPage;
-    }
+    public synchronized void setRememberLastPage(boolean rememberLastPage) { this.rememberLastPage = rememberLastPage; }
 
-    public synchronized int getLastPage() {
-        return lastPage;
-    }
+    public synchronized int getLastPage() { return lastPage; }
 
-    public synchronized void setLastPage(int lastPage) {
-        this.lastPage = lastPage;
-    }
+    public synchronized void setLastPage(int lastPage) { this.lastPage = lastPage; }
 
-    public synchronized boolean isShowSkin() {
-        return showSkin;
-    }
+    public synchronized boolean isShowSkin() { return showSkin; }
 
-    public synchronized void setShowSkin(boolean showSkin) {
-        this.showSkin = showSkin;
-    }
+    public synchronized void setShowSkin(boolean showSkin) { this.showSkin = showSkin; }
 
-    public synchronized boolean isNonCosmeticNetworth() {
-        return nonCosmeticNetworth;
-    }
+    public synchronized boolean isNonCosmeticNetworth() { return nonCosmeticNetworth; }
 
     public synchronized void setNonCosmeticNetworth(boolean nonCosmeticNetworth) {
         this.nonCosmeticNetworth = nonCosmeticNetworth;
     }
 
-    public synchronized List<RecentView> getRecentViews() {
-        return List.copyOf(recentViews);
-    }
+    public synchronized List<RecentView> getRecentViews() { return List.copyOf(recentViews); }
 
     /** Bumps {@code uuid} to the front of the recent-views list (removing any older entry for the same
      *  uuid first) and saves. {@code name} is just the latest-known IGN for display before a live lookup

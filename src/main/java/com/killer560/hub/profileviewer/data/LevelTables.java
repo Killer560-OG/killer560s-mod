@@ -45,9 +45,7 @@ public final class LevelTables {
     }
 
     public record Level(int level, double progress, long xpIntoLevel, long xpForLevel, boolean maxed) {
-        public double fractional() {
-            return maxed ? level : level + progress;
-        }
+        public double fractional() { return maxed ? level : level + progress; }
     }
 
     private static volatile Map<String, Skill> skills = Map.of();

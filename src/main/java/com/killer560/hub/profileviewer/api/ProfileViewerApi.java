@@ -92,9 +92,7 @@ public final class ProfileViewerApi {
 
     /** A fetch failure whose message is safe to show on screen (never contains a key). */
     public static class ApiException extends RuntimeException {
-        public ApiException(String message) {
-            super(message, null, false, false);
-        }
+        public ApiException(String message) { super(message, null, false, false); }
     }
 
     /**
@@ -117,9 +115,7 @@ public final class ProfileViewerApi {
 
     /** When the backend's last 429 said it may be asked again; in the past (or 0) when there is no pause. Background
      *  callers that make many requests (the Party Finder stats) wait for it instead of collecting more 429s. */
-    public static long backendRetryAtMs() {
-        return backendRetryAtMs;
-    }
+    public static long backendRetryAtMs() { return backendRetryAtMs; }
 
     static long retryAfterMs(Optional<String> header) {
         long s = 10;
@@ -215,9 +211,7 @@ public final class ProfileViewerApi {
     }
 
 
-    public static boolean isValidName(String name) {
-        return name != null && NAME.matcher(name).matches();
-    }
+    public static boolean isValidName(String name) { return name != null && NAME.matcher(name).matches(); }
 
     /** Mojang name -> UUID (api.minecraftservices.com, falling back to api.mojang.com). Accepts a raw
      *  UUID too. */
@@ -286,9 +280,7 @@ public final class ProfileViewerApi {
         }
     }
 
-    public static String dashless(UUID uuid) {
-        return uuid.toString().replace("-", "");
-    }
+    public static String dashless(UUID uuid) { return uuid.toString().replace("-", ""); }
 
     /** Full profile (with the signed textures property) for the skin preview; null on failure. */
     public static CompletableFuture<GameProfile> fetchSkinProfile(UUID uuid) {
@@ -504,9 +496,7 @@ public final class ProfileViewerApi {
         };
     }
 
-    private static long throttle(Throwable t) {
-        return unwrap(t) instanceof RateLimitedException r ? r.retryAfterMs : 0;
-    }
+    private static long throttle(Throwable t) { return unwrap(t) instanceof RateLimitedException r ? r.retryAfterMs : 0; }
 
     /** Every source failed: a {@link RateLimitedException} (the longest wait) when any of them was throttled, since
      *  asking again later can still succeed; a plain {@link ApiException} otherwise. */

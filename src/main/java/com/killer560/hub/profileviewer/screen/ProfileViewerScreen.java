@@ -192,9 +192,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private boolean applyingSuggestion = false;
 
     record Hotspot(int x, int y, int w, int h, Runnable action) {
-        boolean contains(double mx, double my) {
-            return inside(mx, my, x, y, w, h);
-        }
+        boolean contains(double mx, double my) { return inside(mx, my, x, y, w, h); }
     }
 
     final List<Hotspot> hotspots = new ArrayList<>();
@@ -315,9 +313,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }));
     }
 
-    private static void minecraftExecute(Runnable r) {
-        net.minecraft.client.Minecraft.getInstance().execute(r);
-    }
+    private static void minecraftExecute(Runnable r) { net.minecraft.client.Minecraft.getInstance().execute(r); }
 
     private void rebuildSafe() {
         if (this.minecraft != null && McCompat.screen(this.minecraft) == this) {
@@ -553,9 +549,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return super.mouseClicked(event, doubleClick);
     }
 
-    private void click() {
-        this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
-    }
+    private void click() { this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f)); }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
@@ -624,24 +618,16 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    public String themeId() { return THEME_ID; }
 
     @Override
-    public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, panelW, panelH};
-    }
+    public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
-    public void onClose() {
-        McCompat.setScreen(this.minecraft, parent);
-    }
+    public void onClose() { McCompat.setScreen(this.minecraft, parent); }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
 
     @Override
@@ -707,9 +693,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    String dots() {
-        return ".".repeat((int) (System.currentTimeMillis() / 400 % 4));
-    }
+    String dots() { return ".".repeat((int) (System.currentTimeMillis() / 400 % 4)); }
 
     private void drawHeader(GuiGraphicsExtractor g, int mx, int my) {
         // Header bar (the menu's): the brand-gradient title, then the player's name.
@@ -1422,9 +1406,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** {@code StorageOverlayFeature}'s panel: 9 slots of 18 plus a 2-pixel margin each side. */
     static final int OVERLAY_PANEL_W = 9 * 18 + 4;
 
-    int overlayPanelHeight(int itemRows) {
-        return this.font.lineHeight + 4 + itemRows * 18 + 2;
-    }
+    int overlayPanelHeight(int itemRows) { return this.font.lineHeight + 4 + itemRows * 18 + 2; }
 
     /** One Storage Overlay panel (theme colors from the Storage Overlay's own setting): label strip, the slot-cell
      *  grid and the items, with the rarity background and a tooltip only for a slot inside {@code clipTop..clipBottom}. */
@@ -1508,9 +1490,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    static ItemStack get(List<ItemStack> list, int i) {
-        return i >= 0 && i < list.size() ? list.get(i) : ItemStack.EMPTY;
-    }
+    static ItemStack get(List<ItemStack> list, int i) { return i >= 0 && i < list.size() ? list.get(i) : ItemStack.EMPTY; }
 
     private static int countItems(List<ItemStack> list) {
         int n = 0;
@@ -1629,14 +1609,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
 
-    net.minecraft.client.gui.Font font() {
-        return this.font;
-    }
+    net.minecraft.client.gui.Font font() { return this.font; }
 
     /** A content box: the menu's card. */
-    void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        ScreenChrome.card(g, x, y, w, h, false);
-    }
+    void box(GuiGraphicsExtractor g, int x, int y, int w, int h) { ScreenChrome.card(g, x, y, w, h, false); }
 
     /** A recessed item square; {@code edge} 0 is the plain outline, anything else an accent/rarity edge inside it. */
     void slotBox(GuiGraphicsExtractor g, int x, int y, int size, int edge) {
@@ -1672,9 +1648,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         hotspots.add(new Hotspot(x, y, w, h, action));
     }
 
-    void centered(GuiGraphicsExtractor g, String text, int y, int color) {
-        centeredIn(g, text, contentX, contentW, y, color);
-    }
+    void centered(GuiGraphicsExtractor g, String text, int y, int color) { centeredIn(g, text, contentX, contentW, y, color); }
 
     void centeredIn(GuiGraphicsExtractor g, String text, int x, int w, int y, int color) {
         tx(g, text, x + (w - this.font.width(text)) / 2, y, color);
@@ -1713,18 +1687,14 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Page text in the theme (readable on Light; shadow on dark themes only). */
-    static void tx(GuiGraphicsExtractor g, String s, int x, int y, int color) {
-        ScreenChrome.text(g, s, x, y, color);
-    }
+    static void tx(GuiGraphicsExtractor g, String s, int x, int y, int color) { ScreenChrome.text(g, s, x, y, color); }
 
     /** A styled line (a rank tag) keeps its own colors; only its unstyled parts take {@code color}. */
     static void tx(GuiGraphicsExtractor g, Component s, int x, int y, int color) {
         ScreenChrome.text(g, s.getVisualOrderText(), x, y, color);
     }
 
-    static String commas(double v) {
-        return String.format(Locale.US, "%,d", (long) Math.floor(v));
-    }
+    static String commas(double v) { return String.format(Locale.US, "%,d", (long) Math.floor(v)); }
 
     static String shorten(double v) {
         double abs = Math.abs(v);

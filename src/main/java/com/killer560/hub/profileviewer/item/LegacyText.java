@@ -55,7 +55,5 @@ public final class LegacyText {
         return out;
     }
 
-    public static String strip(String text) {
-        return text == null ? "" : text.replaceAll("§.", "");
-    }
+    public static String strip(String text) { return text == null ? "" : text.replaceAll("§.", ""); }
 }
