@@ -16,7 +16,13 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * extra transactions step the same counter), and his mask procs fell on exact 60-tick multiples of WALL time while the chain
  * ran 5% ahead (Goldor's line drifted 6, 10, 12, -13 ticks off them). So a chain ping counts only while the count stays within
  * {@link #HYPIXEL_SLACK} of the wall clock ({@link #withinWall}); a stall banks credit for its catch-up burst, at most
- * {@link #HYPIXEL_CREDIT} ticks (a server more than 2 s behind skips the rest, it does not catch them up). goldfix-1104's pace rule (pings ahead of the wall clock end the trust) read the random ids as a server pinging
+ * {@link #HYPIXEL_CREDIT} ticks (a server more than 2 s behind skips the rest, it does not catch them up). The wall clock
+ * is not the server's clock, though (masktimer-1105, his 2026-11-05 run): after a 1.6 s stall that the server did not catch
+ * up, the extras filled the banked credit and the count ran 12 ticks ahead of the server, so Goldor's line read 12 off his
+ * next mask proc, and Storm's Purple counted its 62 ticks in 59.3 ticks of wall time after a 3.5 s stall. So the server's
+ * own tick count, the game time of its time packet (once a second), holds the count ({@link #onServerTime}): a count
+ * behind it by more than {@link #TIME_SLACK} moves up to it at once (ticks the cap or a frozen client held back), a count
+ * ahead of it counts no chain ping until the wall clock has paid the lead back (never down). goldfix-1104's pace rule (pings ahead of the wall clock end the trust) read the random ids as a server pinging
  * faster than it ticks and untrusted real Hypixel, so Split Timers hid every lag figure and every timer ran on client ticks.
  * "Real" hypixel.net is the address AND a non-local remote: the testkit labels its loopback GrimAC server mc.hypixel.net,
  * and Grim's transaction ids form a chain too (-(counter &amp; 0x7FFF), a hit adds several), so they must never count.
@@ -52,6 +58,11 @@ public final class PerTickServerClock {
      *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
     static final int STALL_TICKS = 2;
     private static final long CENSUS_NANOS = 60_000_000_000L;
+    /** hypixel.net: the count may differ from the server's game time by this much (whether a tick's ping or its time packet
+     *  comes first) before {@link #onServerTime} moves it. */
+    static final long TIME_SLACK = 1L;
+    /** A game time this far past the last one is not the next second of the same world: map the count to it afresh. */
+    private static final long TIME_GAP = 400L;
 
     private static volatile long clock;
     private static volatile boolean trusted;
@@ -85,8 +96,13 @@ public final class PerTickServerClock {
     private static int otherId;
     private static boolean chainSet;
     private static boolean otherSet;
-    /** This world's ping census: {non-zero, in the chain, id 0, chain steps down, chain steps up}. */
-    private static final long[] CENSUS = new long[5];
+    /** This world's ping census: {non-zero, in the chain, id 0, chain steps down, chain steps up, time packets, ticks the
+     *  time packets moved the count up, ticks they held it back}. */
+    private static final long[] CENSUS = new long[8];
+    /** hypixel.net: the count minus the server's game time, fixed at this world's first time packet, and the last one. */
+    private static boolean timeSet;
+    private static long timeOffset;
+    private static long lastServerTime;
     private static long censusStart = Long.MIN_VALUE;
     private static boolean censusLogged;
     /** The clock and the client's (server-set) game time when the census began. */
@@ -166,6 +182,7 @@ public final class PerTickServerClock {
         java.util.Arrays.fill(CENSUS, 0L);
         censusStart = Long.MIN_VALUE;
         censusLogged = false;
+        timeSet = false;
     }
 
     /** From the ping mixin (through {@link ServerTickClock#onPing}), on the client thread, for every ping id. */
@@ -248,11 +265,13 @@ public final class PerTickServerClock {
             double steps = (nanos - censusStart) / 50_000_000.0;
             LOGGER.info("[PerTickServerClock] ping census, first 60 s of this world ({}): {} non-zero ids ({} in the per-tick"
                     + " chain, {} off it), {} with id 0; {} pings and {} chain pings per 50 ms; chain steps {} down, {} up;"
-                    + " {} ticks counted and the server-set game time +{} in {} ticks of wall time",
+                    + " {} ticks counted and the server-set game time +{} in {} ticks of wall time; {} time packets moved"
+                    + " the count up {} ticks and held it back {}",
                     hypixel ? "hypixel.net, chain counted" : "not hypixel.net", CENSUS[0], CENSUS[1], CENSUS[0] - CENSUS[1],
                     CENSUS[2], String.format(java.util.Locale.ROOT, "%.3f", CENSUS[0] / steps),
                     String.format(java.util.Locale.ROOT, "%.3f", CENSUS[1] / steps), CENSUS[3], CENSUS[4],
-                    clock - censusClock, lastGameTime - censusGameTime, String.format(java.util.Locale.ROOT, "%.1f", steps));
+                    clock - censusClock, lastGameTime - censusGameTime, String.format(java.util.Locale.ROOT, "%.1f", steps),
+                    CENSUS[5], CENSUS[6], CENSUS[7]);
         }
     }
 
@@ -279,6 +298,53 @@ public final class PerTickServerClock {
             excess += 1.0;
         }
         return true;
+    }
+
+    /** From the time packet's handler (once a second on a vanilla-style server), on the client thread: the server's game
+     *  time, i.e. its own tick count. hypixel.net only (see the class doc). */
+    public static void onServerTime(long gameTime) {
+        onServerTime(gameTime, Boolean.TRUE.equals(forcedHypixel) ? testNanos : System.nanoTime());
+    }
+
+    private static void onServerTime(long gameTime, long nanos) {
+        int up;
+        synchronized (PerTickServerClock.class) {
+            up = serverTimeLocked(gameTime, nanos);
+        }
+        if (up > 0) {
+            fire(up);
+        }
+    }
+
+    private static int serverTimeLocked(long gameTime, long nanos) {
+        if (!hypixel || !trusted) {
+            return 0;
+        }
+        if (!timeSet || gameTime < lastServerTime || gameTime - lastServerTime > TIME_GAP) {
+            timeSet = true;
+            timeOffset = clock - gameTime;
+            lastServerTime = gameTime;
+            return 0;
+        }
+        lastServerTime = gameTime;
+        CENSUS[5]++;
+        drain(nanos, HYPIXEL_CREDIT);
+        long behind = gameTime + timeOffset - clock;
+        int up = 0;
+        if (behind > TIME_SLACK) {
+            up = (int) Math.min(behind, 100L);
+            clock += up;
+            trustedPings += up;
+            CENSUS[6] += up;
+        } else if (behind < -TIME_SLACK) {
+            CENSUS[7] -= behind;
+        }
+        if (Math.abs(behind) > 2L) {
+            LOGGER.info("[PerTickServerClock] hypixel.net's game time: the count was {} ticks {} it ({})", Math.abs(behind),
+                    behind > 0 ? "behind" : "ahead of", behind > 0 ? "moved up" : "held until the wall clock pays it back");
+        }
+        excess = clock - (gameTime + timeOffset); // a lead holds the chain back; a lag was just paid
+        return up;
     }
 
     /** Non-Hypixel, every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
@@ -358,6 +424,12 @@ public final class PerTickServerClock {
             long delta = last == Long.MIN_VALUE ? 1L : now - last;
             last = now;
             return (int) Math.max(0L, Math.min(100L, delta));
+        }
+
+        /** Ticks the next {@link #take} will return so far: a timer set now adds them, so the ticks before it are not
+         *  taken from it (a mask proc set mid-tick read 1 tick short, masktimer-1105). */
+        public int pending() {
+            return last == Long.MIN_VALUE ? 0 : (int) Math.max(0L, Math.min(100L, clock - last));
         }
     }
 
@@ -443,6 +515,11 @@ public final class PerTickServerClock {
         return trusted;
     }
 
+    /** Whether this is the real hypixel.net (its chain counted, held to its game time), not a test or other server. */
+    public static synchronized boolean onHypixel() {
+        return hypixel;
+    }
+
     /** Whether the ping being handled now is one of hypixel.net's random-id pings, not a tick (for ServerTickClock's raw
      *  ping listeners, which run right after {@link #onPingId}: ServerLag skips it, or it would split a stall's gap). */
     public static boolean offChain() {
@@ -465,6 +542,11 @@ public final class PerTickServerClock {
      *  sees it. {@link #pingForTest} is not paced: cases push the clock ahead with hundreds of pings at once. */
     public static void pingForTestTimed() {
         onPing(testChainId--, testNanos);
+    }
+
+    /** Testkit: the server's time packet with this game time, on the test's own wall clock. */
+    public static void serverTimeForTest(long gameTime) {
+        onServerTime(gameTime, testNanos);
     }
 
     /** A client tick, and 50 ms of the test's own wall clock. */

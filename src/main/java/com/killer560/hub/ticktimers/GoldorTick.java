@@ -51,6 +51,17 @@ import java.util.Map;
  * Goldor's line, the wall time and the pings, so the next real run shows which of the clock, the start phase or a hit
  * is off: his four 2026-11-03/04 runs locked their first mask proc 9, 2, 21 and 25 ticks (mod 60) after Goldor's line,
  * not at one fixed place.
+ * <p>
+ * <b>2026-11-05 (masktimer-1105, killer560: "one proc went to 0 back to 3 down to about 2.8 before proccing the other
+ * procced at .6 or so left").</b> With the clock on Hypixel's real ticks (goldor2-1104) his mask procs land on Goldor's line
+ * + 60 k, Odin's and NoammAddons' rule: 2026-11-05 at line+360 and +479 (360.0 and 480.0 ticks of wall time), and the 11-04
+ * 20:54 run at 299.3, 420.3, 600.4, 1260.2 and 2040.4 wall ticks after the line. The line+42 start (read off the old,
+ * 13%-fast clock) and the first-hit snap put the 11-05 line on a health drop at line+71 that was not Goldor's (health drops
+ * there came at +11, +71, +149, +160, +192, +238), 11 ticks off: his Spirit Mask then popped with 0.55 s left, and after a
+ * 1.6 s stall the count ran 12 ahead of the server (PerTickServerClock now holds it to the server's game time) and the next
+ * proc came 0.6 s after 0. So on hypixel.net the line's phase stands from the line ({@link #FIRST_HIT} = {@link #PERIOD}),
+ * your own health never moves it, and only two mask procs or multi-player hits a whole number of periods apart re-lock it.
+ * The line and a proc are read when their chat line is handled: a trusted clock moves on its pings, in packet order.
  */
 public final class GoldorTick {
 
@@ -65,8 +76,8 @@ public final class GoldorTick {
     static final int DEBOUNCE = 5;
     /** A hit this close to the prediction, once the phase is locked, moves nothing (observation noise). */
     static final int NOISE = 1;
-    /** Ticks from Goldor's line to his first hit on the real run: 42, i.e. {@code PERIOD - 18} (2026-11-03, see above). */
-    static final int FIRST_HIT = PERIOD - 18;
+    /** Ticks from Goldor's line to his first hit: a full period (Odin, NoammAddons, his 2026-11-04/05 procs; see above). */
+    static final int FIRST_HIT = PERIOD;
     /** Before the phase has been locked, a hit sooner than this after the line is not Goldor's first (fall damage, a mob). */
     static final int MIN_FIRST_HIT = 20;
     /** Trusted clock: a hit this close to the prediction is the predicted hit (a client tick can carry two or three server
@@ -117,11 +128,14 @@ public final class GoldorTick {
     /** Goldor's opening line: his first hit is one period later. */
     static synchronized void start() {
         active = true;
-        startReadAt = now();
+        long t = now();
+        // A trusted clock moves on its pings in packet order, so the line's own reading is exact; only the client-tick clock
+        // steps at the tick's end (endOfTick).
+        startReadAt = PerTickServerClock.trusted() ? Long.MIN_VALUE : t;
         procPending = false;
-        startTick = startReadAt;
-        locked = false;
-        anchor = startReadAt + FIRST_HIT;
+        startTick = t;
+        locked = PerTickServerClock.onHypixel() && PerTickServerClock.trusted();
+        anchor = t + FIRST_HIT;
         lastAccepted = Long.MIN_VALUE;
         unexplained = Long.MIN_VALUE;
         lastHealth = Float.NaN;
@@ -132,7 +146,7 @@ public final class GoldorTick {
         lineMark = TimerMark.now();
         lastLoggedZero = Long.MIN_VALUE;
         LOGGER.info("[TickTimers] Goldor line: {} ticks after Storm's death line, first hit predicted at line+{}, clock {}",
-                stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(startReadAt - stormDeathTick), FIRST_HIT,
+                stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(t - stormDeathTick), FIRST_HIT,
                 PerTickServerClock.trusted() ? "trusted" : "untrusted");
     }
 
@@ -214,7 +228,11 @@ public final class GoldorTick {
             }
         }
         boolean reliable = kind != Kind.SELF || inPhase.stream().anyMatch(u -> u.kind() != Kind.SELF);
-        boolean relock = !inPhase.isEmpty() && (reliable || inPhase.size() >= 2);
+        // hypixel.net: your own health drops in P3 from more than Goldor (a run of them 11 ticks off his phase, 2026-11-05),
+        // so only procs and multi-player hits, two of them, re-lock there.
+        boolean relock = PerTickServerClock.onHypixel()
+                ? kind != Kind.SELF && inPhase.stream().anyMatch(u -> u.kind() != Kind.SELF)
+                : !inPhase.isEmpty() && (reliable || inPhase.size() >= 2);
         if (relock) {
             relocks++;
             anchor = t;
@@ -295,9 +313,16 @@ public final class GoldorTick {
         }
     }
 
-    /** A mask or Phoenix proc line: you were just hit for lethal damage, in P3 that is Goldor's tick. Counted at the end
-     *  of this client tick, with the health drops. */
-    static synchronized void onProc() { procPending = active; }
+    /** A mask or Phoenix proc line: you were just hit for lethal damage, in P3 that is Goldor's tick. On a trusted clock it is
+     *  read now (the pings before it are counted, the ones after it not yet); otherwise at the end of this client tick,
+     *  with the health drops. */
+    static synchronized void onProc() {
+        if (active && PerTickServerClock.trusted()) {
+            onHit(now(), Kind.PROC, "a mask proc");
+        } else {
+            procPending = active;
+        }
+    }
 
     /** End of every client tick, before {@link #clientTick}: puts this tick's chat-time events on the end-of-tick clock. */
     public static synchronized void endOfTick() {
