@@ -322,9 +322,10 @@ final class SettingTooltipsData {
         d.put("sound disabler/phantoms", "Every phantom sound (entity.phantom.*).");
         d.put("sound disabler/withers", "Every Wither boss sound (entity.wither.*): F7's Withers and their skulls. Wither skeletons are not muted.");
         d.put("sound disabler/rain and thunder", "Rain (weather.rain) and lightning (entity.lightning_bolt.*).");
+        d.put("sound disabler/skyblock weather", "On Skyblock only: the island weather Hypixel added in 2026 (Thunderstorm, Acid Rain, Hellstorm, Blizzard and the rest). Mutes every sound in the game's Weather category plus rain and lightning. Off by default. If a weather sound still plays, turn on Show Sound IDs, click its id in chat to copy it, and paste it into Custom Sound IDs. Hypixel's own Weather Menu (Professor Wynd, The Hub) also has a Weather Audio & Visuals toggle.");
         d.put("sound disabler/custom sound ids", "Any other sounds to mute, by id, separated by commas or spaces: entity.villager.ambient (minecraft: is assumed), or end one with * to mute every id that starts with it (entity.villager.*). A lone * is ignored. Show Sound IDs tells you a sound's id.");
         d.put("sound disabler/set", "Saves the Custom Sound IDs typed in the box to its left. Enter in the box does the same.");
-        d.put("sound disabler/show sound ids", "Says the id of every sound the game plays in chat (each id at most once every 2 seconds), marked (muted) when it was muted, so you can find one for Custom Sound IDs. Off by default.");
+        d.put("sound disabler/show sound ids", "Says the id and category of every sound the game plays in chat (each id at most once every 2 seconds), marked (muted) when it was muted, so you can find one for Custom Sound IDs: click an id to copy it. Off by default.");
         d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
         d.put("descriptions/descriptions", "Off hides every card description and HUD editor hint, whatever the two rows below say.");
         d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");

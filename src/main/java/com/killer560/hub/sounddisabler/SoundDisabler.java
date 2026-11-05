@@ -2,6 +2,11 @@ package com.killer560.hub.sounddisabler;
 
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.SkyblockGate;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -63,9 +68,16 @@ public final class SoundDisabler {
         if (id == null) return false;
         checked++;
         String row = null;
+        SoundSource source = null;
         try {
+            source = in.getSource();
             for (MutedSound s : MutedSound.ALL) {
-                if (!cfg.isOn(s) || !s.idMatches(id)) continue;
+                if (!cfg.isOn(s) || !s.matches(id, source)) {
+                    continue;
+                }
+                if (s == MutedSound.SKYBLOCK_WEATHER && !SkyblockGate.isOnSkyblock()) {
+                    continue;
+                }
                 if (s == MutedSound.BONZO_STAFF && !isBonzo(in, id.getPath())) {
                     bonzoCandidatesPassed++;
                     continue;
@@ -82,7 +94,7 @@ public final class SoundDisabler {
             row = null;
         }
         if (cfg.isShowIds()) {
-            show(id, row != null);
+            show(id, source, row != null);
         }
         if (row == null) return false;
         muted++;
@@ -130,8 +142,11 @@ public final class SoundDisabler {
         return stack.getHoverName().getString().contains("Bonzo's Staff");
     }
 
-    /** Show Sound IDs: the id in chat (once per {@link #SHOW_EVERY_NANOS} per id), marked when it was muted. */
-    private static void show(Identifier id, boolean wasMuted) {
+    /**
+     * Show Sound IDs: the id and its category in chat (once per {@link #SHOW_EVERY_NANOS} per id), marked when it was muted;
+     * clicking the id copies it, for the Custom Sound IDs box (wxmute-1104: how an unknown Skyblock event sound is found).
+     */
+    private static void show(Identifier id, SoundSource source, boolean wasMuted) {
         Minecraft mc = Minecraft.getInstance();
         if (!mc.isSameThread() || mc.player == null) return;
         String key = id.toString();
@@ -142,7 +157,10 @@ public final class SoundDisabler {
         if (SHOWN.size() > 512) {
             SHOWN.clear();
         }
-        ModChat.send("Sound Disabler", ModChat.value(key), wasMuted ? ModChat.dim(" (muted)") : ModChat.text(""));
+        ModChat.send("Sound Disabler", ModChat.value(key).withStyle(st -> st.withClickEvent(new ClickEvent.CopyToClipboard(key))
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to copy")))),
+                ModChat.dim(source == null ? "" : " [" + source.getName() + "]"),
+                wasMuted ? ModChat.dim(" (muted)") : ModChat.text(""));
     }
 
 
