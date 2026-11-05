@@ -53,21 +53,26 @@ public final class SimArrival {
     /** Server thread: puts {@code sp} on the clear spot nearest {@code (x, y, z)} and holds his client for it. */
     public static void place(ServerPlayer sp, ServerLevel level, double x, double y, double z, float yaw, float pitch) {
         double[] at = clear(level, x, y, z);
-        // A loaded chunk is sent only once it TICKS (ChunkHolder.getChunkToSend). On 26.2, after a world reopen, the landing
-        // sat at ticket level 33 (loaded, not ticking) and never went out: 0 of 9 chunks for 15 s (simspawn-1104). A portal
-        // ticket (it expires by itself after 300 ticks) makes the 3x3 round the spot tick, so vanilla sends them.
-        level.getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PORTAL,
-                new net.minecraft.world.level.ChunkPos((int) Math.floor(at[0]) >> 4, (int) Math.floor(at[2]) >> 4), 2);
-        sp.teleportTo(level, at[0], at[1], at[2], Set.of(), yaw, pitch, false);
-        sp.fallDistance = 0;
+        teleport(sp, level, at[0], at[1], at[2], Set.of(), yaw, pitch);
         var local = Minecraft.getInstance().player;   // only HIS client is held; sim minibosses are ServerPlayers too
         if (local != null && local.getUUID().equals(sp.getUUID())) {
             expect(sp.getUUID(), at);
-            // His chunk cache follows him only when the server sees him change chunk; on 26.2 it stayed on an older
-            // one after a world reopen and dropped the landing's chunks (simspawn-1104). One packet makes it sure.
-            sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket(
-                    (int) Math.floor(at[0]) >> 4, (int) Math.floor(at[2]) >> 4));
         }
+    }
+
+    /**
+     * Server thread: every sim landing's teleport. A server-side teleport moves him, and {@code ChunkMap.tick} moves the
+     * chunks he is SENT, but the chunk TICKETS (DistanceManager) follow him only through {@code ChunkMap.move}, which
+     * vanilla calls when his client's next movement packet arrives. A client still in its world-load wait sends none:
+     * it waits for its own chunk, which is never sent, because a chunk is sent only once it ticks and nothing tickets
+     * the landing (simchunk-1105: a floor from the title on 26.2 sat at ticket level 33 with his tickets still at the
+     * login spot, 9 chunks away, until a 15 s timeout). So the tickets are moved here, as vanilla does for a camera.
+     */
+    static void teleport(ServerPlayer sp, ServerLevel level, double x, double y, double z, Set<Relative> relatives,
+                         float yaw, float pitch) {
+        sp.teleportTo(level, x, y, z, relatives, yaw, pitch, false);
+        sp.fallDistance = 0;
+        level.getChunkSource().move(sp);
     }
 
     /**
@@ -133,32 +138,20 @@ public final class SimArrival {
     private static final int STALL_TICKS = 40;
 
     /**
-     * Server thread: the landing's chunks have not reached his client after {@link #STALL_TICKS} (seen once on 26.2,
-     * a floor opened from the title right after a boss world: 0 of 9 for 15 s, until the next teleport). Logs what the
-     * server thinks, re-centers his client's chunk cache on him and queues every loaded chunk of his view again (a
-     * teleport hop out and back did not help: the server already counted them sent).
+     * Server thread: the landing's chunks have not reached his client after {@link #STALL_TICKS}. Logs what the server
+     * thinks (once per landing), so a stall says whether the chunk is unticketed or unsent.
      */
-    private static void retrack(net.minecraft.server.MinecraftServer server, UUID id, double[] at) {
+    private static void logStall(net.minecraft.server.MinecraftServer server, UUID id, double[] at) {
         ServerPlayer sp = server.getPlayerList().getPlayer(id);
         if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
         int cx = (int) Math.floor(at[0]) >> 4;
         int cz = (int) Math.floor(at[2]) >> 4;
         var map = level.getChunkSource().chunkMap;
-        long key = net.minecraft.world.level.ChunkPos.pack(cx, cz);
-        var holder = map.getUpdatingChunkIfPresent(key);
-        LOGGER.warn("[SimPhase] landing chunk {},{} not on his client after {} ticks: server has him at {} (chunk {}), chunk"
-                        + " loaded {}, tracked {}, pending send {}, ticket level {}, ticking {}, send sync done {} - re-sending",
-                cx, cz, STALL_TICKS, sp.blockPosition().toShortString(), sp.chunkPosition(),
-                level.getChunkSource().getChunkNow(cx, cz) != null, map.isChunkTracked(sp, cx, cz),
-                sp.connection.chunkSender.isPending(key), holder == null ? -1 : holder.getTicketLevel(),
-                holder != null && holder.getTickingChunk() != null, holder != null && holder.getSendSyncFuture().isDone());
-        // Seen on 26.2: the server counts them sent, but his client's chunk cache is still centered on an older chunk
-        // (-2,-12 for a landing at -4,-2) and drops every chunk outside it. Center it on him, then send his view again.
-        sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket(cx, cz));
-        sp.getChunkTrackingView().forEach(pos -> {
-            var c = level.getChunkSource().getChunkNow(pos.x(), pos.z());
-            if (c != null) sp.connection.chunkSender.markChunkPendingToSend(c);
-        });
+        var holder = map.getUpdatingChunkIfPresent(net.minecraft.world.level.ChunkPos.pack(cx, cz));
+        LOGGER.warn("[SimPhase] landing chunk {},{} not on his client after {} ticks: server has him in chunk {}, his tickets"
+                        + " at section {}, chunk loaded {}, tracked {}, ticket level {}", cx, cz, STALL_TICKS,
+                sp.chunkPosition(), sp.getLastSectionPos(), level.getChunkSource().getChunkNow(cx, cz) != null,
+                map.isChunkTracked(sp, cx, cz), holder == null ? -1 : holder.getTicketLevel());
     }
 
     /** Render thread, every client tick (one volatile read when nothing is held). */
@@ -191,7 +184,7 @@ public final class SimArrival {
             if (waited == STALL_TICKS && client.getSingleplayerServer() != null && who != null) {
                 var srv = client.getSingleplayerServer();
                 UUID id = who;
-                srv.execute(() -> retrack(srv, id, at));
+                srv.execute(() -> logStall(srv, id, at));
             }
             // Only now, so a /goto into chunks he already has never flashes the screen.
             if (McCompat.screen(client) == null) {
@@ -218,9 +211,7 @@ public final class SimArrival {
             server.execute(() -> {
                 ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
                 if (sp != null) {
-                    sp.teleportTo((ServerLevel) sp.level(), at[0], at[1], at[2], Set.of(Relative.Y_ROT, Relative.X_ROT),
-                            0f, 0f, false);
-                    sp.fallDistance = 0;
+                    teleport(sp, (ServerLevel) sp.level(), at[0], at[1], at[2], Set.of(Relative.Y_ROT, Relative.X_ROT), 0f, 0f);
                 }
             });
             return;

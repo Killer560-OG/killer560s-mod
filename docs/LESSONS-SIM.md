@@ -52,8 +52,21 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   logs each stage's time per build; a cold first world open (vanilla `createFreshLevel`, ~10 s) is now the biggest cost.
   On 26.2 a floor opened from the title after a boss world never got its landing chunks (0 of 9 for 15 s): the server
   counted them tracked, but the landing chunk sat at ticket level 33 (loaded, not ticking), and `ChunkHolder.getChunkToSend`
-  sends only ticking chunks; a teleport hop and a re-queue did not help. `SimArrival.place` now adds a self-expiring PORTAL
-  ticket (radius 2) at the landing and sends `ClientboundSetChunkCacheCenterPacket`; on 26.2 the holder STILL read level 33
-  40 ticks later (2026-11-05 gate), so the ticket update never applied there: OPEN, 26.3 passes. Those worlds also opened with
+  sends only ticking chunks. Cause (simchunk-1105): a player's chunk TICKETS follow him only through `ChunkMap.move`, which
+  vanilla calls when his client's movement packet arrives; `ChunkMap.tick` moves only the chunks he is tracked for. A client
+  still in its world-load wait sends no movement (it waits for its own chunk, which is never sent), so a server teleport
+  before it loaded left his tickets at the login spot 9 chunks away: a deadlock until the 15 s timeout (the old PORTAL
+  ticket was only on `place`, never on a floor's `snapPlayerTo`). Every sim teleport goes through `SimArrival.teleport`,
+  which calls `getChunkSource().move(sp)` after `teleportTo`; a stall still logs "landing chunk ... not on his client" with
+  his ticket section and the chunk's level. 1104-sim-spawnload 63/63 on 26.3 cheat, 26.3 legit and 26.2 cheat. Those worlds also opened with
   "Loading 210 persistent chunks": `BossFight.forget` never un-forced the arena; now SERVER_STOPPING un-forces it and
   every sim open releases any left (`BossFight.releaseForced`).
+- **A build's chunk loads froze because the light thread died** (simchunk-1105, testkit 97 single rooms). The light
+  engine's `propagateLightSources` reads a chunk's light sources LIVE on the light thread; a source the build wrote into a
+  section whose DataLayer was not made yet threw an NPE in `getStoredLevel`, which kills the light executor, and every later
+  chunk load then waits on light forever (the server parks in a chunk load). `SimBuildQueue.FinishJob` now waits (polled
+  once a tick, 200-tick cap with a WARN) for `waitForPendingTasks(cx, cz)` of every chunk it wrote before the build counts as
+  done, and logs "light engine done with the build's N chunks after T tick(s)". 97 single rooms 133/133 on 26.3 and 26.2 cheat.
+- **Blaze rooms land at the doorway's floor** (simchunk-1105): their spot was a column scan (Higher Blaze from the top), and
+  on a generated floor with the room turned it stood him on a ledge 5 above the doorway (97 /goto, y259 vs 254). Their
+  `Spawn` now carries the doorway offset (15), so `openingFloor` sets the height, with `doorwaySpot` as the fallback.

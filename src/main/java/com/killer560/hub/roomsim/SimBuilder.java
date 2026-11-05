@@ -740,13 +740,14 @@ public final class SimBuilder {
             // ONE BLOCK IN FROM THE DOORWAY. A blaze room is a shaft; its middle is the chain, and the level
             // that matters is the one you walk in on. The side comes from the room's own measured doorway
             // mask rather than a guess, and 14 is the tile center (16 in capture-local) stepped out to the
-            // wall at 1 or 31 and back in one.
+            // wall at 1 or 31 and back in one. AT THE DOORWAY'S FLOOR (simchunk-1105): a column scan from the top
+            // stood him on a ledge 5 above it in Higher Blaze turned on a generated floor (97, y259 vs doorway 254).
             RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
             if (mask != null) {
                 for (int packed : mask.edges()) {
                     int side = RoomDoors.sideOf(packed);
-                    return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14,
-                            name.startsWith("higher"));
+                    return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14, name.startsWith("higher"),
+                            RoomDoors.DX[side] * 15, RoomDoors.DZ[side] * 15);
                 }
             }
             return new Spawn(0, 0, name.startsWith("higher"));
@@ -1103,6 +1104,8 @@ public final class SimBuilder {
             // not safe, the room's own doorways decide (doorwaySpot) - still at a doorway, still facing in.
             doorLevel = openingFloor(level, wx, wz, spawn.doorDz() != 0);
             if (doorLevel == null || !safeAt(level, x, doorLevel, z)) {
+                LOGGER.info("[SimPhase] {}: doorway at {},{} gives floor {}, spot {},{} not usable - trying its doorways",
+                        room.name, wx, wz, doorLevel, x, z);
                 doorLevel = null;
                 doorFallback = true;
             }
@@ -1181,6 +1184,8 @@ public final class SimBuilder {
                 landing = door[1];
                 z = door[2];
                 doorYaw = (float) door[3];
+            } else if (doorFallback) {
+                LOGGER.info("[SimPhase] {}: none of its doorways gives a spot - landing at {} {} {}", room.name, x, landing, z);
             }
         }
         // Never into a block (simspawn-1104): a landing that is not a clear standing spot gives way to the nearest one.
@@ -1212,8 +1217,7 @@ public final class SimBuilder {
                     yaw += delta;
                 }
                 float pitch = facePitch != null ? facePitch : sp.getXRot();
-                sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch, false);
-                sp.fallDistance = 0;
+                SimArrival.teleport(sp, level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch);
                 if (landed != null) {
                     landed.accept(new float[]{yaw, pitch});
                 }
@@ -1398,8 +1402,8 @@ public final class SimBuilder {
             if (sp == null) return;
             level.setBlockAndUpdate(HOLDING_AREA.below(),
                     net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
-            sp.teleportTo(level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
-                    java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
+            SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
+                    java.util.Set.of(), sp.getYRot(), sp.getXRot());
         });
     }
 

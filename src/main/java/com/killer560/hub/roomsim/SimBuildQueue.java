@@ -168,6 +168,10 @@ public final class SimBuildQueue {
         private final net.minecraft.server.MinecraftServer server;
         private final java.util.List<Long> chunks;
         private int index;
+        /** Done once the light thread has run every task queued for these chunks; null until the last is queued. */
+        private java.util.concurrent.CompletableFuture<?> lit;
+        private int litWait;
+        private boolean finished;
 
         FinishJob(net.minecraft.server.MinecraftServer server, java.util.List<Long> chunks) {
             this.server = server;
@@ -175,7 +179,7 @@ public final class SimBuildQueue {
         }
 
         @Override
-        public boolean isDone() { return index >= chunks.size(); }
+        public boolean isDone() { return finished; }
 
         @Override
         public long totalWork() { return chunks.size(); }
@@ -189,6 +193,31 @@ public final class SimBuildQueue {
         @Override
         public int step(int budget) {
             var level = server.overworld();
+            if (index >= chunks.size()) {
+                // The job is not over until the light thread has done it (simchunk-1105). Its propagateLightSources
+                // reads the chunk LIVE when it runs, and the next build's paste writes straight into the sections
+                // with no light bookkeeping; a light source pasted into a section the engine still held as empty
+                // then has no DataLayer, propagateIncreases throws on Worker-Main, the light executor never runs
+                // again, and the next sync getChunk (ServerPlayer.isInWall) waits forever (testkit 97 single rooms).
+                if (lit == null) {
+                    var lights = level.getChunkSource().getLightEngine();
+                    var waits = new java.util.concurrent.CompletableFuture<?>[chunks.size()];
+                    for (int i = 0; i < waits.length; i++) {
+                        long k = chunks.get(i);
+                        waits[i] = lights.waitForPendingTasks((int) (k >> 32), (int) k);
+                    }
+                    lit = java.util.concurrent.CompletableFuture.allOf(waits);
+                } else if (lit.isDone()) {
+                    finished = true;
+                    LOGGER.info("[SimPhase] light engine done with the build's {} chunks after {} tick(s)", chunks.size(),
+                            litWait);
+                } else if (++litWait > 20 * 10) {
+                    LOGGER.warn("[SimPhase] the light engine had not finished the build's {} chunks after 10 s - going on",
+                            chunks.size());
+                    finished = true;
+                }
+                return 0;
+            }
             int did = 0;
             while (did < CHUNKS_PER_TICK && index < chunks.size()) {
                 long k = chunks.get(index++);
