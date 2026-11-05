@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * Auto Nucleus Run (killer560, verbatim: "auto nuc run") - a planned mine-to-Nucleus-and-back automation. CHEAT BUILD
- * ONLY: added to Helpers' cheat block (Misc category) behind {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
+ * ONLY: added to the Mining category's cheat block behind {@code BuildVariant.CHEAT_FEATURES_ENABLED}.
  * <p>
  * <b>A stub: nothing is built.</b> The tab holds only its label and what real automation would still need. It has no
  * switch and no saved setting on purpose: d990a2ee removed the old one as dead config (a persisted key nothing read),

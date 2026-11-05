@@ -28,7 +28,7 @@ public final class DungeonQueueConfig {
     private boolean enabled = false;
     private int delaySeconds = DEFAULT_DELAY_SECONDS;
     private boolean disableOnLeave = true;
-    private boolean pvLinkOnJoin = true;
+    private boolean pvLinkOnJoin = false;
 
     private DungeonQueueConfig() {
     }
@@ -48,7 +48,7 @@ public final class DungeonQueueConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
                 cfg.disableOnLeave = ConfigJson.getBool(obj, "disableOnLeave", true);
-                cfg.pvLinkOnJoin = ConfigJson.getBool(obj, "pvLinkOnJoin", true);
+                cfg.pvLinkOnJoin = ConfigJson.getBool(obj, "pvLinkOnJoin", false);
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }

@@ -32,7 +32,7 @@ public final class PowderMiningConfig {
 
     private static PowderMiningConfig instance;
 
-    private boolean treasureChest = true;
+    private boolean treasureChest = false;
     private int treasureChestColor = DEFAULT_CHEST_COLOR;
     private boolean treasureChestTimer = true;
     private boolean treasureChestFade = true;
@@ -42,7 +42,7 @@ public final class PowderMiningConfig {
     private TracerMode treasureChestTracerMode = TracerMode.CHAIN;
     private boolean treasureChestCountdown = true;
 
-    private boolean chestAlert = true;
+    private boolean chestAlert = false;
     private boolean chestAlertSound = true;
     private boolean chestAlertTitle = false;
     private boolean breakSound = false;
@@ -52,17 +52,17 @@ public final class PowderMiningConfig {
     private int breakSoundVolumeTenths = 10;
     private int breakSoundPitchTenths = 10;
 
-    private boolean lockpickHelper = true;
+    private boolean lockpickHelper = false;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
 
-    private boolean powderTracker = true;
+    private boolean powderTracker = false;
     private boolean powderTrackerMithril = true;
     private boolean powderTrackerItems = true;
 
-    private boolean doublePowder = true;
+    private boolean doublePowder = false;
     private boolean doublePowderSound = true;
 
-    private boolean lootCompact = true;
+    private boolean lootCompact = false;
     private boolean hideTreasureUncovered = true;
     /** Chest Loot Compact leaves a rare reward's own line in chat (staging-mining-3's Powder Chest Chat Filter). */
     private boolean keepRareRewards = true;

@@ -40,7 +40,7 @@ public final class BloodRushConfig {
     private int killers = 1;
     private int role = 1;
     private boolean showOthers = true;
-    private boolean learnSpots = true;
+    private boolean learnSpots = false;
     private boolean showLearned = true;
     private boolean allRooms = false;
     private int mineColor = DEFAULT_MINE_COLOR;
@@ -85,7 +85,7 @@ public final class BloodRushConfig {
                 c.setKillers(ConfigJson.getInt(o, "killers", 1));
                 c.setRole(ConfigJson.getInt(o, "role", 1));
                 c.showOthers = ConfigJson.getBool(o, "showOthers", true);
-                c.learnSpots = ConfigJson.getBool(o, "learnSpots", true);
+                c.learnSpots = ConfigJson.getBool(o, "learnSpots", false);
                 c.showLearned = ConfigJson.getBool(o, "showLearned", true);
                 c.allRooms = ConfigJson.getBool(o, "allRooms", false);
                 c.mineColor = ConfigJson.getInt(o, "mineColor", DEFAULT_MINE_COLOR);

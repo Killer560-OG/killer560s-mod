@@ -153,7 +153,7 @@ public final class MiningQolConfig {
     private boolean abilityTimer = true;
     private boolean abilitySound = true;
     // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
-    private boolean wrongArmor = true;
+    private boolean wrongArmor = false;
     private boolean wrongArmorSound = true;
     // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
     private boolean chWalls = false;
@@ -182,10 +182,10 @@ public final class MiningQolConfig {
     private int raffleColor = DEFAULT_RAFFLE_COLOR;
     private boolean raffleEsp = false;
     // Resume Held Break After Menus (killer560 2026-11-03: a server menu opening mid-dig let go of his held left click)
-    private boolean resumeHeldBreak = true;
+    private boolean resumeHeldBreak = false;
     // Powder Ghast: the one feature here that ships ON (the brief: alert, box and tracer legit and on; party and through
     // walls off).
-    private boolean powderGhast = true;
+    private boolean powderGhast = false;
     private boolean powderGhastTitle = true;
     private boolean powderGhastSound = true;
     private boolean powderGhastParty = false;

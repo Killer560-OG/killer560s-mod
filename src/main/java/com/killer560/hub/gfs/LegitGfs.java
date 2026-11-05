@@ -60,7 +60,7 @@ public final class LegitGfs {
     private static final Map<Item, Boolean> WAS_DOWN = new EnumMap<>(Item.class);
     private static boolean loaded;
     /** The main switch: off stops the keybinds and /k gfs (killer560, 2026-10-19: "legit gfs should have a main toggle"). */
-    private static boolean enabled = true;
+    private static boolean enabled = false;
 
     private LegitGfs() {
     }
@@ -164,7 +164,7 @@ public final class LegitGfs {
     /** Reads the file again, defaults first (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
     public static synchronized void reload() {
         loaded = false;
-        enabled = true;
+        enabled = false;
         KEYS.clear();
         ensureLoaded();
     }

@@ -42,7 +42,7 @@ public final class LfgConfig {
         }
     }
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private boolean dualList = true;
     private boolean autoAcceptInvite = true;
     private boolean checkRequirements = true;
@@ -76,7 +76,7 @@ public final class LfgConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.dualList = ConfigJson.getBool(obj, "dualList", true);
                 cfg.autoAcceptInvite = ConfigJson.getBool(obj, "autoAcceptInvite", true);
                 cfg.checkRequirements = ConfigJson.getBool(obj, "checkRequirements", true);

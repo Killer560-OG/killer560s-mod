@@ -25,7 +25,7 @@ public final class RngMeterConfig {
     /** false = use Bazaar instant-sell price (default); true = use instant-buy price. */
     private boolean useInstantBuyPrice = false;
     private int refreshIntervalMinutes = 10;
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     private RngMeterConfig() {
     }
@@ -48,7 +48,7 @@ public final class RngMeterConfig {
             RngMeterConfig cfg = new RngMeterConfig();
             cfg.useInstantBuyPrice = ConfigJson.getBool(obj, "useInstantBuyPrice", false);
             cfg.setRefreshIntervalMinutes(ConfigJson.getInt(obj, "refreshIntervalMinutes", 10));
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             instance = cfg;
             // v1.0.0 and v1.1.0 wrote the mod's old built-in Hypixel key into this file as "hypixelApiKey". Nothing
             // reads it since that key was removed (2026-09-16), but the file kept it until the next save, and a

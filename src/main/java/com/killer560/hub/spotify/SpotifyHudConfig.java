@@ -27,7 +27,7 @@ public final class SpotifyHudConfig {
 
     /** Volatile: the lyrics poll thread reads it to decide whether to poll at all. */
     private volatile boolean hudEnabled = false;
-    private boolean showLyrics = true;
+    private boolean showLyrics = false;
     private boolean wordHighlight = true;
     private boolean hideWhenPaused = false;
     /** Smooth Lyric Scroll (2026-10-26): the lyric rows slide up when a line ends instead of jumping. */

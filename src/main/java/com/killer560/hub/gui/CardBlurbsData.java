@@ -119,8 +119,7 @@ final class CardBlurbsData {
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");
         d.put("I4SensorsTab", "Solver and i4 helpers.");
-        d.put("SimKeybindsTab", "Room keys for route practice.");
-        d.put("SimSettingsTab", "Dungeon Sim breaker charges, mobs.");
+        d.put("SimSettingsTab", "Sim charges, mobs, room keys.");
         d.put("SimonSaysTab", "Marks the Simon Says buttons.");
         d.put("SplitTimersTab", "A HUD timing each run part.");
         d.put("TeamMelodyTab", "Teammates' Melody progress.");

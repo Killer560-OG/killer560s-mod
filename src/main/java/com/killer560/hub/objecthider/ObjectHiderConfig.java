@@ -40,7 +40,7 @@ public final class ObjectHiderConfig {
 
     /** Object Hider as a whole (killer560, 2026-10-13): off, nothing in the pack hides anything (No Fire Overlay too),
      *  whatever the switches below say. On by default, so nothing changes until he flips it. */
-    private boolean objectHiderEnabled = true;
+    private boolean objectHiderEnabled = false;
     private boolean hideFairy = false;
     private boolean hideHealerOrbs = false;
     private boolean keepNearbyOrbs = false;
@@ -134,7 +134,7 @@ public final class ObjectHiderConfig {
 
     /** The plain on/off settings: key, default, and how to read and write the field. */
     private static final BoolFields<ObjectHiderConfig> BOOLS = new BoolFields<ObjectHiderConfig>()
-            .add("objectHiderEnabled", true, c -> c.objectHiderEnabled, (c, v) -> c.objectHiderEnabled = v)
+            .add("objectHiderEnabled", false, c -> c.objectHiderEnabled, (c, v) -> c.objectHiderEnabled = v)
             .add("hideFairy", false, c -> c.hideFairy, (c, v) -> c.hideFairy = v)
             .add("hideHealerOrbs", false, c -> c.hideHealerOrbs, (c, v) -> c.hideHealerOrbs = v)
             .add("keepNearbyOrbs", false, c -> c.keepNearbyOrbs, (c, v) -> c.keepNearbyOrbs = v)

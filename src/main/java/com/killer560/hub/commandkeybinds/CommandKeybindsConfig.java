@@ -75,7 +75,7 @@ public final class CommandKeybindsConfig {
         }
     }
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private final List<Bind> binds = new ArrayList<>();
     private CommandShortcutsConfig shortcuts = CommandShortcutsConfig.defaults();
 
@@ -124,7 +124,7 @@ public final class CommandKeybindsConfig {
         } else if (merged) {
             shortcutsActive = keysActive;   // one switch already
         } else {
-            shortcutsActive = true;         // Command Shortcuts' default
+            shortcutsActive = kb != null;   // Command Shortcuts default; a fresh install (no file) is OFF
         }
         cfg.enabled = merged && oldShortcuts == null ? keysActive : (keysActive || shortcutsActive);
 

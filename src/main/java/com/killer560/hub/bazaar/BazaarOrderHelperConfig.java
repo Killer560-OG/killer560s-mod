@@ -32,7 +32,7 @@ public final class BazaarOrderHelperConfig {
 
     private static BazaarOrderHelperConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private boolean highlightOutbid = true;
     private boolean highlightFilled = true;
     private int outbidColor = DEFAULT_OUTBID_COLOR;
@@ -56,7 +56,7 @@ public final class BazaarOrderHelperConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
                 cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
                 cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);

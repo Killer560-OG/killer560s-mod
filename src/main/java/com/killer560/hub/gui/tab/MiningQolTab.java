@@ -26,6 +26,8 @@ public class MiningQolTab extends FolderTab {
             // From staging-mining-3 (2026-11-04): both draw through walls or read blocks no player could see.
             t.add(new StructureScannerTab());
             t.add(new GhostEspTab());
+            // A stub with no switch (the macro itself is on staging-mining-3): moved here from Helpers, killer560 2026-11-04.
+            t.add(new AutoNucleusRunTab());
         }
         return t;
     }
