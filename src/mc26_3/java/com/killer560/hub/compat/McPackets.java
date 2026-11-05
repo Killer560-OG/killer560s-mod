@@ -13,7 +13,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /**
@@ -139,14 +138,5 @@ public final class McPackets {
 
     public static int positionSyncId(ClientboundEntityPositionSyncPacket p) {
         return p.id();
-    }
-
-    /** The look a teleport accept carries (26.3 sends it in the accept; NaN on 26.2, whose accept has none). */
-    public static float acceptYRot(ServerboundAcceptTeleportationPacket p) {
-        return p.yRot();
-    }
-
-    public static float acceptXRot(ServerboundAcceptTeleportationPacket p) {
-        return p.xRot();
     }
 }
