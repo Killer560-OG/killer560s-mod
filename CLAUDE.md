@@ -150,7 +150,7 @@ A plain `killer560smod-*.json` file is a SETTING file to the profile code whatev
 records) goes in `ProfileManager.EXCLUDED_FILES`, or a profile apply copies an old copy in or deletes it; until 2026-11-02 the
 `.json` names in `ProfileData.EXCLUDED_NAMES` did nothing (ProfileData only judges data entries; `isProfileSettingFile` honors them now).
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
-Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
+Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed by default (Amber), and every part of the mod follows the menu theme: fixed amber chrome goes through `gui/ThemeAccent` (docs/LESSONS-MENU.md, testkit 1104-ui-themematch-audit). Never carry
 his typos into a command, label or alias.
 Spelling is AMERICAN in everything the mod shows or writes (labels, tooltips, chat, HUD, logs, testkit matches,
 the Discord posts and the features Google Doc): color, center, gray, armor, defense, canceled, optimized.
