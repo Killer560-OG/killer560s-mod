@@ -160,6 +160,8 @@ public final class BloodRushHelperFeature {
     /** Rooms the rush has been through, in order, and those it had when it reached fairy (null before). */
     private static final LinkedHashSet<Integer> RUSHED = new LinkedHashSet<>();
     private static Set<Integer> beforeFairy;
+    /** Bumped on every change to {@link #RUSHED}, so the rush path cache can key on it without walking the set. */
+    private static int rushedVersion;
     private static int nextRoom = -1;
     private static volatile List<Spot> CACHED = List.of();
     private static volatile Map<Integer, double[]> LAST_DOORS = Map.of();
@@ -271,6 +273,7 @@ public final class BloodRushHelperFeature {
             mortSeen = true;
             bloodOpened = false;
             RUSHED.clear();
+            rushedVersion++;
             beforeFairy = null;
             nextRoom = -1;
         } else if (WITHER_DOOR_OPENED.matcher(msg).matches()) {
@@ -331,8 +334,11 @@ public final class BloodRushHelperFeature {
         LEARNING.clear();
         WALKED_IN.clear();
         RUSHED.clear();
+        rushedVersion++;
         beforeFairy = null;
         nextRoom = -1;
+        pathCache = null;
+        pathLayout = null;
         CACHED = List.of();
         bloodOpened = false;
         mortSeen = false;
@@ -426,7 +432,9 @@ public final class BloodRushHelperFeature {
         int t = tileAt(p.x, p.z);
         int room = layout.roomAtWorld(p.x, p.z);
         if (room >= 0 && room != lastRoom) {
-            RUSHED.add(room);
+            if (RUSHED.add(room)) {
+                rushedVersion++;
+            }
             if (beforeFairy == null && "FAIRY".equalsIgnoreCase(type(layout, room))) {
                 reachFairy();
             }
@@ -577,6 +585,39 @@ public final class BloodRushHelperFeature {
      * {@code scanned} (Whole Rush Path, cheat build) the scanned dungeon's. Returns room -> its entrance-side door (x, z).
      */
     static Map<Integer, double[]> rushPath(DungeonLayout layout, boolean scanned) {
+        long answers = HeldMap.answersVersion();
+        if (pathCache == null || layout != pathLayout || scanned != pathScanned || answers != pathAnswers
+                || rushedVersion != pathRushed) {
+            pathCache = computeRushPath(layout, scanned);
+            pathLayout = layout;
+            pathScanned = scanned;
+            pathAnswers = answers;
+            pathRushed = rushedVersion;
+            pathComputes++;
+        }
+        return pathCache;
+    }
+
+    /*
+     * Rush path cache (rushcache-1104): the path was rebuilt (lists, BFS, sets) every other tick, ~28 MB of garbage a minute.
+     * The path is a pure function of: the layout snapshot (rooms, which room owns each cell, types, names, door locks: a new
+     * DungeonLayout object whenever any of them or the player's room changes, DungeonLayout.current), the doors and rooms
+     * the hotbar map shows (HeldMap.answersVersion: the map item's version, or the sim stand-in's visited rooms), the rooms
+     * the rush has been in (rushedVersion), and the scanned flag. The cache keys on exactly those, compared field by field
+     * (no allocation, no scan of the 121 cells), so a door opening, a new room appearing, a room identified or the player
+     * entering a room recomputes and a stale path is never returned. nextRoom, the blood door chat and settings other than
+     * Whole Rush Path are NOT inputs: they only choose which rooms of the path show (shownRooms). The returned map is
+     * shared: read only.
+     */
+    private static Map<Integer, double[]> pathCache;
+    private static DungeonLayout pathLayout;
+    private static boolean pathScanned;
+    private static long pathAnswers;
+    private static int pathRushed;
+    /** Test counter: how many times the path was actually rebuilt. */
+    static int pathComputes;
+
+    static Map<Integer, double[]> computeRushPath(DungeonLayout layout, boolean scanned) {
         int n = layout.roomCount();
         List<List<int[]>> links = new ArrayList<>();
         for (int i = 0; i < n; i++) {
@@ -1020,6 +1061,39 @@ public final class BloodRushHelperFeature {
             out.add(layout.name(r));
         }
         return out;
+    }
+
+    /** Rush path (room name -> entrance-side door "x,z") as the cache gives it, or recomputed from scratch when {@code fresh}. */
+    public static java.util.TreeMap<String, String> pathForTest(boolean fresh) {
+        DungeonLayout layout = DungeonLayout.current();
+        java.util.TreeMap<String, String> out = new java.util.TreeMap<>();
+        for (Map.Entry<Integer, double[]> e : (fresh ? computeRushPath(layout, false) : rushPath(layout, false)).entrySet()) {
+            double[] d = e.getValue();
+            out.put(layout.name(e.getKey()), d == null ? "-" : d[0] + "," + d[1]);
+        }
+        return out;
+    }
+
+    /** Bytes this thread allocates over {@code calls} path lookups: rebuilt every time ({@code fresh}, the pre-cache cost) or cached. */
+    public static long pathAllocForTest(boolean fresh, int calls) {
+        DungeonLayout layout = DungeonLayout.current();
+        com.sun.management.ThreadMXBean mx = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+        long id = Thread.currentThread().threadId();
+        rushPath(layout, false);
+        long before = mx.getThreadAllocatedBytes(id);
+        for (int i = 0; i < calls; i++) {
+            if (fresh) {
+                computeRushPath(layout, false);
+            } else {
+                rushPath(layout, false);
+            }
+        }
+        return mx.getThreadAllocatedBytes(id) - before;
+    }
+
+    /** How many times the rush path was rebuilt since the jar loaded. */
+    public static int pathComputesForTest() {
+        return pathComputes;
     }
 
     /** The split on bare box middles {x, z} (index order kept): per role, the box indices in kill order. */
