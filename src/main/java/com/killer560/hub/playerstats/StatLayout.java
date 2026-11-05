@@ -181,7 +181,7 @@ public final class StatLayout {
     public static Area defaultArea(Readout r) {
         return switch (r) {
             case HEALTH_BAR, MANA_BAR -> Area.ABOVE_HOTBAR;
-            case DEFENCE_BAR, VITALITY_BAR, OTHER_BAR, XP_BAR -> Area.ABOVE_HOTBAR_2;
+            case DEFENCE_BAR, VITALITY_BAR, OTHER_BAR, XP_BAR, DRILL_FUEL_BAR -> Area.ABOVE_HOTBAR_2;
             case HEALTH_TEXT, DEFENCE_TEXT, EFFECTIVE_HEALTH_TEXT, VITALITY_TEXT -> Area.LEFT_OF_HOTBAR;
             default -> Area.RIGHT_OF_HOTBAR;
         };

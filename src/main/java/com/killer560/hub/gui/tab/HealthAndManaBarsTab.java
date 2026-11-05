@@ -59,6 +59,7 @@ public class HealthAndManaBarsTab extends BaseTab {
             Readout.HEALTH_BAR, Readout.MANA_BAR,
             Readout.DEFENCE_BAR, Readout.VITALITY_BAR,
             Readout.OTHER_BAR, Readout.XP_BAR,
+            Readout.DRILL_FUEL_BAR,
     };
 
     /** The Text grid, two to a row: the same stats in the same places as the bars, then the text-only ones. */
@@ -72,6 +73,19 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     public HealthAndManaBarsTab() {
         super("Health and Mana Bars");
+    }
+
+    /** True while {@link #editorWidgets} builds the page for Edit Bars' settings panel: every row but Edit Bars itself. */
+    private boolean inEditor;
+
+    /** This page's rows for Edit Bars' settings panel (barsedit-1104): the same widgets and setters as the menu's. */
+    public List<AbstractWidget> editorWidgets(int x, int y, int width, Runnable requestRebuild) {
+        inEditor = true;
+        try {
+            return buildWidgets(x, y, width, requestRebuild);
+        } finally {
+            inEditor = false;
+        }
     }
 
     /** True while {@link #widgetsMatchSearch} builds the page to read its labels: Advanced is built open, and the bar
@@ -122,7 +136,7 @@ public class HealthAndManaBarsTab extends BaseTab {
     @Override
     public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
             java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        String[] labels = {"Stat Bars", "XP Bar And Level", "Hypixel Stat Text"};
+        String[] labels = {"Stat Bars", "XP Bar And Level", "Hypixel Stat Text", "Drill Fuel Text"};
         java.util.List<com.killer560.hub.gui.SettingsButtonWidget> rows = switchRows(built, labels);
         if (rows.size() == labels.length || scanningForSearch) {
             return rows;
@@ -167,7 +181,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
 
-        if (showAll) {
+        if (showAll && !inEditor) {
             // The bars' own editor (2026-10-08): Edit HUD no longer lists them; this and Home's "Edit Bars" open it.
             widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
                         Minecraft client = Minecraft.getInstance();
@@ -177,12 +191,14 @@ public class HealthAndManaBarsTab extends BaseTab {
                         McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;
+        }
+        if (showAll) {
             // Which bars are shown: on/off only (their colors are in Advanced).
             for (int i = 0; i < BARS.length; i++) {
                 Readout r = BARS[i];
                 toggle(widgets, i % 2 == 0 ? contentX : col2, y[0], half, r.label, () -> ps.isReadoutOn(r),
                         v -> ps.setReadoutOn(r, v), ps::save, requestRebuild);
-                if (i % 2 == 1) {
+                if (i % 2 == 1 || i == BARS.length - 1) {
                     y[0] += ROW;
                 }
             }
@@ -339,6 +355,10 @@ public class HealthAndManaBarsTab extends BaseTab {
                 requestRebuild);
         // Hypixel's own numbers on the action bar: independent of Stat Bars, like the hides above.
         toggle(widgets, col2, y[0], half, "Hypixel Stat Text", ps::isHideHypixelStatText, ps::setHideHypixelStatText,
+                ps::save, null);
+        y[0] += ROW;
+        // Hypixel's "1,650/3k Drill Fuel" segment alone (drillfuel-1104), whether or not the stat text hides.
+        toggle(widgets, contentX, y[0], half, "Drill Fuel Text", ps::isHideDrillFuelText, ps::setHideDrillFuelText,
                 ps::save, null);
         y[0] += ROW;
         // Vanilla's held-item name over the hotbar (2026-10-07): Shown / Hidden Over Bars (the default) / Hidden.

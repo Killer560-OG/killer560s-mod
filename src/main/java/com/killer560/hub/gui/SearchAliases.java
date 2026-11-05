@@ -31,6 +31,8 @@ public final class SearchAliases {
             // killer560 (2026-11-01, to-do Doc "ZPEW"): "make the setting show up if you search zpew". The Zero Ping
             // Etherwarp switch row of the Etherwarp tab answers it.
             Map.entry("zpew", "zero ping etherwarp"),
+            // drillfuel-1104: the Drill Fuel Bar and Drill Fuel Text rows in Health and Mana Bars.
+            Map.entry("fuel bar", "drill fuel"),
             // killer560 (2026-11-01, to-do Doc "VIDEO BROWSER"): "make this show up if i search things like tictok or yt or
             // youtube or web or anything like that".
             Map.entry("tiktok", "video browser"),

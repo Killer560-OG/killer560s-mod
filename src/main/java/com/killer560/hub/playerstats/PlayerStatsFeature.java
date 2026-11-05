@@ -85,6 +85,12 @@ public final class PlayerStatsFeature {
             Pattern.compile(CODES + "[\\d,]+" + CODES + "\u02AC"),
             Pattern.compile(CODES + "[\\d,]+/[\\d,]+" + CODES + "[^\\x00-\\x7F\u00A7]"),
     };
+    // Drill fuel (drillfuel-1104), on the stat line only while a drill is held: "(2)1,650/3k Drill Fuel". Either side
+    // may carry a k/m suffix ("3k", "1.5k"), so the numbers take a dot and a suffix and go through amount().
+    private static final Pattern DRILL_FUEL_REGEX = Pattern.compile(
+            NUMBER_START + "([\\d,.]+[kKmM]?)/([\\d,.]+[kKmM]?)" + CODES + " Drill Fuel");
+    private static final Pattern DRILL_FUEL_STRIP =
+            Pattern.compile(CODES + "[\\d,.]+[kKmM]?/[\\d,.]+[kKmM]?" + CODES + " Drill Fuel");
 
     // Numeric copies for the custom bars and readouts (StatElements). -1 = not seen yet this session.
     static long healthCur = -1, healthMax = -1;
@@ -93,6 +99,7 @@ public final class PlayerStatsFeature {
     static long overflowMana = -1;
     static long otherCur = -1, otherMax = -1;
     static long vitalityCur = -1, vitalityMax = -1;
+    static long drillFuelCur = -1, drillFuelMax = -1;
     static String otherIcon = "";
     /** Re-entry guard for the mixin, which re-sends a stripped line through setOverlayMessage. */
     private static boolean resending = false;
@@ -131,6 +138,8 @@ public final class PlayerStatsFeature {
                 (message, overlay) -> {
                     if (overlay) {
                         onActionBar(message);
+                    } else {
+                        onChat(message.getString());
                     }
                     return true;
                 });
@@ -142,6 +151,10 @@ public final class PlayerStatsFeature {
                     if (client.level != manaLevel) {
                         manaLevel = client.level;
                         resetManaReading();
+                        maniacUntil = 0;
+                    }
+                    if (maniacUntil != 0) {
+                        aimManiac(client);
                     }
                 }));
         // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
@@ -311,6 +324,66 @@ public final class PlayerStatsFeature {
     private static Object manaLevel;
 
     /** Forgets the mana reading: a new world starts with no figure, so nothing holds an etherwarp until the bar says so. */
+    // Maniac Miner (maniac-1104; killer560, 2026-11-04: "on the main server maniac miner doesnt do a good job of updating
+    // the mana bar ... use the predictive stuff to figure out how much mana it is using ... not as a setting just always").
+    // The HotM pickaxe ability costs 20 mana per block broken for 25/30/35 s by level (hypixelskyblock wiki, Maniac
+    // Miner); the action bar lags it, so the Mana Bar takes 20 off for each block the server breaks under his crosshair
+    // while he holds attack, from "You used your Maniac Miner Pickaxe Ability!" (AbilityReadyAlert's USED line) to its
+    // expiry line or 35 s. Ultimate Wise lowers the real cost; the next changed action bar figure corrects it.
+    static final long MANIAC_MANA_PER_BLOCK = 20;
+    static final long MANIAC_MAX_MS = 35_000;
+    private static final Pattern MANIAC_END = Pattern.compile("^Your Maniac Miner (?:ability )?has (?:expired|ended|worn off)!?$");
+    /** Wall-clock end of the drain, 0 while Maniac Miner is not running. Client thread. */
+    static long maniacUntil;
+    /** The mana figure the action bar last printed, -1 before one. */
+    private static long manaPrinted = -1;
+    /** The block under the crosshair at the last tick end while the drain runs, and its state then. */
+    private static net.minecraft.core.BlockPos maniacAim;
+    private static net.minecraft.world.level.block.state.BlockState maniacAimState;
+
+    private static boolean maniacActive() {
+        if (maniacUntil != 0 && System.currentTimeMillis() > maniacUntil) {
+            maniacUntil = 0;
+        }
+        return maniacUntil != 0;
+    }
+
+    /** A chat line: Maniac Miner's use and end lines start and stop the drain. */
+    static void onChat(String raw) {
+        if (raw.indexOf("Maniac Miner") < 0) return;
+        String s = net.minecraft.ChatFormatting.stripFormatting(raw).trim();
+        if (s.equals("You used your Maniac Miner Pickaxe Ability!")) {
+            maniacUntil = System.currentTimeMillis() + MANIAC_MAX_MS;
+            maniacAim = null;
+        } else if (MANIAC_END.matcher(s).matches()) {
+            maniacUntil = 0;
+        }
+    }
+
+    private static void aimManiac(net.minecraft.client.Minecraft client) {
+        if (!maniacActive() || client.level == null
+                || !(client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit)
+                || client.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            maniacAim = null;
+            return;
+        }
+        maniacAim = hit.getBlockPos();
+        maniacAimState = client.level.getBlockState(maniacAim);
+    }
+
+    /** The server changed the block at {@code pos} (MiningBlockUpdateMixin): a block he was digging broke. */
+    public static void onBlockChanged(net.minecraft.core.BlockPos pos) {
+        if (maniacUntil == 0 || maniacAim == null || !maniacAim.equals(pos) || !maniacActive()) return;
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client.level == null || !client.options.keyAttack.isDown()) return;
+        net.minecraft.world.level.block.state.BlockState now = client.level.getBlockState(pos);
+        if (now == maniacAimState) return;
+        maniacAimState = now;
+        if (manaCur > 0) {
+            manaCur = Math.max(0, manaCur - MANIAC_MANA_PER_BLOCK);
+        }
+    }
+
     public static void resetManaReading() {
         manaShort = false;
         manaSeen = -1;
@@ -341,7 +414,13 @@ public final class PlayerStatsFeature {
             healthMax = num(healthMatch.group(2));
         }
         if (manaHit) {
-            manaCur = num(manaMatch.group(1));
+            long printed = num(manaMatch.group(1));
+            // While Maniac Miner drains, Hypixel keeps printing the same stale figure: the drained guess stands until the
+            // action bar prints a different number, which then wins (maniac-1104).
+            if (!maniacActive() || printed != manaPrinted || manaCur < 0) {
+                manaCur = printed;
+            }
+            manaPrinted = printed;
             manaMax = num(manaMatch.group(2));
         }
         if (defenseHit) {
@@ -360,6 +439,10 @@ public final class PlayerStatsFeature {
                 vitalityCur = -1;
                 vitalityMax = -1;
             }
+            Matcher fuelMatch = DRILL_FUEL_REGEX.matcher(raw);
+            boolean fuel = fuelMatch.find();
+            drillFuelCur = fuel ? amount(fuelMatch.group(1)) : -1;
+            drillFuelMax = fuel ? amount(fuelMatch.group(2)) : -1;
             otherCur = -1;
             otherMax = -1;
             Matcher otherMatch = OTHER_REGEX.matcher(raw);
@@ -421,6 +504,18 @@ public final class PlayerStatsFeature {
         }
     }
 
+    /** "1,650" to 1650, "3k" to 3000, "1.5m" to 1500000; -1 on anything unparsable. Never throws (packet path). */
+    static long amount(String s) {
+        try {
+            char last = Character.toLowerCase(s.charAt(s.length() - 1));
+            double mul = last == 'k' ? 1e3 : last == 'm' ? 1e6 : 1;
+            String n = mul == 1 ? s : s.substring(0, s.length() - 1);
+            return Math.round(Double.parseDouble(n.replace(",", "")) * mul);
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
     /**
      * What {@code setOverlayMessage} should show instead of {@code message}: the same object when nothing
      * changes, {@code null} to drop the line, or a new line with Hypixel's stat segments taken out.
@@ -433,18 +528,26 @@ public final class PlayerStatsFeature {
      * {@code CustomScoreboardGuiMixin} at {@code setOverlayMessage} HEAD, after the scoreboard has read it.
      */
     public static Component actionBarReplacement(Component message) {
-        if (message == null || resending || !PlayerStatsConfig.getInstance().isHideHypixelStatText()
-                || !com.killer560.hub.util.SkyblockGate.allows()) {
+        PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
+        boolean stats = cfg.isHideHypixelStatText();
+        boolean fuel = cfg.isHideDrillFuelText();
+        if (message == null || resending || !(stats || fuel) || !com.killer560.hub.util.SkyblockGate.allows()) {
             return message;
         }
         String raw = message.getString();
-        if (!HEALTH_REGEX.matcher(raw).find() && !MANA_REGEX.matcher(raw).find()
-                && !DEFENSE_REGEX.matcher(raw).find()) {
-            return message;
-        }
         String left = raw;
-        for (Pattern p : STRIP) {
-            left = p.matcher(left).replaceAll("");
+        if (stats && (HEALTH_REGEX.matcher(raw).find() || MANA_REGEX.matcher(raw).find()
+                || DEFENSE_REGEX.matcher(raw).find())) {
+            for (Pattern p : STRIP) {
+                left = p.matcher(left).replaceAll("");
+            }
+        }
+        // Drill Fuel Text (drillfuel-1104): only its own segment, whatever the stat hide says.
+        if (fuel) {
+            left = DRILL_FUEL_STRIP.matcher(left).replaceAll("");
+        }
+        if (left.equals(raw)) {
+            return message;
         }
         if (COLOUR_CODE.matcher(left).replaceAll("").isBlank()) return null;
         // Hypixel separates segments with runs of spaces; removing some leaves wide gaps, so close them up.

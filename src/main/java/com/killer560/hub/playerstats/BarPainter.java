@@ -398,6 +398,7 @@ public final class BarPainter {
             a[Readout.DEFENCE_BAR.ordinal()] = new ItemStack(Items.IRON_CHESTPLATE);
             a[Readout.XP_BAR.ordinal()] = new ItemStack(Items.EXPERIENCE_BOTTLE);
             a[Readout.OTHER_BAR.ordinal()] = new ItemStack(Items.CLOCK);
+            a[Readout.DRILL_FUEL_BAR.ordinal()] = new ItemStack(Items.PRISMARINE_SHARD);
             icons = a;
         }
         return icons[r.ordinal()];

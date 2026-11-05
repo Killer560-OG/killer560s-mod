@@ -62,8 +62,11 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
 - **A layout that places HUD elements must not write their saved positions.** Health and Mana Bars' Predefined layout
   (`playerstats/StatLayout`) answers `HudElement.layoutPosition()`, which `resolvePosition` returns before any saved
   position, and the HUD editor skips `setPosition` for those elements; switching back to Custom draws every bar on its old
-  pixels (testkit 407). The editor has no buttons (they took clicks beside the hotbar; its options are in Home's HUD Editor
-  section) and the bars have their own editor, `HudEditorScreen.forBars`.
+  pixels (testkit 407). Edit HUD has no buttons (they took clicks beside the hotbar; its options are in Home's HUD Editor
+  section) and the bars have their own editor, `HudEditorScreen.forBars`, which since barsedit-1104 carries a settings panel
+  (`hud/BarsSettingsPanel`): the menu tab's own widgets (`HealthAndManaBarsTab.editorWidgets`, no copy), Right/Left/Hidden,
+  ending above any bar in the lower half under it, a click on it never grabbing a bar. A row that rebuilds the page only sets
+  a flag; `tick()` rebuilds once no drag is held, so a widget list never changes inside its own click. Testkit 1104-ui-barsedit-panel.
 - **Defaults at x 10 pile up in the left column.** At 1920x1080 GUI 2 (960x540 GUI px) the chat is x 0-330, y 410-500
   (320-500 open), the Split Timers start at y 240, and twenty other defaults sit at x 10, so the F7 HUDs drew over chat,
   each other and the Split Timers (killer560's screenshots, 2026-11-02). The F7 boss HUDs now default to a right column

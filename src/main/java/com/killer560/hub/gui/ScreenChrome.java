@@ -305,6 +305,19 @@ public final class ScreenChrome {
     }
 
     /** A hover description box in the menu's tooltip look; {@code lines} already wrapped, {@code w}/{@code h} their size. */
+    /** {@link #tooltip} beside the mouse at (mx, my), flipped left / up where it would leave a {@code sw x sh} screen. */
+    public static void tooltipNear(GuiGraphicsExtractor g, java.util.List<FormattedCharSequence> lines, int mx, int my,
+                                   int sw, int sh) {
+        int w = 0;
+        for (FormattedCharSequence line : lines) {
+            w = Math.max(w, MenuStyle.font().width(line));
+        }
+        int h = lines.size() * 10 - 2;
+        int x = mx + 12 + w + 8 > sw ? Math.max(4, mx - w - 16) : mx + 12;
+        int y = my + 12 + h + 8 > sh ? Math.max(4, my - h - 16) : my + 12;
+        tooltip(g, lines, x, y, w, h);
+    }
+
     public static void tooltip(GuiGraphicsExtractor g, java.util.List<FormattedCharSequence> lines, int x, int y, int w,
                                int h) {
         GuiRects r = GuiRects.begin(g);
