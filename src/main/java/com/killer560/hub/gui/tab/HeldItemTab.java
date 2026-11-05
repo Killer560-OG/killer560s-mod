@@ -40,10 +40,11 @@ public class HeldItemTab extends BaseTab {
                 }).bounds(contentX + contentWidth - editW, y, editW, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled() && !isSearchScan()) {
-            return widgets;
+        // Only the switch and Edit show here (killer560, 2026-11-04); every other row is on the Edit screen. The menu
+        // search still scans them, so a search for "animations" lands on this card.
+        if (isSearchScan()) {
+            buildSettings(widgets, contentX, y, contentWidth, requestRebuild);
         }
-        buildSettings(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
     }
 
