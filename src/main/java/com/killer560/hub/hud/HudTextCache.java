@@ -68,15 +68,60 @@ public final class HudTextCache {
             if (!language.isDefaultRightToLeft() && leftToRightOnly(text)) {
                 // Formatting codes are applied here exactly as vanilla's reorder applies them (iterateFormatted from
                 // Style.EMPTY); FormattedCharSequence.forward would NOT, and drew "§6" literally (95-perf-fixes).
-                String s = text;
-                seq = sink -> net.minecraft.util.StringDecomposer.iterateFormatted(s,
-                        net.minecraft.network.chat.Style.EMPTY, sink);
+                seq = Replay.of(text);
             } else {
                 seq = language.getVisualOrder(FormattedText.of(text));
             }
             CACHE.put(text, seq);
         }
         return seq;
+    }
+
+    /**
+     * {@code iterateFormatted(text, Style.EMPTY, sink)} run once and replayed: the same (index, style, code point)
+     * triples in the same order, with the same early stop. Iterating the string every frame instead re-parsed every
+     * formatting code, and vanilla's {@code ChatFormatting.getByCode} clones {@code ChatFormatting.values()} for each
+     * one (perfalloc-1105 JFR: 18% of the Hoppity HUD's bytes per frame, 11% of Advanced Position's). Styles are
+     * immutable, so sharing them between frames is safe.
+     */
+    private static final class Replay implements FormattedCharSequence {
+        private final int[] index;
+        private final int[] codePoint;
+        private final net.minecraft.network.chat.Style[] style;
+
+        private Replay(int[] index, int[] codePoint, net.minecraft.network.chat.Style[] style) {
+            this.index = index;
+            this.codePoint = codePoint;
+            this.style = style;
+        }
+
+        static Replay of(String text) {
+            int n = text.length();
+            int[] idx = new int[n];
+            int[] cps = new int[n];
+            net.minecraft.network.chat.Style[] st = new net.minecraft.network.chat.Style[n];
+            int[] count = {0};
+            net.minecraft.util.StringDecomposer.iterateFormatted(text, net.minecraft.network.chat.Style.EMPTY,
+                    (i, style, cp) -> {
+                        int c = count[0]++;
+                        idx[c] = i;
+                        st[c] = style;
+                        cps[c] = cp;
+                        return true;
+                    });
+            int c = count[0];
+            return new Replay(java.util.Arrays.copyOf(idx, c), java.util.Arrays.copyOf(cps, c), java.util.Arrays.copyOf(st, c));
+        }
+
+        @Override
+        public boolean accept(net.minecraft.util.FormattedCharSink sink) {
+            for (int i = 0; i < index.length; i++) {
+                if (!sink.accept(index[i], style[i], codePoint[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     /**

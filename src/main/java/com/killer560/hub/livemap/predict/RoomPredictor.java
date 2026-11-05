@@ -126,11 +126,19 @@ public final class RoomPredictor {
     private static float[] obsEye = new float[4096 * 3];
     private static float[] obsHit = new float[4096 * 3];
     private static int obsCount = 0;
-    private static final Map<Long, Integer> OBS_INDEX = new HashMap<>();
+    /** Packed position -> observation index; primitive, so a ray's lookup boxes no Long (perfalloc-1105). */
+    private static final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap OBS_INDEX = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
     private static final int[] EVIDENCE = new int[TILES * TILES];
 
     private static final Map<String, Integer> BLOCK_IDS = new HashMap<>();
     private static final List<String> BLOCK_NAMES = new ArrayList<>();
+    /** {@link #blockId} of a block's registry name, by the block itself (one entry per block type; perfalloc-1105). */
+    private static final it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap<net.minecraft.world.level.block.Block> BLOCK_OF =
+            new it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap<>();
+
+    static {
+        BLOCK_OF.defaultReturnValue(-1);
+    }
     private static boolean[] ignored = new boolean[64];
 
     private static final class Candidate {
@@ -342,6 +350,7 @@ public final class RoomPredictor {
         sampleSeed = 0;
         obsCount = 0;
         OBS_INDEX.clear();
+        PredictClip.reset();
         Arrays.fill(EVIDENCE, 0);
         Arrays.fill(REPORTED, false);
         ALL.clear();
@@ -427,11 +436,21 @@ public final class RoomPredictor {
         // Until 2026-10-19 it was the first 42 in grid order, so with the room ahead filling the doorway every extra ray
         // went to it (already named, often) and the room beyond it, a few rays deep in the same slot, got none.
         int productive = Math.min(hits, FOCUS_SEEDS.length / 2);
-        Integer[] order = new Integer[hits];
+        // A stable insertion sort on primitive keys: the same order Arrays.sort gave an Integer[] (stable, by need), with
+        // no boxing or lambda per sweep (perfalloc-1105).
+        int[] order = HIT_ORDER;
+        int[] need = HIT_NEED;
         for (int k = 0; k < hits; k++) {
-            order[k] = k;
+            int key = focusNeed(HIT_TILE[k]);
+            int at = k;
+            while (at > 0 && need[at - 1] > key) {
+                need[at] = need[at - 1];
+                order[at] = order[at - 1];
+                at--;
+            }
+            need[at] = key;
+            order[at] = k;
         }
-        Arrays.sort(order, (a, b) -> Integer.compare(focusNeed(HIT_TILE[a]), focusNeed(HIT_TILE[b])));
         for (int k = 0; k < productive; k++) {
             FOCUS_SEEDS[k * 2] = HIT_U[order[k]];
             FOCUS_SEEDS[k * 2 + 1] = HIT_V[order[k]];
@@ -549,6 +568,9 @@ public final class RoomPredictor {
     private static final double[] HIT_U = new double[RAYS_X * RAYS_Y];
     private static final double[] HIT_V = new double[RAYS_X * RAYS_Y];
     private static final int[] HIT_TILE = new int[RAYS_X * RAYS_Y];
+    /** {@link #sample}'s scratch: hit indices by focus need, and their keys. */
+    private static final int[] HIT_ORDER = new int[RAYS_X * RAYS_Y];
+    private static final int[] HIT_NEED = new int[RAYS_X * RAYS_Y];
 
     /**
      * How little a tile has to go on, lowest first: a tile with no name yet before one that has one, and among those the
@@ -590,16 +612,15 @@ public final class RoomPredictor {
         if (!reachesTarget(Math.min(eye.x, ex), Math.min(eye.z, ez), Math.max(eye.x, ex), Math.max(eye.z, ez))) {
             return -1;
         }
-        Vec3 end = new Vec3(ex, ey, ez);
-        BlockHitResult bhr = PredictClip.clip(client.level, sweepClip, eye, end, sweepMinX, sweepMaxX, sweepMinZ,
+        boolean hit = PredictClip.clip(client.level, sweepClip, eye, ex, ey, ez, sweepMinX, sweepMaxX, sweepMinZ,
                 sweepMaxZ);
         if (VERIFY_CLIP) {
-            verifyClip(client, eye, end, bhr);
+            verifyClip(client, eye, new Vec3(ex, ey, ez), hit);
         }
-        if (bhr == null || bhr.getType() != HitResult.Type.BLOCK) {
+        if (!hit) {
             return -1;
         }
-        return record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
+        return record(client, PredictClip.HIT_POS, eye, PredictClip.hitX, PredictClip.hitY, PredictClip.hitZ, floor);
     }
 
     /** This sweep's {@link PredictClip} inputs: the target tiles' block box and one shared shape context. */
@@ -619,25 +640,26 @@ public final class RoomPredictor {
         return new long[] {verifiedRays, clipMismatches};
     }
 
-    private static void verifyClip(Minecraft client, Vec3 eye, Vec3 end, BlockHitResult fast) {
+    private static void verifyClip(Minecraft client, Vec3 eye, Vec3 end, boolean fastHit) {
         verifiedRays++;
         HitResult v = client.level.clip(new ClipContext(eye, end, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE,
                 client.player));
         BlockHitResult vb = v instanceof BlockHitResult b && v.getType() == HitResult.Type.BLOCK ? b : null;
         boolean same;
-        if (fast == null) {
+        Vec3 fastAt = fastHit ? new Vec3(PredictClip.hitX, PredictClip.hitY, PredictClip.hitZ) : null;
+        if (!fastHit) {
             // A miss, or the ray left the target box: vanilla's hit (if any) must lie in a tile that cannot count.
             same = vb == null || !hitTileIsTarget(vb.getBlockPos());
         } else {
-            same = vb != null && vb.getBlockPos().equals(fast.getBlockPos()) && vb.getLocation().equals(fast.getLocation())
-                    && vb.getDirection() == fast.getDirection() && vb.isInside() == fast.isInside();
+            same = vb != null && vb.getBlockPos().equals(PredictClip.HIT_POS) && vb.getLocation().equals(fastAt)
+                    && vb.getDirection() == PredictClip.hitDir && vb.isInside() == PredictClip.hitInside;
         }
         if (!same) {
             clipMismatches++;
             if (clipMismatches <= 5) {
                 LOGGER.warn("[Predict] clip mismatch: eye {} end {} fast {} vanilla {}", eye, end,
-                        fast == null ? "none" : fast.getBlockPos() + " " + fast.getLocation(),
-                        vb == null ? "none" : vb.getBlockPos() + " " + vb.getLocation());
+                        !fastHit ? "none" : PredictClip.HIT_POS + " " + fastAt + " " + PredictClip.hitDir,
+                        vb == null ? "none" : vb.getBlockPos() + " " + vb.getLocation() + " " + vb.getDirection());
             }
         }
     }
@@ -762,7 +784,8 @@ public final class RoomPredictor {
 
     /** Records the block a ray met; returns its tile when it lies inside a tile being looked into (seen before or not),
      *  else -1. */
-    private static int record(Minecraft client, BlockPos pos, Vec3 eye, Vec3 hitAt, int[] floor) {
+    private static int record(Minecraft client, BlockPos pos, Vec3 eye, double hitX, double hitY, double hitZ,
+                              int[] floor) {
         int tx = Math.floorDiv(pos.getX() - ORIGIN, TILE_PITCH);
         int tz = Math.floorDiv(pos.getZ() - ORIGIN, TILE_PITCH);
         if (tx < 0 || tz < 0 || tx >= floor[0] || tz >= floor[1]) {
@@ -780,8 +803,12 @@ public final class RoomPredictor {
         if (OBS_INDEX.containsKey(key) || obsCount >= MAX_OBSERVATIONS) {
             return tz * TILES + tx;
         }
-        String id = BuiltInRegistries.BLOCK.getKey(client.level.getBlockState(pos).getBlock()).toString();
-        int block = blockId(id);
+        net.minecraft.world.level.block.Block b = client.level.getBlockState(pos).getBlock();
+        int block = BLOCK_OF.getInt(b);
+        if (block < 0) {
+            block = blockId(BuiltInRegistries.BLOCK.getKey(b).toString());
+            BLOCK_OF.put(b, block);
+        }
         if (TEST_NOISE > 0 && !ignored(block)) {
             // Test only (testkit 1020-predict-matrix): a fixed share of seen blocks read as some other block, the way a
             // Hypixel room differs from its capture, picked by position so every variant sees the same noise.
@@ -811,9 +838,9 @@ public final class RoomPredictor {
         obsEye[obsCount * 3] = (float) eye.x;
         obsEye[obsCount * 3 + 1] = (float) eye.y;
         obsEye[obsCount * 3 + 2] = (float) eye.z;
-        obsHit[obsCount * 3] = (float) hitAt.x;
-        obsHit[obsCount * 3 + 1] = (float) hitAt.y;
-        obsHit[obsCount * 3 + 2] = (float) hitAt.z;
+        obsHit[obsCount * 3] = (float) hitX;
+        obsHit[obsCount * 3 + 1] = (float) hitY;
+        obsHit[obsCount * 3 + 2] = (float) hitZ;
         OBS_INDEX.put(key, obsCount);
         obsCount++;
         if (!ignored(block)) {
@@ -1224,13 +1251,14 @@ public final class RoomPredictor {
     }
 
     private static int[] tilesOf(long mask) {
-        List<Integer> out = new ArrayList<>();
+        int[] out = new int[Long.bitCount(mask & ((1L << (TILES * TILES)) - 1))];
+        int n = 0;
         for (int t = 0; t < TILES * TILES; t++) {
             if ((mask & (1L << t)) != 0) {
-                out.add((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2);
+                out[n++] = (t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2;
             }
         }
-        return out.stream().mapToInt(Integer::intValue).toArray();
+        return out;
     }
 
     private static int blockId(String state) {
@@ -1304,8 +1332,8 @@ public final class RoomPredictor {
 
     /** Test hook: the block id seen at a position, or null when that block was never seen. */
     public static String observedAt(BlockPos pos) {
-        Integer i = OBS_INDEX.get(pos.asLong());
-        return i == null ? null : BLOCK_NAMES.get(obsBlock[i]);
+        long key = pos.asLong();
+        return OBS_INDEX.containsKey(key) ? BLOCK_NAMES.get(obsBlock[OBS_INDEX.get(key)]) : null;
     }
 
     /** Test hook: every seen block with the eye it was seen from and where the ray met it,

@@ -1,6 +1,7 @@
 package com.killer560.hub.secrets.mixin;
 
 import com.killer560.hub.secrets.OriginalCollisionShapeProvider;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -9,8 +10,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Real bug BOTH reference mods independently had to solve (confirmed via decompile, 2026-09-09): for a
  *  block that has REAL solid collision (a chest you can't walk through, a skull whose real vanilla
@@ -30,14 +29,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *  block type individually, matching quoi's own choice - safe because the actual override only fires for
  *  the specific block instances whose own mixin (Chest/Skull/WallSkull) implements
  *  {@link OriginalCollisionShapeProvider}; every other block in the game passes straight through
- *  untouched. */
+ *  untouched.
+ *  <p>
+ *  A {@code @ModifyReturnValue}, not a cancellable HEAD {@code @Inject} (perfalloc-1105): the inject built a
+ *  {@code CallbackInfoReturnable} on every collision-shape lookup of every block (player and entity physics, every ray
+ *  of Predictive Rooms), JFR's top allocation under the predictor. Same answer: the provider's shape replaces whatever
+ *  vanilla computed. */
 @Mixin(BlockBehaviour.class)
 public abstract class BlockBehaviourMixin {
 
-    @Inject(method = "getCollisionShape", at = @At("HEAD"), cancellable = true)
-    private void killer560smod$restoreOriginalCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if ((Object) this instanceof OriginalCollisionShapeProvider provider) {
-            cir.setReturnValue(provider.killer560smod$getOriginalCollisionShape(state));
-        }
+    @ModifyReturnValue(method = "getCollisionShape", at = @At("RETURN"))
+    private VoxelShape killer560smod$restoreOriginalCollisionShape(VoxelShape original, BlockState state, BlockGetter level,
+                                                                   BlockPos pos, CollisionContext context) {
+        return (Object) this instanceof OriginalCollisionShapeProvider provider
+                ? provider.killer560smod$getOriginalCollisionShape(state) : original;
     }
 }
