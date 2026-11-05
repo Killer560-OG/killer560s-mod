@@ -77,7 +77,7 @@ public final class DiscordLink {
                 return;
             }
             if (!r.ok() || !r.body().has("code")) {
-                fail(r.error());
+                fail(r);
                 return;
             }
             code = r.body().get("code").getAsString();
@@ -98,7 +98,7 @@ public final class DiscordLink {
                 return;
             }
             if (!r.ok()) {
-                fail(r.error());
+                fail(r);
                 return;
             }
             boolean linked = readLinked(r.body());
@@ -119,7 +119,7 @@ public final class DiscordLink {
                 return;
             }
             if (!r.ok()) {
-                fail(r.error());
+                fail(r);
                 return;
             }
             discordName = "";
@@ -168,8 +168,10 @@ public final class DiscordLink {
         return false;
     }
 
-    private static void fail(String why) {
-        error = why == null || why.isBlank() ? "couldn't reach the relay" : why;
+    /** No HTTP answer reads "couldn't reach the relay", not a socket message; a relay answer keeps its own reason. */
+    private static void fail(RelayCalls.Reply r) {
+        String why = r.error();
+        error = r.status() < 0 || why == null || why.isBlank() ? "couldn't reach the relay" : why;
         set(State.ERROR);
     }
 
