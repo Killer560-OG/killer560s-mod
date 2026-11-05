@@ -36,7 +36,7 @@ import java.util.Set;
 /**
  * The Mods screen (killer560, 2026-11-04: "a button for mods that opens a browser to see all of their mods. essentially mod
  * menu built into our mod"), opened from the Themed Main Menu and the pause menu. Left: a search box (a live filter), the
- * Libraries switch and every loaded mod by name, children folded under their parent (the arrow and count at a row's
+ * every installed mod by name (no libraries, built-ins or bundled jars: ModList.top), children folded under their parent (the arrow and count at a row's
  * right open them). Right: the selected mod's icon, name, version, id, authors and description, Configure (its config
  * screen through {@link ModList#configScreen}) and its Website / Source / Issues links.
  * <p>
@@ -93,7 +93,6 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
     private String query = "";
     private ModList.Entry selected;
     private CommitEditBox search;
-    private SettingsButtonWidget libraries;
     private SettingsButtonWidget configure;
     private SettingsButtonWidget website;
     private SettingsButtonWidget source;
@@ -123,8 +122,7 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
         detailX = listX + listW + GAP + SCROLLBAR_W + GAP;
         detailW = panelX + panelW - PAD - detailX;
 
-        int libW = 92;
-        search = new ThemedEditBox(this.font, listX, panelY + TOP, listW - libW - GAP, 18, Component.literal("Search"))
+        search = new ThemedEditBox(this.font, listX, panelY + TOP, listW, 18, Component.literal("Search"))
                 .hint("Search mods");
         search.setMaxLength(64);
         search.setValue(query);
@@ -134,13 +132,6 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
             rebuildRows();
         });
         addRenderableWidget(search);
-        libraries = addRenderableWidget(SettingsButtonWidget.builder(librariesLabel(), b -> {
-            ModListConfig cfg = ModListConfig.getInstance();
-            cfg.setShowLibraries(!cfg.isShowLibraries());
-            cfg.save();
-            b.setMessage(librariesLabel());
-            rebuildRows();
-        }).bounds(listX + listW - libW, panelY + TOP, libW, 18).build());
 
         int by = panelY + panelH - PAD - 18;
         int third = (detailW - 2 * GAP) / 3;
@@ -172,34 +163,26 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
         search.setFocused(true);
     }
 
-    private static Component librariesLabel() {
-        return Component.literal("Libraries: " + (ModListConfig.getInstance().isShowLibraries() ? "§aON" : "§cOFF"));
-    }
-
     // ---------------------------------------------------------------- the list
 
     /** The rows for the current filter: a parent with a matching child is shown with that child opened under it. */
     private void rebuildRows() {
         rows.clear();
-        boolean libs = ModListConfig.getInstance().isShowLibraries();
         for (ModList.Entry e : ModList.top()) {
-            addRows(e, 0, libs);
+            addRows(e, 0);
         }
         scroll = Math.max(0, Math.min(scroll, rows.size() - listRows));
     }
 
     /** Adds {@code e} (and its open children) when it or a child passes the filter; returns whether anything was added. */
-    private boolean addRows(ModList.Entry e, int depth, boolean libs) {
-        if (e.library && !libs && query.isEmpty()) {
-            return false;
-        }
+    private boolean addRows(ModList.Entry e, int depth) {
         int at = rows.size();
         rows.add(null); // placeholder, filled in below once the children are known
         boolean childShown = false;
         boolean searching = !query.isEmpty();
         if (searching || expanded.contains(e.id)) {
             for (ModList.Entry c : e.children) {
-                childShown |= addRows(c, depth + 1, libs);
+                childShown |= addRows(c, depth + 1);
             }
         }
         if (!e.matches(query) && !childShown) {

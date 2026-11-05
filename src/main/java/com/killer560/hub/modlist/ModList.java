@@ -105,6 +105,8 @@ public final class ModList {
         }
     }
 
+    private static final java.util.Set<String> HIDDEN = java.util.Set.of("minecraft", "java", "fabricloader", "fabric-api");
+
     private static List<Entry> top;
     private static Map<String, Entry> byId;
     private static Map<String, Function<Screen, Screen>> factories;
@@ -118,7 +120,12 @@ public final class ModList {
             Map<String, Entry> all = new LinkedHashMap<>();
             for (ModContainer c : FabricLoader.getInstance().getAllMods()) {
                 Entry e = new Entry(c);
-                all.put(e.id, e);
+                // killer560, 2026-11-05: no Minecraft, Java or Fabric API rows, no libraries, and none of the jars a
+                // mod bundles inside itself ("why is our mod the includes 12 mods"); only the mods a player installed.
+                if (!e.library && !HIDDEN.contains(e.id) && c.getContainingMod().isEmpty()
+                        && (e.parentId == null || !HIDDEN.contains(e.parentId))) {
+                    all.put(e.id, e);
+                }
             }
             Comparator<Entry> order = Comparator.comparing(e -> e.name.toLowerCase(Locale.ROOT));
             List<Entry> roots = new ArrayList<>();

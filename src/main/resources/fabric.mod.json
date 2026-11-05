@@ -4,7 +4,7 @@
   "version": "${version}",
   "name": "Killer560's Mod",
   "icon": "assets/killer560smod/icon.png",
-  "description": "Hypixel Skyblock utility mod: account switching, proxy client, Spotify lyrics, RNG meter profit calculator, and more.",
+  "description": "An all-in-one Hypixel Skyblock mod built around the Catacombs: puzzle and terminal solvers, a live dungeon map, F7 boss timers and HUDs, Auto Routes, and a full dungeon simulator to practice in, plus mining, inventory, chat and quality-of-life tools across Skyblock.",
   "authors": [
     "Killer560"
   ],
