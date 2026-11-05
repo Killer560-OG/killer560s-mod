@@ -130,14 +130,23 @@ public final class Networth {
         }
         Acc pets = new Acc("Pets");
         for (SbProfile.Pet pet : p.pets) {
-            double v = petPrice(pet.type, pet.tier, bins);
-            if (pet.heldItem != null) {
-                v += price(pet.heldItem, bins);
-            }
+            // The Price Tooltip's pet value (by level, listing first, candy in Networth) so both always agree; the old
+            // level-blind NEU price only while that table has no price for the pet.
+            ItemValueCalc.Result r = ItemValueCalc.pet(pet.info, PriceTooltipConfig.getInstance().getValueMode());
+            double v = r.total();
             double skin = 0;
-            if (pet.skin != null) {
-                skin = price("PET_SKIN_" + pet.skin, bins);
-                v += skin;
+            for (ItemValueCalc.Part part : r.parts()) {
+                if (part.label().equals("Pet Skin")) skin += part.value();
+            }
+            if (v <= 0) {
+                v = petPrice(pet.type, pet.tier, bins);
+                if (pet.heldItem != null) {
+                    v += price(pet.heldItem, bins);
+                }
+                if (pet.skin != null) {
+                    skin = price("PET_SKIN_" + pet.skin, bins);
+                    v += skin;
+                }
             }
             pets.add(pet.displayName() + " (" + SbProfile.titleCase(pet.tier) + ")", v, skin);
         }

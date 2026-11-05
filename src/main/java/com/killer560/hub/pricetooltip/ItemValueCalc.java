@@ -196,16 +196,31 @@ public final class ItemValueCalc {
         }
 
         if (pet != null) {
-            String held = ItemKeys.str(pet, "heldItem");
-            if (held != null) {
-                add(parts, "Pet Item", PriceData.unitPrice(held));
-            }
-            String petSkin = ItemKeys.str(pet, "skin");
-            if (petSkin != null) {
-                add(parts, "Pet Skin", PriceData.unitPrice("PET_SKIN_" + petSkin));
-            }
+            petExtras(pet, parts);
         }
         return finish(parts);
+    }
+
+    /**
+     * A pet's Est. Item Value from its petInfo (or the profile API's pet object, same fields): base by level, candy, held
+     * item and skin, exactly what {@link #compute} gives the pet item. Total 0 when its base has no price.
+     */
+    public static Result pet(JsonObject info, PriceTooltipConfig.ValueMode mode) {
+        List<Part> parts = new ArrayList<>();
+        if (!petBase(info, mode == PriceTooltipConfig.ValueMode.NETWORTH, parts)) return new Result(0, List.of());
+        petExtras(info, parts);
+        return finish(parts);
+    }
+
+    private static void petExtras(JsonObject pet, List<Part> parts) {
+        String held = ItemKeys.str(pet, "heldItem");
+        if (held != null) {
+            add(parts, "Pet Item", PriceData.unitPrice(held));
+        }
+        String petSkin = ItemKeys.str(pet, "skin");
+        if (petSkin != null) {
+            add(parts, "Pet Skin", PriceData.unitPrice("PET_SKIN_" + petSkin));
+        }
     }
 
     /** Pets whose candy SkyHelper never discounts (their price is all XP). */

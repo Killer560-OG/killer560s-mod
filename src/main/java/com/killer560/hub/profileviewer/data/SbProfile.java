@@ -80,6 +80,8 @@ public final class SbProfile {
         public final String heldItem;
         public final String skin;
         public final int candyUsed;
+        /** The API's pet object (Est. Item Value prices a pet from it, as from an item's petInfo). */
+        public final JsonObject info;
         public final LevelTables.Level level;
         private ItemStack icon;
 
@@ -91,6 +93,7 @@ public final class SbProfile {
             heldItem = str(o, "heldItem", null);
             skin = str(o, "skin", null);
             candyUsed = (int) num(o, "candyUsed");
+            info = o;
             level = LevelTables.petLevel(type, tier, exp);
         }
 
