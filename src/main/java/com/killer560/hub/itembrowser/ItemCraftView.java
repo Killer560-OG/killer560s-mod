@@ -151,7 +151,7 @@ public final class ItemCraftView {
             int[] cell = {cx, cy, TIER_CELL_W, TIER_CELL_H};
             tierCells.add(cell);
             boolean over = inside(cell, mouseX, mouseY);
-            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? (menu == null ? 0x80CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80)) : (menu == null ? 0xFF262626 : menu.card()));
+            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? (menu == null ? ThemeAccent.accent(0x80CC6600) : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80)) : (menu == null ? 0xFF262626 : menu.card()));
             SkyblockItemEntry tier = tiers.get(i);
             graphics.item(SkyblockItemStackFactory.build(tier), cx + (TIER_CELL_W - 16) / 2, cy + 2);
             graphics.centeredText(font, ItemBrowserFeature.minionTierLabel(tier), cx + TIER_CELL_W / 2, cy + 19, 0xFFFFFFFF);

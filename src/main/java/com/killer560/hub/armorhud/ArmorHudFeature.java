@@ -6,6 +6,7 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -339,7 +340,7 @@ public final class ArmorHudFeature {
         if (cfg.isBackground()) {
             GuiRects rects = GuiRects.begin(graphics);
             rects.fill(x, y, x + w, y + h, PANEL_BG);
-            rects.outline(x, y, w, h, PANEL_BORDER);
+            rects.outline(x, y, w, h, ThemeAccent.accent(PANEL_BORDER));
             rects.submit();
         }
         var font = Minecraft.getInstance().font;

@@ -56,6 +56,8 @@ public final class ChMapRenderer {
     private boolean dirty = true;
     private int builtFinds = -1;
     private int builtConfig = -1;
+    /** The menu theme the cached layout was drawn in (its island edge takes the theme's color). */
+    private int builtTheme = -1;
 
     /** Five ints per rectangle: x0, y0, x1, y1, color. */
     private int[] rects = new int[5 * 32];
@@ -120,9 +122,11 @@ public final class ChMapRenderer {
     public void draw(GuiGraphicsExtractor graphics, Font font, Player player) {
         int finds = ChDiscovery.version();
         int config = CrystalHollowsMapConfig.version();
-        if (dirty || finds != builtFinds || config != builtConfig) {
+        int theme = com.killer560.hub.gui.MenuConfig.version();
+        if (dirty || finds != builtFinds || config != builtConfig || theme != builtTheme) {
             builtFinds = finds;
             builtConfig = config;
+            builtTheme = theme;
             dirty = false;
             layout();
         }
@@ -165,7 +169,7 @@ public final class ChMapRenderer {
             }
             rect(sx(463), sy(460), sx(560), sy(563), 0x30FFFFFF);
         }
-        border(c0, r0, c1 - 1, r1 - 1, EDGE, true);
+        border(c0, r0, c1 - 1, r1 - 1, ThemeAccent.light(EDGE), true);
         marker(sx(CrystalHollowsMapScreen.NUCLEUS_X), sy(CrystalHollowsMapScreen.NUCLEUS_Z), NUCLEUS_COLOR, "Nucleus");
         if (cfg.isShowBorders() || cfg.isShowStructureWaypoints()) {
             for (ChFind f : ChDiscovery.all()) {

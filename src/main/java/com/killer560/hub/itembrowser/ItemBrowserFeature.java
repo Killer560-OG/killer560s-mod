@@ -481,7 +481,7 @@ public final class ItemBrowserFeature {
                 boolean hovered = localMouseX >= cellX && localMouseX < cellX + CELL_SIZE
                         && localMouseY >= cellY && localMouseY < cellY + CELL_SIZE;
                 if (hovered) {
-                    graphics.fill(cellX, cellY, cellX + CELL_SIZE, cellY + CELL_SIZE, menu == null ? 0x80CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80));
+                    graphics.fill(cellX, cellY, cellX + CELL_SIZE, cellY + CELL_SIZE, menu == null ? ThemeAccent.accent(0x80CC6600) : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80));
                 }
 
                 SkyblockItemEntry entry = filtered.get(itemIndex);
@@ -510,7 +510,7 @@ public final class ItemBrowserFeature {
             int footerY = footerLocalY(layout);
             boolean footerHovered = localMouseY >= footerY && localMouseY < footerY + FOOTER_HEIGHT
                     && localMouseX >= 0 && localMouseX < localWidth;
-            graphics.fill(1, footerY, localWidth - 1, footerY + FOOTER_HEIGHT - 1, footerHovered ? (menu == null ? 0x33CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x33)) : 0x33000000);
+            graphics.fill(1, footerY, localWidth - 1, footerY + FOOTER_HEIGHT - 1, footerHovered ? (menu == null ? ThemeAccent.accent(0x33CC6600) : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x33)) : 0x33000000);
             graphics.centeredText(Minecraft.getInstance().font, footerText(cfg, localWidth - 6),
                     localWidth / 2, footerY + (FOOTER_HEIGHT - 8) / 2, menu == null ? 0xFFFFFFFF : menu.text());
         } finally {

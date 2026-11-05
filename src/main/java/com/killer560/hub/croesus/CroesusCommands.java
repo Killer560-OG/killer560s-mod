@@ -1,5 +1,6 @@
 package com.killer560.hub.croesus;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -56,7 +57,7 @@ public final class CroesusCommands {
             ModChat.send(FEATURE, ModChat.text(heading + ": "), ModChat.dim("nothing claimed yet."));
             return 1;
         }
-        ModChat.send(FEATURE, ModChat.colored(heading, ModChat.ORANGE),
+        ModChat.send(FEATURE, ModChat.colored(heading, ThemeAccent.accent(ModChat.ORANGE)),
                 ModChat.dim("  (" + CroesusProfitLog.entryCount() + " claims logged)"));
         for (Map.Entry<String, CroesusProfitLog.Totals> e : totals.entrySet()) {
             CroesusProfitLog.Totals t = e.getValue();
