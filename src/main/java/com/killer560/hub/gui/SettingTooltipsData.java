@@ -195,8 +195,8 @@ final class SettingTooltipsData {
         d.put("ability ready alert", "Shows a big \"READY\" popup when a pickaxe ability is available again. Move it in the HUD editor.");
         d.put("ability ready alert/cooldown timer", "A HUD line counting down each pickaxe ability every second until it is ready again (the tab list only refreshes every few seconds).");
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
-        d.put("powder break sounds", "While powder mining (Crystal Hollows, or a treasure chest in the last 2 minutes), changes the sound of the blocks you break yourself. OFF is the normal Minecraft sound. Client-side only.");
-        d.put("powder break sounds/mode", "Mute silences your breaks (the break particles stay). Custom plays the sound below instead. Left click forward, right click back.");
+        d.put("powder break sounds", "Turn ON to mute or replace block break sounds while powder mining (Crystal Hollows, or a treasure chest in the last 2 minutes): every block break and digging hit sound within 6 blocks of you, your own mining included. OFF plays every sound as normal. Client-side only.");
+        d.put("powder break sounds/mode", "Mute: block breaks and digging hits near you make no sound (the break particles stay). Custom: each break plays the sound below instead, and the digging hits are silent. Left click forward, right click back.");
         d.put("powder break sounds/sound", "The sound played for each block you break in Custom mode.");
         d.put("powder break sounds/volume", "Volume of the custom break sound, 0.1 to 2.0.");
         d.put("powder break sounds/pitch", "Pitch of the custom break sound, 0.5 to 2.0.");

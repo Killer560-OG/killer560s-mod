@@ -2,68 +2,49 @@ package com.killer560.hub.powdermining;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsFeature;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-
-import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Powder Break Sounds (killer560, 2026-11-03: "add custom sounds for blocks broken while powder mining or options to
- * mute them entirely"). The client plays a block's break sound from level event 2001; the LOCAL player's own breaks reach
- * {@code ClientLevel.levelEvent(Entity, ...)} with himself as the entity, while the server's events for other players
- * come with no entity, so only his own are touched. Mute keeps the break particles; Custom plays the chosen sound.
+ * mute them entirely"). On Hypixel the SERVER breaks a mined block (mining fatigue), so its break sound reaches the client
+ * as the server's level event 2001 or a sound packet, not as a client-side break of his, and the hit sounds while he digs
+ * come from {@code ClientLevel.addBreakingBlockEffects}. All of them pass {@code SoundManager.play}, where
+ * {@code ClickSounds.replace} calls this: a block break or hit sound within {@link #RANGE} blocks of him while powder
+ * mining is dropped (Mute) or, for a break, swapped for the chosen sound (Custom). The break particles stay.
  */
 public final class PowderBreakSound {
 
-    private static final int LEVEL_EVENT_BREAK = 2001;
-    private static final AtomicInteger MUTED = new AtomicInteger();
-    private static final AtomicInteger CUSTOM = new AtomicInteger();
+    private static final double RANGE = 6.0;
 
     private PowderBreakSound() {
     }
 
-    /** Called from the mixin; true cancels vanilla's handling (the particles were already spawned here). */
-    public static boolean handle(ClientLevel level, Entity who, int type, BlockPos pos, int data) {
-        if (type != LEVEL_EVENT_BREAK || who == null) {
-            return false;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || who != mc.player) {
-            return false;
-        }
+    /** Every sound handed to SoundManager.play: the same instance, a replacement, or null to drop it. */
+    public static SoundInstance replace(SoundInstance in) {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (!cfg.isBreakSound() || !PowderMining.activeRecently()) {
-            return false;
+        if (!cfg.isBreakSound() || in.isRelative()) {
+            return in;
         }
-        BlockState state = Block.stateById(data);
-        if (state.isAir()) {
-            return false;
+        Identifier id = in.getIdentifier();
+        String path = id == null ? "" : id.getPath();
+        boolean isBreak = path.endsWith(".break");
+        if (!path.startsWith("block.") || !(isBreak || path.endsWith(".hit")) || !PowderMining.activeRecently()) {
+            return in;
         }
-        level.addDestroyBlockEffect(pos, state);
-        if (cfg.isBreakSoundMute()) {
-            MUTED.incrementAndGet();
-        } else {
-            CUSTOM.incrementAndGet();
-            play(cfg);
+        Player p = Minecraft.getInstance().player;
+        if (p == null || p.distanceToSqr(in.getX(), in.getY(), in.getZ()) > RANGE * RANGE) {
+            return in;
         }
-        return true;
+        return isBreak && !cfg.isBreakSoundMute() ? SimpleSoundInstance.forUI(cfg.getBreakSoundChoice().sound(),
+                cfg.getBreakSoundPitch(), cfg.getBreakSoundVolume()) : null;
     }
 
-    /** The Test button and the Custom break. */
+    /** The Test button. */
     public static void play(PowderMiningConfig cfg) {
         DungeonAlertsFeature.playSound(cfg.getBreakSoundChoice().sound(), cfg.getBreakSoundVolume(),
                 cfg.getBreakSoundPitch());
-    }
-
-    /** Testkit: breaks silenced / replaced so far. */
-    public static int mutedCount() {
-        return MUTED.get();
-    }
-
-    public static int customCount() {
-        return CUSTOM.get();
     }
 }

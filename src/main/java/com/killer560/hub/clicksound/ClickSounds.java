@@ -296,6 +296,11 @@ public final class ClickSounds {
         if (com.killer560.hub.sounddisabler.SoundDisabler.mute(in)) {
             return null;
         }
+        // Powder Break Sounds: a block break / hit sound near him while powder mining is dropped or swapped.
+        SoundInstance powder = com.killer560.hub.powdermining.PowderBreakSound.replace(in);
+        if (powder != in) {
+            return powder;
+        }
         if (!VANILLA_CLICK_ID.equals(in.getIdentifier())) {
             return SoundEffects.replace(in);
         }

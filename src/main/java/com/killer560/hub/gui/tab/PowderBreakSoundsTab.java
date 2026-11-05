@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Powder Break Sounds (Mining): while powder mining, the blocks he breaks himself are silent (Mute) or play a sound he
- * picks (Custom, with volume and pitch and a Test button). OFF is the normal Minecraft break sound.
+ * Powder Break Sounds (Mining): while powder mining, block break and digging hit sounds within 6 blocks are silent (Mute)
+ * or a break plays a sound he picks (Custom, with volume and pitch and a Test button). OFF is the normal sound.
  */
 public class PowderBreakSoundsTab extends BaseTab {
 

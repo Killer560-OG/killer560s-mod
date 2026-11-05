@@ -76,6 +76,13 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   `Sound`, javap 26.1.2). Sound Effects read `at.getPitch()` there, the catch handed back the game's sound, and no effect ever
   played (2026-10-20). Call `resolve(soundManager)` on it first, or read neither. Proof that a swap reached the engine: a
   `SoundEventListener` (testkit 99-sim-sound-effects) is told before the muted client's zero-volume skip.
+- **On Hypixel the server breaks the blocks he mines, so a client-side break hook never sees them.** Powder Break Sounds
+  (1104) cancelled `ClientLevel.levelEvent(Entity, 2001, ...)` only with himself as the entity (`Block.playerWillDestroy`);
+  Hypixel mining (mining fatigue) sends the break as the server's level event 2001 (no entity) or a sound packet, and the
+  dig hit sounds come from `ClientLevel.addBreakingBlockEffects` -> private `playBreakingSound` (26.3; no longer in
+  `MultiPlayerGameMode`), so it never muted anything (killer560 2026-11-05). Mute such sounds at `SoundManager.play` by id
+  (`block.*.break` / `.hit`) and distance (powdersound-1105, `ClickSounds.replace`); a test drives the server's
+  `setblock ... destroy` and `playsound`, not only a client-side event.
 
 ## Chat and commands
 
