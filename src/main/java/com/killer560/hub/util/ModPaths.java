@@ -209,6 +209,8 @@ public final class ModPaths {
         t.put("itembrowser", "skyblock/itembrowser");
         // Price Tooltip: its settings and its price cache folder (killer560smod-pricetooltip-cache/), 2026-10-15.
         t.put("pricetooltip", "skyblock/pricetooltip");
+        // Collection Tracker (killer560smod-collectiontracker.json, colltrack-1104).
+        t.put("collectiontracker", "skyblock/collectiontracker");
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
         t.put("gyrooverlay", "skyblock/gyrooverlay");

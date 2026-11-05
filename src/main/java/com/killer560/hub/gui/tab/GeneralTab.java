@@ -25,7 +25,9 @@ public class GeneralTab extends FolderTab {
                 // hits, mob deaths, block breaks), none of which one feature owns, so it is a Misc card of its own.
                 new SoundEffectsTab(),
                 // Mutes game sounds (Bonzo's Staff and others), 2026-11-02; a Misc card beside Sound Effects.
-                new SoundDisablerTab()
+                new SoundDisablerTab(),
+                // Picked Skyblock collections on the HUD (colltrack-1104).
+                new CollectionTrackerTab()
         ));
         pinFirstSection();
     }

@@ -85,7 +85,10 @@ public final class SearchAliases {
             Map.entry("flare", "deployables"),
             Map.entry("umberella", "deployables"),
             Map.entry("umbrella", "deployables"),
-            Map.entry("will-o'-wisp", "deployables"));
+            Map.entry("will-o'-wisp", "deployables"),
+            // colltrack-1104: the Collection Tracker card by its short names.
+            Map.entry("coll tracker", "collection tracker"),
+            Map.entry("colltracker", "collection tracker"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

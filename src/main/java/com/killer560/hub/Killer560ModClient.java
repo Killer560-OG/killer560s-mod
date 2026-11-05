@@ -480,6 +480,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.miningqol.MiningQolFeatures.register();
         // Crystal Hollows powder grinding (2026-11-03): treasure chests, lockpick helper, powder tracker, 2x powder.
         com.killer560.hub.powdermining.PowderMiningFeatures.register();
+        com.killer560.hub.collectiontracker.CollectionTracker.register();
         com.killer560.hub.lagdisplay.LagDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
         com.killer560.hub.terminals.TerminalQolFeature.register();
