@@ -75,7 +75,7 @@ Off in any client gametest (`fabric.client.gametest` set) unless `-Dkiller560.te
 a case may set it at run time. `-Dkiller560.test.presenceIntervalMs=N` replaces the 60 s heartbeat interval (the first
 beat after joining waits min(8 s, N), an island change min(15 s, N)); read on every tick. Service key `presence-relay`
 (the relay's `/presence` alone) is read on every send. It only beats while the stored server address is hypixel.net or a
-subdomain (`Scenario.labelServerAs` gives that). `OnlinePresence.sentForTest()` lists the bodies handed to the sender
+subdomain (`Scenario.labelServerAs` gives that), or sends "Main Menu" while no world and no connection exist (title screen; testkit 1104-online-menu leaves with `Scenario.toTitle()` and returns with `join()`). `OnlinePresence.sentForTest()` lists the bodies handed to the sender
 ("epochMillis json", recorded before the network), `resultsForTest()` what each ended in ("HTTP 204" or the exception's
 name), `warnedForTest()` whether its one WARN was logged, `sessionForTest()`, `clearForTest()`;
 `locationFor(onSkyblock, tabArea, floor)` is the location rule on its own (testkit 1102-online-*).

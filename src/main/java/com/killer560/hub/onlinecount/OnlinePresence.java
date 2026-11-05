@@ -38,10 +38,11 @@ import java.util.regex.Pattern;
  * people using the mod are online, not specific player names just number, and what island they are on ... make it so
  * they share no matter what"; then "i want no specific player data from them just if they are on an island").
  * <p>
- * While the game is connected to Hypixel, every {@link #INTERVAL_MS} (and soon after the island changes) one
+ * While the game is connected to Hypixel or sits on the title screen, every {@link #INTERVAL_MS} (and soon after the island changes) one
  * {@code POST /presence} goes to the relay with EXACTLY two fields: {@code session}, a random id made when the game
  * starts (in memory only, never saved, never derived from the account), and {@code location}, the island or area
- * ("Hub", "Catacombs F7", "Hypixel (not Skyblock)"). Leaving Hypixel sends {@code location: "Offline"} once, so the
+ * ("Hub", "Catacombs F7", "Hypixel (not Skyblock)"), or "Main Menu" with no world and no connection (killer560, 2026-11-04: "/online doesnt work
+ * if someone is just on the start screen"; singleplayer, other servers and connecting send nothing). Leaving Hypixel sends {@code location: "Offline"} once, so the
  * relay drops the session at once instead of after its TTL. Always on in both builds; there is no setting.
  * <p>
  * Never in a client gametest (the testkit) unless {@code -Dkiller560.test.presence=true}; {@code killer560.net.offline}
@@ -62,6 +63,11 @@ public final class OnlinePresence {
     public static final String OFFLINE = "Offline";
     public static final String NOT_SKYBLOCK = "Hypixel (not Skyblock)";
     public static final String SKYBLOCK = "Skyblock";
+    /** The title screen or any menu with no connection and no world (the relay counts it and lists it on its own line). */
+    public static final String MAIN_MENU = "Main Menu";
+    private static final int MODE_NONE = 0;
+    private static final int MODE_HYPIXEL = 1;
+    private static final int MODE_MENU = 2;
 
     private static final Pattern TAB_AREA = Pattern.compile("^(?:Area|Dungeon):\\s*(.{1,40})$");
     private static final Pattern NOT_SAFE = Pattern.compile("[^A-Za-z0-9 '.()\\-]");
@@ -77,7 +83,7 @@ public final class OnlinePresence {
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     // Client thread only.
-    private static boolean wasOnHypixel;
+    private static int mode;
     private static long joinedAt;
     private static long lastSentAt;
     private static String lastLocation = "";
@@ -116,34 +122,40 @@ public final class OnlinePresence {
     static long interval() { return Long.getLong("killer560.test.presenceIntervalMs", INTERVAL_MS); }
 
     private static void onTick(Minecraft mc) {
-        if (++tick % 20 != 0) return;
-        boolean on = allowedHere() && mc.level != null && mc.player != null && onHypixel(mc.getCurrentServer());
-        long now = System.currentTimeMillis();
-        if (!on) {
-            if (wasOnHypixel) {
-                wasOnHypixel = false;
-                if (live) {
-                    live = false;
-                    send(OFFLINE);
-                }
-            }
+        if (++tick % 20 != 0) {
             return;
         }
-        if (!wasOnHypixel) {
-            wasOnHypixel = true;
+        int nextMode = MODE_NONE;
+        if (allowedHere()) {
+            if (mc.level != null) {
+                nextMode = mc.player != null && onHypixel(mc.getCurrentServer()) ? MODE_HYPIXEL : MODE_NONE;
+            } else if (mc.getConnection() == null) {
+                nextMode = MODE_MENU;
+            }
+        }
+        long now = System.currentTimeMillis();
+        if (nextMode != mode) {
+            // A switch restarts the first-beat delay and drops the old row (Offline, if the DISCONNECT listener has not
+            // already). lastSentAt is kept across Hypixel <-> title screen so the relay's 10 s floor holds.
+            if (live) {
+                live = false;
+                send(OFFLINE);
+            }
+            if (mode == MODE_NONE) {
+                lastSentAt = 0L;
+            }
+            mode = nextMode;
             joinedAt = now;
-            lastSentAt = 0L;
             lastLocation = "";
         }
-        long interval = interval();
-        String location = currentLocation(mc);
-        boolean due;
-        if (lastSentAt == 0L) {
-            due = now - joinedAt >= Math.min(FIRST_DELAY_MS, interval);
-        } else {
-            due = now - lastSentAt >= interval
-                    || (!location.equals(lastLocation) && now - lastSentAt >= Math.min(CHANGE_GAP_MS, interval));
+        if (mode == MODE_NONE) {
+            return;
         }
+        long interval = interval();
+        String location = mode == MODE_MENU ? MAIN_MENU : currentLocation(mc);
+        boolean due = now - joinedAt >= Math.min(FIRST_DELAY_MS, interval)
+                && (lastSentAt == 0L || now - lastSentAt >= interval
+                || (!location.equals(lastLocation) && now - lastSentAt >= Math.min(CHANGE_GAP_MS, interval)));
         if (due) {
             lastSentAt = now;
             lastLocation = location;
@@ -298,7 +310,7 @@ public final class OnlinePresence {
         synchronized (RESULTS) {
             RESULTS.clear();
         }
-        wasOnHypixel = false;
+        mode = MODE_NONE;
         lastSentAt = 0L;
         lastLocation = "";
     }
