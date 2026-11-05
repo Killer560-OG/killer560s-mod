@@ -192,6 +192,10 @@ for sbid, sibling in FAMILY.items():
     if sbid in missing and L.has_look(row):
         missing.remove(sbid)
 
+# Every Goblin Egg is one spawn-egg texture recolored (killer560 2026-11-05); the plain egg was vanilla's blue_egg shape.
+if 'GOBLIN_EGG' in rows:
+    rows['GOBLIN_EGG']['i'] = 'ghast_spawn_egg'
+
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 out = {
     'source': 'tools/items/gen_item_looks.py: Hypixel /v2/resources/skyblock/items + /v2/skyblock/bazaar, '
