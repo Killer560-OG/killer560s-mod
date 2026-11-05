@@ -62,10 +62,19 @@ public abstract class NameChangerFontMixin {
         return NameReplacer.replace(text);
     }
 
-    @ModifyVariable(method = "width(Ljava/lang/String;)I",
-            at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
-    private String killer560smod$nameChangerWidthString(String text) {
-        return NameReplacer.replace(text);
+    /**
+     * Measures a replaced string through the same decoder {@code prepareText(String)} draws it with. Vanilla's
+     * {@code width(String)} misreads the {@code §x} hex escape of a name color (each hex digit becomes a legacy color
+     * that resets bold), so a bold orange name measured narrower than it draws and a box sized from it clipped the
+     * line (killer560, 2026-11-05, Custom Scoreboard). Only a changed string pays for the sequence; the rest is vanilla.
+     */
+    @Inject(method = "width(Ljava/lang/String;)I", at = @At("HEAD"), cancellable = true, require = 0)
+    private void killer560smod$nameChangerWidthString(String text, CallbackInfoReturnable<Integer> cir) {
+        String replaced = NameReplacer.replace(text);
+        if (replaced != text) {
+            cir.setReturnValue(((Font) (Object) this).width(new NameReplacer.Skip(
+                    sink -> com.killer560.hub.namechanger.NameColor.iterateFormatted(replaced, Style.EMPTY, sink))));
+        }
     }
 
     @Inject(method = "width(Lnet/minecraft/network/chat/FormattedText;)I",
