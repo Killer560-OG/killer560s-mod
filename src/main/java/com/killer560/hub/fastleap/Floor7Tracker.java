@@ -175,7 +175,10 @@ public final class Floor7Tracker {
             }
             case "[BOSS] Goldor: Who dares trespass into my domain?" -> {
                 Stage.resetAll();
-                updateState(Phase.P3, Stage.S1);
+                // On Hypixel P3 always opens at S1; the mod's boss sim can start a fight at any section, with the
+                // player already standing in it (simgates-1105).
+                Stage at = DungeonState.isSimBoss() ? getStageAt() : Stage.UNKNOWN;
+                updateState(Phase.P3, at.number >= 1 && at.number <= 5 ? at : Stage.S1);
             }
             // QUOI: not Goldor's death line, since it can be dialogue-skipped
             case "[BOSS] Necron: Finally, I heard so much about you. The Eye likes you very much.",

@@ -81,3 +81,16 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
 - **Blaze rooms land at the doorway's floor** (simchunk-1105): their spot was a column scan (Higher Blaze from the top), and
   on a generated floor with the room turned it stood him on a ledge 5 above the doorway (97 /goto, y259 vs 254). Their
   `Spawn` now carries the doorway offset (15), so `openingFloor` sets the height, with `doorwaySpot` as the fallback.
+- **"Is this Hypixel?" gates must count the sim** (simgates-1105). `CheatUtils.isOnDungeonServer` (and the private copies in
+  `SecretsFeature` and `I4SensorsFeature`) asked for a hypixel.net / p3sim.net address; a singleplayer world has none, so
+  Lever Aura, Lights Device, Goldor Triggerbot, Auto i4, Auto Ult, Door Helpers, Secret Triggerbot and the Secrets hitboxes
+  were silently off in the whole sim. A world with no address now counts while `SimState.canAct`. Two more sim-only facts the
+  shared gates must carry: the boss fight's mode (`DungeonState.getFloor` is "F7" or "M7" per `simBossBegins(master)`, the
+  clear stays "M7"), and a fight started mid-P3 hears Goldor's opening line, which on Hypixel always means S1:
+  `Floor7Tracker` takes the section the player stands in while `DungeonState.isSimBoss()`. Per-feature list:
+  killer560s-mod-logs/simgates-1105.md; testkit 1105-boss-simgates.
+- **A tick-relative schedule never fires its k == 0 step when it is armed from inside the same tick's switch** (simgates-1105).
+  Boss sim Simon Says' `beginRound(n, 0)` from ROUND_DONE set `ssShowTick = tick`, but SHOW first ran next tick (k = 1), so
+  rounds 2-4 never lit their first lamp: the solver recorded a short sequence and Auto SS broke the device in round 2. Now
+  `beginRound(n, 1)`. The testkit's own SS case read the sequence from the sim and never noticed; 1105-boss-simgates lets
+  Auto Simon Says solve from what it sees, with only the start pressed.

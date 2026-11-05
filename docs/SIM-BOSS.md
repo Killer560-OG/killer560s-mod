@@ -24,7 +24,8 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 - Server side: `BossSim.serverTick` (END_SERVER_TICK, only for the integrated server while `SimState.isActive()`),
   interaction callbacks answer only while `BossSim.serverOk` (sim + a fight running).
 - `DungeonState.simBossBegins/simBossEnds`: a fight started past P1 has no Maxor line, so the boss phase is set directly;
-  leaving the boss box for 2 s or changing world ends it.
+  leaving the boss box for 2 s or changing world ends it. While it runs `getFloor` is the fight's mode (F7 / M7), and every
+  "Hypixel or p3sim" address gate counts the sim (simgates-1105, list in killer560s-mod-logs/simgates-1105.md).
 
 ## The room
 

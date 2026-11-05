@@ -27,7 +27,7 @@ import java.util.Random;
  * <ul>
  * <li><b>Simon Says</b> (S1): sea lanterns on the obsidian wall x 111, stone buttons x 110, y 120-123, z 92-95, start button
  * (110, 121, 91). Four rounds of four distinct cells; the first round shows 4 ticks after the start press, lamp j lights at
- * 8j for 8 ticks, the buttons come back 10 ticks after the last lamp, the next round shows 6 ticks after the round's last
+ * 8j for 8 ticks, the buttons come back 10 ticks after the last lamp, the next round shows 7 ticks after the round's last
  * correct press. The start button toggles: a press while it runs resets it. A wrong press stops it (back to round 0; the
  * buttons go 3 ticks later) and a stray show of a new pattern follows on its own, whose buttons count for nothing.</li>
  * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a redstone lamp behind each at z 143. A lamp is lit
@@ -427,7 +427,8 @@ public final class BossDevices {
                 if (ssRound >= SS_ROUNDS) {
                     ss = Ss.DONE;
                 } else {
-                    beginRound(ssRound + 1, 0);
+                    // 1, not 0: SHOW first runs next tick (k = 1), so a 0 never lit the round's first lamp (simgates-1105).
+                    beginRound(ssRound + 1, 1);
                 }
             }
             default -> {

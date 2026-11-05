@@ -378,7 +378,7 @@ public final class BossFight {
         java.util.Arrays.fill(dragonSpawnAt, -1);
         kingLine = 0;
         LOGGER.info("[BossSim] fight begins at {} ({})", from, master ? "Master Mode" : "Floor 7");
-        com.killer560.hub.secrets.DungeonState.simBossBegins();
+        com.killer560.hub.secrets.DungeonState.simBossBegins(master);
         BossDevices.arrows(level, from.ordinal() > Start.S3.ordinal());
         switch (from) {
             case P1 -> startP1(true);
