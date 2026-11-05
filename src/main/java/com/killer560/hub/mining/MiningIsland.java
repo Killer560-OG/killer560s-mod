@@ -50,12 +50,14 @@ public final class MiningIsland {
         }
         if (client.getConnection() == null || !onMiningIsland()) {
             SECTIONS.clear();
+            com.killer560.hub.powdermining.PowderTracker.onPowdersWidget(List.of());
             return;
         }
         List<PlayerInfo> listed = TabOrder.listed(client);
         for (String header : WIDGETS) {
             SECTIONS.put(header, readSection(listed, header));
         }
+        com.killer560.hub.powdermining.PowderTracker.onPowdersWidget(section(POWDERS));
     }
 
     /** The lines under {@code header} in the tab list, color codes stripped and trimmed; empty when it is not shown. */
