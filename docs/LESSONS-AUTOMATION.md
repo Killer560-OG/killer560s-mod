@@ -798,3 +798,14 @@ cases on experimental show no BadPacketsV. NOT fixed: under repeated server stal
 one, so a still player sends no position for 2 s+ and experimental BadPacketsR flags (`time > 2000 ms, positions=0` between two
 transaction answers): 46 in 1026-blink-long-charge on a loaded PC (the pre-fix jar: 8 R, 48 V, 48 TimerLimit; default config:
 clean). A position sooner would be BadPacketsV again, so this needs a design choice (the owner's).
+
+BadPacketsR exactly (javap 2.3.74): at a valid transaction answer, when both the answered pings' clock and wall time have moved
+over 2000 ms since the last such window, it flags if no position/pos-rot packet came in that window, then starts a new one.
+The same 22-tick re-back after ONE 2.5 s frozen client (1026-blink-lag "frozen client charging") drew it in 2 of 3 runs ALONE
+on experimental (`time=2049-2055ms, lst=3645ms, positions=0`, blinkload-1105): nothing goes while frozen, and right after it
+the 22 still ticks are withheld while the re-held answers arrive 1050 ms later. Fix (blinkload-1105): `BlinkCharge.rebackKeepsPositions`
+lets re-backing (and banking while unbacked) withhold a still tick only while the next 20-tick reminder still lands within
+`POSITION_GAP_MAX_MS` (1800 ms) of the last position on the wire (`onWire`); otherwise the tick goes out, the reminder first,
+and re-backing resumes after it. BadPacketsV stays clean (reminders still 20 SENT ticks apart); a re-back now takes about two
+reminder cycles instead of 1.1 s, so a shot after a stall waits that much longer for cover. The "backed again" log line says how
+many ticks went between ("N sent between them for a position in time").
