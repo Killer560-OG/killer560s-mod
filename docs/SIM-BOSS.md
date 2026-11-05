@@ -57,8 +57,12 @@ stands on the platform found there (y 64; the plan's 63). The core door is the 5
 z 54 (in both captures); opening the core removes only those (killer560, 2026-11-05: "the core door just removes those gold
 blocks"; `BossFight.CORE_DOOR`). Maxor's and Storm's holes over a capture are the cells of y 214-224 and 160-170 that are
 solid in the P1 capture and air in the P3 one (1214 cells, `BossArena.openCapturedHole`): the plan's holes cut over
-bedrock at 218 and 166 there, so nobody fell. Necron's hole (P4 to P5) has no capture yet: over a capture the plan's
-P4_HOLE at 61-62 still leaves the platform's top (63). Still unverified: the Arrows wall's lanterns. Those are 3 sea lanterns among the 25 cells of the blue terracotta wall at x -3, y 120-124, z 75-79
+bedrock at 218 and 166 there, so nobody fell. Necron's hole (P4 to P5) has no capture yet. In the P1 capture his central
+platform is a stone ring (y 54-62, x 50-58, z 72-80) around a shaft open down to the P5 floor, under a disc at y 63-64;
+over a capture `BossFight.openP4Floor` clears only the disc cells over the shaft (`P4_SHAFT`, where y 62 is air) and keeps
+the ring (simdragons-1105: the plan's P4_HOLE at 61-62 cut the ring's top off and left the disc hanging, his "missing the
+underside"). Necron's side-platform break over a capture turns the platform's blocks at y 59-64 to air (iron pillars kept)
+so the lava sea at 58 shows; the plan's lava plane at 62 floated over open sea there (his "offset lava"). Still unverified: the Arrows wall's lanterns. Those are 3 sea lanterns among the 25 cells of the blue terracotta wall at x -3, y 120-124, z 75-79
 (index dy + dz * 5): {2, 12, 22} in the P1 capture, {0, 17, 20} in the P3 one, whose run logged `[ArrowAlign] layout #5`;
 17 and 20 hold no frame of layout 5, so no rule ties them to the layout (the P4 platform's stone pattern also differs
 between the two captures: Hypixel seems to shuffle such blocks per run). The sim keeps the P3 capture's lanterns.
@@ -85,7 +89,9 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   Necron's line. Death-tick and Frenzy LINES only (the sim deals no damage).
 - **P4 Necron**: a fixed script, no hits: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
   back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
-- **P5** (M7): dragons 8 hits each; "[BOSS] The Wither King: ..." lines. The relics are not modeled.
+- **P5** (M7): dragons 8 hits each; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
+  at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec), flies
+  (`SimDragon.aiStep`: goals inside its `WitherDragon.box`, 0.3 a tick, yaw 6 a tick) and places its 8 parts each tick.
 
 Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick.
 
@@ -106,7 +112,9 @@ the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hit
 ## Tests
 
 testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3, -portal, 1102-boss-maxorcrys, 1103-boss-moves (boss
-positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks), 1104-boss-capture (the room built from his capture equals it; Lights, SS, frames, still lava, gates on it) - only when named.
+positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks), 1104-boss-capture (the room built from his capture equals it; Lights, SS, frames, still lava, gates on it), 1105-boss-dragons
+(over the capture: Necron's break leaves no lava above the sea, P5's ring under the disc, Red's flame timer and spawn
+point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons reads both deaths) - only when named.
 
 ## Lessons
 
@@ -114,6 +122,16 @@ positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices
   references (stands, frames, bosses) loses them: S2's far terminal "was no terminal's" when clicked (1101-boss-p3,
   2026-11-01). The fight forces every arena chunk loaded while it runs (`BossFight.forceChunks`) and its entities are
   never saved (`shouldBeSaved` false), so a world closed mid-fight cannot bring back a vanilla, AI-driven wither.
+- A NoAi `EnderDragon` never moves its parts: `aiStep` returns before `tickPart`, the 8 `EnderDragonPart`s stay at
+  0,0,0, and the dragon itself is not pickable, so no arrow or sword could hit a sim dragon (simdragons-1105, his
+  log: 36 Terminator shots, no "dragon down"). `SimDragon` runs its own `aiStep` that flies and calls `placeParts`.
+  Its `tickDeath` is empty (vanilla's plays the world-wide death roar, 1028, and drops XP).
+- Hypixel's King lines read "[BOSS] The Wither King: ..." since its boss update; Wither Dragons' counts regex, Wither
+  ESP and Rag Axe matched only "Wither King:" (fixed in simdragons-1105, real Hypixel too).
+- Order matters to the client: the sim says the King's counts line 2 ticks after a dragon's health goes to 0, because chat
+  goes out at once and entity data at the tick's end, and Wither Dragons marks a dragon dead on whichever comes first (only
+  the health death prints "alive for"). The FLAME burst is sent long-range (`sendParticles(.., true, true, ..)`): a plain
+  send reaches 32 blocks and Red's point is about 35 from the P5 landing, so the spawn timer never started (simdragons-1105).
 - A floor hole must go through the bedrock bed under P3's and P4's lava too, or he lands on it one block down
   (1101-boss-p4p5 read y 106.0 and 62.0).
 - The station table's lever stand is at lever y + 0.688; `y - 0.688` in floating point floors to the block BELOW
