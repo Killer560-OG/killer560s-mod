@@ -134,7 +134,8 @@ public final class PriceData {
     public static Double average(String key, int days) { return key == null ? null : (days <= 1 ? average1 : average3).get(key); }
 
     /**
-     * What one unit of {@code id} costs to buy for Est. Item Value: the Bazaar's instant-buy price, else its
+     * What one unit of {@code id} costs to buy for Est. Item Value: the Bazaar's instant-buy price (quick_status
+     * buyPrice, the tooltip's "Bazaar Buy"), else its
      * instant-sell price, else the lowest BIN, else the average. 0 when nothing knows it.
      */
     public static double unitPrice(String id) {

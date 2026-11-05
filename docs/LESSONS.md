@@ -46,6 +46,11 @@ project CLAUDE.md. Compiling lessons
   `LVL_1_LEGENDARY_GOLDEN_DRAGON` and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the
   Bazaar keys books `ENCHANTMENT_SHARPNESS_6`. moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of
   epoch ms on 867 of 867 live auctions checked.
+- Pet value (petvalue-1104): the price lists only have `LVL_1_`/`LVL_100_`/`LVL_200_<TIER>_<TYPE>`, so `ItemValueCalc.petBase`
+  places a pet by its petInfo `exp` on `LevelTables.petCumulativeXp` (the Profile Viewer's pet table, shared): SkyHelper's
+  lvl1 + (lvl100 - lvl1) * exp / xpTo100 (half the XP to 100 is only level 91 on a Legendary), 100 -> 200 past it, unless
+  the last AH scan has a bare BIN (no heldItem or skin) within 3 levels (`AhMarket.closestPetBin`). A calc part label that
+  others match on ("Base") is matched with startsWith now: a pet's is "Base (Lvl N)" (`Networth.itemValue`).
 - **Hypixel's public item list has no dyes.** `/v2/resources/skyblock/items` (the item browser cache, 5,680 items on
   2026-10-19) has no `DYE_*` id, and its `color` field is only on leather armor, so a dye list built from it is empty.
   `armourdye/HypixelDyes` holds the 69 dyes with the hex each one's lore prints, copied from the NotEnoughUpdates-REPO

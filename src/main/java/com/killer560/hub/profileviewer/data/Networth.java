@@ -21,7 +21,7 @@ import java.util.Map;
 
 /**
  * Networth estimate, same category split as skyblock-pv's {@code NetworthCategory}. Every item stack is valued by the
- * Price Tooltip's Est. Item Value calculator ({@link ItemValueCalc} in NETWORTH mode: base price plus enchants,
+ * Price Tooltip's Est. Item Value calculator ({@link ItemValueCalc} in the Price Tooltip's Value Mode, so both show one number: base price plus enchants,
  * recombs, potato books, stars, gemstones, scrolls, parts, dye, skin, rune...) times the stack count (killer560,
  * 2026-11-04). An item the calculator has no base price for falls back to the old lookup: Bazaar price from the
  * mod's shared {@code RngMeterEngine.PRICES} cache, else the lowest BIN from {@link ExtraTables#lowestBins()}.
@@ -130,14 +130,23 @@ public final class Networth {
         }
         Acc pets = new Acc("Pets");
         for (SbProfile.Pet pet : p.pets) {
-            double v = petPrice(pet.type, pet.tier, bins);
-            if (pet.heldItem != null) {
-                v += price(pet.heldItem, bins);
-            }
+            // The Price Tooltip's pet value (by level, listing first, candy in Networth) so both always agree; the old
+            // level-blind NEU price only while that table has no price for the pet.
+            ItemValueCalc.Result r = ItemValueCalc.pet(pet.info, PriceTooltipConfig.getInstance().getValueMode());
+            double v = r.total();
             double skin = 0;
-            if (pet.skin != null) {
-                skin = price("PET_SKIN_" + pet.skin, bins);
-                v += skin;
+            for (ItemValueCalc.Part part : r.parts()) {
+                if (part.label().equals("Pet Skin")) skin += part.value();
+            }
+            if (v <= 0) {
+                v = petPrice(pet.type, pet.tier, bins);
+                if (pet.heldItem != null) {
+                    v += price(pet.heldItem, bins);
+                }
+                if (pet.skin != null) {
+                    skin = price("PET_SKIN_" + pet.skin, bins);
+                    v += skin;
+                }
             }
             pets.add(pet.displayName() + " (" + SbProfile.titleCase(pet.tier) + ")", v, skin);
         }
@@ -206,7 +215,7 @@ public final class Networth {
     }
 
     /**
-     * One stack's value: Est. Item Value (NETWORTH mode) per unit times the count (a pet counts once). Falls back to
+     * One stack's value: Est. Item Value (the Price Tooltip's Value Mode) per unit times the count (a pet counts once). Falls back to
      * the plain base-price lookup for whatever the calculator has no base price for.
      */
     public static ItemValue itemValue(ItemStack s, Map<String, Double> bins) {
@@ -222,9 +231,9 @@ public final class Networth {
             if (tag != null && tag.contains("id")) {
                 String key = ItemKeys.priceKey(tag, s.getHoverName().getString());
                 if (key != null) {
-                    ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.ValueMode.NETWORTH);
+                    ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.getInstance().getValueMode());
                     for (ItemValueCalc.Part part : r.parts()) {
-                        if ("Base".equals(part.label())) {
+                        if (part.label().startsWith("Base")) { // a pet's is "Base (Lvl N)"
                             hasBase = true;
                         } else if (COSMETIC_PARTS.contains(part.label())) {
                             cosmetic += part.value();

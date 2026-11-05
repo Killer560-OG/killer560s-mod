@@ -9,6 +9,9 @@ import com.killer560.hub.profileviewer.item.LegacyItems;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModNet;
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.pricetooltip.ItemKeys;
+import com.killer560.hub.util.ItemNbt;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 
@@ -70,6 +73,16 @@ public final class AhMarket {
     }
 
     private static volatile Map<String, Stats> stats = Map.of();
+    /** {@code <TIER>_<TYPE>} -> bare pets on BIN (no held item, no skin) by level, from the last scan. */
+    private static volatile Map<String, PetBins> petBins = Map.of();
+
+    /** Lowest BIN at each listed level of one pet kind, levels ascending. */
+    public record PetBins(int[] levels, long[] prices) {
+    }
+
+    /** A real listing: the lowest BIN of a bare pet at {@code level}. */
+    public record PetListing(int level, long price) {
+    }
     /** id -> hourly lowest-BIN points, oldest first. Guarded by {@code AhMarket.class}. */
     private static final Map<String, ArrayDeque<Point>> BIN_HISTORY = new HashMap<>();
     /** id -> recent sales, oldest first. Guarded by {@code AhMarket.class}. */
@@ -140,7 +153,72 @@ public final class AhMarket {
             dirty = true;
         }
         stats = Map.copyOf(out);
+        petBins = indexPets(listings);
+        com.killer560.hub.pricetooltip.PriceTooltipFeature.invalidate();
         saveIfDue(now);
+    }
+
+    /** Lowest BIN per level of every bare pet (no held item or skin, so its price is the pet alone), worker thread. */
+    static Map<String, PetBins> indexPets(List<AuctionListing> listings) {
+        Map<String, long[]> acc = new HashMap<>();
+        for (AuctionListing l : listings) {
+            if (!l.bin() || !l.decoded() || l.petLevel() < 1 || l.petLevel() > 200 || !"PET".equals(l.skyblockId())) {
+                continue;
+            }
+            CompoundTag tag = ItemNbt.view(l.icon());
+            JsonObject info = tag == null ? null : ItemKeys.petInfo(tag);
+            if (info == null || info.has("heldItem") || info.has("skin") || !info.has("type") || !info.has("tier")) {
+                continue;
+            }
+            long[] byLevel = acc.computeIfAbsent(info.get("tier").getAsString() + "_" + info.get("type").getAsString(),
+                    k -> new long[201]);
+            long p = l.startingBid();
+            if (p > 0 && (byLevel[l.petLevel()] == 0 || p < byLevel[l.petLevel()])) {
+                byLevel[l.petLevel()] = p;
+            }
+        }
+        Map<String, PetBins> out = new HashMap<>(acc.size() * 2);
+        for (Map.Entry<String, long[]> e : acc.entrySet()) {
+            long[] byLevel = e.getValue();
+            int n = 0;
+            for (long p : byLevel) {
+                if (p > 0) n++;
+            }
+            int[] levels = new int[n];
+            long[] prices = new long[n];
+            for (int lvl = 0, i = 0; lvl < byLevel.length; lvl++) {
+                if (byLevel[lvl] > 0) {
+                    levels[i] = lvl;
+                    prices[i++] = byLevel[lvl];
+                }
+            }
+            out.put(e.getKey(), new PetBins(levels, prices));
+        }
+        return Map.copyOf(out);
+    }
+
+    /**
+     * The real bare-pet BIN nearest {@code level} (within {@code maxDiff} levels, the lower price on a tie), or null
+     * when the last scan had none or the Auction House has not scanned. {@code kind} is {@code <TIER>_<TYPE>}.
+     */
+    public static PetListing closestPetBin(String kind, int level, int maxDiff) {
+        PetBins b = kind == null ? null : petBins.get(kind);
+        if (b == null) return null;
+        PetListing best = null;
+        for (int i = 0; i < b.levels().length; i++) {
+            int d = Math.abs(b.levels()[i] - level);
+            if (d > maxDiff) continue;
+            if (best == null || d < Math.abs(best.level() - level) || (d == Math.abs(best.level() - level) && b.prices()[i] < best.price())) {
+                best = new PetListing(b.levels()[i], b.prices()[i]);
+            }
+        }
+        return best;
+    }
+
+    /** Testkit: index {@code listings} as a scan would (pets only, no stats, history or disk); empty clears them. */
+    public static void setPetListingsForTest(List<AuctionListing> listings) {
+        petBins = indexPets(listings);
+        com.killer560.hub.pricetooltip.PriceTooltipFeature.invalidate();
     }
 
     private static void addHourly(String id, long now, long price) {

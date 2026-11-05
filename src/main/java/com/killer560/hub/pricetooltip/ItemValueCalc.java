@@ -1,6 +1,9 @@
 package com.killer560.hub.pricetooltip;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.killer560.hub.auction.ah.AhMarket;
+import com.killer560.hub.profileviewer.data.LevelTables;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -74,12 +77,13 @@ public final class ItemValueCalc {
         String id = ItemKeys.id(tag);
         if (id == null) return new Result(0, parts);
 
-        double base = PriceData.unitPrice(priceKey);
-        if (base <= 0 && !priceKey.equals(id)) {
-            base = PriceData.unitPrice(id);
-        }
-        if (base > 0) {
-            parts.add(new Part("Base", base));
+        JsonObject pet = "PET".equals(id) ? ItemKeys.petInfo(tag) : null;
+        if (!petBase(pet, nw, parts)) {
+            double base = PriceData.unitPrice(priceKey);
+            if (base <= 0 && !priceKey.equals(id)) {
+                base = PriceData.unitPrice(id);
+            }
+            add(parts, "Base", base);
         }
         if ("ENCHANTED_BOOK".equals(id)) return finish(parts);
 
@@ -191,20 +195,97 @@ public final class ItemValueCalc {
             add(parts, "Rune", PriceData.unitPrice(type.toUpperCase(Locale.ROOT) + "_RUNE_" + runes.getIntOr(type, 1)) * (nw ? 0.6 : 1));
         }
 
-        if ("PET".equals(id)) {
-            JsonObject info = ItemKeys.petInfo(tag);
-            if (info != null) {
-                String held = ItemKeys.str(info, "heldItem");
-                if (held != null) {
-                    add(parts, "Pet Item", PriceData.unitPrice(held));
-                }
-                String petSkin = ItemKeys.str(info, "skin");
-                if (petSkin != null) {
-                    add(parts, "Pet Skin", PriceData.unitPrice("PET_SKIN_" + petSkin));
-                }
-            }
+        if (pet != null) {
+            petExtras(pet, parts);
         }
         return finish(parts);
+    }
+
+    /**
+     * A pet's Est. Item Value from its petInfo (or the profile API's pet object, same fields): base by level, candy, held
+     * item and skin, exactly what {@link #compute} gives the pet item. Total 0 when its base has no price.
+     */
+    public static Result pet(JsonObject info, PriceTooltipConfig.ValueMode mode) {
+        List<Part> parts = new ArrayList<>();
+        if (!petBase(info, mode == PriceTooltipConfig.ValueMode.NETWORTH, parts)) return new Result(0, List.of());
+        petExtras(info, parts);
+        return finish(parts);
+    }
+
+    private static void petExtras(JsonObject pet, List<Part> parts) {
+        String held = ItemKeys.str(pet, "heldItem");
+        if (held != null) {
+            add(parts, "Pet Item", PriceData.unitPrice(held));
+        }
+        String petSkin = ItemKeys.str(pet, "skin");
+        if (petSkin != null) {
+            add(parts, "Pet Skin", PriceData.unitPrice("PET_SKIN_" + petSkin));
+        }
+    }
+
+    /** Pets whose candy SkyHelper never discounts (their price is all XP). */
+    private static final Set<String> NO_CANDY_DISCOUNT = Set.of("ENDER_DRAGON", "GOLDEN_DRAGON", "SCATHA", "JADE_DRAGON",
+            "ROSE_DRAGON");
+    /** Levels a bare pet listing may be away from this pet and still stand for its price. */
+    static final int LISTING_LEVELS = 3;
+
+    /**
+     * A pet's base by its real XP (petInfo {@code exp} on its stored tier's curve, so a Tier Boost is priced as the held
+     * item it is): the lowest BIN of a bare pet listed within {@link #LISTING_LEVELS} levels when the last Auction House
+     * scan has one, else SkyHelper's line from the level-1 to the level-100 price by the share of the XP to 100 (100 to
+     * 200 by the XP past 100 for the dragons that go to 200), else whichever of those prices exists. Networth then takes
+     * SkyHelper's candy discount: min(35%, 5M at 100+ / 2.5M below), unless the pet would be as far without the candy.
+     * False when there is no petInfo to go by.
+     */
+    static boolean petBase(JsonObject info, boolean nw, List<Part> parts) {
+        if (info == null) return false;
+        String type = ItemKeys.str(info, "type");
+        String tier = ItemKeys.str(info, "tier");
+        if (type == null || tier == null) return false;
+        type = type.toUpperCase(Locale.ROOT);
+        tier = tier.toUpperCase(Locale.ROOT);
+        double exp = num(info, "exp");
+        long[] cum = LevelTables.petCumulativeXp(type, tier);
+        int level = LevelTables.petLevel(type, tier, exp).level();
+        String kind = tier + "_" + type;
+        double p1 = PriceData.unitPrice("LVL_1_" + kind);
+        double p100 = PriceData.unitPrice("LVL_100_" + kind);
+        double p200 = cum.length > 100 ? PriceData.unitPrice("LVL_200_" + kind) : 0;
+        String label = "Base (Lvl " + level + ")";
+        double value;
+        AhMarket.PetListing listing = AhMarket.closestPetBin(kind, level, LISTING_LEVELS);
+        if (listing != null) {
+            value = listing.price();
+            if (listing.level() != level) label = "Base (Lvl " + level + ", listed Lvl " + listing.level() + ")";
+        } else if (level < 100 || cum.length <= 100) {
+            value = between(p1, p100, exp / cum[Math.min(99, cum.length - 1)]);
+        } else {
+            double lo = p100 > 0 ? p100 : p1;
+            value = between(lo, p200, (exp - cum[99]) / (cum[cum.length - 1] - cum[99]));
+        }
+        if (value <= 0) return false;
+        parts.add(new Part(label, value));
+        int candy = (int) num(info, "candyUsed");
+        if (nw && candy > 0 && !NO_CANDY_DISCOUNT.contains(type) && exp - candy * 1_000_000.0 < cum[cum.length - 1]) {
+            parts.add(new Part("Pet Candy (" + candy + ")", -Math.min(value * 0.35, level >= 100 ? 5_000_000 : 2_500_000)));
+        }
+        return true;
+    }
+
+    /** {@code lo + (hi - lo) * f} with f clamped to 0..1, or the one price that exists (0 when neither does). */
+    private static double between(double lo, double hi, double f) {
+        if (lo <= 0) return hi;
+        if (hi <= 0) return lo;
+        return lo + (hi - lo) * Math.max(0, Math.min(1, f));
+    }
+
+    private static double num(JsonObject o, String k) {
+        JsonElement e = o.get(k);
+        try {
+            return e != null && e.isJsonPrimitive() ? e.getAsDouble() : 0;
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private static void stars(CompoundTag tag, String id, boolean nw, List<Part> parts) {
