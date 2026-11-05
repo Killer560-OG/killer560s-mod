@@ -16,4 +16,9 @@ public interface MenuThemedScreen {
     default String themeId() {
         return null;
     }
+
+    /** Five base colors that win over {@link #themeId()}'s (the Profile Viewer's Style setting), or null. */
+    default int[] ownColours() {
+        return null;
+    }
 }

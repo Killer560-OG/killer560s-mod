@@ -168,6 +168,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private int profileButtonX = -1;
 
     int panelX, panelY, panelW, panelH;
+    /** The Style setting as of the last {@link #init()}; the in-screen Style button changes both. */
+    private ProfileViewerConfig.Style pvStyle = ProfileViewerConfig.Style.DEFAULT;
+    /** {x, y, w, h} of the Style button as last drawn (a right click there steps back). */
+    private final int[] styleButton = new int[4];
     int contentX, contentY, contentW, contentH;
     /** Scroll offset / sub-view / pager index for the extra pages; reset on page or profile change. */
     int pageScroll = 0;
@@ -321,13 +325,16 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     protected void init() {
         // 2026-10-08: a hair bigger than the old 480 x 290 now the backend footer is gone.
         panelW = Math.min(this.width - 12, 520);
+        pvStyle = ProfileViewerConfig.getInstance().getStyle();
+        boolean iconTabs = pvStyle != ProfileViewerConfig.Style.DEFAULT;
         layoutTabs();
-        int rows = TAB_ROWS;
-        panelH = Math.min(this.height - 12, 320);
+        int tabsH = iconTabs ? PvStyleChrome.tabH(pvStyle) : 0;
+        panelH = Math.min(this.height - 12 - tabsH, 320);
         panelX = (this.width - panelW) / 2;
-        panelY = (this.height - panelH) / 2;
+        panelY = (this.height - panelH - tabsH) / 2 + tabsH;
         contentX = panelX + 8;
-        contentY = panelY + 29 + rows * 21;
+        // Default: two rows of named tabs inside the panel; the other Styles stand icon tabs on its top edge.
+        contentY = iconTabs ? panelY + 26 : panelY + 29 + TAB_ROWS * 21;
         contentW = panelW - 16;
         contentH = Math.max(60, panelY + panelH - 8 - contentY);
 
@@ -525,6 +532,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     return true;
                 }
             }
+        } else if (com.killer560.hub.compat.McInput.button(event) == 1 && !dropdownOpen
+                && inside(event.x(), event.y(), styleButton[0], styleButton[1], styleButton[2], styleButton[3])) {
+            click();
+            stepStyle(-1);
+            return true;
         }
         return super.mouseClicked(event, doubleClick);
     }
@@ -601,6 +613,17 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     public String themeId() { return THEME_ID; }
 
     @Override
+    public int[] ownColours() { return pvStyle.colours; }
+
+    /** The in-screen Style button: steps the Style setting ({@code dir} 1 forward, -1 back), saves it and lays out again. */
+    void stepStyle(int dir) {
+        ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
+        cfg.setStyle(com.killer560.hub.gui.SettingsButtonWidget.step(cfg.getStyle(), dir));
+        cfg.save();
+        rebuildSafe();
+    }
+
+    @Override
     public int[] themedPanelBounds() { return new int[]{panelX, panelY, panelW, panelH}; }
 
     @Override
@@ -619,7 +642,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         syncTheme();
         ScreenChrome.backdrop(g, this.width, this.height);
-        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        if (pvStyle == ProfileViewerConfig.Style.DEFAULT) {
+            ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
+        } else {
+            GuiRects fr = GuiRects.begin(g);
+            PvStyleChrome.frame(fr, pvStyle, panelX, panelY, panelW, panelH);
+            fr.submit();
+        }
 
         drawHeader(g, mouseX, mouseY);
         if (sidebarVisible) {
@@ -676,14 +705,21 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     String dots() { return ".".repeat((int) (System.currentTimeMillis() / 400 % 4)); }
 
     private void drawHeader(GuiGraphicsExtractor g, int mx, int my) {
-        // Header bar (the menu's): the brand-gradient title, then the player's name.
-        GuiRects hr = GuiRects.begin(g);
-        MenuStyle.dropShadow(hr, panelX + 2, panelY + 2, panelW - 4, 22, 2);
-        MenuStyle.bevel(hr, panelX + 2, panelY + 2, panelW - 4, 22, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
-        hr.submit();
-        MenuStyle.gradientText(g, "Profile Viewer", panelX + 8, panelY + 8, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
-        int nameX = panelX + 16 + this.font.width("Profile Viewer");
-        tx(g, "·", nameX - 4, panelY + 8, DIM);
+        boolean iconTabs = pvStyle != ProfileViewerConfig.Style.DEFAULT;
+        int nameX;
+        if (iconTabs) {
+            // NEU and SkyBlockPV have no title bar: just the player's name.
+            nameX = panelX + 4;
+        } else {
+            // Header bar (the menu's): the brand-gradient title, then the player's name.
+            GuiRects hr = GuiRects.begin(g);
+            MenuStyle.dropShadow(hr, panelX + 2, panelY + 2, panelW - 4, 22, 2);
+            MenuStyle.bevel(hr, panelX + 2, panelY + 2, panelW - 4, 22, MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
+            hr.submit();
+            MenuStyle.gradientText(g, "Profile Viewer", panelX + 8, panelY + 8, 1f, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
+            nameX = panelX + 16 + this.font.width("Profile Viewer");
+            tx(g, "·", nameX - 4, panelY + 8, DIM);
+        }
         tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
 
         int right = panelX + panelW - 6;
@@ -705,7 +741,28 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             profileButtonX = right;
             button(g, right, panelY + 4, pw, 16, label, mx, my, dropdownOpen, () -> dropdownOpen = !dropdownOpen);
         }
+        // Style: left click the next one, right click the one before; saved at once (the settings tab's Style row).
+        String styleLabel = "Style: " + pvStyle.label;
+        int sw = this.font.width(styleLabel) + 10;
+        if (right - sw - 4 < nameX + 8 + this.font.width(displayName == null ? "" : displayName)) {
+            styleLabel = "Style";
+            sw = this.font.width(styleLabel) + 10;
+        }
+        right -= sw + 4;
+        styleButton[0] = right;
+        styleButton[1] = panelY + 4;
+        styleButton[2] = sw;
+        styleButton[3] = 16;
+        button(g, right, panelY + 4, sw, 16, styleLabel, mx, my, false, () -> stepStyle(1));
+        if (inside(mx, my, right, panelY + 4, sw, 16) && !dropdownOpen) {
+            pendingTooltip = List.of(Component.literal("Style: " + pvStyle.label).withStyle(style(VALUE)),
+                    Component.literal("Left click: next style. Right click: the one before.").withStyle(style(DIM)));
+        }
 
+        if (iconTabs) {
+            drawIconTabs(g, mx, my);
+            return;
+        }
         for (int i = 0; i < PAGES.length && i < tabRects.size(); i++) {
             int[] rect = tabRects.get(i);
             int tx = panelX + rect[0];
@@ -735,6 +792,38 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    /** NEU's and SkyBlockPV's page tabs: one row of item icons standing on the panel's top edge, the page name on hover;
+     *  SkyBlockPV also names the page under the panel. */
+    private void drawIconTabs(GuiGraphicsExtractor g, int mx, int my) {
+        int w = PvStyleChrome.tabW(pvStyle);
+        int h = PvStyleChrome.tabH(pvStyle);
+        int x0 = panelX + PvStyleChrome.tabX0(pvStyle);
+        int step = Math.min(PvStyleChrome.tabStep(pvStyle), (panelX + panelW - x0) / PAGES.length);
+        int ty = panelY - h;
+        GuiRects tr = GuiRects.begin(g);
+        for (int pass = 0; pass < 2; pass++) {
+            // The selected tab last, so it overlaps its neighbors and the panel's edge.
+            for (int i = 0; i < PAGES.length; i++) {
+                if ((i == page) != (pass == 1)) continue;
+                int tx = x0 + i * step;
+                PvStyleChrome.tab(tr, pvStyle, tx, ty, i == page, inside(mx, my, tx, ty, w, h) && !dropdownOpen);
+            }
+        }
+        tr.submit();
+        for (int i = 0; i < PAGES.length; i++) {
+            int tx = x0 + i * step;
+            g.item(pageIcon(i), tx + (w - 16) / 2, ty + (i == page ? 4 : 6));
+            final int idx = i;
+            hotspots.add(new Hotspot(tx, ty, w, h, () -> setPage(idx)));
+            if (inside(mx, my, tx, ty, w, h) && !dropdownOpen) {
+                pendingTooltip = List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
+            }
+        }
+        if (pvStyle != ProfileViewerConfig.Style.NEU && panelY + panelH + 12 <= this.height) {
+            ScreenChrome.centered(g, PAGES[page], panelX + panelW / 2, panelY + panelH + 3, 0xFFFFFFFF);
+        }
+    }
+
     private static String gameModeTag(SbProfile p) {
         return switch (p.gameMode) {
             case "ironman" -> " ♲";
@@ -744,7 +833,18 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         };
     }
 
+    /** Built once: the tabs draw every frame. */
+    private static final ItemStack[] PAGE_ICONS = new ItemStack[PAGES.length];
+
     private static ItemStack pageIcon(int page) {
+        ItemStack icon = PAGE_ICONS[page];
+        if (icon == null) {
+            icon = PAGE_ICONS[page] = newPageIcon(page);
+        }
+        return icon;
+    }
+
+    private static ItemStack newPageIcon(int page) {
         return new ItemStack(switch (page) {
             case PAGE_BASIC -> Items.PLAYER_HEAD;
             case PAGE_DUNGEONS -> Items.WITHER_SKELETON_SKULL;
@@ -1572,7 +1672,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     net.minecraft.client.gui.Font font() { return this.font; }
 
     /** A content box: the menu's card. */
-    void box(GuiGraphicsExtractor g, int x, int y, int w, int h) { ScreenChrome.card(g, x, y, w, h, false); }
+    void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        if (pvStyle == ProfileViewerConfig.Style.DEFAULT) {
+            ScreenChrome.card(g, x, y, w, h, false);
+        } else {
+            GuiRects r = GuiRects.begin(g);
+            PvStyleChrome.box(r, pvStyle, x, y, w, h);
+            r.submit();
+        }
+    }
 
     /** A recessed item square; {@code edge} 0 is the plain outline, anything else an accent/rarity edge inside it. */
     void slotBox(GuiGraphicsExtractor g, int x, int y, int size, int edge) {
@@ -1604,7 +1712,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action) {
         boolean hover = inside(mx, my, x, y, w, h) && (!dropdownOpen || y < panelY + 22);
-        ScreenChrome.button(g, x, y, w, h, label, hover, selected);
+        if (pvStyle == ProfileViewerConfig.Style.DEFAULT) {
+            ScreenChrome.button(g, x, y, w, h, label, hover, selected);
+        } else {
+            PvStyleChrome.button(g, pvStyle, x, y, w, h, label, hover, selected);
+        }
         hotspots.add(new Hotspot(x, y, w, h, action));
     }
 
