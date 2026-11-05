@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Inventory HUD - draws the player's 27 main-inventory slots (not the hotbar) as an always-on HUD panel,
@@ -175,7 +176,7 @@ public final class InventoryHudFeature {
             // vanilla's intersection scan against the HUD drawn before it, every frame (2026-10-15).
             com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
             rects.fill(x, y, x + w, y + h, withAlpha(menu == null ? PANEL_BG : menu.panel(), opacity));
-            rects.outline(x, y, w, h, withAlpha(menu == null ? PANEL_BORDER : menu.accent(), opacity));
+            rects.outline(x, y, w, h, withAlpha(menu == null ? ThemeAccent.accent(PANEL_BORDER) : menu.accent(), opacity));
             if (bg == InventoryHudConfig.Background.SLOTS) {
                 int slotBg = withAlpha(menu == null ? SLOT_BG : menu.card(), opacity);
                 int slotBorder = withAlpha(menu == null ? SLOT_BORDER : menu.border(), opacity);

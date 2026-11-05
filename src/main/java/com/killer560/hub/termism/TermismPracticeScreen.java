@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Random;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McItems;
+import com.killer560.hub.gui.ThemeAccent;
 
 /** Generates and hosts a fake, entirely local terminal puzzle to practice on - killer560's explicit
  *  request (2026-09-09): "generate its own terminal for me to practice solve." No real Hypixel menu is
@@ -810,7 +811,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
         boolean customGui = customGuiOn();
         int bgColor = customGui ? PANEL_BG_COLOR : VANILLA_BG_COLOR;
-        int borderColor = customGui ? PANEL_BORDER_COLOR : VANILLA_BORDER_COLOR;
+        int borderColor = customGui ? ThemeAccent.accent(PANEL_BORDER_COLOR) : VANILLA_BORDER_COLOR;
         float scale = scale();
         int panelWidth = Math.round(columns * CELL_SIZE * scale);
         int panelHeight = Math.round(rows * CELL_SIZE * scale);

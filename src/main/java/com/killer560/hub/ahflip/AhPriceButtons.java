@@ -6,6 +6,7 @@ import com.killer560.hub.bazaarflip.BazaarFlipMenus;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.pricetooltip.ItemKeys;
 import com.killer560.hub.pricetooltip.ItemValueCalc;
 import com.killer560.hub.pricetooltip.PriceData;
@@ -331,8 +332,8 @@ public final class AhPriceButtons {
                 panelW, panelH); // clear of the search bar at the bottom middle
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "ahflip.pricebuttons", x, y, x + panelW, y + panelH);
         g.fill(x, y, x + panelW, y + panelH, PANEL_BG);
-        g.outline(x, y, panelW, panelH, PANEL_BORDER);
-        g.text(font, "AH Price Buttons", x + 4, y + 4, 0xFFCC6600, true);
+        g.outline(x, y, panelW, panelH, ThemeAccent.dim(PANEL_BORDER));
+        g.text(font, "AH Price Buttons", x + 4, y + 4, ThemeAccent.accent(0xFFCC6600), true);
         int by = y + 15;
         int bx = x + 4;
         List<Component> tip = null;
@@ -341,7 +342,7 @@ public final class AhPriceButtons {
             boolean on = q.available();
             boolean hover = mx >= bx && mx < bx + bw && my >= by && my < by + BUTTON_H;
             g.fill(bx, by, bx + bw, by + BUTTON_H, hover && on ? BUTTON_BG_HOVER : BUTTON_BG);
-            g.outline(bx, by, bw, BUTTON_H, on ? BUTTON_BORDER : BUTTON_BORDER_OFF);
+            g.outline(bx, by, bw, BUTTON_H, on ? ThemeAccent.accent(BUTTON_BORDER) : BUTTON_BORDER_OFF);
             String label = label(q.kind(), false);
             g.text(font, label, bx + (bw - font.width(label)) / 2, by + 4, on ? 0xFFFFFFFF : 0xFF6E6458, false);
             RECTS[i] = new int[]{bx, by, bw, BUTTON_H};

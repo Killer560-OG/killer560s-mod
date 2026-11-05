@@ -46,6 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ThreadLocalRandom;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Runs off the client tick, reads whatever container screen is open, and does two completely different
@@ -368,7 +369,7 @@ public final class ExperimentsFeature {
     private static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label) {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.EXPERIMENTS_START_BUTTONS);
         graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BG : menu.control());
-        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BORDER : menu.accent());
+        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, menu == null ? ThemeAccent.accent(START_BUTTON_BORDER) : menu.accent());
         graphics.centeredText(Minecraft.getInstance().font, label, x + START_BUTTON_WIDTH / 2, y + 6, menu == null ? 0xFFFFFFFF : menu.text());
     }
 

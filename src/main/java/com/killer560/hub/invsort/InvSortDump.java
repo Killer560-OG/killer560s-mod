@@ -5,6 +5,7 @@ import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McInput;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.macrostop.MacroStop;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
 import com.killer560.hub.util.ActionGate;
@@ -135,7 +136,7 @@ public final class InvSortDump {
         com.killer560.hub.containercover.ContainerCover.coverRect(cs, "invsort.dump", x, y, x + w, y + BTN_H);
         boolean hover = mx >= x && mx < x + w && my >= y && my < y + BTN_H;
         g.fill(x, y, x + w, y + BTN_H, hover ? 0xFF4A3010 : PANEL_BG);
-        g.outline(x, y, w, BTN_H, PANEL_BORDER);
+        g.outline(x, y, w, BTN_H, ThemeAccent.accent(PANEL_BORDER));
         g.text(font, label, x + 5, y + 2, 0xFFFFFFFF, false);
         rect = new int[]{x, y, w, BTN_H};
         rectFor = cs;

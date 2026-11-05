@@ -1,5 +1,6 @@
 package com.killer560.hub.itembrowser;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.inventorysearch.InventorySearchFeature;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
@@ -459,7 +460,7 @@ public final class ItemBrowserFeature {
 
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
             graphics.fill(0, 0, localWidth, localHeight, menu == null ? 0xCC0D0D0D : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC));
-            graphics.outline(0, 0, localWidth, localHeight, menu == null ? 0xFF553311 : menu.border());
+            graphics.outline(0, 0, localWidth, localHeight, menu == null ? ThemeAccent.dim(0xFF553311) : menu.border());
 
             int gridX = PADDING;
             int gridY = HEADER_HEIGHT;
@@ -492,7 +493,7 @@ public final class ItemBrowserFeature {
                 com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, cellX + 1, cellY + 1, CELL_SIZE - 2, false);
                 if (minionTiers(entry).size() > 1) {
                     // A stack of every tier: a small orange corner mark, like a bundle.
-                    graphics.fill(cellX + CELL_SIZE - 5, cellY + 1, cellX + CELL_SIZE - 1, cellY + 5, menu == null ? 0xFFCC6600 : menu.accent());
+                    graphics.fill(cellX + CELL_SIZE - 5, cellY + 1, cellX + CELL_SIZE - 1, cellY + 5, menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
                 }
                 if (hovered) {
                     hoveredEntry = entry;

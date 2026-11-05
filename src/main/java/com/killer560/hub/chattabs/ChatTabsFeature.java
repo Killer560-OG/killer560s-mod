@@ -3,6 +3,7 @@ package com.killer560.hub.chattabs;
 import com.killer560.hub.chattabs.mixin.ChatTabsAccessor;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McInput;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.modchat.ModChatChannel;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
@@ -234,7 +235,7 @@ public final class ChatTabsFeature {
             int w = tabW(font, t);
             boolean on = t == selected;
             boolean hover = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + TAB_H;
-            int bg = on ? 0xE0000000 | ModChat.ORANGE : hover ? 0xC0402810 : 0xA0000000;
+            int bg = on ? ThemeAccent.accent(0xE0000000 | ModChat.ORANGE) : hover ? 0xC0402810 : 0xA0000000;
             graphics.fill(x, y, x + w, y + TAB_H, bg);
             graphics.text(font, t.label, x + 4, y + 2, on ? 0xFFFFFFFF : 0xFFCCCCCC, false);
             x += w + TAB_GAP;
