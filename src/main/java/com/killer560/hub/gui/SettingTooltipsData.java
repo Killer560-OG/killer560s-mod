@@ -21,6 +21,7 @@ final class SettingTooltipsData {
         d.put("mute lever sounds", "In dungeons, silences lever click sounds.");
         d.put("breaker charges", "Shows your Dungeon Breaker's charges as a HUD line in dungeons. Move it in the HUD editor.");
         d.put("blood rush splits", "Times the blood rush room by room on its own HUD: each room's time from the door into it to the door out, how long its key took, and a slow door click.");
+        d.put("hide secret waypoints", "On the blood rush: hides Secret Waypoints while you stand in a room the rush goes through, until the blood door opens. Other rooms and the time after the door show as normal.");
         d.put("rush style", "Compact is one row a room; Detailed lists each room's door down, last mob, pickup, opened and room total.");
         d.put("rush to chat", "When the Blood door opens, sends you the rush's room times as one chat line (only you see it).");
         d.put("kick rejoin timer", "Kicked out of SkyBlock into a Hypixel lobby, Hypixel makes you wait 60 seconds to rejoin: a HUD counts it down and a title says when you can.");

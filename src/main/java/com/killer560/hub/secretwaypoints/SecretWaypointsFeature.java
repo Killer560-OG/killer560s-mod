@@ -1152,9 +1152,19 @@ public final class SecretWaypointsFeature {
         };
     }
 
+    /** Something to draw this frame: a snapshot, and Blood Rush Helper is not hiding it. */
+    private static boolean drawing() {
+        return !CACHED.isEmpty() && !com.killer560.hub.bloodrush.BloodRushHelperFeature.hidesSecretWaypoints();
+    }
+
+    /** Test hook: how many waypoints the next frame draws. */
+    public static int drawnForTest() {
+        return drawing() ? CACHED.size() : 0;
+    }
+
     private static void onWorldRender(LevelRenderContext context) {
         // The tick decides what is in here; an empty snapshot means "off, not in a dungeon, or nothing near".
-        if (CACHED.isEmpty()) return;
+        if (!drawing()) return;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         // Everything cached is in your room, so no distance limit is applied any more.
         SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), SecretWaypointsConfig.MAX_RENDER_DISTANCE);
