@@ -4,6 +4,7 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.autoupdate.AutoUpdateConfig;
 import com.killer560.hub.banreport.BanReportConfig;
 import com.killer560.hub.crashreport.CrashReportConfig;
+import com.killer560.hub.discordlink.DiscordLink;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuAnim;
 import com.killer560.hub.gui.MenuConfig;
@@ -12,6 +13,7 @@ import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.tab.DiscordLinkTab;
 import com.killer560.hub.hud.AutoScale;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudConfig;
@@ -49,7 +51,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     /** One stop of the tour. */
     public enum Scene {
-        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, CRASH_REPORTS, AUTO_UPDATE, MENUS, COMMUNITY
+        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, CRASH_REPORTS, DISCORD_LINK, AUTO_UPDATE, MENUS, COMMUNITY
     }
 
     private enum Spot { LEFT, NEAR, RIGHT }
@@ -118,6 +120,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             scenes.add(Scene.BAN_LOGS);
         }
         scenes.add(Scene.CRASH_REPORTS);
+        scenes.add(Scene.DISCORD_LINK);
         scenes.add(Scene.AUTO_UPDATE);
         scenes.add(Scene.MENUS);
         scenes.add(Scene.COMMUNITY);
@@ -162,14 +165,31 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                     + "and this session's mod log to my staff, so we can find what caused it. Nothing is sent unless you "
                     + "say yes.";
             case CRASH_REPORTS -> "Want to send crash reports? If the game ever crashes, {Auto Crash Reports} sends "
-                    + "the crash report, your mods and the features you had on to my admins, with no tokens, IPs or "
-                    + "usernames, so we can fix it. Nothing is sent unless you say yes.";
+                    + "the crash report, your mods and the features you had on to my admins, with your Minecraft name "
+                    + "(you can turn that off in {Home}) and no tokens or IPs, so we can fix it. Nothing is sent unless you "
+                    + "say yes.";
+            case DISCORD_LINK -> discordLinkText();
             case AUTO_UPDATE -> "{Auto Update} keeps the mod up to date by itself, installing new versions when you close "
                     + "the game. Want it on? You can change it anytime in {Home}.";
             case MENUS -> "Every feature has a card, sorted into the categories on the left. Open a card for its "
                     + "settings, or use the {search} at the top to find anything.";
             case COMMUNITY -> "Last thing! Join the {Discord} if you're not in it already, and subscribe to my "
                     + "{YouTube} channel.\nFound a bug? DM me or make a report on the Discord. Have fun!";
+        };
+    }
+
+    /** The Discord Link scene's words, by the link's state (a relay that cannot be reached never stops the tour). */
+    private static String discordLinkText() {
+        String name = DiscordLink.discordName().replaceAll("[{}\\[\\]<>]", "");
+        return switch (DiscordLink.state()) {
+            case WORKING -> "Asking for a code...";
+            case CODE -> (name.isEmpty() ? "" : "You're linked to {" + name + "} already; this code links a different one.\n")
+                    + "Type {" + DiscordLink.command() + "} in my Discord. The code works once, for 10 minutes. "
+                    + "I'll see it here when it's done.";
+            case LINKED -> "Linked to {" + name + "}! Thanks. You can unlink anytime in {Home > " + DiscordLinkTab.NAME + "}.";
+            case ERROR -> "Couldn't get a code right now. No problem: try later from {Home > " + DiscordLinkTab.NAME + "}.";
+            default -> "Want to link your {Discord}? Then I know who you are on your crash reports. Get a one-time "
+                    + "code and type it in my Discord. Or skip, and do it later from {Home > " + DiscordLinkTab.NAME + "}.";
         };
     }
 
@@ -291,6 +311,26 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             }
             case BAN_LOGS -> rowsOf.add(yesNo("Yes, share them", banChoice, this::chooseBanLogs));
             case CRASH_REPORTS -> rowsOf.add(yesNo("Yes, send them", crashChoice, this::chooseCrashReports));
+            case DISCORD_LINK -> {
+                // Never blocks the tour (killer560, 2026-11-05: "prompt them to link in the startup animation as well"):
+                // the relay calls run off-thread and the reply rebuilds this scene only while it is still on screen.
+                DiscordLink.watch(() -> {
+                    if (McCompat.screen(Minecraft.getInstance()) == this && scene() == Scene.DISCORD_LINK) {
+                        rebuildWidgets();
+                    }
+                });
+                DiscordLink.State st = DiscordLink.state();
+                List<IntroButton> row = new ArrayList<>();
+                if (st == DiscordLink.State.CODE) {
+                    row.add(chip("Copy /link Command", IntroButton.Kind.PRIMARY,
+                            () -> Minecraft.getInstance().keyboardHandler.setClipboard(DiscordLink.command())));
+                    row.add(chip("New Code", IntroButton.Kind.PLAIN, DiscordLink::start));
+                } else if (st != DiscordLink.State.LINKED && st != DiscordLink.State.WORKING) {
+                    row.add(chip("Get Link Code", IntroButton.Kind.PRIMARY, DiscordLink::start));
+                }
+                row.add(chip(st == DiscordLink.State.LINKED ? "Next" : "Skip", IntroButton.Kind.PLAIN, this::next));
+                rowsOf.add(row);
+            }
             case AUTO_UPDATE -> rowsOf.add(yesNo("Yes, keep me updated", updateChoice, this::chooseAutoUpdate));
             case COMMUNITY -> rowsOf.add(List.of(
                     chip("Join Discord", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.DISCORD_URL)),

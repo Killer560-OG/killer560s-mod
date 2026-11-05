@@ -37,9 +37,14 @@ public class CrashReportTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        widgets.add(onOffButton("Include My Username", cfg::isShareName, cfg::setShareName, cfg::save, null,
+        widgets.add(onOffButton("Include My Minecraft Name", cfg::isShareName, cfg::setShareName, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 24;
+        if (cfg.isShareName() || isSearchScan()) {
+            widgets.add(onOffButton("Include My Discord", cfg::isShareDiscord, cfg::setShareDiscord, cfg::save, null,
+                    contentX, y, contentWidth, 20));
+            y += 24;
+        }
 
         for (String line : LINES) {
             String color = line.substring(0, 2);
@@ -62,7 +67,7 @@ public class CrashReportTab extends BaseTab {
             "§eIt never sends:",
             "§7• tokens, keys or your IP",
             "§7• server addresses or other players' names",
-            "§7• your username, unless you turn it on above"
+            "§7• your Minecraft name or linked Discord, if you turn them off above"
     };
 
     /** "Auto Crash Reports: ON" in bold green, or OFF in bold red. */

@@ -28,7 +28,10 @@ public final class CrashReportConfig {
     private static CrashReportConfig instance;
 
     private boolean enabled;
-    private boolean shareName;
+    /** ON by default (killer560, 2026-11-05: "Have share name on by default"); the switch itself stays OFF. */
+    private boolean shareName = true;
+    /** Name the linked Discord too (Discord Link); only with shareName, and the relay adds it only when linked. */
+    private boolean shareDiscord = true;
     private long enabledAt;
     private final List<String> reported = new ArrayList<>();
     private final List<Long> sentAt = new ArrayList<>();
@@ -49,7 +52,8 @@ public final class CrashReportConfig {
             if (Files.exists(CONFIG_PATH)) {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.shareName = ConfigJson.getBool(obj, "shareName", false);
+                cfg.shareName = ConfigJson.getBool(obj, "shareName", true);
+                cfg.shareDiscord = ConfigJson.getBool(obj, "shareDiscord", true);
                 cfg.enabledAt = obj.has("enabledAt") && obj.get("enabledAt").isJsonPrimitive() ? obj.get("enabledAt").getAsLong() : 0;
                 JsonArray keys = ConfigJson.getArray(obj, "reported");
                 if (keys != null) {
@@ -89,6 +93,7 @@ public final class CrashReportConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("shareName", shareName);
+            obj.addProperty("shareDiscord", shareDiscord);
             obj.addProperty("enabledAt", enabledAt);
             JsonArray keys = new JsonArray();
             reported.forEach(keys::add);
@@ -119,6 +124,14 @@ public final class CrashReportConfig {
 
     public void setShareName(boolean shareName) {
         this.shareName = shareName;
+    }
+
+    public boolean isShareDiscord() {
+        return shareDiscord;
+    }
+
+    public void setShareDiscord(boolean shareDiscord) {
+        this.shareDiscord = shareDiscord;
     }
 
     public long enabledAt() {
