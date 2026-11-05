@@ -230,8 +230,17 @@ public final class LagDisplayFeature {
         @Override
         public int width() {
             // The widest drawn line (it was a fixed 110 around about 45 units of text).
-            Font font = Minecraft.getInstance().font;
-            return lines().stream().mapToInt(line -> font.width(line.text())).max().orElse(1);
+            // Kept with the lines: a stream over them on every call cost 466 B (95-perf-fixes budget 300, perfalloc-1105).
+            List<Line> lines = lines();
+            if (cachedWidth < 0) {
+                Font font = Minecraft.getInstance().font;
+                int w = lines.isEmpty() ? 1 : 0;
+                for (Line line : lines) {
+                    w = Math.max(w, font.width(line.text()));
+                }
+                cachedWidth = w;
+            }
+            return cachedWidth;
         }
 
         @Override
@@ -267,6 +276,7 @@ public final class LagDisplayFeature {
         // and again for width()/height() (String.format's Formatter each time: 23 us and 2.5 KB a frame,
         // 95-perf-features 2026-10-15). Render thread only.
         private static List<Line> cachedLines = List.of();
+        private static int cachedWidth = -1;
         private static long cachedKey = Long.MIN_VALUE;
         private static int cachedFlags = -1;
         private static long cachedColours = Long.MIN_VALUE;
@@ -338,6 +348,7 @@ public final class LagDisplayFeature {
                         colored && low >= 0 ? fpsColor(low) : COLOR_PLAIN));
             }
             cachedLines = out;
+            cachedWidth = -1;
             cachedKey = key;
             cachedFlags = flags;
             cachedColours = colours;
