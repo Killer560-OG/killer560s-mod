@@ -48,6 +48,7 @@ public final class ChatTidyConfig {
     // Mining pack (chattidy-1104): default ON, still under the Chat Hider master switch.
     private boolean hideMiningReminders = true;
     private boolean hideSackMessages = true;
+    private boolean hideAlreadyLooted = true;
     // Dungeon pack (2026-10-25): each hides one family of dungeon chat, only while in a dungeon (ChatTidy).
     private boolean hideBossDialogue = false;
     private boolean hideMort = false;
@@ -92,6 +93,7 @@ public final class ChatTidyConfig {
                 cfg.hideBanAnnouncements = ConfigJson.getBool(obj, "hideBanAnnouncements", false);
                 cfg.hideMiningReminders = ConfigJson.getBool(obj, "hideMiningReminders", true);
                 cfg.hideSackMessages = ConfigJson.getBool(obj, "hideSackMessages", true);
+                cfg.hideAlreadyLooted = ConfigJson.getBool(obj, "hideAlreadyLooted", true);
                 cfg.hideBossDialogue = ConfigJson.getBool(obj, "hideBossDialogue", false);
                 cfg.hideMort = ConfigJson.getBool(obj, "hideMort", false);
                 cfg.hideBlessings = ConfigJson.getBool(obj, "hideBlessings", false);
@@ -154,6 +156,7 @@ public final class ChatTidyConfig {
             obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
             obj.addProperty("hideMiningReminders", hideMiningReminders);
             obj.addProperty("hideSackMessages", hideSackMessages);
+            obj.addProperty("hideAlreadyLooted", hideAlreadyLooted);
             obj.addProperty("hideBossDialogue", hideBossDialogue);
             obj.addProperty("hideMort", hideMort);
             obj.addProperty("hideBlessings", hideBlessings);
@@ -206,6 +209,18 @@ public final class ChatTidyConfig {
 
     public void setHideSackMessages(boolean v) {
         hideSackMessages = v;
+    }
+
+    public boolean isHideAlreadyLooted() {
+        return on(hideAlreadyLooted);
+    }
+
+    public boolean getHideAlreadyLootedRaw() {
+        return hideAlreadyLooted;
+    }
+
+    public void setHideAlreadyLooted(boolean v) {
+        hideAlreadyLooted = v;
     }
 
     public boolean isHideUselessMessages() {
