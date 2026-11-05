@@ -273,6 +273,19 @@ public final class NavigationManager {
         return best;
     }
 
+    /**
+     * {@link #distanceSqToPath}, also counting the leg from the graph node the path was planned from to its first point
+     * (SkyHanni's shortcut drops that node, so a path planned at the foot of a climb starts at the top of it).
+     */
+    static double distanceSqToRoute(Vec3 pos) {
+        double best = distanceSqToPath(pos);
+        IslandGraph graph = pathIsland == null || lastStartNode < 0 || path.isEmpty() ? null : GraphRepository.get(pathIsland);
+        if (graph != null && lastStartNode < graph.nodes.length) {
+            best = Math.min(best, pos.distanceToSqr(projectOnSegment(pos, centre(graph.nodes[lastStartNode]), path.get(0))));
+        }
+        return best;
+    }
+
     public static Vec3 projectOnSegment(Vec3 p, Vec3 a, Vec3 b) {
         Vec3 ab = b.subtract(a);
         double lenSq = ab.lengthSqr();

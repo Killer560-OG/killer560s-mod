@@ -88,6 +88,8 @@ public final class AutoWalker {
     private static boolean wantJump;
     private static boolean wantSprint;
     private static boolean wantSneak;
+    /** The runner clicks a soul from a ladder: sneak holds him there (vanilla stops the slide down while sneaking). */
+    private static boolean ladderHold;
     private static int crouchTicks;
     private static int controlledJumps;
     private static int jumpReplans;
@@ -123,6 +125,8 @@ public final class AutoWalker {
     private static long rescueBestAtMs;
     private static boolean needsEscape;
     private static String escapeWhy = "";
+    /** The failure happened ON the route (or beside the soul): walking it again after a warp ends the same way. */
+    private static boolean escapeRepeats;
 
     /** Testkit counters. */
     private static int jumpsPressed;
@@ -171,6 +175,7 @@ public final class AutoWalker {
 
     public static void endSession(String reason) {
         sessionActive = false;
+        ladderHold = false;
         setWalking(false);
         clearKeys();
         WalkCamera.clear();
@@ -207,7 +212,7 @@ public final class AutoWalker {
 
     /** Driving the player right now (the mixin asks this). */
     public static boolean isDriving() {
-        return sessionActive && walking && !noCarrot && !respawning && PathfindingConfig.getInstance().isAutoWalk();
+        return sessionActive && (walking || ladderHold) && !noCarrot && !respawning && PathfindingConfig.getInstance().isAutoWalk();
     }
 
     public static boolean wantForward() { return wantForward; }
@@ -234,7 +239,11 @@ public final class AutoWalker {
     /** Testkit: plans made again because his jump changed (Jump Boost on or off). */
     public static int jumpReplans() { return jumpReplans; }
 
+    /** Hold still on a ladder (sneak) while not walking; cleared when walking starts again or the session ends. */
+    static void holdOnLadder() { ladderHold = true; }
+
     public static void setWalking(boolean value) {
+        if (value) ladderHold = false;
         if (walking == value) return;
         walking = value;
         noCarrot = false;
@@ -522,7 +531,15 @@ public final class AutoWalker {
         }
         if (!walking || !cfg.isAutoWalk()) {
             clearKeys();
-            releaseFallbackKey();
+            // Clicking a soul from a ladder: with no key down he slides off its reach before the look is set (testkit
+            // 1105-fairy-hub, soul 48's hut ladder: in reach at the top, out of it four times on the way down).
+            wantSneak = ladderHold && cfg.isAutoWalk() && player.onClimbable() && !player.onGround();
+            if (wantSneak && !mixinApplied) {
+                client.options.keyShift.setDown(true);
+                fallbackKeyHeld = true;
+            } else if (!wantSneak) {
+                releaseFallbackKey();
+            }
             return;
         }
 
@@ -911,6 +928,12 @@ public final class AutoWalker {
     }
 
     private static void fail(String why) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        // A warp back walks the same route: stuck at a step of it he cannot take (a climb the graph has with nothing to
+        // climb, testkit 1105-fairy-hub's souls 7 and 28) or no spot in reach of the soul, the second trip failed exactly
+        // like the first, 30-40 s each. Only a fall or a push off the route is undone by walking it again.
+        // (The graph's points sit 1.5 over the feet: NavigationManager.centre of a node a block above the floor.)
+        escapeRepeats = approaching || player != null && NavigationManager.distanceSqToRoute(player.position().add(0, 1.5, 0)) < 1.5 * 1.5;
         rescuePath = null;
         needsEscape = true;
         escapeWhy = why;
@@ -1171,8 +1194,8 @@ public final class AutoWalker {
         long us = (System.nanoTime() - t0) / 1000;
         approachesPlanned++;
         if (cells.size() < 2) {
-            LOGGER.info("[AutoWalker] no walk to a spot the soul is in reach from ({} spots, from {}, {} us)", goals.size(),
-                    start, us);
+            LOGGER.info("[AutoWalker] no walk to a spot the soul is in reach from ({} spots: {}, from {}, {} us)", goals.size(),
+                    goals.subList(0, Math.min(4, goals.size())), start, us);
             return false;
         }
         rescuePath = LocalPlanner.toPoints(level, cells);
@@ -1202,6 +1225,7 @@ public final class AutoWalker {
     static void approachFailed(String why) {
         cancelApproach();
         fail(why);
+        escapeRepeats = true;
     }
 
     public static int approachesPlanned() { return approachesPlanned; }
@@ -1362,6 +1386,9 @@ public final class AutoWalker {
     public static boolean needsEscape() { return sessionActive && needsEscape; }
 
     public static String escapeWhy() { return escapeWhy; }
+
+    /** True when the escape is from a failure a warp and the same walk would repeat (see {@link #fail}). */
+    static boolean escapeRepeats() { return escapeRepeats; }
 
     /** The runner's warp landed: its teleport packet is the warp's, not a correction to report. */
     static void acceptServerMoves() {

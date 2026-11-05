@@ -533,7 +533,7 @@ public final class AutoSoulRunner {
                 }
             }
         }
-        if (cfg.isWarpWhenStuck() && !warpedForSoul && startWarp(player)) return;
+        if (cfg.isWarpWhenStuck() && !warpedForSoul && !AutoWalker.escapeRepeats() && startWarp(player)) return;
         noWayOuts++;
         String tools = cfg.getAutoMode().etherwarps() || cfg.isAllowPearls()
                 ? "no etherwarp or pearl lands anywhere useful" : "etherwarp and pearls are not allowed";
@@ -592,6 +592,8 @@ public final class AutoSoulRunner {
             ModChat.log(CHAT, ModChat.text("Warped - walking back to the soul."));
             AutoWalker.acceptServerMoves();
             AutoWalker.escaped();
+            AutoWalker.newTarget(); // a fresh walk from the spawn: its rescue budget starts over (the 8 spent
+            // before the warp failed the walk back 3 s after landing, testkit 1105-fairy-hub)
             AutoWalker.rebaseCamera();
             state = State.IDLE;
             if (!NavigationManager.isActive()) {
@@ -698,6 +700,7 @@ public final class AutoSoulRunner {
     private static void tickCollect(Minecraft client, LocalPlayer player, Vec3 soulCentre, double distance) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         AutoWalker.setWalking(false);
+        AutoWalker.holdOnLadder();
         // Far from the soul's graph node is not "left the soul" when the stand itself is in reach: a soul up on a ledge
         // 5 blocks over its node (testkit 1103-fairy-boost6-pillar) was reached, then this sent him walking back to the
         // node and off the ledge, four times.
