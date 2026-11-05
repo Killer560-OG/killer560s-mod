@@ -88,8 +88,7 @@ public class DungeonTab extends FolderTab {
                 new P4PlatformHighlightTab(),
                 new WitherDragonsTab(),
                 // ---- the sim ----
-                new SimSettingsTab(),
-                new SimKeybindsTab()
+                new SimSettingsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // The cheat block: every tab here is isCheatOnly (red title) and exists only in the cheat jar.

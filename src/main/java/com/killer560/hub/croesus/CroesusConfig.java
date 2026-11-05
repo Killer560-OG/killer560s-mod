@@ -74,7 +74,7 @@ public final class CroesusConfig {
     private static CroesusConfig instance;
 
     // Both profit trackers ON by default since 2026-10-04 (killer560: "Make all profit trackers on by default").
-    private boolean chestProfitEnabled = true;
+    private boolean chestProfitEnabled = false;
     private boolean includeEssence = true;
     /** In a run's chest view: the most profitable chest at its normal cost, green - the free claim (killer560,
      *  2026-10-13). Was "Highlight Best" (key highlightBest), carried over on load. */
@@ -129,7 +129,7 @@ public final class CroesusConfig {
     /** See {@link PriceMode}. Before it existed Croesus followed the RNG Meter's "Use Instant-Buy Price", so a config
      *  without the key starts where that setting left it (on = buyPrice = Sell Offer). */
     private PriceMode priceMode = PriceMode.INSTA_SELL;
-    private boolean loggerEnabled = true;
+    private boolean loggerEnabled = false;
     private boolean loggerChatSummary = true;
     private boolean autoCroesusEnabled = false;
     private int autoMinProfitK = 0;

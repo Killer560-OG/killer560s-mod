@@ -47,8 +47,8 @@ public final class MelodyHudConfig {
     }
 
     public static void load() {
-        // Sharing is ON by default (killer560, 2026-09-21), independent of any other setting.
-        boolean defaultShare = true;
+        // Sharing is OFF by default (killer560, 2026-11-04: Team Melody off), independent of any other setting.
+        boolean defaultShare = false;
         if (!Files.exists(CONFIG_PATH)) {
             MelodyHudConfig cfg = new MelodyHudConfig();
             cfg.shareProgress = defaultShare;

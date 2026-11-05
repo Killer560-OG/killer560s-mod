@@ -34,7 +34,7 @@ public final class ArmorHudConfig {
 
     private static ArmorHudConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private boolean showEquipment = true;
     private Layout layout = Layout.VERTICAL;
     private boolean showDurability = false;

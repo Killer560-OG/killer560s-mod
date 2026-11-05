@@ -40,7 +40,7 @@ public final class ObjectHiderConfig {
     // --- Dungeon clutter -------------------------------------------------------------------------
     /** Object Hider as a whole (killer560, 2026-10-13): off, nothing in the pack hides anything (No Fire Overlay too),
      *  whatever the switches below say. On by default, so nothing changes until he flips it. */
-    private boolean objectHiderEnabled = true;
+    private boolean objectHiderEnabled = false;
     private boolean hideFairy = false;
     private boolean hideHealerOrbs = false;
     private boolean keepNearbyOrbs = false;
@@ -144,7 +144,7 @@ public final class ObjectHiderConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-                cfg.objectHiderEnabled = ConfigJson.getBool(obj, "objectHiderEnabled", true);
+                cfg.objectHiderEnabled = ConfigJson.getBool(obj, "objectHiderEnabled", false);
                 cfg.hideFairy = ConfigJson.getBool(obj, "hideFairy", false);
                 cfg.hideHealerOrbs = ConfigJson.getBool(obj, "hideHealerOrbs", false);
                 cfg.keepNearbyOrbs = ConfigJson.getBool(obj, "keepNearbyOrbs", false);

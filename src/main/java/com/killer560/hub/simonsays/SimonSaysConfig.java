@@ -52,7 +52,7 @@ public final class SimonSaysConfig {
     private boolean triggerBotEnabled = false;
     /** Auto Simon Says as a whole (killer560, 2026-10-13): off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all
      *  stand down whatever their own switches say. On by default, as before. */
-    private boolean autoSimonSaysEnabled = true;
+    private boolean autoSimonSaysEnabled = false;
     // Trigger Bot reaction delay (2026-09-15, killer560: "a slider in ms of how long from the ms it detects it is on
     // the right button to when it will actually click").
     public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
@@ -188,7 +188,7 @@ public final class SimonSaysConfig {
             cfg.announceProgress = getBool(obj, "announceProgress", false);
             cfg.partyProgressTrackerEnabled = getBool(obj, "partyProgressTrackerEnabled", true);
             cfg.triggerBotEnabled = getBool(obj, "triggerBotEnabled", false);
-            cfg.autoSimonSaysEnabled = getBool(obj, "autoSimonSaysEnabled", true);
+            cfg.autoSimonSaysEnabled = getBool(obj, "autoSimonSaysEnabled", false);
             cfg.setTriggerBotDelayMs(getInt(obj, "triggerBotDelayMs", 0));
             cfg.autoSolveEnabled = getBool(obj, "autoSolveEnabled", false);
             cfg.autoSolveRotate = getBool(obj, "autoSolveRotate", false);

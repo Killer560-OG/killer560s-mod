@@ -28,9 +28,9 @@ final class CardBlurbsData {
         d.put("TreasureChestHighlightTab", "Boxes chests, with a timer.");
         d.put("TreasureChestAlertTab", "Sound when a chest spawns.");
         d.put("MiningGoldenGoblinTab", "Box and tracer on Golden and Diamond Goblins.");
-        d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
+        d.put("PowderBreakSoundsTab", "Powder mining break sounds.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
-        d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
+        d.put("CrystalHollowsWallsTab", "Colored walls at zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");
@@ -118,8 +118,7 @@ final class CardBlurbsData {
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");
         d.put("I4SensorsTab", "Solver and i4 helpers.");
-        d.put("SimKeybindsTab", "Room keys for route practice.");
-        d.put("SimSettingsTab", "Dungeon Sim breaker charges, mobs.");
+        d.put("SimSettingsTab", "Sim charges, mobs, room keys.");
         d.put("SimonSaysTab", "Marks the Simon Says buttons.");
         d.put("SplitTimersTab", "A HUD timing each run part.");
         d.put("TeamMelodyTab", "Teammates' Melody progress.");

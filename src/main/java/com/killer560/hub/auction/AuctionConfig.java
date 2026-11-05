@@ -86,8 +86,8 @@ public final class AuctionConfig {
     // reskin not a separate toggle." Each is ONE switch: the API browser AND Hypixel's real menus drawn in its look.
     // The old reskinRealBazaar (this file) and reskinRealAh (killer560smod-auction-house.json) are read once by
     // load() - on if either was on - and never written again.
-    private boolean ahEnabled = true;
-    private boolean bazaarEnabled = true;
+    private boolean ahEnabled = false;
+    private boolean bazaarEnabled = false;
     private boolean listingHelperEnabled = false;
     /** killer560's item 8.1: "/ah replacement toggle" - OFF by default, real Hypixel /ah always still
      *  reachable via the explicit {@code /hypixelah} command regardless of this. */
@@ -137,8 +137,8 @@ public final class AuctionConfig {
                 // 2026-09-27: "turn auction house and bazaar settings on by default") but load resolved a
                 // missing or malformed key to false - so a config written before those keys existed, or one
                 // with a typo'd key, silently turned both off and looked like the feature was broken.
-                cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", true);
-                cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", true);
+                cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", false);
+                cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", false);
                 cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
                 cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
                 // One switch since 2026-10-11: a reskin that was on keeps the whole feature on.

@@ -19,7 +19,7 @@ public final class ChatEmoteConfig {
 
     private static ChatEmoteConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     private ChatEmoteConfig() {
     }

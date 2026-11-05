@@ -40,7 +40,7 @@ public final class PosmsgConfig {
 
     private static PosmsgConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     /** One-time marker for the 2026-09-20 "Recore ring off" migration below. */
     private boolean recoreRadiusMigrated = false;
     private final List<PosmsgEntry> entries = new ArrayList<>();
@@ -74,7 +74,7 @@ public final class PosmsgConfig {
             try {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(root, "enabled", true);
+                cfg.enabled = ConfigJson.getBool(root, "enabled", false);
                 cfg.recoreRadiusMigrated = ConfigJson.getBool(root, "recoreRadiusMigrated", false);
                 JsonArray array = ConfigJson.getArray(root, "entries");
                 if (array != null) {

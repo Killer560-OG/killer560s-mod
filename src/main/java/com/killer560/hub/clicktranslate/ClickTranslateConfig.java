@@ -21,7 +21,7 @@ public final class ClickTranslateConfig {
 
     private static ClickTranslateConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private String targetLanguageCode = "en";
 
     private ClickTranslateConfig() {
@@ -43,7 +43,7 @@ public final class ClickTranslateConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             ClickTranslateConfig cfg = new ClickTranslateConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.setTargetLanguageCode(ConfigJson.getString(obj, "targetLanguageCode", "en"));
             instance = cfg;
         } catch (Exception e) {

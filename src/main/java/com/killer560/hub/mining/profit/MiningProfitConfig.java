@@ -27,7 +27,7 @@ public final class MiningProfitConfig {
     private static MiningProfitConfig instance;
 
     /** ON by default since 2026-10-04 (killer560: "Make all profit trackers on by default"). */
-    private boolean enabled = true;
+    private boolean enabled = false;
     /** Only counts items gained while standing on a mining island (Dwarven Mines / Glacite Tunnels /
      *  Crystal Hollows / Gold Mine / Deep Caverns) - see {@link MiningProfitTracker#isMiningIsland}. Turning
      *  this off tracks item gains anywhere on Skyblock instead (still paused off Skyblock/p3sim). */
@@ -51,7 +51,7 @@ public final class MiningProfitConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             MiningProfitConfig cfg = new MiningProfitConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.miningIslandsOnly = ConfigJson.getBool(obj, "miningIslandsOnly", true);
             instance = cfg;
         } catch (Exception e) {

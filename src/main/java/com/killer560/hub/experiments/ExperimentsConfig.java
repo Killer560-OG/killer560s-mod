@@ -71,7 +71,7 @@ public final class ExperimentsConfig {
      *  switch over the automation as well - {@link #isAutonomousMode()} is now independent of it, so the
      *  solver can be run with no automation (the old "Solver Only" mode), the automation with no
      *  highlights, or both. Same {@code "enabled"} JSON key and same default as before the split. */
-    private boolean enabled = true;
+    private boolean enabled = false;
     private boolean superpairsEnabled = true;
     /** Superpairs Overview HUD (killer560, 2026-11-01: "show how many things are left for superpairs ... like
      *  skyhanni's"): found rewards and powerups, undiscovered pairs and powerups, beside the board. ON by default. */
@@ -152,7 +152,7 @@ public final class ExperimentsConfig {
     /** Experimentation Table profit tracker (see {@link ExperimentsProfitTracker}) - purely
      *  observational logging of claimed rewards/XP/Bits, independent of the solver toggle. ON by
      *  default since 2026-10-04 (killer560: "Make all profit trackers on by default"). */
-    private boolean profitTrackerEnabled = true;
+    private boolean profitTrackerEnabled = false;
     /** Superpairs' flat 1000ms confirm-timeout is extended by however long the server stalls while a
      *  click waits (see {@code ExperimentSolver#superpairsConfirmTimeoutMs} and {@link com.killer560.hub.util.ServerLag}).
      *  With no lag it changes nothing. The fixed "Timeout Margin" it used to carry was removed on
@@ -194,7 +194,7 @@ public final class ExperimentsConfig {
             // right kind. Until 2026-10-15 one bad value (a hand-edited "delayMs": "fast") threw out of the whole
             // read and every setting in the file was lost to the defaults.
             ExperimentsConfig cfg = new ExperimentsConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.superpairsEnabled = ConfigJson.getBool(obj, "superpairsEnabled", true);
             cfg.superpairsHudEnabled = ConfigJson.getBool(obj, "superpairsHudEnabled", true);
             cfg.superpairsValuableOnly = ConfigJson.getBool(obj, "superpairsValuableOnly", DEFAULT_SUPERPAIRS_VALUABLE_ONLY);
@@ -218,7 +218,7 @@ public final class ExperimentsConfig {
             cfg.autoSwapGuardianPet = ConfigJson.getBool(obj, "autoSwapGuardianPet", true);
             cfg.clickProtectionEnabled = ConfigJson.getBool(obj, "clickProtectionEnabled", true);
             cfg.notifyMaxClicksReached = ConfigJson.getBool(obj, "notifyMaxClicksReached", true);
-            cfg.profitTrackerEnabled = ConfigJson.getBool(obj, "profitTrackerEnabled", true);
+            cfg.profitTrackerEnabled = ConfigJson.getBool(obj, "profitTrackerEnabled", false);
             cfg.superpairsAdaptiveTimeout = ConfigJson.getBool(obj, "superpairsAdaptiveTimeout", false);
             // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
             // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"

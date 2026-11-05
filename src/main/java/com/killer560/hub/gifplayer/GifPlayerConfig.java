@@ -29,10 +29,10 @@ public final class GifPlayerConfig {
 
     private static GifPlayerConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     /** Separate master switch for the audio section - lets killer560 mute all audio while leaving the
      *  gif(s) showing, or vice versa, without touching the per-file toggles. */
-    private boolean audioEnabled = true;
+    private boolean audioEnabled = false;
     private float speedMultiplier = 1.0f;
     /** 0.0 (silent) - 1.0 (full volume), applied to every currently-enabled audio file. */
     private float volume = 0.5f;

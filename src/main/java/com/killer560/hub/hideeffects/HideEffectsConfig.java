@@ -29,7 +29,7 @@ public final class HideEffectsConfig {
 
     private static volatile HideEffectsConfig instance;
 
-    private boolean hidePotionEffects = true;
+    private boolean hidePotionEffects = false;
     private boolean hideEffectIcons = false;
 
     private HideEffectsConfig() {

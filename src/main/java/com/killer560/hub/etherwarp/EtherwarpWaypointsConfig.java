@@ -51,7 +51,7 @@ public final class EtherwarpWaypointsConfig {
     private boolean enabled = false;
     // killer560, 2026-09-20: "instead it should highlight the block I was looking at". The box is the
     // point of the feature now, so it ships ON while the HUD list stays opt-in.
-    private boolean highlightBlocks = true;
+    private boolean highlightBlocks = false;
     private Style style = Style.FILL_AND_OUTLINE;
     private int color = DEFAULT_COLOR;
     /** killer560, 2026-09-27: "Make an option to have them show through walls." Off by default - unlike Secret

@@ -36,7 +36,7 @@ public final class DvdConfig {
     private final List<DvdEntry> entries = new ArrayList<>();
     /** DVD as a whole (killer560, 2026-10-13): off, no box is drawn, bounces or plays a sound, whatever each box's
      *  own switch says. On by default, so nothing changes until he flips it. */
-    private boolean dvdEnabled = true;
+    private boolean dvdEnabled = false;
 
     private DvdConfig() {
     }
@@ -107,7 +107,7 @@ public final class DvdConfig {
             try {
                 JsonObject master = JsonParser.parseString(Files.readString(MASTER_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
-                cfg.dvdEnabled = ConfigJson.getBool(master, "dvdEnabled", true);
+                cfg.dvdEnabled = ConfigJson.getBool(master, "dvdEnabled", false);
             } catch (Exception ignored) {
             }
         }

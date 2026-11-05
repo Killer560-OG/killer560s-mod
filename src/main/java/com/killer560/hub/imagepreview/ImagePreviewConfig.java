@@ -28,7 +28,7 @@ public final class ImagePreviewConfig {
 
     private static ImagePreviewConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     /** Longest side of the floating preview, in GUI pixels. */
     private int maxPreviewSize = 160;
     /** False (the default): only imgur and Discord links are fetched. True: any http(s) host (never a private address). */
@@ -52,7 +52,7 @@ public final class ImagePreviewConfig {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
                 cfg.maxPreviewSize = clamp(ConfigJson.getInt(obj, "maxPreviewSize", 160), MIN_SIZE, MAX_SIZE);
                 cfg.anyHost = ConfigJson.getBool(obj, "anyHost", false);
                 cfg.playGifs = ConfigJson.getBool(obj, "playGifs", true);
