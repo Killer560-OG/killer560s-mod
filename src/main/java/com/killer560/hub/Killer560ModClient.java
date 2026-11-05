@@ -264,7 +264,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.blessings.BlessingsFeature.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
-        com.killer560.hub.worldexport.WorldExportCommand.register();
         if (com.killer560.hub.BuildVariant.TESTING) {
             com.killer560.hub.testing.TestingCommands.register();
         }

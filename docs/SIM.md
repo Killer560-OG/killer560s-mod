@@ -184,42 +184,16 @@ Lessons that only concerned the recorder, kept here in brief:
 - Capture skips seen columns, so a complete room is never re-read without explicitly emptying it (the old
   `rescan`), and the shipped copy must not win over a room being rescanned.
 
-## World export (private, cheat dev builds only; 2026-11-03)
+## World export (removed 2026-11-05)
 
-`/k560worldexport` (package `worldexport/`; registered only when `DEV_TOOLS && CHEAT_FEATURES_ENABLED`, so no legit build and no
-release build has it) writes the chunks the client holds for the current world into a vanilla Anvil world folder, so the
-testkit's dedicated server can load a real island (killer560: "a full world download of the hypixel skyblock hub for stuff
-like fairy soul pathfinding testing"). It reads memory and writes files; it sends no packet and asks the server for nothing.
-PRIVATE: Hypixel's builds are their property. The output is never bundled in a jar, committed, published or uploaded; the
-default folder is `<game dir>/killer560-world-captures/<name>` (override: system property `killer560.worldexport.dir` or env
-`KILLER560_WORLD_CAPTURES`), and `world-captures/` plus `killer560-world-captures/` are in `.gitignore`. Keep copies under
-`C:\Users\Hunter\killer560s-mod-logs\world-captures\`.
+`/k560worldexport`, `/killer560 record <name>` / `stop record`, the `worldexport/` package (CaptureGuide, EntityRecorder),
+`compat/McChunkExport` and the Chunk Cache's forced mode were cheat-dev-only island capture tools; they were removed
+(cmdtrim-1105, killer560: "you can now remove the record stuff"), and testkit 1101-cmdclean-gone keeps them out. To bring
+them back, restore from commit 45d991134. The captures he already took stay on disk, PRIVATE (Hypixel's builds are their
+property: never in a jar, a commit or an upload): `<game dir>/killer560-world-captures/` and
+`C:\Users\Hunter\killer560s-mod-logs\world-captures\` (both folder names stay in `.gitignore`).
 
-The two-command scan (killer560, 2026-11-05): `/killer560 record <name>` clears the capture area, forces the Chunk Cache on at
-its 20000-chunk maximum whatever its settings say (`ChunkCacheManager.setForced`), adopts every chunk already live (they arrived
-while the cache may have been off, so they were in no store and were lost on unload: testkit 1105-worldexport-record's first
-run) and records entities; fly over the island; `/killer560 stop record` saves to `<name>` and puts the cache back. A world
-change in between clears the cache, so stop refuses to save then. Same cheat-dev gate as `/k560worldexport`.
-
-What the Chunk Cache holds: live `LevelChunk` objects only (block states, biomes, block entities incl. signs and skull
-profiles, heightmaps), in memory, per world, LRU-trimmed at `maxChunks` (default 4000, max 20000), recorded from the first
-chunk packet whenever the cache is enabled (default on). Nothing is persisted, and it is cleared on every world change
-(island switch, dungeon enter/leave). Entities are NOT in it. So an export must be done in one stay on one island.
-
-Commands: `coverage [x1 z1 x2 z2]` (captured / live / missing chunks in the box, default the bounding box of what is held,
-the 5 nearest gaps in block x,z, and `coverage-map.txt` with one character per chunk), `record on|off|clear` (accumulates
-armor stands and other players by UUID from the live client: Hypixel shows fairy souls and NPCs as head-wearing armor stands),
-`save <name>` (region files, `level.dat`, `data/minecraft/world_gen_settings.dat` with a flat void generator, `entities.json`
-with each entity's position and head item as JSON, `export-info.json`). The chunk tag comes from vanilla's own
-`SerializableChunkData.write()` through `compat/McChunkExport` (its constructor differs: 26.2 has an extra carving-mask array).
-Chunks are written without light and heightmaps; the server relights and primes them.
-
-Using an export in the testkit: `TestServer.seedWorldFrom(<export folder>, {x,y,z})` (the folder holds `level.dat`, `data/`,
-`dimensions/`). Case `1103-worldexport-*` (testkit `WorldExportTests`) proves the loop on BAYOU_SPILL: place, export, new
-server on the export alone, 600 sampled blocks, sign text, head block entity, then the real fairy soul walk to a soul.
-An export is only loadable by the Minecraft version that wrote it (26.3 and 26.2 world formats differ).
-
-Lessons: a loaded export has no light, so grass dies to dirt on random ticks (`gamerule random_tick_speed 0` first);
-the 26.3 `SignBlockEntity` has `getText(SignTextSlot)`, no `getFrontText` (read a sign through `saveWithFullMetadata`).
-Hypixel limits for a full hub copy: only chunks the server sent are held; walk or fly the whole island in one stay with
-Chunk Cache on and `maxChunks` at 20000; chunks are a snapshot from when they were last sent.
+Using a capture in the testkit still works: `TestServer.seedWorldFrom(<export folder>, {x,y,z})` (the folder holds
+`level.dat`, `data/`, `dimensions/`; FairyHubTests seeds the cropped hub this way). A capture is only loadable by the
+Minecraft version that wrote it (26.3 and 26.2 world formats differ). A loaded capture has no light, so grass dies to
+dirt on random ticks (`gamerule random_tick_speed 0` first).
