@@ -27,7 +27,7 @@ public enum ChSignature {
             Blocks.POLISHED_ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.DARK_OAK_STAIRS),
     JUNGLE_TEMPLE("Jungle Temple", ChStructure.JUNGLE_TEMPLE, Quarter.JUNGLE, -45, 47, -18, false,
             Blocks.BEDROCK, Blocks.BEDROCK, Blocks.CLAY, Blocks.CLAY),
-    GOBLIN_KING("Goblin King", null, Quarter.GOBLIN_HOLDOUT, 1, -1, 2, false,
+    GOBLIN_KING("Goblin King", ChStructure.GOBLIN_KING, Quarter.GOBLIN_HOLDOUT, 1, -1, 2, false,
             McBlocks.RED_WOOL, Blocks.DARK_OAK_STAIRS, Blocks.DARK_OAK_STAIRS, Blocks.DARK_OAK_STAIRS),
     BAL("Bal (Khazad-dûm)", ChStructure.KHAZAD_DUM, Quarter.MAGMA_FIELDS, 0, 1, 0, false,
             Blocks.LAVA, Blocks.BARRIER, Blocks.BARRIER, Blocks.BARRIER, Blocks.BARRIER, Blocks.BARRIER,
@@ -35,10 +35,10 @@ public enum ChSignature {
     CORLEONE_DOCK("Corleone Dock", ChStructure.CORLEONE, Quarter.MITHRIL_DEPOSITS, 23, 11, 17, false,
             Blocks.POLISHED_GRANITE, Blocks.WATER, Blocks.WATER, null, null, null, null, null, null, null,
             Blocks.STONE, McBlocks.CYAN_TERRACOTTA, Blocks.STONE_BRICKS, Blocks.STONE, Blocks.FIRE),
-    KEY_GUARDIAN("Key Guardian Spiral", null, Quarter.JUNGLE, 0, 0, 0, false,
+    KEY_GUARDIAN("Key Guardian Spiral", ChStructure.KEY_GUARDIAN, Quarter.JUNGLE, 0, 0, 0, false,
             Blocks.JUNGLE_STAIRS, Blocks.JUNGLE_PLANKS, Blocks.GLOWSTONE, McBlocks.WHITE_CARPET, null,
             Blocks.JUNGLE_SLAB, null, Blocks.JUNGLE_STAIRS, Blocks.STONE, Blocks.STONE, Blocks.STONE),
-    ODAWA("Odawa", null, Quarter.JUNGLE, 0, 0, 0, false,
+    ODAWA("Odawa", ChStructure.ODAWA, Quarter.JUNGLE, 0, 0, 0, false,
             Blocks.JUNGLE_LOG, Blocks.SPRUCE_STAIRS, Blocks.SPRUCE_STAIRS, Blocks.JUNGLE_LOG, Blocks.SPRUCE_STAIRS,
             Blocks.SPRUCE_STAIRS, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LOG, Blocks.HAY_BLOCK,
             McBlocks.YELLOW_TERRACOTTA),
@@ -64,7 +64,7 @@ public enum ChSignature {
     }
 
     public final String displayName;
-    /** The map's structure this marks, or null for one the map has no entry for. */
+    /** The map's structure this marks. */
     public final ChStructure mapStructure;
     final Quarter quarter;
     final int dx;

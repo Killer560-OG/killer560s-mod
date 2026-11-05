@@ -32,7 +32,11 @@ public enum ChStructure {
     KHAZAD_DUM("Khazad-dûm", 0xFFEF5350),
     FAIRY_GROTTO("Fairy Grotto", 0xFFF06292),
     DRAGONS_LAIR("Dragon's Lair", 0xFF8D6E63),
-    CORLEONE("Corleone", 0xFFE0E0E0);
+    CORLEONE("Corleone", 0xFFE0E0E0),
+    // Spots only the cheat Structure Scanner finds (no sidebar area names them), so its every find reaches the map.
+    GOBLIN_KING("Goblin King", 0xFFC62828),
+    KEY_GUARDIAN("Key Guardian Spiral", 0xFF9CCC65),
+    ODAWA("Odawa", 0xFFFFEE58);
 
     public final String displayName;
 

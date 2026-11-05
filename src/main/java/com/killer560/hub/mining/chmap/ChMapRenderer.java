@@ -64,7 +64,8 @@ public final class ChMapRenderer {
     private int[] labelAt = new int[3 * 16];
     private int labelCount;
 
-    /** @param labels draw names beside the markers (the full screen); the HUD is too small for them, as Skyblocker's is. */
+    /** @param labels draw names beside the markers (the full screen); the HUD is too small for them, as Skyblocker's is,
+     *  but for the structures' names with Names On HUD. */
     public ChMapRenderer(boolean labels) {
         this.labels = labels;
     }
@@ -160,12 +161,14 @@ public final class ChMapRenderer {
             int[][] q = {{c0, r0, mx, mz}, {mx, r0, c1, mz}, {c0, mz, mx, r1}, {mx, mz, c1, r1}};
             for (int i = 0; i < 4; i++) {
                 rect(q[i][0], q[i][1], q[i][2], q[i][3], ZONE_COLORS[i]);
-                label(ZONE_NAMES[i], (q[i][0] + q[i][2]) / 2, (q[i][1] + q[i][3]) / 2, DIM, true);
+                label(labels ? ZONE_NAMES[i] : null, (q[i][0] + q[i][2]) / 2, (q[i][1] + q[i][3]) / 2, DIM, true);
             }
             rect(sx(463), sy(460), sx(560), sy(563), 0x30FFFFFF);
         }
         border(c0, r0, c1 - 1, r1 - 1, EDGE, true);
-        marker(sx(CrystalHollowsMapScreen.NUCLEUS_X), sy(CrystalHollowsMapScreen.NUCLEUS_Z), NUCLEUS_COLOR, "Nucleus");
+        marker(sx(CrystalHollowsMapScreen.NUCLEUS_X), sy(CrystalHollowsMapScreen.NUCLEUS_Z), NUCLEUS_COLOR, labels ? "Nucleus" : null);
+        // Structure names also on the HUD, with Names On HUD (killer560, 2026-11-04: "allow me to see the name of the area").
+        boolean names = labels || cfg.isHudNames();
         if (cfg.isShowBorders() || cfg.isShowStructureWaypoints()) {
             for (ChFind f : ChDiscovery.all()) {
                 // A find not established first-hand (scanned or shared) is dashed, so he can tell which he walked into.
@@ -178,15 +181,15 @@ public final class ChMapRenderer {
                             f.structure.colour, f.source == ChFind.Source.VISITED);
                 }
                 if (cfg.isShowStructureWaypoints()) {
-                    marker(sx(f.centreX()), sy(f.centreZ()), f.structure.colour, f.structure.displayName);
+                    marker(sx(f.centreX()), sy(f.centreZ()), f.structure.colour, names ? f.structure.displayName : null);
                 }
             }
         }
         for (CrystalHollowsWaypoint w : cfg.getWaypoints()) {
-            marker(sx(w.x), sy(w.z), WAYPOINT_COLOR, w.name);
+            marker(sx(w.x), sy(w.z), WAYPOINT_COLOR, labels ? w.name : null);
         }
         if (!Double.isNaN(targetX)) {
-            marker(sx(targetX), sy(targetZ), TARGET_COLOR, targetLabel != null ? targetLabel : "Target");
+            marker(sx(targetX), sy(targetZ), TARGET_COLOR, !labels ? null : targetLabel != null ? targetLabel : "Target");
         }
     }
 
@@ -215,7 +218,7 @@ public final class ChMapRenderer {
     }
 
     private void label(String text, int x, int y, int color, boolean centred) {
-        if (!labels || text == null || text.isBlank() || !inside(x, y)) {
+        if (text == null || text.isBlank() || !inside(x, y)) {
             return;
         }
         if (labelCount == labelText.length) {

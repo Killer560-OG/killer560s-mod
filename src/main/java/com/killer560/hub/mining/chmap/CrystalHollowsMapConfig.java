@@ -70,6 +70,8 @@ public final class CrystalHollowsMapConfig {
      *  element like theirs", Skyblocker's and SkyHanni's), and the zone quadrants tinted on both views. */
     private boolean hudEnabled = true;
     private boolean showZones = true;
+    /** The structures' names beside their markers on the HUD too (killer560, 2026-11-04). */
+    private boolean hudNames = true;
     private final List<CrystalHollowsWaypoint> waypoints = new ArrayList<>();
 
     private CrystalHollowsMapConfig() {
@@ -98,6 +100,7 @@ public final class CrystalHollowsMapConfig {
             instance.showStructureWaypoints = ConfigJson.getBool(obj, "showStructureWaypoints", true);
             instance.hudEnabled = ConfigJson.getBool(obj, "hudEnabled", true);
             instance.showZones = ConfigJson.getBool(obj, "showZones", true);
+            instance.hudNames = ConfigJson.getBool(obj, "hudNames", true);
             JsonArray arr = ConfigJson.getArray(obj, "waypoints");
             if (arr != null) {
                 for (JsonElement e : arr) {
@@ -130,6 +133,7 @@ public final class CrystalHollowsMapConfig {
             obj.addProperty("showStructureWaypoints", showStructureWaypoints);
             obj.addProperty("hudEnabled", hudEnabled);
             obj.addProperty("showZones", showZones);
+            obj.addProperty("hudNames", hudNames);
             JsonArray arr = new JsonArray();
             for (CrystalHollowsWaypoint w : waypoints) {
                 JsonObject o = new JsonObject();
@@ -189,6 +193,14 @@ public final class CrystalHollowsMapConfig {
 
     public void setShowStructureWaypoints(boolean value) {
         this.showStructureWaypoints = value;
+    }
+
+    public boolean isHudNames() {
+        return hudNames;
+    }
+
+    public void setHudNames(boolean value) {
+        this.hudNames = value;
     }
 
     public boolean isHudEnabled() {

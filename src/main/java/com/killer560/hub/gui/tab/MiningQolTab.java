@@ -9,8 +9,9 @@ import java.util.List;
  *
  * <p>Grouped under three titled runs of cards, like Secrets and Puzzle Solvers (killer560, 2026-11-03: "make a separation
  * in mining for mithril, glacite powder, and gemstone and stuff like that so it is easier to see them"): Commissions and
- * Mithril, Powder Mining and General. A group holds legit cards only; the cheat-only card (Swap To Drill On Pigeon) stays
- * outside the groups, in the category's one cheat block.
+ * Mithril, Powder Mining and General. A group's cheat-only cards follow its legit ones under a red "Cheat" header (the
+ * Structure Scanner under the Crystal Hollows Map, killer560 2026-11-04: "the cheat map scanner should be under the crystal
+ * hollows map"); a cheat card of no group (Swap To Drill On Pigeon) sits in the category's one cheat block.
  */
 public class MiningQolTab extends FolderTab {
 
@@ -23,8 +24,7 @@ public class MiningQolTab extends FolderTab {
                 new PowderMiningGroup(), new CrystalHollowsGroup(), new MiningGeneralGroup()));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             t.add(new MiningPigeonDrillTab());
-            // From staging-mining-3 (2026-11-04): both draw through walls or read blocks no player could see.
-            t.add(new StructureScannerTab());
+            // From staging-mining-3 (2026-11-04): draws through walls. (The Structure Scanner is in the Crystal Hollows group.)
             t.add(new GhostEspTab());
         }
         return t;
@@ -56,9 +56,17 @@ public class MiningQolTab extends FolderTab {
     /** The Crystal Hollows: its map, crystals, solvers, worms, lobby and Nucleus runs (staging-mining-3, 2026-11-04). */
     static final class CrystalHollowsGroup extends FolderTab {
         CrystalHollowsGroup() {
-            super("Crystal Hollows", List.of(new CrystalHollowsMapTab(), new CrystalTrackerTab(),
+            super("Crystal Hollows", tabs());
+        }
+
+        private static List<BaseTab> tabs() {
+            List<BaseTab> t = new ArrayList<>(List.of(new CrystalHollowsMapTab(), new CrystalTrackerTab(),
                     new WishingCompassTab(), new MetalDetectorTab(), new WormAlertTab(), new LobbyTrackerTab(),
                     new NucleusRunProfitTab()));
+            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                t.add(new StructureScannerTab()); // reads blocks no player could see
+            }
+            return t;
         }
     }
 

@@ -78,6 +78,9 @@ public class CrystalHollowsMapTab extends BaseTab {
                 contentX, y, colW, 18));
         widgets.add(onOffButton("Show Zones", cfg::isShowZones, cfg::setShowZones, cfg::save, null,
                 colBX, y, colW, 18));
+        y += 22;
+        widgets.add(onOffButton("Names On HUD", cfg::isHudNames, cfg::setHudNames, cfg::save, null,
+                contentX, y, colW, 18));
         y += 24;
 
         // Structures he has found in this lobby, and what to draw for them.
@@ -102,13 +105,14 @@ public class CrystalHollowsMapTab extends BaseTab {
         var finds = com.killer560.hub.mining.chmap.ChDiscovery.all();
         if (!finds.isEmpty()) {
             for (var f : finds) {
+                // A scanned find is just its name (killer560, 2026-11-04: "remove the mines of divan (scanned) line").
                 String how = switch (f.source) {
-                    case VISITED -> "§avisited";
-                    case SCANNED -> "§escanned";
-                    case SHARED -> "§bshared";
+                    case VISITED -> " §7(§avisited§7)";
+                    case SCANNED -> "";
+                    case SHARED -> " §7(§bshared§7)";
                 };
                 widgets.add(new StringWidget(contentX, y, contentWidth, 10,
-                        Component.literal("§6- §f" + f.structure.displayName + " §7(" + how + "§7)"), font));
+                        Component.literal("§6- §f" + f.structure.displayName + how), font));
                 y += 12;
             }
             y += 2;
