@@ -38,7 +38,7 @@ public final class WitherEspFeature {
     }
 
     static void onChat(String plain) {
-        if (plain.startsWith("[BOSS] Wither King:") && !witherKingPhase) {
+        if ((plain.startsWith("[BOSS] Wither King:") || plain.startsWith("[BOSS] The Wither King:")) && !witherKingPhase) {
             witherKingPhase = true;
             CheatUtils.LOGGER.info("[WitherEsp] Wither King phase started (P5): boss Wither detection off tick={}",
                     com.killer560.hub.util.SessionRecorderSink.tick());

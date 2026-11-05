@@ -69,9 +69,9 @@ public final class WitherDragonsFeature {
 
     static final Logger LOGGER = ModLog.get("killer560smod-witherdragons");
 
-    // Odin WitherDragons.witherKingRegex
+    // Odin WitherDragons.witherKingRegex; Hypixel's boss update says "The Wither King" (Floor7Tracker, 8562102f).
     private static final Pattern WITHER_KING_REGEX =
-            Pattern.compile("^\\[BOSS] Wither King: (Oh, this one hurts!|I have more of those\\.|My soul is disposable\\.)$");
+            Pattern.compile("^\\[BOSS] (?:The )?Wither King: (Oh, this one hurts!|I have more of those\\.|My soul is disposable\\.)$");
 
     private static WitherDragon priorityDragon = null;
     private static WitherDragon lastDragonDeath = null;

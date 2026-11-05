@@ -2,6 +2,7 @@ package com.killer560.hub.bosssim;
 
 import com.killer560.hub.compat.McEntities;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.witherdragons.WitherDragon;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -101,6 +102,12 @@ public final class BossFight {
     /** The capture's core door: the gold blocks x 52-56, y 115-121 at z 54; opening the core removes only them (killer560). */
     static final int[] CORE_DOOR = {52, 115, 54, 56, 121, 54};
     static final int[] P4_HOLE = {50, 72, 58, 80};
+    /**
+     * The capture's shaft under Necron's central disc (y 63-64): the stone ring at y 54-62 around it is hollow down to the
+     * P5 floor. Opening P4 clears only the disc over the hollow and keeps the ring (simdragons-1105: clearing P4_HOLE's
+     * y 61-62 cut the ring's top off and left the disc hanging, his "missing the underside").
+     */
+    static final int[] P4_SHAFT = {51, 73, 57, 79};
 
     /**
      * Necron's side platforms (ADM P4Necron.kt PLATFORMS and p4-necron.json's extents): centre x, z, then x1, x2, z1, z2.
@@ -114,7 +121,6 @@ public final class BossFight {
 
     /** The five dragons' statues (WitherDragon.java): x, statue top y, z - and the color the mod names them by. */
     static final int[][] DRAGON_STATUES = {{27, 8, 59}, {85, 8, 56}, {27, 8, 94}, {84, 8, 94}, {56, 8, 125}};
-    private static final String[] DRAGON_NAMES = {"Red", "Orange", "Green", "Blue", "Purple"};
 
     // ---- timings (server ticks), Hypixel's as ADM measured them ---------------------------------------------------
 
@@ -407,7 +413,7 @@ public final class BossFight {
                 openBossHole(0);
                 openBossHole(1);
                 openCoreFloor();
-                openHole(P4_HOLE, BossArena.P4_FLOOR);
+                openP4Floor();
                 teleportAll(P5_SPAWN, 180f);
                 startP5();
             }
@@ -446,6 +452,21 @@ public final class BossFight {
             BossBlocks.fill(level, CORE_PLUG[0], CORE_PLUG_Y, CORE_PLUG[1], CORE_PLUG[2], CORE_PLUG_Y, CORE_PLUG[3], BossBlocks.AIR);
         } else {
             openHole(CORE_HOLE, BossArena.P3_FLOOR);
+        }
+    }
+
+    /** Necron's floor to P5: the capture's disc over its shaft, or the plan's hole. */
+    private static void openP4Floor() {
+        if (!"capture".equals(BossArena.source())) {
+            openHole(P4_HOLE, BossArena.P4_FLOOR);
+            return;
+        }
+        for (int x = P4_SHAFT[0]; x <= P4_SHAFT[2]; x++) {
+            for (int z = P4_SHAFT[1]; z <= P4_SHAFT[3]; z++) {
+                if (level.getBlockState(new BlockPos(x, BossArena.P4_FLOOR, z)).isAir()) {
+                    BossBlocks.fill(level, x, BossArena.P4_FLOOR + 1, z, x, BossArena.P4_FLOOR + 2, z, BossBlocks.AIR);
+                }
+            }
         }
     }
 
@@ -1738,7 +1759,7 @@ public final class BossFight {
                 goldor = null;
             }
             if (master) {
-                openHole(P4_HOLE, BossArena.P4_FLOOR);
+                openP4Floor();
                 startP5();
             } else {
                 finish();
@@ -1771,10 +1792,31 @@ public final class BossFight {
         }
     }
 
-    /** One whole side platform to lava in a single tick (the one he faced from 175). */
+    /**
+     * One whole side platform gone in a single tick (the one he faced from 175). Over a capture the platform's blocks at
+     * y 59-64 go to air so the lava sea (y 58) shows under it, its iron pillars stay; a lava plane at P4_FLOOR floated one
+     * block over most of the box, which is open sea (simdragons-1105, his "offset lava"). The plan's flat floor still turns
+     * to lava.
+     */
     private static void breakNecronPlatform() {
         int[] b = NECRON_PLATFORMS[necronPlatform];
-        BossBlocks.fill(level, b[2], BossArena.P4_FLOOR, b[4], b[3], BossArena.P4_FLOOR, b[5], BossBlocks.of("minecraft:lava"));
+        if (!"capture".equals(BossArena.source())) {
+            BossBlocks.fill(level, b[2], BossArena.P4_FLOOR, b[4], b[3], BossArena.P4_FLOOR, b[5], BossBlocks.of("minecraft:lava"));
+        } else {
+            for (int x = b[2]; x <= b[3]; x++) {
+                for (int z = b[4]; z <= b[5]; z++) {
+                    if (level.getBlockState(new BlockPos(x, BossArena.P4_FLOOR + 3, z)).is(net.minecraft.world.level.block.Blocks.IRON_BLOCK)) {
+                        continue;
+                    }
+                    for (int y = BossArena.P4_FLOOR - 3; y <= BossArena.P4_FLOOR + 2; y++) {
+                        BlockPos at = new BlockPos(x, y, z);
+                        if (!level.getBlockState(at).is(net.minecraft.world.level.block.Blocks.LAVA)) {
+                            BossBlocks.set(level, at, BossBlocks.AIR);
+                        }
+                    }
+                }
+            }
+        }
         LOGGER.info("[BossSim] Necron's {} platform broke at P4 t {}", NECRON_PLATFORM_NAMES[necronPlatform], t);
     }
 
@@ -1804,17 +1846,19 @@ public final class BossFight {
     private static void tickP5() {
         for (int i = 0; i < 5; i++) {
             if (dragonSpawnAt[i] >= 0 && t == dragonSpawnAt[i]) {
-                int[] st = DRAGON_STATUES[i];
-                // Hypixel's warning: a FLAME burst over the statue (count 20, y 19, spread 2/3/2, speed 0), 100 ticks out.
-                level.sendParticles(ParticleTypes.FLAME, st[0], 19.0, st[2], 20, 2.0, 3.0, 2.0, 0.0);
+                BlockPos st = WitherDragon.values()[i].spawnPos;
+                // Hypixel's warning: a FLAME burst over the spawn point (count 20, y 19, spread 2/3/2, speed 0), 100 ticks out,
+                // sent long-range: a plain send reaches only 32 blocks, and Red's point is about 35 from where P5 lands (simdragons-1105).
+                level.sendParticles(ParticleTypes.FLAME, true, true, st.getX(), 19.0, st.getZ(), 20, 2.0, 3.0, 2.0, 0.0);
             }
             if (dragonSpawnAt[i] >= 0 && t == dragonSpawnAt[i] + DRAGON_SPAWN && dragons[i] == null) {
-                int[] st = DRAGON_STATUES[i];
-                SimDragon d = new SimDragon(level);
-                d.snapTo(st[0] + 0.5, 20.0, st[2] + 0.5, 0f, 0f);
+                WitherDragon spec = WitherDragon.values()[i];
+                SimDragon d = new SimDragon(level, spec.box);
+                d.snapTo(spec.spawnPos.getX() + 0.5, spec.spawnPos.getY(), spec.spawnPos.getZ() + 0.5, 0f, 0f);
+                d.placeParts();
                 level.addFreshEntity(d);
                 dragons[i] = d;
-                LOGGER.info("[BossSim] {} dragon spawned at P5 t {}", DRAGON_NAMES[i], t);
+                LOGGER.info("[BossSim] {} dragon spawned at P5 t {}", spec.colourName, t);
             }
         }
     }
@@ -1830,8 +1874,11 @@ public final class BossFight {
             dragonDead[i] = true;
             d.setHealth(0f);
             later(20, "dragon gone", d::discard);
-            BossChat.boss(server, "The Wither King", KING_COUNTS[kingLine++ % KING_COUNTS.length]);
-            LOGGER.info("[BossSim] {} dragon down at P5 t {}", DRAGON_NAMES[i], t);
+            // The King answers after the death the client sees (health 0 goes out with this tick's entity data): said on
+            // the same tick, his line marked the dragon dead first and Wither Dragons' timed "alive for" never came.
+            String line = KING_COUNTS[kingLine++ % KING_COUNTS.length];
+            later(2, "king counts", () -> BossChat.boss(server, "The Wither King", line));
+            LOGGER.info("[BossSim] {} dragon down at P5 t {} ({} hits)", WitherDragon.values()[i].colourName, t, dragonHits[i]);
             int next = -1;
             for (int j = 0; j < 5; j++) {
                 if (dragonSpawnAt[j] < 0) {
@@ -2056,11 +2103,67 @@ public final class BossFight {
         }
     }
 
-    /** A P5 dragon: frozen where it spawned (no AI), hits go to the fight. */
+    /**
+     * A P5 dragon. Vanilla's AI never runs (phases, block breaking, wing knockback, the head's damage): it flies from
+     * point to point inside its own dragon's area (the mod's {@code WitherDragon.box}). A no-AI dragon was used until
+     * simdragons-1105, and vanilla's aiStep returns before it places the body parts, so they stayed at 0,0,0 and no
+     * arrow or sword could reach it (the body itself is not pickable): 36 Terminator shots in his 2026-11-05 log, no hit.
+     * The parts are placed here as vanilla places them in level flight.
+     */
     static final class SimDragon extends EnderDragon {
-        SimDragon(Level level) {
+        private static final double SPEED = 0.3;
+        private final AABB area;
+        private Vec3 goal;
+
+        SimDragon(Level level, AABB box) {
             super(McEntities.ENDER_DRAGON, level);
-            setNoAi(true);
+            area = box.deflate(3.0);
+        }
+
+        @Override
+        public void aiStep() {
+            if (isDeadOrDying()) {
+                return;
+            }
+            if (goal == null || position().distanceToSqr(goal) < 4.0) {
+                var r = getRandom();
+                goal = new Vec3(area.minX + r.nextDouble() * area.getXsize(), area.minY + r.nextDouble() * area.getYsize(),
+                        area.minZ + r.nextDouble() * area.getZsize());
+            }
+            Vec3 step = goal.subtract(position());
+            step = step.scale(Math.min(SPEED, step.length()) / step.length());
+            // A dragon's head is at +sin(yaw), -cos(yaw) (vanilla's own convention, the reverse of a mob's look).
+            float want = (float) Math.toDegrees(Math.atan2(step.x, -step.z));
+            setYRot(getYRot() + net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(want - getYRot()), -6f, 6f));
+            yBodyRot = getYRot();
+            setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
+            placeParts();
+        }
+
+        /** Head, neck, body, tail 1-3, wings: vanilla EnderDragon.aiStep's offsets with no climb or tail swing. */
+        void placeParts() {
+            float yaw = getYRot() * net.minecraft.util.Mth.DEG_TO_RAD;
+            double s = net.minecraft.util.Mth.sin(yaw);
+            double c = net.minecraft.util.Mth.cos(yaw);
+            EnderDragonPart[] p = getSubEntities();
+            part(p[0], s * 6.5, 0, -c * 6.5);
+            part(p[1], s * 5.5, 0, -c * 5.5);
+            part(p[2], s * 0.5, 0, -c * 0.5);
+            for (int k = 0; k < 3; k++) {
+                double back = 1.5 + (k + 1) * 2.0;
+                part(p[3 + k], -s * back, 1.5, c * back);
+            }
+            part(p[6], c * 4.5, 2, s * 4.5);
+            part(p[7], -c * 4.5, 2, -s * 4.5);
+        }
+
+        private void part(EnderDragonPart part, double dx, double dy, double dz) {
+            part.setPos(getX() + dx, getY() + dy, getZ() + dz);
+        }
+
+        /** Gone 20 ticks after its last hit (BossFight discards it): no vanilla death (the world-wide death roar, XP). */
+        @Override
+        protected void tickDeath() {
         }
 
         @Override
@@ -2074,18 +2177,26 @@ public final class BossFight {
 
         @Override
         public boolean hurtServer(ServerLevel lvl, DamageSource source, float amount) {
-            if (source.getEntity() instanceof ServerPlayer) {
-                onHurt(this);
-            }
-            return false;
+            return hit(lvl, source);
         }
 
         @Override
         public boolean hurt(ServerLevel lvl, EnderDragonPart part, DamageSource source, float amount) {
-            if (source.getEntity() instanceof ServerPlayer) {
-                onHurt(this);
+            return hit(lvl, source);
+        }
+
+        /** A player's hit: the hurt flash and sound, Hypixel's arrow "ding" to the shooter, and one count for the fight. */
+        private boolean hit(ServerLevel lvl, DamageSource source) {
+            if (!(source.getEntity() instanceof ServerPlayer p) || isDeadOrDying()) {
+                return false;
             }
-            return false;
+            lvl.broadcastDamageEvent(this, source);
+            if (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow) {
+                lvl.playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.ARROW_HIT_PLAYER,
+                        net.minecraft.sounds.SoundSource.PLAYERS, 0.18f, 0.45f);
+            }
+            onHurt(this);
+            return true;
         }
     }
 

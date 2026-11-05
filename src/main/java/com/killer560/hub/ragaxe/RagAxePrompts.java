@@ -59,7 +59,8 @@ final class RagAxePrompts {
 
 
     static void onChat(String plain) {
-        if (LINE_WITHER_KING.equals(plain) && onFloor7()) {
+        // Hypixel's boss update names him "The Wither King" (Floor7Tracker, 8562102f); the old wording still counts.
+        if (LINE_WITHER_KING.equals(plain.replace("[BOSS] The Wither King:", "[BOSS] Wither King:")) && onFloor7()) {
             schedule(RagAxePrompt.M7_DRAGONS);
         } else if (LINE_NECRON.equals(plain) && onFloor7()) {
             schedule(RagAxePrompt.M7_NECRON);
