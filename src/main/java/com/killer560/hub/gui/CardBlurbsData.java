@@ -14,7 +14,7 @@ final class CardBlurbsData {
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
         d.put("MiningAbilityReadyTab", "Pickaxe ability ready popup.");
-        d.put("MiningWrongArmorTab", "Warns about wrong armor or a misused Jungle Pickaxe.");
+        d.put("MiningWrongArmorTab", "Warns about wrong gear.");
         d.put("MiningCarpetTab", "Marks carpets you can't mine.");
         d.put("MiningCommissionRouteTab", "Line to your commission area.");
         d.put("MiningCommissionHudTab", "Commissions with waypoints.");
