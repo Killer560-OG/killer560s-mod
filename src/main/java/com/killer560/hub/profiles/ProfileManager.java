@@ -559,6 +559,7 @@ public final class ProfileManager {
                 com.killer560.hub.inventorysearch.InventorySearchConfig::load,
                 com.killer560.hub.inventorytheme.InventoryThemeConfig::load,
                 com.killer560.hub.hideeffects.HideEffectsConfig::load,
+                com.killer560.hub.modlist.ModListConfig::load,
                 com.killer560.hub.itembrowser.ItemBrowserConfig::load,
                 com.killer560.hub.itemprotect.ItemProtectConfig::load,
                 com.killer560.hub.itemrarity.ItemRarityConfig::load,

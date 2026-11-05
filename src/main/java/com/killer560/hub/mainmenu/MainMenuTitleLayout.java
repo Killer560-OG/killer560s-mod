@@ -169,6 +169,13 @@ public final class MainMenuTitleLayout {
         }
     }
 
+    /** "Mods": the built-in mod list ({@code modlist.ModsScreen}), under Mod Settings while its switch is ON. */
+    public static final class ModsButton extends Button.Plain {
+        private ModsButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+    }
+
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
@@ -226,7 +233,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim || w instanceof ModSettingsButton) {
+                if (w == sim || w instanceof ModSettingsButton || w instanceof ModsButton) {
                     continue;
                 }
                 String key = translationKey(w);
@@ -265,7 +272,7 @@ public final class MainMenuTitleLayout {
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim || w instanceof ModSettingsButton || friends.contains(w)) {
+                        || w == sim || w instanceof ModSettingsButton || w instanceof ModsButton || friends.contains(w)) {
                     continue;
                 }
                 if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
@@ -335,6 +342,27 @@ public final class MainMenuTitleLayout {
             }
             modSettings.visible = true;
             column.add(modSettings);
+
+            // The built-in mod list (killer560, 2026-11-04: "add another button for mods that opens a browser to see all
+            // of their mods"), right under Mod Settings; its own switch in the Mods Screen card.
+            AbstractWidget modsList = null;
+            for (AbstractWidget w : widgets) {
+                if (w instanceof ModsButton) {
+                    modsList = w;
+                }
+            }
+            if (com.killer560.hub.modlist.ModListConfig.getInstance().isMainMenuButton()) {
+                if (modsList == null) {
+                    modsList = new ModsButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
+                            Component.literal("Mods"), btn -> McCompat.setScreen(Minecraft.getInstance(),
+                                    new com.killer560.hub.modlist.ModsScreen(screen)));
+                    widgets.add(widgets.indexOf(modSettings) + 1, modsList);
+                }
+                modsList.visible = true;
+                column.add(modsList);
+            } else if (modsList != null) {
+                removeWidget(screen, widgets, modsList);
+            }
 
             if (swap != null) {
                 column.add(swap);

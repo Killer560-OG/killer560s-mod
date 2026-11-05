@@ -15,6 +15,10 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".
+            Map.entry("mod menu", "mods screen"),
+            Map.entry("modmenu", "mods screen"),
+            Map.entry("mod list", "mods screen"),
             Map.entry("e table", "experiment"),
             Map.entry("exp table", "experiment"),
             // killer560 (2026-10-18): "make chat keybinds also pop up if I search something like chat commands" - the tab was

@@ -28,9 +28,9 @@ final class CardBlurbsData {
         d.put("TreasureChestHighlightTab", "Boxes chests, with a timer.");
         d.put("TreasureChestAlertTab", "Sound when a chest spawns.");
         d.put("MiningGoldenGoblinTab", "Box and tracer on Golden and Diamond Goblins.");
-        d.put("PowderBreakSoundsTab", "Mute or replace the sound of blocks you break while powder mining.");
+        d.put("PowderBreakSoundsTab", "Mute or swap break sounds.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
-        d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
+        d.put("CrystalHollowsWallsTab", "Walls at Hollows zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");

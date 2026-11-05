@@ -14,6 +14,7 @@ public class DisplayTab extends FolderTab {
                 new FreelookTab(),
                 new ZoomTab(),
                 new WindowLayoutTab(),
+                new ModsScreenTab(),
                 // Moved out of New 2026-09-16 once killer560 confirmed each one in a real run.
                 new ItemRarityTab(),
                 new MotionBlurTab(),
