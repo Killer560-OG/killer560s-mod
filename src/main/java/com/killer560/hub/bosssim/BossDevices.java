@@ -28,8 +28,8 @@ import java.util.Random;
  * <li><b>Simon Says</b> (S1): sea lanterns on the obsidian wall x 111, stone buttons x 110, y 120-123, z 92-95, start button
  * (110, 121, 91). Four rounds of four distinct cells; the first round shows 4 ticks after the start press, lamp j lights at
  * 8j for 8 ticks, the buttons come back 10 ticks after the last lamp, the next round shows 6 ticks after the round's last
- * correct press. The start button toggles: a press while it runs resets it. A wrong press stops it (back to round 0; the
- * buttons go 3 ticks later) and a stray show of a new pattern follows on its own, whose buttons count for nothing.</li>
+ * correct press. The start button toggles: a press while it runs resets it, but a round already queued still shows (the
+ * skip). A wrong press stops it (back to round 0; the buttons go 3 ticks later) and a round 2 show of a new pattern follows.</li>
  * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a redstone lamp behind each at z 143. A lamp is lit
  * while its own lever or one of its four neighbours is on; every lamp lit is the device. The six of Hypixel's known
  * solution start partly off. A pull is answered here ({@link #pullLight}) with no redstone updates, so vanilla never
@@ -50,16 +50,20 @@ public final class BossDevices {
     static final BlockPos SS_START = new BlockPos(110, 121, 91);
     private static final int SS_ROUNDS = 4;
 
-    private enum Ss { OFF, IDLE, SHOW, INPUT, ROUND_DONE, DONE, BROKEN }
-
-    private static Ss ss = Ss.OFF;
-    private static final List<BlockPos> sequence = new ArrayList<>();
-    private static int ssRound, ssExpected, ssTimer, ssShowTick;
-    /** A show after a wrong press: lamps of a new pattern and stale buttons, nothing counts. */
-    private static final List<BlockPos> stray = new ArrayList<>();
-    private static int strayTick = -1;
-    private static boolean ssStartWasPowered;
-    private static final boolean[] ssWasPowered = new boolean[16];
+    /** Simon Says: on (P3 running), the start toggle, done, presses counting, stopped by a wrong press, a round put in. */
+    private static boolean ssOn, ssStarted, ssDone, ssAccepting, ssBroken, ssRoundDone, ssStartWasPowered;
+    /** The pattern, as grid cells 0-15 (row from y 120, column from z 92); a start press redraws it. */
+    private static final int[] ssSeq = new int[SS_ROUNDS];
+    /** Rounds shown since the last reset (the round being put in), and how many of it are pressed. */
+    private static int ssRound, ssNext, ssGen;
+    private static final boolean[] ssLit = new boolean[16], ssUp = new boolean[16], ssWasPowered = new boolean[16];
+    /** Hypixel's round tasks and show steps: a reset never cancels them, only a new device or its completion. */
+    private record SsJob(int at, int gen, Runnable run) {
+    }
+    private static final List<SsJob> ssJobs = new ArrayList<>();
+    private static final int[] SS_STRAY_GAPS = {4, 5, 5, 6, 6, 6, 6, 7, 7, 8};
+    /** The per-tick button read's position (server thread only). */
+    private static final BlockPos.MutableBlockPos SS_AT = new BlockPos.MutableBlockPos();
 
     /** Hypixel's known solution: these six on light all twenty lamps. */
     static final List<BlockPos> LIGHTS = List.of(
@@ -142,13 +146,15 @@ public final class BossDevices {
     static void start(ServerLevel level, int fromSection) {
         tick = 0;
         // Simon Says
-        sequence.clear();
-        stray.clear();
-        strayTick = -1;
-        ssRound = ssExpected = ssTimer = 0;
-        ssStartWasPowered = false;
+        ssGen++;
+        ssJobs.clear();
+        ssOn = true;
+        ssDone = fromSection > 1;
+        ssStarted = ssAccepting = ssBroken = ssRoundDone = ssStartWasPowered = false;
+        ssRound = ssNext = 0;
+        java.util.Arrays.fill(ssLit, false);
+        java.util.Arrays.fill(ssUp, false);
         java.util.Arrays.fill(ssWasPowered, false);
-        ss = fromSection > 1 ? Ss.DONE : Ss.IDLE;
         // Lights: two to four of the solution's six start off, the rest on; every other lever off.
         lightsDone = fromSection > 2;
         lightsCreditAt = -1;
@@ -178,7 +184,7 @@ public final class BossDevices {
         lit = null;
         targetGrid = -1;
         plateUntil = -1;
-        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ss, lightsDone ? "done" : off + " off",
+        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ssState(), lightsDone ? "done" : off + " off",
                 arrowsDone ? "done" : "layout", targetDone ? "done" : "armed");
     }
 
@@ -207,7 +213,9 @@ public final class BossDevices {
     }
 
     static void stop() {
-        ss = Ss.OFF;
+        ssOn = false;
+        ssGen++;
+        ssJobs.clear();
         takeDownFrames();
     }
 
@@ -310,11 +318,29 @@ public final class BossDevices {
         return s.is(net.minecraft.world.level.block.Blocks.STONE_BUTTON) && s.getValue(BlockStateProperties.POWERED);
     }
 
-    private static void setButtons(ServerLevel level, boolean on) {
-        for (BlockPos p : grid(110)) {
-            level.setBlockAndUpdate(p, on ? ssButton() : BossBlocks.AIR);
+    private static BlockPos ssCell(int x, int cell) {
+        return new BlockPos(x, 120 + cell / 4, 92 + cell % 4);
+    }
+
+    private static void ssButton(ServerLevel level, int cell, boolean up) {
+        if (ssUp[cell] != up) {
+            ssUp[cell] = up;
+            level.setBlock(ssCell(110, cell), up ? ssButton() : BossBlocks.AIR, BossBlocks.FLAGS);
         }
-        java.util.Arrays.fill(ssWasPowered, false);
+    }
+
+    private static void ssLamp(ServerLevel level, int cell, boolean on) {
+        if (ssLit[cell] != on) {
+            ssLit[cell] = on;
+            level.setBlock(ssCell(111, cell), BossBlocks.of(on ? "minecraft:sea_lantern" : "minecraft:obsidian"), BossBlocks.FLAGS);
+        }
+    }
+
+    private static void ssAllOff(ServerLevel level) {
+        for (int c = 0; c < 16; c++) {
+            ssLamp(level, c, false);
+            ssButton(level, c, false);
+        }
     }
 
     /**
@@ -330,143 +356,177 @@ public final class BossDevices {
         });
     }
 
-    private static List<BlockPos> newPattern() {
-        List<BlockPos> cells = grid(111);
+    private static void ssAfter(int ticks, Runnable r) {
+        ssJobs.add(new SsJob(tick + Math.max(0, ticks), ssGen, r));
+    }
+
+    private static void ssNewPattern() {
+        List<Integer> cells = new ArrayList<>(16);
+        for (int c = 0; c < 16; c++) {
+            cells.add(c);
+        }
         Collections.shuffle(cells, RNG);
-        return new ArrayList<>(cells.subList(0, SS_ROUNDS));
+        for (int i = 0; i < SS_ROUNDS; i++) {
+            ssSeq[i] = cells.get(i);
+        }
     }
 
-    /** Round {@code n} shows from {@code delay} ticks on: lamp j lights at 8j for 8 ticks, buttons back 10 after the last. */
-    private static void beginRound(int n, int delay) {
-        ssRound = n;
-        ssExpected = 0;
-        ssShowTick = tick + delay;
-        ss = Ss.SHOW;
-    }
-
-    private static void lamp(ServerLevel level, BlockPos p, boolean on) {
-        level.setBlockAndUpdate(p, BossBlocks.of(on ? "minecraft:sea_lantern" : "minecraft:obsidian"));
-    }
-
+    /**
+     * Simon Says as Hypixel runs it (ADM's measured device, facts only). The start button toggles: a press while stopped
+     * draws a pattern and queues a round task 4 ticks on; a press while started resets it (round 0, lamps off, buttons
+     * gone) but never cancels a round task already queued nor a show already running. That is the skip: start, reset 3
+     * ticks later, start 3 ticks after that, and the first start's task shows round 1 while the second's adds round 2.
+     */
     private static void tickSimonSays(ServerLevel level) {
-        if (ss == Ss.OFF) {
+        if (!ssOn) {
             return;
         }
         boolean startNow = powered(level.getBlockState(SS_START));
-        if (startNow && !ssStartWasPowered && ss != Ss.DONE && BossFight.section() == 1) {
-            if (ss == Ss.IDLE || ss == Ss.BROKEN) {
-                sequence.clear();
-                sequence.addAll(newPattern());
-                stray.clear();
-                strayTick = -1;
-                setButtons(level, false);
-                beginRound(1, 4);
-                LOGGER.info("[BossSim] Simon Says started");
-            } else {
-                // A press while it runs resets it.
-                for (BlockPos p : grid(111)) {
-                    lamp(level, p, false);
-                }
-                setButtons(level, false);
-                ss = Ss.IDLE;
-                LOGGER.info("[BossSim] Simon Says reset by the start button");
-            }
-        }
         if (startNow && !ssStartWasPowered) {
             popUp(level, SS_START, 2);
+            if (!ssDone && BossFight.section() == 1) {
+                ssStart(level);
+            }
         }
         ssStartWasPowered = startNow;
-        tickStray(level);
-        switch (ss) {
-            case SHOW -> {
-                int k = tick - ssShowTick;
-                if (k < 0) {
-                    return;
-                }
-                for (int j = 0; j < ssRound; j++) {
-                    if (k == 8 * j) {
-                        lamp(level, sequence.get(j), true);
-                    } else if (k == 8 * j + 8) {
-                        lamp(level, sequence.get(j), false);
-                    }
-                }
-                if (k == 8 * (ssRound - 1) + 10) {
-                    setButtons(level, true);
-                    ss = Ss.INPUT;
-                }
+        for (int c = 0; c < 16; c++) {
+            boolean now = ssUp[c] && powered(level.getBlockState(SS_AT.set(110, 120 + c / 4, 92 + c % 4)));
+            if (now && !ssWasPowered[c]) {
+                popUp(level, ssCell(110, c), 3);
+                ssPress(level, c);
             }
-            case INPUT -> {
-                List<BlockPos> buttons = grid(110);
-                for (int i = 0; i < buttons.size(); i++) {
-                    boolean now = powered(level.getBlockState(buttons.get(i)));
-                    if (now && !ssWasPowered[i]) {
-                        popUp(level, buttons.get(i), 3);
-                        boolean correct = buttons.get(i).east().equals(sequence.get(ssExpected));
-                        if (!correct) {
-                            wrongPress(level);
-                            return;
-                        }
-                        ssExpected++;
-                        if (ssExpected >= ssRound) {
-                            ss = Ss.ROUND_DONE;
-                            ssTimer = 6;
-                            if (ssRound >= SS_ROUNDS) {
-                                done(level, 1);
-                            }
-                            return;
-                        }
-                    }
-                    ssWasPowered[i] = now;
-                }
+            ssWasPowered[c] = now;
+        }
+        // This tick's tasks, in the order queued (a task may queue more for this same tick).
+        for (int i = 0; i < ssJobs.size(); ) {
+            SsJob j = ssJobs.get(i);
+            if (j.at() > tick) {
+                i++;
+                continue;
             }
-            case ROUND_DONE -> {
-                if (--ssTimer > 0) {
-                    return;
-                }
-                setButtons(level, false);
-                if (ssRound >= SS_ROUNDS) {
-                    ss = Ss.DONE;
-                } else {
-                    beginRound(ssRound + 1, 0);
-                }
+            ssJobs.remove(i);
+            if (j.gen() == ssGen) {
+                j.run().run();
             }
-            default -> {
-            }
+            i = 0;
         }
     }
 
-    /** Back to round 0, stopped; the buttons go 3 ticks later, then a stray show of a new pattern (26 or 34 ticks on). */
-    private static void wrongPress(ServerLevel level) {
-        ss = Ss.BROKEN;
-        LOGGER.info("[BossSim] Simon Says broken in round {}", ssRound);
-        ssRound = 0;
-        BossFight.later(3, "ss buttons gone", () -> {
-            if (ss == Ss.BROKEN) {
-                setButtons(level, false);
-            }
-        });
-        stray.clear();
-        stray.addAll(newPattern().subList(0, 2));
-        strayTick = tick + 3 + (RNG.nextBoolean() ? 26 : 34);
-    }
-
-    /** The stray show: two lamps 8 apart, stale buttons back 1-4 ticks in (their presses count for nothing). */
-    private static void tickStray(ServerLevel level) {
-        if (strayTick < 0 || ss != Ss.BROKEN) {
+    private static void ssStart(ServerLevel level) {
+        if (ssStarted) {
+            ssStarted = ssAccepting = ssRoundDone = false;
+            ssRound = ssNext = 0;
+            ssAllOff(level);
+            LOGGER.info("[BossSim] Simon Says reset by the start button");
             return;
         }
-        int k = tick - strayTick;
-        if (k == 0 || k == 8) {
-            lamp(level, stray.get(k / 8), true);
+        ssStarted = true;
+        ssBroken = false;
+        ssNewPattern();
+        ssAfter(4, () -> ssNextRound(level));
+        LOGGER.info("[BossSim] Simon Says started");
+    }
+
+    /** A round task: one round more and its show, or past the last round the device. */
+    private static void ssNextRound(ServerLevel level) {
+        if (ssDone) {
+            return;
         }
-        if (k == 8 || k == 16) {
-            lamp(level, stray.get(k / 8 - 1), false);
+        ssRoundDone = false;
+        if (++ssRound > SS_ROUNDS) {
+            ssDone = true;
+            ssAccepting = false;
+            ssGen++;
+            ssJobs.clear();
+            ssAllOff(level);
+            done(level, 1);
+            return;
         }
-        if (k == 2) {
-            setButtons(level, true);
+        // Every lamp off and every button gone; lamp j lights at 8j (the pattern as it is then), takes its button and
+        // goes out 8 ticks later; the buttons come back 10 ticks after the last lamp's slot, except under lit lamps.
+        ssAllOff(level);
+        ssAccepting = ssBroken = false;
+        ssNext = 0;
+        int n = ssRound;
+        for (int j = 0; j < n; j++) {
+            int jj = j;
+            Runnable light = () -> {
+                int c = ssSeq[jj];
+                ssLamp(level, c, true);
+                ssButton(level, c, false);
+                ssAfter(8, () -> ssLamp(level, c, false));
+            };
+            if (j == 0) {
+                light.run();
+            } else {
+                ssAfter(8 * j, light);
+            }
         }
-        if (k > 16) {
-            strayTick = -1;
+        ssAfter(8 * n + 10, () -> ssButtonsBack(level, true));
+    }
+
+    /** Every button up but under lit lamps; {@code accept}: the round shown is put in from now. */
+    private static void ssButtonsBack(ServerLevel level, boolean accept) {
+        for (int c = 0; c < 16; c++) {
+            if (!ssLit[c]) {
+                ssButton(level, c, true);
+            }
+        }
+        if (accept && ssRound >= 1 && !ssAccepting && !ssDone) {
+            ssAccepting = true;
+        }
+    }
+
+    /** A round shown with no start press (after a wrong press): a new pattern, round {@code n} at once. */
+    private static void ssShowRound(ServerLevel level, int n) {
+        if (ssDone) {
+            return;
+        }
+        ssNewPattern();
+        ssRound = n - 1;
+        ssNextRound(level);
+    }
+
+    private static void ssPress(ServerLevel level, int c) {
+        if (!ssAccepting || ssDone) {
+            return;
+        }
+        if (c == ssSeq[ssNext]) {
+            if (++ssNext < ssRound) {
+                return;
+            }
+            ssAccepting = false;
+            ssRoundDone = true;
+            ssAfter(6, () -> ssNextRound(level));
+            return;
+        }
+        // Wrong: back to round 0 and stopped, the buttons gone 3 ticks later; a new show of round 2 follows on its own 26
+        // ticks after that, or a stray round 1 a few ticks before a round 2 at 34. The old buttons come back 1-4 ticks
+        // into each show (stale: they press, nothing counts).
+        LOGGER.info("[BossSim] Simon Says broken in round {}", ssRound);
+        ssAccepting = ssStarted = false;
+        ssBroken = true;
+        ssRound = ssNext = 0;
+        ssAfter(3, () -> {
+            for (int b = 0; b < 16; b++) {
+                ssButton(level, b, false);
+            }
+        });
+        Runnable stale = () -> ssAfter(1 + RNG.nextInt(4), () -> ssButtonsBack(level, false));
+        if (RNG.nextBoolean()) {
+            ssAfter(3 + 26, () -> {
+                ssShowRound(level, 2);
+                stale.run();
+            });
+        } else {
+            ssAfter(3 + 34 - SS_STRAY_GAPS[RNG.nextInt(SS_STRAY_GAPS.length)], () -> {
+                ssShowRound(level, 1);
+                stale.run();
+            });
+            ssAfter(3 + 34, () -> {
+                ssShowRound(level, 2);
+                stale.run();
+            });
         }
     }
 
@@ -548,27 +608,27 @@ public final class BossDevices {
 
     /** Debug and testkit: "ss=IDLE lights=false arrows=false target=0/9". */
     public static String describe() {
-        return "ss=" + ss + " round=" + ssRound + " lights=" + lightsDone + " arrows=" + arrowsDone + " target=" + targetHits + "/"
+        return "ss=" + ssState() + " round=" + ssRound + " lights=" + lightsDone + " arrows=" + arrowsDone + " target=" + targetHits + "/"
                 + TARGET_HITS;
     }
 
     /** Debug and testkit: the Simon Says steps of the round in play, as x,y,z of each lantern. */
     public static List<int[]> ssSequence() {
         List<int[]> out = new ArrayList<>();
-        for (int i = 0; i < Math.min(ssRound, sequence.size()); i++) {
-            BlockPos p = sequence.get(i);
-            out.add(new int[]{p.getX(), p.getY(), p.getZ()});
+        for (int i = 0; i < Math.min(ssRound, SS_ROUNDS); i++) {
+            out.add(new int[]{111, 120 + ssSeq[i] / 4, 92 + ssSeq[i] % 4});
         }
         return out;
     }
 
     public static boolean ssInput() {
-        return ss == Ss.INPUT;
+        return ssAccepting;
     }
 
-    /** Debug and testkit: the Simon Says state's name (IDLE, SHOW, INPUT, ROUND_DONE, DONE, BROKEN). */
+    /** Debug and testkit: the Simon Says state's name (OFF, IDLE, SHOW, INPUT, ROUND_DONE, DONE, BROKEN). */
     public static String ssState() {
-        return ss.name();
+        return !ssOn ? "OFF" : ssDone ? "DONE" : ssAccepting ? "INPUT" : ssBroken ? "BROKEN" : ssRoundDone ? "ROUND_DONE"
+                : ssRound > 0 ? "SHOW" : "IDLE";
     }
 
     /** Debug and testkit: the lit target block, or null. */

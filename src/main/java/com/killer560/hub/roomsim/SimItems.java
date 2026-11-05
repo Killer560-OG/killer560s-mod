@@ -480,6 +480,7 @@ public final class SimItems {
      */
     private static boolean superboom(ServerPlayer sp, BlockPos target, net.minecraft.core.Direction face) {
         if (target == null || face == null) return false;
+        if (com.killer560.hub.bosssim.BossFight.superboomGate((ServerLevel) sp.level(), target)) return true;
         Minecraft client = Minecraft.getInstance();
         BlockPos center = target.immutable();
         {

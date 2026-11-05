@@ -81,3 +81,8 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
 - **Blaze rooms land at the doorway's floor** (simchunk-1105): their spot was a column scan (Higher Blaze from the top), and
   on a generated floor with the room turned it stood him on a ledge 5 above the doorway (97 /goto, y259 vs 254). Their
   `Spawn` now carries the doorway offset (15), so `openingFloor` sets the height, with `doorwaySpot` as the fallback.
+- **A reset that cancels pending work kills behavior built on it** (bossfix3-1105): the boss sim's Simon Says start press
+  while running went back to IDLE and dropped the queued show, so Hypixel's skip (start, reset, start 3 ticks apart) never
+  skipped. Hypixel keeps queued round tasks across a reset; `BossDevices` now runs SS on a task list that only a new device or
+  its completion clears. Likewise the boss's "gate" was the plan's iron wall over a capture whose real gate is cracked stone
+  bricks: the line came, the barriers went and the arch stood. Clear what the capture holds (`BossGates`), not what the plan built.
