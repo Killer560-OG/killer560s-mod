@@ -195,21 +195,72 @@ public final class BossDevices {
         int[][] all = com.killer560.hub.arrowalign.ArrowAlignFeature.solutions();
         solution = all[RNG.nextInt(all.length)];
         for (int i = 0; i < 25; i++) {
+            if (solution[i] >= 0) {
+                hang(level, i, Items.ARROW, arrowsDone ? solution[i] : RNG.nextInt(8));
+            }
+        }
+        // Hypixel marks the path with wool in two more frames: lime where it starts, red where it ends (killer560,
+        // 2026-11-05: "wherever it starts is the green where it ends should be red"). The ends are the empty cells an
+        // arrow points into; a start is the empty cell behind an arrow no other arrow points into (else a free neighbor).
+        for (int i = 0; i < 25; i++) {
             if (solution[i] < 0) {
                 continue;
             }
-            int dy = i % 5, dz = i / 5;
-            ItemFrame f = new ItemFrame(level, new BlockPos(ARROW_X, ARROW_Y + dy, ARROW_Z + dz), Direction.EAST) {
-                @Override
-                public boolean shouldBeSaved() {
-                    return false;
-                }
-            };
-            f.setItem(new ItemStack(Items.ARROW), false);
-            f.setRotation(arrowsDone ? solution[i] : RNG.nextInt(8));
-            level.addFreshEntity(f);
-            frames[i] = f;
+            int to = arrowStep(i, solution[i], 1);
+            if (solution[to] < 0 && frames[to] == null) {
+                hang(level, to, com.killer560.hub.compat.McBlocks.RED_WOOL, 0);
+            }
         }
+        for (int i = 0; i < 25; i++) {
+            if (solution[i] < 0 || pointedAt(i)) {
+                continue;
+            }
+            int from = arrowStep(i, solution[i], -1);
+            for (int k = 0; (from < 0 || solution[from] >= 0) && k < 4; k++) {
+                from = arrowStep(i, 1 + 2 * k, 1);
+            }
+            if (from >= 0 && solution[from] < 0 && frames[from] == null) {
+                hang(level, from, com.killer560.hub.compat.McBlocks.LIME_WOOL, 0);
+            }
+        }
+    }
+
+    private static void hang(ServerLevel level, int i, net.minecraft.world.level.ItemLike item, int rotation) {
+        ItemFrame f = new ItemFrame(level, new BlockPos(ARROW_X, ARROW_Y + i % 5, ARROW_Z + i / 5), Direction.EAST) {
+            @Override
+            public boolean shouldBeSaved() {
+                return false;
+            }
+        };
+        f.setItem(new ItemStack(item), false);
+        f.setRotation(rotation);
+        level.addFreshEntity(f);
+        frames[i] = f;
+    }
+
+    /** The cell an arrow at {@code i} turned to {@code rot} points into ({@code sign} -1: the one behind it), or -1 off the wall. */
+    static int arrowStep(int i, int rot, int sign) {
+        int dy = i % 5 + sign * (rot == 7 ? 1 : rot == 3 ? -1 : 0), dz = i / 5 + sign * (rot == 5 ? 1 : rot == 1 ? -1 : 0);
+        return dy < 0 || dy > 4 || dz < 0 || dz > 4 ? -1 : dy + 5 * dz;
+    }
+
+    private static boolean pointedAt(int cell) {
+        for (int j = 0; j < 25; j++) {
+            if (solution[j] >= 0 && arrowStep(j, solution[j], 1) == cell) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** One of the wool frames that mark where the Arrows path starts and ends: never turned. */
+    static boolean isArrowMark(net.minecraft.world.entity.Entity e) {
+        for (int i = 0; solution != null && i < 25; i++) {
+            if (solution[i] < 0 && frames[i] == e) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void stop() {
