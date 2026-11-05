@@ -56,6 +56,11 @@ public final class HeldMap {
         return simVersion;
     }
 
+    /** Changes whenever any answer of this class can have: the map item's version, the sim stand-in's, and which of the two answers. */
+    public static long answersVersion() {
+        return DungeonMapScanner.version() * 1000003L + drawVersion() * 2L + (emulated() ? 1 : 0);
+    }
+
     private HeldMap() {
     }
 
