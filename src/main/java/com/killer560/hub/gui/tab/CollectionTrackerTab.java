@@ -31,11 +31,6 @@ public class CollectionTrackerTab extends BaseTab {
     }
 
     @Override
-    public String cardDescription() {
-        return "Your picked collections on the HUD.";
-    }
-
-    @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
