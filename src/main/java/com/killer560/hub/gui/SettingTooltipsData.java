@@ -374,7 +374,7 @@ final class SettingTooltipsData {
         d.put("menu theme/theme font", "The font this theme brings: Keep Current leaves the Font setting as it is; any other font is used while the mod menu is in this theme. Left click goes to the next, right click back.");
         d.put("menu theme/theme background", "This theme's main menu background: Theme Scene (its own animated picture) or a video or GIF you imported. Left click goes to the next, right click back.");
         d.put("menu theme/import background", "Imports the video or GIF whose path is on the clipboard (Shift + right click the file, Copy as path) and sets it as this theme's background. A GIF is used as it is; a video needs ffmpeg and keeps its first minute.");
-        d.put("menu theme/open backgrounds folder", "Opens the folder imported backgrounds live in.");
+        d.put("menu theme/open backgrounds folder", "Opens the folder imported backgrounds live in. It is shared by every instance and Minecraft version on this PC.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colors"
                     + " back to the " + preset + " preset it was started from.");
@@ -591,7 +591,7 @@ final class SettingTooltipsData {
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
         d.put("speed", "Playback or movement speed, where 1 is normal.");
-        d.put("open gif / audio folder", "Opens the folder where you drop .gif and audio files.");
+        d.put("open gif / audio folder", "Opens the folder where you drop .gif and audio files. It is shared by every instance and Minecraft version on this PC.");
         d.put("rescan folder", "Reloads the GIF folder so new or removed files show in the lists.");
         d.put("no fire overlay", "Hides the full-screen fire effect while you are burning.");
         d.put("storage overlay enabled", "Shows every storage you have opened in a grid while a storage menu is open.");

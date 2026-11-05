@@ -126,6 +126,8 @@ An instance's old file is folded in on first use (a byte-identical copy never tw
 `<game dir>/killer560smod-records-moved/`. A testkit client gets a sandbox store in its game folder, emptied at start.
 `tools/shared-records/run-test.sh` tests the merge and two JVMs at once; `combine.sh` folds Prism instances in by hand.
 
+SHARED FOLDERS (univfolders-1104, killer560 2026-11-04): imported menu backgrounds (`ThemeBackgrounds.folder()`) and the GIF / audio folder (`GifPlayerFeature.folder()`) are ONE folder for every instance, `shared/backgrounds/` and `shared/gifs/` under the record store root (a testkit client: its sandbox), through `shared/SharedFolders.folder(name, legacyConfigFolder)`; the first use moves the old per-instance folder in (same bytes once, different bytes kept as `name-2`). They are user files, not records, and are in `ProfileData.EXCLUDED_NAMES` ("gifs", "menu-themebackgrounds"): a profile keeps which GIFs are on, never the files. The converted-audio cache stays per instance (`GifPlayerFeature.CACHE_FOLDER`). Testkit 1104-ui-univfolders.
+
 Every config path goes through `util/ModPaths.config("killer560smod-<name>")`, never `FabricLoader.getConfigDir()`
 directly: files live in `config/killer560/<category>/<feature>/` under their unchanged names, and the folder is
 picked from the prefix table in `ModPaths` (add a row for a new feature, or it lands in `other/`). Code that lists
