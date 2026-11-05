@@ -35,6 +35,10 @@ public final class PowderMiningFeatures {
         }));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PowderChestTriggerbot", PowderChestTriggerbot::tick));
+            net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register((player, level, hand, pos, dir) -> {
+                if (level.isClientSide()) PowderChestTriggerbot.onDigStart(pos);
+                return net.minecraft.world.InteractionResult.PASS;
+            });
         }
         LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
             try {

@@ -46,6 +46,12 @@ public final class PowderChestTriggerbot {
     private static Object level = null;
     private static long ticks = 0L;
     private static double credit = 0.0;
+    /** This click's rate (clicks a second), re-rolled in [Min CPS, Max CPS] after every click. */
+    private static int rate = -1;
+    /** Slot and stack held before the first swap of a chest visit, to hand back on the next dig start (-1: none). */
+    private static int backSlot = -1;
+    private static ItemStack backStack = ItemStack.EMPTY;
+    private static int swapBacks = 0;
     private static int clicks = 0;
     private static int swaps = 0;
     private static int lastSwapSlot = -1;
@@ -57,6 +63,8 @@ public final class PowderChestTriggerbot {
         if (client.level != level) {
             level = client.level;
             CLICKS.clear();
+            backSlot = -1;
+            rate = -1;
         }
         ticks++;
         LocalPlayer player = client.player;
@@ -67,15 +75,23 @@ public final class PowderChestTriggerbot {
         }
         BlockPos pos = hit.getBlockPos();
         if (!TreasureChests.chests().containsKey(pos) || !MiningState.crystalHollows()) return;
-        credit = Math.min(1.0, credit + PowderMiningConfig.getInstance().getChestTriggerbotCps() / 20.0);
+        PowderMiningConfig cfg = PowderMiningConfig.getInstance();
+        if (rate < 0) rate = rollRate(cfg);
+        credit = Math.min(1.0, credit + rate / 20.0);
         Direction lock = LockpickHelper.lockFace(pos);
         if (lock != null && lock != hit.getDirection()) return; // aimed off the lock
         Long last = CLICKS.get(pos);
         if (credit < 1.0 - 1e-9 || (last != null && last == ticks)) return;
-        if (PowderMiningConfig.getInstance().isChestTriggerbotSwap()) {
+        if (cfg.isChestTriggerbotSwap()) {
             int slot = bestSlot(player);
-            if (slot >= 0 && slot != player.getInventory().getSelectedSlot()) {
+            int held = player.getInventory().getSelectedSlot();
+            if (slot >= 0 && slot != held) {
+                if (cfg.isChestTriggerbotNoSwapMining() && client.options.keyAttack.isDown()) return; // mining: keep the tool
                 if (!HotbarSelect.swapWouldFlag() && ActionGate.tryAct(ActionGate.Actor.POWDER_CHEST_SWAP)) {
+                    if (backSlot < 0) {
+                        backSlot = held;
+                        backStack = player.getInventory().getItem(held).copy();
+                    }
                     HotbarSelect.select(client, player, slot);
                     swaps++;
                     lastSwapSlot = slot;
@@ -91,7 +107,35 @@ public final class PowderChestTriggerbot {
         }
         CLICKS.put(pos.immutable(), ticks);
         credit -= 1.0;
+        rate = rollRate(cfg);
         clicks++;
+    }
+
+    /** A random whole rate in [Min CPS, Max CPS]. */
+    private static int rollRate(PowderMiningConfig cfg) {
+        int lo = cfg.getChestTriggerbotMinCps(), hi = cfg.getChestTriggerbotMaxCps();
+        return lo >= hi ? lo : java.util.concurrent.ThreadLocalRandom.current().nextInt(lo, hi + 1);
+    }
+
+    /**
+     * Swap Back When Mining: called from the attack-block callback, i.e. before the dig packet of the first dig start on
+     * a non-chest block. A slot change ahead of the dig is the vanilla order; one that would follow a use / click this
+     * server tick (PacketOrderE) waits for the next dig start. Gives up quietly when the old slot no longer holds the
+     * item he had.
+     */
+    public static void onDigStart(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (backSlot < 0 || player == null || TreasureChests.chests().containsKey(pos)
+                || !PowderMiningConfig.getInstance().isChestTriggerbotSwapBack()) return;
+        if (HotbarSelect.swapWouldFlag() || !ActionGate.tryAct(ActionGate.Actor.POWDER_CHEST_SWAP)) return;
+        ItemStack now = player.getInventory().getItem(backSlot);
+        if (ItemStack.isSameItem(now, backStack) && now.getHoverName().equals(backStack.getHoverName())) {
+            HotbarSelect.select(mc, player, backSlot);
+            swapBacks++;
+        }
+        backSlot = -1;
+        backStack = ItemStack.EMPTY;
     }
 
     /** The hotbar slot (0-7) of the drill with the highest Gemstone Powder bonus (the held one on a tie), or -1. */
@@ -128,11 +172,16 @@ public final class PowderChestTriggerbot {
 
     public static int swaps() { return swaps; }
 
+    public static int swapBacks() { return swapBacks; }
+
     public static int lastSwapSlot() { return lastSwapSlot; }
 
     public static void resetForTest() {
         CLICKS.clear();
         credit = 0.0;
+        rate = -1;
+        backSlot = -1;
+        swapBacks = 0;
         clicks = 0;
         swaps = 0;
         lastSwapSlot = -1;

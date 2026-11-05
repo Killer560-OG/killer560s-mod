@@ -2260,8 +2260,11 @@ final class SettingTooltipsData {
         d.put("secret triggerbot/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
         d.put("secret triggerbot/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");
         d.put("secret triggerbot/swap slot", "Cheat build: hotbar slot (1-9) to switch to before clicking a secret.");
-        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at the Triggerbot CPS you set and never twice on one chest in one tick.");
-        d.put("powder chest triggerbot/triggerbot cps", "Cheat build only. Chest clicks per second, 1-20 (20 is one a game tick); never more than one click on a chest in one tick.");
+        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at a random rate between the Min and Max CPS you set and never twice on one chest in one tick.");
+        d.put("powder chest triggerbot/min cps", "Cheat build only. Lowest chest clicks per second, 1-20. Each click picks a new random rate between Min and Max; Min never goes above Max.");
+        d.put("powder chest triggerbot/max cps", "Cheat build only. Highest chest clicks per second, 1-20 (20 is one a game tick); never more than one click on a chest in one tick. Max never goes below Min.");
+        d.put("powder chest triggerbot/swap back when mining", "Cheat build only. After the triggerbot swapped you to the drill, the first time you start mining another block it switches back to the slot you held before (not if that slot no longer holds the same item).");
+        d.put("powder chest triggerbot/don't swap while mining", "Cheat build only. On: no swap to the gemstone drill while your attack button is held. Off: it swaps whenever you aim at a chest.");
         d.put("powder chest triggerbot/swap to best gemstone drill", "Cheat build: first switches to the hotbar drill with the highest Gemstone Powder bonus (Jasper Drill X +20%), or any drill.");
         d.put("secret triggerbot/swap back", "Cheat build: switches back to your previous hotbar slot after the click.");
         d.put("secret waypoints/style", "FILL is a solid box, OUTLINE is just the wireframe, FILL_OUTLINE is both.");

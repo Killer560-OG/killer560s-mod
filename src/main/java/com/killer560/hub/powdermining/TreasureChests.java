@@ -22,6 +22,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +59,16 @@ public final class TreasureChests {
     private static final Map<BlockPos, Long> UNCLAIMED = new LinkedHashMap<>();
     private static int pendingLines = 0;
     private static long pendingAt = 0L;
+    private static final int MAX_PENDING = 16;
+    /** Claimed chests whose block is not a chest right now: position -> tick it was first seen so. The server can send chest
+     *  -> air -> chest on a click (chestfx-1104); the highlight goes only after {@link #GONE_TICKS} of that. */
+    private static final Map<BlockPos, Long> MISSING = new HashMap<>();
+    private static final long GONE_TICKS = 10L;
+    // Loot blocks with no lid event yet (the lid event and the chat line can arrive in either order): the next lid event
+    // pays one, else the fallback owner is picked after LOOT_WAIT_MS (chestrace-1105).
+    private static int lootDebt = 0;
+    private static long lootDebtAt = 0L;
+    private static final long LOOT_WAIT_MS = 200L;
     private static Object level = null;
 
     private static int claims = 0;
@@ -147,14 +158,13 @@ public final class TreasureChests {
         if (client.level == null || client.player == null || !tracking()) return;
         boolean chest = client.level.getBlockState(pos).is(Blocks.CHEST);
         if (!chest) {
-            BlockPos key = pos.immutable();
-            CHESTS.remove(key);
-            UNCLAIMED.remove(key);
+            UNCLAIMED.remove(pos); // a claimed chest goes in tick() after a grace: this may be a chest -> air -> chest resend
             return;
         }
         BlockPos key = pos.immutable();
         if (CHESTS.containsKey(key) || key.distSqr(client.player.blockPosition()) > CLAIM_RANGE_SQ) return;
         long now = PerTickServerClock.now();
+        MISSING.remove(key);
         if (pendingLines > 0 && now - pendingAt <= MATCH_TICKS) {
             pendingLines--;
             claim(key, now);
@@ -197,27 +207,25 @@ public final class TreasureChests {
         PowderTracker.onUncovered();
         if (!tracking()) return;
         long now = PerTickServerClock.now();
-        BlockPos best = null;
-        double bestD = Double.MAX_VALUE;
+        BlockPos best = null; // lines and chests come in the server's order: the oldest unclaimed chest owns this line
         for (Map.Entry<BlockPos, Long> e : UNCLAIMED.entrySet()) {
-            if (now - e.getValue() > MATCH_TICKS) continue;
-            double d = e.getKey().distSqr(client.player.blockPosition());
-            if (d < bestD) {
-                bestD = d;
+            if (now - e.getValue() <= MATCH_TICKS) {
                 best = e.getKey();
+                break;
             }
         }
         if (best != null) {
-            long at = UNCLAIMED.remove(best);
-            claim(best, at);
+            claim(best, UNCLAIMED.get(best));
         } else {
-            pendingLines = Math.min(pendingLines + 1, 4);
+            pendingLines = Math.min(pendingLines + 1, MAX_PENDING);
             pendingAt = now;
         }
     }
 
     private static void claim(BlockPos pos, long at) {
         HIDDEN.remove(pos); // a new chest at a spot he opened before
+        UNCLAIMED.remove(pos);
+        MISSING.remove(pos);
         CHESTS.put(pos, at);
         claims++;
     }
@@ -228,9 +236,14 @@ public final class TreasureChests {
      */
     public static void onChestOpened(BlockPos pos) {
         if (CHESTS.remove(pos) != null) {
+            MISSING.remove(pos);
+            opened++;
+            if (lootDebt > 0) {
+                lootDebt--; // its loot line came first
+                return;
+            }
             openedCredits = Math.min(openedCredits + 1, 4);
             openedAt = System.currentTimeMillis();
-            opened++;
         }
     }
 
@@ -250,6 +263,13 @@ public final class TreasureChests {
             return;
         }
         openedCredits = 0;
+        if (lootDebt == 0) lootDebtAt = ms;
+        lootDebt = Math.min(lootDebt + 1, 4);
+    }
+
+    /** A loot block no lid event claimed within {@link #LOOT_WAIT_MS}: the chest he clicked last, else the nearest. */
+    private static void settleLoot(Minecraft client, long ms) {
+        lootDebt--;
         if (lastUsed != null && ms - lastUsedAt <= USED_MS) {
             CHESTS.remove(lastUsed); // nothing when the chest he clicked was not a highlighted one
             lastUsed = null;
@@ -295,16 +315,29 @@ public final class TreasureChests {
             CHESTS.clear();
             UNCLAIMED.clear();
             pendingLines = 0;
+            lootDebt = 0;
             return;
         }
         long now = PerTickServerClock.now();
         for (Iterator<Map.Entry<BlockPos, Long>> it = CHESTS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<BlockPos, Long> e = it.next();
-            if (now - e.getValue() > LIFETIME_TICKS + GRACE_TICKS || !client.level.getBlockState(e.getKey()).is(Blocks.CHEST)) {
+            BlockPos key = e.getKey();
+            boolean chest = client.level.getBlockState(key).is(Blocks.CHEST);
+            if (chest) {
+                MISSING.remove(key);
+            } else {
+                MISSING.putIfAbsent(key, now);
+            }
+            if (now - e.getValue() > LIFETIME_TICKS + GRACE_TICKS || (!chest && now - MISSING.get(key) > GONE_TICKS)) {
+                MISSING.remove(key);
                 it.remove();
             }
         }
         UNCLAIMED.values().removeIf(t -> now - t > MATCH_TICKS);
+        long wall = System.currentTimeMillis();
+        while (lootDebt > 0 && wall - lootDebtAt >= LOOT_WAIT_MS) {
+            settleLoot(client, wall);
+        }
         if (pendingLines > 0 && now - pendingAt > MATCH_TICKS) {
             pendingLines = 0;
         }
@@ -315,7 +348,9 @@ public final class TreasureChests {
         HIDDEN.clear();
         CHESTS.clear();
         UNCLAIMED.clear();
+        MISSING.clear();
         pendingLines = 0;
+        lootDebt = 0;
         openedCredits = 0;
         lastUsed = null;
     }
