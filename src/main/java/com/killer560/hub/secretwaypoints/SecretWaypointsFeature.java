@@ -1154,7 +1154,7 @@ public final class SecretWaypointsFeature {
 
     private static void onWorldRender(LevelRenderContext context) {
         // The tick decides what is in here; an empty snapshot means "off, not in a dungeon, or nothing near".
-        if (CACHED.isEmpty()) return;
+        if (CACHED.isEmpty() || com.killer560.hub.bloodrush.BloodRushHelperFeature.hidesSecretWaypoints()) return;
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         // Everything cached is in your room, so no distance limit is applied any more.
         SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), SecretWaypointsConfig.MAX_RENDER_DISTANCE);

@@ -166,6 +166,8 @@ public final class BloodRushHelperFeature {
     private static Object level;
     private static int generation = Integer.MIN_VALUE;
     private static boolean bloodOpened;
+    /** Set by build(): the player stands in a room on the rush path (read each frame by Secret Waypoints). */
+    private static volatile boolean inRushRoom;
     private static boolean mortSeen;
     private static boolean wasInDungeon;
     private static boolean droppedSaid;
@@ -246,6 +248,12 @@ public final class BloodRushHelperFeature {
             graphics.text(font, "§7" + lines.get(1), x + 1, y + 1 + com.killer560.hub.hud.HudText.ROW, 0xFFAAAAAA, true);
         }
     };
+
+    /** Secret Waypoints asks each frame: hide them (Hide Secret Waypoints on, door still closed, standing in a rush room). */
+    public static boolean hidesSecretWaypoints() {
+        BloodRushConfig c = BloodRushConfig.getInstance();
+        return inRushRoom && !bloodOpened && c.isEnabled() && c.isHideSecrets();
+    }
 
     /** A setting changed: rebuild on the next tick. */
     public static void invalidate() {
@@ -334,6 +342,7 @@ public final class BloodRushHelperFeature {
         beforeFairy = null;
         nextRoom = -1;
         CACHED = List.of();
+        inRushRoom = false;
         bloodOpened = false;
         mortSeen = false;
         droppedSaid = false;
@@ -692,6 +701,7 @@ public final class BloodRushHelperFeature {
         List<Spot> out = new ArrayList<>();
         Vec3 me = client.player.position();
         Map<Integer, double[]> path = rushPath(layout, cfg.isWholePath());
+        inRushRoom = path.containsKey(layout.currentRoom());
         Map<Integer, double[]> doors = new HashMap<>();
         for (int room : shownRooms(layout, cfg, path)) {
             String name = layout.name(room);

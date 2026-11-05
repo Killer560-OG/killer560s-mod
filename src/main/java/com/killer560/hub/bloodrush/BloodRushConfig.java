@@ -51,6 +51,7 @@ public final class BloodRushConfig {
     private int outlineWidth = DEFAULT_OUTLINE;
     private boolean throughWalls = false;
     private boolean wholePath = false;
+    private boolean hideSecrets = false;
     private DoorKills doorKills = DoorKills.NEVER;
     private boolean dropBottom = false;
 
@@ -95,6 +96,7 @@ public final class BloodRushConfig {
                 c.setOutlineWidth(ConfigJson.getInt(o, "outlineWidth", DEFAULT_OUTLINE));
                 c.throughWalls = ConfigJson.getBool(o, "throughWalls", false);
                 c.wholePath = ConfigJson.getBool(o, "wholePath", false);
+                c.hideSecrets = ConfigJson.getBool(o, "hideSecrets", false);
                 c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
                 c.dropBottom = ConfigJson.getBool(o, "dropBottom", false);
             } catch (Exception ignored) {
@@ -124,6 +126,7 @@ public final class BloodRushConfig {
             o.addProperty("outlineWidth", outlineWidth);
             o.addProperty("throughWalls", throughWalls);
             o.addProperty("wholePath", wholePath);
+            o.addProperty("hideSecrets", hideSecrets);
             o.addProperty("doorKills", doorKills.name());
             o.addProperty("dropBottom", dropBottom);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
@@ -276,6 +279,14 @@ public final class BloodRushConfig {
     /** Cheat build only: the rush path from the scanned dungeon, every room on it at once. */
     public boolean isWholePath() {
         return BuildVariant.CHEAT_FEATURES_ENABLED && wholePath;
+    }
+
+    public boolean isHideSecrets() {
+        return hideSecrets;
+    }
+
+    public void setHideSecrets(boolean v) {
+        hideSecrets = v;
     }
 
     public boolean isWholePathRaw() {

@@ -104,6 +104,10 @@ public class BloodRushHelperTab extends BaseTab {
                 v -> cfg.setOutlineWidth((int) Math.round(oMin + v * (oMax - oMin))), cfg::save));
         y += 22;
 
+        w.add(onOffButton("Hide Secret Waypoints", cfg::isHideSecrets, cfg::setHideSecrets, cfg::save, null,
+                contentX, y, colW, 18));
+        y += 22;
+
         w.add(SettingsButtonWidget.builder(Component.literal("Forget Learned Spots (" + BloodRushSpots.counts().size()
                 + " rooms)"), btn -> {
             BloodRushSpots.forgetAll();
