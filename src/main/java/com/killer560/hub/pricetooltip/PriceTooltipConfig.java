@@ -39,7 +39,7 @@ public final class PriceTooltipConfig {
         /** Everything at its full market price, as SkyHanni's Estimated Item Value shows it. */
         FULL("Full Price"),
         /** SkyHelper-style application worth (a Recombobulator counts 80%, an Art of War 60%...), as Skyblocker shows it. */
-        NETWORTH("Networth (Discounted)");
+        NETWORTH("Networth");
 
         public final String label;
 
