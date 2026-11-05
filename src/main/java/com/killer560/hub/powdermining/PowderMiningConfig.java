@@ -55,6 +55,9 @@ public final class PowderMiningConfig {
     private boolean lockpickHelper = true;
     private boolean chestTriggerbot = false;
     private boolean chestTriggerbotSwap = true;
+    /** Powder Chest Triggerbot clicks per second (one a tick at most, so 20 is the top). */
+    public static final int MIN_CHEST_CPS = 1, MAX_CHEST_CPS = 20;
+    private int chestTriggerbotCps = 10;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
 
     private boolean powderTracker = true;
@@ -138,6 +141,7 @@ public final class PowderMiningConfig {
                 cfg.lockpickHelper = ConfigJson.getBool(o, "lockpickHelper", cfg.lockpickHelper);
                 cfg.chestTriggerbot = ConfigJson.getBool(o, "chestTriggerbot", cfg.chestTriggerbot);
                 cfg.chestTriggerbotSwap = ConfigJson.getBool(o, "chestTriggerbotSwap", cfg.chestTriggerbotSwap);
+                cfg.setChestTriggerbotCps(ConfigJson.getInt(o, "chestTriggerbotCps", cfg.chestTriggerbotCps));
                 cfg.lockpickColor = intOr(o, "lockpickColor", cfg.lockpickColor);
                 cfg.powderTracker = ConfigJson.getBool(o, "powderTracker", cfg.powderTracker);
                 cfg.powderTrackerMithril = ConfigJson.getBool(o, "powderTrackerMithril", cfg.powderTrackerMithril);
@@ -187,6 +191,7 @@ public final class PowderMiningConfig {
             o.addProperty("lockpickHelper", lockpickHelper);
             o.addProperty("chestTriggerbot", chestTriggerbot);
             o.addProperty("chestTriggerbotSwap", chestTriggerbotSwap);
+            o.addProperty("chestTriggerbotCps", chestTriggerbotCps);
             o.addProperty("lockpickColor", lockpickColor);
             o.addProperty("powderTracker", powderTracker);
             o.addProperty("powderTrackerMithril", powderTrackerMithril);
@@ -385,6 +390,10 @@ public final class PowderMiningConfig {
     public boolean isChestTriggerbotSwap() { return chestTriggerbotSwap; }
 
     public void setChestTriggerbotSwap(boolean v) { chestTriggerbotSwap = v; }
+
+    public int getChestTriggerbotCps() { return chestTriggerbotCps; }
+
+    public void setChestTriggerbotCps(int v) { chestTriggerbotCps = Math.max(MIN_CHEST_CPS, Math.min(MAX_CHEST_CPS, v)); }
 
     public int getLockpickColor() { return lockpickColor; }
 

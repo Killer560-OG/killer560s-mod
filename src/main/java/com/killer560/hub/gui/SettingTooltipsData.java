@@ -2239,7 +2239,8 @@ final class SettingTooltipsData {
         d.put("secret triggerbot/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
         d.put("secret triggerbot/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");
         d.put("secret triggerbot/swap slot", "Cheat build: hotbar slot (1-9) to switch to before clicking a secret.");
-        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at most once every 0.75 s and 8 times per chest.");
+        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at the Triggerbot CPS you set and never twice on one chest in one tick.");
+        d.put("powder chest triggerbot/triggerbot cps", "Cheat build only. Chest clicks per second, 1-20 (20 is one a game tick); never more than one click on a chest in one tick.");
         d.put("powder chest triggerbot/swap to best gemstone drill", "Cheat build: first switches to the hotbar drill with the highest Gemstone Powder bonus (Jasper Drill X +20%), or any drill.");
         d.put("secret triggerbot/swap back", "Cheat build: switches back to your previous hotbar slot after the click.");
         d.put("secret waypoints/style", "FILL is a solid box, OUTLINE is just the wireframe, FILL_OUTLINE is both.");

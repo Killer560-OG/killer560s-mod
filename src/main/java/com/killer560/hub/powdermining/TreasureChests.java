@@ -163,6 +163,20 @@ public final class TreasureChests {
         }
     }
 
+    /**
+     * A chunk arrived (client thread, after it is in the level). A chest that comes inside chunk data gets no block update,
+     * so with an uncovered line waiting its chests are matched here: a line, then the chunk with the chest in it (a chunk
+     * the client had not loaded yet) was never claimed (chestbot-1104, 1 testkit run in 3).
+     */
+    public static void onChunkLoaded(int chunkX, int chunkZ) {
+        Minecraft client = Minecraft.getInstance();
+        if (pendingLines == 0 || client.level == null || client.player == null || !tracking()) return;
+        for (BlockPos pos : client.level.getChunk(chunkX, chunkZ).getBlockEntities().keySet()) {
+            if (pendingLines == 0) return;
+            onBlockChanged(pos);
+        }
+    }
+
     /** "You uncovered a treasure chest!" (whole line, from {@link PowderChat}). */
     static void onUncovered() {
         Minecraft client = Minecraft.getInstance();

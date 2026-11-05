@@ -26,8 +26,10 @@ import java.util.regex.Pattern;
  * {@code startPrediction}) and a swing, through {@link ActionGate}. Once {@link LockpickHelper} knows the lock's face, only
  * a hit on that face is clicked (a lock is picked on its spot; the wiki: five in a row).
  *
- * <p>Rate limit: one click per chest per {@link #GAP_MS}, at most {@link #MAX_CLICKS} per chest (five locks and slack),
- * forgotten on a world change; the map holds at most {@link #MAX_CHESTS} chests.
+ * <p>Rate limit (killer560, 2026-11-04: "no more than once per tick on a chest. and let me set the cps slider as well"):
+ * never two clicks on one chest in one client tick, paced to the CPS setting (1-20; 20 is a click every tick) by a credit
+ * of cps/20 a tick, capped at one click. The per-chest map is forgotten on a world change and holds at most
+ * {@link #MAX_CHESTS} chests.
  *
  * <p>Auto Swap: before a click the held slot (0-7) goes to the drill with the highest Gemstone Powder bonus. The wiki's
  * Treasure Chest loot modifiers list four drills (Ruby Drill TX-15 +5%, Gemstone Drill LT-522 +10%, Topaz Drill KGR-12
@@ -36,14 +38,14 @@ import java.util.regex.Pattern;
  */
 public final class PowderChestTriggerbot {
 
-    static final long GAP_MS = 750L;
-    static final int MAX_CLICKS = 8;
     private static final int MAX_CHESTS = 32;
     private static final Pattern GEM_BONUS = Pattern.compile("\\+(\\d{1,3}(?:\\.\\d+)?)% Gemstone Powder");
 
-    /** Chest -> {last click ms, clicks}. Client thread only. */
-    private static final Map<BlockPos, long[]> CLICKS = new HashMap<>();
+    /** Chest -> the tick ({@link #ticks}) of its last click. Client thread only. */
+    private static final Map<BlockPos, Long> CLICKS = new HashMap<>();
     private static Object level = null;
+    private static long ticks = 0L;
+    private static double credit = 0.0;
     private static int clicks = 0;
     private static int swaps = 0;
     private static int lastSwapSlot = -1;
@@ -56,6 +58,7 @@ public final class PowderChestTriggerbot {
             level = client.level;
             CLICKS.clear();
         }
+        ticks++;
         LocalPlayer player = client.player;
         if (player == null || client.gameMode == null || !PowderMiningConfig.getInstance().isChestTriggerbot()
                 || TreasureChests.chests().isEmpty() || com.killer560.hub.compat.McCompat.screen(client) != null
@@ -64,11 +67,11 @@ public final class PowderChestTriggerbot {
         }
         BlockPos pos = hit.getBlockPos();
         if (!TreasureChests.chests().containsKey(pos) || !MiningState.crystalHollows()) return;
+        credit = Math.min(1.0, credit + PowderMiningConfig.getInstance().getChestTriggerbotCps() / 20.0);
         Direction lock = LockpickHelper.lockFace(pos);
         if (lock != null && lock != hit.getDirection()) return; // aimed off the lock
-        long now = System.currentTimeMillis();
-        long[] c = CLICKS.get(pos);
-        if (c != null && (c[1] >= MAX_CLICKS || now - c[0] < GAP_MS)) return;
+        Long last = CLICKS.get(pos);
+        if (credit < 1.0 - 1e-9 || (last != null && last == ticks)) return;
         if (PowderMiningConfig.getInstance().isChestTriggerbotSwap()) {
             int slot = bestSlot(player);
             if (slot >= 0 && slot != player.getInventory().getSelectedSlot()) {
@@ -83,14 +86,11 @@ public final class PowderChestTriggerbot {
         if (!ActionGate.tryAct(ActionGate.Actor.POWDER_CHEST_TRIGGER)) return;
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
         com.killer560.hub.compat.McCompat.swingUse(player);
-        if (c == null) {
-            if (CLICKS.size() >= MAX_CHESTS) {
-                CLICKS.keySet().retainAll(TreasureChests.chests().keySet());
-            }
-            CLICKS.put(pos.immutable(), c = new long[2]);
+        if (last == null && CLICKS.size() >= MAX_CHESTS) {
+            CLICKS.keySet().retainAll(TreasureChests.chests().keySet());
         }
-        c[0] = now;
-        c[1]++;
+        CLICKS.put(pos.immutable(), ticks);
+        credit -= 1.0;
         clicks++;
     }
 
@@ -132,6 +132,7 @@ public final class PowderChestTriggerbot {
 
     public static void resetForTest() {
         CLICKS.clear();
+        credit = 0.0;
         clicks = 0;
         swaps = 0;
         lastSwapSlot = -1;
