@@ -51,6 +51,13 @@ public final class SearchAliases {
             Map.entry("full bright", "fullbright"),
             Map.entry("night vision", "fullbright"),
             Map.entry("potion effect", "hide potion effects"),
+            // pvstyle-1104: the Profile Viewer's Styles are named after NEU's and SkyBlockPV's viewers.
+            Map.entry("neu", "profile viewer"),
+            Map.entry("skyblockpv", "profile viewer"),
+            Map.entry("skyblock pv", "profile viewer"),
+            Map.entry("sbpv", "profile viewer"),
+            Map.entry("pv style", "profile viewer"),
+            Map.entry("pv theme", "profile viewer"),
             // README names (2026-11-02) that are not a card's name: the card they live in.
             Map.entry("goldor frenzy", "tick timers"),
             Map.entry("frenzy timer", "tick timers"),

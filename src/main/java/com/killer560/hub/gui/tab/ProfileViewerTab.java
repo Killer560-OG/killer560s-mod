@@ -62,6 +62,11 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
 
         widgets.add(onOffButton("Non-Cosmetic Networth", cfg::isNonCosmeticNetworth, cfg::setNonCosmeticNetworth, cfg::save,
                 null, contentX, y, colW, 18));
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
+                    cfg.save();
+                    btn.setMessage(styleText(cfg));
+                }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.profileviewer.screen.ProfileViewerScreen.THEME_ID, contentX, y, colW, 18));
@@ -98,6 +103,10 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
 
     private static Component sourceText(ProfileViewerConfig cfg) {
         return Component.literal("Source: §b" + cfg.getSource().label);
+    }
+
+    private static Component styleText(ProfileViewerConfig cfg) {
+        return Component.literal("Style: §b" + cfg.getStyle().label);
     }
 
     private static Component keyText(ProfileViewerConfig cfg) {

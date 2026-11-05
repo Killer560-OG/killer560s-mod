@@ -121,9 +121,11 @@ public final class MenuStyle {
     public static void use() {
         int[] c = null;
         if (!ModScreen.drawingClosed // a closed menu fading out over another screen keeps the menu's colors
-                && com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t
-                && t.themeId() != null) {
-            c = MenuTheme.forScreen(t.themeId());
+                && com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t) {
+            c = t.ownColours();
+            if (c == null && t.themeId() != null) {
+                c = MenuTheme.forScreen(t.themeId());
+            }
         }
         if (c == null) {
             // The Title Screen Switcher's look (only in the Title Screen GUI instance), so Mod Settings opened from a

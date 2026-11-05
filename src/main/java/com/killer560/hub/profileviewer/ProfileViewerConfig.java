@@ -46,6 +46,26 @@ public final class ProfileViewerConfig {
         }
     }
 
+    /** How /pv is drawn (killer560, 2026-11-04: "add the old neu style theme and the ones from the mod skyblockpv").
+     *  {@code colours} are the five base colors {@code MenuStyle.derive} takes (accent, panel, card, text, switch on);
+     *  null keeps the screen's own Theme setting. The shapes are drawn by {@code PvStyleChrome}. */
+    public enum Style {
+        DEFAULT("Default", null),
+        NEU("NEU Classic", new int[]{0xFFFFAA00, 0xFF2B2B2B, 0xFF373737, 0xFFFFFFFF, 0xFF55FF55}),
+        SBPV_LIGHT("SkyBlockPV Light", new int[]{0xFF8B3FD9, 0xFFC0C0C0, 0xFFD0D1D4, 0xFF1E1E1F, 0xFF3C8527}),
+        SBPV_DARK("SkyBlockPV Dark", new int[]{0xFFB26BFF, 0xFF303030, 0xFF3A3A3A, 0xFFE0E0E0, 0xFF3C8527}),
+        SBPV_CLEAR("SkyBlockPV Transparent", new int[]{0xFFB98CFF, 0xFF262626, 0xFF2E2E2E, 0xFFFFFFFF, 0xFF55AA55});
+
+        public final String label;
+        /** Shared and read every frame: never modify. */
+        public final int[] colours;
+
+        Style(String label, int[] colours) {
+            this.label = label;
+            this.colours = colours;
+        }
+    }
+
     /** One head in the recent-views list. Keyed by {@link #uuid} (killer560's rule: a rename must never
      *  break history) - {@link #name} is only the last-known IGN, shown until a live lookup refreshes it. */
     public record RecentView(UUID uuid, String name, long viewedAt) {
@@ -71,6 +91,7 @@ public final class ProfileViewerConfig {
     private boolean showSkin = true;
     /** Networth page and Basic Info line show the total without cosmetic value (killer560, 2026-11-04). */
     private boolean nonCosmeticNetworth = false;
+    private Style style = Style.DEFAULT;
     /** Most-recently-viewed first. */
     private final List<RecentView> recentViews = new ArrayList<>();
 
@@ -101,6 +122,7 @@ public final class ProfileViewerConfig {
                 cfg.lastPage = ConfigJson.getInt(obj, "lastPage", 0);
                 cfg.showSkin = ConfigJson.getBool(obj, "showSkin", true);
                 cfg.nonCosmeticNetworth = ConfigJson.getBool(obj, "nonCosmeticNetworth", false);
+                cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.DEFAULT);
                 JsonArray recent = ConfigJson.getArray(obj, "recentViews");
                 if (recent != null) {
                     for (JsonElement el : recent) {
@@ -132,6 +154,7 @@ public final class ProfileViewerConfig {
             obj.addProperty("lastPage", lastPage);
             obj.addProperty("showSkin", showSkin);
             obj.addProperty("nonCosmeticNetworth", nonCosmeticNetworth);
+            obj.addProperty("style", style.name());
             JsonArray recent = new JsonArray();
             for (RecentView v : recentViews) {
                 JsonObject o = new JsonObject();
@@ -202,6 +225,10 @@ public final class ProfileViewerConfig {
     public synchronized void setNonCosmeticNetworth(boolean nonCosmeticNetworth) {
         this.nonCosmeticNetworth = nonCosmeticNetworth;
     }
+
+    public synchronized Style getStyle() { return style; }
+
+    public synchronized void setStyle(Style style) { this.style = style == null ? Style.DEFAULT : style; }
 
     public synchronized List<RecentView> getRecentViews() { return List.copyOf(recentViews); }
 

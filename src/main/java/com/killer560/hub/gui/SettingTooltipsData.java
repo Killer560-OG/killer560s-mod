@@ -1352,6 +1352,7 @@ final class SettingTooltipsData {
         d.put("confine mouse in menus", "In borderless fullscreen, keeps the mouse inside the game window while a menu or chest is open. Chat, alt-tab and closing the menu let it go. Only in game: never on the title screen or other menus outside a world. On by default while borderless is on.");
         d.put("display options/only in dungeons", "Confine Mouse In Menus acts only during a dungeon run.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
+        d.put("profile viewer/style", "How /pv is laid out and drawn: Default (this mod's look), NEU Classic (NotEnoughUpdates' old profile viewer), or SkyBlockPV Light, Dark or Transparent (SkyBlockPV's three themes). Any style but Default brings its own colors in place of the Theme. The Style button inside /pv changes it too.");
         d.put("profile viewer/theme", "The colors /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("friends list/theme", "The colors the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("best friends/theme", "The colors /bestfriends draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
