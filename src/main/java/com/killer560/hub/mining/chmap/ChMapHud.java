@@ -55,7 +55,7 @@ public final class ChMapHud implements HudElement {
     @Override
     public boolean isEnabledInSettings() {
         CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
-        return cfg.isEnabledRaw() && cfg.isHudEnabled();
+        return cfg.isEnabledRaw();
     }
 
     @Override

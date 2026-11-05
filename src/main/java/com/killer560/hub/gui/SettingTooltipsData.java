@@ -121,9 +121,7 @@ final class SettingTooltipsData {
         d.put("nucleus run profit/reset totals", "Clears the run count, value and time.");
         d.put("nucleus run profit/open /profit", "Opens the profit trackers screen.");
         d.put("crystal hollows map/crystal hollows map", "A top-down Crystal Hollows map showing you, the structures you have found and your waypoints.");
-        d.put("crystal hollows map/open map", "Opens the full map. Left click sets a travel target, right click clears it. It never moves you.");
-        d.put("crystal hollows map/map scale", "How far the full map is zoomed in, 0.5x to 4x.");
-        d.put("crystal hollows map/map hud", "Shows the whole Crystal Hollows as a small map on your HUD while you are there: zones, structures, waypoints and you as an arrow. Move and size it in Edit HUD.");
+        d.put("crystal hollows map/hud name size", "How big the area and waypoint names are on the HUD map, 0.5x to 2x. Names never overlap; they stack when they would.");
         d.put("crystal hollows map/names on hud", "Writes each structure's name beside its marker on the map HUD too (the full map always names them).");
         d.put("crystal hollows map/show zones", "Tints the four zones (Jungle, Mithril Deposits, Goblin Holdout, Precursor Remnants) and the Nucleus on both maps.");
         d.put("crystal hollows map/show borders", "Draws a box around each structure you have found, covering the part you have walked.");
@@ -131,7 +129,9 @@ final class SettingTooltipsData {
         d.put("crystal hollows map/share my finds", "Shares the structures you find with other mod users in the same lobby.");
         d.put("crystal hollows map/receive others'", "Shows structures other mod users found in this lobby, with a dashed border.");
         d.put("crystal hollows map/add waypoint here", "Saves where you stand as a Crystal Hollows waypoint.");
-        d.put("crystal hollows map/remove last", "Removes the waypoint you added last.");
+        d.put("crystal hollows map/color", "The waypoint's color on the map and in the world (the menu theme's accent until you pick one).");
+        d.put("crystal hollows map/remove", "Deletes just this waypoint.");
+        d.put("crystal hollows map/set", "Saves the typed X, Y and Z (Enter in any of the three does the same).");
         d.put("metal detector/metal detector", "In the Mines of Divan, works out where the Metal Detector's treasure is from its readout and marks it, with a line to it. It never moves you or clicks.");
         d.put("metal detector/line to treasure", "Draws a line from you to the treasure once one spot is left.");
         d.put("metal detector/show possible spots", "Outlines every spot the treasure can still be while more than one is left.");
@@ -159,11 +159,11 @@ final class SettingTooltipsData {
         d.put("crystal tracker/all found title", "Shows a title once every crystal is found or placed.");
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Mining's cheat block. Inside the constant, so a legit jar carries none of these strings.
-            d.put("structure scanner/structure scanner", "Cheat build only. Reads every Crystal Hollows chunk you load, once per lobby, for structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
-            d.put("structure scanner/structure waypoints", "Outlines each found structure's spot with its name over it, through walls.");
-            d.put("structure scanner/chat on find", "Says in chat what was found and where.");
-            d.put("structure scanner/show on map", "Adds the finds to the Crystal Hollows Map as scanned. Scanned finds are never shared with other players.");
-            d.put("structure scanner/fairy grottos", "Also looks for Fairy Grottos (magenta glass).");
+            d.put("crystal hollows map/structure scanner", "Cheat build only. Reads every Crystal Hollows chunk you load, once per lobby, for structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
+            d.put("crystal hollows map/structure waypoints", "Outlines each found structure's spot with its name over it, through walls.");
+            d.put("crystal hollows map/chat on find", "Says in chat what was found and where.");
+            d.put("crystal hollows map/show on map", "Adds the finds to the Crystal Hollows Map as scanned. Scanned finds are never shared with other players.");
+            d.put("crystal hollows map/fairy grottos", "Also looks for Fairy Grottos (magenta glass).");
             d.put("ghost esp/ghost esp", "Cheat build only. Outlines the invisible Ghosts in the Dwarven Mines' Mist. It only draws.");
             d.put("ghost esp/ghosts through walls", "Shows the outlines through blocks.");
             d.put("ghost esp/ghost color", "The color of the Ghost outlines.");
@@ -2677,6 +2677,7 @@ final class SettingTooltipsData {
         d.put("thorn triggerbot", "Cheat build: in the F4/M4 Thorn fight, holds right click while you hold the Tribal Spear, so its throw keeps Thorn stunned.");
         d.put("thorn (f4)/only when aimed at thorn", "Holds only while your crosshair is on Thorn with no block in the way. Bats and other mobs in between do not stop it.");
         d.put("triggerbot toggle keybind", "A key that turns Thorn Triggerbot on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape cancels, Backspace or Delete clears it.");
+        d.put("scanner toggle keybind", "A key that turns the Structure Scanner on and off in game, as its switch does. None by default. Click, then press a key; Backspace clears it.");
         d.put("auto sell/any npc sell menu", "Sells in any Hypixel NPC shop you can sell into (told by the shop's sell slot), not only menus whose title matches the sell pattern like Trades.");
         d.put("auto sell/add defaults", "Adds the dungeon junk list (Oak Sign, Lever, the dungeon armor sets, Earthen Blade, Silent Death, Training Weights, Healing VIII Splash Potion and more) to the sell list. Items already on it stay once; the never-sell list still wins.");
         d.put("mask keybinds", "While you have the /stats menu open, a key equips Spirit Mask or Bonzo's Mask: one click in that menu per press, so each press swaps to the other mask. Only a mask on its proc cooldown is refused, with its time left in chat.");

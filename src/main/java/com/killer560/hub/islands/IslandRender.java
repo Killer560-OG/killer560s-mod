@@ -28,7 +28,7 @@ public final class IslandRender {
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
         double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
-        float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
+        float s = 0.025f * (float) labelGrowth(dist);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
@@ -39,6 +39,12 @@ public final class IslandRender {
         } finally {
             poseStack.popPose();
         }
+    }
+
+    /** How much a label grows at {@code dist} blocks: in step with distance across the whole Hollows, so the text keeps one
+     *  on-screen size (about 14 px) at 150+ blocks instead of shrinking past 96. */
+    public static float labelGrowth(double dist) {
+        return (float) Math.min(48.0, Math.max(1.0, dist / 12.0));
     }
 
     /** The plain (color-stripped) custom name of an entity, or null. */

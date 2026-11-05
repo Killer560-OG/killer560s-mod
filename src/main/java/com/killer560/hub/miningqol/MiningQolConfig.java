@@ -669,6 +669,11 @@ public final class MiningQolConfig {
         return chWallColor[z.ordinal()];
     }
 
+    /** A number that changes when any zone color does (the map's cached layout rebuilds on it). */
+    public int hashCodeOfChWallColors() {
+        return java.util.Arrays.hashCode(chWallColor);
+    }
+
     public void setChWallColor(CrystalHollowsWalls.Zone z, int argb) {
         chWallColor[z.ordinal()] = argb & 0xFFFFFF;
     }

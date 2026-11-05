@@ -4,6 +4,7 @@ import com.killer560.hub.islands.IslandRender;
 import com.killer560.hub.mining.MiningIsland;
 import com.killer560.hub.mining.chmap.ChDiscovery;
 import com.killer560.hub.mining.chmap.ChFind;
+import com.killer560.hub.mining.chmap.ChStructure;
 import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -49,7 +50,6 @@ public final class StructureScannerFeature {
     private static final int MAX_Y = 180;
     /** Chunk keys waiting; a whole Hollows is 64 x 64 chunks, so this never drops a real one. */
     private static final int MAX_PENDING = 8192;
-    private static final int COLOR = 0xFFD933;
 
     private static final Set<Long> SCANNED = new HashSet<>();
     private static final ArrayDeque<Long> PENDING = new ArrayDeque<>();
@@ -178,16 +178,78 @@ public final class StructureScannerFeature {
             if (!s.quarter.test.test(pos) || alreadyHave(s, wx, wz) || !matches(chunk, s, wx, y, wz)) {
                 continue;
             }
-            BlockPos at = new BlockPos(wx + s.dx, y + s.dy, wz + s.dz);
+            int[] ext = extent(s, wx, y, wz);
+            BlockPos at = ext == null ? new BlockPos(wx + s.dx, y + s.dy, wz + s.dz)
+                    : new BlockPos((ext[0] + ext[3]) / 2, (ext[1] + ext[4]) / 2, (ext[2] + ext[5]) / 2);
             add(s, at);
             if (cfg.isChatOnFind()) {
                 ModChat.send("Structure Scanner", ModChat.text("Found "), ModChat.value(s.displayName),
                         ModChat.text(" at " + at.getX() + ", " + at.getY() + ", " + at.getZ()));
             }
             if (cfg.isShowOnMap()) {
-                ChDiscovery.record(s.mapStructure, ChFind.Source.SCANNED, at.getX(), at.getY(), at.getZ());
+                // Both corners of the box it really covers, so the map's border and marker sit on the structure.
+                int[] e = ext == null ? new int[]{at.getX(), at.getY(), at.getZ(), at.getX(), at.getY(), at.getZ()} : ext;
+                ChDiscovery.record(s.mapStructure, ChFind.Source.SCANNED, e[0], e[1], e[2]);
+                ChDiscovery.record(s.mapStructure, ChFind.Source.SCANNED, e[3], e[4], e[5]);
             }
         }
+    }
+
+    /** How far from the matched column the structure's other blocks are looked for. */
+    static final int EXTENT_RADIUS = 32;
+    static final int EXTENT_HEIGHT = 24;
+
+    /**
+     * The box (minX, minY, minZ, maxX, maxY, maxZ) of the signature's marker blocks round a match, over the chunks loaded
+     * now, or null when the signature has none or too few turn up (the old offset is used then). The waypoint is the
+     * box's center, not the column that happened to match (the Mines of Divan column is its stair entrance).
+     */
+    static int[] extent(ChSignature s, int wx, int y0, int wz) {
+        if (s.marks.isEmpty() || level == null) {
+            return null;
+        }
+        int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+        Predicate<BlockState> mark = st -> s.marks.contains(st.getBlock());
+        int hits = 0;
+        int yLo = Math.max(MIN_Y, y0 - EXTENT_HEIGHT);
+        int yHi = Math.min(MAX_Y, y0 + EXTENT_HEIGHT);
+        for (int cx = (wx - EXTENT_RADIUS) >> 4; cx <= (wx + EXTENT_RADIUS) >> 4; cx++) {
+            for (int cz = (wz - EXTENT_RADIUS) >> 4; cz <= (wz + EXTENT_RADIUS) >> 4; cz++) {
+                ChunkAccess chunk = level.getChunk(cx, cz, ChunkStatus.FULL, false);
+                if (chunk == null) {
+                    continue;
+                }
+                LevelChunkSection[] sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
+                    int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
+                    LevelChunkSection sec = sections[i];
+                    if (baseY + 15 < yLo || baseY > yHi || sec == null || sec.hasOnlyAir() || !sec.maybeHas(mark)) {
+                        continue;
+                    }
+                    for (int y = Math.max(yLo, baseY); y <= Math.min(yHi, baseY + 15); y++) {
+                        for (int x = 0; x < 16; x++) {
+                            int wxx = (cx << 4) + x;
+                            if (Math.abs(wxx - wx) > EXTENT_RADIUS) {
+                                continue;
+                            }
+                            for (int z = 0; z < 16; z++) {
+                                int wzz = (cz << 4) + z;
+                                if (Math.abs(wzz - wz) <= EXTENT_RADIUS && mark.test(sec.getBlockState(x, y & 15, z))) {
+                                    hits++;
+                                    b[0] = Math.min(b[0], wxx);
+                                    b[1] = Math.min(b[1], y);
+                                    b[2] = Math.min(b[2], wzz);
+                                    b[3] = Math.max(b[3], wxx);
+                                    b[4] = Math.max(b[4], y);
+                                    b[5] = Math.max(b[5], wzz);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return hits >= 4 ? b : null;
     }
 
     /** Keeps the find and rebuilds the boxes the render draws, so a frame allocates nothing. */
@@ -243,12 +305,24 @@ public final class StructureScannerFeature {
         if (!StructureScannerConfig.getInstance().isWaypoints() || n == 0 || !MiningIsland.crystalHollows()) {
             return;
         }
+        for (int i = 0; i < n; i++) {
+            BlockPos p = FOUND_AT.get(i);
+            int c = FOUND_KIND.get(i).mapStructure.zoneColor(p.getX(), p.getY(), p.getZ());
+            rgba[i * 4] = ((c >> 16) & 255) / 255f;
+            rgba[i * 4 + 1] = ((c >> 8) & 255) / 255f;
+            rgba[i * 4 + 2] = (c & 255) / 255f;
+            rgba[i * 4 + 3] = 1f;
+        }
         WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, n, 3f, true);
         // The structure's name over each box, through walls like the box (killer560, 2026-11-04).
         for (int i = 0; i < n; i++) {
             BlockPos p = FOUND_AT.get(i);
+            if (FOUND_KIND.get(i).mapStructure == ChStructure.CRYSTAL_NUCLEUS) {
+                continue;
+            }
             lastLabel = FOUND_KIND.get(i).displayName;
-            IslandRender.label(context, p.getX() + 0.5, p.getY() + 1.6, p.getZ() + 0.5, lastLabel, COLOR, true);
+            IslandRender.label(context, p.getX() + 0.5, p.getY() + 1.6, p.getZ() + 0.5, lastLabel,
+                    FOUND_KIND.get(i).mapStructure.zoneColor(p.getX(), p.getY(), p.getZ()), true);
         }
     }
 

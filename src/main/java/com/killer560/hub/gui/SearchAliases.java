@@ -75,7 +75,7 @@ public final class SearchAliases {
             Map.entry("dungeon sim", "sim settings"),
             Map.entry("cheat utilities", "secret aura"),
             // killer560 (2026-11-04) calls the Structure Scanner "the cheat map scanner".
-            Map.entry("map scanner", "structure scanner"),
+            Map.entry("map scanner", "crystal hollows map"),
             // minedeploy-1104 (killer560, 2026-11-04): the Deployables card answers the item names players type.
             Map.entry("lantern", "deployables"),
             Map.entry("deployable", "deployables"),
