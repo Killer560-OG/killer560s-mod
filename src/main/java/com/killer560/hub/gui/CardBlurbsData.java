@@ -30,7 +30,7 @@ final class CardBlurbsData {
         d.put("MiningGoldenGoblinTab", "Boxes Golden and Diamond Goblins.");
         d.put("PowderBreakSoundsTab", "Mutes or swaps mining sounds.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
-        d.put("CrystalHollowsWallsTab", "Colored walls at the Crystal Hollows zone borders.");
+        d.put("CrystalHollowsWallsTab", "Colored zone border walls.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");
@@ -69,7 +69,7 @@ final class CardBlurbsData {
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
         d.put("BanReportTab", "Opt-in: reports a Hypixel ban to staff.");
-        d.put("CrashReportTab", "Opt-in crash reports to the admins.");
+        d.put("CrashReportTab", "Opt-in crash reports.");
         d.put("CorrectionAlarmTab", "Siren on a position fix.");
         d.put("ArchitectDraftTab", "Chat link for a draft.");
         d.put("ArrowAlignTab", "Shows the Arrow Align solution.");
