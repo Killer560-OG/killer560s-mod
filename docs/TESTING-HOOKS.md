@@ -215,4 +215,5 @@ Testkit 95-perf-livemap runs it.
 
 `util/EspDepthTestHook.setForced(family, AABB)` draws one green test shape through a shared highlight helper family from
 COLLECT_SUBMITS (families: thru-fill, depth-fill, block-fill, waypoint-fill, thru-outline, depth-outline, thru-line,
-depth-line); `setForced(null, null)` stops it. Testkit 1103-esp-depth-<family> puts water behind, in front of and around it.
+depth-line, and waypoint-depth: Secret Waypoints' depth-tested fill); `setForced(null, null)` stops it. Testkit
+1103-esp-depth-<family> puts water behind, in front of and around it; 1104-zfight-* draws it on a white cube's own faces.

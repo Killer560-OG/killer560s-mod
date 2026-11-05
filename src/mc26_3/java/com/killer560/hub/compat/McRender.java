@@ -82,12 +82,20 @@ public final class McRender {
     }
 
     /**
-     * Gives a depth-tested, depth-writing render type vanilla's own OIT pipelines for lines or debug-filled quads (26.3 only;
-     * 26.2 has none and returns the builder unchanged). Depth testing and writing happen in the OIT depth-bounds stage there.
+     * Gives a depth-tested render type OIT pipelines with a depth bias (26.3 only; 26.2 has none and returns the builder
+     * unchanged): vanilla's {@code OIT_LINES_TRANSLUCENT} / {@code OIT_DEBUG_FILLED_BOX} built the same way (javap 26.3), with
+     * every stage's depth test (GREATER_THAN_OR_EQUAL, no write) given the bias, so Improved Transparency keeps it too.
      */
-    public static RenderSetup.RenderSetupBuilder withVanillaOit(RenderSetup.RenderSetupBuilder builder, boolean lines) {
-        return builder.setOitPipelines(lines ? net.minecraft.client.renderer.RenderPipelines.OIT_LINES_TRANSLUCENT
-                : net.minecraft.client.renderer.RenderPipelines.OIT_DEBUG_FILLED_BOX);
+    public static RenderSetup.RenderSetupBuilder withOitDepthBias(RenderSetup.RenderSetupBuilder builder, String name,
+                                                                  boolean lines, float slope, float constant) {
+        com.mojang.renderpearl.api.pipeline.DepthStencilState test = new com.mojang.renderpearl.api.pipeline.DepthStencilState(
+                com.mojang.renderpearl.api.pipeline.CompareOp.GREATER_THAN_OR_EQUAL, false, slope, constant);
+        java.util.function.Consumer<RenderPipeline.Builder> bias = b -> b.withDepthStencilState(test);
+        return builder.setOitPipelines(net.minecraft.client.renderer.RenderPipelines.register(
+                net.minecraft.client.renderer.oit.OitPipelineSet.builder(name, RenderPipeline.builder(lines
+                        ? net.minecraft.client.renderer.RenderPipelines.OIT_LINES_SNIPPET
+                        : net.minecraft.client.renderer.RenderPipelines.OIT_DEBUG_FILLED_SNIPPET))
+                        .withDepthBoundsModifier(bias).withTransmittanceModifier(bias).withAccumulateModifier(bias).build()));
     }
 
     /** Where the camera is this frame. */
