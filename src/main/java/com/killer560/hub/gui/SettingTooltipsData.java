@@ -1369,7 +1369,7 @@ final class SettingTooltipsData {
         d.put("run summary/theme", "The colors the Run Log (/runlog) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
         d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("hide pause menu icons", "Removes the row of small icon buttons (Report Bugs, Give Feedback, Friends, Player Reporting) from the pause menu and closes the gap. Turn it off to get them back.");
-        d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
+        d.put("themed main menu", "Draws the title screen in the mod's themes (animated background, framed button column). Off: Minecraft's own title screen. The style and scene rows in Menu Theme show only while it is on and keep their values.");
         d.put("auto join skyblock", "Runs /skyblock each time you join Hypixel, unless you send a command first.");
         d.put("profile name", "Name for a new settings profile.");
         d.put("show profit", "Whose profit every profit tracker (/profit) counts: This Account (the default) or All Accounts.");

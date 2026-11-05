@@ -61,20 +61,6 @@ public class DisplayOptionsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
 
-        // Black+orange title screen (mainmenu package) - default ON; OFF restores the vanilla main menu.
-        widgets.add(SettingsButtonWidget.builder(themedMainMenuText(), btn -> {
-                    MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
-                    boolean on = !cfg.isEnabled();
-                    // One switch for the whole theme (killer560, 2026-09-15): the embers and the other-menu
-                    // theming no longer have their own toggles, so they follow this one.
-                    cfg.setEnabled(on);
-                    cfg.setParticles(on);
-                    cfg.setOtherMenus(on);
-                    cfg.save();
-                    btn.setMessage(themedMainMenuText());
-                }).bounds(contentX, y, 220, 20).build());
-        y += 22;
-
         // Hide Pause Menu Icons (killer560, 2026-11-01): default ON; takes effect the next time the pause menu opens.
         widgets.add(SettingsButtonWidget.builder(hidePauseIconsText(), btn -> {
                     MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
@@ -107,13 +93,6 @@ public class DisplayOptionsTab extends BaseTab {
         return Component.literal("Hide Pause Menu Icons: "
                 + (MainMenuThemeConfig.getInstance().isHidePauseIcons() ? "§aON" : "§cOFF"));
     }
-
-    private static Component themedMainMenuText() {
-        return Component.literal("Themed Main Menu: "
-                + (MainMenuThemeConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
-    }
-
-
 
     private static Component fullbrightText() {
         return Component.literal("Fullbright: "

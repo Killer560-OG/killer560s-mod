@@ -54,6 +54,10 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // Themed Main Menu switch (killer560, 2026-11-04: "put into the home tab under mod"; also Menu Theme's Main Menu section).
+        widgets.add(com.killer560.hub.mainmenu.MainMenuSettings.themedSwitch(contentX, y, contentWidth, () -> { }));
+        y += 26;
+
         // Open Menu key (killer560, 2026-10-26): backslash by default; click, then press a key (Esc unbinds).
         widgets.add(SettingsButtonWidget.builder(listening == 2 ? Component.literal("Press any key...") : openMenuText(),
                 btn -> {
