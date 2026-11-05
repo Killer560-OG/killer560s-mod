@@ -70,7 +70,7 @@ update (bossparity-1103 brought it in line; the item-by-item comparison is kille
 Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, yaw = atan2(-dx, dz)).
 
 - **P1 Maxor**: holds at (73, 226, 53) until t 84, then flies at the closest player +1 at min(0.9, 0.24 + 0.02 d) and
-  stops within 3. Crystals at t 5 (stands at 28) are clicked to pick up (a Nether Star "Energy Crystal" in slot 8); the
+  stops within 3. Crystals at t 5 (stands at 28): walking within 1 block of one picks it up with no click, and a left or right click on it from entity reach does too (a Nether Star "Energy Crystal" in slot 8); a carried crystal is placed with no click within 1 block of an open pad (a click within 3.5 still places it; simcrystal-1105, owner 2026-11-05); the
   pylons open at t 80, the beacon is in at 120. A placement counts 28 ticks after it ("1/2" twice when two go in close
   together); the laser charges 28 after the second. A hit needs Maxor at y >= 225 within 3.5 of the beam on a 10-tick
   check, so he has to be lured in (the strip south of the beam, y 224 z 70-76). The stun ends on damage (5 hits, then
