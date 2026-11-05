@@ -6,6 +6,7 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,6 +38,12 @@ public abstract class WitherDragonsPacketMixin {
     @Inject(method = "handleSoundEvent", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)
     private void killer560smod$witherDragons$onSound(ClientboundSoundPacket packet, CallbackInfo ci) {
         WitherDragonsPackets.onSound(packet);
+    }
+
+    /** The server's own tick count, once a second: {@code util.PerTickServerClock} holds hypixel.net's clock to it (masktimer-1105). */
+    @Inject(method = "handleSetTime", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)
+    private void killer560smod$witherDragons$onSetTime(ClientboundSetTimePacket packet, CallbackInfo ci) {
+        com.killer560.hub.util.PerTickServerClock.onServerTime(packet.gameTime());
     }
 
     @Inject(method = "handleTabListCustomisation", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)

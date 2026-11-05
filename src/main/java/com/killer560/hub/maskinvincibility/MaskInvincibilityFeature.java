@@ -120,8 +120,8 @@ public final class MaskInvincibilityFeature {
         String raw = com.killer560.hub.util.ChatObserver.strip(message);
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
-                activeRemaining.put(t, t.activeTicks);
-                cooldownRemaining.put(t, t.cooldownTicks);
+                activeRemaining.put(t, t.activeTicks + STEP.pending());
+                cooldownRemaining.put(t, t.cooldownTicks + STEP.pending());
                 if (!cfg.isEnabled()) return;
                 if (cfg.isProcTitle()) {
                     procTitles++;

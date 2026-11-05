@@ -395,6 +395,12 @@ public final class TickTimersFeature {
                     lines.add(formatElapsed(elapsed, "§7Frenzy total"));
                 } else if (GoldorTick.active()) {
                     lines.add(format(GoldorTick.remaining(), GoldorTick.PERIOD, "§7Tick:"));
+                } else if (goldorStartEnd != Long.MIN_VALUE && goldorStartTime <= 0 && !cfg.isGoldorShowTotal()
+                        && PerTickServerClock.now() - goldorStartEnd < 200) {
+                    // Storm is dead, Start has run out and Goldor's line is still to come (80-96 wall ticks after Storm's
+                    // death on his real runs, Start is 64): his first hit is a full period after that line, so the Tick
+                    // stands at 3.0 until it comes instead of leaving a gap (masktimer-1105, "it waits awhile to show").
+                    lines.add(format(GoldorTick.PERIOD, GoldorTick.PERIOD, "§7Tick:"));
                 }
             }
             // Storm: ONE line (2026-11-02): lightning, then the purple pad, then the yellow pad (StormLine).
