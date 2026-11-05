@@ -133,13 +133,18 @@ public abstract class IslandFeatureTab extends BaseTab implements KeyCaptureTab 
 
         /** A whole-number slider over the key's declared range, shown as {@code label: <value><unit>}. */
         public void slider(String label, String key, String unit) {
+            slider(label, key, v -> v + unit);
+        }
+
+        /** A whole-number slider whose value is shown through {@code shown} (e.g. tenths as "0.5 blocks"). */
+        public void slider(String label, String key, IntFunction<String> shown) {
             int min = cfg.min(key);
             int max = cfg.max(key);
             double range = Math.max(1, max - min);
-            w.add(new ThemedSliderButton(x, y[0], width, 18, sliderText(label, key, unit), (cfg.num(key) - min) / range) {
+            w.add(new ThemedSliderButton(x, y[0], width, 18, sliderText(label, key, shown), (cfg.num(key) - min) / range) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(sliderText(label, key, unit));
+                    setMessage(sliderText(label, key, shown));
                 }
 
                 @Override
@@ -151,8 +156,14 @@ public abstract class IslandFeatureTab extends BaseTab implements KeyCaptureTab 
             y[0] += 22;
         }
 
-        private Component sliderText(String label, String key, String unit) {
-            return Component.literal(label + ": §b" + cfg.num(key) + unit);
+        private Component sliderText(String label, String key, IntFunction<String> shown) {
+            return Component.literal(label + ": §b" + shown.apply(cfg.num(key)));
+        }
+
+        /** An ARGB color row (the key holds the color as an int) opening the color picker; {@code def} is its Reset. */
+        public void color(String label, String key, int def) {
+            MiningQolRows.color(w, x, y[0], width, label, () -> cfg.num(key), v -> cfg.set(key, v), def, cfg::save);
+            y[0] += 22;
         }
 
         /** A row stepping through {@code count} named values stored as an index. */

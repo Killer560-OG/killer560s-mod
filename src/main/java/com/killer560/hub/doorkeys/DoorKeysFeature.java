@@ -140,12 +140,7 @@ public final class DoorKeysFeature {
 
     private static Vec3[] ringPoints(double[] circle, double y) {
         if (circle != ringPointsFor || y != ringPointsY) {
-            Vec3[] pts = new Vec3[RING_SEGMENTS + 1];
-            for (int i = 0; i <= RING_SEGMENTS; i++) {
-                double a = Math.PI * 2.0 * i / RING_SEGMENTS;
-                pts[i] = new Vec3(circle[0] + Math.cos(a) * circle[3], y, circle[2] + Math.sin(a) * circle[3]);
-            }
-            ringPoints = pts;
+            ringPoints = WorldRenderUtils.ringPoints(circle[0], y, circle[2], circle[3], RING_SEGMENTS);
             ringPointsFor = circle;
             ringPointsY = y;
         }
