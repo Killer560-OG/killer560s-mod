@@ -214,6 +214,8 @@ public final class BossFight {
     /** The {@link #clock} of Goldor's last line (his queue runs on into P4). */
     private static int lastGoldorLine = -1000;
     private static int gateAt = -1;
+    /** Gate n (1-3) destroyed: by a Superboom while its section ran, or 5 s after the section ended. */
+    private static final boolean[] gateDown = new boolean[4];
     private static boolean coreOpen;
     private static int coreOpenAt = -1;
     private static double goldorS;
@@ -367,6 +369,7 @@ public final class BossFight {
         goldorLines.clear();
         lastGoldorLine = -1000;
         gateAt = -1;
+        java.util.Arrays.fill(gateDown, false);
         coreOpen = goldorFlying = goldorAtCore = false;
         coreOpenAt = -1;
         goldorFrenzyHits = 0;
@@ -1413,7 +1416,8 @@ public final class BossFight {
         BossStations.spawn(level, section);
         BossDevices.start(level, section);
         for (int done = 1; done < section && done <= 3; done++) {
-            BossBlocks.open(level, BossStations.GATES[done - 1]);
+            gateDown[done] = true;
+            BossGates.gone(level, done);
         }
         if (section >= 5) {
             openCore(false);
@@ -1451,7 +1455,7 @@ public final class BossFight {
         drainGoldorLines();
         if (gateAt >= 0 && t >= gateAt) {
             gateAt = -1;
-            destroyGate(section);
+            blowGate(section);
         }
         BossDevices.tick(level);
         if (goldor != null && goldorDeadAt < 0) {
@@ -1594,17 +1598,50 @@ public final class BossFight {
             openCore(true);
             return;
         }
+        if (gateDown[section]) {
+            // A Superboom took the gate early: the door opens with the section, no countdown.
+            openDoor(section);
+            return;
+        }
         BossChat.chat(server, "§aThe gate will open in 5 seconds!");
         BossChat.title(server, "", "§aThe gate will open in 5 seconds!", 0, 40, 0);
         gateAt = t + GATE_DELAY;
+        int s0 = section;
+        later(1, "door top", () -> BossGates.doorTop(level, s0));
     }
 
-    private static void destroyGate(int sec) {
-        int[] g = BossStations.GATES[sec - 1];
+    /** A Superboom at {@code pos}: true if it struck a gate (blown if its section is under way), so nothing else breaks. */
+    public static boolean superboomGate(ServerLevel lvl, BlockPos pos) {
+        if (phase != Phase.P3 || lvl != level) {
+            return false;
+        }
+        int s = BossGates.near(pos);
+        if (s == 0) {
+            return false;
+        }
+        if (!gateDown[s] && section >= s) {
+            blowGate(s);
+        }
+        return true;
+    }
+
+    /** "The gate has been destroyed!": the arch goes a tick later, and the door too once its section is done. */
+    private static void blowGate(int sec) {
+        gateDown[sec] = true;
+        gateAt = -1;
         BossChat.chat(server, "§aThe gate has been destroyed!");
         BossChat.title(server, "", "§aThe gate has been destroyed!", 0, 40, 0);
         // The blocks go 1 tick after the line, as Hypixel's.
-        later(1, "gate blocks", () -> BossBlocks.open(level, g));
+        later(1, "gate blocks", () -> BossGates.removeGate(level, sec));
+        LOGGER.info("[BossSim] gate {} destroyed at P3 t {}", sec, t);
+        if (sec == section && BossStations.count(sec) >= BossStations.total(sec)) {
+            openDoor(sec);
+        }
+    }
+
+    /** Section {@code sec}'s door opens and the next section begins. */
+    private static void openDoor(int sec) {
+        later(1, "door " + sec, () -> BossGates.openDoor(level, sec));
         goldorLines.add(GOLDOR_SECTION_LINES[RNG.nextInt(GOLDOR_SECTION_LINES.length)]);
         section = sec + 1;
         LOGGER.info("[BossSim] gate {} down, S{} in progress at P3 t {}", sec, section, t);
