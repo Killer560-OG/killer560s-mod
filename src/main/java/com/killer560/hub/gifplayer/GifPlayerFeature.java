@@ -1,5 +1,6 @@
 package com.killer560.hub.gifplayer;
 
+import com.killer560.hub.shared.SharedFolders;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudElement;
@@ -42,8 +43,8 @@ public final class GifPlayerFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-gifplayer");
     private static final int MAX_DISPLAY_SIZE = 256;
 
-    private static final Path GIF_FOLDER =
-            ModPaths.config("killer560smod-gifs");
+    /** Audio converted to WAV (mp3 files): per instance in the config folder, never in a profile. */
+    public static final Path CACHE_FOLDER = ModPaths.config("killer560smod-gifs-cache");
 
     /**
      * The GIF every install ships with (killer560, 2026-10-04: "take my gif for the dancing catgirl on my dungeons
@@ -415,8 +416,9 @@ public final class GifPlayerFeature {
         GifTextureUtil.blit(graphics, entry.texture, x, y, entry.displayWidth, entry.displayHeight);
     }
 
+    /** The GIF / audio folder, shared by every instance on the PC (the old per-instance one is moved in on first use). */
     public static Path folder() {
-        return GIF_FOLDER;
+        return SharedFolders.folder("gifs", ModPaths.config("killer560smod-gifs"));
     }
 
     /** {@code Files.list(dir)}, or nothing when the folder does not exist yet (it is made when he opens it). */
@@ -435,7 +437,7 @@ public final class GifPlayerFeature {
             return null;
         }
         try {
-            Path dir = GIF_FOLDER.toAbsolutePath().normalize();
+            Path dir = folder().toAbsolutePath().normalize();
             Path file = dir.resolve(name).normalize();
             return dir.equals(file.getParent()) ? file : null;
         } catch (RuntimeException e) {
@@ -449,7 +451,7 @@ public final class GifPlayerFeature {
 
     /** Every file in the folder that {@code kind} accepts, by name ignoring case (the audio side lists with it too). */
     static List<Path> folderFiles(java.util.function.Predicate<Path> kind) throws IOException {
-        try (Stream<Path> stream = list(GIF_FOLDER)) {
+        try (Stream<Path> stream = list(folder())) {
             return stream.filter(Files::isRegularFile)
                     .filter(kind)
                     .sorted((a, b) -> a.getFileName().toString().compareToIgnoreCase(b.getFileName().toString()))
@@ -478,7 +480,7 @@ public final class GifPlayerFeature {
 
     /** True when {@code name} is (or would be) served from the jar rather than the folder. */
     public static boolean isBuiltinLoaded(String name) {
-        return BUILTIN_NAME.equals(name) && !Files.isRegularFile(GIF_FOLDER.resolve(name));
+        return BUILTIN_NAME.equals(name) && !Files.isRegularFile(folder().resolve(name));
     }
 
     /** Label for a GIF in the tab and HUD editor. */

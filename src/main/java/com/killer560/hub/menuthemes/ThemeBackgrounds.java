@@ -1,6 +1,7 @@
 package com.killer560.hub.menuthemes;
 
 import com.killer560.hub.clicksound.ClickSounds;
+import com.killer560.hub.shared.SharedFolders;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 import org.slf4j.Logger;
@@ -26,7 +27,7 @@ import java.util.stream.Stream;
 /**
  * Theme Background (killer560, 2026-10-21: "Make sure there is a way for people to easily import their own videos or gifs
  * as main backgrounds"): the files a theme's main menu background can be, and their import.
- * <p>Imported backgrounds live in {@code killer560smod-menu-themebackgrounds/} beside the settings (Open Backgrounds
+ * <p>Imported backgrounds live in the shared store's {@code backgrounds/} folder (every instance on the PC) (Open Backgrounds
  * Folder). Two kinds:
  * <ul>
  *   <li>a GIF, copied as it is and decoded by GIF Player's own {@code GifDecoder} (id {@code gif:<file name>});</li>
@@ -69,15 +70,9 @@ public final class ThemeBackgrounds {
     private ThemeBackgrounds() {
     }
 
-    /** The import folder, created if missing. */
+    /** The import folder, shared by every instance on the PC (the old per-instance one is moved in on first use). */
     public static Path folder() {
-        Path dir = ModPaths.config("killer560smod-menu-themebackgrounds");
-        try {
-            Files.createDirectories(dir);
-        } catch (IOException e) {
-            LOGGER.warn("[ThemeBackground] could not create {}", dir, e);
-        }
-        return dir;
+        return SharedFolders.folder("backgrounds", ModPaths.config("killer560smod-menu-themebackgrounds"));
     }
 
     /** Every imported background's id, GIFs then videos, each by name. */

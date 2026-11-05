@@ -35,8 +35,7 @@ public final class GifAudioFeature {
     private static final List<String> NATIVE_EXTENSIONS = List.of(".wav", ".wave", ".aiff", ".aif", ".au");
     private static final String MP3_EXTENSION = ".mp3";
 
-    private static final Path CACHE_FOLDER =
-            GifPlayerFeature.folder().resolveSibling("killer560smod-gifs-cache");
+    private static final Path CACHE_FOLDER = GifPlayerFeature.CACHE_FOLDER;
 
     private record Loaded(Clip clip, long stamp) {
     }
