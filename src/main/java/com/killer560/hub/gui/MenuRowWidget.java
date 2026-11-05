@@ -48,10 +48,10 @@ public final class MenuRowWidget extends AbstractWidget {
         int textX = x0;
         if (boxed) {
             graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), isHovered ? BOX_BG_HOVER : BOX_BG);
-            graphics.outline(x0, y0, getWidth(), getHeight(), selected ? ACCENT : ACCENT_DIM);
+            graphics.outline(x0, y0, getWidth(), getHeight(), selected ? ThemeAccent.accent(ACCENT) : ThemeAccent.dim(ACCENT_DIM));
             textX = x0 + 6;
         } else if (selected) {
-            graphics.fill(x0, y0 + getHeight() - 1, x0 + getWidth(), y0 + getHeight(), ACCENT);
+            graphics.fill(x0, y0 + getHeight() - 1, x0 + getWidth(), y0 + getHeight(), ThemeAccent.accent(ACCENT));
         }
         int textY = y0 + (getHeight() - 8) / 2;
         if (cheatOnly) {
@@ -60,7 +60,7 @@ public final class MenuRowWidget extends AbstractWidget {
                     textX, textY, cheatColor, false);
             return;
         }
-        int textColor = selected ? ACCENT : (isHovered ? TEXT_HOVER : TEXT_DIM);
+        int textColor = selected ? ThemeAccent.accent(ACCENT) : (isHovered ? TEXT_HOVER : TEXT_DIM);
         graphics.text(Minecraft.getInstance().font, label, textX, textY, textColor, false);
     }
 

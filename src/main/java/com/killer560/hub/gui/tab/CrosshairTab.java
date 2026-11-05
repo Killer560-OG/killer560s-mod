@@ -11,6 +11,7 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.hud.AutoScale;
 import com.mojang.blaze3d.platform.Window;
@@ -440,7 +441,7 @@ public class CrosshairTab extends BaseTab {
             int w = getWidth();
             int h = boxH;
             drawBackground(g, x, y, w, h);
-            g.outline(x, y, w, h, inBox(mouseX, mouseY) ? 0xFFCC6600 : 0xFF663D1A);
+            g.outline(x, y, w, h, inBox(mouseX, mouseY) ? ThemeAccent.accent(0xFFCC6600) : ThemeAccent.dim(0xFF663D1A));
 
             CustomCrosshairConfig c = CustomCrosshairConfig.getInstance();
             Minecraft mc = Minecraft.getInstance();
@@ -480,7 +481,7 @@ public class CrosshairTab extends BaseTab {
             int sy = y + h + 4;
             boolean hover = inState(mouseX, mouseY);
             g.fill(x, sy, x + w, sy + STATE_H, hover ? 0xFF262626 : 0xFF1A1A1A);
-            g.outline(x, sy, w, STATE_H, hover ? 0xFFCC6600 : 0xFF663D1A);
+            g.outline(x, sy, w, STATE_H, hover ? ThemeAccent.accent(0xFFCC6600) : ThemeAccent.dim(0xFF663D1A));
             g.centeredText(font, "Preview: " + STATES[state], x + w / 2, sy + (STATE_H - 8) / 2, 0xFFFFFFFF);
         }
 

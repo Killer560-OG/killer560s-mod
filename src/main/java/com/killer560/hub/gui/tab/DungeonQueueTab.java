@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /** Dungeon Queue: Auto Requeue ({@link com.killer560.hub.dungeonqueue.DungeonQueueFeature}) and Party Finder
  *  Overlay ({@link com.killer560.hub.partyfinder.PartyFinderOverlay}). */
@@ -293,7 +294,7 @@ public class DungeonQueueTab extends BaseTab {
             int x0 = getX();
             int y0 = getY();
             graphics.fill(x0, y0, x0 + getWidth(), y0 + getHeight(), BG);
-            graphics.outline(x0, y0, getWidth(), getHeight(), BORDER);
+            graphics.outline(x0, y0, getWidth(), getHeight(), ThemeAccent.dim(BORDER));
             graphics.text(Minecraft.getInstance().font, "Preview:", x0 + 4, y0 + 3, LABEL, false);
             int ly = y0 + 3 + LINE_H;
             for (Component line : PartyFinderOverlay.renderPreviewLines(cfg)) {

@@ -138,10 +138,11 @@ public abstract class RangeSliderWidget extends AbstractWidget implements MenuAn
         graphics.fill(x0, y0, x0 + w, y0 + h, TRACK_BG);
         int lowX = handleX(low);
         int highX = handleX(high);
-        graphics.fill(lowX + HANDLE_WIDTH, y0 + 1, highX, y0 + h - 1, FILLED);
-        graphics.outline(x0, y0, w, h, isHovered || dragging >= 0 ? TRACK_BORDER_HOVER : TRACK_BORDER);
-        graphics.fill(lowX, y0, lowX + HANDLE_WIDTH, y0 + h, HANDLE);
-        graphics.fill(highX, y0, highX + HANDLE_WIDTH, y0 + h, HANDLE);
+        graphics.fill(lowX + HANDLE_WIDTH, y0 + 1, highX, y0 + h - 1, ThemeAccent.fill(FILLED));
+        graphics.outline(x0, y0, w, h, isHovered || dragging >= 0 ? ThemeAccent.accent(TRACK_BORDER_HOVER) : ThemeAccent.dim(TRACK_BORDER));
+        int handle = ThemeAccent.accent(HANDLE);
+        graphics.fill(lowX, y0, lowX + HANDLE_WIDTH, y0 + h, handle);
+        graphics.fill(highX, y0, highX + HANDLE_WIDTH, y0 + h, handle);
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + w / 2, y0 + (h - 8) / 2, TEXT);
     }
 

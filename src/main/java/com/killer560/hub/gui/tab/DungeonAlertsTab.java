@@ -2,6 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -92,7 +93,7 @@ public class DungeonAlertsTab extends BaseTab {
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
         y[0] += 4;
         w.add(new StringWidget(x, y[0], width, 12, Component.literal(title).withStyle(
-                net.minecraft.network.chat.Style.EMPTY.withColor(net.minecraft.network.chat.TextColor.fromRgb(ORANGE & 0xFFFFFF))),
+                net.minecraft.network.chat.Style.EMPTY.withColor(net.minecraft.network.chat.TextColor.fromRgb(ThemeAccent.accent(ORANGE) & 0xFFFFFF))),
                 Minecraft.getInstance().font));
         y[0] += 14;
     }

@@ -555,8 +555,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         }
         int x0 = getX();
         int y0 = getY();
-        int bg = primary ? (isHovered ? PRIMARY_BG_HOVER : PRIMARY_BG) : (isHovered ? BG_HOVER : BG);
-        int border = primary ? (isHovered ? PRIMARY_BORDER_HOVER : PRIMARY_BORDER) : (isHovered ? BORDER_HOVER : BORDER);
+        int bg = primary ? ThemeAccent.fill(isHovered ? PRIMARY_BG_HOVER : PRIMARY_BG) : (isHovered ? BG_HOVER : BG);
+        int border = primary ? (isHovered ? ThemeAccent.light(PRIMARY_BORDER_HOVER) : ThemeAccent.accent(PRIMARY_BORDER))
+                : (isHovered ? ThemeAccent.accent(BORDER_HOVER) : ThemeAccent.dim(BORDER));
         if (danger) {
             bg = isHovered ? DANGER_BG_HOVER : DANGER_BG;
             border = isHovered ? DANGER_BORDER_HOVER : DANGER_BORDER;
