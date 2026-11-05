@@ -6,7 +6,10 @@
 	"client": [
 		"FastLeapKeyboardHandlerMixin",
 		"FastLeapMouseHandlerMixin",
-		"FastLeapHideMenuMixin"
+		"FastLeapHideMenuMixin",
+		"LeapRotationPacketMixin",
+		"LeapRotationSendMixin",
+		"LeapRotationClickMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
