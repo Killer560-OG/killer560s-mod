@@ -240,6 +240,10 @@ They are the same rules as before; only where they live changed.
   reads relay `data` must be named there, or nothing connects for it: Song Tag never was, so no song was ever shared with
   Mod Chat off and no party (fixed 2026-11-01, lobby room; testkit 2866/2867). Testing the receiver by feeding it packets
   does not prove the socket opens.
+  It still never connected for him (2026-11-04): Mod Chat is ON in Party mode by default, and that branch won over Song
+  Tag's lobby room, so with no party the room was null and the socket stayed shut (both logs: no `[Relay] Connected` until a
+  Crystal Hollows warp forced the lobby). Now Song Tag takes the lobby then and `chatHeld` stops Mod Chat sending or showing
+  there (songtag-1104; 2866/2867 run with Mod Chat at its default). Test a relay feature with Mod Chat at its DEFAULT, not off.
 - `ServerTickClock` takes ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone reach, so
   it reads Grim jitter as stalls. `ServerLag` and the Lag Display / !tps TPS gate on `PerTickServerClock.trusted()` since
   tickfix2-1104 (ServerLag judged at the ping that opens a gap, so a stall that outlasts the trust still counts). Anything that must count exact server ticks uses `util.PerTickServerClock`
