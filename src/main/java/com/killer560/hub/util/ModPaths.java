@@ -176,6 +176,8 @@ public final class ModPaths {
         t.put("bazaarflip", "skyblock/bazaarflip");
         // AH Flipper and AH Price Buttons (killer560smod-ahflip.json, 2026-11-01).
         t.put("ahflip", "skyblock/ahflip");
+        // Reforge Helper (killer560smod-reforge-helper.json, 2026-11-04).
+        t.put("reforge", "skyblock/reforge");
         // The Mining category's features from staging-mining-3 (2026-11-04).
         t.put("mining-profit", "skyblock/mining-profit");
         t.put("nucleus-profit", "skyblock/nucleus-profit");

@@ -584,6 +584,7 @@ public final class ProfileManager {
                 com.killer560.hub.puzzlesolvers.WeirdosSolverConfig::load,
                 com.killer560.hub.quiver.QuiverDisplayConfig::load,
                 com.killer560.hub.revertmasterstars.RevertMasterStarsConfig::load,
+                com.killer560.hub.reforge.ReforgeHelperConfig::load,
                 com.killer560.hub.rngmeter.RngMeterConfig::load,
                 com.killer560.hub.routes.RouteStore::load,
                 com.killer560.hub.routes.WaypointRoutesConfig::load,

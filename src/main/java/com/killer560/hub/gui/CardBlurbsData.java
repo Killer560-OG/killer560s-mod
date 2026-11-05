@@ -207,6 +207,7 @@ final class CardBlurbsData {
         d.put("LoadoutKeybindsTab", "Loadout screen keys.");
         d.put("PetWheelTab", "A wheel to summon pets fast.");
         d.put("RevertMasterStarsTab", "Master Stars as red stars.");
+        d.put("ReforgeHelperTab", "Lists reforges, keeps a wanted one.");
         d.put("TooltipScrollTab", "Scroll long tooltips.");
         d.put("PriceTooltipTab", "Prices on item tooltips.");
         d.put("SlotBindsTab", "Link slots to swap on shift-click.");

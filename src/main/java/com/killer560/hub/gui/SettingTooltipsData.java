@@ -1263,6 +1263,10 @@ final class SettingTooltipsData {
         d.put("stats", "Key that runs /stats. Backspace clears the bind.");
         d.put("dungeon hub", "Key that runs /warp dungeon_hub. Backspace clears the bind.");
         d.put("potion bag", "Key that runs /potionbag. Backspace clears the bind.");
+        d.put("reforge helper", "In the Blacksmith's Reforge Item menu, lists every reforge the item can roll with its stats, and stops you rolling away one you want.");
+        d.put("reforge helper/wanted reforges", "The reforges you want, separated by commas, like Fabled, Withered. Clicking a reforge in the menu's list adds or removes it here.");
+        d.put("reforge helper/block when wanted", "While the item has a wanted reforge, your click on the Reforge button is canceled before anything is sent.");
+        d.put("reforge helper/wanted color", "Color of the outline around an item with a wanted reforge.");
         d.put("revert master stars", "Turns the Master Star number on item names back into that many red stars.");
         d.put("inventory search", "Press Ctrl+F in any inventory to search; matching slots are filled red. Type a sum (5k*3, 2s+10) to use it as a calculator.");
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");

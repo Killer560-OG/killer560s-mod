@@ -34,6 +34,7 @@ public class ItemsTab extends FolderTab {
                 new PriceTooltipTab(),
                 new TooltipScrollTab(),
                 new RevertMasterStarsTab(),
+                new ReforgeHelperTab(),
                 new ItemBrowserTab(),
                 new AuctionHouseTab(),
                 new BazaarTab(),
