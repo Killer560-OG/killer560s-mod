@@ -160,6 +160,7 @@ public final class MiningQolConfig {
     private boolean junglePickSound = true;
     // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
     private boolean chWalls = false;
+    private boolean chWallsHideInStructures = false;
     private final int[] chWallColor = CrystalHollowsWalls.defaultColors();
     private final int[] chWallOpacity = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_OPACITY);
     private final int[] chWallNear = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_NEAR);
@@ -253,6 +254,7 @@ public final class MiningQolConfig {
                 cfg.junglePick = ConfigJson.getBool(o, "junglePick", cfg.junglePick);
                 cfg.junglePickSound = ConfigJson.getBool(o, "junglePickSound", cfg.junglePickSound);
                 cfg.chWalls = ConfigJson.getBool(o, "chWalls", cfg.chWalls);
+                cfg.chWallsHideInStructures = ConfigJson.getBool(o, "chWallsHideInStructures", cfg.chWallsHideInStructures);
                 for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
                     int i = z.ordinal();
                     cfg.chWallColor[i] = intOr(o, "chWall" + z.key + "Color", cfg.chWallColor[i]) & 0xFFFFFF;
@@ -349,6 +351,7 @@ public final class MiningQolConfig {
             o.addProperty("junglePick", junglePick);
             o.addProperty("junglePickSound", junglePickSound);
             o.addProperty("chWalls", chWalls);
+            o.addProperty("chWallsHideInStructures", chWallsHideInStructures);
             for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
                 o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
                 o.addProperty("chWall" + z.key + "Opacity", chWallOpacity[z.ordinal()]);
@@ -690,6 +693,14 @@ public final class MiningQolConfig {
 
     public void setChWalls(boolean v) {
         chWalls = v;
+    }
+
+    public boolean isChWallsHideInStructures() {
+        return chWallsHideInStructures;
+    }
+
+    public void setChWallsHideInStructures(boolean v) {
+        chWallsHideInStructures = v;
     }
 
     /** RGB (no alpha) of the zone's walls. */

@@ -48,9 +48,15 @@ public final class WorldRenderUtils {
      */
     public static void renderFilledFace(LevelRenderContext context, AABB box, net.minecraft.core.Direction face,
                                         float r, float g, float b, float a) {
+        renderFilledFace(context, com.killer560.hub.util.EspTypes.FILLED, box, face, r, g, b, a);
+    }
+
+    /** {@link #renderFilledFace} through the given fill render type. */
+    public static void renderFilledFace(LevelRenderContext context, net.minecraft.client.renderer.rendertype.RenderType type,
+                                        AABB box, net.minecraft.core.Direction face, float r, float g, float b, float a) {
         final float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
         final float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
+        McRender.inCameraSpace(context, type, (pose, buffer) -> {
             var m = pose.pose();
             switch (face) {
                 case WEST -> quad(buffer, m, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, r, g, b, a);

@@ -16,7 +16,9 @@ import java.util.List;
  * Z 202..823, Y 31..188 (Skyblocker and QUOI hardcode them; the wiki's 621 x 157 x 621), so the block edges are 202 and 824,
  * 31 and 189. The four surface zones are the quadrants split at X and Z 513 (the Jungle low/low, Mithril Deposits
  * high X/low Z, Goblin Holdout low X/high Z, Precursor Remnants high/high), Magma Fields is the layer at or below Y 64
- * under the whole footprint, and the Crystal Nucleus is the wiki's box (465,64,465)-(561,188,561). The real biome edge is cave
+ * under the whole footprint, and the Crystal Nucleus is the box Hypixel protects, X 462..564 and Z 461..565 (Skyblocker's AABB; his dig log
+ * 2026-11-05 pins Z: a block at z 461 and one at z 562 both answered "A magical force ... prevents you from breaking blocks",
+ * so the wiki's 465..562 sat inside the protection; X is Skyblocker's, unconfirmed by a log). The real biome edge is cave
  * terrain, not a plane (QUOI's comment), so a wall marks the nominal line.
  *
  * <p>Each zone draws only its own side of a shared line, a slab {@link #T} thick, so two zones never fight over one
@@ -35,8 +37,8 @@ public final class CrystalHollowsWalls {
     public static final double X0 = 202, X1 = 824, Z0 = 202, Z1 = 824, Y0 = 31, Y1 = 189;
     /** The line between the quadrants, and the top of the Magma Fields layer. */
     public static final double MID = 513, MAGMA_TOP = 64;
-    /** The Nucleus box's block edges. */
-    public static final double NX0 = 465, NX1 = 562, NZ0 = 465, NZ1 = 562;
+    /** The Nucleus box's block edges (the protected middle; see the class comment). */
+    public static final double NX0 = 462, NX1 = 564, NZ0 = 461, NZ1 = 565;
     /** Wall thickness. */
     public static final double T = 0.1;
 
@@ -158,12 +160,15 @@ public final class CrystalHollowsWalls {
     static void render(LevelRenderContext context) {
         Minecraft client = Minecraft.getInstance();
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        if (client.level == null || client.player == null || !cfg.isChWalls() || !MiningState.crystalHollows()) {
+        if (client.level == null || client.player == null || !cfg.isChWalls() || !MiningState.crystalHollows()
+                || cfg.isChWallsHideInStructures() && inStructure()) {
             lastDrawn = List.of();
             return;
         }
         var cam = com.killer560.hub.compat.McRender.cameraPos(context);
         List<Wall> walls = walls(cfg, cam.x, cam.y, cam.z);
+        // Nearest first, so the strict-depth fill leaves a farther wall hidden behind a nearer one: each zone reads its own color.
+        walls.sort(java.util.Comparator.comparingDouble(w -> w.box().getCenter().distanceToSqr(cam)));
         lastDrawn = walls;
         if (walls.isEmpty()) {
             return;
@@ -190,10 +195,27 @@ public final class CrystalHollowsWalls {
                 plane = new AABB(b.minX, m - 0.01, b.minZ, b.maxX, m + 0.01, b.maxZ);
                 face = net.minecraft.core.Direction.DOWN;
             }
-            WorldRenderUtils.renderFilledFace(context, plane, face, c[0], c[1], c[2], c[3]);
-            WorldRenderUtils.renderFilledFace(context, plane, face.getOpposite(), c[0], c[1], c[2], c[3]);
+            WorldRenderUtils.renderFilledFace(context, com.killer560.hub.util.EspTypes.FILLED_NEAREST, plane, face, c[0], c[1], c[2], c[3]);
+            WorldRenderUtils.renderFilledFace(context, com.killer560.hub.util.EspTypes.FILLED_NEAREST, plane, face.getOpposite(), c[0], c[1], c[2], c[3]);
         }
         frames++;
+    }
+
+    private static String structArea;
+    private static boolean structIn;
+
+    /**
+     * Whether the sidebar area names a structure (Mines of Divan, Lost Precursor City, ...; the Nucleus is the walls' own
+     * subject, not one). The sidebar string changes four times a second at most, so the answer is cached on the string.
+     */
+    public static boolean inStructure() {
+        String a = MiningState.area();
+        if (a != structArea) {
+            structArea = a;
+            var s = com.killer560.hub.mining.chmap.ChStructure.fromAreaName(a);
+            structIn = s != null && s != com.killer560.hub.mining.chmap.ChStructure.CRYSTAL_NUCLEUS;
+        }
+        return structIn;
     }
 
     // ---- testkit hooks
