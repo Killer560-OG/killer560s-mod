@@ -39,3 +39,21 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
   (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
+- **Every landing goes through `roomsim/SimArrival`, and the loading bar reads only `SimWorld.progress()`** (simspawn-1104,
+  killer560 2026-11-04: "put into walls or blocks ... the loading bar never updates"). The causes: the F7 boss arena was
+  built by its own ticker with `setBlock` (60k a tick, every write sent to his client while he stood at world spawn
+  inside the box), invisible to the bar, which read only `SimBuildQueue` and so showed 0 before the jobs were queued and
+  again after they finished; a single room loaded from inside showed no screen at all; and every teleport reached the
+  client before the chunks did, so he could fall through chunks it did not have yet. Now the arena is a queue job
+  (`BossArena.ArenaJob`, `RoomPlacer.SectionWriter` unshifted, writes only changed cells: 120-670 ms), `SimArrival.clear`
+  moves a landing that is not two free blocks over something solid, and the client keeps the screen up until the 3x3
+  chunks round the spot are in, putting him back on it if he drifted. The bar is monotonic (0.9 x queue, then the arrival's
+  chunk share) and `SimLoadingScreen.lastDrawn()` is what testkit 1104-sim-spawnload samples. "[SimPhase] build stages"
+  logs each stage's time per build; a cold first world open (vanilla `createFreshLevel`, ~10 s) is now the biggest cost.
+  On 26.2 a floor opened from the title after a boss world never got its landing chunks (0 of 9 for 15 s): the server
+  counted them tracked, but the landing chunk sat at ticket level 33 (loaded, not ticking), and `ChunkHolder.getChunkToSend`
+  sends only ticking chunks; a teleport hop and a re-queue did not help. `SimArrival.place` now adds a self-expiring PORTAL
+  ticket (radius 2) at the landing and sends `ClientboundSetChunkCacheCenterPacket`; on 26.2 the holder STILL read level 33
+  40 ticks later (2026-11-05 gate), so the ticket update never applied there: OPEN, 26.3 passes. Those worlds also opened with
+  "Loading 210 persistent chunks": `BossFight.forget` never un-forced the arena; now SERVER_STOPPING un-forces it and
+  every sim open releases any left (`BossFight.releaseForced`).

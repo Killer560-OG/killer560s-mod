@@ -1183,9 +1183,16 @@ public final class SimBuilder {
                 doorYaw = (float) door[3];
             }
         }
-        final int y = landing;
-        final int fx = x;
-        final int fz = z;
+        // Never into a block (simspawn-1104): a landing that is not a clear standing spot gives way to the nearest one.
+        double[] spot = SimArrival.clear(level, x + 0.5, landing, z + 0.5);
+        final int y = (int) spot[1];
+        final int fx = (int) Math.floor(spot[0]);
+        final int fz = (int) Math.floor(spot[2]);
+        // Held from NOW, on this thread: the build's completion takes the loading screen down through client.execute,
+        // which can run before the teleport task below - the hold has to be in place first.
+        if (uuid != null) {
+            SimArrival.expect(uuid, new double[]{fx + 0.5, y, fz + 0.5});
+        }
         final Float faceYaw = face != null ? Float.valueOf(face[0])
                 : doorYaw != null ? doorYaw : spawn == null ? null : spawn.yaw();
         final Float facePitch = face != null ? Float.valueOf(Math.max(-90f, Math.min(90f, face[1]))) : null;
@@ -1206,6 +1213,7 @@ public final class SimBuilder {
                 }
                 float pitch = facePitch != null ? facePitch : sp.getXRot();
                 sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch, false);
+                sp.fallDistance = 0;
                 if (landed != null) {
                     landed.accept(new float[]{yaw, pitch});
                 }
@@ -1380,7 +1388,7 @@ public final class SimBuilder {
      * <p>A barrier under his feet, because the sim world is void and a player waiting on a loading screen
      * still falls - and falling would drop him back through the region being built.
      */
-    static void holdPlayer(Minecraft client, ServerLevel level) {
+    public static void holdPlayer(Minecraft client, ServerLevel level) {
         // One read: this runs on the server thread, where client.player can go null between a check and a use.
         var player = client.player;
         var uuid = player == null ? null : player.getUUID();
@@ -1787,6 +1795,11 @@ public final class SimBuilder {
             return;
         }
         SimRoomCycle.noteSingleRoomLoad(fromCycle);
+        // From inside the sim (the menu's room list, the room cycle) nothing put the loading screen up: he stood in the
+        // void at the holding spot watching nothing (simspawn-1104).
+        if (!SimWorld.isBuilding()) {
+            SimWorld.showLoading(client, "Loading " + roomName);
+        }
         final int rotation = reset ? resetRotation
                 : tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
         soloLoad = new SoloLoad(room.name, rotation, fromCycle);

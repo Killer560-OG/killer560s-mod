@@ -1,7 +1,6 @@
 package com.killer560.hub.roomsim;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 
 import org.slf4j.Logger;
@@ -63,6 +62,9 @@ public final class SimBuildQueue {
         long totalWork();
 
         long doneWork();
+
+        /** What the loading screen says while this job runs; also the key its time is logged under. */
+        default String stage() { return "Building"; }
     }
 
     /** A {@link Job} that counts positions visited against a total fixed when it is built. */
@@ -182,6 +184,9 @@ public final class SimBuildQueue {
         public long doneWork() { return index; }
 
         @Override
+        public String stage() { return "Lighting the new chunks"; }
+
+        @Override
         public int step(int budget) {
             var level = server.overworld();
             int did = 0;
@@ -287,9 +292,44 @@ public final class SimBuildQueue {
     public static synchronized void submit(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ,
                                            int rotation) {
         markStart();
-        JOBS.add(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
+        submitJob(new RoomPlacer.PasteJob(level, room, gridX, gridZ, rotation));
+    }
+
+    /** Queues any job (the boss arena is one), so it shares the budget, the bar and the stage timings. */
+    public static synchronized void submitJob(Job job) {
+        markStart();
+        JOBS.add(job);
         jobsTotal++;
     }
+
+    /**
+     * The loading screen's second line: the running job's stage and how many jobs are left, or null when idle.
+     * Read once a frame by the screen; the server used to post a line to the client every tick instead.
+     */
+    public static synchronized String detail() {
+        Job head = JOBS.peek();
+        if (head == null) return null;
+        int left = JOBS.size();
+        return left > 1 ? head.stage() + " (" + left + " steps left)" : head.stage();
+    }
+
+    /**
+     * Queues the section-count and light pass ({@link FinishJob}) for a box written straight into its sections, WITHOUT
+     * adding it to the box the next floor's wipe clears (the boss arena stays standing beside the floor).
+     */
+    public static synchronized void submitRelight(net.minecraft.server.MinecraftServer server, int minX, int minZ,
+                                                  int maxX, int maxZ) {
+        java.util.List<Long> chunks = new ArrayList<>();
+        for (int cx = minX >> 4; cx <= (maxX >> 4); cx++) {
+            for (int cz = minZ >> 4; cz <= (maxZ >> 4); cz++) {
+                chunks.add((((long) cx) << 32) ^ (cz & 0xffffffffL));
+            }
+        }
+        submitJob(new FinishJob(server, chunks));
+    }
+
+    /** Milliseconds per stage this build, logged at its end (simspawn-1104: where a slow load's time goes). */
+    private static final java.util.Map<String, long[]> STAGE_NANOS = new java.util.LinkedHashMap<>();
 
     /**
      * Starts the clock if this is the first job of a build.
@@ -383,8 +423,11 @@ public final class SimBuildQueue {
 
         SealJob(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int[] skip) {
             this.skip = skip;
-            this.total = (long) (maxX - minX + 1) * (maxZ - minZ + 1)
-                    * (RoomLibrary.MAX_Y - RoomLibrary.MIN_Y + 1);
+            // Only the ring is ever visited (simspawn-1104: the step walked the whole box, a 2x2 room's 1.5M positions
+            // for its 96k ring ones).
+            long w = maxX - minX + 1, d = maxZ - minZ + 1;
+            this.total = (w * d - Math.max(0, w - 2) * Math.max(0, d - 2))
+                    * (SimAltitude.maxWorldY() - SimAltitude.minWorldY() + 1);
             this.level = level;
             this.minX = minX;
             this.minZ = minZ;
@@ -426,10 +469,15 @@ public final class SimBuildQueue {
                         x = minX;
                         y++;
                     }
+                } else if (x != minX && x != maxX) {
+                    z = maxZ;   // inside the box: straight to the far side of the ring
                 }
             }
             return written;
         }
+
+        @Override
+        public String stage() { return "Sealing the room"; }
     }
 
     /**
@@ -567,6 +615,9 @@ public final class SimBuildQueue {
             }
             return written;
         }
+
+        @Override
+        public String stage() { return "Clearing the old map"; }
     }
 
     /**
@@ -584,6 +635,8 @@ public final class SimBuildQueue {
         onDone = null;
         placedTotal = 0;
         jobsTotal = 0;
+        finishedWork = 0;
+        STAGE_NANOS.clear();
         touchedChunks.clear();
     }
 
@@ -600,7 +653,9 @@ public final class SimBuildQueue {
             int budget = BLOCKS_PER_TICK;
             while (budget > 0 && !JOBS.isEmpty()) {
                 Job job = JOBS.peek();
+                long t0 = System.nanoTime();
                 int placed = job.step(budget);
+                STAGE_NANOS.computeIfAbsent(job.stage(), k -> new long[1])[0] += System.nanoTime() - t0;
                 budget -= Math.max(1, placed);
                 placedTotal += placed;
                 if (job.isDone()) {
@@ -641,17 +696,20 @@ public final class SimBuildQueue {
                 done = onDone;
                 onDone = null;
                 LOGGER.info("Sim build finished: {} block(s) across {} room(s)", placedTotal, jobsTotal);
+                StringBuilder stages = new StringBuilder();
+                STAGE_NANOS.forEach((k, v) -> stages.append(stages.isEmpty() ? "" : ", ").append(k).append(' ')
+                        .append(v[0] / 1_000_000).append(" ms"));
+                LOGGER.info("[SimPhase] build stages: {}", stages);
+                STAGE_NANOS.clear();
                 placedTotal = 0;
                 jobsTotal = 0;
-            } else {
-                // Something to watch while it works, rather than a still frame.
-                int remaining = JOBS.size();
-                Minecraft.getInstance().execute(() ->
-                        SimWorld.buildProgress(remaining + " room(s) left to place"));
             }
         }
         if (done != null) {
+            long t0 = System.currentTimeMillis();
             done.run();
+            LOGGER.info("[SimPhase] after-build work (doors, secrets, puzzles, spawn) took {} ms",
+                    System.currentTimeMillis() - t0);
         }
     }
 }

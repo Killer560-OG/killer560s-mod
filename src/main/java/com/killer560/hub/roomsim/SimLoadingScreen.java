@@ -43,6 +43,11 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     @Override
     public int[] themedPanelBounds() { return themedBounds.clone(); }
 
+    /** The bar's value as last drawn, for the testkit (1104-sim-spawnload watches it rise). */
+    private static volatile float lastDrawn;
+
+    public static float lastDrawn() { return lastDrawn; }
+
     private String what;
     private String detail = "";
     private int ticks;
@@ -50,6 +55,7 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
     public SimLoadingScreen(String what) {
         super(Component.literal("Dungeon Sim"));
         this.what = what == null ? "" : what;
+        lastDrawn = SimWorld.progress();   // never the last load's 100% before this one's first frame
     }
 
     /** Updates the line under the title - the room being placed, or the block count as it lands. */
@@ -85,8 +91,10 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
         if (!what.isEmpty()) {
             ScreenChrome.centered(g, what, panelX + panelW / 2, panelY + 38, MenuStyle.TXT);
         }
-        if (!detail.isEmpty()) {
-            ScreenChrome.centered(g, detail, panelX + panelW / 2, panelY + 52, MenuStyle.DIM);
+        String live = SimWorld.detail();
+        String line = live != null ? live : detail;
+        if (!line.isEmpty()) {
+            ScreenChrome.centered(g, line, panelX + panelW / 2, panelY + 52, MenuStyle.DIM);
         }
 
         // A real bar. killer560 (2026-09-28): "instead of the moving bar at the bottom [...] make an acttual
@@ -98,7 +106,8 @@ public final class SimLoadingScreen extends Screen implements MenuThemedScreen {
         int barX = panelX + 20;
         int barW = panelW - 40;
         int barY = panelY + panelH - 32;
-        float progress = SimBuildQueue.progress();
+        float progress = SimWorld.progress();
+        lastDrawn = progress;
         ScreenChrome.progress(g, barX, barY, barW, 8, progress, MenuStyle.OR);
         String pct = Math.round(progress * 100) + "%";
         ScreenChrome.centered(g, pct, panelX + panelW / 2, barY + 12, MenuStyle.DIM);

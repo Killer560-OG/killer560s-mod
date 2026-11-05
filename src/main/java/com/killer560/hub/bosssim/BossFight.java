@@ -306,6 +306,18 @@ public final class BossFight {
         phase = Phase.IDLE;
     }
 
+    /** Server stopping (before its save): the arena's chunks would be saved forced and load at every later open. */
+    static void serverStopping(MinecraftServer s) {
+        if (s == server) forceChunks(false);
+    }
+
+    /** Un-forces every chunk a fight left forced in {@code lvl} (server thread; the sim forces nothing else). */
+    public static void releaseForced(ServerLevel lvl) {
+        for (long c : lvl.getForceLoadedChunks().toLongArray()) {
+            lvl.setChunkForced(net.minecraft.world.level.ChunkPos.getX(c), net.minecraft.world.level.ChunkPos.getZ(c), false);
+        }
+    }
+
     private static void discard(Entity e) {
         if (e != null && !e.isRemoved()) {
             e.discard();
@@ -404,9 +416,9 @@ public final class BossFight {
     }
 
     static void teleportAll(Vec3 at, float yaw) {
+        // A clear standing spot, held until his client has it (simspawn-1104).
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            p.teleportTo(level, at.x, at.y, at.z, java.util.Set.of(), yaw, 0f, true);
-            p.fallDistance = 0;
+            com.killer560.hub.roomsim.SimArrival.place(p, level, at.x, at.y, at.z, yaw, 0f);
         }
     }
 

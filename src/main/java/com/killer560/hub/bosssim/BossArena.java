@@ -1,9 +1,10 @@
 package com.killer560.hub.bosssim;
 
+import com.killer560.hub.roomsim.RoomPlacer;
+import com.killer560.hub.roomsim.SimBuildQueue;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -35,7 +36,8 @@ import java.util.zip.GZIPInputStream;
  * Reference mod ADM (undonecoffee/adm) ships its own capture of the room; it is All-Rights-Reserved and is NOT used here -
  * only facts about Hypixel's boss (coordinates, lines, timings) were read from it.
  *
- * <p>Blocks are written a slice per server tick ({@link #step}), so the integrated server keeps ticking while it builds.
+ * <p>Blocks are written a slice per server tick (the {@link SimBuildQueue} job {@code ArenaJob}), so the integrated server keeps
+ * ticking while it builds.
  */
 public final class BossArena {
 
@@ -46,8 +48,6 @@ public final class BossArena {
 
     /** P1's floor top block (Maxor), P2's (Storm), P3's ring (Goldor), P4's (Necron), P5's (the Wither King). */
     static final int P1_FLOOR = 220, P2_FLOOR = 168, P3_FLOOR = 106, P4_FLOOR = 62, P5_FLOOR = 4;
-
-    private static final int BLOCKS_PER_TICK = 60_000;
 
     /** One fill of the plan: an inclusive box of one block state. */
     record Fill(int x1, int y1, int z1, int x2, int y2, int z2, BlockState state) {
@@ -80,7 +80,14 @@ public final class BossArena {
         return onDone != null;
     }
 
-    /** Starts a build; {@code done} runs on the server thread once every block is written. */
+    /**
+     * Starts a build; {@code done} runs on the server thread once every block is written and lit.
+     *
+     * <p>A {@link SimBuildQueue} job since simspawn-1104, written straight into the chunk sections like a room paste: it
+     * was {@code level.setBlock} per block (lighting, heightmaps and a client update each) at 60k a tick on its own
+     * ticker, the loading screen's bar read the room queue and sat at 0% the whole time, and he stood inside the box
+     * being built.
+     */
     static void build(ServerLevel level, Runnable done) {
         captured = readCapture();
         capturedCursor = 0;
@@ -90,62 +97,98 @@ public final class BossArena {
         onDone = done;
         source = captured != null ? "capture" : "plan";
         LOGGER.info("[BossSim] arena build from the {} ({} plan fill(s))", source, jobs.size());
+        SimBuildQueue.submitJob(new ArenaJob(level));
+        SimBuildQueue.submitRelight(level.getServer(), X0, Z0, X0 + W - 1, Z0 + D - 1);
+        SimBuildQueue.whenDone(BossArena::finish);
     }
 
-    /** One server tick of building. */
-    static void step(ServerLevel level) {
-        if (onDone == null) {
-            return;
-        }
-        int budget = BLOCKS_PER_TICK;
-        if (captured != null) {
-            long total = (long) captured.w * captured.h * captured.d;
-            while (budget > 0 && capturedCursor < total) {
-                long i = capturedCursor++;
-                int x = (int) (i % captured.w);
-                int z = (int) ((i / captured.w) % captured.d);
-                int y = (int) (i / ((long) captured.w * captured.d));
-                BlockState s = captured.states[captured.cells[(int) i]];
-                BlockPos pos = new BlockPos(captured.x0 + x, captured.y0 + y, captured.z0 + z);
-                if (level.getBlockState(pos) != s) {
-                    level.setBlock(pos, s, BossBlocks.FLAGS);
-                    budget -= 4;
-                } else {
-                    budget--;
-                }
-            }
-            if (capturedCursor < total) {
-                return;
-            }
-        }
-        while (budget > 0 && jobIndex < jobs.size()) {
-            Fill f = jobs.get(jobIndex);
-            int minX = Math.min(f.x1, f.x2), minY = Math.min(f.y1, f.y2), minZ = Math.min(f.z1, f.z2);
-            int sx = Math.abs(f.x2 - f.x1) + 1, sy = Math.abs(f.y2 - f.y1) + 1, sz = Math.abs(f.z2 - f.z1) + 1;
-            long vol = f.volume();
-            while (budget > 0 && jobCursor < vol) {
-                long i = jobCursor++;
-                int x = minX + (int) (i % sx);
-                int z = minZ + (int) ((i / sx) % sz);
-                int y = minY + (int) (i / ((long) sx * sz));
-                BlockPos pos = new BlockPos(x, y, z);
-                if (level.getBlockState(pos) != f.state) {
-                    level.setBlock(pos, f.state, BossBlocks.FLAGS);
-                    budget -= 4;
-                } else {
-                    budget--;
-                }
-            }
-            if (jobCursor >= vol) {
-                jobIndex++;
-                jobCursor = 0;
-            }
-        }
-        if (jobIndex >= jobs.size()) {
-            Runnable done = onDone;
-            onDone = null;
-            captured = null;
+    private static void finish() {
+        Runnable done = onDone;
+        onDone = null;
+        captured = null;
+        if (done != null) {
             done.run();
+        }
+    }
+
+    /** Positions one tick may look at; reads from the section are cheap, so this is well over the write budget. */
+    private static final int SCAN_PER_TICK = 600_000;
+
+    /** The capture, then the plan's fills, a slice per tick through the room paste's section writer. */
+    private static final class ArenaJob implements SimBuildQueue.Job {
+
+        private final RoomPlacer.SectionWriter writer;
+        private final long total;
+        private boolean finished;
+
+        ArenaJob(ServerLevel level) {
+            this.writer = new RoomPlacer.SectionWriter(level, false);
+            long t = captured == null ? 0 : (long) captured.w * captured.h * captured.d;
+            for (Fill f : jobs) {
+                t += f.volume();
+            }
+            this.total = Math.max(1, t);
+        }
+
+        @Override
+        public boolean isDone() { return finished; }
+
+        @Override
+        public long totalWork() { return total; }
+
+        @Override
+        public long doneWork() {
+            long d = captured == null ? 0 : capturedCursor;
+            for (int i = 0; i < jobIndex && i < jobs.size(); i++) {
+                d += jobs.get(i).volume();
+            }
+            return Math.min(total, d + jobCursor);
+        }
+
+        @Override
+        public String stage() { return "Building the F7 boss arena"; }
+
+        @Override
+        public int step(int budget) {
+            int written = 0;
+            int scanned = 0;
+            if (captured != null) {
+                long all = (long) captured.w * captured.h * captured.d;
+                while (written < budget && scanned < SCAN_PER_TICK && capturedCursor < all) {
+                    long i = capturedCursor++;
+                    scanned++;
+                    int x = captured.x0 + (int) (i % captured.w);
+                    int z = captured.z0 + (int) ((i / captured.w) % captured.d);
+                    int y = captured.y0 + (int) (i / ((long) captured.w * captured.d));
+                    if (put(x, y, z, captured.states[captured.cells[(int) i]])) written++;
+                }
+                if (capturedCursor < all) {
+                    return written;
+                }
+            }
+            while (written < budget && scanned < SCAN_PER_TICK && jobIndex < jobs.size()) {
+                Fill f = jobs.get(jobIndex);
+                int minX = Math.min(f.x1, f.x2), minY = Math.min(f.y1, f.y2), minZ = Math.min(f.z1, f.z2);
+                int sx = Math.abs(f.x2 - f.x1) + 1, sz = Math.abs(f.z2 - f.z1) + 1;
+                long vol = f.volume();
+                while (written < budget && scanned < SCAN_PER_TICK && jobCursor < vol) {
+                    long i = jobCursor++;
+                    scanned++;
+                    if (put(minX + (int) (i % sx), minY + (int) (i / ((long) sx * sz)), minZ + (int) ((i / sx) % sz),
+                            f.state)) written++;
+                }
+                if (jobCursor >= vol) {
+                    jobIndex++;
+                    jobCursor = 0;
+                }
+            }
+            finished = jobIndex >= jobs.size();
+            return written;
+        }
+
+        private boolean put(int x, int y, int z, BlockState s) {
+            BlockState old = writer.get(x, y, z);
+            return old != null && old != s && writer.set(x, y, z, s);
         }
     }
 

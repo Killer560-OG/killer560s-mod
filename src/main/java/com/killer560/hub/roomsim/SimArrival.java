@@ -1,0 +1,237 @@
+package com.killer560.hub.roomsim;
+
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.util.ModLog;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Relative;
+
+import org.slf4j.Logger;
+
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Every place the sim puts him (a floor's entrance, a single room, /goto, a boss phase, death's way home) lands here
+ * (simspawn-1104, killer560 2026-11-04: "sometimes spawning into an area i am put into walls or blocks and it takes
+ * forever to load and the loading bar never updates").
+ *
+ * <p>Two halves. On the SERVER the spot is checked: feet and head free of anything with a collision shape or fluid,
+ * something solid underfoot; a spot that fails (the boss's fixed spawns against a capture whose floor sits elsewhere,
+ * a room with no measured floor) gives way to the nearest one that passes. On the CLIENT he is held under the sim's
+ * loading screen until his own world has the chunks round the spot: the teleport reaches him before the chunks do,
+ * and a client standing in chunks it does not have yet falls through them, so once they are in he is put on the spot
+ * again (only if he drifted) and the screen comes down. The sim's own server-side teleport, never the real player's
+ * position: this world is ours (see {@link SimBuilder#snapPlayerTo}).
+ */
+public final class SimArrival {
+
+    private static final Logger LOGGER = ModLog.get("killer560smod-roomsim");
+
+    /** Chunks either side of the landing the client must hold before he is let go. */
+    private static final int RADIUS = 1;
+
+    /** Longest hold, client ticks: a client that never gets the chunks is let in rather than kept on the screen. */
+    private static final int TIMEOUT_TICKS = 20 * 15;
+
+    /** {x, y, z} he is held for, or null. Written on the server thread, read on the render thread. */
+    private static volatile double[] pending;
+    private static volatile UUID who;
+    private static double[] seen;
+    private static int waited;
+    private static boolean replaced;
+    private static boolean showedScreen;
+    private static boolean missedChunks;
+    private static float fraction;
+
+    private SimArrival() {
+    }
+
+    /** Server thread: puts {@code sp} on the clear spot nearest {@code (x, y, z)} and holds his client for it. */
+    public static void place(ServerPlayer sp, ServerLevel level, double x, double y, double z, float yaw, float pitch) {
+        double[] at = clear(level, x, y, z);
+        // A loaded chunk is sent only once it TICKS (ChunkHolder.getChunkToSend). On 26.2, after a world reopen, the landing
+        // sat at ticket level 33 (loaded, not ticking) and never went out: 0 of 9 chunks for 15 s (simspawn-1104). A portal
+        // ticket (it expires by itself after 300 ticks) makes the 3x3 round the spot tick, so vanilla sends them.
+        level.getChunkSource().addTicketWithRadius(net.minecraft.server.level.TicketType.PORTAL,
+                new net.minecraft.world.level.ChunkPos((int) Math.floor(at[0]) >> 4, (int) Math.floor(at[2]) >> 4), 2);
+        sp.teleportTo(level, at[0], at[1], at[2], Set.of(), yaw, pitch, false);
+        sp.fallDistance = 0;
+        var local = Minecraft.getInstance().player;   // only HIS client is held; sim minibosses are ServerPlayers too
+        if (local != null && local.getUUID().equals(sp.getUUID())) {
+            expect(sp.getUUID(), at);
+            // His chunk cache follows him only when the server sees him change chunk; on 26.2 it stayed on an older
+            // one after a world reopen and dropped the landing's chunks (simspawn-1104). One packet makes it sure.
+            sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket(
+                    (int) Math.floor(at[0]) >> 4, (int) Math.floor(at[2]) >> 4));
+        }
+    }
+
+    /**
+     * Server thread: the clear spot nearest {@code (x, y, z)} (feet coordinates), the same point when it already is
+     * one. Searches 6 up and 4 down, then rings out to 4 sideways; with nothing standable the point is kept.
+     */
+    public static double[] clear(ServerLevel level, double x, double y, double z) {
+        BlockPos at = BlockPos.containing(x, y, z);
+        if (standable(level, at)) return new double[]{x, y, z};
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (int r = 0; r <= 4; r++) {
+            for (int dy : DY) {
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                        m.set(at.getX() + dx, at.getY() + dy, at.getZ() + dz);
+                        if (standable(level, m)) {
+                            LOGGER.info("[SimPhase] landing {} was not clear - moved to {}", at.toShortString(),
+                                    m.toShortString());
+                            return new double[]{x + dx, m.getY(), z + dz};
+                        }
+                    }
+                }
+            }
+        }
+        LOGGER.warn("[SimPhase] no clear standing spot within 4 of {} - landing there anyway", at.toShortString());
+        return new double[]{x, y, z};
+    }
+
+    private static final int[] DY = {0, 1, -1, 2, -2, 3, -3, 4, -4, 5, 6};
+
+    /** Feet and head free (no collision, no fluid) and something to stand on. */
+    public static boolean standable(ServerLevel level, BlockPos feet) {
+        BlockPos below = feet.below();
+        return open(level, feet) && open(level, feet.above())
+                && !level.getBlockState(below).getCollisionShape(level, below).isEmpty();
+    }
+
+    private static boolean open(ServerLevel level, BlockPos p) {
+        var s = level.getBlockState(p);
+        return s.getCollisionShape(level, p).isEmpty() && s.getFluidState().isEmpty();
+    }
+
+    /** Any thread: hold {@code uuid}'s client until it has the world round {@code at} ({x, y, z}). */
+    public static void expect(UUID uuid, double[] at) {
+        who = uuid;
+        pending = at;
+    }
+
+    /** Whether a landing is still being waited on (the loading screen stays up for it). */
+    public static boolean holding() { return pending != null; }
+
+    /** 0..1: the share of the landing's chunks the client has. */
+    static float fraction() { return fraction; }
+
+    /** Number of chunks the hold waits for, for the loading screen's line. */
+    static String detail() {
+        int side = 2 * RADIUS + 1;
+        return "Loading the area (" + Math.round(fraction * side * side) + " of " + side * side + " chunks)";
+    }
+
+    /** Client ticks without the landing's chunks before the server is asked to track them again. */
+    private static final int STALL_TICKS = 40;
+
+    /**
+     * Server thread: the landing's chunks have not reached his client after {@link #STALL_TICKS} (seen once on 26.2,
+     * a floor opened from the title right after a boss world: 0 of 9 for 15 s, until the next teleport). Logs what the
+     * server thinks, re-centers his client's chunk cache on him and queues every loaded chunk of his view again (a
+     * teleport hop out and back did not help: the server already counted them sent).
+     */
+    private static void retrack(net.minecraft.server.MinecraftServer server, UUID id, double[] at) {
+        ServerPlayer sp = server.getPlayerList().getPlayer(id);
+        if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
+        int cx = (int) Math.floor(at[0]) >> 4;
+        int cz = (int) Math.floor(at[2]) >> 4;
+        var map = level.getChunkSource().chunkMap;
+        long key = net.minecraft.world.level.ChunkPos.pack(cx, cz);
+        var holder = map.getUpdatingChunkIfPresent(key);
+        LOGGER.warn("[SimPhase] landing chunk {},{} not on his client after {} ticks: server has him at {} (chunk {}), chunk"
+                        + " loaded {}, tracked {}, pending send {}, ticket level {}, ticking {}, send sync done {} - re-sending",
+                cx, cz, STALL_TICKS, sp.blockPosition().toShortString(), sp.chunkPosition(),
+                level.getChunkSource().getChunkNow(cx, cz) != null, map.isChunkTracked(sp, cx, cz),
+                sp.connection.chunkSender.isPending(key), holder == null ? -1 : holder.getTicketLevel(),
+                holder != null && holder.getTickingChunk() != null, holder != null && holder.getSendSyncFuture().isDone());
+        // Seen on 26.2: the server counts them sent, but his client's chunk cache is still centered on an older chunk
+        // (-2,-12 for a landing at -4,-2) and drops every chunk outside it. Center it on him, then send his view again.
+        sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket(cx, cz));
+        sp.getChunkTrackingView().forEach(pos -> {
+            var c = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+            if (c != null) sp.connection.chunkSender.markChunkPendingToSend(c);
+        });
+    }
+
+    /** Render thread, every client tick (one volatile read when nothing is held). */
+    static void clientTick(Minecraft client) {
+        double[] at = pending;
+        if (at == null) return;
+        if (at != seen) {   // a new landing: its own wait (these fields are the render thread's alone)
+            seen = at;
+            waited = 0;
+            replaced = false;
+            missedChunks = false;
+        }
+        if (client.level == null || client.player == null) {
+            pending = null;
+            return;
+        }
+        int cx = (int) Math.floor(at[0]) >> 4;
+        int cz = (int) Math.floor(at[2]) >> 4;
+        int have = 0;
+        int side = 2 * RADIUS + 1;
+        for (int dx = -RADIUS; dx <= RADIUS; dx++) {
+            for (int dz = -RADIUS; dz <= RADIUS; dz++) {
+                if (client.level.getChunkSource().hasChunk(cx + dx, cz + dz)) have++;
+            }
+        }
+        fraction = have / (float) (side * side);
+        boolean timedOut = ++waited > TIMEOUT_TICKS;
+        if (have < side * side && !timedOut) {
+            missedChunks = true;
+            if (waited == STALL_TICKS && client.getSingleplayerServer() != null && who != null) {
+                var srv = client.getSingleplayerServer();
+                UUID id = who;
+                srv.execute(() -> retrack(srv, id, at));
+            }
+            // Only now, so a /goto into chunks he already has never flashes the screen.
+            if (McCompat.screen(client) == null) {
+                SimWorld.resetBar();
+                SimLoadingScreen.show(client, "Loading the area");
+                showedScreen = true;
+            }
+            return;
+        }
+        if (timedOut) {
+            LOGGER.warn("[SimPhase] the client still had {} of {} chunks round the landing after {} ticks - letting him in",
+                    have, side * side, waited);
+        }
+        var server = client.getSingleplayerServer();
+        UUID uuid = who;
+        // Only after a wait for chunks (with them all there from the first tick he cannot have fallen), and only when he
+        // is below the spot: one he left sideways was a later teleport (a test's /tp), not a fall.
+        double dx = client.player.getX() - at[0], dz = client.player.getZ() - at[2];
+        if (missedChunks && client.player.getY() < at[1] - 0.2 && dx * dx + dz * dz < 4 && !timedOut) {
+            if (replaced || server == null || uuid == null) return;   // the put-back is on its way
+            // He fell while the chunks were on their way: put him back on the spot. The
+            // rotation is kept relative, so his look is untouched.
+            replaced = true;
+            server.execute(() -> {
+                ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+                if (sp != null) {
+                    sp.teleportTo((ServerLevel) sp.level(), at[0], at[1], at[2], Set.of(Relative.Y_ROT, Relative.X_ROT),
+                            0f, 0f, false);
+                    sp.fallDistance = 0;
+                }
+            });
+            return;
+        }
+        if (pending == at) pending = null;
+        LOGGER.info("[SimPhase] arrived at {} {} {} after {} tick(s) of waiting for chunks", Math.round(at[0]),
+                Math.round(at[1]), Math.round(at[2]), waited);
+        if (!SimWorld.isBuilding() && (showedScreen || McCompat.screen(client) instanceof SimLoadingScreen)) {
+            SimLoadingScreen.dismiss(client);
+        }
+        showedScreen = false;
+        missedChunks = false;
+    }
+}
