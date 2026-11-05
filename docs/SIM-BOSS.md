@@ -32,9 +32,20 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 killer560smod-sim-bossarena.bin`, format K5BA v1: gzip, box, palette of block-state strings, run-length cells) when one
 exists, else the built-in plan: plain floors at P1 220, P2 168, P3 106 (lava inside the ring), P4 62 (lava with
 Necron's platforms), P5 4; every terminal on a command block on a pillar with a slab stair down toward the section's
-middle; gates as iron blocks; the core with a gold door. No capture exists yet (2026-11-01): ask him to run
-`/simbosscapture` once at the start of an F7/M7 P1. Over a capture the plan still re-lays the blocks a fight changes
-(holes, gates, levers, device walls) at the plan's positions - check those against the capture once one exists.
+middle; gates as iron blocks; the core with a gold door. Over a capture NOTHING of the plan is laid (bossfloor-1104):
+re-writing the capture resets every block a fight changed, and the plan's gates, holes, pillars, Necron platforms and
+device walls had been sitting on the real room (a gray pad on Storm's red floor, iron gate walls, gray concrete for Lights'
+redstone lamps, an obsidian slab over the Simon Says frame, the Target plate floating). His capture of 2026-11-04 22:18 is
+`killer560s-mod-logs/fixtures/boss-arena-1104.bin` (testkit 1104-boss-capture diffs the built room against it; read it with
+`killer560s-mod-logs/bossfloor-1104/cap.py`, `slice.py`, `find.py`). What the capture shows of Hypixel's room: the gates at
+P1 are BARRIER walls in nether-brick frames (`BossBlocks.open` clears only barrier/iron/gold in a gate's box); Lights' lamps
+are redstone lamps (a pull is answered in `BossDevices.pullLight` with no redstone updates, lamps set by Hypixel's rule);
+the Target plate is a light weighted plate at (63, 127, 35) on blue terracotta; the P3 ground is ~y 111-114, not the plan's
+106. A capture is read as the client SHOWS the room, so one taken with I Hate Diorite on has stained glass in Storm's
+pillars: `readCapture` puts polished diorite back. Item frames are entities, never in a capture: the Arrows frames hang
+from the fight's start (`BossDevices.arrows`). All sim lava and fire stand still (`SimStaticWater.holdsStill`, SimStillFireMixin), as Hypixel's, and the capture build skips onPlace (`UPDATE_SKIP_ON_PLACE`), so its hoppers keep `enabled=false` and nothing schedules a tick.
+Still unverified against Hypixel: what the gates look like once P3 starts and where the core door really is (the plan's
+box at z 58 is solid stone in the capture, so opening it now clears nothing) - a capture taken in P3 would settle both.
 
 ## The fight
 
@@ -78,7 +89,7 @@ the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hit
 ## Tests
 
 testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3, -portal, 1102-boss-maxorcrys, 1103-boss-moves (boss
-positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks) - only when named.
+positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks), 1104-boss-capture (the room built from his capture equals it; Lights, SS, frames, still lava, gates on it) - only when named.
 
 ## Lessons
 

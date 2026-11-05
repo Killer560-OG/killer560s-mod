@@ -360,6 +360,7 @@ public final class BossFight {
         kingLine = 0;
         LOGGER.info("[BossSim] fight begins at {} ({})", from, master ? "Master Mode" : "Floor 7");
         com.killer560.hub.secrets.DungeonState.simBossBegins();
+        BossDevices.arrows(level, from.ordinal() > Start.S3.ordinal());
         switch (from) {
             case P1 -> startP1(true);
             case P2 -> {
@@ -1373,8 +1374,7 @@ public final class BossFight {
         BossStations.spawn(level, section);
         BossDevices.start(level, section);
         for (int done = 1; done < section && done <= 3; done++) {
-            BossBlocks.fill(level, BossStations.GATES[done - 1][0], BossStations.GATES[done - 1][1], BossStations.GATES[done - 1][2],
-                    BossStations.GATES[done - 1][3], BossStations.GATES[done - 1][4], BossStations.GATES[done - 1][5], BossBlocks.AIR);
+            BossBlocks.open(level, BossStations.GATES[done - 1]);
         }
         if (section >= 5) {
             openCore(false);
@@ -1565,7 +1565,7 @@ public final class BossFight {
         BossChat.chat(server, "§aThe gate has been destroyed!");
         BossChat.title(server, "", "§aThe gate has been destroyed!", 0, 40, 0);
         // The blocks go 1 tick after the line, as Hypixel's.
-        later(1, "gate blocks", () -> BossBlocks.fill(level, g[0], g[1], g[2], g[3], g[4], g[5], BossBlocks.AIR));
+        later(1, "gate blocks", () -> BossBlocks.open(level, g));
         goldorLines.add(GOLDOR_SECTION_LINES[RNG.nextInt(GOLDOR_SECTION_LINES.length)]);
         section = sec + 1;
         LOGGER.info("[BossSim] gate {} down, S{} in progress at P3 t {}", sec, section, t);
@@ -1589,8 +1589,7 @@ public final class BossFight {
             BossChat.chat(server, "§aThe Core entrance is opening!");
             BossChat.title(server, "", "§aThe Core entrance is opening!", 0, 40, 0);
         }
-        later(1, "core door", () -> BossBlocks.fill(level, 52, BossArena.P3_FLOOR + 1, 58, 57, BossArena.P3_FLOOR + 6, 58,
-                BossBlocks.AIR));
+        later(1, "core door", () -> BossBlocks.open(level, 52, BossArena.P3_FLOOR + 1, 58, 57, BossArena.P3_FLOOR + 6, 58));
     }
 
     private static void hitGoldor() {

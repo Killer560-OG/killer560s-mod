@@ -5,6 +5,7 @@ import com.killer560.hub.util.ModPaths;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.slf4j.Logger;
@@ -108,7 +109,7 @@ public final class BossArena {
                 BlockState s = captured.states[captured.cells[(int) i]];
                 BlockPos pos = new BlockPos(captured.x0 + x, captured.y0 + y, captured.z0 + z);
                 if (level.getBlockState(pos) != s) {
-                    level.setBlock(pos, s, BossBlocks.FLAGS);
+                    level.setBlock(pos, s, BossBlocks.FLAGS | Block.UPDATE_SKIP_ON_PLACE); // as captured: a hopper keeps enabled=false
                     budget -= 4;
                 } else {
                     budget--;
@@ -162,8 +163,7 @@ public final class BossArena {
     }
 
     /**
-     * The built-in room. With a capture, only the parts every fight rewrites (gates, holes, levers, device blocks) are
-     * re-laid on top, so a rebuild resets them; without one, the whole room.
+     * The built-in room, or nothing over a capture (the capture resets every block a fight changed).
      */
     static List<Fill> plan(boolean overCapture) {
         List<Fill> out = new ArrayList<>();
@@ -236,7 +236,12 @@ public final class BossArena {
                 box(out, st[0] - 1, P5_FLOOR + 1, st[2] - 1, st[0] + 1, st[1], st[2] + 1, "minecraft:stone_bricks");
             }
         }
-        // ---- what every fight rewrites (also over a capture) -----------------------------------------------------
+        if (overCapture) {
+            // The capture IS the room: its own copy of every block a fight changes is already written, so nothing of the
+            // plan goes over it (bossfloor-1104: the plan's gates, holes, pillars and device walls sat on the real room).
+            return out;
+        }
+        // ---- what every fight rewrites --------------------------------------------------------------------------
         // Maxor's floor over Storm: whole again (Maxor's death opens it).
         box(out, BossFight.P1_HOLE[0], P1_FLOOR, BossFight.P1_HOLE[1], BossFight.P1_HOLE[2], P1_FLOOR, BossFight.P1_HOLE[3],
                 "minecraft:quartz_block");
@@ -351,10 +356,37 @@ public final class BossArena {
         box(out, -3, 119, 73, -3, 126, 81, "minecraft:stone_bricks");
         box(out, -2, 118, 72, 3, 118, 82, "minecraft:stone_bricks");
         platform(out, 1, 118, 77, 3, 2);
-        // Target (S4): the target wall z 50 (x 64..68, y 126..130) and a floor at 125 to shoot from.
+        // Target (S4): the target wall z 50 (x 64..68, y 126..130) and a floor at 126 to shoot from (the plate on it at 127).
         box(out, 62, 124, 50, 70, 132, 50, "minecraft:stone_bricks");
-        box(out, 60, 125, 32, 67, 125, 37, "minecraft:stone_bricks");
-        platform(out, 63, 125, 34, 4, 2);
+        box(out, 60, 126, 32, 67, 126, 37, "minecraft:blue_terracotta");
+        platform(out, 63, 126, 34, 4, 2);
+    }
+
+    /**
+     * A capture reads the blocks as this client shows them, so one taken with I Hate Diorite on holds its client-side
+     * stained glass in Storm's pillars (bossfloor-1104): put Hypixel's polished diorite back there.
+     */
+    private static BlockState[] undoDioriteGlass(int x0, int y0, int z0, int w, int d, BlockState[] states, short[] cells) {
+        short diorite = -1;
+        int undone = 0;
+        for (int i = 0; i < cells.length; i++) {
+            BlockState st = states[cells[i]];
+            if (st.getBlock() instanceof net.minecraft.world.level.block.StainedGlassBlock
+                    && com.killer560.hub.diorite.DioriteGlassFeature.isPillarGlass(
+                            new BlockPos(x0 + i % w, y0 + i / (w * d), z0 + (i / w) % d), st)) {
+                if (diorite < 0) {
+                    diorite = (short) states.length;
+                    states = java.util.Arrays.copyOf(states, states.length + 1);
+                    states[diorite] = BossBlocks.of("minecraft:polished_diorite");
+                }
+                cells[i] = diorite;
+                undone++;
+            }
+        }
+        if (undone > 0) {
+            LOGGER.info("[BossSim] capture: {} pillar glass block(s) back to diorite (taken with I Hate Diorite on)", undone);
+        }
+        return states;
     }
 
     /** A capture as read back: the box, its palette and one palette index per cell (x fastest, then z, then y). */
@@ -396,6 +428,7 @@ public final class BossArena {
                 java.util.Arrays.fill(cells, i, Math.min(cells.length, i + run), v);
                 i += run;
             }
+            states = undoDioriteGlass(x0, y0, z0, w, d, states, cells);
             return new Captured(x0, y0, z0, w, h, d, states, cells);
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("[BossSim] could not read the boss capture {} - using the built-in plan", p, e);

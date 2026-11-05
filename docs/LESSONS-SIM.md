@@ -39,3 +39,9 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
   (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
+- A built-in plan laid "over" a capture overwrites the real room: BossArena re-laid its gates, holes, pillars and device
+  walls on top of his F7 boss capture, so the sim showed iron walls, a gray pad, gray concrete lamps and a floating plate
+  that Hypixel does not have (bossfloor-1104). Over a capture lay nothing; a fight mechanic changes only the blocks Hypixel
+  changes (a gate clears its barriers, not its box), and a capture read off the client carries the mod's own client-side
+  edits (I Hate Diorite's glass) - undo those when reading. Testkit 1104-boss-capture diffs the whole box; it read 342 cells off
+  until fire ticks were canceled and the build placed with `UPDATE_SKIP_ON_PLACE` (hoppers' onPlace re-checked power).

@@ -88,11 +88,22 @@ public final class DioriteGlassFeature {
         if (!active()) {
             return null;
         }
+        Pillar pillar = pillarAt(pos);
+        return pillar == null ? null : pillar.glass();
+    }
+
+    /** Whether {@code state} at {@code pos} is this feature's glass standing in for a pillar's diorite (any build). */
+    public static boolean isPillarGlass(BlockPos pos, BlockState state) {
+        Pillar pillar = pillarAt(pos);
+        return pillar != null && state == pillar.glass();
+    }
+
+    private static Pillar pillarAt(BlockPos pos) {
         for (Pillar pillar : PILLARS) {
             BlockPos c = pillar.center();
             if (Math.abs(pos.getX() - c.getX()) <= RADIUS && Math.abs(pos.getZ() - c.getZ()) <= RADIUS
                     && pos.getY() >= c.getY() && pos.getY() <= c.getY() + HEIGHT) {
-                return pillar.glass();
+                return pillar;
             }
         }
         return null;

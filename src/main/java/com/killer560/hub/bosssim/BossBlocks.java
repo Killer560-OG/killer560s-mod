@@ -49,6 +49,28 @@ final class BossBlocks {
         set(level, new BlockPos(x, y, z), of(state));
     }
 
+    /**
+     * Opens a gate or door: clears only its gate blocks in the box (the built-in plan's iron and gold, a capture's
+     * barriers), never the room's walls around it (bossfloor-1104: a full-box clear cut a capture's walls open).
+     */
+    static void open(ServerLevel level, int x1, int y1, int z1, int x2, int y2, int z2) {
+        for (int x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+            for (int y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+                for (int z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    BlockState s = level.getBlockState(p);
+                    if (s.is(Blocks.IRON_BLOCK) || s.is(Blocks.GOLD_BLOCK) || s.is(Blocks.BARRIER)) {
+                        level.setBlock(p, AIR, FLAGS);
+                    }
+                }
+            }
+        }
+    }
+
+    static void open(ServerLevel level, int[] g) {
+        open(level, g[0], g[1], g[2], g[3], g[4], g[5]);
+    }
+
     /** Fills an inclusive box (any corner order). */
     static void fill(ServerLevel level, int x1, int y1, int z1, int x2, int y2, int z2, BlockState state) {
         for (int x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
