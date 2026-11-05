@@ -58,7 +58,7 @@ public class BazaarOrderHelperTab extends BaseTab {
         return widgets;
     }
 
-    private static AbstractWidget colorButton(String label, int argb, int defaultArgb, IntConsumer set, int x, int y, int w) {
+    static AbstractWidget colorButton(String label, int argb, int defaultArgb, IntConsumer set, int x, int y, int w) {
         return SettingsButtonWidget.builder(ColorSwatch.label(label, argb), btn -> {
             Minecraft client = Minecraft.getInstance();
             McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label, argb, defaultArgb,

@@ -501,6 +501,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.auction.AuctionHouseFeature.register();
         com.killer560.hub.bazaar.BazaarFeature.register();
         com.killer560.hub.auction.ListingHelperFeature.register();
+        com.killer560.hub.reforge.ReforgeHelperFeature.register();
         com.killer560.hub.supporters.SupportersFeature.register();
         com.killer560.hub.commandshortcuts.CommandShortcutsFeature.register();
         HudElementRegistry.register(new EtherwarpHudElement());

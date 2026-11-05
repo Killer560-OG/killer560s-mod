@@ -326,6 +326,24 @@ public final class ItemRarityFeature {
         return new CacheEntry(lore, data, name, tooltipStyle, null, hasId);
     }
 
+    /** The lowest rarity line of {@code stack}'s lore split into {rarity, the words after it}: {"LEGENDARY", "DUNGEON
+     *  SWORD a"} for "a LEGENDARY DUNGEON SWORD a" (the words are "" when there are none), or null. Not cached. */
+    public static String[] loreRarityLine(ItemStack stack) {
+        ItemLore lore = stack == null ? null : stack.get(DataComponents.LORE);
+        if (lore == null) {
+            return null;
+        }
+        List<Component> lines = lore.lines();
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            String s = net.minecraft.ChatFormatting.stripFormatting(lines.get(i).getString());
+            Matcher m = LORE_RARITY.matcher(s == null ? "" : s.replace(' ', ' ').trim());
+            if (m.find()) {
+                return new String[]{m.group(1), m.replaceFirst("").trim()};
+            }
+        }
+        return null;
+    }
+
     /** "LEGENDARY SWORD", "a EPIC DUNGEON HELMET a", "VERY SPECIAL", "SHINY MYTHIC ..." -&gt; rarity. */
     static ItemRarity fromLoreLine(String raw) {
         if (raw == null || raw.isEmpty()) {
