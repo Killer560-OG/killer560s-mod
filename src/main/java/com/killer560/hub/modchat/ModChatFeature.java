@@ -80,6 +80,7 @@ public final class ModChatFeature {
         // otherwise choosing Lobby would silently stop data sharing. Mod Chat keeps its chosen mode everywhere else.
         boolean dataNeedsParty = dataOn && com.killer560.hub.secrets.DungeonState.isInDungeon();
         RelayRoom.Mode mode;
+        boolean held = false;
         if (dataNeedsParty) {
             mode = RelayRoom.Mode.PARTY;
         } else if (chNeedsLobby) {
@@ -87,9 +88,17 @@ public final class ModChatFeature {
             mode = RelayRoom.Mode.LOBBY;
         } else if (chatOn) {
             mode = cfg.getRoomMode();
+            // Mod Chat is ON by default in Party mode, so with no party it chose no room and Song Tag never connected
+            // (killer560, 2026-11-04: "i still cant see other peoples song"): Song Tag then takes the lobby room, and
+            // Mod Chat neither sends nor shows a line there (chatHeld), so it still only reaches the party he chose.
+            held = songsOn && mode == RelayRoom.Mode.PARTY && RelayRoom.current(mode) == null;
+            if (held) {
+                mode = RelayRoom.Mode.LOBBY;
+            }
         } else {
             mode = songsOn ? RelayRoom.Mode.LOBBY : RelayRoom.Mode.PARTY;
         }
+        chatHeld = held;
         lastMode = mode;
         // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
         // never sends /locraw at all.
@@ -103,6 +112,8 @@ public final class ModChatFeature {
 
     /** Test hook: the room mode the last check chose. */
     private static volatile RelayRoom.Mode lastMode;
+    /** The relay is in the lobby room only for Song Tag while Mod Chat is set to Party: no chat in or out. */
+    private static volatile boolean chatHeld;
 
     /** Song Tag needs the relay: you share your song, or you want to see other players'. */
     static boolean songTagWantsRelay() {
@@ -126,6 +137,9 @@ public final class ModChatFeature {
             // RelayEndpoint.DEFAULT_BASE_URL, not something the player sets. Defensive only (e.g. a
             // corrupted build), so this doesn't send them looking for a settings field that doesn't exist.
             return "§c[ModChat] Relay address invalid - nothing was sent. This is a bug, not a setting to fix.";
+        }
+        if (chatHeld) {
+            return "§c[ModChat] Mod Chat is set to Party and you are not in a party - nothing was sent.";
         }
         if (!RelayClient.sendChat(message)) {
             // Never "well, send it over party chat instead" - that is the leak he reported.
@@ -225,7 +239,7 @@ public final class ModChatFeature {
             boolean whisper = rawMessage.startsWith(WHISPER_PREFIX);
             Minecraft.getInstance().execute(() -> {
                 ModChatConfig cfg = ModChatConfig.getInstance();
-                if (!cfg.isEnabled()) {
+                if (!cfg.isEnabled() || chatHeld) {
                     return;
                 }
                 if (whisper) {
