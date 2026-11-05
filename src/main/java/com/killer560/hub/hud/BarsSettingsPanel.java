@@ -23,7 +23,7 @@ import java.util.List;
  * Health and Mana Bars rows ({@link HealthAndManaBarsTab#editorWidgets}), the same widgets and setters, so there is no
  * second copy of any setting; the bars draw from the config every frame, so a change shows at once. The wheel scrolls
  * it; only whole rows in view are the screen's children. It stops above the bars in the lower half of the screen that
- * share its columns, and sits Right, Left or Hidden ({@code PlayerStatsConfig.editorPanel}).
+ * share its columns and starts below those in the upper half, and sits Right, Left or Hidden ({@code PlayerStatsConfig.editorPanel}).
  */
 final class BarsSettingsPanel {
 
@@ -64,8 +64,8 @@ final class BarsSettingsPanel {
 
     /**
      * Lays the panel out on a {@code sw x sh} screen and returns its widgets: the side button, then every row wholly in
-     * view. {@code avoid} are the bars' boxes {x0, y0, x1, y1}; one in the lower half under the panel's columns ends
-     * the panel above it.
+     * view. {@code avoid} are the bars' boxes {x0, y0, x1, y1}: one under the panel's columns in the lower half ends
+     * the panel above it, one in the upper half starts it below, so it covers a bar only when no room is left.
      */
     List<AbstractWidget> layout(int sw, int sh, List<int[]> avoid, Runnable rebuild) {
         PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
@@ -75,8 +75,12 @@ final class BarsSettingsPanel {
         y = 4;
         int bottom = sh - 4;
         for (int[] b : avoid) {
-            if (b[1] > sh / 2 && b[0] < x + w && b[2] > x) {
-                bottom = Math.min(bottom, b[1] - 14);
+            if (b[0] < x + w && b[2] > x) {
+                if (b[1] > sh / 2) {
+                    bottom = Math.min(bottom, b[1] - 14);
+                } else {
+                    y = Math.max(y, b[3] + 14);
+                }
             }
         }
         h = Math.max(ROW * 3, bottom - y);
