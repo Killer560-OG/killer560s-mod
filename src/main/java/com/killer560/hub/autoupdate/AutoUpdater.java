@@ -144,7 +144,7 @@ public final class AutoUpdater {
         return n >= 7 && a.substring(0, n).equals(b.substring(0, n));
     }
 
-    private static HttpClient client() {
+    public static HttpClient client() {
         return HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -266,7 +266,7 @@ public final class AutoUpdater {
         Path part = dir.resolve(assetName + ".part");
         String actual;
         try {
-            actual = download(http, jarUrl, part);
+            actual = download(http, jarUrl, part, MAX_JAR_BYTES);
         } catch (Exception e) {
             Files.deleteIfExists(part);
             throw e;
@@ -337,8 +337,9 @@ public final class AutoUpdater {
         return v > 0 ? v : DEFAULT_STALL_MILLIS;
     }
 
-    /** Streams {@code url} into {@code out}, returning its SHA-256. */
-    private static String download(HttpClient http, String url, Path out) throws Exception {
+    /** Streams {@code url} into {@code out}, returning its SHA-256; more than {@code maxBytes} fails. Blocking, off the
+     *  render thread (also the main menu theme downloads, mainmenu/ThemeAssets). */
+    public static String download(HttpClient http, String url, Path out, long maxBytes) throws Exception {
         final long stallMs = stallMillis();
         // How often the stall watchdog looks at the download's progress.
         final long checkMs = Math.max(50, Math.min(5_000, stallMs / 4));
@@ -392,8 +393,8 @@ public final class AutoUpdater {
                 while ((n = in.read(buf)) > 0) {
                     lastByteNanos.set(System.nanoTime());
                     total += n;
-                    if (total > MAX_JAR_BYTES) {
-                        throw new IOException(url + " is larger than " + MAX_JAR_BYTES + " bytes");
+                    if (total > maxBytes) {
+                        throw new IOException(url + " is larger than " + maxBytes + " bytes");
                     }
                     md.update(buf, 0, n);
                     os.write(buf, 0, n);

@@ -26,11 +26,16 @@ public final class MainMenuSettings {
         MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
         widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Main Menu", false), font));
         y += 16;
-        if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(x, y, w, 12,
-                    Component.literal("§7Themed Main Menu is off (Display Options): the main menu is Minecraft's."), font));
-            y += 16;
-        }
+        // "No custom title screen" (themedl-1104, killer560 2026-11-04): Display Options' Themed Main Menu, here too. Off is
+        // Minecraft's own title screen, and then no theme picture or music is ever downloaded.
+        widgets.add(SettingsButtonWidget.builder(customTitleText(), btn -> {
+                    MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
+                    c.setThemed(!c.isEnabled());
+                    c.save();
+                    btn.setMessage(customTitleText());
+                    ThemeAssets.requestLook(MainMenuLook.current());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
         widgets.add(SettingsButtonWidget.cycling(styleText(), (btn, dir) -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
                     c.setStyle(SettingsButtonWidget.step(c.getStyle(), dir));
@@ -55,6 +60,23 @@ public final class MainMenuSettings {
                     c.setOtherMenus(!c.isOtherMenus());
                     c.save();
                     btn.setMessage(vanillaText());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
+        // Downloaded theme pictures and music are never deleted on their own (killer560, 2026-11-04); this asks first and
+        // keeps what the main menu uses now. A deleted theme downloads again when it is picked.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Delete Unused Downloaded Themes"), btn -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    net.minecraft.client.gui.screens.Screen parent = com.killer560.hub.compat.McCompat.screen(mc);
+                    com.killer560.hub.compat.McCompat.setScreen(mc, new net.minecraft.client.gui.screens.ConfirmScreen(yes -> {
+                        if (yes) {
+                            ThemeAssets.deleteUnused().thenAccept(r -> mc.execute(() -> com.killer560.hub.util.ModChat.send(
+                                    "Main Menu", Component.literal("Deleted " + r[0] + " unused theme download"
+                                            + (r[0] == 1 ? "" : "s") + String.format(java.util.Locale.ROOT, " (%.1f MB).", r[1] / 1_048_576.0)))));
+                        }
+                        com.killer560.hub.compat.McCompat.setScreen(mc, parent);
+                    }, Component.literal("Delete the downloaded themes not in use?"),
+                            Component.literal("Every downloaded main menu picture and theme music except the main menu's "
+                                    + "current one is deleted. A deleted theme downloads again when you pick it.")));
                 }).bounds(x, y, w, 20).build());
         y += 24;
         if (cfg.getStyle() == MainMenuThemeConfig.Style.MATCH) return y;
@@ -115,6 +137,10 @@ public final class MainMenuSettings {
             c.setDensity(MainMenuThemeConfig.Density.values()[next - 1]);
         }
         c.save();
+    }
+
+    static Component customTitleText() {
+        return Component.literal("Custom Title Screen: " + (MainMenuThemeConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     static Component styleText() {

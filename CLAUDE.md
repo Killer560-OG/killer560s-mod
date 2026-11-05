@@ -99,6 +99,13 @@ with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/D
 boss-phase detection; `util/ViewFreeze` holds the camera still while something rotates the real player.
 Main menu pictures: he (or a theme's designer) paints them and we only animate them (killer560, 2026-10-16) -
 `mainmenu/PictureScene` is the pipeline (texture, patches, ripples, overlays); `TargetScene` and `MilkyWayTexScene` are specs.
+Theme assets on demand (themedl-1104): the full main menu pictures and the theme music loops live in `theme-assets/` at the
+repo root, never in the jar. `python tools/theme-assets.py` writes the in-jar previews (a quarter size; Amber's full size at
+medium quality) and the manifest `assets/killer560smod/theme-assets.json` (name, sha256, size) and copies the files to
+`build/theme-assets/`; after changing a file, bump its `RELEASE` and upload those files to that GitHub release as a
+PRE-RELEASE (never marked latest, or Auto Update's /releases/latest stops finding the mod). `mainmenu/ThemeAssets`
+downloads through ModNet service `theme-assets` into the shared store's `theme-assets/`, never with the custom title
+screen off, and never deletes on its own.
 
 ## Conventions
 

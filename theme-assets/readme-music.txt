@@ -1,4 +1,6 @@
 Theme Music loops for killer560's Mod (Menu Theme > Theme Extras > Theme Music)
+(Since themedl-1104 these loops are GitHub release assets, made by tools/theme-assets.py and downloaded by the mod when
+their theme is shown; they are no longer inside the jar.)
 
 theme_amber.ogg   Amber Loop     (Amber theme)
 theme_dark.ogg    Dark Loop      (Dark theme)

@@ -3,6 +3,7 @@ package com.killer560.hub.menuthemes;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.mainmenu.MainMenuLook;
+import com.killer560.hub.mainmenu.ThemeAssets;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -30,7 +31,7 @@ import java.util.List;
  * off, or the theme's track set to Off, the game's music plays exactly as before. Default ON (killer560, 2026-10-22: on by default, each theme
  * its own track); a config that saved OFF keeps OFF.
  * <p>Bundled tracks: one original loop per preset theme, made for this mod by its owner (see
- * {@code assets/killer560smod/sounds/music/readme.txt}; lower case, as a resource path must be). Custom has no track of its own; it can pick any of them.
+ * {@code theme-assets/readme-music.txt}; release assets since themedl-1104, downloaded by {@link ThemeAssets}). Custom has no track of its own; it can pick any of them.
  * <p>Ticked at END_CLIENT_TICK; nothing here waits: a change of theme or track is heard on the next tick.
  */
 public final class ThemeMusic {
@@ -39,8 +40,11 @@ public final class ThemeMusic {
 
     public static final String BUNDLED_PREFIX = "bundled:";
 
-    /** A bundled loop: its id, label and sound event. */
+    /** A theme's own loop: its id, label and the stream id it plays under. Not in the jar since themedl-1104: it is a
+     *  {@link ThemeAssets} download ({@link #asset}), streamed from the cached file like an imported track. */
     public record Bundled(String id, String label, Identifier event) {
+        /** Its release asset name, {@code theme_amber.ogg}. */
+        public String asset() { return "theme_" + id + ".ogg"; }
     }
 
     private static final List<Bundled> BUNDLED = List.of(
@@ -64,6 +68,7 @@ public final class ThemeMusic {
     private static MenuTheme resolvedTheme;
     private static int resolvedVersion = Integer.MIN_VALUE;
     private static Track resolvedTrack;
+    private static int resolvedAssets = Integer.MIN_VALUE;
 
     // testkit evidence (the test client is muted, so the engine's answer is what proves the track was handed over)
     private static volatile int starts;
@@ -76,7 +81,7 @@ public final class ThemeMusic {
     }
 
     private static Bundled bundled(String id, String label) {
-        return new Bundled(id, label, Identifier.fromNamespaceAndPath("killer560smod", "theme_music_" + id));
+        return new Bundled(id, label, Identifier.fromNamespaceAndPath("killer560smod", "thememusic/theme_" + id));
     }
 
     public static List<Bundled> bundled() { return BUNDLED; }
@@ -150,23 +155,35 @@ public final class ThemeMusic {
         return id.startsWith(ThemeMusicFiles.IMPORT_PREFIX) ? ThemeMusicFiles.label(id) : id;
     }
 
-    /** What a choice plays: a bundled event, or an imported file under its stream key. */
-    record Track(Identifier id, boolean imported) {
+    /** What a choice plays: a file's stream id (a downloaded loop or an imported file). */
+    record Track(Identifier id) {
     }
 
-    /** The track a choice plays for {@code theme}, or null for nothing (Off, Custom's own, an imported file that is gone). */
+    /** The loop a choice names for {@code theme} (Theme Track or a bundled one), or null (Off, Custom's own, an import). */
+    static Bundled bundledOf(MenuTheme theme, String id) {
+        if (id == null || ThemeExtrasConfig.MUSIC_THEME.equals(id)) return themeTrack(theme);
+        return id.startsWith(BUNDLED_PREFIX) ? find(id.substring(BUNDLED_PREFIX.length())) : null;
+    }
+
+    /** The release asset {@code theme}'s music choice needs ({@link ThemeAssets}), or null. */
+    public static String assetFor(MenuTheme theme) {
+        Bundled b = bundledOf(theme, ThemeExtrasConfig.getInstance().getMusic(theme));
+        return b == null ? null : b.asset();
+    }
+
+    /** The track a choice plays for {@code theme}, or null for nothing (Off, Custom's own, a loop not downloaded yet, an
+     *  imported file that is gone). Never downloads. */
     static Track resolve(MenuTheme theme, String id) {
-        if (id == null || ThemeExtrasConfig.MUSIC_THEME.equals(id)) {
-            Bundled own = themeTrack(theme);
-            return own == null ? null : new Track(own.event(), false);
+        Bundled b = bundledOf(theme, id);
+        if (b != null) {
+            java.nio.file.Path file = ThemeAssets.ready(b.asset());
+            if (file == null) return null;
+            ThemeMusicFiles.register(b.event(), file);
+            return new Track(b.event());
         }
-        if (id.startsWith(BUNDLED_PREFIX)) {
-            Bundled b = find(id.substring(BUNDLED_PREFIX.length()));
-            return b == null ? null : new Track(b.event(), false);
-        }
-        if (id.startsWith(ThemeMusicFiles.IMPORT_PREFIX)) {
+        if (id != null && id.startsWith(ThemeMusicFiles.IMPORT_PREFIX)) {
             java.nio.file.Path file = ThemeMusicFiles.fileOf(id);
-            return file == null ? null : new Track(ThemeMusicFiles.keyFor(file), true);
+            return file == null ? null : new Track(ThemeMusicFiles.keyFor(file));
         }
         return null;
     }
@@ -212,11 +229,17 @@ public final class ThemeMusic {
             MenuTheme theme = MainMenuLook.current().theme();
             String choice = cfg.getMusic(theme);
             // An imported file is looked up (a stat) only when the wanted choice changes, not every tick.
-            if (!choice.equals(resolvedChoice) || theme != resolvedTheme || ThemeExtrasConfig.version() != resolvedVersion) {
+            if (!choice.equals(resolvedChoice) || theme != resolvedTheme || ThemeExtrasConfig.version() != resolvedVersion
+                    || ThemeAssets.version() != resolvedAssets) {
+                resolvedAssets = ThemeAssets.version();
                 resolvedTrack = resolve(theme, choice);
                 resolvedChoice = choice;
                 resolvedTheme = theme;
                 resolvedVersion = ThemeExtrasConfig.version();
+                Bundled b = resolvedTrack == null ? bundledOf(theme, choice) : null;
+                if (b != null) {
+                    ThemeAssets.request(b.asset()); // not downloaded yet: it plays once it is
+                }
             }
             want = resolvedTrack;
             key = want == null ? null : want.id().toString();
@@ -251,7 +274,7 @@ public final class ThemeMusic {
         if (!key.equals(failedKey)) {
             failedKey = null;
         }
-        ThemeMusicInstance next = new ThemeMusicInstance(want.id(), want.imported());
+        ThemeMusicInstance next = new ThemeMusicInstance(want.id());
         // The vanilla menu music stops the moment a theme track takes over; the mixin keeps it from starting again.
         mc.getMusicManager().stopPlaying();
         Object result = sounds.play(next);
@@ -298,12 +321,17 @@ public final class ThemeMusic {
             stopPreview();
             return false;
         }
-        Track t = resolve(theme, ThemeExtrasConfig.getInstance().getMusic(theme));
-        if (t == null) return false;
+        String choice = ThemeExtrasConfig.getInstance().getMusic(theme);
+        Track t = resolve(theme, choice);
+        if (t == null) {
+            Bundled b = bundledOf(theme, choice);
+            if (b != null) ThemeAssets.request(b.asset()); // a press on a loop not downloaded yet fetches it
+            return false;
+        }
         SoundManager sounds = mc.getSoundManager();
         stopCurrent(sounds); // the menu's own track waits for the preview, so the two never overlap
         mc.getMusicManager().stopPlaying();
-        ThemeMusicInstance p = new ThemeMusicInstance(t.id(), t.imported(), false);
+        ThemeMusicInstance p = new ThemeMusicInstance(t.id(), false);
         Object result = sounds.play(p);
         lastPreviewResult = String.valueOf(result);
         preview = p;

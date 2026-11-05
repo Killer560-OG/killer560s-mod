@@ -64,12 +64,9 @@ public class DisplayOptionsTab extends BaseTab {
         // Black+orange title screen (mainmenu package) - default ON; OFF restores the vanilla main menu.
         widgets.add(SettingsButtonWidget.builder(themedMainMenuText(), btn -> {
                     MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
-                    boolean on = !cfg.isEnabled();
                     // One switch for the whole theme (killer560, 2026-09-15): the embers and the other-menu
                     // theming no longer have their own toggles, so they follow this one.
-                    cfg.setEnabled(on);
-                    cfg.setParticles(on);
-                    cfg.setOtherMenus(on);
+                    cfg.setThemed(!cfg.isEnabled());
                     cfg.save();
                     btn.setMessage(themedMainMenuText());
                 }).bounds(contentX, y, 220, 20).build());

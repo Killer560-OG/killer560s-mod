@@ -114,6 +114,9 @@ public final class ThemeMusicFiles {
         return Identifier.fromNamespaceAndPath(NAMESPACE, key);
     }
 
+    /** Streams {@code file} under {@code id} ({@code killer560smod:thememusic/...}): a theme's downloaded loop. */
+    static void register(Identifier id, Path file) { KEYS.put(id.getPath(), file); }
+
     /** True for the stream path ({@code killer560smod:sounds/thememusic/<key>.ogg}) an imported track asks the engine for. */
     public static boolean isImported(Identifier id) {
         return id != null && NAMESPACE.equals(id.getNamespace()) && id.getPath().startsWith("sounds/thememusic/");
