@@ -115,7 +115,7 @@ public class CrystalHollowsMapScreen extends Screen {
 
     private double ppu() {
         int[] p = panel();
-        return (p[2] - p[0]) / BASE_VIEW_BLOCKS * CrystalHollowsMapConfig.getInstance().getMapScale() * zoom;
+        return (p[2] - p[0]) / BASE_VIEW_BLOCKS * 1.5f * zoom;
     }
 
     private double originX() {

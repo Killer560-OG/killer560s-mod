@@ -73,6 +73,8 @@ public enum ChSignature {
     /** Whether a lobby can have several (grottos); each is kept 4 chunks from the next. */
     final boolean multiple;
     final List<Block> column;
+    /** The column's blocks that mark this structure (not terrain every lobby has): where it extends, the box of these. */
+    final java.util.Set<Block> marks;
 
     ChSignature(String displayName, ChStructure mapStructure, Quarter quarter, int dx, int dy, int dz, boolean multiple,
                 Block... column) {
@@ -84,5 +86,10 @@ public enum ChSignature {
         this.dz = dz;
         this.multiple = multiple;
         this.column = Arrays.asList(column);
+        java.util.Set<Block> m = new java.util.HashSet<>(this.column);
+        m.remove(null);
+        m.removeAll(List.of(Blocks.STONE, Blocks.COBBLESTONE, Blocks.LAVA, Blocks.WATER, Blocks.FIRE, Blocks.BEDROCK,
+                Blocks.CLAY, Blocks.JUNGLE_LOG));
+        this.marks = java.util.Collections.unmodifiableSet(m);
     }
 }

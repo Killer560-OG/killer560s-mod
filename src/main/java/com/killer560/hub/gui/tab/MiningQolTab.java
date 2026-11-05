@@ -10,8 +10,7 @@ import java.util.List;
  * <p>Grouped under three titled runs of cards, like Secrets and Puzzle Solvers (killer560, 2026-11-03: "make a separation
  * in mining for mithril, glacite powder, and gemstone and stuff like that so it is easier to see them"): Commissions and
  * Mithril, Powder Mining and General. A group's cheat-only cards follow its legit ones under a red "Cheat" header (the
- * Structure Scanner under the Crystal Hollows Map, killer560 2026-11-04: "the cheat map scanner should be under the crystal
- * hollows map"); a cheat card of no group (Swap To Drill On Pigeon) sits in the category's one cheat block.
+ * Structure Scanner is a cheat block inside the Crystal Hollows Map tab since 2026-11-05); a cheat card of no group (Swap To Drill On Pigeon) sits in the category's one cheat block.
  */
 public class MiningQolTab extends FolderTab {
 
@@ -66,9 +65,6 @@ public class MiningQolTab extends FolderTab {
             List<BaseTab> t = new ArrayList<>(List.of(new CrystalHollowsMapTab(), new CrystalTrackerTab(),
                     new WishingCompassTab(), new MetalDetectorTab(), new WormAlertTab(), new LobbyTrackerTab(),
                     new NucleusRunProfitTab()));
-            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-                t.add(new StructureScannerTab()); // reads blocks no player could see
-            }
             return t;
         }
     }

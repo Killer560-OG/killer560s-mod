@@ -34,7 +34,6 @@ public final class ChMapRenderer {
     private static final int TEXT = 0xFFF0E6DC;
     private static final int DIM = 0xFF9A8C80;
     private static final int EDGE = 0x80FFA040;
-    private static final int NUCLEUS_COLOR = 0xFFB44DFF;
     private static final int PLAYER_COLOR = 0xFF55FF55;
     private static final int WAYPOINT_COLOR = 0xFFCC6600;
     private static final int TARGET_COLOR = 0xFFFFFFFF;
@@ -66,6 +65,8 @@ public final class ChMapRenderer {
     /** Three ints per label: x, y, color. */
     private int[] labelAt = new int[3 * 16];
     private int labelCount;
+    /** Text size of the names in the current layout: the HUD's own slider, 1 on the full screen. */
+    private float nameSize = 1f;
 
     /** @param labels draw names beside the markers (the full screen); the HUD is too small for them, as Skyblocker's is,
      *  but for the structures' names with Names On HUD. */
@@ -123,7 +124,7 @@ public final class ChMapRenderer {
     public void draw(GuiGraphicsExtractor graphics, Font font, Player player) {
         int finds = ChDiscovery.version();
         int config = CrystalHollowsMapConfig.version();
-        int theme = com.killer560.hub.gui.MenuConfig.version();
+        int theme = com.killer560.hub.gui.MenuConfig.version() * 31 + com.killer560.hub.miningqol.MiningQolConfig.getInstance().hashCodeOfChWallColors();
         if (dirty || finds != builtFinds || config != builtConfig || theme != builtTheme) {
             builtFinds = finds;
             builtConfig = config;
@@ -137,7 +138,15 @@ public final class ChMapRenderer {
             graphics.fill(rects[i], rects[i + 1], rects[i + 2], rects[i + 3], rects[i + 4]);
         }
         for (int i = 0; i < labelCount; i++) {
-            graphics.text(font, labelText[i], labelAt[i * 3], labelAt[i * 3 + 1], labelAt[i * 3 + 2], true);
+            if (nameSize == 1f) {
+                graphics.text(font, labelText[i], labelAt[i * 3], labelAt[i * 3 + 1], labelAt[i * 3 + 2], true);
+            } else {
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(labelAt[i * 3], labelAt[i * 3 + 1]);
+                graphics.pose().scale(nameSize, nameSize);
+                graphics.text(font, labelText[i], 0, 0, labelAt[i * 3 + 2], true);
+                graphics.pose().popMatrix();
+            }
         }
         if (player != null) {
             int px = sx(player.getX());
@@ -156,6 +165,7 @@ public final class ChMapRenderer {
         rectCount = 0;
         labelCount = 0;
         CrystalHollowsMapConfig cfg = CrystalHollowsMapConfig.getInstance();
+        nameSize = labels ? 1f : cfg.getHudNameSize();
         int c0 = sx(CAVE_MIN);
         int c1 = sx(CAVE_MAX);
         int r0 = sy(CAVE_MIN);
@@ -171,11 +181,13 @@ public final class ChMapRenderer {
             rect(sx(463), sy(460), sx(560), sy(563), 0x30FFFFFF);
         }
         border(c0, r0, c1 - 1, r1 - 1, ThemeAccent.light(EDGE), true);
-        marker(sx(CrystalHollowsMapScreen.NUCLEUS_X), sy(CrystalHollowsMapScreen.NUCLEUS_Z), NUCLEUS_COLOR, labels ? "Nucleus" : null);
         // Structure names also on the HUD, with Names On HUD (killer560, 2026-11-04: "allow me to see the name of the area").
         boolean names = labels || cfg.isHudNames();
         if (cfg.isShowBorders() || cfg.isShowStructureWaypoints()) {
             for (ChFind f : ChDiscovery.all()) {
+                if (f.structure == ChStructure.CRYSTAL_NUCLEUS) {
+                    continue; // the Nucleus is the map's center, never a waypoint
+                }
                 // A find not established first-hand (scanned or shared) is dashed, so he can tell which he walked into.
                 if (cfg.isShowBorders() && f.hasExtent()) {
                     int ax = sx(f.minX);
@@ -183,15 +195,15 @@ public final class ChMapRenderer {
                     int ay = sy(f.minZ);
                     int by = sy(f.maxZ);
                     border(Math.min(ax, bx), Math.min(ay, by), Math.max(ax, bx), Math.max(ay, by),
-                            f.structure.colour, f.source == ChFind.Source.VISITED);
+                            f.structure.zoneColor(f.centreX(), f.centreY(), f.centreZ()), f.source == ChFind.Source.VISITED);
                 }
                 if (cfg.isShowStructureWaypoints()) {
-                    marker(sx(f.centreX()), sy(f.centreZ()), f.structure.colour, names ? f.structure.displayName : null);
+                    marker(sx(f.centreX()), sy(f.centreZ()), f.structure.zoneColor(f.centreX(), f.centreY(), f.centreZ()), names ? f.structure.displayName : null);
                 }
             }
         }
         for (CrystalHollowsWaypoint w : cfg.getWaypoints()) {
-            marker(sx(w.x), sy(w.z), ThemeAccent.accent(WAYPOINT_COLOR), labels ? w.name : null);
+            marker(sx(w.x), sy(w.z), w.drawColor(WAYPOINT_COLOR), labels ? w.name : null);
         }
         if (!Double.isNaN(targetX)) {
             marker(sx(targetX), sy(targetZ), TARGET_COLOR, !labels ? null : targetLabel != null ? targetLabel : "Target");
@@ -230,10 +242,27 @@ public final class ChMapRenderer {
             labelText = Arrays.copyOf(labelText, labelCount * 2);
             labelAt = Arrays.copyOf(labelAt, labelCount * 6);
         }
-        int w = centred ? net.minecraft.client.Minecraft.getInstance().font.width(text) / 2 : 0;
+        var font = net.minecraft.client.Minecraft.getInstance().font;
+        int tw = Math.round(font.width(text) * nameSize);
+        int th = Math.round(9 * nameSize);
+        int lx = centred ? x - tw / 2 : x;
+        int ly = centred ? y - 4 : y;
+        // Stack under any label it would cover, so names never print on top of each other.
+        for (boolean moved = true; moved && ly < y1; ) {
+            moved = false;
+            for (int i = 0; i < labelCount; i++) {
+                int ow = Math.round(font.width(labelText[i]) * nameSize);
+                if (lx < labelAt[i * 3] + ow + 1 && labelAt[i * 3] < lx + tw + 1
+                        && ly < labelAt[i * 3 + 1] + th + 1 && labelAt[i * 3 + 1] < ly + th + 1) {
+                    ly = labelAt[i * 3 + 1] + th + 1;
+                    moved = true;
+                }
+            }
+        }
+        rect(lx - 1, ly - 1, lx + tw + 1, ly + th, 0xC0000000);
         labelText[labelCount] = text;
-        labelAt[labelCount * 3] = x - w;
-        labelAt[labelCount * 3 + 1] = centred ? y - 4 : y;
+        labelAt[labelCount * 3] = lx;
+        labelAt[labelCount * 3 + 1] = ly;
         labelAt[labelCount * 3 + 2] = color;
         labelCount++;
     }

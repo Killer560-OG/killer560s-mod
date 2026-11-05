@@ -33,8 +33,8 @@ public final class CrystalHollowsMapConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-chmap.json");
 
-    public static final float MIN_SCALE = 0.5f;
-    public static final float MAX_SCALE = 4f;
+    public static final float MIN_NAME_SIZE = 0.5f;
+    public static final float MAX_NAME_SIZE = 2f;
 
     private static CrystalHollowsMapConfig instance;
 
@@ -42,7 +42,6 @@ public final class CrystalHollowsMapConfig {
     private static volatile int version;
 
     private boolean enabled = false;
-    private float mapScale = 1.5f;
 
     /**
      * Sharing, with its own switch under the map.
@@ -68,7 +67,7 @@ public final class CrystalHollowsMapConfig {
 
     /** The map as a movable HUD element while in the Crystal Hollows (killer560, 2026-11-04: "it should be a hud
      *  element like theirs", Skyblocker's and SkyHanni's), and the zone quadrants tinted on both views. */
-    private boolean hudEnabled = true;
+    private float hudNameSize = 1f;
     private boolean showZones = true;
     /** The structures' names beside their markers on the HUD too (killer560, 2026-11-04). */
     private boolean hudNames = true;
@@ -93,12 +92,11 @@ public final class CrystalHollowsMapConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             instance.enabled = ConfigJson.getBool(obj, "enabled", false);
-            instance.mapScale = ConfigJson.getFloat(obj, "mapScale", 1.5f);
             instance.shareWaypoints = ConfigJson.getBool(obj, "shareWaypoints", true);
             instance.receiveWaypoints = ConfigJson.getBool(obj, "receiveWaypoints", true);
             instance.showBorders = ConfigJson.getBool(obj, "showBorders", true);
             instance.showStructureWaypoints = ConfigJson.getBool(obj, "showStructureWaypoints", true);
-            instance.hudEnabled = ConfigJson.getBool(obj, "hudEnabled", true);
+            instance.hudNameSize = Math.max(MIN_NAME_SIZE, Math.min(MAX_NAME_SIZE, ConfigJson.getFloat(obj, "hudNameSize", 1f)));
             instance.showZones = ConfigJson.getBool(obj, "showZones", true);
             instance.hudNames = ConfigJson.getBool(obj, "hudNames", true);
             JsonArray arr = ConfigJson.getArray(obj, "waypoints");
@@ -112,7 +110,8 @@ public final class CrystalHollowsMapConfig {
                             ConfigJson.getString(w, "name", "Waypoint"),
                             ConfigJson.getDouble(w, "x", 0),
                             ConfigJson.getDouble(w, "y", 0),
-                            ConfigJson.getDouble(w, "z", 0)));
+                            ConfigJson.getDouble(w, "z", 0),
+                            ConfigJson.getInt(w, "color", 0)));
                 }
             }
         } catch (Exception e) {
@@ -126,12 +125,11 @@ public final class CrystalHollowsMapConfig {
         try {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("mapScale", mapScale);
             obj.addProperty("shareWaypoints", shareWaypoints);
             obj.addProperty("receiveWaypoints", receiveWaypoints);
             obj.addProperty("showBorders", showBorders);
             obj.addProperty("showStructureWaypoints", showStructureWaypoints);
-            obj.addProperty("hudEnabled", hudEnabled);
+            obj.addProperty("hudNameSize", hudNameSize);
             obj.addProperty("showZones", showZones);
             obj.addProperty("hudNames", hudNames);
             JsonArray arr = new JsonArray();
@@ -141,6 +139,7 @@ public final class CrystalHollowsMapConfig {
                 o.addProperty("x", w.x);
                 o.addProperty("y", w.y);
                 o.addProperty("z", w.z);
+                o.addProperty("color", w.color);
                 arr.add(o);
             }
             obj.add("waypoints", arr);
@@ -157,6 +156,7 @@ public final class CrystalHollowsMapConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isEnabled() {
@@ -203,12 +203,13 @@ public final class CrystalHollowsMapConfig {
         this.hudNames = value;
     }
 
-    public boolean isHudEnabled() {
-        return hudEnabled;
+    /** Size of the area and waypoint names on the HUD map. */
+    public float getHudNameSize() {
+        return hudNameSize;
     }
 
-    public void setHudEnabled(boolean value) {
-        this.hudEnabled = value;
+    public void setHudNameSize(float v) {
+        this.hudNameSize = Math.max(MIN_NAME_SIZE, Math.min(MAX_NAME_SIZE, v));
     }
 
     public boolean isShowZones() {
@@ -224,14 +225,6 @@ public final class CrystalHollowsMapConfig {
         return version;
     }
 
-    public float getMapScale() {
-        return mapScale;
-    }
-
-    public void setMapScale(float mapScale) {
-        this.mapScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, mapScale));
-    }
-
     public List<CrystalHollowsWaypoint> getWaypoints() {
         return waypoints;
     }
@@ -240,12 +233,12 @@ public final class CrystalHollowsMapConfig {
         waypoints.add(waypoint);
     }
 
-    /** @return true if a waypoint was removed. */
-    public boolean removeLastWaypoint() {
-        if (waypoints.isEmpty()) {
+    /** Removes waypoint {@code i}; false when there is none. */
+    public boolean removeWaypoint(int i) {
+        if (i < 0 || i >= waypoints.size()) {
             return false;
         }
-        waypoints.remove(waypoints.size() - 1);
+        waypoints.remove(i);
         return true;
     }
 }

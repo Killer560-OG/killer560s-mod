@@ -100,4 +100,26 @@ public enum ChStructure {
         }
         return null;
     }
+
+    /** The zone this structure lies in, from its fixed home or (Fairy Grotto, Dragon's Lair, anywhere) its position. */
+    public com.killer560.hub.miningqol.CrystalHollowsWalls.Zone zone(double x, double y, double z) {
+        var Z = com.killer560.hub.miningqol.CrystalHollowsWalls.Zone.class;
+        return switch (this) {
+            case JUNGLE_TEMPLE, KEY_GUARDIAN, ODAWA -> Z.getEnumConstants()[0];
+            case MINES_OF_DIVAN, CORLEONE -> Z.getEnumConstants()[1];
+            case GOBLIN_QUEENS_DEN, GOBLIN_KING -> Z.getEnumConstants()[2];
+            case LOST_PRECURSOR_CITY -> Z.getEnumConstants()[3];
+            case KHAZAD_DUM -> Z.getEnumConstants()[4];
+            default -> y < 80 ? Z.getEnumConstants()[4]
+                    : x <= 576 && z <= 576 ? Z.getEnumConstants()[0]
+                    : x > 448 && z <= 576 ? Z.getEnumConstants()[1]
+                    : x <= 576 ? Z.getEnumConstants()[2] : Z.getEnumConstants()[3];
+        };
+    }
+
+    /** ARGB of this structure's waypoint at (x, y, z): its zone's Crystal Hollows Walls color, so changing that color
+     *  changes the waypoint (killer560, 2026-11-05: "the waypoint colors should match their areas color"). */
+    public int zoneColor(double x, double y, double z) {
+        return 0xFF000000 | com.killer560.hub.miningqol.MiningQolConfig.getInstance().getChWallColor(zone(x, y, z));
+    }
 }

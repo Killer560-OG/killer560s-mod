@@ -28,6 +28,7 @@ public final class SearchCommands {
      *  search finds them from the title screen too. */
     static final Map<String, String> BY_COMMAND = Map.ofEntries(
             Map.entry("cringe", "CringeTab"),
+            Map.entry("chmap", "CrystalHollowsMapTab"),
             Map.entry("ew", "EtherwarpTab"),
             Map.entry("language", "TranslateTab"),
             Map.entry("translate", "TranslateTab"),
