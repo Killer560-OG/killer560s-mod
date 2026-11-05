@@ -55,7 +55,9 @@ public final class StatElements {
         VITALITY_BAR("vitality_bar", "statbar_vitality", "Vitality Bar", true, 0xFFE0405A),
         XP_BAR("xp_bar", "statbar_xp", "XP Bar", true, 0xFF80FF20),
         VITALITY_TEXT("vitality_text", "stattext_vitality", "Vitality Text", false, 0xFFE0405A),
-        XP_TEXT("xp_text", "stattext_xp", "XP Text", false, 0xFF80FF20);
+        XP_TEXT("xp_text", "stattext_xp", "XP Text", false, 0xFF80FF20),
+        /** Hypixel sends the fuel only while a drill is held, so the bar shows only then (drillfuel-1104). */
+        DRILL_FUEL_BAR("drill_fuel_bar", "statbar_drillfuel", "Drill Fuel Bar", true, 0xFF00AA00);
 
         public final String key;
         public final String hudId;
@@ -589,6 +591,11 @@ public final class StatElements {
             case VITALITY_BAR -> {
                 cur = PlayerStatsFeature.vitalityCur;
                 max = PlayerStatsFeature.vitalityMax;
+                a = cur;
+            }
+            case DRILL_FUEL_BAR -> {
+                cur = PlayerStatsFeature.drillFuelCur;
+                max = PlayerStatsFeature.drillFuelMax;
                 a = cur;
             }
             case XP_BAR -> {

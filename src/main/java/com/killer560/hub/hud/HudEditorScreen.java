@@ -130,6 +130,12 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
      *  they should be their own button"): true lists ONLY Health and Mana Bars' readouts, false lists every other
      *  element and never those. Same screen class, so every "is the HUD editor open" check covers both. */
     private final boolean barsMode;
+    /** Edit Bars only: the bar settings beside the boxes (barsedit-1104); null in Edit HUD. */
+    private final BarsSettingsPanel panel;
+    /** The panel's widgets now on screen (its side button first). */
+    private List<net.minecraft.client.gui.components.AbstractWidget> panelWidgets = List.of();
+    /** A panel row changed something: re-list the boxes and lay the panel out again on the next tick. */
+    private boolean panelDirty;
 
     static final int LEFT = 1;
     static final int RIGHT = 2;
@@ -190,6 +196,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         super(Component.literal(barsMode ? "Edit Bars" : "Edit HUD Positions"));
         this.parent = parent;
         this.barsMode = barsMode;
+        this.panel = barsMode ? new BarsSettingsPanel() : null;
     }
 
     /** Edit Bars: only Health and Mana Bars' readouts (Predefined areas included). */
@@ -213,6 +220,46 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             }
         }
         rebuildList();
+        layoutPanel();
+    }
+
+    /** Lays out Edit Bars' settings panel (its widgets are this screen's only ones), clear of the bars below it. */
+    private void layoutPanel() {
+        if (panel == null) {
+            return;
+        }
+        clearWidgets();
+        List<int[]> boxes = new ArrayList<>();
+        for (HudElement e : shown) {
+            HudSnap.Box b = box(e);
+            boxes.add(new int[]{b.x0() - BOX_PAD, b.y0() - BOX_PAD, b.x1() + BOX_PAD, b.y1() + BOX_PAD});
+        }
+        panelWidgets = panel.layout(this.width, this.height, boxes, () -> panelDirty = true);
+        for (var w : panelWidgets) {
+            addRenderableWidget(w);
+        }
+    }
+
+    @Override
+    public void tick() {
+        if (panelDirty && draggingId == null) {
+            panelDirty = false;
+            rebuildList();
+            layoutPanel();
+        }
+    }
+
+    private boolean inPanel(double mx, double my) {
+        return panel != null && panel.contains(mx, my);
+    }
+
+    /** Predefined readouts share PlayerStatsConfig's scale, which the wheel and the panel's Bar Size change. */
+    private void refreshManagedScales() {
+        for (HudElement e : shown) {
+            if (StatLayout.manages(e)) {
+                liveScales.put(e.id(), HudElementRegistry.elementScale(e));
+            }
+        }
     }
 
     /** Draws one element's live preview at its box, scaled. */
@@ -375,7 +422,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         // What the cursor is over: a handle of some box, or the inside of one (topmost first).
         HudElement hover = null;
         int hoverEdges = 0;
-        if (draggingId == null) {
+        if (draggingId == null && !inPanel(mouseX, mouseY)) {
             for (int i = shown.size() - 1; i >= 0 && hover == null; i--) {
                 HudElement e = shown.get(i);
                 int edges = handleAt(e, mouseX, mouseY);
@@ -430,7 +477,13 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             graphics.requestCursor(cursorFor(edges));
         }
 
+        if (panel != null) {
+            panel.drawBackground(graphics);
+        }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        if (panel != null && draggingId == null) {
+            panel.drawTooltip(graphics, panelWidgets, mouseX, mouseY, this.width, this.height);
+        }
     }
 
     /** The Hidden tray, always; while a Predefined readout is dragged, every area it can go to, the target strongest. */
@@ -557,14 +610,16 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     /** A hint line on a small raised chip in the theme (the chip is what the testkit samples). */
     private void hintChip(GuiGraphicsExtractor g, String line, int y) {
         int w = this.font.width(line);
-        themedBounds = new int[]{1, y - 3, w + 7, 15};
-        ScreenChrome.card(g, 1, y - 3, w + 7, 15, false);
-        ScreenChrome.text(g, line, 4, y, MenuStyle.TXT);
+        // Beside a Left settings panel, not under it.
+        int x = panel != null && panel.w > 0 && panel.x < this.width / 2 ? panel.x + panel.w + 3 : 1;
+        themedBounds = new int[]{x, y - 3, w + 7, 15};
+        ScreenChrome.card(g, x, y - 3, w + 7, 15, false);
+        ScreenChrome.text(g, line, x + 3, y, MenuStyle.TXT);
     }
 
     /** A hint cut to the window's width, so a small window never shows half a word at its edge. */
     private String fit(String... variants) {
-        int room = this.width - 8;
+        int room = this.width - 8 - (panel != null && panel.w > 0 ? panel.w + 4 : 0);
         for (String v : variants) {
             if (this.font.width(v) <= room) {
                 return v;
@@ -717,7 +772,11 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         // Buttons first, so a box that happens to sit under Done / Show All doesn't swallow the click.
         if (super.mouseClicked(event, doubleClick)) {
+            refreshManagedScales();
             return true;
+        }
+        if (inPanel(event.x(), event.y())) {
+            return true; // the panel's background never grabs a bar under it
         }
         if (com.killer560.hub.compat.McInput.button(event) == 0) {
             for (int i = shown.size() - 1; i >= 0; i--) {
@@ -787,7 +846,11 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             livePositions.put(draggingId, clampIfKept(element, newX, newY));
             return true;
         }
-        return super.mouseDragged(event, dragX, dragY);
+        boolean took = super.mouseDragged(event, dragX, dragY);
+        if (took) {
+            refreshManagedScales(); // a panel slider: the boxes follow it live
+        }
+        return took;
     }
 
     /**
@@ -942,11 +1005,22 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             guides.clear();
             return true;
         }
-        return super.mouseReleased(event);
+        boolean took = super.mouseReleased(event);
+        if (panel != null && (took || inPanel(event.x(), event.y()))) {
+            panelDirty = true; // a bar may have grown into the panel's room, or a row was switched
+        }
+        return took;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (panel != null && panel.scroll(mouseX, mouseY, scrollY)) {
+            layoutPanel();
+            return true;
+        }
+        if (inPanel(mouseX, mouseY)) {
+            return true;
+        }
         // Prefer whatever's actively being dragged, otherwise resize whatever's under the cursor.
         String targetId = draggingId != null ? draggingId : (elementAt(mouseX, mouseY) != null ? elementAt(mouseX, mouseY).id() : null);
         HudElement scrolled = targetId == null ? null : byId(targetId);
@@ -955,11 +1029,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             PlayerStatsConfig ps = PlayerStatsConfig.getInstance();
             ps.setPredefinedScale(Math.max(MIN_SCALE, ps.getPredefinedScale() + (scrollY > 0 ? SCALE_STEP : -SCALE_STEP)));
             ps.save();
-            for (HudElement e : shown) {
-                if (StatLayout.manages(e)) {
-                    liveScales.put(e.id(), HudElementRegistry.elementScale(e));
-                }
-            }
+            refreshManagedScales();
             return true;
         }
         if (targetId != null && scrollY != 0) {

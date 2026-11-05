@@ -2555,7 +2555,9 @@ final class SettingTooltipsData {
         // Redone 2026-10-07 (killer560: "way too complicated looking"): Armor Bar became Armor Bar, Hypixel Stat Text
         // became Hide Hypixel Stat Text in the new Text section, and the per-readout Scale slider went (the HUD editor
         // sets the same scale). The always-on Object Hider bar hides below had no description until then.
+        d.put("health and mana bars/settings panel", "Edit Bars only: where these settings sit beside the bars (Right, Left or Hidden). Every change shows on the bars at once.");
         d.put("health and mana bars/hypixel stat text", "Takes Hypixel's own health, defense and mana numbers (and the other stat segments) out of the action bar, leaving anything else on that line.");
+        d.put("health and mana bars/drill fuel text", "Takes Hypixel's \"1,650/3k Drill Fuel\" segment out of the action bar while you hold a drill, leaving the rest of the line. Works whether or not Hypixel Stat Text is on.");
         d.put("health and mana bars/xp bar and level", "Hides the vanilla experience bar and the level number above it (also the locator and mount jump bars that share its slot).");
         d.put("health and mana bars/health bar", "A health bar you can move, scale and resize (drag its edges) in Edit HUD. Health past your max shows in the absorption color.");
         d.put("health and mana bars/mana bar", "A mana bar you can move, scale and resize (drag its edges) in Edit HUD.");
@@ -2573,6 +2575,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/bar size", "Size of every bar and text in the Predefined layout, from 0.5x to 3.0x in steps of 0.5. Scrolling a bar in Edit Bars changes the same size in finer steps.");
         d.put("health and mana bars/bar height", "Thickness of every custom bar at once; moving it resets any bar you sized by hand in Edit HUD.");
         d.put("health and mana bars/vitality bar", "Your vitality (the resource healing abilities, Wither Shield and Creeper Veil use) as a bar. Hypixel only shows it on the action bar while it is in use, so the bar shows then too.");
+        d.put("health and mana bars/drill fuel bar", "Your held drill's fuel as a bar. Hypixel only puts the fuel on the action bar while a drill is in your hand, so the bar shows only then.");
         d.put("health and mana bars/vitality text", "Your vitality as text, from the action bar.");
         d.put("health and mana bars/xp bar", "Your experience bar: level and progress, as the game has them. Hypixel sometimes uses this bar for a countdown instead, and then that is what it shows.");
         d.put("health and mana bars/xp text", "Your experience level and how far the bar is to the next one, as text.");
@@ -2586,6 +2589,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/mana color", "Color of the Mana Bar.");
         d.put("health and mana bars/defense color", "Color of the Defense Bar.");
         d.put("health and mana bars/vitality color", "Color of the Vitality Bar.");
+        d.put("health and mana bars/drill fuel color", "Color of the Drill Fuel Bar.");
         d.put("health and mana bars/other color", "Color of the Other Resource Bar.");
         d.put("health and mana bars/xp color", "Color of the XP Bar.");
         d.put("health and mana bars/text size", "Size of the number on each bar: Small (the default, about 0.85 of the game's text) or Normal.");

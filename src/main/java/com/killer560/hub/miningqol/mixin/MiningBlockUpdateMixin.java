@@ -28,6 +28,7 @@ public abstract class MiningBlockUpdateMixin {
         try {
             MiningHighlights.onBlockChanged(packet.getPos());
             com.killer560.hub.miningqol.CommissionProgress.onBlockChanged(packet.getPos());
+            com.killer560.hub.playerstats.PlayerStatsFeature.onBlockChanged(packet.getPos());
         } catch (RuntimeException e) {
             killer560smod$mining$threw("blockUpdate", e);
         }

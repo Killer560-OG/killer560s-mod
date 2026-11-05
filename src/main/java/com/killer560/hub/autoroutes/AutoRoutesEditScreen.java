@@ -714,21 +714,8 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         if (text == null || text.isBlank()) {
             return;
         }
-        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), 220);
-        int w = 0;
-        for (var line : lines) {
-            w = Math.max(w, this.font.width(line));
-        }
-        int h = lines.size() * 10 - 2;
-        int x = mouseX + 12;
-        int y = mouseY + 12;
-        if (x + w + 8 > this.width) {
-            x = Math.max(4, mouseX - w - 16);
-        }
-        if (y + h + 8 > this.height) {
-            y = Math.max(4, mouseY - h - 16);
-        }
-        ScreenChrome.tooltip(graphics, lines, x, y, w, h);
+        ScreenChrome.tooltipNear(graphics, this.font.split(Component.literal(text), 220), mouseX, mouseY, this.width,
+                this.height);
     }
 
     @Override

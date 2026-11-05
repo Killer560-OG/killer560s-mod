@@ -50,6 +50,8 @@ public final class PlayerStatsConfig {
      *  the action bar. Independent of {@link #enabled}. A file written before this key existed takes the old
      *  behavior, where the stat line was hidden exactly when Stat Bars was on - see {@link #load()}. */
     private boolean hideHypixelStatText = false;
+    /** Hide Hypixel's "1,650/3k Drill Fuel" action bar segment (drillfuel-1104). */
+    private boolean hideDrillFuelText = false;
     /** Hides the vanilla experience bar and the level number above it. Independent of {@link #enabled}. */
     private boolean hideXpBar = false;
     /** Vanilla's held-item name over the hotbar (killer560, 2026-10-07: "an option to hide that text that pops up saying
@@ -92,6 +94,8 @@ public final class PlayerStatsConfig {
     private TextSize barTextSize = TextSize.SMALL;
     /** Whether the settings tab's Advanced section is open (2026-10-12, the simplified menu); closed by default. */
     private boolean menuAdvancedOpen = false;
+    /** Where Edit Bars' settings panel sits: 0 Right (default), 1 Left, 2 Hidden (barsedit-1104). */
+    private int editorPanel = 0;
     private boolean barRounded = true;
     private boolean barIcons = true;
     /** Show Symbols (killer560, 2026-10-19: "add an option to show symbols as well for the bars. Have it default on."):
@@ -159,6 +163,7 @@ public final class PlayerStatsConfig {
             cfg.showHeartsInRift = ConfigJson.getBool(obj, "showHeartsInRift", true);
             // Before 2026-10-04 the stat line was hidden whenever Stat Bars was on, so an old file keeps that.
             cfg.hideHypixelStatText = ConfigJson.getBool(obj, "hideHypixelStatText", cfg.enabled);
+            cfg.hideDrillFuelText = ConfigJson.getBool(obj, "hideDrillFuelText", cfg.hideDrillFuelText);
             cfg.hideXpBar = ConfigJson.getBool(obj, "hideXpBar", false);
             cfg.heldItemName = HeldItemName.byKey(ConfigJson.getString(obj, "heldItemName", null), cfg.heldItemName);
             if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
@@ -223,6 +228,7 @@ public final class PlayerStatsConfig {
                 cfg.overflowManaColor = DEFAULT_OVERFLOW_MANA_COLOR;
             }
             cfg.menuAdvancedOpen = ConfigJson.getBool(obj, "menuAdvancedOpen", cfg.menuAdvancedOpen);
+            cfg.editorPanel = Math.floorMod(ConfigJson.getInt(obj, "editorPanel", cfg.editorPanel), 3);
             cfg.barTextSize = TextSize.byKey(ConfigJson.getString(obj, "barTextSize", null), cfg.barTextSize);
             cfg.predefinedScale = clampScale(obj.has("predefinedScale") && obj.get("predefinedScale").isJsonPrimitive()
                     ? obj.get("predefinedScale").getAsFloat() : cfg.predefinedScale);
@@ -246,6 +252,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("hideVanillaAir", hideVanillaAir);
             obj.addProperty("showHeartsInRift", showHeartsInRift);
             obj.addProperty("hideHypixelStatText", hideHypixelStatText);
+            obj.addProperty("hideDrillFuelText", hideDrillFuelText);
             obj.addProperty("hideXpBar", hideXpBar);
             obj.addProperty("heldItemName", heldItemName.key);
             JsonObject readouts = new JsonObject();
@@ -282,6 +289,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("barStyle", barStyle.key);
             obj.addProperty("barTextSize", barTextSize.key);
             obj.addProperty("menuAdvancedOpen", menuAdvancedOpen);
+            obj.addProperty("editorPanel", editorPanel);
             obj.addProperty("barRounded", barRounded);
             obj.addProperty("barIcons", barIcons);
             obj.addProperty("barSymbols", barSymbols);
@@ -331,6 +339,8 @@ public final class PlayerStatsConfig {
     public boolean isHideHypixelStatText() { return hideHypixelStatText; }
 
     public void setHideHypixelStatText(boolean value) { this.hideHypixelStatText = value; }
+    public boolean isHideDrillFuelText() { return hideDrillFuelText; }
+    public void setHideDrillFuelText(boolean value) { this.hideDrillFuelText = value; }
 
     public boolean isHideXpBar() { return hideXpBar; }
 
@@ -586,6 +596,10 @@ public final class PlayerStatsConfig {
     public boolean isMenuAdvancedOpen() { return menuAdvancedOpen; }
 
     public void setMenuAdvancedOpen(boolean v) { this.menuAdvancedOpen = v; }
+
+    public int getEditorPanel() { return editorPanel; }
+
+    public void setEditorPanel(int v) { this.editorPanel = Math.floorMod(v, 3); }
 
     public TextSize getBarTextSize() { return barTextSize; }
 
