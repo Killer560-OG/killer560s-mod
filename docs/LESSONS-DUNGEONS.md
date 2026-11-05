@@ -319,6 +319,10 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - **Mob Ticks start at the first spawn after the kill timer, not at the timer** (killer560, same day): the mobs still on the
   floor when it goes off are not counted until a post-move trip's mob lands (`BloodCampStats` WAITING_SPAWN, `noteClaim` ->
   `onTripMobLanded`; a first-spawn trip never starts it). Testkit 1104-bloodcamp-stats-spawn.
+- **A mob's claim names its trip, never a copy of the trip's landing spot** (uifail-1104): `endVector` is rebuilt on every
+  move packet, so `CLAIMS` holding the vector seen at tagging made the trip's own mob read as another trip's a packet later
+  and the floor path clicked it before the trip did (testkit 686 B, "first click was not the trip's"). `CLAIMS` keeps the
+  `BloodMobState` plus its `startedAtTick` (restart reuses the object). An entity with no id yet goes through `idOrNone`.
 
 ## Terminals and solvers
 

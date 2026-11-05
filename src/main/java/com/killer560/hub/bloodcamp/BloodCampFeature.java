@@ -2204,12 +2204,12 @@ public final class BloodCampFeature {
      * left marked clicked. A mob belongs to the trip whose timer ran out first; the other waits for its own.
      */
     private static boolean owedElsewhere(Entity mob, Vec3 end, long now) {
-        Vec3 claimed = CLAIMS.get(mob.getId());
-        // By value, not by reference: a trip whose stand is still moving builds a fresh endVector object with every
-        // packet, so the claim it made on tagging the mob read as another trip's and the mob went to the floor path
-        // (testkit 686 B: floor clicks before the trip's own). Two trips' spots are at least a block apart.
-        if (claimed != null && claimed != end && claimed.distanceToSqr(end) > 0.04) {
-            return true; // a trip took it, and that trip may already be finished and dropped from LANDED
+        Claim claimed = CLAIMS.get(mob.getId());
+        // By trip, not by a copy of its landing spot: a trip whose stand is still moving builds a fresh endVector with
+        // every packet, so a claim that kept the vector it had on tagging the mob read as another trip's a packet later
+        // and the mob went to the floor path (testkit 686 B: floor clicks before the trip's own, 2026-11-04).
+        if (claimed != null && (claimed.trip().endVector != end || claimed.trip().startedAtTick != claimed.started())) {
+            return true; // a trip took it, and that trip may already be finished and dropped from LANDED (or restarted)
         }
         double mine = Double.MAX_VALUE;
         for (BloodMobState s : bloodMobs.values()) {
@@ -2239,14 +2239,18 @@ public final class BloodCampFeature {
         return false;
     }
 
-    /** Mob id to the landing spot (by reference) of the trip that took it; a finished trip leaves {@link #LANDED} at once. */
-    private static final Map<Integer, Vec3> CLAIMS = new HashMap<>();
+    /** The trip that took a mob, and which of that stand's trips it was ({@link BloodMobState#restart} reuses the object). */
+    private record Claim(BloodMobState trip, long started) {
+    }
+
+    /** Mob id to the trip that took it; a finished trip leaves {@link #LANDED} at once. */
+    private static final Map<Integer, Claim> CLAIMS = new HashMap<>();
 
     private static void noteClaim(BloodMobState data) {
         if (CLAIMS.size() > 256) {
             CLAIMS.clear();
         }
-        CLAIMS.put(data.mobId, data.endVector);
+        CLAIMS.put(data.mobId, new Claim(data, data.startedAtTick));
         BloodCampStats.onTripMobLanded(data.mobId, data.firstSpawn);
     }
 
