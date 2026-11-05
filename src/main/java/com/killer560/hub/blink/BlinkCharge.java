@@ -329,7 +329,12 @@ public final class BlinkCharge {
         return shotPauses;
     }
 
-    /** Drops the held packet, owing the server its look when it carried one. */
+    /**
+     * A withheld tick: drops the held packet, owing the server its look when it carried one, and takes the tick back off
+     * vanilla's position reminder count. The server never saw the tick, so a reminder counted with it came early by the
+     * server's count, and GrimAC's experimental BadPacketsV flags a still position packet fewer than 19 ticks after the
+     * last (ship3fix2-1104: every Blink case on experimental checks).
+     */
     private static void dropStash() {
         if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
             rotationOwed = true;
@@ -337,6 +342,9 @@ public final class BlinkCharge {
             owedPitch = m.getXRot(0f);
         }
         stash = null;
+        if (Minecraft.getInstance().player instanceof com.killer560.hub.blink.mixin.BlinkReminderAccessor r) {
+            r.killer560$setPositionReminder(Math.max(0, r.killer560$positionReminder() - 1));
+        }
     }
 
     private static String shotPauseReason(Minecraft client) {
