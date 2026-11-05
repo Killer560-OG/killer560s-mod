@@ -23,6 +23,13 @@ public class MiningWrongArmorTab extends BaseTab {
         y += MiningQolRows.STEP;
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Alert Sound", cfg::isWrongArmorSound, cfg::setWrongArmorSound,
                 cfg::save);
+        y += MiningQolRows.STEP;
+        // Independent of the armor alert: its own switch, so the card is ON while either is (masterToggles below).
+        w.add(onOffButton("Jungle Pickaxe Alert", cfg::isJunglePickRaw, cfg::setJunglePick, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 20));
+        y += MiningQolRows.STEP;
+        MiningQolRows.toggle(w, contentX, y, contentWidth, "Jungle Alert Sound", cfg::isJunglePickSound,
+                cfg::setJunglePickSound, cfg::save);
         return w;
     }
 }

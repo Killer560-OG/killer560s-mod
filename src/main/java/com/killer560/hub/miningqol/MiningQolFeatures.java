@@ -32,6 +32,7 @@ public final class MiningQolFeatures {
         HudElementRegistry.register(new AbilityReadyAlert.Popup());
         HudElementRegistry.register(new AbilityReadyAlert.Timer());
         HudElementRegistry.register(new WrongArmorAlert.Popup());
+        HudElementRegistry.register(new JunglePickAlert.Popup());
         // DISCONNECT runs on the Netty thread: only a flag here, the tick clears.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetRequested = true);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MiningQolFeatures", client -> {
@@ -41,6 +42,7 @@ public final class MiningQolFeatures {
                 PickobulusEstimate.resetChat();
                 CommissionProgress.reset();
                 WrongArmorAlert.reset();
+                JunglePickAlert.reset();
             }
             MiningState.tick(client);
             MinesAreaMap.tick();
@@ -49,6 +51,7 @@ public final class MiningQolFeatures {
             CommissionMobs.tick(client);
             AbilityReadyAlert.tick(client);
             WrongArmorAlert.tick(client);
+            JunglePickAlert.tick(client);
             PickobulusEstimate.tick(client);
             MiningHighlights.tick(client);
             RaffleLog.tick(client);
