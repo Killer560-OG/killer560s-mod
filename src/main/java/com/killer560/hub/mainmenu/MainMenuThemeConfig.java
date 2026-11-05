@@ -189,6 +189,15 @@ public final class MainMenuThemeConfig {
         version++;
     }
 
+    /** The custom title screen as one switch (Display Options' Themed Main Menu, Menu Theme's Custom Title Screen, the
+     *  tour's Vanilla Main Menu): the theme, its particles and the themed vanilla menus together (killer560, 2026-09-15).
+     *  Off is "no custom title screen": Minecraft's own, and no theme download ever ({@link ThemeAssets}). */
+    public void setThemed(boolean on) {
+        setEnabled(on);
+        setParticles(on);
+        setOtherMenus(on);
+    }
+
     /** Drifting ember particles on the themed background (no UI toggle yet; hand-editable). */
     public boolean isParticles() { return particles; }
 

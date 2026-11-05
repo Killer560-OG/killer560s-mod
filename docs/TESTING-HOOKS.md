@@ -18,13 +18,19 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `hysky`, `github-api`, `relay`,
-`pf-relay`, `lfg-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
+`pf-relay`, `lfg-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`, `theme-assets`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
 (`<override>/Killer560-OG/killer560s-mod/releases/download/`). `-Dkiller560.test.autoUpdateStallMillis=N` shortens the
 download's stall limit (default 60000: it gives up only after that long with no byte arriving); read on every download.
+Theme assets (`mainmenu/ThemeAssets`, themedl-1104) read `theme-assets` on every download (the path kept:
+`<override>/Killer560-OG/killer560s-mod/releases/download/<release>/<name>`); the testkit's `ui/ThemeAssetFeed` serves
+`<modSource>/theme-assets/`. Hooks: `downloadsForTest()`, `rejectedForTest()` (bad sha256 or size), `lastResultForTest()`,
+`stateForTest(name)` (READY / PENDING / FAILED / MISSING), `fileForTest(name)`, `namesForTest()`, `resetForTest()` (forgets
+states and counters after the queue drains), `awaitIdleForTest()`; `WebpPictures.fullForTest(name)` says the drawn
+texture is the downloaded picture, not the in-jar preview.
 
 `ModNet.attemptsForTest()` lists the last 512 targets any helper was asked to reach (`scheme://host[:port]/path`, no query
 string), recorded before the network and before any refusal, so offline runs read the same; `clearAttemptsForTest()` empties

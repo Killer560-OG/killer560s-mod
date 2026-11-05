@@ -172,10 +172,15 @@ public final class MainMenuScenes {
     }
 
     /** Starts decoding the picture the current look shows ({@link WebpPictures}), so the first title screen does not
-     *  wait about a second for it. Called once at client init; never throws. */
+     *  wait about a second for it, and asks for the look's downloads ({@link ThemeAssets}: an install that chose a theme
+     *  before themedl-1104 gets its full picture at its first start). Called at client init (the tour's picks only request); never
+     *  throws. */
     public static void preloadPictures() {
         try {
-            WebpPictures.preload(pictureFor(MainMenuLook.current()));
+            ThemeAssets.scan();
+            MainMenuLook look = MainMenuLook.current();
+            WebpPictures.preload(pictureFor(look));
+            ThemeAssets.requestLook(look);
         } catch (RuntimeException ignored) {
             // A config not readable yet: the picture then loads on its first draw instead.
         }

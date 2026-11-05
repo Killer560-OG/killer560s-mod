@@ -13,30 +13,24 @@ import net.minecraft.util.valueproviders.ConstantFloat;
  * One theme's music while the main menu is open: looping, not positional, on the master channel (so the game's Music
  * slider, which many Skyblock players keep at 0, does not silence a track he switched on; Theme Music Volume is its own
  * slider). Tickable, so a volume change is heard at once and {@link #finish} ends it on the next engine tick.
- * <p>A bundled track is a {@code killer560smod:theme_music_*} event with {@code "stream": true} in sounds.json: the engine
- * streams and loops it exactly as it does vanilla's music. An imported track ({@link ThemeMusicFiles}) names a streamed
- * {@link Sound} no resource pack has, and the engine's stream request for it is answered from the file.
+ * <p>Every track is a file (a theme's own loop downloaded by ThemeAssets since themedl-1104, or one imported through
+ * {@link ThemeMusicFiles}): it names a streamed {@link Sound} no resource pack has, and the engine's stream request for it
+ * is answered from the file; the engine streams and loops it exactly as it does vanilla's music.
  */
 class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implements TickableSoundInstance {
 
     private volatile boolean stopped;
-    /** True for an imported file: {@link #resolve} makes its Sound instead of looking up an event. */
-    private final boolean imported;
     /** Ticks since a menu track started; its volume ramps up over {@link #FADE_IN_TICKS} so it does not start abruptly. */
     private int ticksPlaying;
     /** Two seconds of ticks. Play Preview is not faded: he asked for the menu track to ease in as the menu boots. */
     private static final int FADE_IN_TICKS = 40;
 
     ThemeMusicInstance(Identifier event) {
-        this(event, false);
-    }
-
-    ThemeMusicInstance(Identifier event, boolean imported) {
-        this(event, imported, true);
+        this(event, true);
     }
 
     /** {@code looping} false plays the track once (Play Preview). */
-    ThemeMusicInstance(Identifier event, boolean imported, boolean looping) {
+    ThemeMusicInstance(Identifier event, boolean looping) {
         super(event, SoundSource.MASTER, SoundInstance.createUnseededRandom());
         this.looping = looping;
         this.delay = 0;
@@ -46,12 +40,10 @@ class ThemeMusicInstance extends com.killer560.hub.compat.McSoundInstance implem
         this.y = 0;
         this.z = 0;
         this.volume = looping ? 0f : ThemeMusic.gain();
-        this.imported = imported;
     }
 
     @Override
     protected WeighedSoundEvents resolveCustom(SoundManager soundManager) {
-        if (!imported) return null;
         Identifier id = getIdentifier();
         WeighedSoundEvents events = new WeighedSoundEvents(id, null);
         this.sound = new Sound(id, ConstantFloat.of(1.0f), ConstantFloat.of(1.0f), 1, Sound.Type.FILE, true, false, 16);

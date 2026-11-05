@@ -150,8 +150,8 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                         ? "To open the mod, type {/killer560} in chat.\nYou can also set an Open Menu key in Home."
                         : "To open the mod, press [" + KeyUtil.keyName(code) + "] or type {/killer560} in chat.";
             }
-            case THEME -> "This is our UI! Pick a {theme} you like, and a {main menu} style: Fancy is animated, Simple is "
-                    + "calm.";
+            case THEME -> "This is our UI! Pick a {theme} you like, and a {main menu} style: Fancy is animated (its full "
+                    + "picture downloads once, a low-res preview shows until then), Simple is calm, Vanilla is Minecraft's own.";
             case THEME_DONE -> "Great! You can change it anytime in {Home}, or create your own theme in the future.";
             case VARIANT -> BuildVariant.CHEAT_FEATURES_ENABLED
                     ? "Heads up: you're playing the <CHEAT> version.\n"
@@ -280,9 +280,14 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                 MenuTheme current = MenuConfig.getInstance().getTheme();
                 rowsOf.add(java.util.Arrays.stream(MenuTheme.presets()).map(t -> chip(t.label,
                         t == current ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickTheme(t))).toList());
-                MainMenuThemeConfig.SceneMode mode = MainMenuThemeConfig.getInstance().getSceneMode();
-                rowsOf.add(java.util.Arrays.stream(MainMenuThemeConfig.SceneMode.values()).map(m -> chip(m.label + " Main Menu",
-                        m == mode ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickMainMenu(m))).toList());
+                MainMenuThemeConfig mm = MainMenuThemeConfig.getInstance();
+                List<IntroButton> styles = new ArrayList<>(java.util.Arrays.stream(MainMenuThemeConfig.SceneMode.values())
+                        .map(m -> chip(m.label + " Main Menu", mm.isEnabled() && m == mm.getSceneMode()
+                                ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> pickMainMenu(m))).toList());
+                // No custom title screen (themedl-1104, killer560 2026-11-04): Minecraft's own, and nothing downloads.
+                styles.add(chip("Vanilla Main Menu", mm.isEnabled() ? IntroButton.Kind.PLAIN : IntroButton.Kind.CHOSEN,
+                        this::pickVanillaMainMenu));
+                rowsOf.add(styles);
             }
             case BAN_LOGS -> rowsOf.add(yesNo("Yes, share them", banChoice, this::chooseBanLogs));
             case CRASH_REPORTS -> rowsOf.add(yesNo("Yes, send them", crashChoice, this::chooseCrashReports));
@@ -472,6 +477,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         MenuConfig cfg = MenuConfig.getInstance();
         cfg.setTheme(t);
         cfg.save();
+        com.killer560.hub.mainmenu.ThemeAssets.requestLook(com.killer560.hub.mainmenu.MainMenuLook.current()); // its download
         guide.setPose(Guide.Pose.CHEER, MenuAnim.changeTime());
         rebuildWidgets();
     }
@@ -480,6 +486,16 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     public void pickMainMenu(MainMenuThemeConfig.SceneMode mode) {
         MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
         cfg.setSceneMode(mode);
+        if (!cfg.isEnabled()) cfg.setThemed(true);
+        cfg.save();
+        com.killer560.hub.mainmenu.ThemeAssets.requestLook(com.killer560.hub.mainmenu.MainMenuLook.current()); // its download
+        rebuildWidgets();
+    }
+
+    /** Picks no custom title screen: the themed main menu off (Display Options' Themed Main Menu), saved. */
+    public void pickVanillaMainMenu() {
+        MainMenuThemeConfig cfg = MainMenuThemeConfig.getInstance();
+        cfg.setThemed(false);
         cfg.save();
         rebuildWidgets();
     }

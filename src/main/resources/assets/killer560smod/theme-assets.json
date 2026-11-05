@@ -1,0 +1,50 @@
+{
+  "release": "theme-assets-1",
+  "assets": [
+    {
+      "name": "amber_aurora.webp",
+      "sha256": "901466a6ac663eb9f88f9c864d284c4d928af761b10a543d7fd8e20d857ad924",
+      "size": 4643254
+    },
+    {
+      "name": "green_boss_target.webp",
+      "sha256": "bd877d90af33bc6847864a1c2d7ffd877095b8fb39e67c45406490f5313c1c83",
+      "size": 1195068
+    },
+    {
+      "name": "milkyway.webp",
+      "sha256": "07d1232d243aae832cfc17dfed630c19a33e597241599ff2cadd49f8b245fb25",
+      "size": 1067634
+    },
+    {
+      "name": "ocean_falls.webp",
+      "sha256": "9c89c8f838d598056efd91466d55b2282df60b5df6e5d0c8700c2d5e3642b70c",
+      "size": 3356970
+    },
+    {
+      "name": "theme_amber.ogg",
+      "sha256": "ae4c934b26394d7fef4472050961f548821ff0cd0f6a70962132a2c89ed90f34",
+      "size": 213664
+    },
+    {
+      "name": "theme_dark.ogg",
+      "sha256": "c41016d353ca1353791cbd6c8de4011939103cf579a6df46e784048c60875ff9",
+      "size": 148467
+    },
+    {
+      "name": "theme_green.ogg",
+      "sha256": "ba256da9699744cbf054d8587d1edab39abda6d3923f340e38f9b5261b80501a",
+      "size": 277905
+    },
+    {
+      "name": "theme_light.ogg",
+      "sha256": "875f93cbaa30af519d44e5a4ed960165d4dc683eed7a3c24d10022adb6be505d",
+      "size": 341034
+    },
+    {
+      "name": "theme_ocean.ogg",
+      "sha256": "d75f1557460a4b78f52abdc7ab96eca66db0e05f4e7c0e884c4cfa4138074ac8",
+      "size": 454713
+    }
+  ]
+}

@@ -25,12 +25,11 @@ public final class MainMenuSettings {
     public static SettingsButtonWidget themedSwitch(int x, int y, int w, Runnable after) {
         return SettingsButtonWidget.builder(switchText(), btn -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
-                    boolean on = !c.isEnabled();
-                    c.setEnabled(on);
-                    c.setParticles(on);
-                    c.setOtherMenus(on);
+                    c.setThemed(!c.isEnabled());
                     c.save();
                     btn.setMessage(switchText());
+                    // Off is Minecraft's own title screen, and then no theme picture or music is ever downloaded (themedl-1104).
+                    ThemeAssets.requestLook(MainMenuLook.current());
                     after.run();
                 }).bounds(x, y, w, 20).build();
     }
@@ -74,6 +73,23 @@ public final class MainMenuSettings {
                     c.setOtherMenus(!c.isOtherMenus());
                     c.save();
                     btn.setMessage(vanillaText());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
+        // Downloaded theme pictures and music are never deleted on their own (killer560, 2026-11-04); this asks first and
+        // keeps what the main menu uses now. A deleted theme downloads again when it is picked.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Delete Unused Downloaded Themes"), btn -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    net.minecraft.client.gui.screens.Screen parent = com.killer560.hub.compat.McCompat.screen(mc);
+                    com.killer560.hub.compat.McCompat.setScreen(mc, new net.minecraft.client.gui.screens.ConfirmScreen(yes -> {
+                        if (yes) {
+                            ThemeAssets.deleteUnused().thenAccept(r -> mc.execute(() -> com.killer560.hub.util.ModChat.send(
+                                    "Main Menu", Component.literal("Deleted " + r[0] + " unused theme download"
+                                            + (r[0] == 1 ? "" : "s") + String.format(java.util.Locale.ROOT, " (%.1f MB).", r[1] / 1_048_576.0)))));
+                        }
+                        com.killer560.hub.compat.McCompat.setScreen(mc, parent);
+                    }, Component.literal("Delete the downloaded themes not in use?"),
+                            Component.literal("Every downloaded main menu picture and theme music except the main menu's "
+                                    + "current one is deleted. A deleted theme downloads again when you pick it.")));
                 }).bounds(x, y, w, 20).build());
         y += 24;
         if (cfg.getStyle() == MainMenuThemeConfig.Style.MATCH) return y;

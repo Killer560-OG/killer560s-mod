@@ -204,6 +204,15 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   pop every ~2 s at 120 fps) and holds a slow scene still for several frames, then jumps (Amber Aurora: raw per-frame change
   0.0068-0.0084, the CRF clip 0.0004-0.5). Judge smoothness on the PNG frames, and encode with
   `-g <frames> -x264-params scenecut=0`, at CRF 8 for a slow scene.
+- A lossy WebP with alpha written by libwebp at `method=6` (Pillow) made TwelveMonkeys 3.12.0, the mod's decoder, throw
+  "Coordinate out of bounds!" in `VP8LDecoder.decodeBwRef` (the lossless ALPH stream) for the full-size Amber picture,
+  and the themed main menu switched itself off for the session; Pillow read the file fine (themedl-1104). method 5 (or
+  alpha_quality 99) decodes; `tools/theme-assets.py` uses method 5. Check a new picture with TwelveMonkeys itself, not
+  Pillow (testkit 1104-logic-themedl-offline draws Amber's in-jar picture).
+- Theme assets (themedl-1104): the full pictures and theme loops are GitHub release assets, not jar resources. A picture
+  the session already shows FULL is never requested again even after its cached file is deleted (WebpPictures keeps the
+  texture), so a test that needs a download must use a picture not yet upgraded, or a loop (always requested while
+  Theme Music is on).
 
 ## Sound
 
