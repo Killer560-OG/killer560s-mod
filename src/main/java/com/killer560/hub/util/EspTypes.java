@@ -30,22 +30,38 @@ public final class EspTypes {
     private static final Optional<DepthStencilState> WRITE_DEPTH_ALWAYS = Optional.of(new DepthStencilState(
             CompareOp.ALWAYS_PASS, true));
 
-    /** Depth-tested (default test) and depth-writing translucent debug fill. */
+    /**
+     * Depth bias (slope factor, constant) of the depth-tested types, the same pair vanilla's {@code pipeline/lines_depth_bias}
+     * (the block outline) uses. A highlight drawn on a block's bounds lies exactly on the block's own faces and z-fought them:
+     * stripes that moved with the view (killer560, 2026-11-04, "almost all waypoints and highlight things"). The bias moves
+     * every fragment a depth step toward the camera (26.x depth is reversed, test GREATER_THAN_OR_EQUAL), so the highlight
+     * wins on a face it shares and nothing changes where it does not; no geometry moves, so no gap opens at any range.
+     * Measured (testkit 1104-zfight-*, 26.3): the slope term does the work (constant alone left 42% of an angled face bare,
+     * slope alone 0%); the constant of 1 is vanilla's and covers faces seen head on.
+     */
+    static final float BIAS_SLOPE = 1f, BIAS_CONSTANT = 1f;
+
+    private static final DepthStencilState DEPTH_BIASED = new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true,
+            BIAS_SLOPE, BIAS_CONSTANT);
+
+    /** Depth-tested (with {@link #BIAS_SLOPE} bias) and depth-writing translucent debug fill. */
     public static final RenderType FILLED = RenderType.create("killer560smod_esp_filled_depth",
-            McRender.withVanillaOit(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+            McRender.withOitDepthBias(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/esp_filled_depth"))
                     .withCull(false)
-                    .withDepthStencilState(DepthStencilState.DEFAULT)
-                    .build())).sortOnUpload(), false).createRenderSetup());
+                    .withDepthStencilState(DEPTH_BIASED)
+                    .build())).sortOnUpload(), "killer560smod_esp_filled_depth", false, BIAS_SLOPE, BIAS_CONSTANT)
+                    .createRenderSetup());
 
-    /** Depth-tested and depth-writing lines. */
+    /** Depth-tested (biased like {@link #FILLED}) and depth-writing lines. */
     public static final RenderType LINES = RenderType.create("killer560smod_esp_lines_depth",
-            McRender.withVanillaOit(McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(
+            McRender.withOitDepthBias(McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(
                     McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
                             .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/esp_lines_depth"))
                             .withCull(false)
-                            .withDepthStencilState(DepthStencilState.DEFAULT)
-                            .build()))), true).createRenderSetup());
+                            .withDepthStencilState(DEPTH_BIASED)
+                            .build()))), "killer560smod_esp_lines_depth", true, BIAS_SLOPE, BIAS_CONSTANT)
+                    .createRenderSetup());
 
     /** Through walls (always passes) but writes depth. */
     public static final RenderType FILLED_THRU = RenderType.create("killer560smod_esp_filled_thru",

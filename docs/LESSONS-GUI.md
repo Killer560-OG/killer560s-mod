@@ -552,8 +552,13 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   BUILD_CACHE); the first invsortfit commit passed those stacks and neither grid ever showed a box. Pass the tier the data
   already has: `drawBox(g, ItemRarity.byName(pet.tier() / entry.tier()), ...)` (invsortfit-1102).
 - A world fill whose face lies exactly on a block face z-fights with it, and which one wins flips as the camera moves:
-  "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). Push every face a
-  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103).
+  "if i jump or crouch the highlight will phase through the block" (Carpet Highlighter, 2026-11-03). The margin (0.002
+  outside, mining-1103) did NOT fix his report alone: the rest was the render event (the 26.3 AFTER_TRANSLUCENT_TERRAIN
+  note above, mithrilarea-1103), and at range a fixed margin is under one depth step. Since zfight-1104 ("almost all
+  waypoints and highlight things are doing the bug that we had with the portal door") `EspTypes.FILLED` / `LINES` (and so
+  every depth-tested highlight, solver ones included) carry vanilla's block-outline depth bias (slope 1, constant 1), in
+  the OIT pipelines too (`McRender.withOitDepthBias`, 26.3). Measured with testkit 1104-zfight-*: constant 1 alone left 42%
+  of an angled face bare, the slope term fixes it at every range. A new depth-tested type must use the biased state.
 
 - **The Inventory Search bar has a fixed spot and everything else lays out around it** (killer560, 2026-11-02: "no i
   want it always at the bottom. adjust other menus around it instead", after a first fix that moved the bar to free
@@ -571,9 +576,6 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
 - The testkit harness's `holdKey(Ctrl)` + `pressKey(F)` did not reach the mod as Ctrl+F on 26.3 (old and new jar alike),
   so it cannot prove a Ctrl shortcut handled in Fabric's `ScreenKeyboardEvents`. Call `KeyboardHandler.keyPress(window,
   PRESS, McKeys.keyEvent(KEY_F, MOD_CONTROL))` by reflection (public on 26.3, private on 26.2) - StorageSearchCases.ctrlF.
-
-  hair (0.002) outside the block it marks, as the titanium boxes already did (mining-1103). The margin alone did NOT fix his
-  report: the rest was the render event (see the 26.3 AFTER_TRANSLUCENT_TERRAIN note above, mithrilarea-1103).
 - **`ScreenEvents.afterExtract` draws ABOVE the tooltip; draw container overlays through `gui/BelowTooltip` instead.** Fabric fires it from a wrap in GameRenderer around `Screen.extractRenderStateWithTooltipAndSubtitles`, which has already run `extractDeferredElements` (`nextStratum`, then the deferred tooltip), so the inventory search bar covered the tooltip text (killer560, 2026-11-03: "make tooltips show above the search bar"; javap 26.2 Screen + GuiGraphicsExtractor, Fabric screen-api GameRendererMixin). `BelowTooltip.register(screen, cb)` takes the same callback and runs it from the TAIL of `AbstractContainerScreen.extractRenderState` (and `AbstractRecipeBookScreen`'s, which never calls the super one), i.e. before the deferred pass; callbacks are dropped on `BEFORE_INIT` like Fabric's own. Moved: search bar, AH Price Buttons, Listing Helper, Chest Profit, Slot Binds, Storage Search highlight. A `setTooltipForNextFrame` set from an afterExtract callback was also a frame late. Left on afterExtract on purpose: Spirit Leap, AH / Bazaar reskin (they replace the container), Chocolate Factory (own `nextStratum`), Image Preview, close fade, Fake Cursor. Testkit 1103-menu-tooltip-over-bar compares four shots (bar on/off x hover on/off) inside the bar's rectangle.
 
 - Slot Text drew BOTTOM_RIGHT text (Attribute Shard level etc.) over vanilla's stack count (owner screenshot, 2026-11-04): `SlotTextFeature.clearOfCount` moves it to the first free corner (top-left, top-right, bottom-left) when the count is above 1; testkit 1104-ui-slottext-count.

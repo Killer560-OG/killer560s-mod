@@ -9,7 +9,7 @@ import net.minecraft.world.phys.Vec3;
  * Test hook (docs/TESTING-HOOKS.md): draws one green test shape through one of the shared highlight helper families, from
  * COLLECT_SUBMITS, so a pixel test can put water behind / around / in front of it (testkit 1103-esp-depth-*). Null does
  * nothing. Families: thru-fill, depth-fill, block-fill (BoxBatch, the mining highlights' path), waypoint-fill (Secret
- * Waypoints' own types), thru-outline, depth-outline, thru-line, depth-line.
+ * Waypoints' own types; waypoint-depth its depth-tested one), thru-outline, depth-outline, thru-line, depth-line.
  */
 public final class EspDepthTestHook {
 
@@ -44,7 +44,8 @@ public final class EspDepthTestHook {
                 BATCH.add(b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, 0f, 1f, 0f, 0.5f);
                 BATCH.drawFilled(ctx, EspTypes.FILLED);
             }
-            case "waypoint-fill" -> com.killer560.hub.secretwaypoints.SecretWaypointsRenderer.drawForTest(ctx, b);
+            case "waypoint-fill", "waypoint-depth" ->
+                    com.killer560.hub.secretwaypoints.SecretWaypointsRenderer.drawForTest(ctx, b, f.equals("waypoint-fill"));
             case "thru-outline" -> WorldRenderUtils.renderOutlineBoxes(ctx, new AABB[]{b}, new float[]{0f, 1f, 0f, 1f}, 1, 8f, true);
             case "depth-outline" -> WorldRenderUtils.renderOutlineBoxes(ctx, new AABB[]{b}, new float[]{0f, 1f, 0f, 1f}, 1, 8f, false);
             case "thru-line", "depth-line" -> {

@@ -77,11 +77,9 @@ public final class McRender {
         return builder;
     }
 
-    /**
-     * Gives a depth-tested, depth-writing render type vanilla's own OIT pipelines for lines or debug-filled quads (26.3 only;
-     * 26.2 has none and returns the builder unchanged). Depth testing and writing happen in the OIT depth-bounds stage there.
-     */
-    public static RenderSetup.RenderSetupBuilder withVanillaOit(RenderSetup.RenderSetupBuilder builder, boolean lines) {
+    /** 26.3 gives a depth-tested type biased OIT pipelines; 26.2 has no OIT, so the builder is returned unchanged. */
+    public static RenderSetup.RenderSetupBuilder withOitDepthBias(RenderSetup.RenderSetupBuilder builder, String name,
+                                                                  boolean lines, float slope, float constant) {
         return builder;
     }
 

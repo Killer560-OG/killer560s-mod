@@ -166,9 +166,10 @@ public final class SecretWaypointsRenderer {
         return drawn;
     }
 
-    /** Test hook (util/EspDepthTestHook): one through-walls fill drawn exactly as a waypoint fill is. */
-    public static void drawForTest(LevelRenderContext context, net.minecraft.world.phys.AABB box) {
-        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) -> filledBox(pose.pose(), buffer, box, 0f, 1f, 0f, 0.5f));
+    /** Test hook (util/EspDepthTestHook): one fill drawn exactly as a waypoint fill is, through walls or depth-tested. */
+    public static void drawForTest(LevelRenderContext context, net.minecraft.world.phys.AABB box, boolean throughWalls) {
+        McRender.inCameraSpace(context, throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
+                (pose, buffer) -> filledBox(pose.pose(), buffer, box, 0f, 1f, 0f, 0.5f));
     }
 
     /** Indices of the waypoints that passed this frame's distance cull. Render thread only; reused

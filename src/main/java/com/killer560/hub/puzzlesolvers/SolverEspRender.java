@@ -79,22 +79,11 @@ public final class SolverEspRender {
                         "killer560smod_solver_filled", false).createRenderSetup());
     }
 
-    /** Holder idiom - the depth-tested twins: same as vanilla's debug box and lines but WRITING depth (see ThroughWalls.WRITE_DEPTH_ALWAYS). */
+    /** The depth-tested types are the shared ones (util/EspTypes, depth-biased against z-fighting a block face). */
     private static final class Depth {
-        static final RenderType LINES = RenderType.create("killer560smod_solver_lines_depth",
-                McRender.withVanillaOit(McRender.sortLinesOnUpload(RenderSetup.builder(RenderPipelines.register(
-                        com.killer560.hub.compat.McRender.linesColorTarget(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET))
-                                .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_lines_depth"))
-                                .withCull(false)
-                                .withDepthStencilState(DepthStencilState.DEFAULT)
-                                .build()))), true).createRenderSetup());
+        static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES;
 
-        static final RenderType FILLED = RenderType.create("killer560smod_solver_filled_depth",
-                McRender.withVanillaOit(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-                        .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/solver_filled_depth"))
-                        .withCull(false)
-                        .withDepthStencilState(DepthStencilState.DEFAULT)
-                        .build())).sortOnUpload(), false).createRenderSetup());
+        static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED;
     }
 
     /** The solver's own Highlight switch: off, the methods below draw nothing for it. */
