@@ -66,6 +66,12 @@ public final class BossArena {
     /** The P3 capture's cells (index, state) in P3's band that differ from the P1 capture: what Hypixel changes when P3 starts. */
     private static int[] p3Cells = new int[0];
     private static BlockState[] p3States = new BlockState[0];
+    /**
+     * Maxor's and Storm's holes over a capture: the cells of y 214-224 (P1's floor) and 160-170 (P2's) that the P3 capture
+     * has as air and the P1 one as a solid block (bossfloor-1104: the plan's holes cut over bedrock there and nobody fell).
+     */
+    private static final int[][] HOLE_BANDS = {{214, 224}, {160, 170}};
+    private static int[][] holeCells = {new int[0], new int[0]};
     /** P3's band in the capture box: the ring, its gates and the core (P2's floor is at 168, P4's at 62). */
     private static final int P3_Y1 = 100, P3_Y2 = 145;
     private static String source = "none";
@@ -180,26 +186,45 @@ public final class BossArena {
                 || p1.z0 != p3.z0) {
             p3Cells = new int[0];
             p3States = new BlockState[0];
+            holeCells = new int[][]{new int[0], new int[0]};
             return;
         }
-        int from = (P3_Y1 - p1.y0) * p1.w * p1.d, to = (P3_Y2 - p1.y0 + 1) * p1.w * p1.d;
+        p3Cells = differing(p1, p3, P3_Y1, P3_Y2, false);
+        p3States = new BlockState[p3Cells.length];
+        for (int k = 0; k < p3Cells.length; k++) {
+            p3States[k] = p3.states[p3.cells[p3Cells[k]]];
+        }
+        for (int h = 0; h < HOLE_BANDS.length; h++) {
+            holeCells[h] = differing(p1, p3, HOLE_BANDS[h][0], HOLE_BANDS[h][1], true);
+        }
+        LOGGER.info("[BossSim] P3 capture: {} block(s) of P3 differ from the P1 capture; holes {} and {}", p3Cells.length,
+                holeCells[0].length, holeCells[1].length);
+    }
+
+    /** The cells of y {@code y1..y2} where the two captures differ (only solid-to-air ones when {@code holes}). */
+    private static int[] differing(Captured p1, Captured p3, int y1, int y2, boolean holes) {
+        int from = Math.max(0, (y1 - p1.y0) * p1.w * p1.d), to = Math.min(p1.cells.length, (y2 - p1.y0 + 1) * p1.w * p1.d);
         int n = 0;
         int[] cells = new int[1024];
-        BlockState[] states = new BlockState[1024];
         for (int i = from; i < to; i++) {
-            BlockState b = p3.states[p3.cells[i]];
-            if (p1.states[p1.cells[i]] != b) {
+            BlockState a = p1.states[p1.cells[i]], b = p3.states[p3.cells[i]];
+            if (a != b && (!holes || b.isAir() && !a.isAir() && a.getFluidState().isEmpty())) {
                 if (n == cells.length) {
                     cells = java.util.Arrays.copyOf(cells, n * 2);
-                    states = java.util.Arrays.copyOf(states, n * 2);
                 }
-                cells[n] = i;
-                states[n++] = b;
+                cells[n++] = i;
             }
         }
-        p3Cells = java.util.Arrays.copyOf(cells, n);
-        p3States = java.util.Arrays.copyOf(states, n);
-        LOGGER.info("[BossSim] P3 capture: {} block(s) of P3 differ from the P1 capture", n);
+        return java.util.Arrays.copyOf(cells, n);
+    }
+
+    /** Opens Maxor's (0) or Storm's (1) hole as the P3 capture shows it; false when there is none to read it from. */
+    static boolean openCapturedHole(ServerLevel level, int which) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int i : holeCells[which]) {
+            level.setBlock(pos.set(X0 + i % W, Y0 + i / (W * D), Z0 + (i / W) % D), BossBlocks.AIR, BossBlocks.FLAGS);
+        }
+        return holeCells[which].length > 0;
     }
 
     /**
@@ -207,15 +232,20 @@ public final class BossArena {
      * blocks over it. The capture's ground is at 113-116 (bossfloor-1104), the plan's at {@link #P3_FLOOR}.
      */
     static double standY(ServerLevel level, double x, double z) {
+        return standY(level, x, z, P3_FLOOR, P3_Y2);
+    }
+
+    /** The same from {@code from} up to {@code to}: P4's capture platform is at 63, the plan's at {@link #P4_FLOOR}. */
+    static double standY(ServerLevel level, double x, double z, int from, int to) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         int bx = net.minecraft.util.Mth.floor(x), bz = net.minecraft.util.Mth.floor(z);
-        for (int y = P3_FLOOR; y < P3_Y2; y++) {
+        for (int y = from; y < to; y++) {
             var shape = level.getBlockState(p.set(bx, y, bz)).getCollisionShape(level, p);
             if (!shape.isEmpty() && free(level, p.set(bx, y + 1, bz)) && free(level, p.set(bx, y + 2, bz))) {
                 return y + shape.max(net.minecraft.core.Direction.Axis.Y);
             }
         }
-        return P3_FLOOR + 1;
+        return from + 1;
     }
 
     private static boolean free(ServerLevel level, BlockPos p) {

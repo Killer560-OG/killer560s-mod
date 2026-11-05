@@ -92,6 +92,14 @@ public final class BossFight {
     static final int[] P1_HOLE = {66, 56, 80, 70};
     static final int[] P2_HOLE = {98, 38, 102, 42};
     static final int[] CORE_HOLE = {41, 99, 68, 117};
+    /**
+     * The capture's core floor (bossfloor-1104): a 7x7 gold and bedrock plug at y 113 over x 51-57, z 111-117. The shaft
+     * under it is open down to P4's platform (63) in the room already, so the plug is all that goes.
+     */
+    static final int[] CORE_PLUG = {51, 111, 57, 117};
+    static final int CORE_PLUG_Y = 113;
+    /** The capture's core door: the gold blocks x 52-56, y 115-121 at z 54; opening the core removes only them (killer560). */
+    static final int[] CORE_DOOR = {52, 115, 54, 56, 121, 54};
     static final int[] P4_HOLE = {50, 72, 58, 80};
 
     /**
@@ -363,30 +371,30 @@ public final class BossFight {
         switch (from) {
             case P1 -> startP1(true);
             case P2 -> {
-                openHole(P1_HOLE, BossArena.P1_FLOOR);
+                openBossHole(0);
                 teleportAll(P2_SPAWN, 90f);
                 startP2();
             }
             case S1, S2, S3, S4, CORE -> {
-                openHole(P1_HOLE, BossArena.P1_FLOOR);
-                openHole(P2_HOLE, BossArena.P2_FLOOR);
+                openBossHole(0);
+                openBossHole(1);
                 int sec = from == Start.CORE ? 5 : from.ordinal() - Start.S1.ordinal() + 1;
                 BossArena.applyP3(level);
                 teleportAll(sectionSpawn(sec), 0f);
                 startP3(sec);
             }
             case P4 -> {
-                openHole(P1_HOLE, BossArena.P1_FLOOR);
-                openHole(P2_HOLE, BossArena.P2_FLOOR);
-                openHole(CORE_HOLE, BossArena.P3_FLOOR);
-                teleportAll(P4_SPAWN, 180f);
+                openBossHole(0);
+                openBossHole(1);
+                openCoreFloor();
+                teleportAll(new Vec3(P4_SPAWN.x, BossArena.standY(level, P4_SPAWN.x, P4_SPAWN.z, BossArena.P4_FLOOR, 100), P4_SPAWN.z), 180f);
                 startP4();
             }
             case P5 -> {
                 master = true;
-                openHole(P1_HOLE, BossArena.P1_FLOOR);
-                openHole(P2_HOLE, BossArena.P2_FLOOR);
-                openHole(CORE_HOLE, BossArena.P3_FLOOR);
+                openBossHole(0);
+                openBossHole(1);
+                openCoreFloor();
                 openHole(P4_HOLE, BossArena.P4_FLOOR);
                 teleportAll(P5_SPAWN, 180f);
                 startP5();
@@ -410,6 +418,22 @@ public final class BossFight {
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             p.teleportTo(level, at.x, at.y, at.z, java.util.Set.of(), yaw, 0f, true);
             p.fallDistance = 0;
+        }
+    }
+
+    /** Maxor's (0) or Storm's (1) hole: as the P3 capture shows it over a capture that has one, else the plan's. */
+    private static void openBossHole(int which) {
+        if (!BossArena.openCapturedHole(level, which)) {
+            openHole(which == 0 ? P1_HOLE : P2_HOLE, which == 0 ? BossArena.P1_FLOOR : BossArena.P2_FLOOR);
+        }
+    }
+
+    /** The floor under the core: the capture's plug, or the plan's hole through its core floor and bed. */
+    private static void openCoreFloor() {
+        if ("capture".equals(BossArena.source())) {
+            BossBlocks.fill(level, CORE_PLUG[0], CORE_PLUG_Y, CORE_PLUG[1], CORE_PLUG[2], CORE_PLUG_Y, CORE_PLUG[3], BossBlocks.AIR);
+        } else {
+            openHole(CORE_HOLE, BossArena.P3_FLOOR);
         }
     }
 
@@ -892,7 +916,7 @@ public final class BossFight {
         }
         if (since == STORM_AFTER - 3) {
             // His platforms crumble 3 ticks before Storm's line at the soonest; the death animation with it.
-            openHole(P1_HOLE, BossArena.P1_FLOOR);
+            openBossHole(0);
             maxor.die();
         }
         if (since < 0) {
@@ -1372,7 +1396,7 @@ public final class BossFight {
         }
         if (fromStorm) {
             // On Goldor's line the hole under the Red pillar opens (Hypixel's frames run 24-30 ticks after it).
-            later(24 + RNG.nextInt(7), "p2 hole", () -> openHole(P2_HOLE, BossArena.P2_FLOOR));
+            later(24 + RNG.nextInt(7), "p2 hole", () -> openBossHole(1));
         }
         BossStations.spawn(level, section);
         BossDevices.start(level, section);
@@ -1442,7 +1466,7 @@ public final class BossFight {
         }
         if (goldorDeadAt >= 0 && t - goldorDeadAt == NECRON_AFTER - 2) {
             // The floor under the core goes 2 ticks before Necron's line; everyone falls into P4.
-            openHole(CORE_HOLE, BossArena.P3_FLOOR);
+            openCoreFloor();
         }
     }
 
@@ -1592,7 +1616,9 @@ public final class BossFight {
             BossChat.chat(server, "§aThe Core entrance is opening!");
             BossChat.title(server, "", "§aThe Core entrance is opening!", 0, 40, 0);
         }
-        later(1, "core door", () -> BossBlocks.open(level, 52, BossArena.P3_FLOOR + 1, 58, 57, BossArena.P3_FLOOR + 6, 58));
+        int[] d = "capture".equals(BossArena.source()) ? CORE_DOOR
+                : new int[]{52, BossArena.P3_FLOOR + 1, 58, 57, BossArena.P3_FLOOR + 6, 58};
+        later(1, "core door", () -> BossBlocks.open(level, d));
     }
 
     private static void hitGoldor() {

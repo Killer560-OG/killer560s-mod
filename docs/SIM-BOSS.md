@@ -50,8 +50,18 @@ The fight starts from the P1 capture; P3's start (`BossArena.applyP3`, at a P3 s
 blocks of P3's band (y 100-145) in which his P3 capture (2026-11-04 23:21, S1, fixture `boss-arena-p3-1104.bin`) differs
 from the P1 one: the wall of nether bricks, cobblestone walls and glass panes at x 77-92, z 35-45 that closes S1's way in is
 gone, and the Arrows wall's sea lanterns (x -3) sit where that run put them. The gates are barrier walls in both captures
-(no other gate block exists). Still unverified: the core door (z 58 is solid stone in both; a capture after the core opens
-would show it) and the Arrows wall's lanterns, which change per run and need not match the sim's chosen layout.
+(no other gate block exists). The core's floor in the capture is a 7x7 plug of gold and bedrock at y 113 (x 51-57,
+z 111-117) over a shaft that is already open down to P4's platform (top 63); over a capture `BossFight.openCore` clears
+only the plug (the plan's `CORE_HOLE` at 105-106 cut solid stone under a whole floor, and nobody fell), and P4's spawn
+stands on the platform found there (y 64; the plan's 63). The core door is the 5x7 of gold blocks at x 52-56, y 115-121,
+z 54 (in both captures); opening the core removes only those (killer560, 2026-11-05: "the core door just removes those gold
+blocks"; `BossFight.CORE_DOOR`). Maxor's and Storm's holes over a capture are the cells of y 214-224 and 160-170 that are
+solid in the P1 capture and air in the P3 one (1214 cells, `BossArena.openCapturedHole`): the plan's holes cut over
+bedrock at 218 and 166 there, so nobody fell. Necron's hole (P4 to P5) has no capture yet: over a capture the plan's
+P4_HOLE at 61-62 still leaves the platform's top (63). Still unverified: the Arrows wall's lanterns. Those are 3 sea lanterns among the 25 cells of the blue terracotta wall at x -3, y 120-124, z 75-79
+(index dy + dz * 5): {2, 12, 22} in the P1 capture, {0, 17, 20} in the P3 one, whose run logged `[ArrowAlign] layout #5`;
+17 and 20 hold no frame of layout 5, so no rule ties them to the layout (the P4 platform's stone pattern also differs
+between the two captures: Hypixel seems to shuffle such blocks per run). The sim keeps the P3 capture's lanterns.
 
 ## The fight
 
