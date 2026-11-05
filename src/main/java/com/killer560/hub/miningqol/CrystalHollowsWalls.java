@@ -220,6 +220,12 @@ public final class CrystalHollowsWalls {
         return frames;
     }
 
+    /** The Jungle zone: the low/low surface quadrant (above the Magma Fields layer, outside the Nucleus box). */
+    public static boolean inJungle(double x, double y, double z) {
+        return x >= X0 && x < MID && z >= Z0 && z < MID && y >= MAGMA_TOP && y < Y1
+                && !(x >= NX0 && z >= NZ0);
+    }
+
     /** Hollows-bounds check for a position (the nominal box), for the testkit. */
     public static boolean inBounds(double x, double y, double z) {
         return x >= X0 && x < X1 && z >= Z0 && z < Z1 && y >= Y0 && y < Y1;

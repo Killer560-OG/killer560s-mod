@@ -155,6 +155,9 @@ public final class MiningQolConfig {
     // Wrong Armor Alert (killer560, 2026-11-03: "a mining alert for if you are mining in a non mining armor set")
     private boolean wrongArmor = false;
     private boolean wrongArmorSound = true;
+    // Jungle Pickaxe Alert (killer560, 2026-11-05)
+    private boolean junglePick = false;
+    private boolean junglePickSound = true;
     // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
     private boolean chWalls = false;
     private final int[] chWallColor = CrystalHollowsWalls.defaultColors();
@@ -247,6 +250,8 @@ public final class MiningQolConfig {
                 cfg.abilitySound = ConfigJson.getBool(o, "abilitySound", cfg.abilitySound);
                 cfg.wrongArmor = ConfigJson.getBool(o, "wrongArmor", cfg.wrongArmor);
                 cfg.wrongArmorSound = ConfigJson.getBool(o, "wrongArmorSound", cfg.wrongArmorSound);
+                cfg.junglePick = ConfigJson.getBool(o, "junglePick", cfg.junglePick);
+                cfg.junglePickSound = ConfigJson.getBool(o, "junglePickSound", cfg.junglePickSound);
                 cfg.chWalls = ConfigJson.getBool(o, "chWalls", cfg.chWalls);
                 for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
                     int i = z.ordinal();
@@ -341,6 +346,8 @@ public final class MiningQolConfig {
             o.addProperty("abilitySound", abilitySound);
             o.addProperty("wrongArmor", wrongArmor);
             o.addProperty("wrongArmorSound", wrongArmorSound);
+            o.addProperty("junglePick", junglePick);
+            o.addProperty("junglePickSound", junglePickSound);
             o.addProperty("chWalls", chWalls);
             for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
                 o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
@@ -649,6 +656,27 @@ public final class MiningQolConfig {
 
     public void setWrongArmorSound(boolean v) {
         wrongArmorSound = v;
+    }
+
+    // ---- Jungle Pickaxe Alert
+    public boolean isJunglePick() {
+        return junglePick && sb();
+    }
+
+    public boolean isJunglePickRaw() {
+        return junglePick;
+    }
+
+    public void setJunglePick(boolean v) {
+        junglePick = v;
+    }
+
+    public boolean isJunglePickSound() {
+        return junglePickSound;
+    }
+
+    public void setJunglePickSound(boolean v) {
+        junglePickSound = v;
     }
 
     // ---- Crystal Hollows Walls

@@ -15,6 +15,7 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            Map.entry("jungle pickaxe", "wrong armor alert"),
             // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".
             Map.entry("mod menu", "mods screen"),
             Map.entry("modmenu", "mods screen"),

@@ -1457,6 +1457,8 @@ final class SettingTooltipsData {
         d.put("300 party message", "Sends the message below to party chat when your score first reaches 300.");
         d.put("score chat note", "Prints the run time and floor in your chat when the score reaches 270 and 300.");
         d.put("alert sound", "Plays a sound with the 270/300 title.");
+        d.put("jungle pickaxe alert", "In the Crystal Hollows, shows a red alert while you break blocks holding the Jungle Pickaxe outside the Jungle zone. The pickaxe is for the Jungle Temple.");
+        d.put("jungle alert sound", "Plays a two-tone beep once each time the Jungle Pickaxe alert appears.");
         // Dungeon Extras
         d.put("outside dungeons", "Lets Auto Dialogue answer NPCs anywhere in Skyblock, not just dungeons (cheat build only).");
         // Custom Scoreboard (new options)
