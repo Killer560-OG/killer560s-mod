@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.blink.mixin",
 	"client": [
 		"BlinkConnectionMixin",
-		"BlinkPacketListenerMixin"
+		"BlinkPacketListenerMixin",
+		"BlinkReminderAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
