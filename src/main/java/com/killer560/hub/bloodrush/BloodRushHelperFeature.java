@@ -393,6 +393,14 @@ public final class BloodRushHelperFeature {
     }
 
     private static void tick(Minecraft client) {
+        long a = meterForTest ? meterNow() : 0;
+        tickBody(client);
+        if (meterForTest) {
+            meteredForTest += meterNow() - a;
+        }
+    }
+
+    private static void tickBody(Minecraft client) {
         clock++;
         int gen = LiveMapFeature.resetGeneration();
         if (client.level != level || gen != generation) {
@@ -1008,6 +1016,14 @@ public final class BloodRushHelperFeature {
     }
 
     private static void render(LevelRenderContext context) {
+        long a = meterForTest ? meterNow() : 0;
+        renderBody(context);
+        if (meterForTest) {
+            meteredForTest += meterNow() - a;
+        }
+    }
+
+    private static void renderBody(LevelRenderContext context) {
         List<Spot> spots = CACHED;
         if (spots.isEmpty()) {
             return;
@@ -1135,6 +1151,23 @@ public final class BloodRushHelperFeature {
             }
         }
         return mx.getThreadAllocatedBytes(id) - before;
+    }
+
+    /** Test hook: count the bytes the helper's own tick and render allocate on the client thread (never on in play). */
+    private static boolean meterForTest;
+    private static long meteredForTest;
+
+    private static long meterNow() {
+        return ((com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean())
+                .getCurrentThreadAllocatedBytes();
+    }
+
+    /** Turns the allocation meter on or off (client thread) and returns the bytes counted since the last call, then zeroes it. */
+    public static long allocMeterForTest(boolean on) {
+        long b = meteredForTest;
+        meteredForTest = 0;
+        meterForTest = on;
+        return b;
     }
 
     /** How many times the rush path was rebuilt since the jar loaded. */
