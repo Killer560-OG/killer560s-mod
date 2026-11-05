@@ -10,10 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** "Confine Mouse In Menus" (killer560, 2026-10-24). Its default follows the window mode: with no saved value it
- *  reads ON while borderless fullscreen is on ({@link WindowModeConfig#isBorderlessFullscreenEnabled()}) and OFF
- *  otherwise. Once he flips it, the saved value wins in every mode. The key is only written once it has been set,
- *  so an unsaved file keeps following the mode. */
+/** "Confine Mouse In Menus" (killer560, 2026-10-24). OFF by default since 2026-11-04 (killer560: "by default confine mouse in menus should be off").
+ *  Before that an unsaved value followed borderless fullscreen.
+ *  The key is only written once it has been set. */
 public final class ConfineMouseConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -67,9 +66,9 @@ public final class ConfineMouseConfig {
         }
     }
 
-    /** The saved value, or, with none saved, whether borderless fullscreen is on. */
+    /** The saved value, or OFF with none saved. */
     public boolean isEnabled() {
-        return enabled != null ? enabled : WindowModeConfig.getInstance().isBorderlessFullscreenEnabled();
+        return enabled != null && enabled;
     }
 
     public void setEnabled(boolean v) {
@@ -85,7 +84,7 @@ public final class ConfineMouseConfig {
         onlyInDungeons = v;
     }
 
-    /** Whether he has set it himself (so the default no longer follows the window mode). */
+    /** Whether he has set it himself. */
     public boolean isExplicitlySet() {
         return enabled != null;
     }
