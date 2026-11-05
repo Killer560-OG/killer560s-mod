@@ -121,6 +121,7 @@ public final class ModPaths {
         t.put("invwalk", "skyblock/invwalk");
         t.put("zpew", "dungeons/zpew");
         t.put("leftclickew", "dungeons/leftclickew");
+        t.put("leftclicksecrets", "dungeons/leftclicksecrets");
         // The always-on map logger's skull log (killer560smod-maplog-<time>.log).
         t.put("maplog", "dungeons/maplog");
 

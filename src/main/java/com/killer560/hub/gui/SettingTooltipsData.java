@@ -1334,6 +1334,7 @@ final class SettingTooltipsData {
         d.put("solve time", "Posts how long Arrow Align took in chat when you finish.");
         d.put("aura range", "How far in blocks Aura can click a frame.");
         d.put("secret triggerbot", "Right-clicks a dungeon secret as soon as your crosshair is on it (cheat build only).");
+        d.put("left click opens secrets", "In a dungeon, a left click on a chest, lever, Wither Essence or Redstone Key right-clicks it instead of mining it, whatever you hold (cheat build only).");
         d.put("swap to slot", "Switches to a chosen hotbar slot right before clicking a secret.");
         d.put("swap slot", "Hotbar slot (1-9) to switch to before clicking a secret.");
         d.put("notify me of updates", "Tells you when you join a world if a newer release of the mod exists.");
