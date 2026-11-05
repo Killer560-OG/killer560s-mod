@@ -114,13 +114,14 @@ public final class FastLeapFeature {
         }
         Teammates.tick(client);
         Floor7Tracker.tick();
+        // before anything here can send a use: a use in the turn tick must carry the turned look (leapsame-1105)
+        LeapRotation.tick(client);
         try {
             LeapManager.onStartTick(client);
         } catch (RuntimeException e) {
             LeapManager.abort(e);
         }
         I4LeapFeature.tick(client);
-        LeapRotation.tick(client);
         // I4 "Prevent Inputs": hold movement keys up while the device runs / the leap is pending
         if (I4LeapFeature.blocksInput() && McCompat.screen(client) == null) {
             client.options.keyUp.setDown(false);
