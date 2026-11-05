@@ -289,6 +289,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.mining.puzzler.PuzzlerSolver.register();
         com.killer560.hub.mining.cold.ColdOverlay.register();
         com.killer560.hub.mining.skymall.SkyMallDisplay.register();
+        com.killer560.hub.mining.deployables.MiningDeployables.register();
         com.killer560.hub.mining.worms.WormAlert.register();
         com.killer560.hub.mining.fossil.FossilSolver.register();
         com.killer560.hub.mining.compass.WishingCompassSolver.register();

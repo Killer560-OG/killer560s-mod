@@ -49,6 +49,7 @@ final class CardBlurbsData {
         d.put("MiningEventsTab", "Mining event alerts and timers.");
         d.put("MiningProfitTab", "Mining profit per hour.");
         d.put("SkyMallDisplayTab", "Today's Sky Mall buff.");
+        d.put("MiningDeployablesTab", "Lantern range circles and timers.");
         d.put("StructureScannerTab", "Finds Hollows structures.");
         d.put("GhostEspTab", "Outlines the Mist's Ghosts.");
         d.put("MiningTitaniumTab", "Outlines Titanium blocks.");

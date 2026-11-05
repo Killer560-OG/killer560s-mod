@@ -60,7 +60,17 @@ public final class SearchAliases {
             Map.entry("dungeon sim teleports", "sim settings"),
             Map.entry("dungeon sim room capture", "sim settings"),
             Map.entry("dungeon sim", "sim settings"),
-            Map.entry("cheat utilities", "secret aura"));
+            Map.entry("cheat utilities", "secret aura"),
+            // minedeploy-1104 (killer560, 2026-11-04): the Deployables card answers the item names players type.
+            Map.entry("lantern", "deployables"),
+            Map.entry("deployable", "deployables"),
+            Map.entry("power orb", "deployables"),
+            Map.entry("orb", "deployables"),
+            Map.entry("plasmaflux", "deployables"),
+            Map.entry("flare", "deployables"),
+            Map.entry("umberella", "deployables"),
+            Map.entry("umbrella", "deployables"),
+            Map.entry("will-o'-wisp", "deployables"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

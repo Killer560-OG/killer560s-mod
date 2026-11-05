@@ -67,7 +67,7 @@ public class MiningQolTab extends FolderTab {
         MiningGeneralGroup() {
             super("General", List.of(new MiningAbilityReadyTab(), new MiningDarkStoneTab(), new MiningPickobulusTab(), new MiningCarpetTab(),
                     new MiningResumeBreakTab(), new MiningWrongArmorTab(), new MiningEventsTab(), new MiningProfitTab(),
-                    new SkyMallDisplayTab(), new MiningGoldenGoblinTab()));
+                    new SkyMallDisplayTab(), new MiningGoldenGoblinTab(), new MiningDeployablesTab()));
         }
     }
 }

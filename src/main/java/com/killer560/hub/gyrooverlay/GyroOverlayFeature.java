@@ -64,12 +64,8 @@ public final class GyroOverlayFeature {
         float[] c = WorldRenderUtils.argbToFloats(cfg.getColor());
         switch (cfg.getStyle()) {
             case CIRCLE_OUTLINE -> {
-                Vec3[] pts = new Vec3[SEGMENTS + 1];
-                for (int i = 0; i <= SEGMENTS; i++) {
-                    double a = Math.PI * 2.0 * i / SEGMENTS;
-                    pts[i] = new Vec3(at.x + Math.cos(a) * RADIUS, at.y + 0.1, at.z + Math.sin(a) * RADIUS);
-                }
-                WorldRenderUtils.renderLineStrip(context, pts, c[0], c[1], c[2], c[3], cfg.getLineWidth());
+                WorldRenderUtils.renderLineStrip(context, WorldRenderUtils.ringPoints(at.x, at.y + 0.1, at.z, RADIUS, SEGMENTS),
+                        c[0], c[1], c[2], c[3], cfg.getLineWidth());
             }
             case CIRCLE -> WorldRenderUtils.renderFilledCylinder(context, at, RADIUS, at.y + 0.1, at.y + 0.1, SEGMENTS,
                     c[0], c[1], c[2], c[3]);

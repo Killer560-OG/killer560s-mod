@@ -213,6 +213,18 @@ public final class WorldRenderUtils {
                 McRender.cameraXRot(context), McRender.cameraYRot(context)).scale(0.5));
     }
 
+    /** A flat closed ring of {@code segments} sides (segments + 1 points, the last repeating the first) around
+     *  {@code cx, cz} at height {@code y}, for {@link #renderLineStrip}: Door Keys, Gyro Overlay and Deployables draw it.
+     *  Callers cache the array and build it again only when the ring moves. */
+    public static Vec3[] ringPoints(double cx, double y, double cz, double radius, int segments) {
+        Vec3[] pts = new Vec3[segments + 1];
+        for (int i = 0; i <= segments; i++) {
+            double a = Math.PI * 2.0 * i / segments;
+            pts[i] = new Vec3(cx + Math.cos(a) * radius, y, cz + Math.sin(a) * radius);
+        }
+        return pts;
+    }
+
     /** Draws a connected line strip through a real sequence of world-space points (e.g. a real puzzle
      *  solve path) - each consecutive pair of points gets one line segment, in order. */
     public static void renderLineStrip(LevelRenderContext context, java.util.List<Vec3> points,

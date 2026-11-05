@@ -32,6 +32,17 @@ final class SettingTooltipsMining3 {
         d.put("sky mall display/mining islands only", "Shows the HUD only on the mining islands, where the buff works.");
         d.put("sky mall display/alert on", "Shows a title when the new buff is this one. Left click goes forward, right click back.");
 
+        d.put("deployables", "Finds placed lanterns (Dwarven, Mithril, Titanium, Glacite, Will-o'-wisp) by Hypixel's timer label over them, draws the 30 block area they buff and keeps their time left on a HUD. Draws only.");
+        d.put("deployables/show radius circle", "Draws the area each deployable buffs. It turns the In Radius color while you stand inside it and get its effect.");
+        d.put("deployables/range style", "Circle draws a ring of the radius on the ground under it. Sphere draws a see-through ball of the radius: inside it you get the effect. Left click goes forward, right click back.");
+        d.put("deployables/circle thickness", "How thick the ring's line is, in pixels.");
+        d.put("deployables/circle height", "How far above the ground the ring is drawn.");
+        d.put("deployables/circle color", "The circle or sphere's color while you are outside it.");
+        d.put("deployables/in radius color", "The circle or sphere's color while you are inside it and get its effect.");
+        d.put("deployables/timer hud", "A HUD with each deployable's name and time left. Move it in the HUD editor.");
+        d.put("deployables/timer shows", "Always lists every deployable in sight. Only In Radius lists only the ones you are inside. Left click goes forward, right click back.");
+        d.put("deployables/other deployables", "Also tracks power orbs (Radiant, Mana Flux, Overflux, Plasmaflux), the Umberella and Black Holes, anywhere on Skyblock. Flares have no timer label and are not tracked.");
+
         d.put("wishing compass solver", "In the Crystal Hollows, reads two Wishing Compass trails taken 8 or more blocks apart and marks where they meet, which is what the compass points at. It never stops a use; it reads the particles only.");
         d.put("wishing compass solver/show waypoint", "Draws a box and a label at the solved spot. The coordinates are always said in chat.");
 
