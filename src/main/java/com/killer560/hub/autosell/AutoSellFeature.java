@@ -334,16 +334,20 @@ public final class AutoSellFeature {
                 == com.killer560.hub.itemprotect.ItemProtect.LossScreen.SELL;
     }
 
+    private static final Pattern POTION_COUNT_TAIL = Pattern.compile("(?<=POTION)_X[0-9]+$");
+
     /** The identity Auto Sell keys an item on: {@link ItemIdentity#of}, except that a potion (every Hypixel potion shares
      *  the id POTION) goes by its name - "Healing VIII Splash Potion" is HEALING_VIII_SPLASH_POTION - so a default for
      *  the dungeon healing potion never sells every other potion too. */
+
     public static String identityOf(ItemStack stack) {
         String id = ItemIdentity.of(stack);
         if ("POTION".equals(id) || "SPLASH_POTION".equals(id)) {
             String named = ItemIdentity.fromName(stack.getHoverName().getString());
-            return named == null ? id : named;
+            id = named == null ? id : named;
         }
-        return id;
+        // Hypixel's potion ids and names can carry a count tail ("HEALING_VIII_SPLASH_POTION_X1"): the list holds the bare name.
+        return id == null ? null : POTION_COUNT_TAIL.matcher(id).replaceFirst("");
     }
 
     /** Ghost-sold stacks clicked again in the current/last visit - for the testkit. */

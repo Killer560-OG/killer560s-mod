@@ -22,6 +22,7 @@ project CLAUDE.md. Compiling lessons
 (API names across versions, the cloud-session javac filter) are in [COMPILING.md](COMPILING.md).
 
 ## Items and Hypixel data
+- Auto Sell and potions (autosellpot-1105): his real log showed the dungeon Healing VIII Splash Potion keyed as `HEALING_VIII_SPLASH_POTION_X1` (a count tail on the id or name), so the default `HEALING_VIII_SPLASH_POTION` never matched and "Add defaults" said 0 added (already listed). `AutoSellFeature.identityOf` strips a trailing `_X<n>` after POTION. Read "not on the sell list: ID@slot" lines in the log for the real identity before guessing.
 
 - Instant Transmission is 8 blocks on Aspect of the End, Aspect of the Void AND the Etherwarp Conduit alike.
   What changes the range is the item's own `tuned_transmission` tag - a Transmission Tuner adds a block, four
