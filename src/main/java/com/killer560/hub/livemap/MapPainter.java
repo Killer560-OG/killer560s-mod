@@ -515,7 +515,7 @@ public final class MapPainter {
         return g > 10 ? -1 : g;
     }
 
-    private static int px(float origin, double units, float ppu) {
+    static int px(float origin, double units, float ppu) {
         return Math.round(origin + (float) units * ppu);
     }
 
@@ -1000,7 +1000,7 @@ public final class MapPainter {
     }
 
     /** Color a plain corridor inherits from the rooms it joins. */
-    private static int connectorColor(int idx, LiveMapConfig cfg) {
+    static int connectorColor(int idx, LiveMapConfig cfg) {
         int g = LiveMapFeature.GRID;
         int gx = idx % g;
         int gz = idx / g;
