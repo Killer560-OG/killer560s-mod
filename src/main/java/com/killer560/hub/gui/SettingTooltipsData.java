@@ -124,6 +124,7 @@ final class SettingTooltipsData {
         d.put("crystal hollows map/open map", "Opens the full map. Left click sets a travel target, right click clears it. It never moves you.");
         d.put("crystal hollows map/map scale", "How far the full map is zoomed in, 0.5x to 4x.");
         d.put("crystal hollows map/map hud", "Shows the whole Crystal Hollows as a small map on your HUD while you are there: zones, structures, waypoints and you as an arrow. Move and size it in Edit HUD.");
+        d.put("crystal hollows map/names on hud", "Writes each structure's name beside its marker on the map HUD too (the full map always names them).");
         d.put("crystal hollows map/show zones", "Tints the four zones (Jungle, Mithril Deposits, Goblin Holdout, Precursor Remnants) and the Nucleus on both maps.");
         d.put("crystal hollows map/show borders", "Draws a box around each structure you have found, covering the part you have walked.");
         d.put("crystal hollows map/show waypoints", "Puts a named marker at the middle of each structure you have found.");
@@ -158,12 +159,11 @@ final class SettingTooltipsData {
         d.put("crystal tracker/all found title", "Shows a title once every crystal is found or placed.");
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Mining's cheat block. Inside the constant, so a legit jar carries none of these strings.
-            d.put("structure scanner/structure scanner", "Cheat build only. Reads the loaded chunks around you for Crystal Hollows structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
-            d.put("structure scanner/structure waypoints", "Outlines each found structure's spot, through walls.");
+            d.put("structure scanner/structure scanner", "Cheat build only. Reads every Crystal Hollows chunk you load, once per lobby, for structures and marks the ones it finds, without your walking in. It never clicks or moves you.");
+            d.put("structure scanner/structure waypoints", "Outlines each found structure's spot with its name over it, through walls.");
             d.put("structure scanner/chat on find", "Says in chat what was found and where.");
             d.put("structure scanner/show on map", "Adds the finds to the Crystal Hollows Map as scanned. Scanned finds are never shared with other players.");
             d.put("structure scanner/fairy grottos", "Also looks for Fairy Grottos (magenta glass).");
-            d.put("structure scanner/scan again", "Forgets what was scanned in this lobby and starts over.");
             d.put("ghost esp/ghost esp", "Cheat build only. Outlines the invisible Ghosts in the Dwarven Mines' Mist. It only draws.");
             d.put("ghost esp/ghosts through walls", "Shows the outlines through blocks.");
             d.put("ghost esp/ghost color", "The color of the Ghost outlines.");

@@ -1,13 +1,13 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.mining.scanner.StructureScannerConfig;
-import com.killer560.hub.mining.scanner.StructureScannerFeature;
 import net.minecraft.client.gui.components.AbstractWidget;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Structure Scanner (cheat build only; reads blocks, never acts): see {@link StructureScannerFeature}. */
+/** Structure Scanner (cheat build only; reads blocks, never acts): see {@code mining.scanner.StructureScannerFeature}.
+ *  Under the Crystal Hollows Map, in the Crystal Hollows group's cheat block (killer560, 2026-11-04). */
 public class StructureScannerTab extends BaseTab {
 
     public StructureScannerTab() {
@@ -42,13 +42,6 @@ public class StructureScannerTab extends BaseTab {
         y[0] += 22;
         MiningRows.toggle(w, contentX, y[0], half, "Show On Map", cfg::isShowOnMap, cfg::setShowOnMap, cfg::save);
         MiningRows.toggle(w, colB, y[0], half, "Fairy Grottos", cfg::isGrottos, cfg::setGrottos, cfg::save);
-        y[0] += 22;
-        MiningRows.button(w, contentX, y[0], half, "Scan Again", () -> {
-            StructureScannerFeature.reset();
-            requestRebuild.run();
-        });
-        y[0] += 24;
-        MiningRows.note(w, contentX, y, contentWidth, StructureScannerFeature.status());
         return w;
     }
 }

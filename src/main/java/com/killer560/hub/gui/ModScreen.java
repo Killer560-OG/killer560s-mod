@@ -1156,10 +1156,17 @@ public class ModScreen extends Screen {
         // The groups killer560 asked to keep together (Secrets, Puzzle Solvers) follow as titled runs of cards.
         for (FolderTab g : groups) {
             items.add(new Item(ItemKind.HEADER, g, g.name, cheatBlock || g.isCheatOnly(), null));
+            boolean cheatHeader = cheatBlock || g.isCheatOnly();
             for (BaseTab s : g.subTabs()) {
-                if (!(s instanceof FolderTab)) {
-                    addCard(s);
+                if (s instanceof FolderTab || hiddenByStreamer(s)) {
+                    continue;
                 }
+                if (s.isCheatOnly() && !cheatHeader) {
+                    // A group's cheat cards come last (MenuCategories.cheatLastGroup), under their own red header.
+                    items.add(new Item(ItemKind.HEADER, null, "Cheat", true, null));
+                    cheatHeader = true;
+                }
+                addCard(s);
             }
         }
     }

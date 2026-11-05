@@ -185,10 +185,10 @@ public final class MenuCategories {
             java.util.Comparator.comparing((BaseTab t) -> t.name.toLowerCase(java.util.Locale.ROOT))
                     .thenComparing(t -> t.name);
 
-    /** A group's sections: alphabetical (Solver Highlights, which used to come first, is gone since 2026-10-18). */
+    /** A group's sections, the same rule: legit ones alphabetical, then its cheat-only ones (Mining's Crystal Hollows). */
     private static List<BaseTab> cheatLastGroup(List<BaseTab> in) {
         List<BaseTab> out = new ArrayList<>(in);
-        out.sort(BY_NAME);
+        out.sort(java.util.Comparator.comparing(BaseTab::isCheatOnly).thenComparing(BY_NAME));
         return out;
     }
 }

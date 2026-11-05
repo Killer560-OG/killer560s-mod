@@ -15,6 +15,12 @@ public final class IslandRender {
 
     /** One line of text facing the camera at (x, y, z), growing with distance so it stays readable. Not through walls. */
     public static void label(LevelRenderContext context, double x, double y, double z, String text, int color) {
+        label(context, x, y, z, text, color, false);
+    }
+
+    /** {@link #label}, drawn through walls when {@code walls}. */
+    public static void label(LevelRenderContext context, double x, double y, double z, String text, int color,
+                             boolean walls) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null || text == null || text.isEmpty()) {
             return;
@@ -29,7 +35,7 @@ public final class IslandRender {
             McRender.rotate(poseStack, McRender.cameraRotation(context));
             poseStack.scale(s, -s, s);
             McRender.drawText(context, font, text, -McRender.textWidth(font, text) / 2f, -font.lineHeight / 2f, color | 0xFF000000,
-                    false, poseStack, Font.DisplayMode.NORMAL, 0x40000000, 0xF000F0);
+                    false, poseStack, walls ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL, 0x40000000, 0xF000F0);
         } finally {
             poseStack.popPose();
         }
