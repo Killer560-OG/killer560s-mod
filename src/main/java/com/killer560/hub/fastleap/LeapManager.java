@@ -277,7 +277,7 @@ public final class LeapManager {
             java.util.regex.Pattern.compile("^This ability is on cooldown for (\\d{1,3})s\\.$");
     /** Hypixel's line for ANY own leap, by hand or by the mod - the cooldown starts there. */
     private static final java.util.regex.Pattern OWN_LEAP_LINE =
-            java.util.regex.Pattern.compile("^You have teleported to [A-Za-z0-9_]{1,16}!$");
+            java.util.regex.Pattern.compile("^You have teleported to ([A-Za-z0-9_]{1,16})!$");
 
     /** Test hook: the leap cooldown the manager believes is left, in ticks. */
     public static double cooldownTicks() {
@@ -302,7 +302,9 @@ public final class LeapManager {
     }
 
     static void onChat(String unformatted) {
-        if (OWN_LEAP_LINE.matcher(unformatted).matches()) {
+        java.util.regex.Matcher own = OWN_LEAP_LINE.matcher(unformatted);
+        if (own.matches()) {
+            LeapRotation.onOwnLeap(own.group(1));
             leapCdTicks = Math.max(leapCdTicks, LEAP_COOLDOWN_TICKS * Teammates.mageCooldownMultiplier());
             return;
         }

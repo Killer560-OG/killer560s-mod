@@ -120,6 +120,7 @@ public final class FastLeapFeature {
             LeapManager.abort(e);
         }
         I4LeapFeature.tick(client);
+        LeapRotation.tick(client);
         // I4 "Prevent Inputs": hold movement keys up while the device runs / the leap is pending
         if (I4LeapFeature.blocksInput() && McCompat.screen(client) == null) {
             client.options.keyUp.setDown(false);
@@ -200,6 +201,7 @@ public final class FastLeapFeature {
         Teammates.clear();
         LeapManager.onWorldChange();
         I4LeapFeature.onWorldChange();
+        LeapRotation.clear();
     }
 
     private static void onChat(Component message) {

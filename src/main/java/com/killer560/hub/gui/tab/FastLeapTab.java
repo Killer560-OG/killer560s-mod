@@ -35,6 +35,11 @@ public class FastLeapTab extends BaseTab {
     }
 
     @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Fast Leap", FastLeapSection.TARGET_LOOK);
+    }
+
+    @Override
     public boolean isCheatOnly() {
         return true;
     }
@@ -68,8 +73,9 @@ public class FastLeapTab extends BaseTab {
                 // The Fast Leap switch is the tab's first row: no header above it.
                 y = FastLeapSection.buildGeneral(widgets, x, y, w, requestRebuild, includeHidden);
                 if (FastLeapSection.isEnabledSetting() || includeHidden) {
-                    FastLeapSection.buildLeapSwitches(widgets, x, y, w);
+                    y = FastLeapSection.buildLeapSwitches(widgets, x, y, w);
                 }
+                FastLeapSection.buildTargetLook(widgets, x, y, w);
             }
         }
     }
