@@ -104,6 +104,19 @@ public final class AuctionHouseScreen extends Screen {
     }
 
     @Override
+    public void added() {
+        super.added();
+        // Typing anywhere starts a search (charTyped), and 26.3 sends characters only while SDL text input is on.
+        com.killer560.hub.compat.McInput.textInput(this, true);
+    }
+
+    @Override
+    public void removed() {
+        com.killer560.hub.compat.McInput.textInput(this, false);
+        super.removed();
+    }
+
+    @Override
     public void onClose() {
         commitSearch();
         McCompat.setScreen(this.minecraft, parent);

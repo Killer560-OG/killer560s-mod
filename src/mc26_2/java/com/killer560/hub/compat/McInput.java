@@ -56,6 +56,14 @@ public final class McInput {
         return info.button();
     }
 
+    /** No-op on 26.2: GLFW delivers typed characters at all times (26.3's SDL needs text input started). */
+    public static void textInput(Object owner, boolean on) {
+    }
+
+    /** No-op on 26.2, as {@link #textInput}. */
+    public static void textInputWhileOpen(net.minecraft.client.gui.screens.Screen screen) {
+    }
+
     /** Polls a stored (GLFW) keyboard key. The caller checks the code is in the keyboard range. */
     public static boolean isStoredKeyDown(Window window, int storedKey) {
         return window != null && InputConstants.isKeyDown(window, storedKey);

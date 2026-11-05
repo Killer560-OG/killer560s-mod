@@ -90,6 +90,12 @@ public final class BazaarView {
     static String query = "";
     static boolean searchFocused;
 
+    /** Focuses or leaves the search box; on 26.3 typed characters reach it only while SDL text input is on. */
+    static void focusSearch(boolean on) {
+        searchFocused = on;
+        com.killer560.hub.compat.McInput.textInput(BazaarView.class, on);
+    }
+
     /** True while the Bazaar search box takes typing (util/TypingDetector). */
     public static boolean isSearchFocused() {
         return searchFocused;
@@ -177,7 +183,7 @@ public final class BazaarView {
     /** A Bazaar visit starts (nothing Bazaar was on screen for a while): back to browsing. */
     static void freshSession() {
         mode = Mode.BROWSE;
-        searchFocused = false;
+        focusSearch(false);
         listScroll = 0;
         previewId = null;
         targetId = null;
@@ -576,7 +582,7 @@ public final class BazaarView {
     private static void selectTab(String cat) {
         tab = cat;
         query = "";
-        searchFocused = false;
+        focusSearch(false);
         mode = Mode.BROWSE;
         listScroll = 0;
         AuctionConfig cfg = AuctionConfig.getInstance();
@@ -614,7 +620,7 @@ public final class BazaarView {
                 g.fill(cx, searchY + 4, cx + 1, searchY + 13, t.text());
             }
         }
-        actionHot("search", searchX, searchY, searchW, searchH, "Search", () -> searchFocused = true);
+        actionHot("search", searchX, searchY, searchW, searchH, "Search", () -> focusSearch(true));
     }
 
     // Recents rail -------------------------------------------------------------------------------------------------
@@ -1702,7 +1708,7 @@ public final class BazaarView {
         BazaarFollowUp.disarm("another press");
         boolean onSearch = x >= searchX && x < searchX + searchW && y >= searchY && y < searchY + searchH;
         if (!onSearch) {
-            searchFocused = false;
+            focusSearch(false);
         }
         if (button != 0 && button != 1) {
             return;
@@ -1736,12 +1742,12 @@ public final class BazaarView {
     /** A key while the Bazaar is open: true when the search field took it. */
     static boolean key(KeyEvent e) {
         if (!searchFocused) {
-            searchFocused = e.key() == InputConstants.KEY_F && e.hasControlDown();
+            focusSearch(e.key() == InputConstants.KEY_F && e.hasControlDown());
             return searchFocused;
         }
         BazaarFollowUp.disarm("typing");
         if (e.key() == InputConstants.KEY_ESCAPE || e.key() == InputConstants.KEY_RETURN) {
-            searchFocused = false;
+            focusSearch(false);
             return true;
         }
         if (e.key() == InputConstants.KEY_BACKSPACE && !query.isEmpty()) {
@@ -1766,7 +1772,7 @@ public final class BazaarView {
 
     /** "/bazaar sugar" typed while this menu is open (auction.MenuSearch): the search box's own search for that term. */
     public static void searchFromCommand(String term) {
-        searchFocused = false;
+        focusSearch(false);
         BazaarFollowUp.disarm("command search");
         setQuery(term);
     }
