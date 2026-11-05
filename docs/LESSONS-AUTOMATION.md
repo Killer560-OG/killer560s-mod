@@ -438,6 +438,12 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 - **The testkit finds Auto Routes events by log substrings, so a new log line must not reuse their wording.** The first
   `[AutoRoutes] trace` start line said "await secret 1", which is how 96-ar-crypt finds AwaitEvents' count line, and its
   order check failed on a logging-only change. The trace writes "1 secret"; grep the testkit before wording a line.
+- **A test's "player click" must be a real click, or experimental Grim flags the test (brksec-1105).** 1018-breaker-secrets-on
+  drew NoSwingBreak* and RotationBreak* post-flying on experimental GrimAC: the dig was the TEST calling
+  `gameMode.startDestroyBlock` from a client task (after the tick's movement packet, no swing, the look off the block); the
+  mod's breaker guard and Zero Ping hook send nothing. A case standing in for the attack key turns the camera onto the block,
+  waits two ticks so the server hears the look, checks `mc.hitResult` is the block, then `pressKey(o -> o.keyAttack)`, so
+  vanilla's startAttack digs and swings. Before hunting a flag in the mod, check who sent the packet.
 
 ## Auto Clear kill speed (autoclear-speed-1020)
 
