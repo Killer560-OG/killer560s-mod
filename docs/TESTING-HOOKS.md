@@ -18,7 +18,7 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `hysky`, `github-api`, `relay`,
-`pf-relay`, `lfg-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`, `theme-assets`. `ModNet`'s javadoc says which host and
+`pf-relay`, `lfg-relay`, `discordlink-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`, `theme-assets`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
@@ -38,6 +38,12 @@ it. NoammAddons' socket host (`ws.noamm.org`) and sign-in (`api.noamm.org/hypixe
 whatever the overrides, online or offline; `forbiddenRefusalsForTest()` counts those refusals. `BridgeFeature.
 setContextOverrideForTest(BridgeContext)` makes every bridge tick use a made-up context (null goes back to the game's), so a
 case can put the bridge in a Hypixel-shaped run (testkit 1101-noamm-never).
+
+## Discord Link (`discordlink/`)
+
+Service key `discordlink-relay` (the relay's `/discord-link/*` alone, read on every call). `relay/RelayCalls.setTokenForTest`
+gives every `RelayCalls` caller a bearer token without a Mojang chat key (only with `fabric.client.gametest` set);
+`DiscordLink.resetForTest()` drops the state, code, watcher and any status poll (testkit 1105-discordlink-*).
 
 ## Custom Party Finder (`lfg/`)
 

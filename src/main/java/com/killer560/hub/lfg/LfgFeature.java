@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.partyfinder.PartyFinderStatsApi;
+import com.killer560.hub.relay.RelayCalls;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
@@ -331,7 +332,7 @@ public final class LfgFeature {
         LfgRelay.upsert(body).thenAccept(reply -> onClient(() -> onUpsert(sent, reply)));
     }
 
-    static void onUpsert(JsonObject sent, LfgRelay.Reply reply) {
+    static void onUpsert(JsonObject sent, RelayCalls.Reply reply) {
         if (sent == null || wanted != sent) {
             return; // replaced or removed meanwhile
         }
@@ -402,7 +403,7 @@ public final class LfgFeature {
         return null;
     }
 
-    static void onJoinReply(LfgListing listing, LfgRelay.Reply reply) {
+    static void onJoinReply(LfgListing listing, RelayCalls.Reply reply) {
         if (!reply.ok()) {
             changed("Couldn't ask " + listing.leader() + ": " + reply.error());
             return;
@@ -761,7 +762,7 @@ public final class LfgFeature {
         for (List<LfgListing> list : LISTINGS.values()) {
             for (LfgListing l : list) {
                 if (l.id().equals(listingId)) {
-                    onJoinReply(l, new LfgRelay.Reply(200, com.google.gson.JsonParser.parseString(json).getAsJsonObject(), null));
+                    onJoinReply(l, new RelayCalls.Reply(200, com.google.gson.JsonParser.parseString(json).getAsJsonObject(), null));
                 }
             }
         }
@@ -769,7 +770,7 @@ public final class LfgFeature {
 
     /** Feeds a {@code POST /lfg/listing} answer for the listing currently wanted. */
     public static void onUpsertForTest(String json) {
-        onUpsert(wanted, new LfgRelay.Reply(200, com.google.gson.JsonParser.parseString(json).getAsJsonObject(), null));
+        onUpsert(wanted, new RelayCalls.Reply(200, com.google.gson.JsonParser.parseString(json).getAsJsonObject(), null));
     }
 
     public static String wantedForTest() {

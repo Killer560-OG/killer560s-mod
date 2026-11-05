@@ -56,7 +56,8 @@ import java.util.regex.Pattern;
  * <p><b>Scrubbed before it leaves:</b> credential shapes and home folders ({@code BugReportFeature.redactShapes}, the
  * shapes of tools/verify-artifact.py), the launcher's {@code --accessToken}/{@code --xuid}/{@code --clientId} and server
  * arguments, IP addresses and {@code host:port} servers, other players' names and UUIDs, e-mail addresses, the OS account
- * name, and his own name and UUID unless "Include My Username" is on.
+ * name, and his own name and UUID unless "Include My Minecraft Name" is on (then "Include My Discord" lets the relay add
+ * his linked Discord, discordlink-1105).
  */
 public final class CrashReportFeature {
 
@@ -199,7 +200,9 @@ public final class CrashReportFeature {
         }
         String body;
         try {
-            body = buildPayload(file, key, source, cfg.isShareName()).toString();
+            JsonObject payload = buildPayload(file, key, source, cfg.isShareName());
+            payload.addProperty("shareDiscord", cfg.isShareName() && cfg.isShareDiscord());
+            body = payload.toString();
         } catch (Exception e) {
             IN_FLIGHT.remove(key);
             decide("could not build the report");

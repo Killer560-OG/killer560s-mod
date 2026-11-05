@@ -963,6 +963,15 @@ final class SettingTooltipsData {
         d.put("home button/youtube", "Opens Killer560's YouTube channel.");
         d.put("home button/sweat mode", "Enters sweat mode.");
         d.put("home/sweat mode", "Enters sweat mode.");
+        // Discord Link (discordlink-1105) and Crash Reports' name rows.
+        d.put("link discord", "Gets a one-time code (10 minutes) to type as /link code:<code> in killer560's Discord, which links this Minecraft account to your Discord.");
+        d.put("new code", "Gets a fresh one-time code; the old one stops working.");
+        d.put("link a different discord", "Gets a one-time code to link this Minecraft account to another Discord account instead.");
+        d.put("copy /link command", "Copies /link code:<your code> so you can paste it in killer560's Discord.");
+        d.put("home/check status", "Asks the relay whether this Minecraft account is linked to a Discord account, and to which.");
+        d.put("home/unlink", "Deletes the link between this Minecraft account and your Discord on the relay.");
+        d.put("include my minecraft name", "Puts your Minecraft name and UUID on a crash report, so killer560 can ask you about it. Off: the report says an anonymous player.");
+        d.put("include my discord", "With your Minecraft name on, also names the Discord you linked in Discord Link (no ping). Not linked: nothing is added."); 
         d.put("home/skyblock only", "Pauses every feature while you're not on Hypixel Skyblock or p3sim.");
         d.put("skyblock only", "Limits this feature to Hypixel Skyblock and p3sim.");
         d.put("video browser", "Shows YouTube Shorts in a small window pinned over Minecraft (Windows only).");

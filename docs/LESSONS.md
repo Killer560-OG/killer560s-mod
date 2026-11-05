@@ -312,6 +312,11 @@ project CLAUDE.md. Compiling lessons
   `util/ModNet.forbidden` refuses that host and endpoint even if code to reach them comes back (testkit 1101-noamm-never). A
   player who runs NoammAddons still gets its socket-fed state in-process through `interop/LocalModBridge`. Devonian's and
   Odin's sockets are still joined: ask before adding any other mod's server, and stop at once if its owner objects.
+- **An authed relay call goes through `relay/RelayCalls.call(service, method, path, body)`** (discordlink-1105): one client and
+  daemon pool, the bearer token (Mojang chat-key proof) reused per relay and account until 5 minutes before it expires, and a
+  future that always completes with a `Reply` (status -1 offline). Custom Party Finder's `LfgRelay` and Discord Link use it;
+  a new authed endpoint adds a wrapper there, not a third token client. A crash report names the linked Discord only when it
+  sends `identify` AND `shareDiscord: true` (older jars never send the field, so they never name one).
 
 ## Other features
 - Hypixel's kick lines, read from his own Prism logs (2026-11-03, Kick Rejoin Timer): a kick out of SkyBlock is "Exception Connecting:ReadTimeoutException : null" -> "You were kicked while joining that server!" -> "You tried to rejoin too fast, please try again in a moment!" -> the Prototype Lobby, or "A kick occurred in your connection, so you were put in the SkyBlock lobby!" -> "[rank] name joined the lobby!" (a Hypixel lobby, not the Hub). Rejoin attempts during the wait get "Cannot join SkyBlock for a moment! (Queue join in cooldown)" (1,184 times in his logs); none of these states a time, and no "You must wait N seconds" rejoin line exists in them. Kick line to "Welcome to Hypixel SkyBlock!" was 61-82 s when he had to wait (some kicks let him straight back in 4 s). "You were spawned in Limbo." / "...routed to limbo!" had no wait (back in 10-20 s). Other real lines: "Couldn't warp you! Try again later. (PLAYER_TRANSFER_COOLDOWN)", "[Important] This server will restart soon: Scheduled Reboot", "You have 60 seconds to warp out! CLICK to warp now!", and four spellings of the slow-down line: "Whoa! Slow down there!", "Woah! Slow down there!", "Whow! Slow down there!", "Woah slow down, you're doing that too fast!".

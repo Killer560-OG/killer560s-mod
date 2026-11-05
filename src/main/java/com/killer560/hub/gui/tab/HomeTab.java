@@ -32,7 +32,9 @@ public class HomeTab extends FolderTab {
                 // a very noticeable switch, so it sits on Home rather than deep in Misc.
                 new BanReportTab(),
                 // Auto Crash Reports (killer560, 2026-11-04): next to Ban Reports, both builds, OFF by default.
-                new CrashReportTab()
+                new CrashReportTab(),
+                // Discord Link (discordlink-1105): link your Discord with a one-time code; named on crash reports.
+                new DiscordLinkTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());
