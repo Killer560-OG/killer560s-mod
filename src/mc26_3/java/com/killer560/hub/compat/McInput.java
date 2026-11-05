@@ -218,9 +218,15 @@ public final class McInput {
         net.minecraft.client.Minecraft.getInstance().textInputManager().onTextInputFocusChange(owner, on);
     }
 
-    /** {@link #textInput} on for a "type anywhere to search" screen until it closes. Call from its init(). */
+    /** {@link #textInput} on for a "type anywhere to search" screen until it closes. Call from its init(). An EditBox
+     *  that loses focus stops text input when it owns it, so the screen takes it back after every click and key. */
     public static void textInputWhileOpen(net.minecraft.client.gui.screens.Screen screen) {
         textInput(screen, true);
+        net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents.afterMouseClick(screen).register((s, e, consumed) -> {
+            textInput(s, true);
+            return consumed;
+        });
+        net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.afterKeyPress(screen).register((s, e) -> textInput(s, true));
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.remove(screen).register(s -> textInput(s, false));
     }
 
