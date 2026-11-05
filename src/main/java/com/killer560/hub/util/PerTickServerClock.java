@@ -12,7 +12,11 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * between them, pings with random ids (his 2026-11-04 log, "first ping ids": [-642, -643, -26967, -380, -9038, -644]):
  * about 1.13 non-zero pings per 50 ms of wall time over a 48 s Goldor phase. Odin and NoammAddons count every non-zero ping;
  * here only the CHAIN counts ({@link #chain}), from the first ping after a join, with no trust to earn: the clock is trusted
- * at once. goldfix-1104's pace rule (pings ahead of the wall clock end the trust) read the random ids as a server pinging
+ * at once. The chain is not one a tick either (goldor2-1104): his census lines read 0.99 to 1.18 CHAIN pings per 50 ms (the
+ * extra transactions step the same counter), and his mask procs fell on exact 60-tick multiples of WALL time while the chain
+ * ran 5% ahead (Goldor's line drifted 6, 10, 12, -13 ticks off them). So a chain ping counts only while the count stays within
+ * {@link #HYPIXEL_SLACK} of the wall clock ({@link #withinWall}); a stall banks credit for its catch-up burst, at most
+ * {@link #HYPIXEL_CREDIT} ticks (a server more than 2 s behind skips the rest, it does not catch them up). goldfix-1104's pace rule (pings ahead of the wall clock end the trust) read the random ids as a server pinging
  * faster than it ticks and untrusted real Hypixel, so Split Timers hid every lag figure and every timer ran on client ticks.
  * "Real" hypixel.net is the address AND a non-local remote: the testkit labels its loopback GrimAC server mc.hypixel.net,
  * and Grim's transaction ids form a chain too (-(counter &amp; 0x7FFF), a hit adds several), so they must never count.
@@ -40,6 +44,10 @@ public final class PerTickServerClock {
     static final double MAX_EXCESS = 6.0;
     /** A slow server or a stall banks at most this many ticks of credit (a 10 s hold, then the burst that pays it back). */
     static final double EXCESS_FLOOR = 200.0;
+    /** hypixel.net: a chain ping that would put the count more than this ahead of the wall clock is an extra transaction. */
+    static final double HYPIXEL_SLACK = 1.5;
+    /** hypixel.net: credit a stall banks for its catch-up burst (vanilla catches up at most 2 s of ticks, then skips). */
+    static final double HYPIXEL_CREDIT = 40.0;
     /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
      *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
     static final int STALL_TICKS = 2;
@@ -81,6 +89,9 @@ public final class PerTickServerClock {
     private static final long[] CENSUS = new long[5];
     private static long censusStart = Long.MIN_VALUE;
     private static boolean censusLogged;
+    /** The clock and the client's (server-set) game time when the census began. */
+    private static long censusClock;
+    private static long censusGameTime;
     private static int testChainId = -100;
     private static long testNanos;
 
@@ -129,7 +140,9 @@ public final class PerTickServerClock {
         hypixel = on;
     }
 
-    /** Testkit (logic suite): act as if connected to the real hypixel.net (true), not (false), or by the connection (null). */
+    /** Testkit (logic suite): act as if connected to the real hypixel.net (true), not (false), or by the connection (null).
+     *  While true every ping is timed on the test's own wall clock ({@link #tickForTest} moves it 50 ms), so hand-driven
+     *  ticks run at 20 a second and the wall cap ({@link #withinWall}) judges them as it would a real stream. */
     public static synchronized void hypixelForTest(Boolean on) {
         forcedHypixel = on;
         hypixel = on != null && on;
@@ -157,7 +170,7 @@ public final class PerTickServerClock {
 
     /** From the ping mixin (through {@link ServerTickClock#onPing}), on the client thread, for every ping id. */
     public static void onPingId(int id) {
-        onPing(id, System.nanoTime());
+        onPing(id, Boolean.TRUE.equals(forcedHypixel) ? testNanos : System.nanoTime());
     }
 
     private static void onPing(int id, long nanos) {
@@ -177,7 +190,7 @@ public final class PerTickServerClock {
                     trusted = true;
                     trustChanges++;
                 }
-                advanced = inChain;
+                advanced = inChain && withinWall(nanos);
             } else {
                 checkPace(nanos);
                 advanced = trusted;
@@ -228,29 +241,52 @@ public final class PerTickServerClock {
         }
         if (censusStart == Long.MIN_VALUE) {
             censusStart = nanos;
+            censusClock = clock;
+            censusGameTime = lastGameTime;
         } else if (nanos - censusStart >= CENSUS_NANOS) {
             censusLogged = true;
             double steps = (nanos - censusStart) / 50_000_000.0;
             LOGGER.info("[PerTickServerClock] ping census, first 60 s of this world ({}): {} non-zero ids ({} in the per-tick"
-                    + " chain, {} off it), {} with id 0; {} pings and {} chain pings per 50 ms; chain steps {} down, {} up",
+                    + " chain, {} off it), {} with id 0; {} pings and {} chain pings per 50 ms; chain steps {} down, {} up;"
+                    + " {} ticks counted and the server-set game time +{} in {} ticks of wall time",
                     hypixel ? "hypixel.net, chain counted" : "not hypixel.net", CENSUS[0], CENSUS[1], CENSUS[0] - CENSUS[1],
                     CENSUS[2], String.format(java.util.Locale.ROOT, "%.3f", CENSUS[0] / steps),
-                    String.format(java.util.Locale.ROOT, "%.3f", CENSUS[1] / steps), CENSUS[3], CENSUS[4]);
+                    String.format(java.util.Locale.ROOT, "%.3f", CENSUS[1] / steps), CENSUS[3], CENSUS[4],
+                    clock - censusClock, lastGameTime - censusGameTime, String.format(java.util.Locale.ROOT, "%.1f", steps));
         }
+    }
+
+    /** Takes the wall time since the last paced ping off {@link #excess} (down to -{@code floor}); false for the first
+     *  ping and for an unpaced test ping ({@link #pingForTest}), which move nothing. */
+    private static boolean drain(long nanos, double floor) {
+        if (nanos == Long.MIN_VALUE) {
+            return false;
+        }
+        boolean first = lastPingNanos == Long.MIN_VALUE || nanos < lastPingNanos;
+        if (!first) {
+            excess = Math.max(-floor, excess - (nanos - lastPingNanos) / 50_000_000.0);
+        }
+        lastPingNanos = nanos;
+        return !first;
+    }
+
+    /** hypixel.net, a chain ping: whether it counts, i.e. the count stays within {@link #HYPIXEL_SLACK} of the wall clock. */
+    private static boolean withinWall(long nanos) {
+        if (drain(nanos, HYPIXEL_CREDIT)) {
+            if (excess + 1.0 > HYPIXEL_SLACK) {
+                return false;
+            }
+            excess += 1.0;
+        }
+        return true;
     }
 
     /** Non-Hypixel, every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
     private static void checkPace(long nanos) {
-        if (nanos == Long.MIN_VALUE) {
-            return; // pingForTest: not paced
-        }
-        if (lastPingNanos == Long.MIN_VALUE || nanos < lastPingNanos) {
-            lastPingNanos = nanos;
+        if (!drain(nanos, EXCESS_FLOOR)) {
             return;
         }
-        double steps = (nanos - lastPingNanos) / 50_000_000.0;
-        lastPingNanos = nanos;
-        excess = Math.max(-EXCESS_FLOOR, excess - steps) + 1.0;
+        excess += 1.0;
         if (excess > MAX_EXCESS && !notPerTick) {
             notPerTick = true;
             goodWindows = 0;

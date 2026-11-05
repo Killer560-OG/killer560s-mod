@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * F7/M7 boss-fight countdown timers - killer560's "tick timers from Odin/noamm" request. Every chat
  * trigger and tick count below is ported directly from Odin's own real, confirmed {@code TickTimers.kt}
  * - real boss dialogue lines and real countdown lengths (Necron/Goldor: 60 ticks; Storm's pad: 20
- * ticks; lightning: 560 ticks; the purple-pillar "PY" window: 95 ticks; Storm's second-phase crush
+ * ticks; lightning: 555 ticks; the purple-pillar "PY" window: 95 ticks; Storm's second-phase crush
  * window: 620 ticks), not guessed. Goldor's "Tick:" and Storm's pad timers REPEAT (re-arm on reaching 0)
  * exactly like Odin's, until their real stop lines. Counts SERVER ticks like Odin's {@code TickEvent.Server}
  * (2026-09-15: via {@link ServerTickClock}, one tick per non-zero ClientboundPingPacket, falling back to client
