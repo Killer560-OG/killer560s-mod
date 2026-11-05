@@ -4,7 +4,10 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.peekchat.mixin",
 	"client": [
-		"PeekChatInputBarMixin"
+		"PeekChatFocusMixin",
+		"PeekChatHudMixin",
+		"PeekChatKeyMixin",
+		"PeekChatScrollMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

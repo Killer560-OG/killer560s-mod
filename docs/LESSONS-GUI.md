@@ -231,11 +231,12 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   the screen's widgets, chat/sign/book screens, the recipe-book and creative searches through accessors, the mod's own
   search boxes); the key poll skips on typing now OR at its previous run.
 - **A key that CLOSES a screen also opens it again** if the opener polls raw keys at END_CLIENT_TICK: at the poll there is no
-  screen and the key reads as a fresh edge. The closer marks the key held (`PeekChatFeature.closedByKey`) so the poll waits
-  for a release (testkit 1314).
-- **A ChatScreen subclass must not call `ChatScreen.removed`** if it has no text of its own: vanilla's `removed` discards the
-  saved draft when the box is blank and overwrites it otherwise (javap both versions), so Peek Chat would eat a half-typed
-  message. `PeekChatScreen.removed` only resets the scroll; testkit 1314 checks the draft survives.
+  screen and the key reads as a fresh edge. The closer must mark the key held so the poll waits for a release.
+- **A Screen takes the keyboard and mouse, so anything that must leave the player moving cannot be a Screen** (killer560,
+  2026-11-04: Peek Chat "should not be able to stop my movement"). Peek Chat shows the open-chat history with none:
+  `ChatComponent.isChatFocused` reads true while peeking (open-chat height and lines per page), `Hud.extractChat` draws it
+  in FOREGROUND mode, and KeyboardHandler/MouseHandler hooks take only the wheel, Page Up/Down, Home/End and Escape.
+  Clickable links and hover text need a cursor, i.e. a screen, so they stay in the real chat (testkit 1104-ui-peek-move).
 - A harness key press never reaches `InputConstants.isKeyDown` (it polls GLFW), so a hold-key mode needs a test hook
   (`keyHeldForTest`, [TESTING-HOOKS.md](TESTING-HOOKS.md)). An inventory screenshot diff must look only at the slot grid: the
   player model turns with the cursor (602 px changed in testkit 961's first run).

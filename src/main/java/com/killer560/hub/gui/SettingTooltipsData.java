@@ -1244,9 +1244,9 @@ final class SettingTooltipsData {
                     + " loadout only while the Loadout menu is open. Open, Swap, Close: pressed anywhere (not while typing),"
                     + " it runs /loadouts, clicks this loadout once the menu opens, then closes the menu.");
         }
-        d.put("peek chat", "Opens the chat history with no text box, so you can read and scroll it. Peek Mode says whether it stays open while the key is held.");
-        d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
-        d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
+        d.put("peek chat", "Shows the whole chat history, as tall as the open chat, without opening the chat: you keep moving, fighting and using items while you read it. Peek Mode says whether it stays up while the key is held.");
+        d.put("peek chat key", "Key or mouse button that shows Peek Chat (in Toggle Peek press it again, or Escape, to hide it; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
+        d.put("peek mode", "Toggle Peek: press the key to show the chat, press it again to hide it. Hold To Peek: the chat shows while you hold the key. Either way the mouse wheel and Page Up/Page Down scroll it.");
         d.put("chat history", "Keeps more chat scrollable than vanilla. Off: vanilla's last 100 messages. On: the Length set below.");
         d.put("chat history/length", "Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
         d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
