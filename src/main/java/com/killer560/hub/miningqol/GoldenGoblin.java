@@ -45,6 +45,11 @@ public final class GoldenGoblin {
     private static volatile boolean throughWalls = false;
     private static int boxFrames = 0;
     private static int tracerFrames = 0;
+    private static int flip = 0;
+    private static final AABB[][] boxes = {new AABB[0], new AABB[0]};
+    private static final float[][] rgba = {new float[0], new float[0]};
+    /** The color last used for a Golden (0) and a Diamond (1) Goblin's box and tracer (testkit hook). */
+    private static final int[] drawnArgb = new int[2];
 
     private GoldenGoblin() {
     }
@@ -158,39 +163,46 @@ public final class GoldenGoblin {
             return;
         }
         float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        // Fresh arrays every frame: on 26.2 the draw runs later in the frame.
-        AABB[] boxes = new AABB[ids.length];
+        // Two grow-only scratch sets, used turn about: on 26.2 the draw reads them later in the frame, after the next
+        // render call could otherwise have rewritten them.
+        flip ^= 1;
+        if (boxes[flip].length < ids.length) {
+            boxes[flip] = new AABB[ids.length];
+            rgba[flip] = new float[ids.length * 4];
+        }
+        AABB[] bx = boxes[flip];
+        float[] col = rgba[flip];
         int n = 0;
         for (int id : ids) {
             Entity e = client.level.getEntity(id);
             if (e == null || e.isRemoved()) {
                 continue;
             }
-            boxes[n++] = e.getBoundingBox().move(Mth.lerp(pt, e.xo, e.getX()) - e.getX(),
+            bx[n] = e.getBoundingBox().move(Mth.lerp(pt, e.xo, e.getX()) - e.getX(),
                     Mth.lerp(pt, e.yo, e.getY()) - e.getY(), Mth.lerp(pt, e.zo, e.getZ()) - e.getZ());
+            boolean diamond = KNOWN.getOrDefault(id, "").contains("Diamond");
+            int argb = diamond ? cfg.getDiamondGoblinColor() : cfg.getGoldenGoblinColor();
+            float[] k = WorldRenderUtils.argbToFloats(argb);
+            col[n * 4] = k[0];
+            col[n * 4 + 1] = k[1];
+            col[n * 4 + 2] = k[2];
+            col[n * 4 + 3] = k[3] <= 0f ? 1f : k[3];
+            drawnArgb[diamond ? 1 : 0] = argb;
+            n++;
         }
         if (n == 0) {
             return;
         }
         boolean walls = throughWalls;
         if (cfg.isGoldenGoblinBox()) {
-            float[] k = WorldRenderUtils.argbToFloats(cfg.getGoldenGoblinBoxColor());
-            float[] rgba = new float[n * 4];
-            for (int i = 0; i < n; i++) {
-                rgba[i * 4] = k[0];
-                rgba[i * 4 + 1] = k[1];
-                rgba[i * 4 + 2] = k[2];
-                rgba[i * 4 + 3] = k[3] <= 0f ? 1f : k[3];
-            }
-            WorldRenderUtils.renderOutlineBoxes(context, boxes, rgba, n, 2f, walls);
+            WorldRenderUtils.renderOutlineBoxes(context, bx, col, n, 2f, walls);
             boxFrames++;
         }
         if (cfg.isGoldenGoblinTracer()) {
-            float[] k = WorldRenderUtils.argbToFloats(cfg.getGoldenGoblinTracerColor());
             Vec3 from = WorldRenderUtils.tracerOrigin(context);
             for (int i = 0; i < n; i++) {
-                WorldRenderUtils.renderLineStrip(context, new Vec3[]{from, boxes[i].getCenter()}, k[0], k[1], k[2], 1f, 2f,
-                        walls);
+                WorldRenderUtils.renderLineStrip(context, new Vec3[]{from, bx[i].getCenter()}, col[i * 4], col[i * 4 + 1],
+                        col[i * 4 + 2], 1f, 2f, walls);
             }
             tracerFrames++;
         }
@@ -208,6 +220,10 @@ public final class GoldenGoblin {
 
     public static int knownCount() {
         return KNOWN.size();
+    }
+
+    public static int drawnArgb(boolean diamond) {
+        return drawnArgb[diamond ? 1 : 0];
     }
 
     public static int boxFrames() {

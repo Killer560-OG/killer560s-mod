@@ -34,6 +34,7 @@ public final class MiningQolConfig {
     public static final int DEFAULT_COMMISSION_ROUTE_COLOR = 0xFF55FFFF;
     public static final int DEFAULT_POWDER_GHAST_COLOR = 0xFFFF55FF;
     public static final int DEFAULT_GOLDEN_GOBLIN_COLOR = 0xFFFFD700;
+    public static final int DEFAULT_DIAMOND_GOBLIN_COLOR = 0xFF55FFFF;
 
     /** When the Titanium Highlight shows titanium. */
     public enum TitaniumMode {
@@ -197,9 +198,9 @@ public final class MiningQolConfig {
     // Golden Goblin (killer560, 2026-11-03): box + tracer on the Golden and Diamond Goblins. Off by default.
     private boolean goldenGoblin = false;
     private boolean goldenGoblinBox = true;
-    private int goldenGoblinBoxColor = DEFAULT_GOLDEN_GOBLIN_COLOR;
+    private int goldenGoblinColor = DEFAULT_GOLDEN_GOBLIN_COLOR;
+    private int diamondGoblinColor = DEFAULT_DIAMOND_GOBLIN_COLOR;
     private boolean goldenGoblinTracer = true;
-    private int goldenGoblinTracerColor = DEFAULT_GOLDEN_GOBLIN_COLOR;
     private boolean goldenGoblinEsp = false;
 
     private MiningQolConfig() {
@@ -287,9 +288,9 @@ public final class MiningQolConfig {
                 cfg.powderGhastEsp = ConfigJson.getBool(o, "powderGhastEsp", cfg.powderGhastEsp);
                 cfg.goldenGoblin = ConfigJson.getBool(o, "goldenGoblin", cfg.goldenGoblin);
                 cfg.goldenGoblinBox = ConfigJson.getBool(o, "goldenGoblinBox", cfg.goldenGoblinBox);
-                cfg.goldenGoblinBoxColor = intOr(o, "goldenGoblinBoxColor", cfg.goldenGoblinBoxColor);
+                cfg.goldenGoblinColor = intOr(o, "goldenGoblinColor", cfg.goldenGoblinColor);
+                cfg.diamondGoblinColor = intOr(o, "diamondGoblinColor", cfg.diamondGoblinColor);
                 cfg.goldenGoblinTracer = ConfigJson.getBool(o, "goldenGoblinTracer", cfg.goldenGoblinTracer);
-                cfg.goldenGoblinTracerColor = intOr(o, "goldenGoblinTracerColor", cfg.goldenGoblinTracerColor);
                 cfg.goldenGoblinEsp = ConfigJson.getBool(o, "goldenGoblinEsp", cfg.goldenGoblinEsp);
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
@@ -370,9 +371,9 @@ public final class MiningQolConfig {
             o.addProperty("powderGhastEsp", powderGhastEsp);
             o.addProperty("goldenGoblin", goldenGoblin);
             o.addProperty("goldenGoblinBox", goldenGoblinBox);
-            o.addProperty("goldenGoblinBoxColor", goldenGoblinBoxColor);
+            o.addProperty("goldenGoblinColor", goldenGoblinColor);
+            o.addProperty("diamondGoblinColor", diamondGoblinColor);
             o.addProperty("goldenGoblinTracer", goldenGoblinTracer);
-            o.addProperty("goldenGoblinTracerColor", goldenGoblinTracerColor);
             o.addProperty("goldenGoblinEsp", goldenGoblinEsp);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -950,12 +951,20 @@ public final class MiningQolConfig {
         goldenGoblinBox = v;
     }
 
-    public int getGoldenGoblinBoxColor() {
-        return goldenGoblinBoxColor;
+    public int getGoldenGoblinColor() {
+        return goldenGoblinColor;
     }
 
-    public void setGoldenGoblinBoxColor(int v) {
-        goldenGoblinBoxColor = v;
+    public void setGoldenGoblinColor(int v) {
+        goldenGoblinColor = v;
+    }
+
+    public int getDiamondGoblinColor() {
+        return diamondGoblinColor;
+    }
+
+    public void setDiamondGoblinColor(int v) {
+        diamondGoblinColor = v;
     }
 
     public boolean isGoldenGoblinTracer() {
@@ -964,14 +973,6 @@ public final class MiningQolConfig {
 
     public void setGoldenGoblinTracer(boolean v) {
         goldenGoblinTracer = v;
-    }
-
-    public int getGoldenGoblinTracerColor() {
-        return goldenGoblinTracerColor;
-    }
-
-    public void setGoldenGoblinTracerColor(int v) {
-        goldenGoblinTracerColor = v;
     }
 
     /** Through walls: cheat build only. */
