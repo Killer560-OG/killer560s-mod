@@ -477,6 +477,17 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - In the sim a wither-door click with an ability item in hand went to `SimAbilities` (a Wither Impact into the door) before
   `SimDoors`; the door now takes the click in an earlier phase and the ability skips door blocks.
 
+- Auto Fairy Souls on the REAL hub (fairyhub-1105, testkit 1105-fairy-hub on the owner's private capture): SkyHanni's HUB
+  graph has edges no walk can take - a 7-block straight-up edge at 13,80,-64 with nothing to climb (soul 28), a 1.5-block
+  step into the Rabbit cave's doorway at 68,62,-6 (soul 7), vines that start 2 blocks over the floor at -68,72,-70 and are
+  reached only by jumping from the top slab beside them (soul 26). A failure ON the route (or beside the soul) now skips the
+  soul at once: a /warp walked the same route and failed the same way, 30-40 s a soul. Only a fall off the route warps.
+  Graph points sit 1.5 over the feet (`NavigationManager.centre` of a node one block above the floor), and a path planned at
+  the foot of a climb starts at its top (SkyHanni's shortcut drops the first node): `distanceSqToRoute` counts that leg too.
+- Clicking a soul from a ladder (soul 48's hut, 97,70-75,-28): with no key down he slid out of reach while the look turned,
+  four approaches in a row, then gave up. The runner holds sneak on a ladder while it clicks (vanilla stops the slide).
+- After a /warp the rescue budget starts over: the 8 ways back spent before it failed the walk back 3 s after landing.
+
 ## Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (blink-1025)
 - GrimAC TimerLimit caps a packet hold at about 1.1 s: the timer balance may fall at most ping-abuse-limit-threshold
   (1000 ms) + TimerA drift (120 ms) behind real time, and every held tick the burst brings back is 50 ms. Measured: 22
