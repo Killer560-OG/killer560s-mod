@@ -1315,6 +1315,7 @@ final class SettingTooltipsData {
         d.put("extra stat counter","Shows chocolate per second, the chocolate you hold, your multiplier, and the best upgrade with how long until you can afford it, above the menu.");
         d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Zero Ping, Breaker Aura, Auto Routes breaker nodes) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
         d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
+        d.put("dungeon breaker/dungeons only", "Makes Zero Ping only work inside a Catacombs run (cheat build only).");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
         d.put("highlight frames", "Boxes every Arrow Align frame that still needs clicking.");
         d.put("crouch to override", "While Prevent Misclicks is on, sneaking lets a blocked click go through anyway.");
