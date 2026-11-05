@@ -174,6 +174,9 @@ public final class ChatTidy {
     static final Pattern BREAKING_POWER = Pattern.compile(
             "^You need a tool with a Breaking Power of \\d{1,3} to mine [A-Za-z' ]{1,48}!(?: Speak to Fragilis by the "
                     + "entrance to the Crystal Hollows to learn more!)?$");
+    static final Pattern SERENDIPITY = Pattern.compile(
+            "^SERENDIPITOUS! Your Crystal Serendipity attribute doubled your rewards!$");
+    static final Pattern COMPACT = Pattern.compile("^COMPACT! You found an? [A-Za-z' ]{1,40}!$");
     static final Pattern FRAGILIS = Pattern.compile(
             "^Speak to Fragilis by the entrance to the Crystal Hollows to learn more!$");
     static final Pattern UNSPENT_TOKENS = Pattern.compile(
@@ -190,7 +193,8 @@ public final class ChatTidy {
             return false;
         }
         if (mining && (BREAKING_POWER.matcher(plain).matches() || FRAGILIS.matcher(plain).matches()
-                || UNSPENT_TOKENS.matcher(plain).matches())) {
+                || UNSPENT_TOKENS.matcher(plain).matches()
+                || SERENDIPITY.matcher(plain).matches() || COMPACT.matcher(plain).matches())) {
             return true;
         }
         if (sacks && plain.startsWith("[Sacks]") && SACKS.matcher(plain).matches()) {
