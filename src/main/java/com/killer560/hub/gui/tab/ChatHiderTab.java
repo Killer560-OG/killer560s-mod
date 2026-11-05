@@ -52,6 +52,8 @@ public class ChatHiderTab extends BaseTab {
                 "Hide Mining Reminders", cfg::getHideMiningRemindersRaw, cfg::setHideMiningReminders);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Sack Messages", cfg::getHideSackMessagesRaw, cfg::setHideSackMessages);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Already Looted Chests", cfg::getHideAlreadyLootedRaw, cfg::setHideAlreadyLooted);
 
         // Dungeon pack (2026-10-25): each only acts inside a dungeon.
         header(widgets, contentX, contentWidth, y, "Dungeons");

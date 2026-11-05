@@ -145,12 +145,13 @@ public final class ChatTidy {
         boolean dungeon = DungeonChatHider.anyOn(cfg) && com.killer560.hub.secrets.DungeonState.isInDungeon();
         boolean mining = cfg.isHideMiningReminders();
         boolean sacks = cfg.isHideSackMessages();
+        boolean looted = cfg.isHideAlreadyLooted();
         boolean uncovered = com.killer560.hub.powdermining.PowderMiningConfig.getInstance().isHideTreasureUncovered();
-        if (!damage && !dungeon && !mining && !sacks && !uncovered) {
+        if (!damage && !dungeon && !mining && !sacks && !uncovered && !looted) {
             return false;
         }
         String plain = ChatObserver.strip(message);
-        if ((mining || sacks || uncovered) && isMiningNoise(plain, mining, sacks, uncovered)) {
+        if ((mining || sacks || uncovered || looted) && isMiningNoise(plain, mining, sacks, uncovered, looted)) {
             hidden++;
             return true;
         }
@@ -180,10 +181,11 @@ public final class ChatTidy {
     /** "[Sacks] +136 items. (Last 7s.)", "-N items" and the combined "+N items, -N items" form (his logs, 2026-11). */
     static final Pattern SACKS = Pattern.compile(
             "^\\[Sacks\\] (?:\\+[\\d,]{1,12} items?(?:, -[\\d,]{1,12} items?)?|-[\\d,]{1,12} items?)\\. \\(Last \\d{1,5}s\\.\\)$");
+    static final Pattern LOOTED = Pattern.compile("^This chest has already been looted\\.$");
     static final Pattern UNCOVERED = Pattern.compile("^You uncovered a treasure chest!$");
 
     /** Mining-pack lines (chattidy-1104); every pattern is the whole server line, so player chat never matches. */
-    static boolean isMiningNoise(String plain, boolean mining, boolean sacks, boolean uncovered) {
+    static boolean isMiningNoise(String plain, boolean mining, boolean sacks, boolean uncovered, boolean looted) {
         if (plain == null || plain.isEmpty() || plain.length() > 200) {
             return false;
         }
@@ -194,7 +196,7 @@ public final class ChatTidy {
         if (sacks && plain.startsWith("[Sacks]") && SACKS.matcher(plain).matches()) {
             return true;
         }
-        return uncovered && UNCOVERED.matcher(plain).matches();
+        return uncovered && UNCOVERED.matcher(plain).matches() || looted && LOOTED.matcher(plain).matches();
     }
 
     /** Every damage pattern ends in a full stop or an exclamation mark; most chat lines do not. */
