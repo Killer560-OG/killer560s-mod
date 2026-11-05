@@ -637,10 +637,15 @@ public final class BlinkCharge {
                 if (settling) {
                     settleTicks--;
                 }
-                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling && !stalled;
+                // While re-backing, a still tick is withheld only if the next position still goes in time (BadPacketsR).
+                boolean posInTime = unbacked <= 0 || !still || rebackKeepsPositions();
+                if (!posInTime) {
+                    rebackPosTicks++;
+                }
+                boolean bank = !busy && banked < cap() && still && shotLeft == 0 && !settling && !stalled && posInTime;
                 // Ticks of a kept bank GrimAC no longer backs (the waiting answers went out early: a hold, a configuration
                 // phase) are backed again first, by withholding still ticks without counting them (campaign-blink-1027).
-                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling && !stalled;
+                boolean reback = !busy && unbacked > 0 && still && shotLeft == 0 && !settling && !stalled && posInTime;
                 if (reback) {
                     dropStash();
                     busy = false;
@@ -649,8 +654,10 @@ public final class BlinkCharge {
                     rebackedTotal++;
                     if (unbacked == 0) {
                         BlinkLog.event("charge: the kept bank (%d) is backed again - %d still tick(s) withheld since the "
-                                + "answers went out early", banked, rebackRun + 1);
+                                + "answers went out early, %d sent between them for a position in time", banked, rebackRun + 1,
+                                rebackPosTicks);
                         rebackRun = 0;
+                        rebackPosTicks = 0;
                     } else {
                         rebackRun++;
                     }
@@ -804,6 +811,8 @@ public final class BlinkCharge {
      */
     private static int unbacked;
     private static int rebackRun;
+    /** Still ticks of the current re-back sent anyway so a position went in time ({@link #rebackKeepsPositions}). */
+    private static int rebackPosTicks;
     private static long rebackedTotal;
 
     public static int unbacked() {
@@ -846,6 +855,7 @@ public final class BlinkCharge {
     private static void rebackBank() {
         unbacked = rebackFor(banked + shotLeft);
         rebackRun = 0;
+        rebackPosTicks = 0;
     }
 
     /**
@@ -1667,10 +1677,40 @@ public final class BlinkCharge {
     /** From {@code mixin/BlinkConnectionMixin} at the RETURN of {@code Connection.send}: a held packet is cancelled at the
      *  head and only gets here when it is really let go. Any thread. */
     public static void onWire(Packet<?> packet) {
-        if (packet instanceof ServerboundMovePlayerPacket move && move.hasRotation()) {
-            wireYaw = move.getYRot(0f);
-            wirePitch = move.getXRot(0f);
+        if (packet instanceof ServerboundMovePlayerPacket move) {
+            if (move.hasRotation()) {
+                wireYaw = move.getYRot(0f);
+                wirePitch = move.getXRot(0f);
+            }
+            if (move.hasPosition()) {
+                positionWireMs = System.currentTimeMillis();
+            }
         }
+    }
+
+    /** When a move carrying a position last went on the wire; 0 before one. */
+    private static volatile long positionWireMs;
+    /**
+     * Longest wait between two position packets that re-backing may cause. GrimAC 2.3.74's experimental BadPacketsR (javap)
+     * flags answers spanning over 2000 ms (both the pings' clock and wall time) with no position packet among them, and
+     * BadPacketsV a still position fewer than 19 ticks after the last, so a still player's only positions are vanilla's
+     * 20-tick reminder and each withheld tick moves the next one 50 ms later. 22 re-backed still ticks in a row, right
+     * after a stall or a frozen client (already ~2.5 s without one), drew BadPacketsR time=2055 ms (1026-blink-lag
+     * "frozen client charging", ship5 2026-11-05).
+     */
+    private static final long POSITION_GAP_MAX_MS = 1800L;
+
+    /**
+     * True while withholding this still tick keeps the next position reminder inside {@link #POSITION_GAP_MAX_MS} of the
+     * last position on the wire; once it would not, the tick goes out (the reminder first) and re-backing resumes after it.
+     */
+    private static boolean rebackKeepsPositions() {
+        long last = positionWireMs;
+        if (last == 0L || !(Minecraft.getInstance().player instanceof com.killer560.hub.blink.mixin.BlinkReminderAccessor r)) {
+            return true;
+        }
+        int ticksToReminder = 21 - r.killer560$positionReminder(); // this tick withheld comes off the count (dropStash)
+        return System.currentTimeMillis() - last + 50L * ticksToReminder <= POSITION_GAP_MAX_MS;
     }
 
     /**
