@@ -774,3 +774,16 @@ NOT fixed: a spike in the middle of a Hold (not Charge) still flags from 900 ms 
 clean to 1100). Hold keeps every packet, pongs included, in order for the whole hold (Post/TransactionOrder), so its newest answer
 is as old as the hold; sending the pongs ahead would show GrimAC the hold as a Timer burst, and releasing the hold on a stall is
 an early release. Needs the owner's call.
+
+### Position reminder and BadPacketsV (ship3fix2-1104)
+
+GrimAC 2.3.74's experimental BadPacketsV (javap) counts tick-end packets since the last position packet and flags a still
+position (no teleport, move under the threshold) that arrives fewer than 19 ticks after the previous one. Vanilla's
+`LocalPlayer.positionReminder` sends a still player's position every 20 `sendPosition` calls, and a withheld (banked or
+re-backed) Charge tick still counted, so the reminder reached Grim early: BadPacketsV on every Blink case once a checkout ran
+`experimental-checks: true` (the ship3 gate's config came from tk-ship1103a; earlier blink passes ran with it off).
+`BlinkCharge.dropStash` now takes each withheld tick back off the count (`blink/mixin/BlinkReminderAccessor`), and 14 blink
+cases on experimental show no BadPacketsV. NOT fixed: under repeated server stalls Charge re-backs 22 still ticks after each
+one, so a still player sends no position for 2 s+ and experimental BadPacketsR flags (`time > 2000 ms, positions=0` between two
+transaction answers): 46 in 1026-blink-long-charge on a loaded PC (the pre-fix jar: 8 R, 48 V, 48 TimerLimit; default config:
+clean). A position sooner would be BadPacketsV again, so this needs a design choice (the owner's).
