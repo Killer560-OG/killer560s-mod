@@ -195,6 +195,12 @@ default folder is `<game dir>/killer560-world-captures/<name>` (override: system
 `KILLER560_WORLD_CAPTURES`), and `world-captures/` plus `killer560-world-captures/` are in `.gitignore`. Keep copies under
 `C:\Users\Hunter\killer560s-mod-logs\world-captures\`.
 
+The two-command scan (killer560, 2026-11-05): `/killer560 record <name>` clears the capture area, forces the Chunk Cache on at
+its 20000-chunk maximum whatever its settings say (`ChunkCacheManager.setForced`), adopts every chunk already live (they arrived
+while the cache may have been off, so they were in no store and were lost on unload: testkit 1105-worldexport-record's first
+run) and records entities; fly over the island; `/killer560 stop record` saves to `<name>` and puts the cache back. A world
+change in between clears the cache, so stop refuses to save then. Same cheat-dev gate as `/k560worldexport`.
+
 What the Chunk Cache holds: live `LevelChunk` objects only (block states, biomes, block entities incl. signs and skull
 profiles, heightmaps), in memory, per world, LRU-trimmed at `maxChunks` (default 4000, max 20000), recorded from the first
 chunk packet whenever the cache is enabled (default on). Nothing is persisted, and it is cleared on every world change

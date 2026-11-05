@@ -79,6 +79,61 @@ public final class WorldExportCommand {
                                     ModChat.send(FEATURE, ModChat.text("Recorded entities cleared."));
                                     return 1;
                                 })))));
+        // The two-command island scan (killer560, 2026-11-05: "/killer560 record (name) then /killer560 stop record").
+        // Brigadier merges this "killer560" node into the menu command's, so /killer560 alone still opens the menu.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("killer560")
+                        .then(ClientCommands.literal("record")
+                                .executes(ctx -> {
+                                    ModChat.send(FEATURE, ModChat.text("Usage: /killer560 record <name>, then /killer560 stop record."));
+                                    return 0;
+                                })
+                                .then(ClientCommands.argument("name", StringArgumentType.word())
+                                        .executes(ctx -> startScan(StringArgumentType.getString(ctx, "name")))))
+                        .then(ClientCommands.literal("stop")
+                                .then(ClientCommands.literal("record").executes(ctx -> stopScan())))));
+    }
+
+    private static String scanName;
+    private static ClientLevel scanLevel;
+
+    /** Starts an island scan: every chunk and entity seen from now on is kept (the chunk cache is forced on at full size). */
+    public static int startScan(String name) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            ModChat.send(FEATURE, ModChat.bad("Not in a world."));
+            return 0;
+        }
+        scanName = name;
+        scanLevel = mc.level;
+        CaptureGuide.clearArea();
+        com.killer560.hub.chunkcache.ChunkCacheManager.setForced(true);
+        // chunks that arrived while the cache was off are only live: adopt them, or they are lost when he flies off
+        com.killer560.hub.chunkcache.ChunkCacheManager.adopt(mc.level, WorldExporter.collect(mc.level));
+        EntityRecorder.clear();
+        EntityRecorder.setRecording(true);
+        ModChat.send(FEATURE, ModChat.good("Recording "), ModChat.value(name),
+                ModChat.text(". Fly over the whole island, then /killer560 stop record. Changing lobby or island loses the scan."));
+        return 1;
+    }
+
+    public static int stopScan() {
+        Minecraft mc = Minecraft.getInstance();
+        if (scanName == null) {
+            ModChat.send(FEATURE, ModChat.bad("Not recording. Start with /killer560 record <name>."));
+            return 0;
+        }
+        String name = scanName;
+        boolean sameWorld = mc.level != null && mc.level == scanLevel;
+        scanName = null;
+        scanLevel = null;
+        int r = sameWorld ? save(name) : 0;
+        if (!sameWorld) {
+            ModChat.send(FEATURE, ModChat.bad("The world changed since the recording started, so it was not saved. Start again."));
+        }
+        EntityRecorder.setRecording(false);
+        com.killer560.hub.chunkcache.ChunkCacheManager.setForced(false);
+        return r;
     }
 
     private static int help() {
