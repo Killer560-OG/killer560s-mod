@@ -56,6 +56,8 @@ public final class BloodRushSpots {
 
     private static Map<String, List<int[]>> rooms;
     private static boolean dirty;
+    /** Bumped whenever any room's spot positions change, so a cache of world boxes can key on it. */
+    private static int version;
     private static long lastSave;
 
     private BloodRushSpots() {
@@ -117,6 +119,10 @@ public final class BloodRushSpots {
         return out;
     }
 
+    static int version() {
+        return version;
+    }
+
     /** Every room the shipped table has spots for, with its count, for the tab and tests. */
     public static Map<String, Integer> bundledCounts() {
         Map<String, Integer> out = new HashMap<>();
@@ -135,6 +141,7 @@ public final class BloodRushSpots {
             list.add(new int[]{s[0], s[1], s[2], 1});
         }
         bundled().put(room, list);
+        version++;
     }
 
     /** A room's learned spots as world blocks for the room's frame (rotation and clay corner). */
@@ -169,6 +176,7 @@ public final class BloodRushSpots {
         }
         list.add(new int[]{rel.getX(), rel.getY(), rel.getZ(), 1});
         dirty = true;
+        version++;
         LOGGER.info("[BloodRush] learned a spawn spot in {} at room {},{},{} ({} now)", room, rel.getX(), rel.getY(),
                 rel.getZ(), list.size());
         return true;
@@ -189,6 +197,7 @@ public final class BloodRushSpots {
     public static void forgetAll() {
         rooms().clear();
         dirty = false;
+        version++;
         try {
             Files.deleteIfExists(FILE);
         } catch (Exception e) {
@@ -203,6 +212,7 @@ public final class BloodRushSpots {
             list.add(new int[]{s[0], s[1], s[2], s.length > 3 ? s[3] : 1});
         }
         rooms().put(room, list);
+        version++;
     }
 
     /**
@@ -213,6 +223,7 @@ public final class BloodRushSpots {
         rooms = reload ? read() : new HashMap<>();
         bundled = null;
         dirty = false;
+        version++;
     }
 
     /** Saves if something was learned and the last save is old enough (or {@code now}). */

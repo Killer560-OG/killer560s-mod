@@ -12,6 +12,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.WorldRenderUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -180,7 +181,19 @@ public final class BloodRushHelperFeature {
     private static DungeonLayout numberedBy;
     private static int ticks;
     private static int clock;
+    /** An armor stand (a starred mob's name tag rides one) loaded since the last starred-mob scan; the scan runs on it, else
+     *  every {@link #SCAN_EVERY} ticks (a tag renamed in place): it reads every stand's name, ~22 KB a time on a sim floor. */
+    private static boolean standLoaded = true;
+    private static int lastScan = Integer.MIN_VALUE / 2;
+    private static final int SCAN_EVERY = 20;
+    /** The learned-spot boxes of each room, by room name, while its frame and the spot table stay the same. */
+    private static final Map<String, Learned> LEARNED = new HashMap<>();
+
+    private record Learned(int x, int z, int rot, int version, List<AABB> boxes) {
+    }
     private static String status = "idle";
+    private static int statusPath = -1;
+    private static int statusShown = -1;
     /** Test hook: learn spawn spots in the Dungeon Sim too (never on in play). */
     public static volatile boolean learnInSimForTest;
 
@@ -192,6 +205,7 @@ public final class BloodRushHelperFeature {
             WorldRenderUtils.initThroughWalls();
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BloodRushHelper.tick", BloodRushHelperFeature::tick));
+        ClientEntityEvents.ENTITY_LOAD.register((e, w) -> standLoaded |= e instanceof ArmorStand);
         com.killer560.hub.util.ChatObserver.subscribe(m -> onChat(com.killer560.hub.util.ChatObserver.strip(m)));
         LevelRenderEvents.COLLECT_SUBMITS.register(BloodRushHelperFeature::render);
         com.killer560.hub.hud.HudElementRegistry.register(HUD);
@@ -358,6 +372,8 @@ public final class BloodRushHelperFeature {
         myTile = -1;
         lastRoom = -1;
         numberedBy = null;
+        LEARNED.clear();
+        standLoaded = true;
     }
 
     /** A new layout snapshot numbers its rooms afresh (DungeonLayout.numbersLike): every kept room index is mapped into
@@ -525,9 +541,12 @@ public final class BloodRushHelperFeature {
     }
 
     private static void trackMobs(Minecraft client, DungeonLayout layout, boolean learn) {
-        Set<Integer> live = new HashSet<>();
-        for (Entity e : com.killer560.hub.mobesp.MobEspFeature.starredMobs(client)) {
-            live.add(e.getId());
+        boolean scan = standLoaded || clock - lastScan >= SCAN_EVERY;
+        if (scan) {
+            standLoaded = false;
+            lastScan = clock;
+        }
+        for (Entity e : scan ? com.killer560.hub.mobesp.MobEspFeature.starredMobs(client) : List.<Entity>of()) {
             Mob m = MOBS.get(e.getId());
             if (m != null) {
                 if (m.entity == null && !m.dead) {
@@ -551,8 +570,8 @@ public final class BloodRushHelperFeature {
         }
         Vec3 me = client.player.position();
         for (Mob m : MOBS.values()) {
-            if (m.entity == null || live.contains(m.id)) {
-                continue;
+            if (m.entity == null) {
+                continue; // a mob the scan finds is alive and not removed, so the test below passes it over as before
             }
             Entity e = m.entity;
             if (e.isRemoved() || !e.isAlive()) {
@@ -778,7 +797,11 @@ public final class BloodRushHelperFeature {
                 out.add(r);
             }
         }
-        status = "rush " + path.size() + " room(s), showing " + out.size();
+        if (path.size() != statusPath || out.size() != statusShown || !status.startsWith("rush ")) {
+            statusPath = path.size();
+            statusShown = out.size();
+            status = "rush " + statusPath + " room(s), showing " + statusShown;
+        }
         return out;
     }
 
@@ -848,7 +871,7 @@ public final class BloodRushHelperFeature {
             }
         }
         LAST_DOORS = doors;
-        return List.copyOf(out);
+        return out.equals(CACHED) ? CACHED : List.copyOf(out);
     }
 
     private static String label(String text, Box b) {
@@ -868,13 +891,9 @@ public final class BloodRushHelperFeature {
         if (cfg.isShowLearned()) {
             int[] cr = layout.clayRotation(room);
             if (cr != null && name != null) {
-                List<Vec3> pts = new ArrayList<>();
-                for (BlockPos b : BloodRushSpots.worldSpots(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]))) {
-                    pts.add(new Vec3(b.getX() + 0.5, b.getY(), b.getZ() + 0.5));
-                }
-                for (List<Vec3> g : cluster(pts)) {
+                for (AABB a : learnedBoxes(name, cr)) {
                     Box bx = new Box();
-                    bx.box = around(g);
+                    bx.box = a;
                     bx.learned = true;
                     learned.add(bx);
                 }
@@ -939,6 +958,25 @@ public final class BloodRushHelperFeature {
         // A stable order (the split breaks ties by it): west to east, then north to south.
         out.sort((a, b) -> a.cx != b.cx ? Double.compare(a.cx, b.cx) : Double.compare(a.cz, b.cz));
         return out;
+    }
+
+    /** The room's learned spots grouped within {@link #LINK}, one box each; rebuilt when its frame or the table changes. */
+    private static List<AABB> learnedBoxes(String name, int[] cr) {
+        int version = BloodRushSpots.version();
+        Learned c = LEARNED.get(name);
+        if (c != null && c.x == cr[0] && c.z == cr[1] && c.rot == cr[2] && c.version == version) {
+            return c.boxes;
+        }
+        List<Vec3> pts = new ArrayList<>();
+        for (BlockPos b : BloodRushSpots.worldSpots(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]))) {
+            pts.add(new Vec3(b.getX() + 0.5, b.getY(), b.getZ() + 0.5));
+        }
+        List<AABB> boxes = new ArrayList<>();
+        for (List<Vec3> g : cluster(pts)) {
+            boxes.add(around(g));
+        }
+        LEARNED.put(name, new Learned(cr[0], cr[1], cr[2], version, List.copyOf(boxes)));
+        return boxes;
     }
 
     private static List<List<Vec3>> cluster(List<Vec3> pts) {
@@ -1031,25 +1069,44 @@ public final class BloodRushHelperFeature {
         BloodRushConfig cfg = BloodRushConfig.getInstance();
         boolean walls = cfg.isThroughWalls();
         int n = spots.size();
-        AABB[] boxes = new AABB[n];
-        float[] line = new float[n * 4];
-        float[] fill = new float[n * 4];
         float base = cfg.isFilled() ? cfg.getFillOpacity() / 100f : 0f;
-        for (int i = 0; i < n; i++) {
-            Spot s = spots.get(i);
-            boxes[i] = s.box();
-            float[] c = WorldRenderUtils.argbToFloats(s.argb());
-            System.arraycopy(c, 0, line, i * 4, 3);
-            line[i * 4 + 3] = 1f;
-            System.arraycopy(c, 0, fill, i * 4, 3);
-            fill[i * 4 + 3] = base <= 0f ? 0f : s.next() ? Math.min(1f, Math.max(base * 2f, base + 0.15f)) : base;
+        if (spots != drawnFor || base != drawnBase) {
+            // New arrays, never refilled ones: the frame graph runs the submitted geometry later in the frame.
+            AABB[] boxes = new AABB[n];
+            float[] line = new float[n * 4];
+            float[] fill = new float[n * 4];
+            net.minecraft.util.FormattedCharSequence[] text = new net.minecraft.util.FormattedCharSequence[n];
+            for (int i = 0; i < n; i++) {
+                Spot s = spots.get(i);
+                boxes[i] = s.box();
+                float[] c = WorldRenderUtils.argbToFloats(s.argb());
+                System.arraycopy(c, 0, line, i * 4, 3);
+                line[i * 4 + 3] = 1f;
+                System.arraycopy(c, 0, fill, i * 4, 3);
+                fill[i * 4 + 3] = base <= 0f ? 0f : s.next() ? Math.min(1f, Math.max(base * 2f, base + 0.15f)) : base;
+                text[i] = net.minecraft.util.FormattedCharSequence.forward(s.label(), net.minecraft.network.chat.Style.EMPTY);
+            }
+            drawBoxes = boxes;
+            drawLine = line;
+            drawFill = fill;
+            drawSeqs = text;
+            drawnFor = spots;
+            drawnBase = base;
         }
         if (base > 0f) {
-            WorldRenderUtils.renderFilledBoxes(context, boxes, fill, n, 1f, walls);
+            WorldRenderUtils.renderFilledBoxes(context, drawBoxes, drawFill, n, 1f, walls);
         }
-        WorldRenderUtils.renderOutlineBoxes(context, boxes.clone(), line, n, cfg.getOutlineWidth(), walls);
+        WorldRenderUtils.renderOutlineBoxes(context, drawBoxes, drawLine, n, cfg.getOutlineWidth(), walls);
         drawLabels(context, spots, walls);
     }
+
+    /** What {@link #drawnFor} draws with; until rushalloc-1105 they were rebuilt every frame. */
+    private static List<Spot> drawnFor = List.of();
+    private static float drawnBase = -1f;
+    private static AABB[] drawBoxes;
+    private static float[] drawLine;
+    private static float[] drawFill;
+    private static net.minecraft.util.FormattedCharSequence[] drawSeqs;
 
     private static void drawLabels(LevelRenderContext context, List<Spot> spots, boolean walls) {
         PoseStack poseStack = context.poseStack();
@@ -1058,20 +1115,23 @@ public final class BloodRushHelperFeature {
         }
         net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
-        for (Spot s : spots) {
+        for (int i = 0; i < spots.size(); i++) {
+            Spot s = spots.get(i);
             if (s.label().isEmpty()) {
                 continue;
             }
             AABB b = s.box();
-            Vec3 at = new Vec3((b.minX + b.maxX) / 2, b.maxY + 0.6, (b.minZ + b.maxZ) / 2);
-            double dist = Math.sqrt(cam.distanceToSqr(at));
+            double x = (b.minX + b.maxX) / 2 - cam.x;
+            double y = b.maxY + 0.6 - cam.y;
+            double z = (b.minZ + b.maxZ) / 2 - cam.z;
+            double dist = Math.sqrt(x * x + y * y + z * z);
             float sc = 0.025f * (float) Math.min(6.0, Math.max(1.0, dist / 10.0));
             poseStack.pushPose();
             try {
-                poseStack.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
+                poseStack.translate(x, y, z);
                 McRender.rotate(poseStack, McRender.cameraRotation(context));
                 poseStack.scale(sc, -sc, sc);
-                McRender.drawText(context, font, s.label(), -McRender.textWidth(font, s.label()) / 2f,
+                McRender.drawText(context, font, drawSeqs[i], -McRender.textWidth(font, s.label()) / 2f,
                         -font.lineHeight / 2f, 0xFF000000 | s.argb(), false, poseStack,
                         walls ? net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH
                                 : net.minecraft.client.gui.Font.DisplayMode.NORMAL,
@@ -1157,15 +1217,19 @@ public final class BloodRushHelperFeature {
     private static boolean meterForTest;
     private static long meteredForTest;
 
+    private static com.sun.management.ThreadMXBean meterBean;
+
     private static long meterNow() {
-        return ((com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean())
-                .getCurrentThreadAllocatedBytes();
+        return meterBean.getCurrentThreadAllocatedBytes(); // getThreadMXBean() itself allocates, so it is asked once
     }
 
     /** Turns the allocation meter on or off (client thread) and returns the bytes counted since the last call, then zeroes it. */
     public static long allocMeterForTest(boolean on) {
         long b = meteredForTest;
         meteredForTest = 0;
+        if (meterBean == null) {
+            meterBean = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+        }
         meterForTest = on;
         return b;
     }
