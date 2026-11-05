@@ -56,7 +56,10 @@ public final class EntityRecorder {
 
     public static boolean isRecording() { return recording; }
 
-    public static void setRecording(boolean on) { recording = on; }
+    public static void setRecording(boolean on) {
+        recording = on;
+        com.killer560.hub.util.FeatureBits.changed(); // CaptureGuide's render listener is gated on this flag
+    }
 
     public static int count() { return SEEN.size(); }
 
