@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -104,7 +105,7 @@ public final class BreakerChargesHud {
             }
             var font = client.font;
             HudSeen.markDrawn(id());
-            graphics.text(font, LABEL, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
+            graphics.text(font, LABEL, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
             graphics.text(font, value, x + 1 + font.width(LABEL), y + 1, 0xFFFFFFFF, true);
         }
     };

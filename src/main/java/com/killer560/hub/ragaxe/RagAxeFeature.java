@@ -25,6 +25,7 @@ import com.killer560.hub.util.ModLog;
 import java.util.List;
 import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Rag Axe - Ragnarock Axe cast detection, channel / buff / cooldown timers and the built-in "rag now" prompts
@@ -236,8 +237,8 @@ public final class RagAxeFeature {
 
         private void line(GuiGraphicsExtractor graphics, int x, int y, String label, String value) {
             Font font = Minecraft.getInstance().font;
-            graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
-            graphics.text(font, value, x + 1 + font.width(label), y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE, true);
+            graphics.text(font, label, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
+            graphics.text(font, value, x + 1 + font.width(label), y + 1, ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE), true);
         }
     };
 

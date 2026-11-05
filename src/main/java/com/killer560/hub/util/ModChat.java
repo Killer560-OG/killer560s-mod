@@ -1,5 +1,6 @@
 package com.killer560.hub.util;
 
+import com.killer560.hub.gui.ThemeAccent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -25,11 +26,11 @@ public final class ModChat {
     private ModChat() {
     }
 
-    public static MutableComponent prefix(String feature) { return colored("[" + feature + "] ", ORANGE); }
+    public static MutableComponent prefix(String feature) { return colored("[" + feature + "] ", ThemeAccent.accent(ORANGE)); }
 
     public static MutableComponent text(String s) { return colored(s, TEXT); }
 
-    public static MutableComponent value(String s) { return colored(s, LIGHT_ORANGE); }
+    public static MutableComponent value(String s) { return colored(s, ThemeAccent.light(LIGHT_ORANGE)); }
 
     public static MutableComponent dim(String s) { return colored(s, DIM); }
 

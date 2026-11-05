@@ -15,6 +15,7 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SkyblockGate;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.Minecraft;
@@ -220,7 +221,7 @@ public final class CreationCooldownFeature {
                 HudSeen.markDrawn(id());
             }
             var font = Minecraft.getInstance().font;
-            graphics.text(font, LABEL, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
+            graphics.text(font, LABEL, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
             graphics.text(font, value, x + 1 + font.width(LABEL), y + 1, 0xFF55FFFF, true);
         }
     };
