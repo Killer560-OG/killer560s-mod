@@ -44,6 +44,19 @@ public final class EspTypes {
     private static final DepthStencilState DEPTH_BIASED = new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true,
             BIAS_SLOPE, BIAS_CONSTANT);
 
+    /**
+     * Nearest layer only (nucwall-1105): like {@link #FILLED} but a STRICT depth test and no sort on upload, so quads submitted
+     * nearest first leave the farther ones failing the test and a translucent wall reads the same in front of another wall
+     * as in front of open cave. Same-plane quads (a wall's two faces) draw once.
+     */
+    public static final RenderType FILLED_NEAREST = RenderType.create("killer560smod_esp_filled_nearest",
+            McRender.withOitDepthBias(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/esp_filled_nearest"))
+                    .withCull(false)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN, true, BIAS_SLOPE, BIAS_CONSTANT))
+                    .build())), "killer560smod_esp_filled_nearest", false, BIAS_SLOPE, BIAS_CONSTANT)
+                    .createRenderSetup());
+
     /** Depth-tested (with {@link #BIAS_SLOPE} bias) and depth-writing translucent debug fill. */
     public static final RenderType FILLED = RenderType.create("killer560smod_esp_filled_depth",
             McRender.withOitDepthBias(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)

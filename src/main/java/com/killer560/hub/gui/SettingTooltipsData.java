@@ -214,6 +214,7 @@ final class SettingTooltipsData {
         d.put("titanium highlight/through walls", "Cheat build: draws the titanium boxes through blocks.");
         d.put("titanium highlight/exposed only", "Cheat build, with Through Walls: only titanium with a face open to air, so you can actually reach and mine it.");
         d.put("crystal hollows walls", "In the Crystal Hollows, draws each zone's border as translucent colored walls: the Jungle, Mithril Deposits, Goblin Holdout and Precursor Remnants quadrants, the Magma Fields layer (Y 64 and under) and the Crystal Nucleus box. Only draws; the real zone edge is cave terrain, so a wall marks the nominal line.");
+        d.put("crystal hollows walls/hide walls in structures", "While you are inside a Crystal Hollows structure (Mines of Divan, Lost Precursor City, Jungle Temple, Goblin Queen's Den, Khazad-dum, Fairy Grotto, Dragon's Lair), no zone walls are drawn. Off by default.");
         d.put("crystal hollows walls/jungle color", "The color of the Jungle walls.");
         d.put("crystal hollows walls/jungle opacity", "How solid the Jungle walls are, 5 to 100 percent.");
         d.put("crystal hollows walls/jungle near only", "The Jungle walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");

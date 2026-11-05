@@ -26,6 +26,9 @@ public class CrystalHollowsWallsTab extends BaseTab {
         if (!cfg.isChWallsRaw() && !isSearchScan()) {
             return w;
         }
+        w.add(onOffButton("Hide Walls In Structures", cfg::isChWallsHideInStructures, cfg::setChWallsHideInStructures, cfg::save,
+                null, contentX, y, contentWidth, 20));
+        y += MiningQolRows.STEP;
         for (Zone z : Zone.values()) {
             MiningQolRows.color(w, contentX, y, contentWidth, z.label + " Color", () -> cfg.getChWallColor(z),
                     argb -> cfg.setChWallColor(z, argb), 0xFF000000 | z.defaultColor, cfg::save);
