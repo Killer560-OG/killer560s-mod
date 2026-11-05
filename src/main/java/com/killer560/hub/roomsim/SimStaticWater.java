@@ -73,7 +73,17 @@ public final class SimStaticWater {
         return true;
     }
 
-    /** Water ticks canceled since the game started. */
+    /**
+     * Whether a lava or fire tick must be canceled: all sim lava and fire stand still, as Hypixel's do (bossfloor-1104:
+     * the F7 boss's captured lava falls ran and spread, and its fires aged and burned the wool). No room needs either to move.
+     */
+    public static boolean holdsStill(ServerLevel level) {
+        if (!SimState.isActive() || level != level.getServer().overworld()) return false;
+        frozen++;
+        return true;
+    }
+
+    /** Water (and lava) ticks canceled since the game started. */
     public static long frozenTicks() { return frozen; }
 
     /** Water ticks let through inside a Water Board since the game started. */

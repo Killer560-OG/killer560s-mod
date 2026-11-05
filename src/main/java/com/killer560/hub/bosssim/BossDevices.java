@@ -30,11 +30,13 @@ import java.util.Random;
  * 8j for 8 ticks, the buttons come back 10 ticks after the last lamp, the next round shows 6 ticks after the round's last
  * correct press. The start button toggles: a press while it runs resets it. A wrong press stops it (back to round 0; the
  * buttons go 3 ticks later) and a stray show of a new pattern follows on its own, whose buttons count for nothing.</li>
- * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a lamp behind each at z 143. A lamp is lit while its
- * own lever or one of its four neighbours is on; every lamp lit is the device. The six of Hypixel's known solution
- * start partly off.</li>
+ * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a redstone lamp behind each at z 143. A lamp is lit
+ * while its own lever or one of its four neighbours is on; every lamp lit is the device. The six of Hypixel's known
+ * solution start partly off. A pull is answered here ({@link #pullLight}) with no redstone updates, so vanilla never
+ * lights or dims a lamp by its own rule.</li>
  * <li><b>Arrows</b> (S3): a 5x5 wall of item frames at x -2, y 120-124, z 75-79, each arrow turned at random off one of
- * Hypixel's layouts (the mod's own Arrow Align table); every frame on its layout's rotation is the device.</li>
+ * Hypixel's layouts (the mod's own Arrow Align table); every frame on its layout's rotation is the device. The frames
+ * hang from the fight's start, as Hypixel's do (a capture holds blocks, not entities).</li>
  * <li><b>Target</b> (S4): nine targets at x 64/66/68, y 126/128/130, z 50, blue terracotta; while someone stands on the
  * plate one at a time is lit emerald (on a 10-tick grid, in a random order per attempt), an arrow in it turns it back
  * blue; nine hits is the device. Off the plate, the lit one goes blue at the next grid tick and the attempt starts over.</li>
@@ -73,8 +75,8 @@ public final class BossDevices {
 
     private static final int TARGET_Z = 50;
     private static final int TARGET_HITS = 9;
-    /** The plate (ADM: 63, 127, 35 on Hypixel's floor; here on the built-in plan's device floor at 125). */
-    static final BlockPos TARGET_PLATE = new BlockPos(63, 126, 35);
+    /** The plate: a light weighted pressure plate at (63, 127, 35) on blue terracotta, as the capture of Hypixel's room has it. */
+    static final BlockPos TARGET_PLATE = new BlockPos(63, 127, 35);
     private static final List<Integer> order = new ArrayList<>();
     private static BlockPos lit;
     private static int targetHits, targetGrid = -1, plateUntil = -1, targetShowAt = -1;
@@ -122,7 +124,7 @@ public final class BossDevices {
         out.add(new BossArena.Fill(111, 119, 89, 111, 124, 97, BossBlocks.of("minecraft:obsidian")));
         out.add(new BossArena.Fill(110, 120, 92, 110, 123, 95, BossBlocks.AIR));
         out.add(new BossArena.Fill(110, 121, 91, 110, 121, 91, ssButton()));
-        out.add(new BossArena.Fill(58, 133, 143, 62, 136, 143, BossBlocks.of("minecraft:gray_concrete")));
+        out.add(new BossArena.Fill(58, 133, 143, 62, 136, 143, BossBlocks.of("minecraft:redstone_lamp[lit=false]")));
         for (BlockPos p : lightLevers()) {
             out.add(new BossArena.Fill(p.getX(), p.getY(), p.getZ(), p.getX(), p.getY(), p.getZ(), lever(false)));
         }
@@ -133,12 +135,11 @@ public final class BossDevices {
                     BossBlocks.of("minecraft:blue_terracotta")));
         }
         out.add(new BossArena.Fill(TARGET_PLATE.getX(), TARGET_PLATE.getY(), TARGET_PLATE.getZ(), TARGET_PLATE.getX(),
-                TARGET_PLATE.getY(), TARGET_PLATE.getZ(), BossBlocks.of("minecraft:stone_pressure_plate")));
+                TARGET_PLATE.getY(), TARGET_PLATE.getZ(), BossBlocks.of("minecraft:light_weighted_pressure_plate")));
     }
 
     /** P3 begins (devices of sections before {@code fromSection} start done). */
     static void start(ServerLevel level, int fromSection) {
-        stop();
         tick = 0;
         // Simon Says
         sequence.clear();
@@ -161,8 +162,30 @@ public final class BossDevices {
             BossBlocks.set(level, sol.get(i), lever(i >= off));
         }
         lamps(level);
-        // Arrows
-        arrowsDone = fromSection > 3;
+        // The frames hung at the fight's start keep their layout into P3 (and any turns made since).
+        boolean up = false;
+        for (ItemFrame fr : frames) {
+            up |= fr != null && !fr.isRemoved();
+        }
+        if (up && fromSection <= 3) {
+            arrowsDone = false;
+        } else {
+            arrows(level, fromSection > 3);
+        }
+        // Target
+        targetDone = fromSection > 4;
+        targetHits = 0;
+        lit = null;
+        targetGrid = -1;
+        plateUntil = -1;
+        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ss, lightsDone ? "done" : off + " off",
+                arrowsDone ? "done" : "layout", targetDone ? "done" : "armed");
+    }
+
+    /** Hangs the Arrows frames (a new layout; on its solution when {@code done}), replacing any already up. */
+    static void arrows(ServerLevel level, boolean done) {
+        takeDownFrames();
+        arrowsDone = done;
         int[][] all = com.killer560.hub.arrowalign.ArrowAlignFeature.solutions();
         solution = all[RNG.nextInt(all.length)];
         for (int i = 0; i < 25; i++) {
@@ -181,18 +204,14 @@ public final class BossDevices {
             level.addFreshEntity(f);
             frames[i] = f;
         }
-        // Target
-        targetDone = fromSection > 4;
-        targetHits = 0;
-        lit = null;
-        targetGrid = -1;
-        plateUntil = -1;
-        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ss, lightsDone ? "done" : off + " off",
-                arrowsDone ? "done" : "layout", targetDone ? "done" : "armed");
     }
 
     static void stop() {
         ss = Ss.OFF;
+        takeDownFrames();
+    }
+
+    private static void takeDownFrames() {
         for (int i = 0; i < 25; i++) {
             if (frames[i] != null && !frames[i].isRemoved()) {
                 frames[i].discard();
@@ -246,15 +265,31 @@ public final class BossDevices {
         for (BlockPos p : lightLevers()) {
             boolean on = isOn(level, p) || isOn(level, p.east()) || isOn(level, p.west()) || isOn(level, p.above())
                     || isOn(level, p.below());
-            // Not a redstone lamp: a lever on one would light it by vanilla's own redstone, which is not Hypixel's rule.
             BlockPos lamp = p.south();
-            boolean shown = level.getBlockState(lamp).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN);
-            if (shown != on) {
-                level.setBlock(lamp, BossBlocks.of(on ? "minecraft:sea_lantern" : "minecraft:gray_concrete"), 2);
+            BlockState was = level.getBlockState(lamp);
+            if (!was.is(net.minecraft.world.level.block.Blocks.REDSTONE_LAMP) || was.getValue(BlockStateProperties.LIT) != on) {
+                level.setBlock(lamp, BossBlocks.of("minecraft:redstone_lamp[lit=" + on + "]"), BossBlocks.FLAGS);
             }
             all &= on;
         }
         return all;
+    }
+
+    /**
+     * A pull on a Lights lever: flipped with no redstone updates (vanilla's would light the lamp it hangs on and its
+     * neighbours by vanilla's rule, then dim them on a 4-tick timer); {@link #lamps} lights them by Hypixel's.
+     */
+    static boolean pullLight(ServerLevel level, BlockPos p) {
+        BlockState s = level.getBlockState(p);
+        if (p.getZ() != 142 || p.getX() < 58 || p.getX() > 62 || p.getY() < 133 || p.getY() > 136
+                || !s.is(net.minecraft.world.level.block.Blocks.LEVER)) {
+            return false;
+        }
+        boolean on = !s.getValue(BlockStateProperties.POWERED);
+        level.setBlock(p, s.setValue(BlockStateProperties.POWERED, on), BossBlocks.FLAGS);
+        level.playSound(null, p, net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.BLOCKS, 0.3f,
+                on ? 0.6f : 0.5f);
+        return true;
     }
 
     private static boolean isOn(ServerLevel level, BlockPos p) {

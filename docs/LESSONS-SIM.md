@@ -39,3 +39,14 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences
   (2026-10-05): sim secrets are answered on the SERVER now, and the essence is Hypixel's profiled player_head (99-sim-essence-aura).
+- A built-in plan laid "over" a capture overwrites the real room: BossArena re-laid its gates, holes, pillars and device
+  walls on top of his F7 boss capture, so the sim showed iron walls, a gray pad, gray concrete lamps and a floating plate
+  that Hypixel does not have (bossfloor-1104). Over a capture lay nothing; a fight mechanic changes only the blocks Hypixel
+  changes (a gate clears its barriers, not its box), and a capture read off the client carries the mod's own client-side
+  edits (I Hate Diorite's glass) - undo those when reading. Testkit 1104-boss-capture diffs the whole box; it read 342 cells off
+  until fire ticks were canceled and the build placed with `UPDATE_SKIP_ON_PLACE` (hoppers' onPlace re-checked power).
+- Read a hole off the capture before cutting one: Hypixel's core floor is a 7x7 gold and bedrock plug at y 113 over a
+  shaft already open to P4, while the plan's hole at 105-106 cut solid stone under it and nobody fell (bossfloor-1104).
+- One capture file for every boss phase let a P3 `/simbosscapture` overwrite his P1 room (2026-11-04 23:21), so the sim's
+  fight start was built from a P3 world. Each capture now goes to its phase's file (K5BA v2 records the phase); the fight
+  starts from P1's, and P3's start takes only the cells of P3's band where the P3 capture differs from the P1 one.

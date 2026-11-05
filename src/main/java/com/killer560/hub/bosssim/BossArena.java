@@ -5,6 +5,7 @@ import com.killer560.hub.util.ModPaths;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import org.slf4j.Logger;
@@ -62,6 +63,17 @@ public final class BossArena {
     private static Runnable onDone;
     private static Captured captured;
     private static long capturedCursor;
+    /** The P3 capture's cells (index, state) in P3's band that differ from the P1 capture: what Hypixel changes when P3 starts. */
+    private static int[] p3Cells = new int[0];
+    private static BlockState[] p3States = new BlockState[0];
+    /**
+     * Maxor's and Storm's holes over a capture: the cells of y 214-224 (P1's floor) and 160-170 (P2's) that the P3 capture
+     * has as air and the P1 one as a solid block (bossfloor-1104: the plan's holes cut over bedrock there and nobody fell).
+     */
+    private static final int[][] HOLE_BANDS = {{214, 224}, {160, 170}};
+    private static int[][] holeCells = {new int[0], new int[0]};
+    /** P3's band in the capture box: the ring, its gates and the core (P2's floor is at 168, P4's at 62). */
+    private static final int P3_Y1 = 100, P3_Y2 = 145;
     private static String source = "none";
 
     private BossArena() {
@@ -72,8 +84,15 @@ public final class BossArena {
         return source;
     }
 
+    /** The P1 capture (the fight's start), the file every capture before bossfloor-1104 went to. */
     public static Path capturePath() {
         return ModPaths.config("killer560smod-sim-bossarena.bin");
+    }
+
+    /** The capture taken in {@code phase} ("P1".."P5"): P1's is {@link #capturePath()}, the others carry their phase. */
+    public static Path capturePath(String phase) {
+        return "P1".equals(phase) ? capturePath()
+                : ModPaths.config("killer560smod-sim-bossarena-" + phase.toLowerCase(java.util.Locale.ROOT) + ".bin");
     }
 
     static boolean building() {
@@ -84,6 +103,7 @@ public final class BossArena {
     static void build(ServerLevel level, Runnable done) {
         captured = readCapture();
         capturedCursor = 0;
+        p3Diff(captured, readCapture("P3"));
         jobs = plan(captured != null);
         jobIndex = 0;
         jobCursor = 0;
@@ -108,7 +128,7 @@ public final class BossArena {
                 BlockState s = captured.states[captured.cells[(int) i]];
                 BlockPos pos = new BlockPos(captured.x0 + x, captured.y0 + y, captured.z0 + z);
                 if (level.getBlockState(pos) != s) {
-                    level.setBlock(pos, s, BossBlocks.FLAGS);
+                    level.setBlock(pos, s, BossBlocks.FLAGS | Block.UPDATE_SKIP_ON_PLACE); // as captured: a hopper keeps enabled=false
                     budget -= 4;
                 } else {
                     budget--;
@@ -149,6 +169,89 @@ public final class BossArena {
         }
     }
 
+    /** P3's start as Hypixel's P3 capture has it (no-op without both captures); idempotent. */
+    static void applyP3(ServerLevel level) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int k = 0; k < p3Cells.length; k++) {
+            int i = p3Cells[k];
+            pos.set(X0 + i % W, Y0 + i / (W * D), Z0 + (i / W) % D);
+            if (level.getBlockState(pos) != p3States[k]) {
+                level.setBlock(pos, p3States[k], BossBlocks.FLAGS | Block.UPDATE_SKIP_ON_PLACE);
+            }
+        }
+    }
+
+    private static void p3Diff(Captured p1, Captured p3) {
+        if (p1 == null || p3 == null || p1.w != p3.w || p1.h != p3.h || p1.d != p3.d || p1.x0 != p3.x0 || p1.y0 != p3.y0
+                || p1.z0 != p3.z0) {
+            p3Cells = new int[0];
+            p3States = new BlockState[0];
+            holeCells = new int[][]{new int[0], new int[0]};
+            return;
+        }
+        p3Cells = differing(p1, p3, P3_Y1, P3_Y2, false);
+        p3States = new BlockState[p3Cells.length];
+        for (int k = 0; k < p3Cells.length; k++) {
+            p3States[k] = p3.states[p3.cells[p3Cells[k]]];
+        }
+        for (int h = 0; h < HOLE_BANDS.length; h++) {
+            holeCells[h] = differing(p1, p3, HOLE_BANDS[h][0], HOLE_BANDS[h][1], true);
+        }
+        LOGGER.info("[BossSim] P3 capture: {} block(s) of P3 differ from the P1 capture; holes {} and {}", p3Cells.length,
+                holeCells[0].length, holeCells[1].length);
+    }
+
+    /** The cells of y {@code y1..y2} where the two captures differ (only solid-to-air ones when {@code holes}). */
+    private static int[] differing(Captured p1, Captured p3, int y1, int y2, boolean holes) {
+        int from = Math.max(0, (y1 - p1.y0) * p1.w * p1.d), to = Math.min(p1.cells.length, (y2 - p1.y0 + 1) * p1.w * p1.d);
+        int n = 0;
+        int[] cells = new int[1024];
+        for (int i = from; i < to; i++) {
+            BlockState a = p1.states[p1.cells[i]], b = p3.states[p3.cells[i]];
+            if (a != b && (!holes || b.isAir() && !a.isAir() && a.getFluidState().isEmpty())) {
+                if (n == cells.length) {
+                    cells = java.util.Arrays.copyOf(cells, n * 2);
+                }
+                cells[n++] = i;
+            }
+        }
+        return java.util.Arrays.copyOf(cells, n);
+    }
+
+    /** Opens Maxor's (0) or Storm's (1) hole as the P3 capture shows it; false when there is none to read it from. */
+    static boolean openCapturedHole(ServerLevel level, int which) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int i : holeCells[which]) {
+            level.setBlock(pos.set(X0 + i % W, Y0 + i / (W * D), Z0 + (i / W) % D), BossBlocks.AIR, BossBlocks.FLAGS);
+        }
+        return holeCells[which].length > 0;
+    }
+
+    /**
+     * Where a player stands on (x, z) of P3's ring: the top of the first block from the plan's ring up with two free
+     * blocks over it. The capture's ground is at 113-116 (bossfloor-1104), the plan's at {@link #P3_FLOOR}.
+     */
+    static double standY(ServerLevel level, double x, double z) {
+        return standY(level, x, z, P3_FLOOR, P3_Y2);
+    }
+
+    /** The same from {@code from} up to {@code to}: P4's capture platform is at 63, the plan's at {@link #P4_FLOOR}. */
+    static double standY(ServerLevel level, double x, double z, int from, int to) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int bx = net.minecraft.util.Mth.floor(x), bz = net.minecraft.util.Mth.floor(z);
+        for (int y = from; y < to; y++) {
+            var shape = level.getBlockState(p.set(bx, y, bz)).getCollisionShape(level, p);
+            if (!shape.isEmpty() && free(level, p.set(bx, y + 1, bz)) && free(level, p.set(bx, y + 2, bz))) {
+                return y + shape.max(net.minecraft.core.Direction.Axis.Y);
+            }
+        }
+        return from + 1;
+    }
+
+    private static boolean free(ServerLevel level, BlockPos p) {
+        return level.getBlockState(p).getCollisionShape(level, p).isEmpty();
+    }
+
     private static void box(List<Fill> out, int x1, int y1, int z1, int x2, int y2, int z2, String state) {
         out.add(new Fill(x1, y1, z1, x2, y2, z2, BossBlocks.of(state)));
     }
@@ -162,8 +265,7 @@ public final class BossArena {
     }
 
     /**
-     * The built-in room. With a capture, only the parts every fight rewrites (gates, holes, levers, device blocks) are
-     * re-laid on top, so a rebuild resets them; without one, the whole room.
+     * The built-in room, or nothing over a capture (the capture resets every block a fight changed).
      */
     static List<Fill> plan(boolean overCapture) {
         List<Fill> out = new ArrayList<>();
@@ -236,7 +338,12 @@ public final class BossArena {
                 box(out, st[0] - 1, P5_FLOOR + 1, st[2] - 1, st[0] + 1, st[1], st[2] + 1, "minecraft:stone_bricks");
             }
         }
-        // ---- what every fight rewrites (also over a capture) -----------------------------------------------------
+        if (overCapture) {
+            // The capture IS the room: its own copy of every block a fight changes is already written, so nothing of the
+            // plan goes over it (bossfloor-1104: the plan's gates, holes, pillars and device walls sat on the real room).
+            return out;
+        }
+        // ---- what every fight rewrites --------------------------------------------------------------------------
         // Maxor's floor over Storm: whole again (Maxor's death opens it).
         box(out, BossFight.P1_HOLE[0], P1_FLOOR, BossFight.P1_HOLE[1], BossFight.P1_HOLE[2], P1_FLOOR, BossFight.P1_HOLE[3],
                 "minecraft:quartz_block");
@@ -351,19 +458,70 @@ public final class BossArena {
         box(out, -3, 119, 73, -3, 126, 81, "minecraft:stone_bricks");
         box(out, -2, 118, 72, 3, 118, 82, "minecraft:stone_bricks");
         platform(out, 1, 118, 77, 3, 2);
-        // Target (S4): the target wall z 50 (x 64..68, y 126..130) and a floor at 125 to shoot from.
+        // Target (S4): the target wall z 50 (x 64..68, y 126..130) and a floor at 126 to shoot from (the plate on it at 127).
         box(out, 62, 124, 50, 70, 132, 50, "minecraft:stone_bricks");
-        box(out, 60, 125, 32, 67, 125, 37, "minecraft:stone_bricks");
-        platform(out, 63, 125, 34, 4, 2);
+        box(out, 60, 126, 32, 67, 126, 37, "minecraft:blue_terracotta");
+        platform(out, 63, 126, 34, 4, 2);
+    }
+
+    /**
+     * A capture reads the blocks as this client shows them, so one taken with I Hate Diorite on holds its client-side
+     * stained glass in Storm's pillars (bossfloor-1104): put Hypixel's polished diorite back there.
+     */
+    private static BlockState[] undoDioriteGlass(int x0, int y0, int z0, int w, int d, BlockState[] states, short[] cells) {
+        short diorite = -1;
+        int undone = 0;
+        for (int i = 0; i < cells.length; i++) {
+            BlockState st = states[cells[i]];
+            if (st.getBlock() instanceof net.minecraft.world.level.block.StainedGlassBlock
+                    && com.killer560.hub.diorite.DioriteGlassFeature.isPillarGlass(
+                            new BlockPos(x0 + i % w, y0 + i / (w * d), z0 + (i / w) % d), st)) {
+                if (diorite < 0) {
+                    diorite = (short) states.length;
+                    states = java.util.Arrays.copyOf(states, states.length + 1);
+                    states[diorite] = BossBlocks.of("minecraft:polished_diorite");
+                }
+                cells[i] = diorite;
+                undone++;
+            }
+        }
+        if (undone > 0) {
+            LOGGER.info("[BossSim] capture: {} pillar glass block(s) back to diorite (taken with I Hate Diorite on)", undone);
+        }
+        return states;
     }
 
     /** A capture as read back: the box, its palette and one palette index per cell (x fastest, then z, then y). */
-    record Captured(int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
+    /** {@code phase}: the boss phase it was taken in (a version-1 file has none: its file name's). */
+    record Captured(String phase, int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
     }
 
-    /** The saved capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
+    /** The P1 capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
     static Captured readCapture() {
-        Path p = capturePath();
+        return readCapture("P1");
+    }
+
+    /**
+     * The capture taken in {@code phase}, or null. The P1 file holds whatever was captured before captures kept their
+     * phase: it counts as P1 unless it says otherwise, and then as that phase's when that phase has no file of its own.
+     */
+    static Captured readCapture(String phase) {
+        Captured own = readFile(capturePath(phase), phase);
+        if (own != null && phase.equals(own.phase)) {
+            return own;
+        }
+        if (own != null) {
+            LOGGER.warn("[BossSim] {} was captured in {}, not {} - not used as {}", capturePath(phase), own.phase, phase, phase);
+        }
+        if ("P1".equals(phase) || Files.isRegularFile(capturePath(phase))) {
+            return null;
+        }
+        Captured base = readFile(capturePath(), "P1");
+        return base != null && phase.equals(base.phase) ? base : null;
+    }
+
+    /** {@code filePhase}: the phase a version-1 file (no phase of its own) is taken for, its file name's. */
+    private static Captured readFile(Path p, String filePhase) {
         if (!Files.isRegularFile(p)) {
             return null;
         }
@@ -371,10 +529,12 @@ public final class BossArena {
              DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(new GZIPInputStream(raw, 1 << 16)))) {
             byte[] magic = new byte[4];
             in.readFully(magic);
-            if (!"K5BA".equals(new String(magic, java.nio.charset.StandardCharsets.US_ASCII)) || in.readInt() != 1) {
+            int version = "K5BA".equals(new String(magic, java.nio.charset.StandardCharsets.US_ASCII)) ? in.readInt() : -1;
+            if (version != 1 && version != 2) {
                 LOGGER.warn("[BossSim] {} is not a boss capture (bad header) - using the built-in plan", p);
                 return null;
             }
+            String phase = version == 2 ? in.readUTF() : filePhase;
             int x0 = in.readInt(), y0 = in.readInt(), z0 = in.readInt(), w = in.readInt(), h = in.readInt(), d = in.readInt();
             int n = in.readInt();
             BlockState[] states = new BlockState[n];
@@ -396,7 +556,8 @@ public final class BossArena {
                 java.util.Arrays.fill(cells, i, Math.min(cells.length, i + run), v);
                 i += run;
             }
-            return new Captured(x0, y0, z0, w, h, d, states, cells);
+            states = undoDioriteGlass(x0, y0, z0, w, d, states, cells);
+            return new Captured(phase, x0, y0, z0, w, h, d, states, cells);
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("[BossSim] could not read the boss capture {} - using the built-in plan", p, e);
             return null;

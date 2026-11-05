@@ -26,9 +26,10 @@ import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * {@code /simbosscapture} (dev builds only): copies the F7 boss room's blocks, as this client has them loaded, into
- * {@link BossArena#capturePath()}, which the sim builds its boss room from from then on. Run it in an F7/M7 boss, best at the
- * start of P1 (every gate still up). Reading only: it looks at the chunks the client already has and sends nothing.
+ * {@code /simbosscapture} (dev builds only): copies the F7 boss room's blocks, as this client has them loaded, into the
+ * file of the boss phase it is run in ({@link BossArena#capturePath(String)}): the sim builds its room from the P1 capture
+ * and takes P3's start from the P3 one (bossfloor-1104: one file for every phase let a P3 capture overwrite the P1 room).
+ * Reading only: it looks at the chunks the client already has and sends nothing.
  *
  * <p>Only loaded chunks are copied; a column that was not loaded keeps whatever an earlier capture had there, so a second
  * capture from another spot fills in what the first could not see.
@@ -60,7 +61,14 @@ final class BossCapture {
         }
         long t0 = System.currentTimeMillis();
         int x0 = BossArena.X0, y0 = BossArena.Y0, z0 = BossArena.Z0, w = BossArena.W, h = BossArena.H, d = BossArena.D;
-        BossArena.Captured old = BossArena.readCapture();
+        Floor7Tracker.Phase at = Floor7Tracker.getPhase() != Floor7Tracker.Phase.UNKNOWN ? Floor7Tracker.getPhase()
+                : Floor7Tracker.getPhaseAt();
+        if (at == Floor7Tracker.Phase.UNKNOWN) {
+            ModChat.send("Sim", ModChat.text("The boss phase is not known yet - run this again in a moment."));
+            return;
+        }
+        String phase = at.name();
+        BossArena.Captured old = BossArena.readCapture(phase);
         List<String> palette = new ArrayList<>();
         Map<String, Short> index = new HashMap<>();
         java.util.function.Function<String, Short> idOf = s -> index.computeIfAbsent(s, k -> {
@@ -100,7 +108,7 @@ final class BossCapture {
         int columns = w * d;
         int seen = loadedColumns;
         LOGGER.info("[BossSim] capture read {} of {} columns in {} ms", seen, columns, System.currentTimeMillis() - t0);
-        Path out = BossArena.capturePath();
+        Path out = BossArena.capturePath(phase);
         Thread writer = new Thread(() -> {
             try {
                 Files.createDirectories(out.getParent());
@@ -108,7 +116,8 @@ final class BossCapture {
                 try (OutputStream raw = Files.newOutputStream(tmp);
                      DataOutputStream o = new DataOutputStream(new java.io.BufferedOutputStream(new GZIPOutputStream(raw, 1 << 16)))) {
                     o.write("K5BA".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
-                    o.writeInt(1);
+                    o.writeInt(2);
+                    o.writeUTF(phase);
                     o.writeInt(x0);
                     o.writeInt(y0);
                     o.writeInt(z0);
@@ -131,9 +140,9 @@ final class BossCapture {
                     }
                 }
                 Files.move(tmp, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                LOGGER.info("[BossSim] boss capture saved to {} ({} block states)", out, palette.size());
-                mc.execute(() -> ModChat.send("Sim", ModChat.text("Boss room captured: " + seen + "/" + columns
-                        + " columns loaded. The sim's F7 boss is built from it now.")));
+                LOGGER.info("[BossSim] {} boss capture saved to {} ({} block states)", phase, out, palette.size());
+                mc.execute(() -> ModChat.send("Sim", ModChat.text("Boss room captured in " + phase + ": " + seen + "/"
+                        + columns + " columns loaded.")));
             } catch (IOException e) {
                 LOGGER.error("[BossSim] could not save the boss capture", e);
                 mc.execute(() -> ModChat.send("Sim", ModChat.text("Could not save the boss capture - see the log.")));

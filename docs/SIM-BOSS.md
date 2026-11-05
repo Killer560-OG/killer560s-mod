@@ -29,12 +29,39 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 ## The room
 
 `BossArena`: a capture (`/simbosscapture`, dev builds, on Hypixel in a boss; file `config/killer560/dungeons/sim/
-killer560smod-sim-bossarena.bin`, format K5BA v1: gzip, box, palette of block-state strings, run-length cells) when one
+killer560smod-sim-bossarena.bin` for P1, `killer560smod-sim-bossarena-p3.bin` for P3 and so on: each capture goes to the
+file of the boss phase it was taken in (Floor7Tracker), format K5BA v2 = v1 plus the phase after the version; v1: gzip, box,
+palette of block-state strings, run-length cells; a v1 file counts as its file name's phase) when one
 exists, else the built-in plan: plain floors at P1 220, P2 168, P3 106 (lava inside the ring), P4 62 (lava with
 Necron's platforms), P5 4; every terminal on a command block on a pillar with a slab stair down toward the section's
-middle; gates as iron blocks; the core with a gold door. No capture exists yet (2026-11-01): ask him to run
-`/simbosscapture` once at the start of an F7/M7 P1. Over a capture the plan still re-lays the blocks a fight changes
-(holes, gates, levers, device walls) at the plan's positions - check those against the capture once one exists.
+middle; gates as iron blocks; the core with a gold door. Over a capture NOTHING of the plan is laid (bossfloor-1104):
+re-writing the capture resets every block a fight changed, and the plan's gates, holes, pillars, Necron platforms and
+device walls had been sitting on the real room (a gray pad on Storm's red floor, iron gate walls, gray concrete for Lights'
+redstone lamps, an obsidian slab over the Simon Says frame, the Target plate floating). His capture of 2026-11-04 22:18 is
+`killer560s-mod-logs/fixtures/boss-arena-1104.bin` (testkit 1104-boss-capture diffs the built room against it; read it with
+`killer560s-mod-logs/bossfloor-1104/cap.py`, `slice.py`, `find.py`). What the capture shows of Hypixel's room: the gates at
+P1 are BARRIER walls in nether-brick frames (`BossBlocks.open` clears only barrier/iron/gold in a gate's box); Lights' lamps
+are redstone lamps (a pull is answered in `BossDevices.pullLight` with no redstone updates, lamps set by Hypixel's rule);
+the Target plate is a light weighted plate at (63, 127, 35) on blue terracotta; the P3 ground is y 113-116, not the plan's
+106: P3 spawns stand on the ground found there (`BossArena.standY`; S1's is 116.0625, a carpet). A capture is read as the client SHOWS the room, so one taken with I Hate Diorite on has stained glass in Storm's
+pillars: `readCapture` puts polished diorite back. Item frames are entities, never in a capture: the Arrows frames hang
+from the fight's start (`BossDevices.arrows`). All sim lava and fire stand still (`SimStaticWater.holdsStill`, SimStillFireMixin), as Hypixel's, and the capture build skips onPlace (`UPDATE_SKIP_ON_PLACE`), so its hoppers keep `enabled=false` and nothing schedules a tick.
+The fight starts from the P1 capture; P3's start (`BossArena.applyP3`, at a P3 start or when P2 ends) writes the 220
+blocks of P3's band (y 100-145) in which his P3 capture (2026-11-04 23:21, S1, fixture `boss-arena-p3-1104.bin`) differs
+from the P1 one: the wall of nether bricks, cobblestone walls and glass panes at x 77-92, z 35-45 that closes S1's way in is
+gone, and the Arrows wall's sea lanterns (x -3) sit where that run put them. The gates are barrier walls in both captures
+(no other gate block exists). The core's floor in the capture is a 7x7 plug of gold and bedrock at y 113 (x 51-57,
+z 111-117) over a shaft that is already open down to P4's platform (top 63); over a capture `BossFight.openCore` clears
+only the plug (the plan's `CORE_HOLE` at 105-106 cut solid stone under a whole floor, and nobody fell), and P4's spawn
+stands on the platform found there (y 64; the plan's 63). The core door is the 5x7 of gold blocks at x 52-56, y 115-121,
+z 54 (in both captures); opening the core removes only those (killer560, 2026-11-05: "the core door just removes those gold
+blocks"; `BossFight.CORE_DOOR`). Maxor's and Storm's holes over a capture are the cells of y 214-224 and 160-170 that are
+solid in the P1 capture and air in the P3 one (1214 cells, `BossArena.openCapturedHole`): the plan's holes cut over
+bedrock at 218 and 166 there, so nobody fell. Necron's hole (P4 to P5) has no capture yet: over a capture the plan's
+P4_HOLE at 61-62 still leaves the platform's top (63). Still unverified: the Arrows wall's lanterns. Those are 3 sea lanterns among the 25 cells of the blue terracotta wall at x -3, y 120-124, z 75-79
+(index dy + dz * 5): {2, 12, 22} in the P1 capture, {0, 17, 20} in the P3 one, whose run logged `[ArrowAlign] layout #5`;
+17 and 20 hold no frame of layout 5, so no rule ties them to the layout (the P4 platform's stone pattern also differs
+between the two captures: Hypixel seems to shuffle such blocks per run). The sim keeps the P3 capture's lanterns.
 
 ## The fight
 
@@ -70,7 +97,8 @@ completed!" / "...doesn't seem to be responsive at the moment." for another sect
 toggles; a done lever says "Someone has already activated this lever!". `BossTerminals` - real chest menus (`Menu.clicked`
 never moves an item), six types, kept per terminal across reopens, at most 5 counted clicks in 10 ticks, Numbers 10 and
 Melody 3 lanes in a 6-row window (Hypixel's 2026-10-06 update); the system property `killer560.bosssim.terminal=<TYPE>`
-forces a type (testkit). `BossDevices` - Simon Says (4 rounds; first show 4 after the start press, lamps 8 apart, the
+forces a type (testkit). `BossDevices` - Simon Says (4 rounds, as Hypixel's since its 2026-10-06 update: his
+own log has "SS 4/4" 12 times and no 5th round, and "[SimonSays] Device has 4 rounds (new layout) on proxy.hypixel.net"; first show 4 after the start press, lamps 8 apart, the
 start button resets a running device, a wrong press stops it), Lights (20 levers, a lamp lit by its lever or a
 neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`), Target (9 targets, lit only while someone is on
 the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hits; off the plate the attempt resets).
@@ -78,7 +106,7 @@ the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hit
 ## Tests
 
 testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3, -portal, 1102-boss-maxorcrys, 1103-boss-moves (boss
-positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks) - only when named.
+positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks), 1104-boss-capture (the room built from his capture equals it; Lights, SS, frames, still lava, gates on it) - only when named.
 
 ## Lessons
 

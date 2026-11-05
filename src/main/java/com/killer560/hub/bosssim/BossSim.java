@@ -110,6 +110,9 @@ public final class BossSim {
             if (hand != InteractionHand.MAIN_HAND) {
                 return InteractionResult.PASS;
             }
+            if (BossDevices.pullLight((ServerLevel) level, hit.getBlockPos())) {
+                return InteractionResult.SUCCESS;
+            }
             BossStations.Station lever = BossStations.leverAt(hit.getBlockPos());
             if (lever != null) {
                 if (BossFight.phase() == BossFight.Phase.P3) {
