@@ -37,7 +37,7 @@ import java.util.Map;
  * player model in his own skin ({@link Guide}), walks the new player through the mod in a few scenes with a themed
  * speech bubble ({@link SpeechBubble}) whose tail comes from his mouth. It runs once per instance, over the title
  * screen ({@link IntroLauncher}); Home's Replay Intro runs it again. Escape asks before skipping; Skip Guide skips at
- * once.
+ * once. Skipping an auto-opened tour turns on each question left unanswered (a replay changes nothing).
  *
  * <p>Scenes: welcome (time estimate, Skip Guide), how to open the mod (the real Open Menu key), the menu with a theme and
  * a main menu style to pick (nothing changes until a choice is clicked), "change it anytime", which variant this is, the
@@ -98,9 +98,17 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
     private final float[] mouth = {Float.NaN, Float.NaN};
     private static boolean hideBubbleForTest;
 
+    /** True when the tour opened by itself on first launch: skipping it then turns on every unanswered question. */
+    private final boolean autoOpened;
+
     public IntroScreen(Screen parent) {
+        this(parent, false);
+    }
+
+    public IntroScreen(Screen parent, boolean autoOpened) {
         super(Component.literal("Killer560's Mod Tour"));
         this.parent = parent;
+        this.autoOpened = autoOpened;
         scenes.add(Scene.WELCOME);
         scenes.add(Scene.OPEN_MENU);
         scenes.add(Scene.THEME);
@@ -503,12 +511,23 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         rebuildWidgets();
     }
 
-    /** Ends the tour (finished or skipped): it will not show again on its own. */
+    /** Ends the tour (finished or skipped): it will not show again on its own. An auto-opened tour that ends with a question unanswered (skipped) turns that feature ON, as if Yes was picked. */
     public void finish() {
         if (finished) {
             return;
         }
         finished = true;
+        if (autoOpened) {
+            if (BuildVariant.CHEAT_FEATURES_ENABLED && banChoice == null) {
+                chooseBanLogs(true);
+            }
+            if (crashChoice == null) {
+                chooseCrashReports(true);
+            }
+            if (updateChoice == null) {
+                chooseAutoUpdate(true);
+            }
+        }
         resetPreview();
         IntroConfig cfg = IntroConfig.getInstance();
         cfg.setDone(true);

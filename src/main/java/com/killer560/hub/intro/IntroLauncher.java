@@ -59,7 +59,7 @@ public final class IntroLauncher {
         IntroConfig cfg = IntroConfig.getInstance();
         cfg.setDone(true);
         cfg.save();
-        McCompat.setScreen(client, new IntroScreen(screen));
+        McCompat.setScreen(client, new IntroScreen(screen, true));
     }
 
     /** How many times the tour opened on its own this session (read by the testkit: once on a first install). */
