@@ -80,6 +80,9 @@ public final class MaskInvincibilityFeature {
     private static final Map<Type, ItemStack> iconCache = new EnumMap<>(Type.class);
     /** Stand-in icons (catalog skin or plain head), kept so render does not rebuild a stack every frame. */
     private static final Map<Type, ItemStack> fallbackIcon = new EnumMap<>(Type.class);
+    /** The Phoenix pet's head skin (texture 66b1b59b..., NEU PHOENIX;7), as a textures property value. */
+    private static final String PHOENIX_SKIN = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1"
+            + "cmUvNjZiMWI1OWJjODkwYzljOTc1Mjc3ODdkZGUyMDYwMGM4Yjg2ZjZiOTkxMmQ1MWE2YmZjZGIwZTRjMmFhM2M5NyJ9fX0=";
     private static final Type[] TYPES = Type.values();
     private static int iconScanCountdown = 0;
     private static boolean wasInDungeon = false;
@@ -259,6 +262,13 @@ public final class MaskInvincibilityFeature {
                 fallbackIcon.put(t, fallback);
                 return fallback;
             }
+        }
+        // The Phoenix is a pet, so it is never in the inventory and Hypixel's item catalog has no pets
+        // (killer560 2026-11-04: "the phoenix texture is missing"). Its head skin is fixed: NEU's PHOENIX;7.
+        if (t == Type.PHOENIX) {
+            fallback = com.killer560.hub.profileviewer.item.LegacyItems.skull(PHOENIX_SKIN, null);
+            fallbackIcon.put(t, fallback);
+            return fallback;
         }
         // The catalog may not be loaded yet for Spirit, so a plain head is not remembered for it.
         fallback = new ItemStack(Items.PLAYER_HEAD);
