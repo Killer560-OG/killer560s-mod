@@ -32,6 +32,8 @@ public final class HeldMap {
 
     /** Sim stand-in: rooms (by layout room id) someone has stood in this floor. */
     private static final Set<Integer> SIM_VISITED = new HashSet<>();
+    /** The snapshot {@link #SIM_VISITED}'s room ids are numbered by. */
+    private static DungeonLayout simNumberedBy;
     private static int simGeneration = Integer.MIN_VALUE;
     private static int simTick = Integer.MIN_VALUE;
     /** Bumped whenever {@link #SIM_VISITED} changes (the Dungeon Map's draw cache keys on it). */
@@ -188,6 +190,12 @@ public final class HeldMap {
         simTick = tick;
         Minecraft client = Minecraft.getInstance();
         DungeonLayout layout = DungeonLayout.current();
+        if (!layout.numbersLike(simNumberedBy)) {
+            // A new snapshot numbers its rooms afresh: map the opened rooms over by their cells (roomidx-1104).
+            layout.sameRooms(simNumberedBy, SIM_VISITED);
+            simVersion++;
+        }
+        simNumberedBy = layout;
         for (int r = 0; r < layout.roomCount(); r++) {
             RoomEntry e = layout.entry(r);
             String n = layout.name(r);

@@ -165,7 +165,9 @@ public final class InteractiveMapFeature {
     /** Last map press, for the double-press test. The mod had no double-press helper to reuse, so this is the
      *  whole of it: same room twice inside the configured window. */
     private static long lastPressMs = 0;
-    private static int lastPressRoom = -1;
+    /** A cell of the room last pressed, never its index: every press takes a fresh snapshot, which can number the rooms
+     *  afresh (DungeonLayout.numbersLike), so a kept index could name another room (roomidx-1104). */
+    private static int lastPressCell = -1;
 
     /**
      * Every Interactive Map "go here" press lands here, whichever input made it - the Start Key polled above, or
@@ -223,7 +225,7 @@ public final class InteractiveMapFeature {
         DungeonLayout layout = DungeonLayout.capture();
         int gid = cell < 0 ? -1 : LiveMapFeature.groupIdAt(cell);
         if (gid < 0) {
-            lastPressRoom = -1;
+            lastPressCell = -1;
             if (cell >= 0 && MapPainter.isDoorCell(cell)) {
                 queue(cell, (l, room, doorCell) -> AutoClearUtils.pathToDoor(l, doorCell, cfg.isFaceDoorOnArrival()));
             } else {
@@ -248,11 +250,11 @@ public final class InteractiveMapFeature {
         if (forceStartNode) {
             // Not a press the double-press counter should see: it would leave this room half-counted, and a
             // following ordinary press on it could then read as the second of a double press.
-            lastPressRoom = -1;
+            lastPressCell = -1;
             queue(tile, InteractiveMapFeature::startNodeGoal);
             return;
         }
-        if (registerPress(room, cfg) && cfg.isMapDoublePressStartNode()) {
+        if (registerPress(layout, room, tile, cfg) && cfg.isMapDoublePressStartNode()) {
             queue(tile, InteractiveMapFeature::startNodeGoal);
             return;
         }
@@ -279,12 +281,12 @@ public final class InteractiveMapFeature {
     }
 
     /** @return true when this press is the second of a double press. */
-    private static boolean registerPress(int room, LiveMapConfig cfg) {
+    private static boolean registerPress(DungeonLayout layout, int room, int cell, LiveMapConfig cfg) {
         long now = System.currentTimeMillis();
-        boolean doublePress = room == lastPressRoom && now - lastPressMs <= cfg.getMapDoublePressMs();
+        boolean doublePress = room == layout.roomOfCell(lastPressCell) && now - lastPressMs <= cfg.getMapDoublePressMs();
         lastPressMs = now;
         // A third press must not read as another double press off the second one's timestamp.
-        lastPressRoom = doublePress ? -1 : room;
+        lastPressCell = doublePress ? -1 : cell;
         return doublePress;
     }
 

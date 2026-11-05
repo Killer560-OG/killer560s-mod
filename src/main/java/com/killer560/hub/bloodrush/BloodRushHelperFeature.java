@@ -100,7 +100,7 @@ public final class BloodRushHelperFeature {
         final int id;
         final Vec3 first;
         final AABB body;
-        final int room;
+        int room;
         Entity entity;
         Entity tag;
         int tagGoneAt = -1;
@@ -146,7 +146,7 @@ public final class BloodRushHelperFeature {
     private static final class Pending {
         Vec3 at;
         int since;
-        final int room;
+        int room;
         int restarts;
 
         Pending(Vec3 at, int since, int room) {
@@ -171,6 +171,9 @@ public final class BloodRushHelperFeature {
     private static boolean droppedSaid;
     private static int myTile = -1;
     private static int lastRoom = -1;
+    /** The snapshot every room index kept here (nextRoom, lastRoom, RUSHED, beforeFairy, WALKED_IN, each Mob and Pending)
+     *  is numbered by; a new numbering maps them all over at once ({@link #renumber}, roomidx-1104). */
+    private static DungeonLayout numberedBy;
     private static int ticks;
     private static int clock;
     private static String status = "idle";
@@ -280,7 +283,7 @@ public final class BloodRushHelperFeature {
 
     /** "x opened a WITHER door!": the next rush room is the one beyond the shown wither door beside the rush so far. */
     private static void witherDoorOpened() {
-        DungeonLayout layout = DungeonLayout.current();
+        DungeonLayout layout = renumber(DungeonLayout.current());
         int cur = layout.currentRoom();
         int best = -1;
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
@@ -339,6 +342,39 @@ public final class BloodRushHelperFeature {
         droppedSaid = false;
         myTile = -1;
         lastRoom = -1;
+        numberedBy = null;
+    }
+
+    /** A new layout snapshot numbers its rooms afresh (DungeonLayout.numbersLike): every kept room index is mapped into
+     *  it by its cell, or a mob first seen in his room at run start (rooms join the map every tick) counted for another
+     *  room and its box never showed. Runs only when the numbering changed. */
+    private static DungeonLayout renumber(DungeonLayout layout) {
+        DungeonLayout old = numberedBy;
+        numberedBy = layout;
+        if (layout.numbersLike(old)) {
+            return layout;
+        }
+        nextRoom = layout.sameRoom(old, nextRoom);
+        lastRoom = layout.sameRoom(old, lastRoom);
+        layout.sameRooms(old, RUSHED);
+        if (beforeFairy != null) {
+            layout.sameRooms(old, beforeFairy);
+        }
+        Map<Integer, double[]> walked = new HashMap<>(WALKED_IN);
+        WALKED_IN.clear();
+        walked.forEach((r, door) -> {
+            int now = layout.sameRoom(old, r);
+            if (now >= 0) {
+                WALKED_IN.put(now, door);
+            }
+        });
+        for (Mob m : MOBS.values()) {
+            m.room = layout.sameRoom(old, m.room);
+        }
+        for (Pending p : LEARNING.values()) {
+            p.room = layout.sameRoom(old, p.room);
+        }
+        return layout;
     }
 
     private static void tick(Minecraft client) {
@@ -366,7 +402,7 @@ public final class BloodRushHelperFeature {
             status = !cfg.isEnabled() ? "off" : "not in a clear";
             return;
         }
-        DungeonLayout layout = DungeonLayout.current();
+        DungeonLayout layout = renumber(DungeonLayout.current());
         if (!cfg.isEnabled()) {
             // Helper off: Learn Spawn Spots still learns, passively (bloodrush2-1104, so his normal runs fill the table). The
             // same starred-mob scan Mob ESP runs every frame, here every other tick, in a clear only; nothing drawn.
