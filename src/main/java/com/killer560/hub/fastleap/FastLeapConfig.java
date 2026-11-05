@@ -160,6 +160,8 @@ public final class FastLeapConfig {
     private int returnToSlot = RETURN_PREVIOUS;
     private boolean disableAfterBloodOpen = false;
     private boolean onlyWhenGateBlown = false;
+    /** Keep Rotation On Leap (leaprot-1104): a leap's teleport leaves his look as it was (fastleap/LeapRotation). */
+    private boolean leapTakesTargetLook = false;
     /** Targets (killer560, 2026-11-02: "you should have a toggle to use universal or to use set class"): false uses the
      *  Universal Targets page for everyone; true uses the Set Class Targets page's pick for the class you play, falling
      *  back to the Universal target for a class with none set. */
@@ -203,6 +205,7 @@ public final class FastLeapConfig {
                 cfg.returnToSlot = clampReturn(intOr(obj, "returnToSlot", RETURN_PREVIOUS));
                 cfg.disableAfterBloodOpen = bool(obj, "disableAfterBloodOpen", false);
                 cfg.onlyWhenGateBlown = bool(obj, "onlyWhenGateBlown", false);
+                cfg.leapTakesTargetLook = bool(obj, "leapTakesTargetLook", false);
                 if (obj.has("groups") && obj.get("groups").isJsonObject()) {
                     JsonObject g = obj.getAsJsonObject("groups");
                     for (LeapGroup group : LeapGroup.values()) {
@@ -288,6 +291,7 @@ public final class FastLeapConfig {
             obj.addProperty("returnToSlot", returnToSlot);
             obj.addProperty("disableAfterBloodOpen", disableAfterBloodOpen);
             obj.addProperty("onlyWhenGateBlown", onlyWhenGateBlown);
+            obj.addProperty("leapTakesTargetLook", leapTakesTargetLook);
             obj.addProperty("useClassTargets", useClassTargets);
             JsonObject g = new JsonObject();
             for (LeapGroup group : LeapGroup.values()) {
@@ -451,6 +455,14 @@ public final class FastLeapConfig {
 
     public void setOnlyWhenGateBlown(boolean v) {
         onlyWhenGateBlown = v;
+    }
+
+    public boolean isLeapTakesTargetLook() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && leapTakesTargetLook;
+    }
+
+    public void setLeapTakesTargetLook(boolean v) {
+        leapTakesTargetLook = v;
     }
 
     /** The leap's row: Off, Fast or Auto. */

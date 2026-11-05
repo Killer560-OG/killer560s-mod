@@ -4,37 +4,48 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 import java.util.Locale;
 
 /**
- * Leap rotation (leaprot-1104, killer560: "sometimes you leap to someone and you will be rotated 180 degrees"; "it is
- * 100% because of teleporting ... make a quick logger for it"). Hypixel's teleports carry an ABSOLUTE look, the server's
- * own copy of his look, and vanilla puts the camera on it; when the server is behind his real look (it dropped his looks
- * for a while after an earlier teleport), a leap turns him back to an old look.
+ * Leap rotation (leaprot-1104, killer560: "sometimes you leap to someone and you will be rotated 180 degrees").
  *
- * <p>The logger (cheat build, logger {@code killer560smod-leaprot}): one line per server teleport (the packet's look and
- * flags, his look before and after, the last look sent and how long ago, a leap-menu click in the last 3 s, distance) and
- * one line per look-carrying packet sent within {@link #WATCH_MS} of a teleport (at most {@link #WATCH_MAX} per teleport),
- * so the log shows what the server heard in that window. Event-driven only; nothing per frame or tick.
+ * <p>What his own log showed (26.3, 63 teleports with the logger below): Hypixel sends a teleport's look ABSOLUTE, and
+ * for a leap that look is the leaped-to player's ("if it is longer then it is the rotation of the player you leap to and
+ * that is what you want"). But a teleport that comes within about 1 s of the one before (every one at 221-997 ms) has its
+ * look RELATIVE 0/0, "on any teleport to not turn you": a leap in that window keeps his own look instead of the target's.
+ *
+ * <p><b>Leap Takes Target's Look</b> (Fast Leap tab, cheat block, default OFF): when such a relative-look teleport that
+ * moved him {@link #LEAP_MIN_BLOCKS}+ blocks and Hypixel's own-leap line "You have teleported to Name!" come within
+ * {@link #PAIR_MS} of each other (either order), the camera turns to Name's look once that player is loaded within
+ * {@link #NEAR_BLOCKS} blocks (at most {@link #FIND_MS}). It is a plain turn: the shortest way from his yaw (never
+ * wrapped), pitch inside -90..90, sent by the next movement packet as any turn is; position is never touched. Every other
+ * teleport (etherwarp, setback, an absolute leap) is left as vanilla applies it. Event-driven; the tick does work only
+ * while a turn is pending.
+ *
+ * <p>The logger (cheat build, logger {@code killer560smod-leaprot}): one line per server teleport and one per
+ * look-carrying packet sent within {@link #WATCH_MS} of it (at most {@link #WATCH_MAX}).
  */
 public final class LeapRotation {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-leaprot");
-    static final long LEAP_CLICK_MS = 3000L;
     private static final long WATCH_MS = 1500L;
     private static final int WATCH_MAX = 40;
+    static final double LEAP_MIN_BLOCKS = 2.0;
+    static final long PAIR_MS = 1500L;
+    static final long FIND_MS = 2000L;
+    static final double NEAR_BLOCKS = 6.0;
 
-    private static long leapClickMs;
     private static long lastTeleportMs;
     private static int watched;
     private static long lastSentMs;
@@ -42,9 +53,16 @@ public final class LeapRotation {
     private static float lastSentPitch = Float.NaN;
     /** handleMovePlayer's before-half, read by its after-half (client thread, never nested). */
     private static float beforeYaw;
-    private static float beforePitch;
     private static Vec3 beforePos;
-    private static boolean pending;
+    private static boolean inTeleport;
+    /** The last relative-look teleport that moved him, and the last own-leap line: a pair makes a turn. */
+    private static long relTeleportMs;
+    private static long leapLineMs;
+    private static String leapLineName;
+    /** The pending turn: whose look, until when. */
+    private static String target;
+    private static long targetUntilMs;
+    private static long taken;
 
     private LeapRotation() {}
 
@@ -52,49 +70,98 @@ public final class LeapRotation {
         return BuildVariant.CHEAT_FEATURES_ENABLED;
     }
 
-    /** A container click: a leap if the open menu is Hypixel's leap menu. */
-    public static void onContainerClick(Screen screen) {
-        if (on() && LeapManager.isExactLeapMenu(screen)) {
-            leapClickMs = System.currentTimeMillis();
-        }
+    /** Leaps whose look Leap Takes Target's Look set (testkit). */
+    public static long taken() {
+        return taken;
     }
 
-    static boolean leapClickedRecently(long now) {
-        return now - leapClickMs <= LEAP_CLICK_MS;
+    public static void clear() {
+        relTeleportMs = 0L;
+        leapLineMs = 0L;
+        leapLineName = null;
+        target = null;
     }
 
     /** Before vanilla applies a server teleport. */
     public static void beforeTeleport(ClientboundPlayerPositionPacket packet) {
         LocalPlayer p = Minecraft.getInstance().player;
-        pending = on() && p != null && packet != null && packet.change() != null;
-        if (!pending) {
-            return;
+        inTeleport = on() && p != null && packet != null && packet.change() != null;
+        if (inTeleport) {
+            beforeYaw = p.getYRot();
+            beforePos = p.position();
         }
-        beforeYaw = p.getYRot();
-        beforePitch = p.getXRot();
-        beforePos = p.position();
     }
 
     /** After vanilla applied it (and sent the accept). */
     public static void afterTeleport(ClientboundPlayerPositionPacket packet) {
         LocalPlayer p = Minecraft.getInstance().player;
-        if (!pending || p == null) {
-            pending = false;
+        if (!inTeleport || p == null) {
+            inTeleport = false;
             return;
         }
-        pending = false;
+        inTeleport = false;
         long now = System.currentTimeMillis();
         PositionMoveRotation c = packet.change();
-        float turn = Mth.wrapDegrees(p.getYRot() - beforeYaw);
+        double moved = p.position().distanceTo(beforePos);
         LOGGER.info(String.format(Locale.ROOT,
                 "[LeapRotation] teleport: %d ms since the last one, packet yaw %.1f pitch %.1f relatives %s; look before "
-                        + "%.1f/%.1f, after %.1f/%.1f (yaw change %.1f); last look sent %.1f/%.1f %d ms ago; leap click in "
-                        + "last 3 s: %s; moved %.2f blocks",
+                        + "%.1f, after %.1f/%.1f (yaw change %.1f); last look sent %.1f/%.1f %d ms ago; moved %.2f blocks",
                 lastTeleportMs == 0 ? -1 : now - lastTeleportMs, c.yRot(), c.xRot(), packet.relatives(), beforeYaw,
-                beforePitch, p.getYRot(), p.getXRot(), turn, lastSentYaw, lastSentPitch,
-                lastSentMs == 0 ? -1 : now - lastSentMs, leapClickedRecently(now), p.position().distanceTo(beforePos)));
+                p.getYRot(), p.getXRot(), Mth.wrapDegrees(p.getYRot() - beforeYaw), lastSentYaw, lastSentPitch,
+                lastSentMs == 0 ? -1 : now - lastSentMs, moved));
         lastTeleportMs = now;
         watched = 0;
+        if (packet.relatives().contains(Relative.Y_ROT) && moved >= LEAP_MIN_BLOCKS) {
+            relTeleportMs = now;
+            pair(now);
+        }
+    }
+
+    /** Hypixel's "You have teleported to Name!" (LeapManager.onChat): his own leap, by hand or by the mod. */
+    static void onOwnLeap(String name) {
+        if (on()) {
+            leapLineMs = System.currentTimeMillis();
+            leapLineName = name;
+            pair(leapLineMs);
+        }
+    }
+
+    private static void pair(long now) {
+        if (leapLineName == null || now - relTeleportMs > PAIR_MS || now - leapLineMs > PAIR_MS
+                || !FastLeapConfig.getInstance().isLeapTakesTargetLook()) {
+            return;
+        }
+        target = leapLineName;
+        targetUntilMs = now + FIND_MS;
+        relTeleportMs = 0L;
+        leapLineName = null;
+    }
+
+    /** Start of each client tick: one null check unless a turn is pending. */
+    static void tick(Minecraft mc) {
+        if (target == null) {
+            return;
+        }
+        LocalPlayer me = mc.player;
+        if (me == null || mc.level == null || System.currentTimeMillis() > targetUntilMs) {
+            LOGGER.info("[LeapRotation] Leap Takes Target's Look: {} never showed up near you, look left as it is", target);
+            target = null;
+            return;
+        }
+        for (AbstractClientPlayer other : mc.level.players()) {
+            if (other != me && other.getName().getString().equalsIgnoreCase(target)
+                    && other.distanceTo(me) <= NEAR_BLOCKS) {
+                float yaw = me.getYRot() + Mth.wrapDegrees(other.getYHeadRot() - me.getYRot());
+                float pitch = Mth.clamp(other.getXRot(), -90f, 90f);
+                me.setYRot(yaw);
+                me.setXRot(pitch);
+                taken++;
+                LOGGER.info(String.format(Locale.ROOT, "[LeapRotation] Leap Takes Target's Look: turned to %s's look "
+                        + "%.1f/%.1f", target, yaw, pitch));
+                target = null;
+                return;
+            }
+        }
     }
 
     /** Every packet that went on the wire (Connection.send's tail): looks are remembered, and logged near a teleport. */
