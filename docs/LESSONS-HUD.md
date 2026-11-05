@@ -92,6 +92,11 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
 
 ## Dungeon map painter
 
+- **A deduction is only as legit as its inputs.** `livemap/MapInference` (mapinfer-1105) completes shapes, fills blank slots
+  and forces doors from the grid, but on the map item map (`MapPainter.hideUnrevealed()`) it must read only what that map
+  draws: unrevealed groups count as unseen, names only from `identityRevealed`, a gap beside an unseen tile from the map
+  item byte, and no "every blank slot is a room" fill (it turned the whole floor into "?" before the map item was read).
+  Test text floors: check `'x'` before the `a-z` room letters, or the empty tile reads as room 23 (a vacuous door).
 - A marker outline drawn as one-unit side strips per row is not an outline: the back edge had none and the tip rows were
   all edge, so only 69% of the old map arrow's edge was dark and the green arrow vanished on the green Entrance (testkit 395).
   Draw a solid outline shape one unit bigger UNDER the fill (`MapPainter.outlinedTriangle`): 100%, 15.3:1.

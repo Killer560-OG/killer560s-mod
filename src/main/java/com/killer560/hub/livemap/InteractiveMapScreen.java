@@ -247,6 +247,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
                         ox, oy, ppu);
             }
             roomRects.submit();
+            MapInference.draw(graphics, cfg, ox, oy, ppu);
             if (hoveredGroup >= 0) {
                 drawHoveredTile(graphics, groups.get(hoveredGroup), hoveredCell, cfg, ox, oy, ppu);
             }

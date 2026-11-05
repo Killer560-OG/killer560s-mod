@@ -89,6 +89,8 @@ public final class LiveMapFeature {
     }
 
     private static final Tile[] grid = new Tile[GRID * GRID];
+    /** Cells the world scan read in a loaded chunk and found nothing in: a slot with no room, a gap with no door. */
+    private static final boolean[] seenEmpty = new boolean[GRID * GRID];
     /** Per-tile core-hash match (even cells only). Room-level identity lives on {@link RoomGroup#entry}. */
     private static final RoomEntry[] roomEntryGrid = new RoomEntry[GRID * GRID];
     /** Rotation/corner, stored on the tile whose corner (or, for bounding-box hits, the group's main tile)
@@ -240,6 +242,7 @@ public final class LiveMapFeature {
     private static void resetGrid(String reason) {
         simRoomExtent = null;
         java.util.Arrays.fill(grid, Tile.UNKNOWN);
+        java.util.Arrays.fill(seenEmpty, false);
         java.util.Arrays.fill(roomEntryGrid, null);
         java.util.Arrays.fill(rotationGrid, -1);
         java.util.Arrays.fill(loggedNoRotation, false);
@@ -492,6 +495,10 @@ public final class LiveMapFeature {
                 }
                 int roofHeight = getHighestY(client, wx, wz);
                 if (roofHeight <= 0) {
+                    if (!seenEmpty[idx]) {
+                        seenEmpty[idx] = true; // a loaded column with nothing in it: no room, or a wall gap (MapInference)
+                        mapVersion++;
+                    }
                     continue;
                 }
 
@@ -880,7 +887,7 @@ public final class LiveMapFeature {
 
     /** Whether the dungeon map shows a room on every tile the gap {@code idx} lies between: left and right of a gap
      *  between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's center. */
-    private static boolean mapShowsRoomsAround(int idx) {
+    static boolean mapShowsRoomsAround(int idx) {
         int gx = idx % GRID;
         int gz = idx / GRID;
         boolean oddX = gx % 2 == 1;
@@ -1358,6 +1365,45 @@ public final class LiveMapFeature {
 
     static boolean isWorldScanned(int idx) {
         return grid[idx] != Tile.UNKNOWN;
+    }
+
+    /** Whether the world scan read cell {@code idx} in a loaded chunk and found nothing there (see {@link #seenEmpty}). */
+    static boolean seenEmpty(int idx) {
+        return seenEmpty[idx];
+    }
+
+    /**
+     * Test hook (testkit 1105-logic-mapinfer-live): replaces the scanned floor with one written as text, as the world scan
+     * would have left it, in {@link MapInference#testInfer}'s format. Each room letter's tiles get the entry
+     * {@code rooms[letter]} = "Name|shape|TYPE". Then the grouping is rebuilt from it like any scan.
+     */
+    public static void testLoadFloor(String[] rows, String[] rooms) {
+        resetGrid("test floor");
+        RoomEntry[] entries = new RoomEntry[rooms.length];
+        for (int i = 0; i < rooms.length; i++) {
+            String[] p = rooms[i].split("\\|");
+            entries[i] = new RoomEntry();
+            entries[i].name = p[0];
+            entries[i].shape = p[1];
+            entries[i].type = p[2];
+        }
+        for (int gz = 0; gz < rows.length; gz++) {
+            for (int gx = 0; gx < rows[gz].length(); gx++) {
+                char ch = rows[gz].charAt(gx);
+                int idx = gx + gz * GRID;
+                if (ch >= 'a' && ch <= 'z') {
+                    grid[idx] = Tile.ROOM;
+                    roomEntryGrid[idx] = entries[ch - 'a'];
+                } else if (ch == '=') {
+                    grid[idx] = Tile.ROOM;
+                } else if (ch == 'D') {
+                    grid[idx] = Tile.DOOR_NORMAL;
+                } else if (ch == '#' || ch == 'x') {
+                    seenEmpty[idx] = true;
+                }
+            }
+        }
+        groupsDirty = true;
     }
 
     /**
@@ -1903,6 +1949,7 @@ public final class LiveMapFeature {
                 MapPainter.drawRoom(roomRects, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }
             roomRects.submit();
+            MapInference.draw(graphics, cfg, ox, oy, ppu); // what the seen parts settle about the unseen (mapinfer-1105)
             logLayout();
 
             // killer560s-mod-relay task (2026-09-21): teammate-reported rooms this client has not scanned

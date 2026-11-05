@@ -22,7 +22,7 @@ import java.util.Set;
  */
 public final class PredictedRoomsPainter {
 
-    private static final float GUESS_DARKEN = 0.6f;
+    static final float GUESS_DARKEN = 0.6f;
     /**
      * The name (and secrets line) of a room he has seen into but not entered. killer560 (to-do Doc, 2026-11-01): "If i
      * have seen into a room to know it is there but not entered it then the name should be a bit more grey than it is
@@ -245,7 +245,7 @@ public final class PredictedRoomsPainter {
         graphics.fill(x0, y0, x1, y1, color);
     }
 
-    private static void question(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg, int gx, int gz,
+    static void question(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg, int gx, int gz,
                                  float ox, float oy, float ppu) {
         MapPainter.drawSampleMark(graphics, DungeonMapScanner.STATE_UNOPENED, cfg,
                 ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS / 2f) * ppu,
