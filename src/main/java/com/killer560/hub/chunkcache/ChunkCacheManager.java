@@ -87,32 +87,6 @@ public final class ChunkCacheManager {
     /** Recomputed once per client tick so the hot {@code getChunk} path is one volatile read, never a config read. */
     private static volatile boolean active;
     private static volatile int maxChunks = ChunkCacheConfig.DEFAULT_CHUNKS;
-    /** Set by "/killer560 record": keeps every chunk at the largest size whatever the settings say, until stopped. */
-    private static volatile boolean forced;
-
-    public static void setForced(boolean on) {
-        forced = on;
-        if (on) {
-            active = true;
-            maxChunks = ChunkCacheConfig.MAX_CHUNKS;
-        }
-    }
-
-    /** Puts chunks the cache did not take when they arrived (it was off then) into the store, so they outlive their unload. */
-    public static int adopt(ClientLevel level, Map<Long, LevelChunk> chunks) {
-        ChunkCacheStore store = storeOf(level);
-        int n = 0;
-        if (store == null) {
-            return 0;
-        }
-        for (Map.Entry<Long, LevelChunk> e : chunks.entrySet()) {
-            if (store.get(e.getKey()) != e.getValue()) {
-                onChunkReceived(store, ChunkPos.getX(e.getKey()), ChunkPos.getZ(e.getKey()), e.getValue());
-                n++;
-            }
-        }
-        return n;
-    }
 
     private static WeakReference<ClientLevel> lastLevel = new WeakReference<>(null);
     /** The chunk currently inside {@code ClientLevel.unload} that this cache owns (client thread only). */
@@ -184,8 +158,8 @@ public final class ChunkCacheManager {
         ChunkCacheConfig cfg = ChunkCacheConfig.getInstance();
         // The Live Map's "Keep Chunks Loaded" keeps canceling forget packets exactly as before AND turns this cache
         // on, since canceling that packet alone does not survive the view center moving.
-        active = forced || cfg.isEnabled() || LiveMapConfig.getInstance().isKeepChunksLoaded();
-        maxChunks = forced ? ChunkCacheConfig.MAX_CHUNKS : cfg.getMaxChunks();
+        active = cfg.isEnabled() || LiveMapConfig.getInstance().isKeepChunksLoaded();
+        maxChunks = cfg.getMaxChunks();
 
         ClientLevel level = client.level;
         if (level != lastLevel.get()) {
@@ -205,7 +179,7 @@ public final class ChunkCacheManager {
             }
             return;
         }
-        if (!forced && !cfg.isEnabledRaw() && !keepChunksLoadedRaw()) {
+        if (!cfg.isEnabledRaw() && !keepChunksLoadedRaw()) {
             // Turned off in the GUI: hand the memory back. A "Skyblock Only" flicker only stops caching, it never
             // throws away what is already cached (the raw toggles are what is checked here).
             releaseAll(store);
