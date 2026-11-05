@@ -42,6 +42,10 @@ public class DungeonBreakerTab extends BaseTab {
 
         widgets.add(onOffButton("Fatigue Only", cfg::isFatigueOnly, cfg::setFatigueOnly, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 24;
+
+        widgets.add(onOffButton("Dungeons Only", cfg::isDungeonsOnly, cfg::setDungeonsOnly, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

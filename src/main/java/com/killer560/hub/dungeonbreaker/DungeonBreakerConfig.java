@@ -24,6 +24,7 @@ public final class DungeonBreakerConfig {
 
     private boolean enabled = false;
     private boolean fatigueOnly = false;
+    private boolean dungeonsOnly = false;
     private boolean noBreakSecrets = false;
 
     private DungeonBreakerConfig() {
@@ -47,6 +48,7 @@ public final class DungeonBreakerConfig {
             DungeonBreakerConfig cfg = new DungeonBreakerConfig();
             cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
             cfg.fatigueOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "fatigueOnly", cfg.fatigueOnly);
+            cfg.dungeonsOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
             cfg.noBreakSecrets = com.killer560.hub.util.ConfigJson.getBool(obj, "noBreakSecrets", cfg.noBreakSecrets);
             instance = cfg;
         } catch (Exception e) {
@@ -60,6 +62,7 @@ public final class DungeonBreakerConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("fatigueOnly", fatigueOnly);
+            obj.addProperty("dungeonsOnly", dungeonsOnly);
             obj.addProperty("noBreakSecrets", noBreakSecrets);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -82,6 +85,15 @@ public final class DungeonBreakerConfig {
 
     public void setFatigueOnly(boolean fatigueOnly) {
         this.fatigueOnly = fatigueOnly;
+    }
+
+    /** Dungeons Only (killer560, 2026-11-04): Zero Ping acts only inside a Catacombs run. */
+    public boolean isDungeonsOnly() {
+        return dungeonsOnly;
+    }
+
+    public void setDungeonsOnly(boolean dungeonsOnly) {
+        this.dungeonsOnly = dungeonsOnly;
     }
 
     /** "Don't break secrets": the Dungeon Breaker (Zero Ping, Breaker Aura, breaker nodes) leaves secret blocks alone.

@@ -103,6 +103,11 @@ public final class DungeonBreakerFeature {
         // not run there at all.)
         String p = pos.toShortString();
         long tick = com.killer560.hub.util.SessionRecorderSink.tick();
+        if (cfg.isDungeonsOnly() && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            logOnce("dungeons " + p, "[Breaker] zero ping skipped: pos={} tick={} - Dungeons Only is on and this is not"
+                    + " a dungeon", p, tick);
+            return;
+        }
         if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
             logOnce("fatigue " + p, "[Breaker] zero ping skipped: pos={} tick={} - Fatigue Only is on and there is no"
                     + " Mining Fatigue", p, tick);
