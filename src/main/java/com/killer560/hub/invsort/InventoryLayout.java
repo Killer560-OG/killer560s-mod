@@ -184,6 +184,11 @@ public final class InventoryLayout {
         return slotIdentities.get(slot);
     }
 
+    /** How many slots name an item by its id alone (a layout saved before 2026-11-03): any copy of that id fills them. */
+    public int looseSlots() {
+        return slotIdentities.size() - slotExact.size();
+    }
+
     public int size() {
         return slotIdentities.size();
     }

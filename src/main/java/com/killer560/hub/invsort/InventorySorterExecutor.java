@@ -136,6 +136,7 @@ public final class InventorySorterExecutor {
                 why -> stop("you pressed " + why));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InventorySorterExecutor.keys", InventorySorterExecutor::pollKeys));
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InvSortPagePick.tick", InvSortPagePick::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InvSortLoadoutCache.tick", InvSortLoadoutCache::tick));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
                 (handler, sender, client) -> noteWorldChange());
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> {
@@ -193,6 +194,10 @@ public final class InventorySorterExecutor {
         instantRun = InventorySorterConfig.getInstance().isInstant();
         storage = null;
         loadoutSent = false;
+        if (layout.looseSlots() > 0) {
+            ModChat.log(InventorySorterCommands.FEATURE, ModChat.text(layout.name() + ": " + layout.looseSlots()
+                    + " slot(s) were saved before exact items existed, so any copy of that item fills them. Save the layout again to pin the exact one."));
+        }
         if (layout.loadout() > 0) {
             // The layout's Hypixel loadout first (killer560, 2026-11-04): a loadout swap can change what he carries, so
             // storage and the sort plan from the inventory it leaves, not the one it started with.
