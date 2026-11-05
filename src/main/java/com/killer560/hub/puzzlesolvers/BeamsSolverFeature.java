@@ -63,6 +63,12 @@ public final class BeamsSolverFeature {
     private static final java.util.Map<Integer, Integer> assigned = new java.util.HashMap<>();
     /** The pairs One At A Time / Next shows, in the order they were picked (candidate indices). */
     private static final List<Integer> shownOrder = new ArrayList<>();
+    /** The creeper's feet while One At A Time / Next has not picked its first pair yet; null when not seen. */
+    private static Vec3 creeperFeet;
+    /** Whether this visit already opened with the creeper's pair: only the FIRST set gets it. */
+    private static boolean openingUsed;
+    /** Most blocks sideways each lantern of the opening pair may sit from the creeper (feet and about straight above). */
+    private static final double OPENING_REACH = 3.5;
 
     private static final List<CandidatePair> CANDIDATES = loadCandidates();
     private static List<ActivePair> activePairs = new ArrayList<>();
@@ -131,6 +137,8 @@ public final class BeamsSolverFeature {
             activePairs = new ArrayList<>();
             assigned.clear();
             shownOrder.clear();
+            creeperFeet = null;
+            openingUsed = false;
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
             if (!"none".equals(LOG.roomKey)) {
@@ -183,6 +191,14 @@ public final class BeamsSolverFeature {
             colored.add(new ActivePair(p.a(), p.b(), colorFor(p.candidate()), p.misaligned(), p.candidate()));
         }
         activePairs = colored;
+        // Look the creeper up only while the first pick is still to make (an entity query, not every tick forever).
+        if (!openingUsed && shownOrder.isEmpty() && BeamsSolverConfig.getInstance().getShowMode() != BeamsSolverConfig.ShowMode.ALL
+                && !colored.isEmpty()) {
+            BlockPos c = colored.get(0).a();
+            var creepers = level.getEntitiesOfClass(net.minecraft.world.entity.monster.Creeper.class,
+                    new AABB(c).inflate(24));
+            creeperFeet = creepers.isEmpty() ? null : creepers.get(0).position();
+        }
         logScan(found);
     }
 
@@ -218,6 +234,13 @@ public final class BeamsSolverFeature {
                 lit.add(p);
             }
         }
+        if (!openingUsed && shownOrder.isEmpty() && !lit.isEmpty()) {
+            ActivePair opening = openingPair(lit, creeperFeet);
+            if (opening != null) {
+                shownOrder.add(opening.candidate());
+            }
+            openingUsed = creeperFeet != null;
+        }
         while (shownOrder.size() < limit) {
             ActivePair nearest = null;
             double best = Double.MAX_VALUE;
@@ -247,6 +270,34 @@ public final class BeamsSolverFeature {
             }
         }
         return out;
+    }
+
+    /**
+     * The pair One At A Time / Next opens with (killer560, 2026-11-04: "have the first set always include the one that
+     * the creepers feet and about straight above it"): the lit pair whose lower lantern is at the creeper's feet and upper
+     * lantern about straight above it - both within {@link #OPENING_REACH} blocks sideways of the creeper, least total
+     * sideways distance wins. Null with no creeper seen or no such pair; then the nearest pair opens as before.
+     */
+    static ActivePair openingPair(List<ActivePair> lit, Vec3 feet) {
+        if (feet == null) return null;
+        ActivePair best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (ActivePair p : lit) {
+            double da = sideways(p.a(), feet);
+            double db = sideways(p.b(), feet);
+            if (da > OPENING_REACH || db > OPENING_REACH) continue;
+            if (da + db < bestScore) {
+                bestScore = da + db;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    private static double sideways(BlockPos pos, Vec3 feet) {
+        double dx = pos.getX() + 0.5 - feet.x;
+        double dz = pos.getZ() + 0.5 - feet.z;
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     /** For the testkit: the pairs drawn now, as {a, b, colorIndex} with misaligned ones colorIndex -1. */
