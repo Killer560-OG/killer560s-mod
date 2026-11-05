@@ -8,7 +8,9 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
@@ -29,7 +31,9 @@ import java.util.Locale;
  * moved him {@link #LEAP_MIN_BLOCKS}+ blocks and Hypixel's own-leap line "You have teleported to Name!" come within
  * {@link #PAIR_MS} of each other (either order), the camera turns to Name's look once that player is loaded within
  * {@link #NEAR_BLOCKS} blocks (at most {@link #FIND_MS}). It is a plain turn: the shortest way from his yaw (never
- * wrapped), pitch inside -90..90, sent by the next movement packet as any turn is; position is never touched. Every other
+ * wrapped), pitch inside -90..90, sent by the next movement packet as any turn is; position is never touched. It runs
+ * first in Fast Leap's tick, so a use later in that tick (his or Fast Leap's) carries the turned look, and waits a tick if
+ * a use already went out at the old one (GrimAC BadPacketsJ; testkit 1105-leaplook-same-*). Every other
  * teleport (etherwarp, setback, an absolute leap) is left as vanilla applies it. Event-driven; the tick does work only
  * while a turn is pending.
  *
@@ -63,6 +67,8 @@ public final class LeapRotation {
     private static String target;
     private static long targetUntilMs;
     private static long taken;
+    /** A use_item went on the wire since the last client_tick_end, at the look before any turn now (leapsame-1105). */
+    private static boolean useThisTick;
 
     private LeapRotation() {}
 
@@ -142,6 +148,10 @@ public final class LeapRotation {
         if (target == null) {
             return;
         }
+        if (useThisTick) {
+            // GrimAC BadPacketsJ: this tick's movement packet must report the look that use carried, so turn next tick
+            return;
+        }
         LocalPlayer me = mc.player;
         if (me == null || mc.level == null || System.currentTimeMillis() > targetUntilMs) {
             LOGGER.info("[LeapRotation] Leap Takes Target's Look: {} never showed up near you, look left as it is", target);
@@ -170,6 +180,10 @@ public final class LeapRotation {
         float pitch;
         String what;
         boolean ground = false;
+        if (packet instanceof ServerboundUseItemPacket || packet instanceof ServerboundClientTickEndPacket) {
+            useThisTick = packet instanceof ServerboundUseItemPacket;
+            return;
+        }
         if (packet instanceof ServerboundMovePlayerPacket move) {
             ground = move.isOnGround();
             if (!move.hasRotation()) {
