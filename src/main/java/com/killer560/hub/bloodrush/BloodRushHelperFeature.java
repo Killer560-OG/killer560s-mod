@@ -1018,7 +1018,7 @@ public final class BloodRushHelperFeature {
 
     /** "status; blood door open: x; Mort: y; mobs tracked: n". */
     public static String statusForTest() {
-        return status + "; bloodOpened=" + bloodOpened + "; mort=" + mortSeen + "; mobs=" + MOBS.size() + "; next="
+        return status + "; inRush=" + inRushRoom + "; bloodOpened=" + bloodOpened + "; mort=" + mortSeen + "; mobs=" + MOBS.size() + "; next="
                 + nextRoom + "; roles " + BloodRushRoles.stateForTest();
     }
 
