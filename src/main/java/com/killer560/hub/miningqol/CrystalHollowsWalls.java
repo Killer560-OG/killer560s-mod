@@ -46,7 +46,7 @@ public final class CrystalHollowsWalls {
         GOBLIN("Goblin Holdout", "Goblin", 0xFFAA00),
         PRECURSOR("Precursor Remnants", "Precursor", 0xAA55FF),
         MAGMA("Magma Fields", "Magma", 0xFF4422),
-        NUCLEUS("Crystal Nucleus", "Nucleus", 0xFF55FF);
+        NUCLEUS("Crystal Nucleus", "Nucleus", 0xFFFFFF);
 
         public final String label;
         /** Config key part. */
@@ -113,19 +113,21 @@ public final class CrystalHollowsWalls {
     /** A surface quadrant: its two outer walls on the Hollows' edge and its two inner walls on its own side of the line. */
     private static void quadrant(List<AABB> out, double x0, double x1, double z0, double z1, boolean lowX, boolean lowZ) {
         double y0 = MAGMA_TOP;
+        // The inner walls stop at the Nucleus box: the quadrant keeps only the part outside its footprint.
+        double iz0 = lowZ ? z0 : NZ1, iz1 = lowZ ? NZ0 : z1, ix0 = lowX ? x0 : NX1, ix1 = lowX ? NX0 : x1;
         if (lowX) {
             out.add(new AABB(X0, y0, z0, X0 + T, Y1, z1));
-            out.add(new AABB(MID - T, y0, z0, MID, Y1, z1));
+            out.add(new AABB(MID - T, y0, iz0, MID, Y1, iz1));
         } else {
             out.add(new AABB(X1 - T, y0, z0, X1, Y1, z1));
-            out.add(new AABB(MID, y0, z0, MID + T, Y1, z1));
+            out.add(new AABB(MID, y0, iz0, MID + T, Y1, iz1));
         }
         if (lowZ) {
             out.add(new AABB(x0, y0, Z0, x1, Y1, Z0 + T));
-            out.add(new AABB(x0, y0, MID - T, x1, Y1, MID));
+            out.add(new AABB(ix0, y0, MID - T, ix1, Y1, MID));
         } else {
             out.add(new AABB(x0, y0, Z1 - T, x1, Y1, Z1));
-            out.add(new AABB(x0, y0, MID, x1, Y1, MID + T));
+            out.add(new AABB(ix0, y0, MID, ix1, Y1, MID + T));
         }
     }
 
