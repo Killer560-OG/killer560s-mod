@@ -325,6 +325,23 @@ public final class LevelTables {
     /** skyblock-pv {@code PetsData}: curve = xp_curve.drop(offset(rarity)).take(levelCap - 1), cumulative
      *  from 0; level = index of the last cumulative value <= exp, + 1. */
     public static Level petLevel(String type, String tier, double exp) {
+        long[] cum = petCumulativeXp(type, tier);
+        long xp = (long) exp;
+        int idx = 0;
+        for (int i = 0; i < cum.length; i++) {
+            if (cum[i] <= xp) {
+                idx = i;
+            }
+        }
+        int level = idx + 1;
+        if (idx >= cum.length - 1) return new Level(level, 1, xp - cum[cum.length - 1], 0, true);
+        long need = cum[idx + 1] - cum[idx];
+        return new Level(level, need <= 0 ? 1 : (double) (xp - cum[idx]) / need, xp - cum[idx], need, false);
+    }
+
+    /** Total pet XP to reach each level: {@code [0]} is level 1 (0 XP), the last entry the pet's max level (100, or
+     *  200 for the dragons whose overwrite caps there). */
+    public static long[] petCumulativeXp(String type, String tier) {
         ensureLoaded();
         PetOverwrite ow = petOverwrites.get(type == null ? "" : type.toUpperCase(Locale.ROOT));
         int[] curve = ow != null && ow.xpCurve() != null ? ow.xpCurve() : petXpCurve;
@@ -337,16 +354,6 @@ public final class LevelTables {
         for (int i = 0; i < len; i++) {
             cum[i + 1] = cum[i] + curve[offset + i];
         }
-        long xp = (long) exp;
-        int idx = 0;
-        for (int i = 0; i < cum.length; i++) {
-            if (cum[i] <= xp) {
-                idx = i;
-            }
-        }
-        int level = idx + 1;
-        if (idx >= cum.length - 1) return new Level(level, 1, xp - cum[cum.length - 1], 0, true);
-        long need = cum[idx + 1] - cum[idx];
-        return new Level(level, need <= 0 ? 1 : (double) (xp - cum[idx]) / need, xp - cum[idx], need, false);
+        return cum;
     }
 }

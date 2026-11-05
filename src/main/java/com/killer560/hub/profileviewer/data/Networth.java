@@ -224,7 +224,7 @@ public final class Networth {
                 if (key != null) {
                     ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.getInstance().getValueMode());
                     for (ItemValueCalc.Part part : r.parts()) {
-                        if ("Base".equals(part.label())) {
+                        if (part.label().startsWith("Base")) { // a pet's is "Base (Lvl N)"
                             hasBase = true;
                         } else if (COSMETIC_PARTS.contains(part.label())) {
                             cosmetic += part.value();
