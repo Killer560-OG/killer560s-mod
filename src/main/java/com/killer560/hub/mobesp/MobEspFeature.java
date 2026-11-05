@@ -173,10 +173,14 @@ public final class MobEspFeature {
             PREDICTED_FELS.clear();
             STARRED_ROOMS.clear();
             MIMIC_CHESTS_SPENT.clear();
+            NAMES.clear();
             chestTargets = List.of();
             losCache.clear();
             invalidateLayout();
             clearTargets();
+        }
+        if ((tickCounter & 63L) == 0L && !NAMES.isEmpty()) {
+            NAMES.keySet().removeIf(Entity::isRemoved);
         }
         boolean hasWorld = client.level != null && client.player != null;
         // Cheapest gates first: a disabled feature must not reach DungeonState/LiveMap at all (FPS pass).
@@ -244,15 +248,15 @@ public final class MobEspFeature {
         Map<Integer, Box> foundBoxes = FOUND_BOXES;
         Map<Integer, Integer> foundGlows = FOUND_GLOWS;
         Map<Integer, Integer> foundTracers = FOUND_TRACERS;
-        Set<Integer> liveStands = LIVE_STANDS;
         foundBoxes.clear();
         foundGlows.clear();
         foundTracers.clear();
-        liveStands.clear();
         int stars = 0;
         int bats = 0;
-        List<ArmorStand> felSkullsSeen = wantFels ? new java.util.ArrayList<>() : List.of();
-        List<Entity> mimicsSeen = wantMimic ? new java.util.ArrayList<>() : List.of();
+        List<ArmorStand> felSkullsSeen = FEL_SKULLS_SEEN;
+        List<Entity> mimicsSeen = MIMICS_SEEN;
+        felSkullsSeen.clear();
+        mimicsSeen.clear();
         int withers = 0;
         int bloodDrawn = 0;
 
@@ -293,17 +297,15 @@ public final class MobEspFeature {
                     bats++;
                 }
             } else if (readStars && entity instanceof ArmorStand stand) {
-                // hasCustomName() is a flat data-watcher read; getName().getString() builds a String. A dungeon room
-                // is full of unnamed decoration stands, so check the cheap one first (FPS pass).
+                // A dungeon room is full of unnamed decoration stands; only those can be Fel skulls.
                 if (!stand.hasCustomName()) {
                     if (wantFels && isFelSkull(client, stand)) {
                         felSkullsSeen.add(stand);
                     }
                     continue;
                 }
-                String name = stand.getName().getString();
-                if (!name.contains(STAR) || !name.contains(HEART)) continue;
-                liveStands.add(stand.getId());
+                String name = starredName(stand);
+                if (name == null) continue;
                 Entity mob = resolveMob(client, stand, name);
                 if (mob != null) {
                     rememberStarred(mob);
@@ -325,7 +327,10 @@ public final class MobEspFeature {
                 mimicsSeen.add(z);
             }
         }
-        standToMob.keySet().retainAll(liveStands);
+        // Keep only stands still on the client under a starred name (a set of this tick's stands cost ~1.4 KB a tick).
+        if (!standToMob.isEmpty()) {
+            standToMob.keySet().removeIf(MobEspFeature::notStarredStand);
+        }
         if (readStars) {
             // Starred mobs whose name-tag stand the client no longer has (killer560, 2026-11-01: "it seems to be missing
             // mobs that are slightly far away in rooms. Like 2 ish room tiles away"). The "✯ ... ❤" name lives on an armor
@@ -363,10 +368,11 @@ public final class MobEspFeature {
     }
 
     /** Client-thread scratch for {@link #tick}. */
+    private static final List<ArmorStand> FEL_SKULLS_SEEN = new java.util.ArrayList<>();
+    private static final List<Entity> MIMICS_SEEN = new java.util.ArrayList<>();
     private static final Map<Integer, Box> FOUND_BOXES = new LinkedHashMap<>();
     private static final Map<Integer, Integer> FOUND_GLOWS = new LinkedHashMap<>();
     private static final Map<Integer, Integer> FOUND_TRACERS = new LinkedHashMap<>();
-    private static final Set<Integer> LIVE_STANDS = new HashSet<>();
 
     /**
      * killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
@@ -424,7 +430,7 @@ public final class MobEspFeature {
     private static boolean accept(Minecraft client, Vec3 eye, Entity target, double rangeSq, AABB roomBox,
                                   boolean skipRaycast, boolean asGlow, boolean asFilled, boolean noDepth,
                                   Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows, int color) {
-        int id = target.getId();
+        Integer id = target.getId(); // boxed once: three autoboxes of an id over 127 were three allocations
         if (target.isRemoved() || foundBoxes.containsKey(id) || foundGlows.containsKey(id)) return false;
         // Cheap rejections first, so the raycast below only ever runs for a target that could actually be shown.
         if (roomBox != null) {
@@ -436,10 +442,17 @@ public final class MobEspFeature {
         if (asGlow) {
             foundGlows.put(id, color);
         } else {
-            foundBoxes.put(id, new Box(color, asFilled, noDepth));
+            Box box = lastBox;
+            if (box == null || box.argb() != color || box.filled() != asFilled || box.throughWalls() != noDepth) {
+                box = lastBox = new Box(color, asFilled, noDepth);
+            }
+            foundBoxes.put(id, box);
         }
         return true;
     }
+
+    /** The last box spec handed out: every target of one kind shares one, so a tick allocates none. Client thread. */
+    private static Box lastBox;
 
     private static void render(LevelRenderContext context) {
         Map<Integer, Box> current = boxTargets;
@@ -540,8 +553,8 @@ public final class MobEspFeature {
             Entity mob = null;
             String tag = null;
             if (entity instanceof ArmorStand stand && stand.hasCustomName()) {
-                String name = stand.getName().getString();
-                if (name.contains(STAR) && name.contains(HEART)) {
+                String name = starredName(stand);
+                if (name != null) {
                     mob = resolveMob(client, stand, name);
                     tag = name;
                 }
@@ -557,6 +570,39 @@ public final class MobEspFeature {
         }
         return out;
     }
+
+    /**
+     * Each named stand's text, read again only when its custom-name Component is a different object: the client keeps the
+     * Component a data packet set until the next one replaces it, so a name change is seen the tick it lands. getString()
+     * built a String for every named stand on every tick (and in every {@link #starredMobs} call), about 22 KB a call in a
+     * dungeon room (mobespscan-1105). Pruned of removed stands every 64 ticks and cleared on a world change. Client thread.
+     */
+    private static final Map<ArmorStand, NameMemo> NAMES = new java.util.IdentityHashMap<>();
+    private record NameMemo(net.minecraft.network.chat.Component source, String starred) {
+    }
+    private static int nameReads;
+
+    /** The stand's "✯ ... ❤" name, or null when its name is not a starred tag (or it has none). */
+    private static String starredName(ArmorStand stand) {
+        net.minecraft.network.chat.Component c = stand.getCustomName();
+        if (c == null) return null;
+        NameMemo m = NAMES.get(stand);
+        if (m == null || m.source() != c) {
+            String name = c.getString();
+            nameReads++;
+            m = new NameMemo(c, name.contains(STAR) && name.contains(HEART) ? name : null);
+            NAMES.put(stand, m);
+        }
+        return m.starred();
+    }
+
+    private static boolean notStarredStand(Integer standId) {
+        return !(Minecraft.getInstance().level.getEntity(standId) instanceof ArmorStand s) || s.isRemoved()
+                || starredName(s) == null;
+    }
+
+    /** Testkit: how many stand names were read (built into a String) since the jar loaded. */
+    public static int nameReadsForTest() { return nameReads; }
 
     private static boolean isSecretBat(Bat bat) {
         return bat.isAlive() && !bat.isPassenger() && !bat.isInvisible() && bat.getMaxHealth() != 6.0f;
@@ -607,17 +653,19 @@ public final class MobEspFeature {
     /** A real block raycast from the camera to the target's eyes, refreshed at most every
      *  {@link #LOS_REFRESH_TICKS} ticks per entity and staggered by entity id (see {@link #losCache}). */
     private static boolean hasLineOfSight(Minecraft client, Vec3 eye, Entity target) {
-        return hasLineOfSightTo(client, eye, target, target.getEyePosition(), 0);
+        return hasLineOfSightTo(client, eye, target, null, 0);
     }
 
     /** Cache key salt for the ray to a blood mob's box center: entity ids are positive, so the salted key never meets one. */
     private static final int BODY_LOS_KEY = Integer.MIN_VALUE;
 
-    /** {@link #hasLineOfSight} to {@code point}, cached under {@code target.getId() ^ keySalt}. */
+    /** {@link #hasLineOfSight} to {@code point} (null: the target's eyes, read only when the cache misses), cached under
+     *  {@code target.getId() ^ keySalt}. */
     private static boolean hasLineOfSightTo(Minecraft client, Vec3 eye, Entity target, Vec3 point, int keySalt) {
-        int id = target.getId() ^ keySalt;
+        Integer id = target.getId() ^ keySalt;
         Long cached = losCache.get(id);
         if (cached != null && (tickCounter + target.getId()) % LOS_REFRESH_TICKS != 0) return (cached & 1L) != 0L;
+        if (point == null) point = target.getEyePosition();
         BlockHitResult result = client.level.clip(new ClipContext(
                 eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
         boolean visible = result.getType() == HitResult.Type.MISS;
@@ -715,14 +763,16 @@ public final class MobEspFeature {
                              boolean filled, Map<Integer, Box> foundBoxes, Map<Integer, Integer> foundGlows, int color) {
         LAST_FELS_DRAWN.clear();
         lastOtherFelsDrawn = 0;
-        List<Entity> starred = new java.util.ArrayList<>();
+        List<Entity> starred = FEL_STARRED;
+        starred.clear();
         for (Integer id : KNOWN_STARRED) {
             Entity e = client.level.getEntity(id);
             if (e != null && e.isAlive() && !e.isRemoved()) {
                 starred.add(e);
             }
         }
-        Set<Integer> liveSkulls = new HashSet<>();
+        Set<Integer> liveSkulls = FEL_LIVE;
+        liveSkulls.clear();
         for (ArmorStand s : skulls) {
             liveSkulls.add(s.getId());
             if (!PREDICTED_FELS.contains(s.getId())) {
@@ -740,7 +790,8 @@ public final class MobEspFeature {
         }
         PREDICTED_FELS.retainAll(liveSkulls);
         // Rooms still holding a living starred mob or a predicted Fel.
-        Set<Long> busy = new HashSet<>();
+        Set<Long> busy = FEL_BUSY;
+        busy.clear();
         for (Entity m : starred) {
             busy.add(roomKey(m.getX(), m.getZ()));
         }
@@ -763,6 +814,11 @@ public final class MobEspFeature {
             }
         }
     }
+
+    /** Client-thread scratch for {@link #fels}. */
+    private static final List<Entity> FEL_STARRED = new java.util.ArrayList<>();
+    private static final Set<Integer> FEL_LIVE = new HashSet<>();
+    private static final Set<Long> FEL_BUSY = new HashSet<>();
 
     /** A room id from the scanned map, or (off the map) a key for the 32x32 dungeon cell. */
     static long roomKey(double x, double z) {
