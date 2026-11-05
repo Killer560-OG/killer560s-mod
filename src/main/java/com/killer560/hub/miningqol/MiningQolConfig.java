@@ -250,6 +250,9 @@ public final class MiningQolConfig {
                 for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
                     int i = z.ordinal();
                     cfg.chWallColor[i] = intOr(o, "chWall" + z.key + "Color", cfg.chWallColor[i]) & 0xFFFFFF;
+                    if (z == CrystalHollowsWalls.Zone.NUCLEUS && cfg.chWallColor[i] == 0xFF55FF) {
+                        cfg.chWallColor[i] = z.defaultColor; // the old pink default moves to white (2026-11-04)
+                    }
                     cfg.chWallOpacity[i] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100,
                             intOr(o, "chWall" + z.key + "Opacity", cfg.chWallOpacity[i])));
                     cfg.chWallNear[i] = Math.max(0, Math.min(1024, intOr(o, "chWall" + z.key + "Near", cfg.chWallNear[i])));
