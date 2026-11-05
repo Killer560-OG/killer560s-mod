@@ -594,18 +594,25 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         say("Put Others In cleared for " + layout.name() + ".", false);
     }
 
-    /** Steps the selected layout's Hypixel loadout: none, 1, 2 ... 12, wrapping (left click forward, right click back).
-     *  Public for tests. */
-    public void stepLoadout(int dir) {
+    /** Opens the Hypixel Loadout picker for the selected layout. Public for tests. */
+    public void openLoadoutPicker() {
         InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
         if (layout == null) {
             say("Right-click a saved layout first.", true);
             return;
         }
-        int next = Math.floorMod(layout.loadout() + dir, InventoryLayout.MAX_LOADOUT + 1);
-        InventoryLayoutStore.getInstance().save(layout.withLoadout(next));
+        this.minecraft.setScreenAndShow(new InvSortLoadoutPick(this, layout.loadout()));
+    }
+
+    /** Sets the selected layout's Hypixel loadout (0 = none, 1-12) and saves it; the picker calls it. Public for tests. */
+    public void setLoadout(int loadout) {
+        InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
+        if (layout == null) {
+            return;
+        }
+        InventoryLayoutStore.getInstance().save(layout.withLoadout(loadout));
         refreshStorageLabels();
-        say("Hypixel Loadout " + (next == 0 ? "cleared" : "set to " + next) + " for " + layout.name() + ".", false);
+        say("Hypixel Loadout " + (loadout == 0 ? "cleared" : "set to " + loadout) + " for " + layout.name() + ".", false);
     }
 
     private void refreshStorageLabels() {
@@ -616,7 +623,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             fetchButton.active = layout != null;
         }
         if (loadoutButton != null) {
-            loadoutButton.setMessage(Component.literal("Hypixel Loadout: " + (layout == null ? "-"
+            loadoutButton.setMessage(Component.literal("Loadout: " + (layout == null ? "-"
                     : layout.loadout() == 0 ? "None" : String.valueOf(layout.loadout()))));
             loadoutButton.active = layout != null;
         }
@@ -769,7 +776,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 .secondaryPress(b -> clearDumpPage())
                 .bounds(listX, storageY + 22, listW, 18).build();
         addRenderableWidget(dumpButton);
-        loadoutButton = SettingsButtonWidget.cycling(Component.literal("Hypixel Loadout"), (b, dir) -> stepLoadout(dir))
+        loadoutButton = SettingsButtonWidget.builder(Component.literal("Loadout"), b -> openLoadoutPicker())
                 .bounds(listX, storageY + 44, listW, 18).build();
         addRenderableWidget(loadoutButton);
         refreshStorageLabels();
@@ -979,9 +986,9 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         } else if (loadoutButton != null && loadoutButton.active && mouseX >= loadoutButton.getX() && mouseX < loadoutButton.getX() + loadoutButton.getWidth()
                 && mouseY >= loadoutButton.getY() && mouseY < loadoutButton.getY() + loadoutButton.getHeight()) {
             List<Component> lines = new ArrayList<>();
-            lines.add(Component.literal("Hypixel Loadout"));
+            lines.add(Component.literal("Loadout"));
             lines.add(Component.literal("§7Applying this layout first selects this loadout from /loadouts (page 1, 1-12),"));
-            lines.add(Component.literal("§7then sorts. Left click: next. Right click: back. None: the loadout is left alone."));
+            lines.add(Component.literal("§7then sorts. Click: pick one (or None) from a copy of /loadouts. None: the loadout is left alone."));
             graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!hover.isEmpty()) {
             graphics.setTooltipForNextFrame(this.font, Screen.getTooltipFromItem(this.minecraft, hover),
