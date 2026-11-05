@@ -44,7 +44,7 @@ import java.util.Random;
  * recorded by the reference mod ADM (undonecoffee/adm) and the mod's own trackers. What the players DO is simplified to
  * what one player can do alone - the parts the mod's features read are kept exact:
  * <ul>
- * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking into one picks it up, using it at a pylon
+ * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking within 1 block picks it up (a click from reach does too), using it at a pylon
  * places it; two placed fire the laser, which stuns Maxor and empties the pylons, and the next set is back on the towers
  * 34 ticks after his laser line; hits on him while he is stunned wear him down; the second
  * stun ends him. Then his floor opens over Storm's.</li>
@@ -667,6 +667,7 @@ public final class BossFight {
         if ((t + 3) % 20 == 0 && bar != null) {
             bar.setProgress(Math.clamp(maxorBar, 0f, 1f));
         }
+        walkInCrystals();
         if (maxor == null) {
             return;
         }
@@ -728,6 +729,23 @@ public final class BossFight {
                 : one ? "minecraft:yellow_stained_glass" : "minecraft:black_stained_glass";
         for (int y = t >= P1_BEACON + 120 ? 222 : 223; y <= 224; y++) {
             BossBlocks.set(level, 73, y, 73, glass);
+        }
+    }
+
+    /** Hypixel needs no click near a crystal: within 1 block of a tower crystal picks it up, within 1 of an open pad places one. */
+    private static void walkInCrystals() {
+        if (maxorKilledAt >= 0 || (tops[0] == null && tops[1] == null && carrying <= 0)) {
+            return;
+        }
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            for (int i = 0; i < 2; i++) {
+                if (tops[i] != null && p.getBoundingBox().distanceToSqr(CRYSTAL_TOPS[i]) <= 1.0) {
+                    pickUpCrystal(p, i);
+                }
+            }
+            if (carrying > 0) {
+                usePylon(p, 1.0);
+            }
         }
     }
 
@@ -793,12 +811,16 @@ public final class BossFight {
 
     /** A use near a pylon (within 3.5 across and 4 up or down): places a carried crystal. True when it was the pylon's. */
     static boolean usePylon(ServerPlayer p) {
+        return usePylon(p, 3.5);
+    }
+
+    private static boolean usePylon(ServerPlayer p, double reach) {
         if (phase != Phase.P1 || maxorKilledAt >= 0 || !pylonsOpen) {
             return false;
         }
         for (int i = 0; i < 2; i++) {
             Vec3 at = PYLONS[i];
-            if (Math.hypot(p.getX() - at.x, p.getZ() - at.z) > 3.5 || Math.abs(p.getY() - at.y) >= 4.0 || placed[i] != null) {
+            if (Math.hypot(p.getX() - at.x, p.getZ() - at.z) > reach || Math.abs(p.getY() - at.y) >= 4.0 || placed[i] != null) {
                 continue;
             }
             placeAt(p, i);
