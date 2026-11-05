@@ -1,6 +1,7 @@
 package com.killer560.hub.livemap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.social.PlayerHeadRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -49,7 +50,7 @@ public final class LeapMapView {
         float oy = (p[1] + p[3]) / 2f - (e[1] + e[3] / 2f) * ppu;
 
         graphics.fill(p[0], p[1], p[2], p[3], 0xD00D0D0D);
-        graphics.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, 0xFFCC6600);
+        graphics.outline(p[0] - 1, p[1] - 1, p[2] - p[0] + 2, p[3] - p[1] + 2, ThemeAccent.accent(0xFFCC6600));
         List<Head> heads = new ArrayList<>();
         graphics.enableScissor(p[0], p[1], p[2], p[3]);
         try {
@@ -75,7 +76,7 @@ public final class LeapMapView {
                 boolean hover = h.contains(mouseX, mouseY);
                 InteractiveMapFeature.MapPlayer mp = find(client, h.name());
                 DungeonClass cls = mp == null ? null : mp.dungeonClass();
-                int edge = hover ? 0xFFFFFFFF : cls != null ? cls.color() : 0xFFCC6600;
+                int edge = hover ? 0xFFFFFFFF : cls != null ? cls.color() : ThemeAccent.accent(0xFFCC6600);
                 int w = h.x1() - h.x0();
                 graphics.fill(h.x0() - 2, h.y0() - 2, h.x1() + 2, h.y1() + 2, edge);
                 drawFace(graphics, h.name(), h.x0(), h.y0(), w);

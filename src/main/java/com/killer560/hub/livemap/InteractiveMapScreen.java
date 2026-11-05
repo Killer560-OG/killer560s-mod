@@ -2,6 +2,7 @@ package com.killer560.hub.livemap;
 
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
@@ -472,7 +473,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     private static Component row(String label, String value) {
         return Component.literal(label + ": ").withColor(DIM & 0xFFFFFF)
-                .append(Component.literal(value).withColor(LIGHT_ORANGE & 0xFFFFFF));
+                .append(Component.literal(value).withColor(ThemeAccent.light(LIGHT_ORANGE) & 0xFFFFFF));
     }
 
     private static String stateName(int state) {

@@ -1,5 +1,6 @@
 package com.killer560.hub.mining.chmap;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.livemap.MapPainter;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -126,7 +127,7 @@ public final class ChMapRenderer {
             layout();
         }
         graphics.fill(x0, y0, x1, y1, PANEL);
-        graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, ORANGE);
+        graphics.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, ThemeAccent.accent(ORANGE));
         for (int i = 0; i < rectCount * 5; i += 5) {
             graphics.fill(rects[i], rects[i + 1], rects[i + 2], rects[i + 3], rects[i + 4]);
         }
@@ -183,7 +184,7 @@ public final class ChMapRenderer {
             }
         }
         for (CrystalHollowsWaypoint w : cfg.getWaypoints()) {
-            marker(sx(w.x), sy(w.z), WAYPOINT_COLOR, w.name);
+            marker(sx(w.x), sy(w.z), ThemeAccent.accent(WAYPOINT_COLOR), w.name);
         }
         if (!Double.isNaN(targetX)) {
             marker(sx(targetX), sy(targetZ), TARGET_COLOR, targetLabel != null ? targetLabel : "Target");
