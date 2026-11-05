@@ -63,6 +63,8 @@ public final class ProfileManager {
             "killer560smod-account-proxies.json",
             "killer560smod-rng-item-log.json",
             "killer560smod-storageoverlay-cache.json",
+            // /loadouts page 1 as last seen, for the Inventory Sorter's loadout picker - a cache, not a setting.
+            "killer560smod-loadout-cache.json",
             // UUID <-> name lookup cache shared by Class Overrides, Leap Order and the social features - not a setting.
             "killer560smod-playernames.json",
             // Supporter-names list fetched from the relay - a network cache, not a setting.

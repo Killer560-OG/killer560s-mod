@@ -30,6 +30,21 @@ public final class LoadoutKeybindsFeature {
             41, 42, 43
     };
 
+    /** The menu slot holding loadout {@code n} (1-12). */
+    public static int slotOf(int n) {
+        return LOADOUT_SLOTS[n - 1];
+    }
+
+    /** The loadout number (1-12) whose item sits in menu slot {@code slot}, or 0 for any other slot. */
+    public static int loadoutAt(int slot) {
+        for (int i = 0; i < LOADOUT_SLOTS.length; i++) {
+            if (LOADOUT_SLOTS[i] == slot) {
+                return i + 1;
+            }
+        }
+        return 0;
+    }
+
     private LoadoutKeybindsFeature() {
     }
 
