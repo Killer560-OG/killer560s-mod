@@ -14,9 +14,8 @@ import org.joml.Matrix4f;
  * lives as long as its owner. Render thread only.
  *
  * <p>The vertices are exactly {@link WorldRenderUtils}' (and the ESP renderers' copies of them): the same six faces in
- * the same corner order for a fill, the same twelve edges for an outline. On 26.2 the callback runs later in the frame
- * ({@link McRender#CALLBACK_RUNS_LATER}), so the used part of the array is copied for it there; on 26.1.2 it is read in
- * place, and nothing is allocated but the call itself.
+ * the same corner order for a fill, the same twelve edges for an outline. The callback runs later in the frame
+ * ({@link McRender#CALLBACK_RUNS_LATER}), so the used part is copied into a pooled buffer (boxbatch-1105).
  */
 public final class BoxBatch {
 
@@ -25,10 +24,6 @@ public final class BoxBatch {
 
     private float[] data = new float[16 * STRIDE];
     private int count;
-    // What the in-place geometry below reads (26.1.2 runs it inside inCameraSpace, before anything changes these).
-    private float lineWidth;
-    private final McRender.Geometry fillInPlace = (pose, buffer) -> emitFilled(pose, buffer, data, count);
-    private final McRender.Geometry outlineInPlace = (pose, buffer) -> emitOutlines(pose, buffer, data, count, lineWidth);
 
     public void clear() { count = 0; }
 
@@ -56,29 +51,55 @@ public final class BoxBatch {
         count++;
     }
 
+    /**
+     * The callback runs later in the frame (both 26.x), after this batch may be cleared and refilled, so it gets a copy of
+     * the used part. The copy lives in a pooled {@link Snap} that hands itself back once drawn: no allocation per draw.
+     */
+    private static final java.util.ArrayDeque<Snap> POOL = new java.util.ArrayDeque<>();
+    private static final int POOL_MAX = 8;
+
+    private static final class Snap implements McRender.Geometry {
+        float[] d = new float[16 * STRIDE];
+        int n;
+        float width;
+        boolean outline;
+        boolean held;
+
+        @Override
+        public void draw(PoseStack.Pose pose, VertexConsumer buf) {
+            if (!held) return;
+            if (outline) emitOutlines(pose, buf, d, n, width); else emitFilled(pose, buf, d, n);
+            held = false;
+            synchronized (POOL) {
+                if (POOL.size() < POOL_MAX) POOL.push(this);
+            }
+        }
+    }
+
+    private void submit(LevelRenderContext context, RenderType type, boolean outline, float width) {
+        Snap s;
+        synchronized (POOL) {
+            s = POOL.poll();
+        }
+        if (s == null) s = new Snap();
+        int len = count * STRIDE;
+        if (s.d.length < len) s.d = new float[Math.max(len, s.d.length * 2)];
+        System.arraycopy(data, 0, s.d, 0, len);
+        s.n = count;
+        s.width = width;
+        s.outline = outline;
+        s.held = true;
+        McRender.inCameraSpace(context, type, s);
+    }
+
     /** Every box filled, in one call. */
     public void drawFilled(LevelRenderContext context, RenderType type) {
-        if (count == 0) return;
-        if (McRender.CALLBACK_RUNS_LATER) {
-            float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
-            int n = count;
-            McRender.inCameraSpace(context, type, (pose, buffer) -> emitFilled(pose, buffer, snap, n));
-        } else {
-            McRender.inCameraSpace(context, type, fillInPlace);
-        }
+        if (count != 0) submit(context, type, false, 0f);
     }
 
     /** Every box outlined, {@code width} wide, in one call. */
     public void drawOutlines(LevelRenderContext context, RenderType type, float width) {
-        if (count == 0) return;
-        if (McRender.CALLBACK_RUNS_LATER) {
-            float[] snap = java.util.Arrays.copyOf(data, count * STRIDE);
-            int n = count;
-            McRender.inCameraSpace(context, type, (pose, buffer) -> emitOutlines(pose, buffer, snap, n, width));
-        } else {
-            lineWidth = width;
-            McRender.inCameraSpace(context, type, outlineInPlace);
-        }
+        if (count != 0) submit(context, type, true, width);
     }
 
     /** The six faces, WorldRenderUtils.addChainedFilledBoxVertices' corner order. */
