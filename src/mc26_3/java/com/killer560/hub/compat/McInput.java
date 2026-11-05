@@ -211,6 +211,19 @@ public final class McInput {
         return toStoredButton(info.button());
     }
 
+    /** Starts or stops SDL text input for {@code owner}, a typing target that is not an EditBox: 26.3 sends typed
+     *  characters (charTyped) only while it is started, which vanilla does only for a focused EditBox. Stopping
+     *  leaves text input alone when another owner (a focused EditBox) has it since. */
+    public static void textInput(Object owner, boolean on) {
+        net.minecraft.client.Minecraft.getInstance().textInputManager().onTextInputFocusChange(owner, on);
+    }
+
+    /** {@link #textInput} on for a "type anywhere to search" screen until it closes. Call from its init(). */
+    public static void textInputWhileOpen(net.minecraft.client.gui.screens.Screen screen) {
+        textInput(screen, true);
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.remove(screen).register(s -> textInput(s, false));
+    }
+
     /** Polls a stored (GLFW) keyboard key. */
     public static boolean isStoredKeyDown(Window window, int storedKey) {
         return isNativeKeyDown(window, toNativeKey(storedKey));

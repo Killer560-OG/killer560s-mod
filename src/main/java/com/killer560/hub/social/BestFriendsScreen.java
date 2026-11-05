@@ -50,6 +50,8 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
+        // typing with no box focused goes into the search box; 26.3 sends characters only with text input on
+        com.killer560.hub.compat.McInput.textInputWhileOpen(this);
         panelW = Math.min(this.width - 20, Math.max(360, Math.min((int) (this.width * 0.75), 560)));
         panelH = Math.min(this.height - 20, Math.max(220, Math.min((int) (this.height * 0.82), 440)));
         panelX = (this.width - panelW) / 2;

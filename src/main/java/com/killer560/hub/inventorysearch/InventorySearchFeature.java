@@ -90,6 +90,9 @@ public final class InventorySearchFeature {
      *  like clicking into any real text field, same shared state Ctrl+F already toggles. */
     public static void setListening(boolean value) {
         listening = value;
+        // 26.3 (SDL3) delivers typed characters only while text input is started, which vanilla does for a focused
+        // EditBox only; without this a click lit the bar and nothing typed reached it (killer560, 2026-11-05).
+        com.killer560.hub.compat.McInput.textInput(QUERY, value);
     }
 
     /** Ctrl+F/typing is shared between this feature's own real-inventory highlight and
@@ -108,7 +111,7 @@ public final class InventorySearchFeature {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
-        listening = false;
+        setListening(false);
         selectedAll = false; // a Ctrl+A left over from the last screen would make the next typed character wipe the query
         lastMatchQuery = null;
         lastBoxBounds = null;
@@ -120,7 +123,7 @@ public final class InventorySearchFeature {
                 return true;
             }
             if (event.key() == InputConstants.KEY_F && event.hasControlDown()) {
-                listening = !listening;
+                setListening(!listening);
                 return false;
             }
             if (!listening) {
@@ -131,7 +134,7 @@ public final class InventorySearchFeature {
                 return false;
             }
             if (event.key() == InputConstants.KEY_ESCAPE) {
-                listening = false;
+                setListening(false);
                 return false;
             }
             if (event.hasControlDown() && event.key() == InputConstants.KEY_A) {
@@ -197,12 +200,13 @@ public final class InventorySearchFeature {
                 return true;
             }
             if (inside(lastBoxBounds, event.x(), event.y())) {
-                listening = true;
+                setListening(true);
                 return false;
             }
             return true;
         });
 
+        ScreenEvents.remove(screen).register(s -> setListening(false)); // closed while typing: keybinds work again
         com.killer560.hub.gui.BelowTooltip.register(screen, (s, graphics, mouseX, mouseY, partialTick) ->
                 render(containerScreen, graphics));
     }
@@ -211,7 +215,7 @@ public final class InventorySearchFeature {
      *  and only have the answer left there"): typing stops, and a sum in the bar is replaced by its answer as plain
      *  digits; anything that is not a sum is left as it is. Public for the testkit. */
     public static void commitQuery() {
-        listening = false;
+        setListening(false);
         String answer = SearchCalculator.answerFor(QUERY.toString());
         if (answer != null) {
             QUERY.setLength(0);

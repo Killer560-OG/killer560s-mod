@@ -132,6 +132,8 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
+        // typing with no box focused goes into the search box; 26.3 sends characters only with text input on
+        com.killer560.hub.compat.McInput.textInputWhileOpen(this);
         if (this.accounts.isEmpty() && this.statusMessage == null) {
             try {
                 this.accounts = LauncherAccounts.load();

@@ -51,6 +51,10 @@ They are the same rules as before; only where they live changed.
   `McInput.button(event)`, poll stored codes with `KeyUtil`, window/cursor/display work through `McWindow`. A key capture
   stores `McInput.key(event)` too (Inventory Sorter's stored the scancode, saved as "none", UI 584). Full rules
   in docs/LESSONS-MINECRAFT.md "Input and window on 26.3".
+- **26.3 sends typed characters only while SDL text input is on** (invsearchclick-1105). Vanilla starts it only for a
+  focused EditBox, so a home-made text field (Inventory Search bar, Bazaar/AH search) or "type anywhere" screen lit up on
+  click and got no `charTyped` ("cannot click into the search bar and type"). Call `McInput.textInput(owner, on)` where it
+  gains/loses focus, or `McInput.textInputWhileOpen(this)` in init. Testkit `typeChars` bypasses SDL: assert the state too.
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
