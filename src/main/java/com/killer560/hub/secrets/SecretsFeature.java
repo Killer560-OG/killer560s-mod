@@ -60,7 +60,8 @@ public final class SecretsFeature {
         Minecraft client = Minecraft.getInstance();
         if (client == null) return false;
         ServerData server = client.getCurrentServer();
-        if (server == null || server.ip == null) return false;
+        // The mod's own dungeon sim counts, as in CheatUtils.isOnDungeonServer (simgates-1105).
+        if (server == null || server.ip == null) return com.killer560.hub.roomsim.SimState.canAct(client);
         // Asked by every getShape of every button, lever, chest and skull (raycasts, the outline, the integrated
         // server's own lookups) while Secrets is on: a pure function of the address string, so it is worked out once
         // per address object instead of lower-casing a copy of it on each call (mixin FPS pass, 2026-10-15).

@@ -181,7 +181,8 @@ public final class I4SensorsFeature {
 
     static boolean isOnDungeonServer(Minecraft client) {
         refreshServer(client);
-        return cachedHypixelOrSim;
+        // The mod's own dungeon sim counts, as in CheatUtils.isOnDungeonServer (simgates-1105).
+        return cachedHypixelOrSim || cachedIp == null && com.killer560.hub.roomsim.SimState.canAct(client);
     }
 
     static boolean isOnP3Sim(Minecraft client) {

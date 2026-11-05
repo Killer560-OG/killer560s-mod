@@ -83,7 +83,9 @@ public final class CheatUtils {
         }
         ServerData server = client.getCurrentServer();
         if (server == null || server.ip == null) {
-            return false;
+            // The mod's own dungeon sim (singleplayer, no address) is a dungeon server: its boss and floor answer as
+            // Hypixel's do, and every feature behind this gate must run there (killer560, 2026-11-05, simgates-1105).
+            return com.killer560.hub.roomsim.SimState.canAct(client);
         }
         // A pure function of the address string, asked by twenty callers - some per slot per frame (Inventory Theme) -
         // so the answer is kept for the address object it was worked out from (FPS sweep, 2026-10-07).

@@ -63,7 +63,8 @@ public final class DungeonState {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-secrets");
 
-    private static boolean bossPhaseActive = false;
+    // volatile: the sim's boss fight sets it from the integrated server thread (simBossBegins).
+    private static volatile boolean bossPhaseActive = false;
     // "/killer560 sim" (2026-09-14) - killer560's own request, since p3sim.net's real sidebar/chat
     // format was unknown and this session had no way to connect and observe it directly. Rather than
     // guess at matching p3sim's real text (this class's own history above is full of real, hard-won
@@ -153,15 +154,21 @@ public final class DungeonState {
 
     public static boolean isRoomSim() { return roomSimActive; }
 
+    /** The sim's boss fight is running (set by {@link #simBossBegins}). */
+    public static boolean isSimBoss() { return simBoss; }
+
     /** The sim's F7 boss fight is on (bosssim.BossFight): set however it started, P1 or straight into a later phase. */
-    private static boolean simBoss;
+    private static volatile boolean simBoss;
+    /** That fight is Master Mode: {@link #getFloor} reports "M7", else "F7", as Hypixel's sidebar would for the run. */
+    private static volatile boolean simBossMaster;
 
     /**
      * The sim's boss fight began. Started at P1 Maxor's own line already sets the boss phase; started straight into a
      * later phase there is no such line (the sim says only what Hypixel says), so it is set here.
      */
-    public static void simBossBegins() {
+    public static void simBossBegins(boolean master) {
         if (roomSimActive) {
+            simBossMaster = master;
             simBoss = true;
             bossPhaseActive = true;
             LOGGER.info("[Secrets] Boss phase started (sim boss fight)");
@@ -185,7 +192,9 @@ public final class DungeonState {
      *  "F7" while {@link #isSimOverrideActive()}. */
     public static String getFloor() {
         if (simOverrideActive) return "F7";
-        // M7 for the sim: the clear features he practices with are the M7 ones, and Auto Debuff is M7-only.
+        // M7 for the sim: the clear features he practices with are the M7 ones, and Auto Debuff is M7-only. The sim's
+        // boss reports the mode it was started in, so F7 boss features (no P5, no relics) behave as on an F7 run.
+        if (simBoss) return simBossMaster ? "M7" : "F7";
         return roomSimActive ? "M7" : cachedFloor;
     }
 
