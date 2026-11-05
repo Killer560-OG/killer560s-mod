@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.roomsim.mixin",
 	"client": [
 		"SimFovMixin",
+		"SimNoKnockbackMixin",
 		"SimPlayerInfoPacketAccessor",
 		"SimStaticWaterMixin",
 		"SimStillFireMixin",

@@ -118,17 +118,15 @@ public final class BossFight {
 
     // ---- timings (server ticks), Hypixel's as ADM measured them ---------------------------------------------------
 
-    /** Hits on a stunned Maxor that end his stun early (the damage a party bursts it with). */
-    private static final int MAXOR_HITS_PER_STUN = 5;
     private static final int STORM_AFTER = 62;
     private static final int STORM_SON = 42;
     private static final int GOLDOR_LEAD = 62;
     private static final int LINE_GAP = 62;
     private static final int GATE_DELAY = 100;
-    private static final int GOLDOR_HITS = 10;
     private static final int NECRON_AFTER = 62;
     private static final int NECRON_INTRO = 42;
     private static final int DRAGON_SPAWN = 100;
+    /** Hits a P5 dragon takes; one weapon hit deals them all ({@link #onHurt}). */
     private static final int DRAGON_HITS = 8;
 
     private static final Vec3 P1_SPAWN = new Vec3(73.5, BossArena.P1_FLOOR + 1, 14.5);
@@ -188,11 +186,11 @@ public final class BossFight {
     private static boolean pylonsOpen, beaconIn, maxorStunned;
     private static int laserHits, chargeAt = -1, maxorEnrageAt = -1, maxorMoveAt, maxorTauntAt = -1, maxorSkullAt = -1;
     private static int maxorStunLines, maxorDamage, maxorKilledAt = -1, maxorBelowAt = -1;
-    private static float maxorBar = 1f, maxorBarFloor, maxorBarRate;
+    private static float maxorBar = 1f, maxorBarFloor;
     // P2
     private static int stormLeg;
     private static boolean stormChasing, stormLaterChase, stormToYellow, stormPinned;
-    private static int stormEnrageAt = -1, stormTakeoffAt = -1, stormPinnedAt = -1, stormCrush2At = -1, stormLastCrush = -1;
+    private static int stormEnrageAt = -1, stormTakeoffAt = -1, stormLastCrush = -1;
     private static int stormTestHoldUntil = -1, stormGiga2 = 19;
     private static double stormGigaDamage = 9350;
     private static float stormBar = 1f;
@@ -222,6 +220,8 @@ public final class BossFight {
     private static boolean goldorFirstLap, goldorFlying, goldorAtCore, goldorDtEarly;
     private static final boolean[] goldorReached = new boolean[6];
     private static int goldorHits;
+    /** Necron's damage parts (simitems-1105): how many of {@link #NECRON_DRAIN}'s bar drops a hit has dealt. */
+    private static int necronDone;
     private static int goldorDeadAt = -1;
     // P4
     private static int necronDeadAt = -1;
@@ -351,7 +351,7 @@ public final class BossFight {
         nextStormTaunt = -1;
         stormLeg = 0;
         stormChasing = stormLaterChase = stormToYellow = stormPinned = false;
-        stormEnrageAt = stormTakeoffAt = stormPinnedAt = stormCrush2At = stormLastCrush = stormTestHoldUntil = -1;
+        stormEnrageAt = stormTakeoffAt = stormLastCrush = stormTestHoldUntil = -1;
         stormBar = 1f;
         for (int i = 0; i < 4; i++) {
             pillarBottom[i] = PILLARS.get(i).restBottom();
@@ -371,6 +371,7 @@ public final class BossFight {
         coreOpenAt = -1;
         goldorFrenzyHits = 0;
         goldorHits = 0;
+        necronDone = 0;
         goldorDeadAt = -1;
         necronDeadAt = -1;
         java.util.Arrays.fill(dragonHits, 0);
@@ -670,9 +671,8 @@ public final class BossFight {
             maxor.armour(true);
         }
         if (maxorStunned) {
-            // Armor off, with now and then a one-tick flicker back on; the bar runs down while he is stunned.
+            // Armor off, with now and then a one-tick flicker back on. The bar drops only to his hits (hitMaxor).
             maxor.armour(RNG.nextInt(25) == 0);
-            maxorBar = Math.max(maxorBarFloor, maxorBar - maxorBarRate);
         }
         ServerPlayer near = closest(maxor.pos);
         Vec3 aim = near == null ? maxor.pos.add(0, 0, 1) : near.position().add(0, 1, 0);
@@ -821,11 +821,9 @@ public final class BossFight {
         if (laserHits == 1) {
             maxorBar = 0.95f;
             maxorBarFloor = 0.30f + RNG.nextFloat() * 0.35f;
-            maxorBarRate = 0.004f + RNG.nextFloat() * 0.006f;
         } else {
             maxorBar = 0.12f + RNG.nextFloat() * 0.08f;
             maxorBarFloor = 0.01f;
-            maxorBarRate = 0.01f;
         }
         LOGGER.info("[BossSim] Maxor laser hit {} at P1 t {} ({})", laserHits, t, maxor.pos);
         // The next set: back on the towers at hit + 40 (with their stands), the placed ones gone at + 41.
@@ -900,12 +898,18 @@ public final class BossFight {
         }
     }
 
-    /** Damage on Maxor: while he is stunned, enough of it ends the stun (a party bursts it in 6-12 ticks). */
+    /**
+     * Damage on Maxor: while he is stunned, one hit is the whole stun's damage (killer560 2026-11-05: "my mage beam should
+     * do all the damage for a phase"): the bar drops to the stun's floor and, after the first laser, the stun ends 6-12
+     * ticks later as a party's burst ends it. The second laser's kill stays on its own clock.
+     */
     private static void hitMaxor() {
-        if (!maxorStunned || maxorKilledAt >= 0 || laserHits >= 2) {
+        if (!maxorStunned || maxorDamage > 0) {
             return;
         }
-        if (++maxorDamage == MAXOR_HITS_PER_STUN) {
+        maxorDamage = 1;
+        maxorBar = maxorBarFloor;
+        if (maxorKilledAt < 0 && laserHits < 2) {
             maxorEnrageAt = Math.min(maxorEnrageAt, t + 6 + RNG.nextInt(7));
         }
     }
@@ -1037,11 +1041,12 @@ public final class BossFight {
                 }
             }
         }
-        if (stormPinned && crushes == 1 && stormEnrageAt >= 0) {
-            float k = Math.clamp((t - stormPinnedAt) / (float) Math.max(1, stormEnrageAt - stormPinnedAt), 0f, 1f);
-            stormBar = 0.95f - 0.5f * k;
-        } else if (crushes >= 2 && stormDeadAt > stormCrush2At) {
-            stormBar = 0.40f * (1f - (t - stormCrush2At) / (float) (stormDeadAt - stormCrush2At));
+    }
+
+    /** A hit on a pinned Storm is that pin's whole damage: the bar drops to the enrage's 0.45, or to 0 after crush 2. */
+    private static void hitStorm() {
+        if (stormPinned && stormDeadAt < 0 || crushes >= 2 && stormDeadAt >= 0) {
+            stormBar = crushes >= 2 ? 0f : Math.min(stormBar, 0.45f);
         }
     }
 
@@ -1253,12 +1258,10 @@ public final class BossFight {
         stormTestHoldUntil = -1;
         stormPinned = true;
         if (crushes >= 2) {
-            stormCrush2At = t;
             stormDeadAt = t + stormDeathDelay();
             stormBar = 0.40f;
             return;
         }
-        stormPinnedAt = t;
         stormLastCrush = i;
         stormTakeoffAt = -1;
         stormEnrageAt = t + stormPinLength();
@@ -1637,11 +1640,8 @@ public final class BossFight {
         if (!goldorFlying || goldorDeadAt >= 0) {
             return;
         }
+        // One hit is the core fight's whole damage (simitems-1105); it used to take ten.
         goldorHits++;
-        showBar("§c§lGoldor", 0.35f * (1f - goldorHits / (float) GOLDOR_HITS));
-        if (goldorHits < GOLDOR_HITS) {
-            return;
-        }
         goldorDeadAt = t;
         // He stops where he is (no death animation) and stays until Necron's body goes; his "...." queues behind
         // anything he still has to say, "Necron, forgive me." 52 after it.
@@ -1680,21 +1680,29 @@ public final class BossFight {
         showBar("§c§lNecron", 0f);
     }
 
-    private static float necronHealth() {
-        if (t < N_L1) {
-            return 0f;
-        } else if (t < N_B1) {
-            return 1f - 0.2f * (t - N_L1) / (N_B1 - N_L1);
-        } else if (t < N_V2 - 5) {
-            return 0.8f;
-        } else if (t < N_V2 + 10) {
-            return 0.8f - 0.55f * (t - N_V2 + 5) / 15f;
-        } else if (t < N_L2) {
-            return 0.25f;
-        } else if (t < N_B2) {
-            return 0.25f - 0.2f * (t - N_L2) / (N_B2 - N_L2);
+    /** Necron's bar drops (from tick, health before, after): 1 to 0.8, 0.8 to 0.25, 0.25 to 0.05. */
+    private static final float[][] NECRON_DRAIN = {{N_L1, 1f, 0.8f}, {N_V2 - 5, 0.8f, 0.25f}, {N_L2, 0.25f, 0.05f}};
+
+    /** The part of Necron's bar {@code t} is in, or -1 before his first. */
+    private static int necronPart() {
+        int k = -1;
+        while (k + 1 < NECRON_DRAIN.length && t >= NECRON_DRAIN[k + 1][0]) {
+            k++;
         }
-        return t < N_THROES ? 0.05f : 0f;
+        return k;
+    }
+
+    /**
+     * Necron's bar: his fight runs on its own clock (ADM: it "does not wait for damage"), but each drop now waits for his
+     * hit in that part (simitems-1105, killer560 2026-11-05: "necron took a bunch of damage withotu me hitting him"),
+     * and one hit is the whole drop. His death throes empty it on their clock.
+     */
+    private static float necronHealth() {
+        int k = necronPart();
+        if (k < 0 || t >= N_THROES) {
+            return 0f;
+        }
+        return necronDone > k ? NECRON_DRAIN[k][2] : NECRON_DRAIN[k][1];
     }
 
     private static void tickP4() {
@@ -1784,7 +1792,13 @@ public final class BossFight {
     }
 
     private static void hitNecron() {
-        // Since Hypixel's boss update Necron's fight runs on its own clock (ADM: "does not wait for damage").
+        int k = necronPart();
+        if (k >= 0 && t < N_THROES && necronDone <= k) {
+            necronDone = k + 1;
+            if (bar != null) {
+                bar.setProgress(necronHealth());
+            }
+        }
     }
 
     private static void startP5() {
@@ -1867,7 +1881,11 @@ public final class BossFight {
     private static int lastHitClock = -1;
     private static Object lastHitTarget;
 
-    /** A boss wither or dragon took a hit (melee, arrow or ability). One counts per target per server tick. */
+    /**
+     * A boss wither or dragon took a hit from him (melee, the Mage beam, a Terminator volley, an ability). One counts per
+     * target per server tick, and that one is the whole damage of the boss's current part (killer560 2026-11-05: "my mage
+     * beam should do all the damage for a phase of any boss andd term as well"); the crystal, pillar and core steps stay.
+     */
     static void onHurt(Object target) {
         if (clock == lastHitClock && target == lastHitTarget) {
             return;
@@ -1876,13 +1894,34 @@ public final class BossFight {
         lastHitTarget = target;
         if (maxor != null && target == maxor.wither) {
             hitMaxor();
+        } else if (storm != null && target == storm.wither) {
+            hitStorm();
         } else if (goldor != null && target == goldor.wither) {
             hitGoldor();
         } else if (necron != null && target == necron.wither) {
             hitNecron();
         } else if (target instanceof SimDragon d) {
-            hitDragon(d);
+            for (int i = 0; i < DRAGON_HITS; i++) {
+                hitDragon(d);
+            }
         }
+    }
+
+    private static int lastRefusedLog = -100;
+
+    /**
+     * Every damage a boss wither is offered (simitems-1105): his own hits go to the fight, anything else (lava, fire, a
+     * mob, an explosion with no player behind it) is refused and logged, at most once a second. No boss loses health
+     * to anything: the fight's bars are its only health.
+     */
+    static boolean bossDamage(Object target, DamageSource source, float amount) {
+        if (source.getEntity() instanceof ServerPlayer) {
+            onHurt(target);
+        } else if (clock - lastRefusedLog >= 20) {
+            lastRefusedLog = clock;
+            LOGGER.info("[BossSim] refused {} damage {} to a boss (no player behind it)", source.getMsgId(), amount);
+        }
+        return false;
     }
 
     static void say(String name, String line) {
@@ -2049,10 +2088,7 @@ public final class BossFight {
 
         @Override
         public boolean hurtServer(ServerLevel lvl, DamageSource source, float amount) {
-            if (source.getEntity() instanceof ServerPlayer) {
-                onHurt(this);
-            }
-            return false;
+            return bossDamage(this, source, amount);
         }
     }
 
@@ -2180,6 +2216,23 @@ public final class BossFight {
         }
     }
 
+    /** Testkit: the Energy Laser strikes Maxor now (the rule step a charged beacon gives), stunning him. */
+    public static void testLaser() {
+        if (maxor != null && maxorKilledAt < 0) {
+            laserHit();
+        }
+    }
+
+    /** Testkit: Storm crushed by {@code pillar} now (the rule step a pad's pillar gives), pinning him. */
+    public static void testCrush(String pillar) {
+        for (int i = 0; i < PILLARS.size(); i++) {
+            if (PILLARS.get(i).name().equalsIgnoreCase(pillar) && storm != null) {
+                crush(i);
+                return;
+            }
+        }
+    }
+
     /** Debug and testkit: Storm's state, "leg 2 chasing=false later=false pinned=false". */
     public static String stormState() {
         return "leg " + stormLeg + " chasing=" + stormChasing + " later=" + stormLaterChase + " toYellow=" + stormToYellow
@@ -2195,6 +2248,59 @@ public final class BossFight {
     /** Debug and testkit: server ticks since the current phase's first line. */
     public static int phaseTick() {
         return t;
+    }
+
+    /** Testkit: the fight's own health for {@code boss} ("Maxor", "Storm", "Necron"), read before the bar's next refresh. */
+    public static float testBar(String boss) {
+        return switch (boss) {
+            case "Maxor" -> maxorBar;
+            case "Storm" -> stormBar;
+            case "Necron" -> necronHealth();
+            default -> -1f;
+        };
+    }
+
+    /** Debug and testkit: the boss bar's fill (0-1), or -1 with none. */
+    public static float barProgress() {
+        return bar == null ? -1f : bar.getProgress();
+    }
+
+    /**
+     * Testkit: one weapon hit on {@code boss} ("Maxor", "Storm", "Goldor", "Necron" or "Dragon", the first live one) the
+     * way the Mage beam deals it: {@code hurtServer} with his player-attack source. False with no such boss.
+     */
+    public static boolean testWeaponHit(String boss) {
+        ServerPlayer p = server == null ? null : server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        Entity e = null;
+        if ("Dragon".equals(boss)) {
+            for (SimDragon d : dragons) {
+                if (d != null && !d.isRemoved() && d.getHealth() > 0f) {
+                    e = d;
+                    break;
+                }
+            }
+        } else {
+            BossMob m = mob(boss);
+            e = m == null ? null : m.wither;
+        }
+        if (p == null || !(e instanceof net.minecraft.world.entity.LivingEntity living)) {
+            return false;
+        }
+        lastHitClock = -1;
+        living.hurtServer(level, level.damageSources().playerAttack(p), 10_000f);
+        return true;
+    }
+
+    /** Testkit: lava under {@code boss}'s wither and a fire hit with no player behind it; true if any was offered. */
+    public static boolean testStrayDamage(String boss) {
+        BossMob m = mob(boss);
+        if (m == null) {
+            return false;
+        }
+        BossBlocks.set(level, m.wither.blockPosition().below(), BossBlocks.of("minecraft:lava"));
+        m.wither.hurtServer(level, level.damageSources().lava(), 4f);
+        m.wither.hurtServer(level, level.damageSources().inFire(), 1f);
+        return true;
     }
 
     /** Debug and testkit: Maxor's laser hits so far. */

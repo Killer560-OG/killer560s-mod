@@ -121,6 +121,17 @@ fallback for a room the database does not know.
 
 ## Weapons and items
 
+- **Launch items and no knockback** (simitems-1105): Bonzo's Staff, the Jerry-chine Gun and Spring Boots are answered in
+  `roomsim/SimLaunchItems` on the sim server (ADM's numbers: Bonzo one balloon per 4 ticks, 0.75 a tick from feet + 1 +
+  0.2 look, bursting inside a block, within 3.5 of feet + 1.5 his motion becomes 1.5 flat away and 0.5 up; Jerry 3 a tick,
+  bullet k at feet + 1.1 + (0.25 + 0.75 k) look, within 4 of feet + 1.62 motion 0.5 flat away and 0.6 up; Spring Boots a
+  note every 3 ticks of sneak on the ground, 44 at most, release launches him to `SpringBootsOverlay.heightFor(n)`).
+  Every launch is a server motion packet through `SimLaunch.push`; nothing moves him client-side. The sim player takes NO
+  knockback: `SimNoKnockbackMixin` (HEAD of the connection's send) drops SetEntityMotion and HurtAnimation for his own id
+  unless `SimLaunch.push` sent it, and strips the knockback from explosion packets (`McPackets.withoutKnockback`).
+  Kept launches: those three items and BossLava's bounce. Testkit 1105-sim-bonzo/-jerry/-springboots/-noknockback,
+  1105-grim-bonzo/-jerry/-springboots (GrimAC, default and experimental).
+
 - **Verify Skyblock item ids against Hypixel's own list** (`api.hypixel.net/v2/resources/skyblock/items`), not against
   the name or memory. Three were wrong at once (2026-09-28): the Spirit Sceptre is `BAT_WAND`, not `SPIRIT_SCEPTRE`
   (broke both the sim item and the RNG meter's auction price lookup); `ClearNode` had `ASTREA` for `ASTRAEA`; Auto

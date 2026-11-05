@@ -73,21 +73,29 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   stops within 3. Crystals at t 5 (stands at 28) are clicked to pick up (a Nether Star "Energy Crystal" in slot 8); the
   pylons open at t 80, the beacon is in at 120. A placement counts 28 ticks after it ("1/2" twice when two go in close
   together); the laser charges 28 after the second. A hit needs Maxor at y >= 225 within 3.5 of the beam on a 10-tick
-  check, so he has to be lured in (the strip south of the beam, y 224 z 70-76). The stun ends on damage (5 hits, then
-  6-12 ticks) or after 100-199; the second laser hit kills him 8-15 later; his floor goes at kill + 59.
+  check, so he has to be lured in (the strip south of the beam, y 224 z 70-76). The stun ends on damage (one hit drops the bar to its floor,
+  then 6-12 ticks) or after 100-199; the second laser hit kills him 8-15 later; his floor goes at kill + 59.
 - **P2 Storm**: flies his opening route at 0.4, parks at (102.375, 183, 52.375), chases from t 647. Pads read on
   t % 20 == 19 queue 5 pillar steps 4 ticks apart; a crush is Storm in the square with y + 2.975 at or over the bottom of a
   pillar that stepped in the last 60 ticks. Crush 1 pins him (median 10), crush 2 kills him (death line median 6 later).
   The drop to S1 is under the Red pillar, 24-30 ticks after Goldor's line.
 - **P3 Goldor**: walks his loop round the sections (0.048, then 0.06; a 0.6 sprint to the next corner when a door opens
-  with him still in its section), flies into the core (0.8) once everyone is in it; 10 hits there kill him (ADM's kill is a
+  with him still in its section), flies into the core (0.8) once everyone is in it; one hit there kills him (ADM's kill is a
   timer standing in for a party's damage); his "...." queues behind his lines; the core's floor goes 2 ticks before
   Necron's line. Death-tick and Frenzy LINES only (the sim deals no damage).
-- **P4 Necron**: a fixed script, no hits: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
+- **P4 Necron**: a fixed script; his bar holds in each part (1 -> 0.8, 0.8 -> 0.25, 0.25 -> 0.05) until one hit takes
+  that part's damage: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
   back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
-- **P5** (M7): dragons 8 hits each; "[BOSS] The Wither King: ..." lines. The relics are not modeled.
+- **P5** (M7): one hit kills a dragon; "[BOSS] The Wither King: ..." lines. The relics are not modeled.
 
 Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick.
+One-hit phases (simitems-1105, killer560 2026-11-05: one mage beam or Terminator volley does all of a phase's damage):
+the bars (Maxor's, Storm's, Necron's) are the fight's only health and move ONLY on his hits and on Hypixel's scripted
+steps (laser hits, crushes, enrages, deaths); they used to drain on the clock, which read as damage with no hit. Storm
+pinned: one hit drops him to 0.45 (0 after crush 2). Damage with no player behind it (lava, fire, mobs) goes through
+`BossFight.bossDamage`, which refuses it and logs "[BossSim] refused <msgId> damage" at most once a second.
+Lava gives him no hurt tilt: `BossLava`'s bounce is a `SimLaunch.push` and sends no hurt animation. Testkit
+1105-boss-onehit (one case per boss), 1105-boss-nostray, 1101-boss-lava (hurtTime stays 0).
 
 ## P3
 

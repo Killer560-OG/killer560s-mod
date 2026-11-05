@@ -789,6 +789,7 @@ public final class SimAbilities {
      * sim is not live, so leaving the sim or dying cannot strand a pending teleport.
      */
     private static void serverTick(MinecraftServer server) {
+        SimLaunchItems.tick(server);
         if (!storedClicks.isEmpty()) {
             expireAbilityClicks(server);
         }
@@ -835,5 +836,6 @@ public final class SimAbilities {
         insertionTicks = 0;
         storedClicks.clear();
         heardLook.clear();
+        SimLaunchItems.reset();
     }
 }

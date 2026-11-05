@@ -43,6 +43,23 @@ public final class SpringBootsOverlay {
             53.0f, 54.0f, 55.0f, 56.0f, 57.0f, 58.0f, 59.0f, 60.0f, 61.0f
     };
 
+    /** The pitch of Hypixel's charge note number {@code n} (0 first): two lows, then the highs in order, repeating
+     *  (Odin's table counts any high once each, so a long charge repeats them). For the sim's Spring Boots. */
+    public static float notePitch(int n) {
+        return n < 2 ? LOW_PITCH : HIGH_PITCHES[(n - 2) % HIGH_PITCHES.length];
+    }
+
+    /** The launch sound's pitch ({@code FIREWORK_ROCKET_LAUNCH}), which also resets the count. */
+    public static final float LAUNCH_PITCH = 1.6984127f;
+
+    /** The most charge notes the table knows. */
+    public static final int MAX_NOTES = 44;
+
+    /** The jump height, in blocks, that {@code notes} charge notes give (the HUD's count). */
+    public static float heightFor(int notes) {
+        return HEIGHTS[Math.max(0, Math.min(HEIGHTS.length - 1, notes))];
+    }
+
     private static float blockAmount = 0f;
     private static int highCount = 0;
     private static int lowCount = 0;
@@ -123,7 +140,7 @@ public final class SpringBootsOverlay {
         } else {
             return;
         }
-        blockAmount = HEIGHTS[Math.max(0, Math.min(HEIGHTS.length - 1, lowCount + highCount))];
+        blockAmount = heightFor(lowCount + highCount);
     }
 
     private static boolean wearingSpringBoots(LocalPlayer player) {
