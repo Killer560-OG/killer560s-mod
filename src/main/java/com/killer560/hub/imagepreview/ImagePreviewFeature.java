@@ -3,6 +3,7 @@ package com.killer560.hub.imagepreview;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.copychat.mixin.ChatComponentAccessor;
 import com.killer560.hub.gifplayer.GifTextureUtil;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -474,10 +475,11 @@ public final class ImagePreviewFeature {
 
     private static void frame(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         g.fill(x, y, x + w, y + h, BG);
-        g.fill(x, y, x + w, y + 1, BORDER);
-        g.fill(x, y + h - 1, x + w, y + h, BORDER);
-        g.fill(x, y + 1, x + 1, y + h - 1, BORDER);
-        g.fill(x + w - 1, y + 1, x + w, y + h - 1, BORDER);
+        int border = ThemeAccent.accent(BORDER);
+        g.fill(x, y, x + w, y + 1, border);
+        g.fill(x, y + h - 1, x + w, y + h, border);
+        g.fill(x, y + 1, x + 1, y + h - 1, border);
+        g.fill(x + w - 1, y + 1, x + w, y + h - 1, border);
     }
 
     private static void box(GuiGraphicsExtractor g, Font font, int mx, int my, String text, String link, long now) {

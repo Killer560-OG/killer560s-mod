@@ -2,6 +2,7 @@ package com.killer560.hub.runstats;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -141,7 +142,7 @@ public final class RunStatsFeature {
     private static MutableComponent name(PlayerRunStats row) {
         DungeonClass cls = row.dungeonClass();
         // DungeonClass.color() is 0xAARRGGBB; TextColor wants plain RGB.
-        int color = cls == null ? ModChat.LIGHT_ORANGE : cls.color() & 0x00FFFFFF;
+        int color = cls == null ? ThemeAccent.light(ModChat.LIGHT_ORANGE) : cls.color() & 0x00FFFFFF;
         MutableComponent out = ModChat.colored(row.name(), color);
         if (cls != null) {
             out.append(ModChat.dim(" (" + cls.displayName() + ")"));

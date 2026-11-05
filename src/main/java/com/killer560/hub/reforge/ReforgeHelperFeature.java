@@ -4,6 +4,7 @@ import com.killer560.hub.compat.McInput;
 import com.killer560.hub.containercover.ContainerCover;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.gui.BelowTooltip;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -234,7 +235,7 @@ public final class ReforgeHelperFeature {
         panelY = y;
         ContainerCover.coverRect(screen, COVER, x, y, x + panelW, y + panelH);
         graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
-        graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
+        graphics.outline(x, y, panelW, panelH, ThemeAccent.dim(PANEL_BORDER));
         graphics.text(font, "Reforges", x + PAD, y + PAD, TITLE_COLOR, true);
         graphics.text(font, header, x + PAD, y + PAD + 10, 0xFFFFFFFF, true);
         Row hovered = rowAt(mouseX, mouseY);

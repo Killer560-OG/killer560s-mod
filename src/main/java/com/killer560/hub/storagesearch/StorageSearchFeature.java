@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Storage Item Search - a GLOBAL search across everything this mod has cached, as opposed to
@@ -471,9 +472,9 @@ public final class StorageSearchFeature {
             int y = accessor.killer560smod$getTopPos() + slot.y;
             // Gentle pulse so it's findable at a glance without being an eyesore.
             int alpha = 0x40 + (int) (0x40 * (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 180.0)));
-            graphics.fill(x, y, x + 16, y + 16, (alpha << 24) | 0xFF8C1A);
-            graphics.outline(x - 1, y - 1, 18, 18, HIGHLIGHT_COLOR);
-            graphics.outline(x - 2, y - 2, 20, 20, HIGHLIGHT_COLOR);
+            graphics.fill(x, y, x + 16, y + 16, (alpha << 24) | (ThemeAccent.accent(HIGHLIGHT_COLOR) & 0xFFFFFF));
+            graphics.outline(x - 1, y - 1, 18, 18, ThemeAccent.accent(HIGHLIGHT_COLOR));
+            graphics.outline(x - 2, y - 2, 20, 20, ThemeAccent.accent(HIGHLIGHT_COLOR));
         } catch (Exception ignored) {
         }
     }

@@ -1,5 +1,6 @@
 package com.killer560.hub.etherwarp;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -56,7 +57,7 @@ public final class EtherwarpHudElement extends BasicHud {
         // HUD editor is the only thing that still calls render() for this element; see isVisible() above)
         // shows the room-order number instead of a live distance.
         for (EtherwarpWaypoint waypoint : EtherwarpFeature.waypointsHere()) {
-            graphics.fill(x, lineY + 1, x + 8, lineY + 9, COLOR);
+            graphics.fill(x, lineY + 1, x + 8, lineY + 9, ThemeAccent.accent(COLOR));
             graphics.text(client.font, "#" + waypoint.order + " " + waypoint.name, x + 12, lineY, 0xFFFFFFFF, false);
             lineY += 12;
         }

@@ -1,6 +1,7 @@
 package com.killer560.hub.sessionrecorder;
 
 import com.killer560.hub.autoupdate.BuildInfo;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
@@ -149,7 +150,7 @@ public final class SessionRecorder {
         Font font = Minecraft.getInstance().font;
         String label = recording ? "● Recording" : "Recording cut at 20 MB";
         int x = graphics.guiWidth() - font.width(label) - 4;
-        graphics.text(font, label, x, 4, 0xFF000000 | (recording ? ModChat.ORANGE : ModChat.BAD), true);
+        graphics.text(font, label, x, 4, 0xFF000000 | (recording ? ThemeAccent.accent(ModChat.ORANGE) : ModChat.BAD), true);
     }
 
     private static String modVersion() {

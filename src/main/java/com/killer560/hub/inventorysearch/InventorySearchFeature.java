@@ -1,5 +1,6 @@
 package com.killer560.hub.inventorysearch;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.itembrowser.ItemBrowserConfig;
 import com.killer560.hub.storageoverlay.StorageOverlayConfig;
 import com.killer560.hub.storageoverlay.StorageOverlayFeature;
@@ -492,7 +493,7 @@ public final class InventorySearchFeature {
             graphics.pose().translate(screenX, screenY);
             graphics.pose().scale(scale, scale);
             graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
-            graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
+            graphics.outline(0, 0, boxWidth, boxHeight, listening ? ThemeAccent.accent(0xFFCC6600) : ThemeAccent.dim(0xFF553311));
             if (selectedAll && !QUERY.isEmpty()) {
                 // Ctrl+A: the query shows as selected (a blue block behind it, as in any text box).
                 int selectedWidth = Math.min(boxWidth - 8, Minecraft.getInstance().font.width(QUERY.toString()));

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Chest Profit overlay + Croesus Profit Logger claim detection (both builds).
@@ -1150,10 +1151,10 @@ public final class ChestProfitFeature {
     /** A line color on a menu theme: the mod's orange, light orange, text and dim map onto the theme's accent, hover accent,
      *  text and dim; good / bad greens and reds and every other color stay. */
     static int themed(com.killer560.hub.gui.OverlayPalette menu, int argb) {
-        if (menu == null) {
-            return argb;
-        }
         int rgb = argb & 0xFFFFFF;
+        if (menu == null) {
+            return rgb == ModChat.ORANGE ? ThemeAccent.accent(argb) : rgb == ModChat.LIGHT_ORANGE ? ThemeAccent.light(argb) : argb;
+        }
         if (rgb == ModChat.ORANGE) {
             return menu.accent();
         }
@@ -1173,7 +1174,7 @@ public final class ChestProfitFeature {
         // Menu Theme (2026-10-15): Default draws exactly the colors below; anything else maps them onto the menu's.
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CHEST_PROFIT);
         graphics.fill(x, y, x + panelW, y + panelH, menu == null ? PANEL_BG : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xD0));
-        graphics.outline(x, y, panelW, panelH, menu == null ? PANEL_BORDER : menu.border());
+        graphics.outline(x, y, panelW, panelH, menu == null ? ThemeAccent.dim(PANEL_BORDER) : menu.border());
         int ty = y + PANEL_PADDING;
         for (Line line : lines) {
             if (line.rich() != null) {

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * killer560's item 8.1, part 4: "when he is on Hypixel's own 'Create BIN Auction' menu, show the current
@@ -277,10 +278,10 @@ public final class ListingHelperFeature {
 
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "auction.listinghelper", x, y, x + panelW, y + panelH);
         graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
-        graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
+        graphics.outline(x, y, panelW, panelH, ThemeAccent.dim(PANEL_BORDER));
         int ty = y + 4;
         for (int i = 0; i < lines.size(); i++) {
-            graphics.text(font, lines.get(i), x + 4, ty, i == 0 ? 0xFFCC6600 : 0xFFE0D8CC, true);
+            graphics.text(font, lines.get(i), x + 4, ty, i == 0 ? ThemeAccent.accent(0xFFCC6600) : 0xFFE0D8CC, true);
             ty += 10;
         }
         if (best != null) {
@@ -289,7 +290,7 @@ public final class ListingHelperFeature {
             boolean hover = mouseX >= bx && mouseX < bx + buttonW && mouseY >= by && mouseY < by + buttonH;
             boolean justCopied = System.currentTimeMillis() - copiedAtMs < 1500;
             graphics.fill(bx, by, bx + buttonW, by + buttonH, hover ? BUTTON_BG_HOVER : BUTTON_BG);
-            graphics.outline(bx, by, buttonW, buttonH, BUTTON_BORDER);
+            graphics.outline(bx, by, buttonW, buttonH, ThemeAccent.accent(BUTTON_BORDER));
             String label = justCopied ? "Copied!" : "Copy Lowest - 1";
             graphics.text(font, label, bx + (buttonW - font.width(label)) / 2, by + 4, 0xFFFFFFFF, false);
             copyButtonRect = new int[]{bx, by, buttonW, buttonH};

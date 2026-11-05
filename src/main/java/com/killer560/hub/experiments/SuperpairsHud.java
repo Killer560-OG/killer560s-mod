@@ -1,5 +1,6 @@
 package com.killer560.hub.experiments;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
@@ -153,7 +154,7 @@ public final class SuperpairsHud {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(
                 com.killer560.hub.gui.OverlayThemes.EXPERIMENTS_START_BUTTONS);
         graphics.fill(x, y, x + w, y + h, menu == null ? 0xC01A1A1A : menu.panel());
-        graphics.outline(x, y, w, h, menu == null ? 0xFFCC6600 : menu.accent());
+        graphics.outline(x, y, w, h, menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
         int ty = y + 3;
         for (String line : lines) {
             graphics.text(font, line, x + 4, ty, 0xFFFFFFFF, true);

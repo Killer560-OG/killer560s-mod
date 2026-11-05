@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Legit, read-only Floor 7 Melody terminal progress tracker - killer560 (2026-09-21): "I really want
@@ -451,10 +452,10 @@ public final class MelodyTrackerFeature {
                     boardsDrawn++;
                 } else {
                     int barY = lineY + 10;
-                    graphics.fill(x, barY, x + BAR_WIDTH, barY + BAR_HEIGHT, COLOR_BAR_BG);
+                    graphics.fill(x, barY, x + BAR_WIDTH, barY + BAR_HEIGHT, ThemeAccent.dim(COLOR_BAR_BG));
                     int filled = row.percent <= 0 ? 0 : Math.round(BAR_WIDTH * (Math.min(100, row.percent) / 100f));
                     if (filled > 0) {
-                        graphics.fill(x, barY, x + filled, barY + BAR_HEIGHT, COLOR_BAR_FILL);
+                        graphics.fill(x, barY, x + filled, barY + BAR_HEIGHT, ThemeAccent.accent(COLOR_BAR_FILL));
                     }
                     barsDrawn++;
                 }

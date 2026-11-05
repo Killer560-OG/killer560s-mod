@@ -3,6 +3,7 @@ package com.killer560.hub.helditem;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.gui.tab.HeldItemTab;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -104,7 +105,7 @@ public class HeldItemEditScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         int w = Math.min(PANEL_W, Math.max(80, this.width / 2 - 2 * PAD));
         graphics.fill(panelX, 0, panelX + w, this.height, 0xB0101010);
-        graphics.fill(panelLeft ? panelX + w - 1 : panelX, 0, panelLeft ? panelX + w : panelX + 1, this.height, 0xFFCC6600);
+        graphics.fill(panelLeft ? panelX + w - 1 : panelX, 0, panelLeft ? panelX + w : panelX + 1, this.height, ThemeAccent.accent(0xFFCC6600));
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 

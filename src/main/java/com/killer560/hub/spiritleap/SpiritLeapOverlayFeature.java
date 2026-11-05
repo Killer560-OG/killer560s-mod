@@ -1,6 +1,7 @@
 package com.killer560.hub.spiritleap;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.leapmenu.LeapMenuConfig;
 import com.killer560.hub.leapmenu.LeapMenuFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
@@ -274,7 +275,7 @@ public final class SpiritLeapOverlayFeature {
         int x0 = width / 2 - w / 2;
         int y0 = height / 2 - 14;
         graphics.fill(x0, y0, x0 + w, y0 + 28, 0xCC0D0D0D);
-        graphics.outline(x0, y0, w, 28, 0xFFCC6600);
+        graphics.outline(x0, y0, w, 28, ThemeAccent.accent(0xFFCC6600));
         graphics.centeredText(font, line1, width / 2, y0 + 5, 0xFFFFFFFF);
         graphics.centeredText(font, line2, width / 2, y0 + 16, 0xFFAAAAAA);
         lastView = "EMPTY";
@@ -407,7 +408,7 @@ public final class SpiritLeapOverlayFeature {
             boolean hover = box.contains(mouseX, mouseY);
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(n);
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.LEAP_MENU);
-            int color = cls != null ? cls.color() : (menu == null ? 0xFFCC6600 : menu.accent());
+            int color = cls != null ? cls.color() : (menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
             graphics.fill(box.x0(), box.y0(), box.x1(), box.y1(), menu == null ? (hover ? 0xE0262626 : 0xCC0D0D0D)
                     : (hover ? com.killer560.hub.gui.OverlayPalette.alpha(menu.cardHover(), 0xE0) : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC)));
             graphics.outline(box.x0(), box.y0(), bw, bh, hover ? 0xFFFFFFFF : color);
@@ -491,7 +492,7 @@ public final class SpiritLeapOverlayFeature {
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.LEAP_MENU);
             int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color()
-                    : (menu == null ? 0xFFCC6600 : menu.accent());
+                    : (menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
 
             // Dead teammates (tab list "(DEAD)") get a red-tinted box - no extra text, and the click still goes through.
             boolean dead = PartyTracker.isDead(target.name());

@@ -33,6 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Auto Croesus (CHEAT BUILD ONLY - {@link CroesusConfig#isAutoCroesusEnabled()} is hard-gated on
@@ -353,7 +354,7 @@ public final class AutoCroesusFeature {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.START_BUTTONS);
         graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BG : menu.control());
         graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT,
-                running ? START_BUTTON_BORDER_RUNNING : (menu == null ? START_BUTTON_BORDER : menu.accent()));
+                running ? START_BUTTON_BORDER_RUNNING : (menu == null ? ThemeAccent.accent(START_BUTTON_BORDER) : menu.accent()));
         graphics.centeredText(Minecraft.getInstance().font, label, x + START_BUTTON_WIDTH / 2, y + 6, menu == null ? 0xFFFFFFFF : menu.text());
     }
 

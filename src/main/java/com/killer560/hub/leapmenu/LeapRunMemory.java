@@ -4,6 +4,7 @@ import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.FeatureGuard;
@@ -475,7 +476,7 @@ public final class LeapRunMemory {
         Minecraft client = Minecraft.getInstance();
         Runnable show = () -> {
             McCompat.setTimes(client, 5, 60, 15);
-            McCompat.setTitle(client, ModChat.colored("Leap Order reset", ModChat.ORANGE));
+            McCompat.setTitle(client, ModChat.colored("Leap Order reset", ThemeAccent.accent(ModChat.ORANGE)));
             McCompat.setSubtitle(client, ModChat.text("Update it with /leaporder"));
             ModChat.send("Leap Order", ModChat.text(RESET_NOTICE));
         };

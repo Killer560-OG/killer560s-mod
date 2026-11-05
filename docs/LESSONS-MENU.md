@@ -146,6 +146,15 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   (testkit 1570: Back to Game 41,35,29 in Amber, 33,42,52 in Ocean, 231,229,226 in Light). Inside the mod's own screens they
   read that screen's palette instead; re-deriving `MenuStyle` there would repaint the mod screen's frame in the main menu's
   colors.
+- **Every part of the mod matches the menu theme** (killer560, 2026-11-04: a Green theme must not show an orange Crystal
+  Hollows map border). Chrome outside the menu (overlay and HUD borders, outlines, titles, chat prefix) that used to be a
+  fixed amber literal wraps it in `gui/ThemeAccent.accent/light/dim/fill(amber)`: the literal comes back unchanged on
+  Amber and as the theme's color (alpha kept) on any other, read from the version-cached `OverlayThemes.menu()`. Colors that
+  mean something (rarity, zones, states, §6 game text) and player-picked defaults stay literal. Testkit
+  1104-ui-themematch-audit counts amber literals per class in the jar and fails on a new class or a higher count outside its
+  allow list; it reads SIPUSH as well as LDC, because javac pushes an ARGB value such as 0xFFFF8A1F (as an int -30177, which
+  fits a short) with SIPUSH, and an LDC-only scan missed half the sites. 1104-ui-themematch-pixels checks the CH map border,
+  the held-item edge and the dungeon map frame pixels under Amber and Green.
 - **Color bands cut with `enableScissor` leave a gap under any non-integer scale** ("a line through Full Toggle"):
   `MenuStyle.gradientText` drew the text three times through scissor bands at 0/3/6/9, and the scissor rounds each band to
   whole pixels on its own, so at 1.5x (Profiles), or 1x/4/3x inside the HUD Scale pose, rows between bands drew nothing - one

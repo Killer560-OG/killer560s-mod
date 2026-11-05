@@ -1,5 +1,6 @@
 package com.killer560.hub.bloodcamp;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -391,7 +392,7 @@ public final class BloodCampMoveTimer {
                 }
                 if (ticks > 0) {
                     text = countdownText(ticks);
-                    color = 0xFF000000 | ModChat.LIGHT_ORANGE;
+                    color = ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE);
                 } else {
                     text = "KILL";
                     color = 0xFFFF5555;

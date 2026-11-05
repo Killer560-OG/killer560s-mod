@@ -451,9 +451,9 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
         int handleX = x0 + (int) Math.round(this.value * (w - HANDLE_WIDTH));
         // A subtle "filled up to here" strip behind the handle, same idea as vanilla's own slider
         // (the portion already dragged past reads visually distinct from the empty remainder).
-        graphics.fill(x0 + 1, y0 + 1, handleX, y0 + h - 1, FILLED);
-        graphics.outline(x0, y0, w, h, isHovered ? TRACK_BORDER_HOVER : TRACK_BORDER);
-        graphics.fill(handleX, y0, handleX + HANDLE_WIDTH, y0 + h, HANDLE);
+        graphics.fill(x0 + 1, y0 + 1, handleX, y0 + h - 1, ThemeAccent.fill(FILLED));
+        graphics.outline(x0, y0, w, h, isHovered ? ThemeAccent.accent(TRACK_BORDER_HOVER) : ThemeAccent.dim(TRACK_BORDER));
+        graphics.fill(handleX, y0, handleX + HANDLE_WIDTH, y0 + h, ThemeAccent.accent(HANDLE));
         graphics.centeredText(Minecraft.getInstance().font, getMessage(), x0 + w / 2, y0 + (h - 8) / 2, TEXT);
     }
 }

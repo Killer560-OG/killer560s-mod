@@ -1,5 +1,6 @@
 package com.killer560.hub.itembrowser;
 
+import com.killer560.hub.gui.ThemeAccent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -135,10 +136,10 @@ public final class ItemCraftView {
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
         graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, menu == null ? 0xF00D0D0D : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xF0));
-        graphics.outline(panelX, panelY, panelW, panelH, menu == null ? 0xFFCC6600 : menu.accent());
+        graphics.outline(panelX, panelY, panelW, panelH, menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
 
         String title = ItemBrowserFeature.minionBaseName(tiers.getFirst()) + " - all tiers";
-        graphics.text(font, title, panelX + PADDING, panelY + PADDING, menu == null ? 0xFFFFAA00 : menu.accentHover(), false);
+        graphics.text(font, title, panelX + PADDING, panelY + PADDING, menu == null ? ThemeAccent.light(0xFFFFAA00) : menu.accentHover(), false);
 
         int gridX = panelX + (panelW - TIER_COLUMNS * TIER_CELL_W) / 2;
         int gridY = panelY + PADDING + font.lineHeight + 6;
@@ -150,7 +151,7 @@ public final class ItemCraftView {
             int[] cell = {cx, cy, TIER_CELL_W, TIER_CELL_H};
             tierCells.add(cell);
             boolean over = inside(cell, mouseX, mouseY);
-            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? (menu == null ? 0x80CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80)) : (menu == null ? 0xFF262626 : menu.card()));
+            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? (menu == null ? ThemeAccent.accent(0x80CC6600) : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80)) : (menu == null ? 0xFF262626 : menu.card()));
             SkyblockItemEntry tier = tiers.get(i);
             graphics.item(SkyblockItemStackFactory.build(tier), cx + (TIER_CELL_W - 16) / 2, cy + 2);
             graphics.centeredText(font, ItemBrowserFeature.minionTierLabel(tier), cx + TIER_CELL_W / 2, cy + 19, 0xFFFFFFFF);
@@ -232,7 +233,7 @@ public final class ItemCraftView {
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
         graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, menu == null ? 0xF00D0D0D : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xF0));
-        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, menu == null ? 0xFFCC6600 : menu.accent());
+        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
 
         int lx = panelX + PADDING;
         int ly = panelY + PADDING;
@@ -255,7 +256,7 @@ public final class ItemCraftView {
         }
 
         ly += 6;
-        graphics.text(font, "§6Obtain:", lx, ly, menu == null ? 0xFFFFAA00 : menu.accentHover(), false);
+        graphics.text(font, "§6Obtain:", lx, ly, menu == null ? ThemeAccent.light(0xFFFFAA00) : menu.accentHover(), false);
         ly += font.lineHeight;
         if (obtainLines.isEmpty()) {
             for (String wrapped : noObtainLines) {
@@ -276,7 +277,7 @@ public final class ItemCraftView {
         }
 
         ly += 6;
-        graphics.text(font, "§6Recipe:", lx, ly, 0xFFFFAA00, false);
+        graphics.text(font, "§6Recipe:", lx, ly, menu == null ? ThemeAccent.light(0xFFFFAA00) : menu.accentHover(), false);
         ly += font.lineHeight;
 
         Object hoveredTooltip = null; // an ItemStack, or a List of lines for an ingredient with NEU lore
@@ -289,7 +290,7 @@ public final class ItemCraftView {
                 int cellX = gridX + col * SLOT_SIZE;
                 int cellY = gridY + row * SLOT_SIZE;
                 graphics.fill(cellX, cellY, cellX + SLOT_SIZE, cellY + SLOT_SIZE, 0xFF262626);
-                graphics.outline(cellX, cellY, SLOT_SIZE, SLOT_SIZE, 0xFF553311);
+                graphics.outline(cellX, cellY, SLOT_SIZE, SLOT_SIZE, menu == null ? ThemeAccent.dim(0xFF553311) : menu.border());
                 String ingredientId = gridIds.get(i);
                 if (ingredientId == null) {
                     continue;
@@ -409,7 +410,7 @@ public final class ItemCraftView {
         int closeY = panelY + 4;
         closeButtonBounds = new int[]{closeX, closeY, closeSize, closeSize};
         boolean closeHovered = mouseX >= closeX && mouseX < closeX + closeSize && mouseY >= closeY && mouseY < closeY + closeSize;
-        graphics.fill(closeX, closeY, closeX + closeSize, closeY + closeSize, closeHovered ? 0xFFCC3333 : 0xFF553311);
+        graphics.fill(closeX, closeY, closeX + closeSize, closeY + closeSize, closeHovered ? 0xFFCC3333 : ThemeAccent.dim(0xFF553311));
         graphics.text(Minecraft.getInstance().font, "x", closeX + 3, closeY + 2, 0xFFFFFFFF, false);
     }
 

@@ -2,6 +2,7 @@ package com.killer560.hub.hud;
 
 import com.killer560.hub.dvd.DvdFeature;
 import com.killer560.hub.gifplayer.GifPlayerFeature;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -91,7 +92,7 @@ public final class GuiOverlays {
         try {
             graphics.pose().scale(f, f);
             for (int i = 0; i < lines.size(); i++) {
-                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, THEME_ORANGE);
+                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, ThemeAccent.accent(THEME_ORANGE));
             }
         } finally {
             graphics.pose().popMatrix();
