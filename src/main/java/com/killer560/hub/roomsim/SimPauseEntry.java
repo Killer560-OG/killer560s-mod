@@ -80,8 +80,14 @@ public final class SimPauseEntry {
 
         // A vanilla Button, not the mod's amber SettingsButtonWidget, so it looks like the rest of the menu.
         // Button.builder/bounds/build checked identical in the 26.1.2 and 26.2 jars with javap.
+        // killer560 (2026-11-05): in the boss sim it is "Change Phase" and opens the F7 Boss chooser.
+        boolean inBoss = com.killer560.hub.bosssim.BossFight.phase() != com.killer560.hub.bosssim.BossFight.Phase.IDLE;
         Button button = Button.builder(
-                        Component.literal("Change Room"), btn -> {
+                        Component.literal(inBoss ? "Change Phase" : "Change Room"), btn -> {
+                            if (inBoss) {
+                                McCompat.setScreen(client, new com.killer560.hub.bosssim.BossStartScreen(screen));
+                                return;
+                            }
                             // Straight to the sim menu, ON THE PAGE HE USED LAST. Each page opens the world it needs,
                             // so there is nothing to tear down here - and leaving the sim first would drop him to the
                             // title screen, which is the long way round this button exists to avoid.

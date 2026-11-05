@@ -38,8 +38,30 @@ public final class BossStartScreen extends Screen {
         }
     }
 
+    private static final int SECTION_H = 40;
+    private static final int SECTION_GAP = 10;
+
     private final Screen parent;
     private int panelX, panelY, panelW, panelH;
+    /** Each section's box and title: {x, y, w} plus the title, drawn behind its buttons. */
+    private final java.util.List<Object[]> sections = new java.util.ArrayList<>();
+
+    /** One phase's box: its title on top and its start buttons side by side under it. */
+    private void section(String title, int x, int y, int w, Object[][] starts) {
+        sections.add(new Object[]{x, y, w, title});
+        int gap = 4;
+        int n = starts.length;
+        int bx = x + 5;
+        int each = (w - 10 - gap * (n - 1)) / n;
+        for (Object[] s : starts) {
+            BossFight.Start start = (BossFight.Start) s[1];
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal((String) s[0]), b -> {
+                McCompat.setScreen(this.minecraft, null);
+                BossSim.start(this.minecraft, start, master || start == BossFight.Start.P5);
+            }).bounds(bx, y + 17, each, 18).build());
+            bx += each + gap;
+        }
+    }
 
     public BossStartScreen(Screen parent) {
         super(Component.literal("F7 Boss"));
@@ -49,32 +71,28 @@ public final class BossStartScreen extends Screen {
     @Override
     protected void init() {
         loadMode();
-        panelW = Math.min(this.width - 16, 300);
+        panelW = Math.min(this.width - 16, 340);
         panelH = Math.min(this.height - 16, 250);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         int bw = (panelW - 30) / 2;
         int x1 = panelX + 10;
         int x2 = x1 + bw + 10;
-        int y = panelY + 34;
-        Object[][] rows = {
-                {"P1 Maxor", BossFight.Start.P1}, {"P2 Storm", BossFight.Start.P2},
-                {"P3 Section 1", BossFight.Start.S1}, {"P3 Section 2", BossFight.Start.S2},
-                {"P3 Section 3", BossFight.Start.S3}, {"P3 Section 4", BossFight.Start.S4},
-                {"P3 Core", BossFight.Start.CORE}, {"P4 Necron", BossFight.Start.P4},
-                {"P5 Dragons", BossFight.Start.P5}};
-        for (int i = 0; i < rows.length; i++) {
-            BossFight.Start start = (BossFight.Start) rows[i][1];
-            int x = i % 2 == 0 ? x1 : x2;
-            addRenderableWidget(SettingsButtonWidget.builder(Component.literal((String) rows[i][0]), b -> {
-                McCompat.setScreen(this.minecraft, null);
-                BossSim.start(this.minecraft, start, master || start == BossFight.Start.P5);
-            }).bounds(x, y, bw, 18).build());
-            if (i % 2 == 1) {
-                y += 22;
-            }
-        }
-        y += 26;
+        int fullW = panelW - 20;
+        // Five separate sections, one per phase (killer560, 2026-11-05: "have this split into 5 sections. each of
+        // the sections more separated"): P1 | P2, then P3 across the panel, then P4 | P5.
+        int y = panelY + 32;
+        sections.clear();
+        section("P1 Maxor", x1, y, bw, new Object[][]{{"Start", BossFight.Start.P1}});
+        section("P2 Storm", x2, y, bw, new Object[][]{{"Start", BossFight.Start.P2}});
+        y += SECTION_H + SECTION_GAP;
+        section("P3 Goldor", x1, y, fullW, new Object[][]{{"Section 1", BossFight.Start.S1},
+                {"Section 2", BossFight.Start.S2}, {"Section 3", BossFight.Start.S3},
+                {"Section 4", BossFight.Start.S4}, {"Core", BossFight.Start.CORE}});
+        y += SECTION_H + SECTION_GAP;
+        section("P4 Necron", x1, y, bw, new Object[][]{{"Start", BossFight.Start.P4}});
+        section("P5 Dragons", x2, y, bw, new Object[][]{{"Start", BossFight.Start.P5}});
+        y += SECTION_H + SECTION_GAP + 2;
         addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(modeLabel()), (b, dir) -> {
             master = !master;
             saveMode();
@@ -101,6 +119,11 @@ public final class BossStartScreen extends Screen {
         ScreenChrome.title(g, "F7 BOSS", panelX + 10, panelY + 11, false);
         String src = java.nio.file.Files.isRegularFile(BossArena.capturePath()) ? "Room: captured" : "Room: built-in";
         MenuStyle.text(g, src, panelX + panelW - 10 - this.font.width(src), panelY + 11, MenuStyle.DIM);
+        for (Object[] s : sections) {
+            int x = (int) s[0], y = (int) s[1], w = (int) s[2];
+            ScreenChrome.well(g, x, y, w, SECTION_H);
+            MenuStyle.text(g, (String) s[3], x + 6, y + 5, MenuStyle.OR);
+        }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 }
