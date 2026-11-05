@@ -55,6 +55,8 @@ They are the same rules as before; only where they live changed.
   focused EditBox, so a home-made text field (Inventory Search bar, Bazaar/AH search) or "type anywhere" screen lit up on
   click and got no `charTyped` ("cannot click into the search bar and type"). Call `McInput.textInput(owner, on)` where it
   gains/loses focus, or `McInput.textInputWhileOpen(this)` in init. Testkit `typeChars` bypasses SDL: assert the state too.
+  A focused EditBox OWNS text input and stops it when it loses focus, so a type-anywhere screen went deaf after its box
+  was focused once: `textInputWhileOpen` re-claims it after every click and key press (Fabric screen events, no tick work).
 - **Never write a Minecraft API call from memory - grep for a call site in this repo first.** Method names and some
   block/sound constants differ between 26.1.2 and 26.2 (`snapTo` not `moveTo`, `McBlocks.RED_WOOL`, holder vs plain
   `SoundEvent`); copy the shape of an existing use. Examples, and the cloud-session `javac` filter that catches
