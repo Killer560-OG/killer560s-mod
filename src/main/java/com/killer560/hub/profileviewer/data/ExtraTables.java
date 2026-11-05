@@ -186,38 +186,38 @@ public final class ExtraTables {
     }
 
     private static final Remote<List<CollectionCategory>> COLLECTIONS = new Remote<>(() ->
-            ProfileViewerApi.getKeylessJson(COLLECTIONS_URL).thenApplyAsync(json -> {
-                JsonObject cols = json == null ? null : SbProfile.asObj(json.get("collections"));
-                if (cols == null) return null;
-                List<CollectionCategory> out = new ArrayList<>();
-                for (Map.Entry<String, JsonElement> c : cols.entrySet()) {
-                    JsonObject cat = SbProfile.asObj(c.getValue());
-                    JsonObject items = cat == null ? null : SbProfile.asObj(cat.get("items"));
-                    if (items == null) continue;
-                    List<CollectionItem> list = new ArrayList<>();
-                    for (Map.Entry<String, JsonElement> i : items.entrySet()) {
-                        JsonObject it = SbProfile.asObj(i.getValue());
-                        if (it == null) continue;
-                        JsonArray tiers = SbProfile.asArr(it.get("tiers"));
-                        List<Long> amounts = new ArrayList<>();
-                        if (tiers != null) {
-                            for (JsonElement t : tiers) {
-                                JsonObject to = SbProfile.asObj(t);
-                                if (to != null) {
-                                    amounts.add((long) SbProfile.num(to.get("amountRequired")));
-                                }
-                            }
-                        }
-                        Collections.sort(amounts);
-                        long[] arr = amounts.stream().mapToLong(Long::longValue).toArray();
-                        list.add(new CollectionItem(i.getKey(), SbProfile.str(it, "name", SbProfile.titleCase(i.getKey())),
-                                (int) SbProfile.num(it.get("maxTiers")), arr));
-                    }
-                    list.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
-                    out.add(new CollectionCategory(c.getKey(), SbProfile.str(cat, "name", SbProfile.titleCase(c.getKey())), list));
+            ProfileViewerApi.getKeylessJson(COLLECTIONS_URL).thenApplyAsync(ExtraTables::parseCollections,
+                    ProfileViewerApi.EXECUTOR), 0);
+
+    /** A {@code /v2/resources/skyblock/collections} body (or the Collection Tracker's bundled copy of it) as categories
+     *  in the file's order, items by name; null when it holds none. */
+    public static List<CollectionCategory> parseCollections(JsonObject json) {
+        JsonObject cols = json == null ? null : SbProfile.asObj(json.get("collections"));
+        if (cols == null) return null;
+        List<CollectionCategory> out = new ArrayList<>();
+        for (Map.Entry<String, JsonElement> c : cols.entrySet()) {
+            JsonObject cat = SbProfile.asObj(c.getValue());
+            JsonObject items = cat == null ? null : SbProfile.asObj(cat.get("items"));
+            if (items == null) continue;
+            List<CollectionItem> list = new ArrayList<>();
+            for (Map.Entry<String, JsonElement> i : items.entrySet()) {
+                JsonObject it = SbProfile.asObj(i.getValue());
+                if (it == null) continue;
+                JsonArray tiers = SbProfile.asArr(it.get("tiers"));
+                long[] arr = new long[tiers == null ? 0 : tiers.size()];
+                for (int k = 0; k < arr.length; k++) {
+                    JsonObject to = SbProfile.asObj(tiers.get(k));
+                    arr[k] = to == null ? 0 : (long) SbProfile.num(to.get("amountRequired"));
                 }
-                return out.isEmpty() ? null : Collections.unmodifiableList(out);
-            }, ProfileViewerApi.EXECUTOR), 0);
+                java.util.Arrays.sort(arr);
+                list.add(new CollectionItem(i.getKey(), SbProfile.str(it, "name", SbProfile.titleCase(i.getKey())),
+                        (int) SbProfile.num(it.get("maxTiers")), arr));
+            }
+            list.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
+            out.add(new CollectionCategory(c.getKey(), SbProfile.str(cat, "name", SbProfile.titleCase(c.getKey())), list));
+        }
+        return out.isEmpty() ? null : Collections.unmodifiableList(out);
+    }
 
     public static CompletableFuture<List<CollectionCategory>> collections() { return COLLECTIONS.get(); }
 

@@ -60,7 +60,10 @@ public final class SearchAliases {
             Map.entry("dungeon sim teleports", "sim settings"),
             Map.entry("dungeon sim room capture", "sim settings"),
             Map.entry("dungeon sim", "sim settings"),
-            Map.entry("cheat utilities", "secret aura"));
+            Map.entry("cheat utilities", "secret aura"),
+            // colltrack-1104: the Collection Tracker card by its short names.
+            Map.entry("coll tracker", "collection tracker"),
+            Map.entry("colltracker", "collection tracker"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
