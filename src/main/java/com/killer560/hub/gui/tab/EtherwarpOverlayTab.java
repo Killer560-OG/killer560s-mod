@@ -51,6 +51,10 @@ public class EtherwarpOverlayTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 22;
 
+        widgets.add(onOffButton("Show Through Blocks", cfg::isShowThroughBlocks, cfg::setShowThroughBlocks, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
+
         widgets.add(onOffButton("Crosshair On Server Aim", cfg::isServerCrosshair, cfg::setServerCrosshair, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 22;
