@@ -129,7 +129,6 @@ public final class BossFight {
     private static final Vec3[] PYLONS = {new Vec3(52.5, 224.375, 41.5), new Vec3(94.5, 224.375, 41.5)};
     /** A P2 start from the menu: Hypixel's Purple pad spot (ADM Spots.kt). */
     private static final Vec3 P2_SPAWN = new Vec3(114.5, BossArena.P2_FLOOR + 2, 94.5);
-    private static final Vec3 S1_SPAWN = new Vec3(100.5, BossArena.P3_FLOOR + 1, 40.5);
     private static final Vec3 NECRON_AT = new Vec3(54.0, 66.0, 76.0);
     /** A P4 start from the menu: where the core's floor drops everyone (ADM Spots.kt P4, 54.5 64 108.5). */
     private static final Vec3 P4_SPAWN = new Vec3(54.5, BossArena.P4_FLOOR + 1, 108.5);
@@ -372,6 +371,7 @@ public final class BossFight {
                 openHole(P1_HOLE, BossArena.P1_FLOOR);
                 openHole(P2_HOLE, BossArena.P2_FLOOR);
                 int sec = from == Start.CORE ? 5 : from.ordinal() - Start.S1.ordinal() + 1;
+                BossArena.applyP3(level);
                 teleportAll(sectionSpawn(sec), 0f);
                 startP3(sec);
             }
@@ -394,14 +394,16 @@ public final class BossFight {
         }
     }
 
+    /** Where a start at P3 section {@code sec} puts everyone: on the ground there (a capture's, not the plan's height). */
     private static Vec3 sectionSpawn(int sec) {
-        return switch (sec) {
-            case 2 -> new Vec3(100.5, BossArena.P3_FLOOR + 1, 133.5);
-            case 3 -> new Vec3(6.5, BossArena.P3_FLOOR + 1, 133.5);
-            case 4 -> new Vec3(6.5, BossArena.P3_FLOOR + 1, 38.5);
-            case 5 -> new Vec3(54.5, BossArena.P3_FLOOR + 1, 53.5);
-            default -> S1_SPAWN;
+        double[] xz = switch (sec) {
+            case 2 -> new double[]{100.5, 133.5};
+            case 3 -> new double[]{6.5, 133.5};
+            case 4 -> new double[]{6.5, 38.5};
+            case 5 -> new double[]{54.5, 53.5};
+            default -> new double[]{100.5, 40.5};
         };
+        return new Vec3(xz[0], BossArena.standY(level, xz[0], xz[1]), xz[1]);
     }
 
     static void teleportAll(Vec3 at, float yaw) {
@@ -1344,6 +1346,7 @@ public final class BossFight {
     private static void startP3(int fromSection) {
         boolean fromStorm = phase == Phase.P2;
         phase(Phase.P3);
+        BossArena.applyP3(level);
         section = Math.min(fromSection, 5);
         BossChat.boss(server, "Goldor", "Who dares trespass into my domain?");
         lastGoldorLine = clock;

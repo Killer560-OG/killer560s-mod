@@ -29,7 +29,9 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 ## The room
 
 `BossArena`: a capture (`/simbosscapture`, dev builds, on Hypixel in a boss; file `config/killer560/dungeons/sim/
-killer560smod-sim-bossarena.bin`, format K5BA v1: gzip, box, palette of block-state strings, run-length cells) when one
+killer560smod-sim-bossarena.bin` for P1, `killer560smod-sim-bossarena-p3.bin` for P3 and so on: each capture goes to the
+file of the boss phase it was taken in (Floor7Tracker), format K5BA v2 = v1 plus the phase after the version; v1: gzip, box,
+palette of block-state strings, run-length cells; a v1 file counts as its file name's phase) when one
 exists, else the built-in plan: plain floors at P1 220, P2 168, P3 106 (lava inside the ring), P4 62 (lava with
 Necron's platforms), P5 4; every terminal on a command block on a pillar with a slab stair down toward the section's
 middle; gates as iron blocks; the core with a gold door. Over a capture NOTHING of the plan is laid (bossfloor-1104):
@@ -40,12 +42,16 @@ redstone lamps, an obsidian slab over the Simon Says frame, the Target plate flo
 `killer560s-mod-logs/bossfloor-1104/cap.py`, `slice.py`, `find.py`). What the capture shows of Hypixel's room: the gates at
 P1 are BARRIER walls in nether-brick frames (`BossBlocks.open` clears only barrier/iron/gold in a gate's box); Lights' lamps
 are redstone lamps (a pull is answered in `BossDevices.pullLight` with no redstone updates, lamps set by Hypixel's rule);
-the Target plate is a light weighted plate at (63, 127, 35) on blue terracotta; the P3 ground is ~y 111-114, not the plan's
-106. A capture is read as the client SHOWS the room, so one taken with I Hate Diorite on has stained glass in Storm's
+the Target plate is a light weighted plate at (63, 127, 35) on blue terracotta; the P3 ground is y 113-116, not the plan's
+106: P3 spawns stand on the ground found there (`BossArena.standY`; S1's is 116.0625, a carpet). A capture is read as the client SHOWS the room, so one taken with I Hate Diorite on has stained glass in Storm's
 pillars: `readCapture` puts polished diorite back. Item frames are entities, never in a capture: the Arrows frames hang
 from the fight's start (`BossDevices.arrows`). All sim lava and fire stand still (`SimStaticWater.holdsStill`, SimStillFireMixin), as Hypixel's, and the capture build skips onPlace (`UPDATE_SKIP_ON_PLACE`), so its hoppers keep `enabled=false` and nothing schedules a tick.
-Still unverified against Hypixel: what the gates look like once P3 starts and where the core door really is (the plan's
-box at z 58 is solid stone in the capture, so opening it now clears nothing) - a capture taken in P3 would settle both.
+The fight starts from the P1 capture; P3's start (`BossArena.applyP3`, at a P3 start or when P2 ends) writes the 220
+blocks of P3's band (y 100-145) in which his P3 capture (2026-11-04 23:21, S1, fixture `boss-arena-p3-1104.bin`) differs
+from the P1 one: the wall of nether bricks, cobblestone walls and glass panes at x 77-92, z 35-45 that closes S1's way in is
+gone, and the Arrows wall's sea lanterns (x -3) sit where that run put them. The gates are barrier walls in both captures
+(no other gate block exists). Still unverified: the core door (z 58 is solid stone in both; a capture after the core opens
+would show it) and the Arrows wall's lanterns, which change per run and need not match the sim's chosen layout.
 
 ## The fight
 
@@ -81,7 +87,8 @@ completed!" / "...doesn't seem to be responsive at the moment." for another sect
 toggles; a done lever says "Someone has already activated this lever!". `BossTerminals` - real chest menus (`Menu.clicked`
 never moves an item), six types, kept per terminal across reopens, at most 5 counted clicks in 10 ticks, Numbers 10 and
 Melody 3 lanes in a 6-row window (Hypixel's 2026-10-06 update); the system property `killer560.bosssim.terminal=<TYPE>`
-forces a type (testkit). `BossDevices` - Simon Says (4 rounds; first show 4 after the start press, lamps 8 apart, the
+forces a type (testkit). `BossDevices` - Simon Says (4 rounds, as Hypixel's since its 2026-10-06 update: his
+own log has "SS 4/4" 12 times and no 5th round, and "[SimonSays] Device has 4 rounds (new layout) on proxy.hypixel.net"; first show 4 after the start press, lamps 8 apart, the
 start button resets a running device, a wrong press stops it), Lights (20 levers, a lamp lit by its lever or a
 neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`), Target (9 targets, lit only while someone is on
 the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hits; off the plate the attempt resets).

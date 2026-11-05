@@ -63,6 +63,11 @@ public final class BossArena {
     private static Runnable onDone;
     private static Captured captured;
     private static long capturedCursor;
+    /** The P3 capture's cells (index, state) in P3's band that differ from the P1 capture: what Hypixel changes when P3 starts. */
+    private static int[] p3Cells = new int[0];
+    private static BlockState[] p3States = new BlockState[0];
+    /** P3's band in the capture box: the ring, its gates and the core (P2's floor is at 168, P4's at 62). */
+    private static final int P3_Y1 = 100, P3_Y2 = 145;
     private static String source = "none";
 
     private BossArena() {
@@ -73,8 +78,15 @@ public final class BossArena {
         return source;
     }
 
+    /** The P1 capture (the fight's start), the file every capture before bossfloor-1104 went to. */
     public static Path capturePath() {
         return ModPaths.config("killer560smod-sim-bossarena.bin");
+    }
+
+    /** The capture taken in {@code phase} ("P1".."P5"): P1's is {@link #capturePath()}, the others carry their phase. */
+    public static Path capturePath(String phase) {
+        return "P1".equals(phase) ? capturePath()
+                : ModPaths.config("killer560smod-sim-bossarena-" + phase.toLowerCase(java.util.Locale.ROOT) + ".bin");
     }
 
     static boolean building() {
@@ -85,6 +97,7 @@ public final class BossArena {
     static void build(ServerLevel level, Runnable done) {
         captured = readCapture();
         capturedCursor = 0;
+        p3Diff(captured, readCapture("P3"));
         jobs = plan(captured != null);
         jobIndex = 0;
         jobCursor = 0;
@@ -148,6 +161,65 @@ public final class BossArena {
             captured = null;
             done.run();
         }
+    }
+
+    /** P3's start as Hypixel's P3 capture has it (no-op without both captures); idempotent. */
+    static void applyP3(ServerLevel level) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int k = 0; k < p3Cells.length; k++) {
+            int i = p3Cells[k];
+            pos.set(X0 + i % W, Y0 + i / (W * D), Z0 + (i / W) % D);
+            if (level.getBlockState(pos) != p3States[k]) {
+                level.setBlock(pos, p3States[k], BossBlocks.FLAGS | Block.UPDATE_SKIP_ON_PLACE);
+            }
+        }
+    }
+
+    private static void p3Diff(Captured p1, Captured p3) {
+        if (p1 == null || p3 == null || p1.w != p3.w || p1.h != p3.h || p1.d != p3.d || p1.x0 != p3.x0 || p1.y0 != p3.y0
+                || p1.z0 != p3.z0) {
+            p3Cells = new int[0];
+            p3States = new BlockState[0];
+            return;
+        }
+        int from = (P3_Y1 - p1.y0) * p1.w * p1.d, to = (P3_Y2 - p1.y0 + 1) * p1.w * p1.d;
+        int n = 0;
+        int[] cells = new int[1024];
+        BlockState[] states = new BlockState[1024];
+        for (int i = from; i < to; i++) {
+            BlockState b = p3.states[p3.cells[i]];
+            if (p1.states[p1.cells[i]] != b) {
+                if (n == cells.length) {
+                    cells = java.util.Arrays.copyOf(cells, n * 2);
+                    states = java.util.Arrays.copyOf(states, n * 2);
+                }
+                cells[n] = i;
+                states[n++] = b;
+            }
+        }
+        p3Cells = java.util.Arrays.copyOf(cells, n);
+        p3States = java.util.Arrays.copyOf(states, n);
+        LOGGER.info("[BossSim] P3 capture: {} block(s) of P3 differ from the P1 capture", n);
+    }
+
+    /**
+     * Where a player stands on (x, z) of P3's ring: the top of the first block from the plan's ring up with two free
+     * blocks over it. The capture's ground is at 113-116 (bossfloor-1104), the plan's at {@link #P3_FLOOR}.
+     */
+    static double standY(ServerLevel level, double x, double z) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        int bx = net.minecraft.util.Mth.floor(x), bz = net.minecraft.util.Mth.floor(z);
+        for (int y = P3_FLOOR; y < P3_Y2; y++) {
+            var shape = level.getBlockState(p.set(bx, y, bz)).getCollisionShape(level, p);
+            if (!shape.isEmpty() && free(level, p.set(bx, y + 1, bz)) && free(level, p.set(bx, y + 2, bz))) {
+                return y + shape.max(net.minecraft.core.Direction.Axis.Y);
+            }
+        }
+        return P3_FLOOR + 1;
+    }
+
+    private static boolean free(ServerLevel level, BlockPos p) {
+        return level.getBlockState(p).getCollisionShape(level, p).isEmpty();
     }
 
     private static void box(List<Fill> out, int x1, int y1, int z1, int x2, int y2, int z2, String state) {
@@ -390,12 +462,36 @@ public final class BossArena {
     }
 
     /** A capture as read back: the box, its palette and one palette index per cell (x fastest, then z, then y). */
-    record Captured(int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
+    /** {@code phase}: the boss phase it was taken in (a version-1 file has none: its file name's). */
+    record Captured(String phase, int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
     }
 
-    /** The saved capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
+    /** The P1 capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
     static Captured readCapture() {
-        Path p = capturePath();
+        return readCapture("P1");
+    }
+
+    /**
+     * The capture taken in {@code phase}, or null. The P1 file holds whatever was captured before captures kept their
+     * phase: it counts as P1 unless it says otherwise, and then as that phase's when that phase has no file of its own.
+     */
+    static Captured readCapture(String phase) {
+        Captured own = readFile(capturePath(phase), phase);
+        if (own != null && phase.equals(own.phase)) {
+            return own;
+        }
+        if (own != null) {
+            LOGGER.warn("[BossSim] {} was captured in {}, not {} - not used as {}", capturePath(phase), own.phase, phase, phase);
+        }
+        if ("P1".equals(phase) || Files.isRegularFile(capturePath(phase))) {
+            return null;
+        }
+        Captured base = readFile(capturePath(), "P1");
+        return base != null && phase.equals(base.phase) ? base : null;
+    }
+
+    /** {@code filePhase}: the phase a version-1 file (no phase of its own) is taken for, its file name's. */
+    private static Captured readFile(Path p, String filePhase) {
         if (!Files.isRegularFile(p)) {
             return null;
         }
@@ -403,10 +499,12 @@ public final class BossArena {
              DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(new GZIPInputStream(raw, 1 << 16)))) {
             byte[] magic = new byte[4];
             in.readFully(magic);
-            if (!"K5BA".equals(new String(magic, java.nio.charset.StandardCharsets.US_ASCII)) || in.readInt() != 1) {
+            int version = "K5BA".equals(new String(magic, java.nio.charset.StandardCharsets.US_ASCII)) ? in.readInt() : -1;
+            if (version != 1 && version != 2) {
                 LOGGER.warn("[BossSim] {} is not a boss capture (bad header) - using the built-in plan", p);
                 return null;
             }
+            String phase = version == 2 ? in.readUTF() : filePhase;
             int x0 = in.readInt(), y0 = in.readInt(), z0 = in.readInt(), w = in.readInt(), h = in.readInt(), d = in.readInt();
             int n = in.readInt();
             BlockState[] states = new BlockState[n];
@@ -429,7 +527,7 @@ public final class BossArena {
                 i += run;
             }
             states = undoDioriteGlass(x0, y0, z0, w, d, states, cells);
-            return new Captured(x0, y0, z0, w, h, d, states, cells);
+            return new Captured(phase, x0, y0, z0, w, h, d, states, cells);
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("[BossSim] could not read the boss capture {} - using the built-in plan", p, e);
             return null;
