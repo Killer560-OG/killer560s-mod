@@ -81,8 +81,8 @@ public final class SimSurvival {
             player.fallDistance = 0;
             BlockPos home = homePoint;
             if (home != null && player.level() instanceof ServerLevel level) {
-                player.teleportTo(level, home.getX() + 0.5, home.getY(), home.getZ() + 0.5,
-                        java.util.Set.of(), player.getYRot(), player.getXRot(), false);
+                SimArrival.place(player, level, home.getX() + 0.5, home.getY(), home.getZ() + 0.5,
+                        player.getYRot(), player.getXRot());
             }
             // What killed him, in the log: a death mid-puzzle sent him back to the middle of the floor and the auto lost
             // the room with no word of why (fullclear-1016 run 061, Lower Blaze).

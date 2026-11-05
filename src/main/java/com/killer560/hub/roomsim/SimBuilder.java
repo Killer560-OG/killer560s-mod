@@ -740,13 +740,14 @@ public final class SimBuilder {
             // ONE BLOCK IN FROM THE DOORWAY. A blaze room is a shaft; its middle is the chain, and the level
             // that matters is the one you walk in on. The side comes from the room's own measured doorway
             // mask rather than a guess, and 14 is the tile center (16 in capture-local) stepped out to the
-            // wall at 1 or 31 and back in one.
+            // wall at 1 or 31 and back in one. AT THE DOORWAY'S FLOOR (simchunk-1105): a column scan from the top
+            // stood him on a ledge 5 above it in Higher Blaze turned on a generated floor (97, y259 vs doorway 254).
             RoomDoors.Mask mask = doorsAsPasted(room, gridX, gridZ);
             if (mask != null) {
                 for (int packed : mask.edges()) {
                     int side = RoomDoors.sideOf(packed);
-                    return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14,
-                            name.startsWith("higher"));
+                    return new Spawn(RoomDoors.DX[side] * 14, RoomDoors.DZ[side] * 14, name.startsWith("higher"),
+                            RoomDoors.DX[side] * 15, RoomDoors.DZ[side] * 15);
                 }
             }
             return new Spawn(0, 0, name.startsWith("higher"));
@@ -1103,6 +1104,8 @@ public final class SimBuilder {
             // not safe, the room's own doorways decide (doorwaySpot) - still at a doorway, still facing in.
             doorLevel = openingFloor(level, wx, wz, spawn.doorDz() != 0);
             if (doorLevel == null || !safeAt(level, x, doorLevel, z)) {
+                LOGGER.info("[SimPhase] {}: doorway at {},{} gives floor {}, spot {},{} not usable - trying its doorways",
+                        room.name, wx, wz, doorLevel, x, z);
                 doorLevel = null;
                 doorFallback = true;
             }
@@ -1181,11 +1184,20 @@ public final class SimBuilder {
                 landing = door[1];
                 z = door[2];
                 doorYaw = (float) door[3];
+            } else if (doorFallback) {
+                LOGGER.info("[SimPhase] {}: none of its doorways gives a spot - landing at {} {} {}", room.name, x, landing, z);
             }
         }
-        final int y = landing;
-        final int fx = x;
-        final int fz = z;
+        // Never into a block (simspawn-1104): a landing that is not a clear standing spot gives way to the nearest one.
+        double[] spot = SimArrival.clear(level, x + 0.5, landing, z + 0.5);
+        final int y = (int) spot[1];
+        final int fx = (int) Math.floor(spot[0]);
+        final int fz = (int) Math.floor(spot[2]);
+        // Held from NOW, on this thread: the build's completion takes the loading screen down through client.execute,
+        // which can run before the teleport task below - the hold has to be in place first.
+        if (uuid != null) {
+            SimArrival.expect(uuid, new double[]{fx + 0.5, y, fz + 0.5});
+        }
         final Float faceYaw = face != null ? Float.valueOf(face[0])
                 : doorYaw != null ? doorYaw : spawn == null ? null : spawn.yaw();
         final Float facePitch = face != null ? Float.valueOf(Math.max(-90f, Math.min(90f, face[1]))) : null;
@@ -1205,7 +1217,7 @@ public final class SimBuilder {
                     yaw += delta;
                 }
                 float pitch = facePitch != null ? facePitch : sp.getXRot();
-                sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch, false);
+                SimArrival.teleport(sp, level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch);
                 if (landed != null) {
                     landed.accept(new float[]{yaw, pitch});
                 }
@@ -1380,7 +1392,7 @@ public final class SimBuilder {
      * <p>A barrier under his feet, because the sim world is void and a player waiting on a loading screen
      * still falls - and falling would drop him back through the region being built.
      */
-    static void holdPlayer(Minecraft client, ServerLevel level) {
+    public static void holdPlayer(Minecraft client, ServerLevel level) {
         // One read: this runs on the server thread, where client.player can go null between a check and a use.
         var player = client.player;
         var uuid = player == null ? null : player.getUUID();
@@ -1390,8 +1402,8 @@ public final class SimBuilder {
             if (sp == null) return;
             level.setBlockAndUpdate(HOLDING_AREA.below(),
                     net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
-            sp.teleportTo(level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
-                    java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
+            SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
+                    java.util.Set.of(), sp.getYRot(), sp.getXRot());
         });
     }
 
@@ -1787,6 +1799,11 @@ public final class SimBuilder {
             return;
         }
         SimRoomCycle.noteSingleRoomLoad(fromCycle);
+        // From inside the sim (the menu's room list, the room cycle) nothing put the loading screen up: he stood in the
+        // void at the holding spot watching nothing (simspawn-1104).
+        if (!SimWorld.isBuilding()) {
+            SimWorld.showLoading(client, "Loading " + roomName);
+        }
         final int rotation = reset ? resetRotation
                 : tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
         soloLoad = new SoloLoad(room.name, rotation, fromCycle);

@@ -77,7 +77,7 @@ public final class RoomPlacer {
      * lighting or heightmaps, so a build that stopped after this would be a correctly-shaped room in the dark.
      * {@code SimBuildQueue.FinishJob} does that pass.
      */
-    static final class SectionWriter {
+    public static final class SectionWriter {
 
         private final ServerLevel level;
         private net.minecraft.world.level.chunk.LevelChunk chunk;
@@ -89,18 +89,26 @@ public final class RoomPlacer {
         /** Blocks this writer could not place because they fell outside the world's build range. */
         private int outsideWorld;
 
+        /** Whether {@link SimAltitude#offset} is added (a room's captured heights); the boss sits at Hypixel's own. */
+        private final boolean shifted;
+
         SectionWriter(ServerLevel level) {
-            this.level = level;
+            this(level, true);
         }
 
-        /** How many blocks were dropped for being outside the world. Zero on a healthy build. */
-        int outsideWorld() { return outsideWorld; }
+        public SectionWriter(ServerLevel level, boolean shifted) {
+            this.level = level;
+            this.shifted = shifted;
+        }
 
-        /** @return whether the block was written */
-        boolean set(int x, int y, int z, BlockState state) {
-            // The whole floor is shifted once - see SimAltitude. Applied HERE, at the one place every pasted
-            // block passes through, rather than at each of the dozen callers that walk a captured y.
-            y += SimAltitude.offset();
+        /** The block at a position, read from the section like {@link #set} writes it (no shift applied). */
+        public BlockState get(int x, int y, int z) {
+            if (!at(x, y, z)) return null;
+            return section.getBlockState(x & 15, y & 15, z & 15);
+        }
+
+        /** Points the writer at the section holding (x, y, z); false outside the world's height. */
+        private boolean at(int x, int y, int z) {
             int cx = x >> 4;
             int cz = z >> 4;
             if (cx != chunkX || cz != chunkZ || chunk == null) {
@@ -111,21 +119,30 @@ public final class RoomPlacer {
             }
             int idx = chunk.getSectionIndex(y);
             if (idx < 0 || idx >= chunk.getSections().length) {
-                // OUTSIDE THE WORLD, and counted rather than dropped in silence.
-                //
-                // This returned false and said nothing, so a floor whose offset pushed a tall room past the
-                // build limit came out with its top simply missing and every check still passed - the paste
-                // reported the blocks it wrote, not the ones it could not. killer560 (2026-09-30) has now
-                // described two rooms that way: "Here is half of supertall" and "Balcony was missing part of
-                // it with the high up chest and was mangled". SimAltitude has a guard meant to prevent it,
-                // so if this counter is ever non-zero that guard is wrong, and a number is how anyone finds
-                // that out.
-                outsideWorld++;
                 return false;
             }
             if (idx != sectionIndex) {
                 section = chunk.getSections()[idx];
                 sectionIndex = idx;
+            }
+            return true;
+        }
+
+        /** How many blocks were dropped for being outside the world. Zero on a healthy build. */
+        int outsideWorld() { return outsideWorld; }
+
+        /** @return whether the block was written */
+        public boolean set(int x, int y, int z, BlockState state) {
+            // The whole floor is shifted once - see SimAltitude. Applied HERE, at the one place every pasted
+            // block passes through, rather than at each of the dozen callers that walk a captured y.
+            if (shifted) y += SimAltitude.offset();
+            if (!at(x, y, z)) {
+                // OUTSIDE THE WORLD, and counted rather than dropped in silence: a floor whose offset pushed a tall
+                // room past the build limit came out with its top missing and every check still passing (killer560,
+                // 2026-09-30: "Here is half of supertall"). SimAltitude has a guard meant to prevent it, so a non-zero
+                // count means that guard is wrong.
+                outsideWorld++;
+                return false;
             }
             BlockState old = section.setBlockState(x & 15, y & 15, z & 15, state, false);
             // Take the old BLOCK ENTITY with it.
@@ -289,6 +306,9 @@ public final class RoomPlacer {
          * captured, and those are skipped without costing anything, so charging the budget for them would make
          * a sparse room take as many ticks as a solid one for no work.
          */
+        @Override
+        public String stage() { return "Placing rooms"; }
+
         @Override
         public int step(int budget) {
             int placed = 0;

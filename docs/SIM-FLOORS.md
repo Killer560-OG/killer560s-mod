@@ -215,6 +215,13 @@ walks).
   column in the same tile (rings out to 15), else the old uncovered scan. `/goto museum` was on the roof: Museum's four tile
   centers are solid pillars y58 to the roof at y119.
 
+- **Every landing ends in `SimArrival`** (simspawn-1104): `clear` keeps a spot with feet and head free and something solid
+  under it, else takes the nearest that is (6 up, 4 down, rings to 4 sideways; "[SimPhase] landing ... moved to"). The
+  boss phases (`BossFight.teleportAll`), death's way home and `snapPlayerTo` all go through it. His client is then held
+  under the loading screen until it has the 3x3 chunks round the spot, put back on it once if he drifted, and after 40
+  ticks with chunks still missing the server is asked to track them again ("re-tracking"); 15 s is the cap.
+  During any build he waits at `SimBuilder.holdPlayer`'s spot, the boss build included.
+
 ## The Map Designer, filters and history
 
 - **A filter that matches a room's NAME cannot find a room TYPE.** Ask `SimFloorGen.typeOf`. The room database has 140

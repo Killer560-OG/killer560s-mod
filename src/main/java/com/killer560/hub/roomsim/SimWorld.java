@@ -56,6 +56,7 @@ public final class SimWorld {
         // survives that, and it costs a null check on the ticks when nothing is building.
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             drainUnload(client);
+            SimArrival.clientTick(client);
             if (!buildInProgress) return;
             // Only once the level is actually here. While it is still loading, vanilla owns the screen -
             // fighting it for that every tick means replacing its receiving-level screen over and over, which
@@ -267,10 +268,7 @@ public final class SimWorld {
             // The NEW map's code. The world-load path sets it through SimState.enter; this path never did, so
             // every room lookup (trap rule, sidebar Room line) kept answering from the previous floor.
             SimState.replaceMapCode(mapCode);
-            loadingLabel = label == null ? "Building" : label;
-            buildInProgress = true;
-            loadingTicks = 0;
-            loadingScreen = SimLoadingScreen.show(client, loadingLabel);
+            showLoading(client, label == null ? "Building" : label);
             if (build != null) {
                 build.accept(client);
             } else {
@@ -281,12 +279,10 @@ public final class SimWorld {
 
         pendingCode = mapCode == null ? "" : mapCode;
         pendingBuild = build;
-        loadingLabel = label == null ? "Opening the sim" : label;
+        openRequestedAt = System.currentTimeMillis();
         // Held from here until the builder reports done. The tick hook above is what actually keeps it on
         // screen through the world load; this call just gets it up for the frames before that starts.
-        buildInProgress = true;
-        loadingTicks = 0;
-        loadingScreen = SimLoadingScreen.show(client, loadingLabel);
+        showLoading(client, label == null ? "Opening the sim" : label);
         try {
             if (exists(client)) {
                 if (build != null) {
@@ -369,11 +365,71 @@ public final class SimWorld {
      * than the biggest room to be safe, and would then make every small room feel broken.
      */
     public static void buildFinished(Minecraft client, String summary) {
+        if (buildInProgress) {
+            LOGGER.info("[SimPhase] build reported done {} ms after the loading screen went up",
+                    System.currentTimeMillis() - loadingSince);
+        }
         buildInProgress = false;
         loadingTicks = 0;
         loadingScreen = null;
-        SimLoadingScreen.dismiss(client);
+        // The landing's chunks may still be on their way to him: SimArrival takes the screen down once they are in.
+        if (!SimArrival.holding()) {
+            SimLoadingScreen.dismiss(client);
+        }
     }
+
+    /**
+     * Puts the loading screen up for a build inside the world he is already in (a single room from the menu, the
+     * room cycle, the boss from the floor), held until {@link #buildFinished}. Those paths used to show nothing, or
+     * a screen the per-tick hook did not keep up.
+     */
+    public static void showLoading(Minecraft client, String label) {
+        loadingLabel = label == null ? "Building" : label;
+        buildInProgress = true;
+        loadingTicks = 0;
+        loadingSince = System.currentTimeMillis();
+        barShown = 0f;
+        arrivalOnly = false;
+        loadingScreen = SimLoadingScreen.show(client, loadingLabel);
+    }
+
+    /**
+     * The bar, 0..1, as the screen draws it: the build queue's own work to 90%, then the landing's chunks reaching his
+     * client to 100%. Never moves back within one load (between jobs, and after the queue empties while the doors,
+     * secrets and puzzles go in, the queue alone read 0 - the "loading bar never updates" of 2026-11-04).
+     */
+    public static float progress() {
+        float raw;
+        if (SimBuildQueue.isBusy()) {
+            raw = 0.9f * SimBuildQueue.progress();
+        } else if (!buildInProgress && SimArrival.holding()) {
+            raw = arrivalOnly ? SimArrival.fraction() : 0.9f + 0.1f * SimArrival.fraction();
+        } else {
+            raw = barShown;
+        }
+        barShown = Math.max(barShown, raw);
+        return barShown;
+    }
+
+    /** The screen's second line from the live build (stage and steps left, or the chunks), or null for its own. */
+    static String detail() {
+        String queue = SimBuildQueue.detail();
+        if (queue != null) return queue;
+        return !buildInProgress && SimArrival.holding() ? SimArrival.detail() : null;
+    }
+
+    private static float barShown;
+
+    /** A new load's bar starts empty. */
+    static void resetBar() {
+        barShown = 0f;
+        arrivalOnly = true;
+    }
+
+    /** The screen is up for a landing alone (a /goto, a boss phase), so the chunks are the whole bar. */
+    private static boolean arrivalOnly;
+    private static long loadingSince;
+    private static long openRequestedAt;
 
     /** Whether a build asked for through {@link #open} is still running (its loading screen is up). */
     static boolean isBuilding() { return buildInProgress; }
@@ -396,7 +452,8 @@ public final class SimWorld {
     public static void onWorldLoaded(Minecraft client) {
         // Every world join lands here, Hypixel's server changes included; only a pending sim request does anything.
         if (pendingCode == null) return;
-        LOGGER.info("[SimPhase] world loaded, starting the build");
+        LOGGER.info("[SimPhase] world loaded {} ms after the open was asked for, starting the build",
+                System.currentTimeMillis() - openRequestedAt);
         String code = pendingCode;
         pendingCode = null;
         java.util.function.Consumer<Minecraft> build = pendingBuild;
@@ -419,6 +476,9 @@ public final class SimWorld {
                 for (var sp : server.getPlayerList().getPlayers()) {
                     sp.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
                 }
+                // A boss fight left before 2026-11-05 saved its arena forced: loaded at every open, and on 26.2 the
+                // landing chunks then never reached his client (simspawn-1104).
+                for (var lvl : server.getAllLevels()) com.killer560.hub.bosssim.BossFight.releaseForced(lvl);
             });
         }
         SimAbilities.reset();

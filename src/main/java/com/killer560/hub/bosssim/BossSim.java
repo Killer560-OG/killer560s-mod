@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.Event;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -56,6 +57,7 @@ public final class BossSim {
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(BossSim::serverTick);
+        ServerLifecycleEvents.SERVER_STOPPING.register(BossFight::serverStopping);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BossSim.tick", BossSim::clientTick));
         UseEntityCallback.EVENT.register((player, level, hand, entity, hit) -> {
             if (level.isClientSide() || !(player instanceof ServerPlayer sp) || !serverOk(sp)) {
@@ -202,7 +204,7 @@ public final class BossSim {
         if (SimState.canAct(client) && client.getSingleplayerServer() != null) {
             // Already in the sim (the floor's portal, or the menu from inside it): build beside the floor without
             // SimWorld.open, whose in-sim path resets the floor's per-map state (score, secrets, the run).
-            com.killer560.hub.roomsim.SimLoadingScreen.show(client, "Building the F7 boss");
+            com.killer560.hub.roomsim.SimWorld.showLoading(client, "Building the F7 boss");
             buildAndBegin(client);
         } else if (SimState.canOpen(client)) {
             SimWorld.open(client, "", BossSim::buildAndBegin, "Building the F7 boss");
@@ -224,6 +226,9 @@ public final class BossSim {
         server.execute(() -> {
             BossFight.stop("rebuild");
             long t0 = System.currentTimeMillis();
+            // Out of the arena while it goes up (simspawn-1104): from a fresh world he stood at spawn, inside the box
+            // being built, and from the floor every write was sent to his client as it landed.
+            com.killer560.hub.roomsim.SimBuilder.holdPlayer(client, server.overworld());
             BossArena.build(server.overworld(), () -> {
                 LOGGER.info("[BossSim] arena built from the {} in {} ms", BossArena.source(), System.currentTimeMillis() - t0);
                 BossFight.begin(server, from, master);
@@ -245,9 +250,6 @@ public final class BossSim {
             return;
         }
         try {
-            if (BossArena.building()) {
-                BossArena.step(server.overworld());
-            }
             BossFight.tick(server);
             BossTerminals.tick(server);
         } catch (RuntimeException e) {
