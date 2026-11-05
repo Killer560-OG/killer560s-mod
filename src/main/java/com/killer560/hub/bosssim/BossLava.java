@@ -3,8 +3,6 @@ package com.killer560.hub.bosssim;
 import com.killer560.hub.util.ModLog;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
-import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,7 +13,6 @@ import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -26,7 +23,7 @@ import java.util.UUID;
  * <li>If so, and it has not bounced you in the last 4 ticks, your motion becomes exactly (0, 2.25, 0), or (0, 3.0375, 0)
  * when you look at pitch -40.7 or further up. Any lava, no health lost, never on fire.</li>
  * <li>The client's own physics does the rest (from 106.00: 108.25, 110.03, 111.69 ...).</li>
- * <li>About half the bounces come with the hurt tilt; the rest are silent.</li>
+ * <li>About half the bounces come with the hurt tilt on Hypixel; the sim sends none (killer560, 2026-11-05).</li>
  * </ul>
  * The sim is the server here: it sets the motion and tells the client, as Hypixel's does. Nothing on the client moves him.
  */
@@ -36,7 +33,6 @@ final class BossLava {
     private static final float HIGH_PITCH = -40.7f;
     private static final double VY = 2.25, VY_HIGH = 3.0375;
     private static final int COOLDOWN = 4;
-    private static final Random RNG = new Random();
 
     private static final Map<UUID, Integer> bouncedAt = new HashMap<>();
     private static int tick;
@@ -65,13 +61,11 @@ final class BossLava {
             }
             bouncedAt.put(p.getUUID(), tick);
             double vy = p.getXRot() <= HIGH_PITCH ? VY_HIGH : VY;
-            p.setDeltaMovement(new Vec3(0.0, vy, 0.0));
             p.fallDistance = 0;
             p.clearFire();
-            p.connection.send(new ClientboundSetEntityMotionPacket(p));
-            if (RNG.nextBoolean()) {
-                p.connection.send(new ClientboundHurtAnimationPacket(p));
-            }
+            // A launch on purpose, so it passes the sim's no-knockback filter. Hypixel tilts the camera on about half the
+            // bounces (ADM's capture); the sim does not (killer560 2026-11-05: lava "moves my pov like im taking damage").
+            com.killer560.hub.roomsim.SimLaunch.push(p, new Vec3(0.0, vy, 0.0));
             bounces++;
             LOGGER.info("[BossSim] lava bounce at y {} (vy {})", String.format(java.util.Locale.ROOT, "%.2f", p.getY()), vy);
         }

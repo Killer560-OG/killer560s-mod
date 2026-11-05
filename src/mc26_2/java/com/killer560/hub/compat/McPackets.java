@@ -131,4 +131,10 @@ public final class McPackets {
     public static float acceptXRot(ServerboundAcceptTeleportationPacket p) {
         return Float.NaN;
     }
+
+    /** The same explosion with no knockback for the player it is sent to (the sim's no-knockback rule, SimLaunch). */
+    public static net.minecraft.network.protocol.game.ClientboundExplodePacket withoutKnockback(
+            net.minecraft.network.protocol.game.ClientboundExplodePacket p) {
+        return new net.minecraft.network.protocol.game.ClientboundExplodePacket(p.center(), p.radius(), p.blockCount(), java.util.Optional.empty(), p.explosionParticle(), p.explosionSound(), p.blockParticles());
+    }
 }

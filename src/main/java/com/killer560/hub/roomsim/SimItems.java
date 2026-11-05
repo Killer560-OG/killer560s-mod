@@ -92,7 +92,11 @@ public final class SimItems {
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
         // Moved off the blaze rod so it is not the same item in the hand as the Spirit Sceptre above.
         TACTICAL_INSERTION("TACTICAL_INSERTION", Items.BLAZE_ROD, "Tactical Insertion", 1),
-        DUNGEON_BREAKER("DUNGEONBREAKER", Items.DIAMOND_PICKAXE, "Dungeon Breaker", 1);
+        DUNGEON_BREAKER("DUNGEONBREAKER", Items.DIAMOND_PICKAXE, "Dungeon Breaker", 1),
+        // Hypixel's own materials (api.hypixel.net, 2026-11-05): blaze rod, golden horse armor, chainmail boots.
+        BONZO_STAFF("BONZO_STAFF", Items.BLAZE_ROD, "Bonzo's Staff", 1),
+        JERRY_STAFF("JERRY_STAFF", Items.GOLDEN_HORSE_ARMOR, "Jerry-chine Gun", 1),
+        SPRING_BOOTS("SPRING_BOOTS", Items.CHAINMAIL_BOOTS, "Spring Boots", 1);
 
         final String skyblockId;
         final Item base;
@@ -377,6 +381,7 @@ public final class SimItems {
                 });
                 yield true;
             }
+            case "BONZO_STAFF", "STARRED_BONZO_STAFF", "JERRY_STAFF" -> SimLaunchItems.use(sp, skyblockId);
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(sp);
             case "SUPERBOOM_TNT" -> {
                 if (onBlock != null) {
@@ -408,7 +413,8 @@ public final class SimItems {
     public static boolean consumesUse(String skyblockId) {
         if (skyblockId == null) return false;
         return switch (skyblockId) {
-            case "BAT_WAND", "TERMINATOR", "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT" -> true;
+            case "BAT_WAND", "TERMINATOR", "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT", "BONZO_STAFF", "STARRED_BONZO_STAFF",
+                 "JERRY_STAFF" -> true;
             // Ender pearls and the Dungeon Breaker are deliberately absent: the pearl is plain vanilla and
             // the breaker is a left-click tool.
             default -> false;
