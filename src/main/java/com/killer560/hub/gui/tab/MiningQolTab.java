@@ -24,6 +24,7 @@ public class MiningQolTab extends FolderTab {
                 new PowderMiningGroup(), new CrystalHollowsGroup(), new MiningGeneralGroup()));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             t.add(new MiningPigeonDrillTab());
+            t.add(new PowderChestTriggerbotTab());
             // From staging-mining-3 (2026-11-04): draws through walls. (The Structure Scanner is in the Crystal Hollows group.)
             t.add(new GhostEspTab());
             // A stub with no switch (the macro itself is on staging-mining-3): moved here from Helpers, killer560 2026-11-04.

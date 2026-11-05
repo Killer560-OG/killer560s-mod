@@ -30,6 +30,7 @@ final class CardBlurbsData {
         d.put("MiningGoldenGoblinTab", "Boxes Golden and Diamond Goblins.");
         d.put("PowderBreakSoundsTab", "Mutes or swaps mining sounds.");
         d.put("LockpickHelperTab", "Shows the chest side to click.");
+        d.put("PowderChestTriggerbotTab", "Clicks your treasure chest locks.");
         d.put("CrystalHollowsWallsTab", "Colored walls on zone borders.");
         d.put("PowderTrackerTab", "Powder and chests per hour.");
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");

@@ -263,6 +263,11 @@ public final class ActionGate {
         /** Swap To Drill On Pigeon (killer560, 2026-11-03): the held-slot change to the best drill right after a Royal
          *  Pigeon use, before the Commissions menu opens. {@code miningqol.PigeonDrillSwap} is its only caller. */
         PIGEON_DRILL(Kind.HOTBAR),
+        /** Powder Chest Triggerbot's right click on a Crystal Hollows treasure chest (cheat build, 2026-11-04).
+         *  {@code powdermining.PowderChestTriggerbot#tick} is its only caller. */
+        POWDER_CHEST_TRIGGER(Kind.WORLD),
+        /** Powder Chest Triggerbot's swap to the highest Gemstone Powder drill, a tick before its click. Same caller. */
+        POWDER_CHEST_SWAP(Kind.HOTBAR),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
          *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as

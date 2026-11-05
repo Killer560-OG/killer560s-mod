@@ -138,7 +138,7 @@ public final class TreasureChests {
 
     static boolean tracking() {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        return (cfg.isTreasureChest() || cfg.isLockpickHelper()) && MiningState.crystalHollows();
+        return (cfg.isTreasureChest() || cfg.isLockpickHelper() || cfg.isChestTriggerbot()) && MiningState.crystalHollows();
     }
 
     /** A block changed (client thread, after the change is in the level). */
@@ -160,6 +160,20 @@ public final class TreasureChests {
             claim(key, now);
         } else {
             UNCLAIMED.put(key, now);
+        }
+    }
+
+    /**
+     * A chunk arrived (client thread, after it is in the level). A chest that comes inside chunk data gets no block update,
+     * so with an uncovered line waiting its chests are matched here: a line, then the chunk with the chest in it (a chunk
+     * the client had not loaded yet) was never claimed (chestbot-1104, 1 testkit run in 3).
+     */
+    public static void onChunkLoaded(int chunkX, int chunkZ) {
+        Minecraft client = Minecraft.getInstance();
+        if (pendingLines == 0 || client.level == null || client.player == null || !tracking()) return;
+        for (BlockPos pos : client.level.getChunk(chunkX, chunkZ).getBlockEntities().keySet()) {
+            if (pendingLines == 0) return;
+            onBlockChanged(pos);
         }
     }
 

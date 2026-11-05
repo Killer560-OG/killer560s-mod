@@ -7,6 +7,7 @@ import com.killer560.hub.util.ModLog;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.world.level.block.Blocks;
@@ -34,6 +35,16 @@ public abstract class PowderPacketMixin {
             TreasureChests.onBlockChanged(packet.getPos());
         } catch (RuntimeException e) {
             killer560smod$powder$threw("blockUpdate", e);
+        }
+    }
+
+    @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"), require = 0)
+    private void killer560smod$powderChunk(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
+        try {
+            TreasureChests.onChunkLoaded(com.killer560.hub.compat.McPackets.chunkX(packet),
+                    com.killer560.hub.compat.McPackets.chunkZ(packet));
+        } catch (RuntimeException e) {
+            killer560smod$powder$threw("levelChunk", e);
         }
     }
 
