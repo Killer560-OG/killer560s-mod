@@ -439,5 +439,6 @@ public final class SimonSaysConfig {
     public void setResetMessageText(String resetMessageText) { this.resetMessageText = resetMessageText; }
 
     public boolean isDiagnosticLoggingEnabled() { return diagnosticLoggingEnabled; }
+    public void setDiagnosticLoggingEnabled(boolean v) { diagnosticLoggingEnabled = v; }
 
 }
