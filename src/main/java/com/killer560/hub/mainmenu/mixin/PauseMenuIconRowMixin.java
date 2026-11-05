@@ -17,7 +17,13 @@ import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.layouts.LayoutSettings;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.core.Holder;
+import net.minecraft.server.dialog.Dialog;
+import net.minecraft.server.dialog.Dialogs;
+import java.util.Optional;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
@@ -37,6 +43,12 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(PauseScreen.class)
 public abstract class PauseMenuIconRowMixin {
 
+    @Unique
+    private Button killer560smod$pendingMods;
+
+    @Shadow
+    abstract Optional<? extends Holder<Dialog>> getCustomAdditions();
+
     @WrapOperation(method = "createPauseMenu()V", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;ILnet/minecraft/client/gui/layouts/LayoutSettings;)Lnet/minecraft/client/gui/layouts/LayoutElement;"),
             require = 0)
@@ -51,18 +63,47 @@ public abstract class PauseMenuIconRowMixin {
         } catch (Throwable t) {
             MainMenuTheme.fail("pause icons", t);
         }
+        killer560smod$pendingMods = null;
         LayoutElement out = hide ? element : original.call(helper, element, span, settings);
         try {
             if (ModListConfig.getInstance().isPauseButton() && (!FabricLoader.getInstance().isModLoaded("modmenu")
                     || hide && holdsModMenu(element))) {
                 Screen self = (Screen) (Object) this;
-                helper.addChild(Button.builder(Component.literal("Mods"),
-                        b -> McCompat.setScreen(Minecraft.getInstance(), new ModsScreen(self))).width(204).build(), 2);
+                Optional<? extends Holder<Dialog>> extra = getCustomAdditions();
+                boolean links = extra.isPresent() && extra.get().is(Dialogs.SERVER_LINKS);
+                Button mods = Button.builder(Component.literal("Mods"),
+                        b -> McCompat.setScreen(Minecraft.getInstance(), new ModsScreen(self))).width(links ? 98 : 204).build();
+                if (links) {
+                    killer560smod$pendingMods = mods;
+                } else {
+                    helper.addChild(mods, 2);
+                }
             }
         } catch (Throwable t) {
             MainMenuTheme.fail("pause mods button", t);
         }
         return out;
+    }
+
+    /** Vanilla adds Server Links in addCustomDialogButtons, one row below: Mods (half width) goes beside it. */
+    @WrapOperation(method = "addCustomDialogButtons", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;I)Lnet/minecraft/client/gui/layouts/LayoutElement;"),
+            require = 0)
+    private LayoutElement killer560smod$modsBesideLinks(GridLayout.RowHelper helper, LayoutElement element, int span,
+                                                        Operation<LayoutElement> original) {
+        Button mods = killer560smod$pendingMods;
+        killer560smod$pendingMods = null;
+        if (mods == null) {
+            return original.call(helper, element, span);
+        }
+        if (element instanceof Button links) {
+            links.setWidth(98);
+            original.call(helper, mods, 1);
+            return original.call(helper, links, 1);
+        }
+        mods.setWidth(204);
+        original.call(helper, mods, 2);
+        return original.call(helper, element, span);
     }
 
     private static boolean holdsModMenu(LayoutElement row) {
