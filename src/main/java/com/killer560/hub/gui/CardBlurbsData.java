@@ -157,6 +157,7 @@ final class CardBlurbsData {
         d.put("DioriteGlassTab", "Storm's diorite pillars as glass.");
         d.put("InteractiveMapTab", "Full-screen map pathing.");
         d.put("FullBlockTab", "Bigger click boxes for secrets.");
+        d.put("LeftClickSecretsTab", "Left click opens a secret.");
         d.put("LeverAuraTab", "Flicks the P3 Lights levers.");
         d.put("SecretAuraTab", "Clicks nearby secrets for you.");
         d.put("SecretTriggerbotTab", "Clicks secrets on aim.");

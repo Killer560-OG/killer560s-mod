@@ -528,6 +528,7 @@ public final class ProfileManager {
                 com.killer560.hub.invwalk.InventoryWalkConfig::load,
                 com.killer560.hub.zpew.ZeroPingEtherwarpConfig::load,
                 com.killer560.hub.leftclickew.LeftClickEtherwarpConfig::load,
+                com.killer560.hub.leftclicksecrets.LeftClickSecretsConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
                 com.killer560.hub.luck.LuckConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,

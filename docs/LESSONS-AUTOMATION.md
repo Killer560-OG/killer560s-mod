@@ -300,6 +300,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 
 ## Reach, chests and secrets
 
+- **A left click turned into a right click is clean on both Grims when it replaces vanilla's attack at the HEAD of `Minecraft.startAttack` and calls `gameMode.useItemOn` there** (Left Click Opens Secrets, leftsecret-1105): that is the attack's own slot in handleKeybinds, after the hotbar keys, so no `set_carried_item` follows the use in the tick, the use carries the look the server already has, and it goes through `startPrediction`. `continueAttack` must be cancelled too while the button is held on the secret, or the held button sends a dig START the next tick. Testkit 1105-leftsecret-* (empty hand, sword, Dungeon Breaker): one use_item_on, 0 player_action, 0 GrimAC lines on default and experimental checks.
 - **Dungeon key pickup range = Key Base Range + 5; the Magnetic Talisman does NOT apply to keys** (confirmed in game by
   killer560, 2026-10-06; the wiki x3 is for items only, keys are armor stands). Default 1.0 + 5 = 6 blocks. The talisman
   setting and the x3 were removed; an old `magneticTalisman` key in the config file is ignored.
