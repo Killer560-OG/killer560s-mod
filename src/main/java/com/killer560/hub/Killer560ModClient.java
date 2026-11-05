@@ -33,7 +33,6 @@ import com.killer560.hub.posmsg.PosmsgFeature;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import com.killer560.hub.rngmeter.MagicFindTracker;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.secrets.SimDiagnosticFeature;
 import com.killer560.hub.rngmeter.RngMeterEngine;
 import com.killer560.hub.rngmeter.RngMeterOverlay;
 import com.killer560.hub.simonsays.SimonSaysFeature;
@@ -255,7 +254,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.containercover.ContainerCover.registerFull(
                 s -> com.killer560.hub.terminals.TerminalSolverFeature.isCustomGuiActive());
         DungeonState.register();
-        SimDiagnosticFeature.register();
         PosmsgFeature.register();
         com.killer560.hub.thorn.ThornFeature.register();
         HudElementRegistry.register(com.killer560.hub.thorn.ThornFeature.HUD);
