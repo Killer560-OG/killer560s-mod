@@ -21,7 +21,7 @@ import java.util.Map;
 
 /**
  * Networth estimate, same category split as skyblock-pv's {@code NetworthCategory}. Every item stack is valued by the
- * Price Tooltip's Est. Item Value calculator ({@link ItemValueCalc} in NETWORTH mode: base price plus enchants,
+ * Price Tooltip's Est. Item Value calculator ({@link ItemValueCalc} in the Price Tooltip's Value Mode, so both show one number: base price plus enchants,
  * recombs, potato books, stars, gemstones, scrolls, parts, dye, skin, rune...) times the stack count (killer560,
  * 2026-11-04). An item the calculator has no base price for falls back to the old lookup: Bazaar price from the
  * mod's shared {@code RngMeterEngine.PRICES} cache, else the lowest BIN from {@link ExtraTables#lowestBins()}.
@@ -206,7 +206,7 @@ public final class Networth {
     }
 
     /**
-     * One stack's value: Est. Item Value (NETWORTH mode) per unit times the count (a pet counts once). Falls back to
+     * One stack's value: Est. Item Value (the Price Tooltip's Value Mode) per unit times the count (a pet counts once). Falls back to
      * the plain base-price lookup for whatever the calculator has no base price for.
      */
     public static ItemValue itemValue(ItemStack s, Map<String, Double> bins) {
@@ -222,7 +222,7 @@ public final class Networth {
             if (tag != null && tag.contains("id")) {
                 String key = ItemKeys.priceKey(tag, s.getHoverName().getString());
                 if (key != null) {
-                    ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.ValueMode.NETWORTH);
+                    ItemValueCalc.Result r = ItemValueCalc.compute(tag, key, PriceTooltipConfig.getInstance().getValueMode());
                     for (ItemValueCalc.Part part : r.parts()) {
                         if ("Base".equals(part.label())) {
                             hasBase = true;

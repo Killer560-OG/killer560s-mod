@@ -31,12 +31,15 @@ public final class PriceTooltipConfig {
         }
     }
 
-    /** How Est. Item Value weighs what was applied to an item. */
+    /**
+     * How Est. Item Value weighs what was applied to an item. FULL is the default (killer560, 2026-11-04: a recomb read
+     * 7M under NETWORTH while the Bazaar sold it for 9M).
+     */
     public enum ValueMode {
-        /** SkyHelper-style application worth (a Recombobulator counts 80%, an Art of War 60%...), as Skyblocker shows it. */
-        NETWORTH("Networth"),
         /** Everything at its full market price, as SkyHanni's Estimated Item Value shows it. */
-        FULL("Full Price");
+        FULL("Full Price"),
+        /** SkyHelper-style application worth (a Recombobulator counts 80%, an Art of War 60%...), as Skyblocker shows it. */
+        NETWORTH("Networth (Discounted)");
 
         public final String label;
 
@@ -77,7 +80,7 @@ public final class PriceTooltipConfig {
     private boolean museum = true;
     private When stackPrice = When.SHIFT;
     private When breakdown = When.SHIFT;
-    private ValueMode valueMode = ValueMode.NETWORTH;
+    private ValueMode valueMode = ValueMode.FULL;
     private NumberFormat numberFormat = NumberFormat.EXACT;
     private int refreshMinutes = 5;
 
@@ -117,7 +120,7 @@ public final class PriceTooltipConfig {
             cfg.museum = ConfigJson.getBool(obj, "museum", true);
             cfg.stackPrice = ConfigJson.getEnum(obj, "stackPrice", When.class, When.SHIFT);
             cfg.breakdown = ConfigJson.getEnum(obj, "breakdown", When.class, When.SHIFT);
-            cfg.valueMode = ConfigJson.getEnum(obj, "valueMode", ValueMode.class, ValueMode.NETWORTH);
+            cfg.valueMode = ConfigJson.getEnum(obj, "itemValueMode", ValueMode.class, ValueMode.FULL); // old "valueMode" held the NETWORTH default
             cfg.numberFormat = ConfigJson.getEnum(obj, "numberFormat", NumberFormat.class, NumberFormat.EXACT);
             cfg.refreshMinutes = clampMinutes(ConfigJson.getInt(obj, "refreshMinutes", 5));
         } catch (Exception e) {
@@ -142,7 +145,7 @@ public final class PriceTooltipConfig {
             obj.addProperty("museum", museum);
             obj.addProperty("stackPrice", stackPrice.name());
             obj.addProperty("breakdown", breakdown.name());
-            obj.addProperty("valueMode", valueMode.name());
+            obj.addProperty("itemValueMode", valueMode.name());
             obj.addProperty("numberFormat", numberFormat.name());
             obj.addProperty("refreshMinutes", refreshMinutes);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -232,7 +235,7 @@ public final class PriceTooltipConfig {
     public ValueMode getValueMode() { return valueMode; }
 
     public void setValueMode(ValueMode v) {
-        valueMode = v == null ? ValueMode.NETWORTH : v;
+        valueMode = v == null ? ValueMode.FULL : v;
         PriceTooltipFeature.invalidate();
     }
 
