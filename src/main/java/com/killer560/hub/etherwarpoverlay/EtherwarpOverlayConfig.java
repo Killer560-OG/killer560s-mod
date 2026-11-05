@@ -52,6 +52,8 @@ public final class EtherwarpOverlayConfig {
     private boolean enabled = false;
     private boolean showWhenFailed = true;
     private boolean fullBlock = false;
+    /** Draws the box through blocks in front of it (killer560, 2026-11-04), so the whole target block shows. */
+    private boolean showThroughBlocks = false;
     /** Moves the crosshair onto the spot the server's etherwarp ray meets (killer560, 2026-11-01, p3sim). */
     private boolean serverCrosshair = true;
     // Defaults reproduce the pre-option look exactly (outline only, green/red) so nobody's setup changes.
@@ -81,6 +83,7 @@ public final class EtherwarpOverlayConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
             cfg.showWhenFailed = ConfigJson.getBool(obj, "showWhenFailed", cfg.showWhenFailed);
             cfg.fullBlock = ConfigJson.getBool(obj, "fullBlock", cfg.fullBlock);
+            cfg.showThroughBlocks = ConfigJson.getBool(obj, "showThroughBlocks", cfg.showThroughBlocks);
             cfg.serverCrosshair = ConfigJson.getBool(obj, "serverCrosshair", cfg.serverCrosshair);
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, cfg.style);
             cfg.safeColor = ConfigJson.getInt(obj, "safeColor", cfg.safeColor);
@@ -98,6 +101,7 @@ public final class EtherwarpOverlayConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showWhenFailed", showWhenFailed);
             obj.addProperty("fullBlock", fullBlock);
+            obj.addProperty("showThroughBlocks", showThroughBlocks);
             obj.addProperty("serverCrosshair", serverCrosshair);
             obj.addProperty("style", style.name());
             obj.addProperty("safeColor", safeColor);
@@ -129,6 +133,14 @@ public final class EtherwarpOverlayConfig {
 
     public void setServerCrosshair(boolean serverCrosshair) {
         this.serverCrosshair = serverCrosshair;
+    }
+
+    public boolean isShowThroughBlocks() {
+        return showThroughBlocks;
+    }
+
+    public void setShowThroughBlocks(boolean showThroughBlocks) {
+        this.showThroughBlocks = showThroughBlocks;
     }
 
     public boolean isFullBlock() {

@@ -243,13 +243,14 @@ public final class EtherwarpOverlayFeature {
         try {
             float[] c = WorldRenderUtils.argbToFloats(etherPos.succeeded() ? cfg.getSafeColor() : cfg.getFailedColor());
             final AABB b = box;
+            final boolean thru = cfg.isShowThroughBlocks();
             switch (cfg.getStyle()) {
-                case FILLED -> submit(context, cam, com.killer560.hub.util.EspTypes.FILLED,
+                case FILLED -> submit(context, cam, com.killer560.hub.util.EspTypes.fill(thru),
                         (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3]));
                 case FILLED_OUTLINE -> {
-                    submit(context, cam, com.killer560.hub.util.EspTypes.FILLED,
+                    submit(context, cam, com.killer560.hub.util.EspTypes.fill(thru),
                             (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3] * 0.5f));
-                    submit(context, cam, com.killer560.hub.util.EspTypes.LINES,
+                    submit(context, cam, com.killer560.hub.util.EspTypes.lines(thru),
                             (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
                 }
                 // The box's own edges at every distance (an edge off screen is simply not seen), but only those of the
@@ -257,7 +258,7 @@ public final class EtherwarpOverlayFeature {
                 // then don't draw that part of it" - replacing a red tint, then a smaller outline shrunk onto the face he
                 // was pressed against. The back edges showed through a stair's open corner and made the box look as if it
                 // sat behind the block (his screenshots of a stone brick stair, both versions).
-                default -> submit(context, cam, com.killer560.hub.util.EspTypes.LINES,
+                default -> submit(context, cam, com.killer560.hub.util.EspTypes.lines(thru),
                         (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
             }
         } catch (Exception e) {
