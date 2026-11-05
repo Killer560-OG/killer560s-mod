@@ -23,6 +23,7 @@ public class MiningQolTab extends FolderTab {
                 new PowderMiningGroup(), new CrystalHollowsGroup(), new MiningGeneralGroup()));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             t.add(new MiningPigeonDrillTab());
+            t.add(new PowderChestTriggerbotTab());
             // From staging-mining-3 (2026-11-04): both draw through walls or read blocks no player could see.
             t.add(new StructureScannerTab());
             t.add(new GhostEspTab());

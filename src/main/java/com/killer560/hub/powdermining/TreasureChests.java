@@ -138,7 +138,7 @@ public final class TreasureChests {
 
     static boolean tracking() {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        return (cfg.isTreasureChest() || cfg.isLockpickHelper()) && MiningState.crystalHollows();
+        return (cfg.isTreasureChest() || cfg.isLockpickHelper() || cfg.isChestTriggerbot()) && MiningState.crystalHollows();
     }
 
     /** A block changed (client thread, after the change is in the level). */

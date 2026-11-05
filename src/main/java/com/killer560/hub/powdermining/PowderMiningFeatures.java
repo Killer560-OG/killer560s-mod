@@ -33,6 +33,9 @@ public final class PowderMiningFeatures {
             TreasureChests.tick(client);
             LockpickHelper.tick();
         }));
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PowderChestTriggerbot", PowderChestTriggerbot::tick));
+        }
         LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
             try {
                 TreasureChests.render(context);

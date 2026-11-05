@@ -45,7 +45,7 @@ public final class LockpickHelper {
 
     /** A particle packet (client thread). Never cancels it. */
     public static void onParticle(ClientboundLevelParticlesPacket packet) {
-        if (TreasureChests.chests().isEmpty() || !PowderMiningConfig.getInstance().isLockpickHelper()) return;
+        if (TreasureChests.chests().isEmpty() || !sampling()) return;
         ParticleOptions p = McPackets.particle(packet);
         if (p == null || p.getType() != ParticleTypes.CRIT) return;
         double x = McPackets.particleX(packet), y = McPackets.particleY(packet), z = McPackets.particleZ(packet);
@@ -104,7 +104,7 @@ public final class LockpickHelper {
     static void tick() {
         if (spotChest != null && (!TreasureChests.chests().containsKey(spotChest)
                 || System.currentTimeMillis() - spotAt > HOLD_MS
-                || !PowderMiningConfig.getInstance().isLockpickHelper())) {
+                || !sampling())) {
             spotChest = null;
             spot = null;
             face = null;
@@ -112,6 +112,17 @@ public final class LockpickHelper {
         if (TreasureChests.chests().isEmpty()) {
             SAMPLES.clear();
         }
+    }
+
+    /** The spot is read for the drawing and for the cheat build's Powder Chest Triggerbot. */
+    private static boolean sampling() {
+        PowderMiningConfig cfg = PowderMiningConfig.getInstance();
+        return cfg.isLockpickHelper() || cfg.isChestTriggerbot();
+    }
+
+    /** The chest face the current lock is on for the chest at {@code pos}, or null while none is known. */
+    static Direction lockFace(BlockPos pos) {
+        return pos.equals(spotChest) ? face : null;
     }
 
     static void render(LevelRenderContext context) {

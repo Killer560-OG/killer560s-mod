@@ -176,7 +176,7 @@ public final class PigeonDrillSwap {
         return total;
     }
 
-    static List<String> loreLines(ItemStack s) {
+    public static List<String> loreLines(ItemStack s) {
         List<String> out = new ArrayList<>();
         ItemLore lore = s.get(DataComponents.LORE);
         if (lore != null) {

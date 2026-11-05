@@ -53,6 +53,8 @@ public final class PowderMiningConfig {
     private int breakSoundPitchTenths = 10;
 
     private boolean lockpickHelper = true;
+    private boolean chestTriggerbot = false;
+    private boolean chestTriggerbotSwap = true;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
 
     private boolean powderTracker = true;
@@ -134,6 +136,8 @@ public final class PowderMiningConfig {
                 cfg.breakSoundPitchTenths = Math.max(5, Math.min(20,
                         ConfigJson.getInt(o, "breakSoundPitchTenths", cfg.breakSoundPitchTenths)));
                 cfg.lockpickHelper = ConfigJson.getBool(o, "lockpickHelper", cfg.lockpickHelper);
+                cfg.chestTriggerbot = ConfigJson.getBool(o, "chestTriggerbot", cfg.chestTriggerbot);
+                cfg.chestTriggerbotSwap = ConfigJson.getBool(o, "chestTriggerbotSwap", cfg.chestTriggerbotSwap);
                 cfg.lockpickColor = intOr(o, "lockpickColor", cfg.lockpickColor);
                 cfg.powderTracker = ConfigJson.getBool(o, "powderTracker", cfg.powderTracker);
                 cfg.powderTrackerMithril = ConfigJson.getBool(o, "powderTrackerMithril", cfg.powderTrackerMithril);
@@ -181,6 +185,8 @@ public final class PowderMiningConfig {
             o.addProperty("breakSoundVolumeTenths", breakSoundVolumeTenths);
             o.addProperty("breakSoundPitchTenths", breakSoundPitchTenths);
             o.addProperty("lockpickHelper", lockpickHelper);
+            o.addProperty("chestTriggerbot", chestTriggerbot);
+            o.addProperty("chestTriggerbotSwap", chestTriggerbotSwap);
             o.addProperty("lockpickColor", lockpickColor);
             o.addProperty("powderTracker", powderTracker);
             o.addProperty("powderTrackerMithril", powderTrackerMithril);
@@ -368,6 +374,17 @@ public final class PowderMiningConfig {
     public boolean isLockpickHelperRaw() { return lockpickHelper; }
 
     public void setLockpickHelper(boolean v) { lockpickHelper = v; }
+
+    // ---- Powder Chest Triggerbot (cheat build only; killer560, 2026-11-04)
+    public boolean isChestTriggerbot() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && chestTriggerbot && sb(); }
+
+    public boolean isChestTriggerbotRaw() { return chestTriggerbot; }
+
+    public void setChestTriggerbot(boolean v) { chestTriggerbot = v; }
+
+    public boolean isChestTriggerbotSwap() { return chestTriggerbotSwap; }
+
+    public void setChestTriggerbotSwap(boolean v) { chestTriggerbotSwap = v; }
 
     public int getLockpickColor() { return lockpickColor; }
 
