@@ -63,6 +63,9 @@ public final class BossSim {
             if (level.isClientSide() || !(player instanceof ServerPlayer sp) || !serverOk(sp)) {
                 return InteractionResult.PASS;
             }
+            if (BossDevices.isArrowMark(entity)) {
+                return InteractionResult.FAIL;
+            }
             if (hand == InteractionHand.MAIN_HAND && BossFight.useEntity(sp, entity)) {
                 return InteractionResult.SUCCESS;
             }
@@ -224,13 +227,20 @@ public final class BossSim {
         pendingStart = null;
         building = true;
         server.execute(() -> {
+            // A phase change keeps his inventory and hotbar exactly as he left them (killer560, 2026-11-05: "i set up a
+            // hotbar in p1 but then in p3 it was a different one"); the loadout is only for a start from outside a fight.
+            boolean running = BossFight.phase() != BossFight.Phase.IDLE;
             BossFight.stop("rebuild");
+            ServerPlayer sp = running ? server.getPlayerList().getPlayers().stream().findFirst().orElse(null) : null;
+            net.minecraft.world.item.ItemStack[] kept = sp == null ? null : new net.minecraft.world.item.ItemStack[sp.getInventory().getContainerSize()];
+            for (int i = 0; kept != null && i < kept.length; i++) kept[i] = sp.getInventory().getItem(i).copy();
             long t0 = System.currentTimeMillis();
             // Out of the arena while it goes up (simspawn-1104): from a fresh world he stood at spawn, inside the box
             // being built, and from the floor every write was sent to his client as it landed.
             com.killer560.hub.roomsim.SimBuilder.holdPlayer(client, server.overworld());
             BossArena.build(server.overworld(), () -> {
                 LOGGER.info("[BossSim] arena built from the {} in {} ms", BossArena.source(), System.currentTimeMillis() - t0);
+                for (int i = 0; kept != null && i < kept.length; i++) sp.getInventory().setItem(i, kept[i]);
                 BossFight.begin(server, from, master);
                 building = false;
                 client.execute(() -> SimWorld.buildFinished(client, "F7 boss"));

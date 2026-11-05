@@ -115,7 +115,7 @@ Melody 3 lanes in a 6-row window (Hypixel's 2026-10-06 update); the system prope
 forces a type (testkit). `BossDevices` - Simon Says (4 rounds, as Hypixel's since its 2026-10-06 update: his
 own log has "SS 4/4" 12 times and no 5th round, and "[SimonSays] Device has 4 rounds (new layout) on proxy.hypixel.net"; first show 4 after the start press, lamps 8 apart, the
 start button resets a running device, a wrong press stops it), Lights (20 levers, a lamp lit by its lever or a
-neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`), Target (9 targets, lit only while someone is on
+neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`; as on Hypixel two more frames hold wool, lime where the path starts and red where it ends: an end is an empty cell an arrow points into, a start the empty cell behind an arrow no other points into, else a free neighbor; rotation 1/5 = -z/+z and 3/7 = down/up, the one mapping that keeps all nine layouts on the wall; the wool frames never turn), Target (9 targets, lit only while someone is on
 the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hits; off the plate the attempt resets).
 
 Simon Says runs on round TASKS, as ADM measured Hypixel's (bossfix3-1105): a start press while stopped draws a pattern and
@@ -144,7 +144,7 @@ ends opens its door at once, no countdown. The P3 HUD's Gate row is chat-driven 
 testkit `SimBossTests`: 1101-boss-p1p2, -p3, -p4p5, -lava, -ap3, -portal, 1102-boss-maxorcrys, 1103-boss-moves (boss
 positions over time), 1103-boss-rules (refusals, levers, terminal rules, devices, death ticks), 1104-boss-capture (the room built from his capture equals it; Lights, SS, frames, still lava, gates on it), 1105-boss-dragons
 (over the capture: Necron's break leaves no lava above the sea, P5's ring under the disc, Red's flame timer and spawn
-point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons reads both deaths), 1105-boss-fix3 (items kept across phase starts, the SS skip and its buttons, a boundary gone after its gate line, Superboom on gates 2 and 3) - only when named.
+point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons reads both deaths), 1105-boss-fix3 (items kept across phase starts, the SS skip and its buttons, a boundary gone after its gate line, Superboom on gates 2 and 3, the inventory kept through the chooser's Section 1, the Arrows wool marks) - only when named. A phase start while a fight runs keeps every slot (`BossSim.buildAndBegin` copies the inventory before the rebuild and puts it back before `begin`); the sim loadout applies only on a world load.
 
 ## Lessons
 
