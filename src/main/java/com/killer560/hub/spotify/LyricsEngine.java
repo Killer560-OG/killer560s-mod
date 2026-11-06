@@ -829,15 +829,20 @@ public final class LyricsEngine {
         long real = timeline.positionAt(now);
         long diff = real - before;
         boolean fresh = timeline.updatedMs() != lastSyncUpdatedMs;
+        boolean newer = timeline.updatedMs() > lastSyncUpdatedMs;
         boolean first = !positionFromSpotify;
+        boolean jump = first || Math.abs(diff) > PlaybackClock.JUMP_MS;
         if (fresh) {
             lastSyncUpdatedMs = timeline.updatedMs();
         }
-        if (first || Math.abs(diff) > PlaybackClock.JUMP_MS || (fresh && resyncPending)) {
+        if (jump || (newer && resyncPending)) {
             // A new track, a seek, or Spotify's own reading of a pause or resume: those readings are exact, so the
-            // clock is SET to them at once, and the drift history starts over.
+            // clock is SET to them at once, and the drift history starts over. After a new track or a seek the NEXT
+            // reading is taken exactly too: Spotify sends a second one when the sound really starts, 50-200 ms later
+            // (measured with the real app, spotreal-1106), and the drift filter alone left the clock that far ahead
+            // until two more readings, 9 s.
             clock.set(real, now);
-            resyncPending = false;
+            resyncPending = jump;
             recentCount = 0;
             slewLeftMs = 0;
             corrections++;
