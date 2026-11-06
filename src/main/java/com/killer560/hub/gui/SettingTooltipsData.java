@@ -594,7 +594,7 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/next key", "A key that skips to the next song in Spotify. Backspace unbinds.");
         d.put("spotify lyrics/volume up key", "A key that turns Spotify up by the Volume Key Step. Backspace unbinds.");
         d.put("spotify lyrics/volume down key", "A key that turns Spotify down by the Volume Key Step. Backspace unbinds.");
-        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks, and the lyric line they share with the word they are on lit. Your Display Censor applies; slurs are always hidden. Turning this on keeps you in your lobby's relay room. Off by default.");
+        d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks, and the lyric line they share with the word they are on lit. Your Display Censor applies; slurs are always hidden. You see every mod user in your lobby, partied or not, and your party too; the hover says what is connected right now. On by default.");
         d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");

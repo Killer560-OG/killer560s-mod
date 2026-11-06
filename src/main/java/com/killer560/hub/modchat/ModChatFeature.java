@@ -7,6 +7,7 @@ import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.relay.RelayEndpoint;
 import com.killer560.hub.relay.RelayListener;
 import com.killer560.hub.relay.RelayRoom;
+import com.killer560.hub.relay.RelayTap;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -98,14 +99,20 @@ public final class ModChatFeature {
         }
         chatHeld = held;
         lastMode = mode;
-        // Only asks Hypixel for its instance id when Lobby mode could actually use the answer - Party mode
-        // never sends /locraw at all.
-        HypixelLocation.tick(client, on && mode == RelayRoom.Mode.LOBBY);
+        // Only asks Hypixel for its instance id when a lobby room could use the answer: Lobby mode, or Song Tag's
+        // lobby link below. Party mode with Song Tag off never sends /locraw at all.
+        HypixelLocation.tick(client, on && (mode == RelayRoom.Mode.LOBBY || songsOn));
         // null (never a wider fallback room) when the chosen mode's room can't be computed yet - RelayClient
         // goes NO_ROOM and stays disconnected instead of guessing. See RelayRoom's class doc.
         String room = on ? RelayRoom.current(mode) : null;
         // Cheap no-op unless one of these three actually changed - all the work happens on the relay's thread.
         RelayClient.update(on, cfg.getRelayUrl(), room);
+        // Song Tag reaches everyone in the LOBBY, partied or not (killer560, 2026-11-06): while the main socket sits in a
+        // party room, a second one (RelayTap) carries only the songs in the lobby room. Not in a dungeon: its instance
+        // holds only the party.
+        String lobby = on && songsOn && !com.killer560.hub.secrets.DungeonState.isInDungeon()
+                ? RelayRoom.current(RelayRoom.Mode.LOBBY) : null;
+        RelayTap.update(cfg.getRelayUrl(), lobby != null && !lobby.equals(room) ? lobby : null);
     }
 
     /** Test hook: the room mode the last check chose. */

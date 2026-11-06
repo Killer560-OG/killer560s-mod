@@ -250,6 +250,10 @@ They are the same rules as before; only where they live changed.
   Tag's lobby room, so with no party the room was null and the socket stayed shut (both logs: no `[Relay] Connected` until a
   Crystal Hollows warp forced the lobby). Now Song Tag takes the lobby then and `chatHeld` stops Mod Chat sending or showing
   there (songtag-1104; 2866/2867 run with Mod Chat at its default). Test a relay feature with Mod Chat at its DEFAULT, not off.
+  A socket is in ONE relay room, so a partied player saw no song from his lobby (killer560 2026-11-06: "anyone in the same
+  lobby should be able to see it"). `relay/RelayTap` is a second socket, songs only, in the lobby room while the main one is
+  in a party room (never in a dungeon). Every gate that asks "connected?" or "mod user?" must count it: the render-time gate
+  `RemoteSongs.live` still asked RelayClient/ModUsers only, so accepted lobby songs drew nothing (spotshare-1105, testkit 1106).
 - `ServerTickClock` takes ~15 pings a second as "the server pings every tick", which GrimAC's transactions alone reach, so
   it reads Grim jitter as stalls. `ServerLag` and the Lag Display / !tps TPS gate on `PerTickServerClock.trusted()` since
   tickfix2-1104 (ServerLag judged at the ping that opens a gap, so a stall that outlasts the trust still counts). Anything that must count exact server ticks uses `util.PerTickServerClock`

@@ -67,16 +67,16 @@ public final class RelayClient {
 
     /** The relay's own limit (Worker {@code room.ts}); truncating here keeps the reported length honest. */
     private static final int MAX_CHAT_CHARS = 512;
-    private static final long KEEPALIVE_SECONDS = 30L;
+    static final long KEEPALIVE_SECONDS = 30L;
     private static final long BACKOFF_BASE_MS = 2_000L;
     private static final long BACKOFF_CAP_MS = 120_000L;
     /** Re-authenticating costs two HTTP round trips, so a still-valid token is reused until it is nearly up. */
     private static final long TOKEN_REUSE_MARGIN_MS = 5 * 60_000L;
 
-    private static final ScheduledExecutorService WORKER =
+    static final ScheduledExecutorService WORKER =
             Executors.newSingleThreadScheduledExecutor(daemon("killer560smod-relay"));
     private static final ExecutorService IO = Executors.newCachedThreadPool(daemon("killer560smod-relay-io"));
-    private static final HttpClient HTTP = HttpClient.newBuilder()
+    static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .executor(IO)
@@ -311,7 +311,7 @@ public final class RelayClient {
                 }));
     }
 
-    private static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
+    static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
         RelayAuth.Token cached = token;
         String account = currentAccount();
         if (cached != null && url.equals(tokenUrl) && account.equals(tokenAccount)
@@ -361,7 +361,7 @@ public final class RelayClient {
     }
 
     /** 2s, 4s, 8s ... capped at 2 minutes, with +/-20% jitter so a whole party doesn't reconnect in lockstep. */
-    private static long backoffMs(int failures) {
+    static long backoffMs(int failures) {
         long base = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS << Math.min(Math.max(failures - 1, 0), 6));
         long jitter = base / 5;
         return base + ThreadLocalRandom.current().nextLong(-jitter, jitter + 1);
@@ -375,7 +375,7 @@ public final class RelayClient {
         }, KEEPALIVE_SECONDS, KEEPALIVE_SECONDS, TimeUnit.SECONDS);
     }
 
-    private static JsonObject ping() {
+    static JsonObject ping() {
         JsonObject packet = new JsonObject();
         packet.addProperty("type", "ping");
         packet.addProperty("t", System.currentTimeMillis());
@@ -562,7 +562,7 @@ public final class RelayClient {
         return List.copyOf(out);
     }
 
-    private static String str(JsonObject packet, String key) {
+    static String str(JsonObject packet, String key) {
         JsonElement element = packet.get(key);
         if (element == null || !element.isJsonPrimitive()) return "";
         try {
@@ -573,7 +573,7 @@ public final class RelayClient {
     }
 
     /** One short phrase a player can act on, instead of a stack trace or a class name. */
-    private static String reason(Throwable error) {
+    static String reason(Throwable error) {
         Throwable cause = error;
         while ((cause instanceof CompletionException || cause instanceof java.util.concurrent.ExecutionException)
                 && cause.getCause() != null) {
