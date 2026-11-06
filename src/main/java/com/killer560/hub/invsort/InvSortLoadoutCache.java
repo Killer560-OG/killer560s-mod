@@ -3,6 +3,7 @@ package com.killer560.hub.invsort;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature;
 import com.killer560.hub.shared.SharedRecords;
 import com.killer560.hub.shared.SharedWriter;
 import com.killer560.hub.storagesearch.StorageSearchNbtCodec;
@@ -18,55 +19,75 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 /**
- * The contents of Hypixel's /loadouts page 1 as last seen (loadoutpick-1105, killer560 2026-11-05: the loadout picker
- * "doesnt show the actual loadout"), kept per account in memory and in {@code killer560smod-loadout-cache.json} so the
- * picker can draw them after a restart. A cache, not a setting: it stays out of profiles. Read off the render thread; the
- * file is written on {@link SharedWriter}, and only when the page changed.
+ * The contents of Hypixel's /loadouts pages as last seen (loadoutpick-1105, killer560 2026-11-05: the loadout picker
+ * "doesnt show the actual loadout"; loadout1-1105: every page, for the picker's Next Page), kept per account in memory and
+ * in {@code killer560smod-loadout-cache.json} (page 1 under the account, page N under {@code account#N}, the page count
+ * under {@code account#pages}) so the picker can draw them after a restart. A cache, not a setting: it stays out of
+ * profiles. Read off the render thread; the file is written on {@link SharedWriter}, and only when a page changed.
+ * <p>
+ * A page is never taken while the cursor holds an item (loadout1-1105): a click on a loadout, by him or by Loadout
+ * Keybinds' swap, puts that loadout's item on the cursor on the client until Hypixel answers, and the swap closes the menu
+ * before it does, so the page used to be saved with the clicked loadout's slot empty (his loadout 1 showed no icon).
  */
 public final class InvSortLoadoutCache {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-invsort");
     private static final Path FILE = ModPaths.config("killer560smod-loadout-cache.json");
-    private static final java.util.regex.Pattern PAGE_ONE = java.util.regex.Pattern.compile("\\(1/\\d+\\) Loadout");
     private static final int PLAYER_SLOTS = 36;
 
-    private static volatile List<ItemStack> items;
+    /** The pages of {@link #itemsAccount} (page number -> container slots); replaced whole, never changed in place. */
+    private static volatile Map<Integer, List<ItemStack>> pages;
+    private static volatile int total;
     private static volatile String itemsAccount;
     private static volatile String tried;
 
     private InvSortLoadoutCache() {
     }
 
-    /** END_CLIENT_TICK, registered by {@link InventorySorterExecutor#register}: free unless /loadouts page 1 is up. */
+    /** END_CLIENT_TICK, registered by {@link InventorySorterExecutor#register}: free unless a /loadouts page is up. */
     public static void tick(Minecraft client) {
         Screen screen = McCompat.screen(client);
-        if (!(screen instanceof AbstractContainerScreen<?> container)) {
+        if (!(screen instanceof AbstractContainerScreen<?> container) || !container.getMenu().getCarried().isEmpty()) {
             return;
         }
-        Matcher m = PAGE_ONE.matcher(container.getTitle().getString());
+        Matcher m = LoadoutKeybindsFeature.LOADOUT_TITLE.matcher(container.getTitle().getString());
         if (m.find()) {
-            capture(container.getMenu().slots.stream().limit(Math.max(0, container.getMenu().slots.size() - PLAYER_SLOTS))
-                    .map(s -> s.getItem()).toList());
+            capture(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)),
+                    container.getMenu().slots.stream().limit(Math.max(0, container.getMenu().slots.size() - PLAYER_SLOTS))
+                            .map(s -> s.getItem()).toList());
         }
     }
 
-    /** Remembers {@code contents} (the container part of page 1) for the signed-in account when it differs. Public for tests. */
+    /** Page 1 of {@code contents}; public for tests. */
     public static void capture(List<ItemStack> contents) {
-        if (contents.stream().allMatch(ItemStack::isEmpty) || same(items, contents)) {
+        capture(1, Math.max(1, total), contents);
+    }
+
+    /** Remembers {@code contents} (the container part of page {@code page} of {@code of}) for the signed-in account when it
+     *  differs. Public for tests. */
+    public static void capture(int page, int of, List<ItemStack> contents) {
+        String account = SharedRecords.accountId();
+        Map<Integer, List<ItemStack>> now = account.equals(itemsAccount) && pages != null ? pages : Map.of();
+        if (contents.stream().allMatch(ItemStack::isEmpty) || (same(now.get(page), contents) && of == total)) {
             return;
         }
         List<ItemStack> copy = new ArrayList<>(contents.size());
         for (ItemStack s : contents) {
             copy.add(s.copy());
         }
-        String account = SharedRecords.accountId();
-        items = copy;
+        Map<Integer, List<ItemStack>> next = new HashMap<>(now);
+        next.put(page, copy);
+        next.keySet().removeIf(p -> p > of);
+        pages = Map.copyOf(next);
+        total = of;
         itemsAccount = account;
-        SharedWriter.submit(() -> write(account, copy));
+        SharedWriter.submit(() -> write(account, page, of, copy));
     }
 
     private static boolean same(List<ItemStack> a, List<ItemStack> b) {
@@ -81,7 +102,11 @@ public final class InvSortLoadoutCache {
         return true;
     }
 
-    private static synchronized void write(String account, List<ItemStack> contents) {
+    private static String key(String account, int page) {
+        return page == 1 ? account : account + "#" + page;
+    }
+
+    private static synchronized void write(String account, int page, int of, List<ItemStack> contents) {
         try {
             JsonObject root = Files.exists(FILE)
                     ? JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject() : new JsonObject();
@@ -89,7 +114,11 @@ public final class InvSortLoadoutCache {
             if (blob == null) {
                 return;
             }
-            root.addProperty(account, blob);
+            root.addProperty(key(account, page), blob);
+            root.addProperty(account + "#pages", of);
+            for (int p = of + 1; p <= InventoryLayout.MAX_LOADOUT / 12; p++) {
+                root.remove(key(account, p));
+            }
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, root.toString(), StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -97,11 +126,17 @@ public final class InvSortLoadoutCache {
         }
     }
 
-    /** The cached page for the signed-in account, or null (none seen yet, or still reading the file: asks again next frame). */
+    /** Page 1 of the cache; see {@link #get(int)}. */
     public static List<ItemStack> get() {
+        return get(1);
+    }
+
+    /** The cached page {@code page} for the signed-in account, or null (not seen yet, or still reading the file: asks again
+     *  next frame). */
+    public static List<ItemStack> get(int page) {
         String account = SharedRecords.accountId();
-        if (items != null && account.equals(itemsAccount)) {
-            return items;
+        if (pages != null && account.equals(itemsAccount)) {
+            return pages.get(page);
         }
         if (!account.equals(tried)) {
             tried = account;
@@ -110,17 +145,29 @@ public final class InvSortLoadoutCache {
         return null;
     }
 
+    /** How many /loadouts pages Hypixel said there are (the "M" of "(N/M) Loadouts"), 0 before any was seen. */
+    public static int pages() {
+        return pages != null && SharedRecords.accountId().equals(itemsAccount) ? total : 0;
+    }
+
     private static synchronized void read(String account) {
         try {
-            List<ItemStack> list = null;
-            if (Files.exists(FILE)) {
-                JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
-                if (root.has(account)) {
-                    list = StorageSearchNbtCodec.decodeOrThrow(root.get(account).getAsString());
+            if (!Files.exists(FILE)) {
+                return;
+            }
+            JsonObject root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
+            int of = root.has(account + "#pages") ? root.get(account + "#pages").getAsInt() : root.has(account) ? 1 : 0;
+            Map<Integer, List<ItemStack>> read = new HashMap<>();
+            for (int p = 1; p <= Math.min(of, InventoryLayout.MAX_LOADOUT / 12); p++) {
+                List<ItemStack> list = root.has(key(account, p))
+                        ? StorageSearchNbtCodec.decodeOrThrow(root.get(key(account, p)).getAsString()) : null;
+                if (list != null && !list.isEmpty()) {
+                    read.put(p, list);
                 }
             }
-            if (list != null && !list.isEmpty()) {
-                items = list;
+            if (!read.isEmpty() && !account.equals(itemsAccount)) { // a page captured meanwhile is newer
+                pages = Map.copyOf(read);
+                total = of;
                 itemsAccount = account;
             }
         } catch (Exception e) {
@@ -130,7 +177,8 @@ public final class InvSortLoadoutCache {
 
     /** Test hook: forget the in-memory copy so the next {@link #get} reads the file. */
     public static void forgetMemoryForTest() {
-        items = null;
+        pages = null;
+        total = 0;
         itemsAccount = null;
         tried = null;
     }

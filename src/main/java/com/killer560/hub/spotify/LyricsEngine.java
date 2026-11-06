@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +66,10 @@ public final class LyricsEngine {
      * about the time before (a paused position, or the last song's), so it is not believed until a newer one arrives.
      */
     private long lastEventMs = 0;
+    /** Wall time the clock last stopped for a pause: a playing reading Spotify took after it is the resume. */
+    private long pausedAtMs = 0;
+    /** Whether the window title said paused at the last poll. */
+    private boolean titlePaused;
     /** Whether the clock has been set from Spotify's real position at least once on this track. */
     private boolean positionFromSpotify = false;
 
@@ -292,6 +297,7 @@ public final class LyricsEngine {
         double nearestAny = 0;
         double nearestAnyDiff = Double.MAX_VALUE;
         Candidate byName = null;
+        List<Candidate> same = new ArrayList<>();
         int n = 0;
         for (Candidate c : candidates) {
             boolean titleOk = want.isEmpty() || titleKey(c.title()).equals(want);
@@ -311,9 +317,12 @@ public final class LyricsEngine {
             if (byName == null) {
                 byName = c;
             }
-            if (diff <= SAME_VERSION_SECONDS && diff < bestSameDiff) {
-                bestSameDiff = diff;
-                bestSame = c;
+            if (diff <= SAME_VERSION_SECONDS) {
+                same.add(c);
+                if (diff < bestSameDiff) {
+                    bestSameDiff = diff;
+                    bestSame = c;
+                }
             }
             if (diff < closestDiff) {
                 closestDiff = diff;
@@ -328,6 +337,12 @@ public final class LyricsEngine {
             return new Choice(pick, false, 0, why + " -> '" + pick.title() + "' " + pick.durationSeconds()
                     + " s: the best name match (Spotify's length not known)");
         }
+        Candidate consensus = consensus(same, spotifySeconds);
+        if (consensus != null && consensus != bestSame) {
+            return new Choice(consensus, false, 0, why + " -> '" + consensus.title() + "' " + consensus.durationSeconds()
+                    + " s: same song; its line times agree best with the other " + (same.size() - 1)
+                    + " listings of this length (the closest length, " + bestSame.durationSeconds() + " s, does not)");
+        }
         if (bestSame != null) {
             return new Choice(bestSame, false, 0, why + " -> '" + bestSame.title() + "' " + bestSame.durationSeconds()
                     + " s: same song, " + Math.round(bestSameDiff * 10) / 10.0 + " s from Spotify's length");
@@ -338,6 +353,59 @@ public final class LyricsEngine {
                     + " s; the closest is used and the HUD says it is another version");
         }
         return new Choice(null, true, nearestAny, why + " -> none: no listing is this song by this artist");
+    }
+
+    /**
+     * Among three or more listings of the same recording, the one whose line times sit closest to the others' (the
+     * smallest median distance from each of its lines to the nearest line of each other listing), or null with fewer.
+     * Found with the real Spotify app (spotreal-1106): "I Really Want to Stay at Your House" has 19 listings within 2 s;
+     * the one closest in length was a hand sync off by -0.8..+1.0 s from Spotify's own lyric view, while 17 agreed
+     * within 50 ms of each other. A tie (within 50 ms) keeps the earlier, closer-length listing.
+     */
+    static Candidate consensus(List<Candidate> same, double spotifySeconds) {
+        if (same.size() < 3) return null;
+        same.sort(Comparator.comparingDouble(c -> Math.abs(c.durationSeconds() - spotifySeconds)));
+        Candidate best = null;
+        double bestScore = Double.MAX_VALUE;
+        double[] perOther = new double[same.size() - 1];
+        for (Candidate c : same) {
+            int k = 0;
+            for (Candidate o : same) {
+                if (o != c) perOther[k++] = medianGap(c.lines(), o.lines());
+            }
+            double score = median(perOther);
+            if (score < bestScore - 0.05) {
+                bestScore = score;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    /** Median over a's lines of the distance to b's nearest line, in seconds (b sorted by time). */
+    private static double medianGap(List<LyricLine> a, List<LyricLine> b) {
+        if (a.isEmpty() || b.isEmpty()) return Double.MAX_VALUE;
+        double[] gaps = new double[a.size()];
+        for (int i = 0; i < gaps.length; i++) {
+            double t = a.get(i).timeSeconds();
+            int lo = 0;
+            int hi = b.size() - 1;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (b.get(mid).timeSeconds() < t) lo = mid + 1;
+                else hi = mid;
+            }
+            double g = Math.abs(b.get(lo).timeSeconds() - t);
+            if (lo > 0) g = Math.min(g, t - b.get(lo - 1).timeSeconds());
+            gaps[i] = g;
+        }
+        return median(gaps);
+    }
+
+    private static double median(double[] v) {
+        double[] s = v.clone();
+        java.util.Arrays.sort(s);
+        return s[s.length / 2];
     }
 
     /** The title as Spotify gives it, and with a trailing " - X" written as " (X)" when it has one. */
@@ -476,6 +544,17 @@ public final class LyricsEngine {
     public synchronized void pollAt(NowPlaying nowPlaying, SpotifyMediaSession.Timeline timeline, long now,
                                     boolean fullLyricsMode) {
         {
+            // Spotify's own reading of a resume can come before its window title stops saying paused (lyrictime-1106):
+            // a playing reading of this track taken after the clock stopped is the resume, so the clock runs from it
+            // at once instead of waiting a poll or more for the title. Not on the poll that first sees the title paused
+            // with the clock running: then the playing reading is from before the pause.
+            boolean titleWasPaused = titlePaused;
+            titlePaused = nowPlaying.kind() == NowPlaying.Kind.PAUSED;
+            if (titlePaused && timeline != null && timeline.playing() && lastTrackKey != null
+                    && !lastWasAd && timeline.updatedMs() > pausedAtMs && (titleWasPaused || !clock.running())
+                    && timeline.matches(lastArtist, lastTitle)) {
+                nowPlaying = NowPlaying.track(lastArtist, lastTitle);
+            }
             lastNowPlaying = nowPlaying;
             if (timeline != null) {
                 lastSeenUpdatedMs = timeline.updatedMs();
@@ -486,6 +565,7 @@ public final class LyricsEngine {
                 // as a brand new track every time he paused and un-paused.
                 if (clock.running()) {
                     resyncPending = true;   // Spotify's reading of the pause is exact: take the next one as it is
+                    pausedAtMs = now;
                 }
                 clock.pause(now);
                 // A scrub while paused: Spotify's paused position is believed, so the line shown is where it resumes.
@@ -541,8 +621,11 @@ public final class LyricsEngine {
                 lyricsRequestedFor = null;
                 SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}'",
                         nowPlaying.artist(), title);
-            } else if (!clock.running()) {
-                clock.resume(now);   // resumed after a pause, same track: on from the same position
+            } else if (!clock.running() && (titleWasPaused || timeline == null || !timeline.paused()
+                    || timeline.updatedMs() < lastEventMs || !timeline.matches(nowPlaying.artist(), nowPlaying.title()))) {
+                // Resumed after a pause, same track: on from the same position. Not while the title has said playing
+                // all along and Spotify's reading since the last resume says paused (its title lags the pause).
+                clock.resume(now);
                 lastEventMs = now;
                 resyncPending = true;   // the resume was seen up to a poll late: Spotify's reading of it fixes that
             }
@@ -569,9 +652,12 @@ public final class LyricsEngine {
                     spotifyDurationSeconds = length;
                     choose();
                 }
-                if (timeline.paused()) {
+                // A paused reading older than the resume this engine saw is from before it (the session lags the
+                // title): believing it stopped the clock again every poll until Spotify's next reading.
+                if (timeline.paused() && timeline.updatedMs() >= lastEventMs) {
                     if (clock.running()) {
                         resyncPending = true;
+                        pausedAtMs = now;
                     }
                     clock.pause(now);
                     pausedBySession = true;
@@ -743,15 +829,20 @@ public final class LyricsEngine {
         long real = timeline.positionAt(now);
         long diff = real - before;
         boolean fresh = timeline.updatedMs() != lastSyncUpdatedMs;
+        boolean newer = timeline.updatedMs() > lastSyncUpdatedMs;
         boolean first = !positionFromSpotify;
+        boolean jump = first || Math.abs(diff) > PlaybackClock.JUMP_MS;
         if (fresh) {
             lastSyncUpdatedMs = timeline.updatedMs();
         }
-        if (first || Math.abs(diff) > PlaybackClock.JUMP_MS || (fresh && resyncPending)) {
+        if (jump || (newer && resyncPending)) {
             // A new track, a seek, or Spotify's own reading of a pause or resume: those readings are exact, so the
-            // clock is SET to them at once, and the drift history starts over.
+            // clock is SET to them at once, and the drift history starts over. After a new track or a seek the NEXT
+            // reading is taken exactly too: Spotify sends a second one when the sound really starts, 50-200 ms later
+            // (measured with the real app, spotreal-1106), and the drift filter alone left the clock that far ahead
+            // until two more readings, 9 s.
             clock.set(real, now);
-            resyncPending = false;
+            resyncPending = jump;
             recentCount = 0;
             slewLeftMs = 0;
             corrections++;

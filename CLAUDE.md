@@ -159,7 +159,7 @@ A plain `killer560smod-*.json` file is a SETTING file to the profile code whatev
 records) goes in `ProfileManager.EXCLUDED_FILES`, or a profile apply copies an old copy in or deletes it; until 2026-11-02 the
 `.json` names in `ProfileData.EXCLUDED_NAMES` did nothing (ProfileData only judges data entries; `isProfileSettingFile` honors them now).
 A new feature gets its name in the README list and its full text in `docs/FEATURES.md`, then the features
-Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed by default (Amber), and every part of the mod follows the menu theme: fixed amber chrome goes through `gui/ThemeAccent` (docs/LESSONS-MENU.md, testkit 1104-ui-themematch-audit). Never carry
+Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed by default (Amber), but EVERY part of the mod follows the chosen menu theme (killer560, 2026-11-04: "all parts of my mod should match the theme of the mod. so if someone has the green theme and has my crystal hollows map the border shouldnt be orange it should be green"): screens, HUDs, maps and borders take their accent/border colors from the active theme, never a hardcoded orange (a color the player set for that one element stays); fixed amber chrome goes through `gui/ThemeAccent` (docs/LESSONS-MENU.md, testkit 1104-ui-themematch-audit). Never carry
 his typos into a command, label or alias.
 Spelling is AMERICAN in everything the mod shows or writes (labels, tooltips, chat, HUD, logs, testkit matches,
 the Discord posts and the features Google Doc): color, center, gray, armor, defense, canceled, optimized.
@@ -228,6 +228,7 @@ Never track a `HANDOFF.md` in the repo; handoff notes live only in
 The features Google Doc **edit** link is never published; only the `/e/2PACX-…` published link is public.
 A Discord update covers three places: #changelog (mod), #roadmap (edit the pinned message), and
 #testkit-updates (1553951359810670692) for testkit changes - the last was missed for a week until 2026-10-05.
+@Claude_Bot answers only Staff-or-higher members (and the owner), in any channel of killer560's server; it answers mod questions, runs mute/unmute/purge/warn itself after its own rank checks, answers a staff reply's original message, and logs work requests to killer560s-mod-logs/DISCORD-INBOX.md (owner-triggered = "owner-approved"), looks up live Skyblock stats (networth estimate, skills, cata, slayers, money, status, auctions) and Bazaar/BIN/firesale data itself through sblookup.py (the Hypixel key never leaves it), and saves the crash reports the relay posts as it into killer560s-mod-logs/crash-inbox/ with a "crash" inbox entry, never acting on them (devbot-1105, C:\Users\Hunter\killer560s-devbot; start.sh/stop.sh, status file status.json, last_alive_epoch).
 
 ## Safety rules for automation
 
@@ -239,11 +240,19 @@ features: on 2026-10-25 he asked for Blink, Inventory Walk and Zero Ping Etherwa
 (cheat build only, off by default; blink-1025). Zero Ping Etherwarp stays CAMERA ONLY (his decision 2026-10-25; in both builds 2026-10-26 to 2026-11-02, cheat-only again since: "all zero ping etherwarp stuff should be cheat only nothing in legit"): the
 character is never moved client-side ahead of the server, so the setPos rule above stands. Blink AP3 is not built.
 
+SAME-TICK GRIM CASES (killer560, 2026-11-05: "that is unacceptable for something like that to have not been thought of
+and tested", after Leap Takes Target's Look was shipped tested only with an idle tick after its turn). Any feature that
+turns the look, swaps the hotbar, sends a click/use/attack or answers a teleport is tested on default AND experimental
+Grim with the player's own likely actions landing IN THE SAME TICK as the feature's: a right-click use (use_item carries a
+look), a container click, an attack, a hotbar swap, a teleport accept, and a second run of the feature itself. Assert on
+the wire (WireCapture) that both went out in that tick before trusting a clean Grim result. An idle-after test is not a
+Grim test.
+
 A setting that flags is not shipped with that value (killer560, 2026-10-27: "if a setting is flagging then it shouldnt be
 pushed with that setting. SImple as that."). Test every new cheat setting at its HIGHEST value on GrimAC's default config
 AND with `experimental-checks: true` (testkit: a checkout whose `run/testserver/config/GrimAC/config.yml` says so); a value
 that flags is capped below or the setting removed (Arrow Align Frames Per Tick was dropped for MultiInteractA/B,
-2026-10-27). Kept-teleport Blink flags are his accepted exception. A lag spike of 900 ms or more mid-Hold that draws TimerLimit is accepted too (killer560, 2026-11-04: "Keep holding"); Charge never flags under lag (it sends held answers after 150 ms without a ping, keeping the bank). Burst Multi Break is an owner exception too
+2026-10-27). Kept-teleport Blink flags are his accepted exception. A lag spike of 900 ms or more mid-Hold that draws TimerLimit is accepted too (killer560, 2026-11-04: "Keep holding"); Charge never flags under lag (it sends held answers after 150 ms without a ping, keeping the bank). Long Charge under a server that keeps stalling sends no position for over 2 s and draws experimental BadPacketsR: accepted too (killer560, 2026-11-04: "Accept it, like TimerLimit"; a sooner position brings BadPacketsV back). Burst Multi Break is an owner exception too
 (killer560, 2026-11-02): Breaker Aura's "Burst Multi Break (flags newest Grim)" switch (default OFF, only with Multi Break on)
 brings back the pre-d2da5856 burst that GrimAC's experimental MultiBreak flags; its label says it flags, and tests accept
 MultiBreak* only while it is on.
@@ -253,7 +262,7 @@ MultiBreak* only while it is on.
 (Added 2026-10-26, killer560:)
 - After-2.0 (staging) features are NEVER shipped - not to main, a jar, an instance or GitHub - until 2.0 is pushed.
   "Under no circumstances." Only dungeon/main work ships before 2.0.
-- No limit on testkit clients (killer560, 2026-11-04: "run as many clients at once as you like"; was 9).
+- Testkit client gate (killer560, 2026-11-04, after "no limit" filled all 61.7 GB of RAM and froze runs): every run first calls `bash /c/Users/Hunter/km-scripts/clientslot.sh <clients it starts> <expected minutes>`. It starts clients while free RAM stays >= 6 GB (1.5 GB counted for each client started in the last 2 min) and at most 12 run; waiting runs go shortest first (waiting time ages them), and a run of 45+ min goes first and gets its own room ("if something is really long let it have a dedicated one"). `KM_CLIENT_CAP=1` asks to run alone (timing cases). It counts only Minecraft client windows. v2 counted every java.exe over 1 GB, including Gradle daemons and test servers, so a run-alone waiter at the head never fit, and from 23:52 to about 00:30 on 11-04/05 nothing was granted. Never kill another run's waiter to get past the gate. v4 (2026-11-05) backfills: every grant is recorded in `killer560s-mod-logs/clientslot.running` with its caller pid and expected end, and while the head waits only because running clients fill its cap, a later ticket may start if it ends no later than the latest recorded run (no window if a run is overdue or a client has no record); decisions in `clientslot.backfill.log`, and a run alive at 150% of its stated minutes draws a WARN, so pass honest minutes.
 - BUILD STANDARDS for every feature and fix (killer560, 2026-11-04: what the size/FPS/scan passes of 11-04 enforced, now
   the default for all new code). FPS: nothing per frame or per tick that can be cached, event-driven or gated on the state
   it needs (in a dungeon, screen open); no allocation, stream or regex compile in render/tick paths; block scans ask section
@@ -338,7 +347,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   the player's own, stored in its own non-`.json` file listed in `ProfileData.EXCLUDED_NAMES` (or a `SECRET_FIELDS` field).
   `tools/verify-artifact.py` (shapes, the owner's secrets by sha256 from `~/.claude/secrets` + `~/.claude/secret-fingerprints.json`,
   embedded-key code, user paths) gates every deploy and release; CI also runs gitleaks with `.gitleaks.toml` and fails on a hit
-  (a reviewed false positive goes in `.gitleaksignore` by fingerprint). Native libraries inside Jar-in-Jar jars carry their
+  (a reviewed false positive goes in `.gitleaksignore` by fingerprint). A ship runs the same scan locally before pushing:
+  `C:/Users/Hunter/tools-dl/gitleaks/gitleaks.exe git --config .gitleaks.toml --redact --no-banner --exit-code 1 --log-opts="<origin tip>..HEAD" .`
+  (ship 7's CI scan failed on the folder name "leftclicksecrets" in ModPaths, 2026-11-05; fixed in 4e54b164b). Native libraries inside Jar-in-Jar jars carry their
   own builders' paths (JNA): reported as warnings only.
 - A testkit `-PseedConfig` copied from Mod Only Test carries his Proxy Client config (`system/proxy/proxyclient.json`, SOCKS5,
   enabled): the test client then dials the local server through his real proxy, which refuses it ("socks5 ... FORBIDDEN",

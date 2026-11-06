@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.killer560.hub.modusers.ModUserConfig;
 import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.relay.RelayListener;
+import com.killer560.hub.relay.RelayTap;
 import com.killer560.hub.supporters.SupportersFeature;
 import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -37,6 +38,7 @@ import java.util.function.BiPredicate;
  */
 public final class SongShare {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
     static final long MIN_SEND_MS = 1_000;
     static final long HEARTBEAT_MS = 30_000;
     private static final int TICK_EVERY = 5;
@@ -68,15 +70,19 @@ public final class SongShare {
         SongShareConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SongShare", client -> tick()));
         RelayClient.addListener(new RelayListener() {
+            // Songs are not cleared when the main socket changes room: those heard through the lobby link are still right,
+            // and their senders resend only every 30 s. A sender who left both rooms is forgotten by his leave; a stale one
+            // expires (RemoteSongs.EXPIRE_MS).
             @Override
             public void onConnected(String room, List<String> online) {
-                RemoteSongs.clear();
                 roomChanged = true;
             }
 
             @Override
             public void onDisconnected(String reason) {
-                RemoteSongs.clear();
+                if (!RelayTap.isConnected()) {
+                    RemoteSongs.clear();
+                }
                 roomChanged = true;
             }
 
@@ -84,7 +90,7 @@ public final class SongShare {
             public void onPresence(String event, String name, List<String> online) {
                 if ("join".equals(event)) {
                     resend = true;
-                } else if ("leave".equals(event)) {
+                } else if ("leave".equals(event) && !RelayTap.stillHere(name)) {
                     RemoteSongs.forget(name);
                 }
             }
@@ -101,7 +107,7 @@ public final class SongShare {
             live = false;
             ownTag = null;
         }
-        boolean connected = testSender != null || RelayClient.isConnected();
+        boolean connected = testSender != null || RelayClient.isConnected() || RelayTap.isConnected();
         if (!connected) {
             live = false;
             ownTag = null;
@@ -127,7 +133,9 @@ public final class SongShare {
         BiPredicate<String, JsonElement> sender = testSender;
         lastHanded = payload.toString();
         handedCount++;
-        boolean sent = sender != null ? sender.test(RemoteSongs.KEY, payload) : RelayClient.sendData(RemoteSongs.KEY, payload);
+        // Into the main room and, while that is a party room, the lobby room too (RelayTap): anyone within 16 blocks.
+        boolean sent = sender != null ? sender.test(RemoteSongs.KEY, payload)
+                : RelayClient.sendData(RemoteSongs.KEY, payload) | RelayTap.sendData(RemoteSongs.KEY, payload);
         if (!sent) return;
         resend = false;
         lastSendMs = now;
@@ -146,7 +154,11 @@ public final class SongShare {
     static JsonObject payload() {
         JsonObject o = new JsonObject();
         String why = blockReason();
-        lastBlock = why == null ? "" : why;
+        String block = why == null ? "" : why;
+        if (!block.equals(lastBlock) && SongShareConfig.getInstance().isShareSong()) {
+            LOGGER.info("[SongTag] sharing: {}", block.isEmpty() ? "allowed" : "blocked, " + block);
+        }
+        lastBlock = block;
         NowPlaying np = nowPlaying();
         String title = np == null ? "" : RemoteSongs.clean(np.title(), RemoteSongs.TITLE_MAX);
         if (why != null || np == null || np.kind() != NowPlaying.Kind.TRACK || title.isEmpty()) {
@@ -290,12 +302,28 @@ public final class SongShare {
         return mc != null && mc.player != null && SupportersFeature.isSupporter(mc.player.getUUID());
     }
 
+    /** A new listener in a room (the lobby link's join or welcome): send the current song again. */
+    public static void resendSoon() { resend = true; }
+
+    /** Whose songs can reach you right now, from the relay rooms you are in (the Show Others' Songs hover). */
+    public static String receiveScope() {
+        String room = RelayClient.isConnected() ? RelayClient.room() : "";
+        boolean lobby = RelayTap.isConnected() || room.startsWith("lobby:");
+        boolean party = room.startsWith("party:");
+        if (!lobby && !party) return "On, but not connected to the mod's relay right now, so no one's song can reach you.";
+        String near = " They must have Share My Song on and be within 16 blocks.";
+        if (lobby && party) return "You see the songs of mod users in this lobby, partied or not, and in your party." + near;
+        if (lobby) return "You see the songs of mod users in this lobby, partied or not." + near;
+        return "You see the songs of mod users in your party; the lobby link is not connected yet (it waits for Hypixel's"
+                + " server id), so players outside your party are not seen right now.";
+    }
+
     /** Why your song is not reaching other mod users right now, or null when it is (or Share My Song is off). */
     public static String notSentReason() {
         if (!SongShareConfig.getInstance().isShareSong()) return null;
         String why = blockReason();
         if (why != null) return why;
-        if (testSender == null && !RelayClient.isConnected()) return "not connected to the mod's relay (no party or lobby room)";
+        if (testSender == null && !RelayClient.isConnected() && !RelayTap.isConnected()) return "not connected to the mod's relay (no party or lobby room)";
         return null;
     }
 }

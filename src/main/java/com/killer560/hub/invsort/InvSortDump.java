@@ -115,6 +115,16 @@ public final class InvSortDump {
         return STORAGE_TITLE.matcher(title).matches() || StorageOverlayFeature.storageKeyForTitle(title) != null;
     }
 
+    /** Width the Storage Overlay's side buttons need so Dump Into Chest fits in the same column (0: no button wanted). */
+    public static int sideButtonWidth() {
+        InventorySorterConfig cfg = InventorySorterConfig.getInstance();
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED || !cfg.isEnabled() || !cfg.isDumpButton()) {
+            return 0;
+        }
+        Font font = Minecraft.getInstance().font;
+        return Math.max(font.width(LABEL), font.width("Stop Dumping")) + 10;
+    }
+
     private static boolean buttonVisible(AbstractContainerScreen<?> cs) {
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
         return cfg.isEnabled() && cfg.isDumpButton() && McCompat.screen(Minecraft.getInstance()) == cs && eligible(cs)
@@ -129,16 +139,22 @@ public final class InvSortDump {
         }
         Font font = Minecraft.getInstance().font;
         String label = isRunning() ? "Stop Dumping" : LABEL;
-        int w = font.width(label) + 10;
+        int[] slot = StorageOverlayFeature.dumpSlot(cs);
+        int w = slot != null ? slot[2] : font.width(label) + 10;
+        int h = slot != null ? slot[3] : BTN_H;
         AbstractContainerScreenAccessor geo = (AbstractContainerScreenAccessor) cs;
-        int x = geo.killer560smod$getLeftPos() + 176 - w;
-        int y = Math.max(1, geo.killer560smod$getTopPos() - BTN_H - 3);
-        com.killer560.hub.containercover.ContainerCover.coverRect(cs, "invsort.dump", x, y, x + w, y + BTN_H);
-        boolean hover = mx >= x && mx < x + w && my >= y && my < y + BTN_H;
-        g.fill(x, y, x + w, y + BTN_H, hover ? 0xFF4A3010 : PANEL_BG);
-        g.outline(x, y, w, BTN_H, ThemeAccent.accent(PANEL_BORDER));
-        g.text(font, label, x + 5, y + 2, 0xFFFFFFFF, false);
-        rect = new int[]{x, y, w, BTN_H};
+        int x = slot != null ? slot[0] : geo.killer560smod$getLeftPos() + 176 - w;
+        int y = slot != null ? slot[1] : Math.max(1, geo.killer560smod$getTopPos() - BTN_H - 3);
+        com.killer560.hub.containercover.ContainerCover.coverRect(cs, "invsort.dump", x, y, x + w, y + h);
+        if (slot != null) {
+            StorageOverlayFeature.drawSideButton(g, x, y, w, h, label, mx, my);
+        } else {
+            boolean hover = mx >= x && mx < x + w && my >= y && my < y + h;
+            g.fill(x, y, x + w, y + h, hover ? 0xFF4A3010 : PANEL_BG);
+            g.outline(x, y, w, h, ThemeAccent.accent(PANEL_BORDER));
+            g.text(font, label, x + 5, y + 2, 0xFFFFFFFF, false);
+        }
+        rect = new int[]{x, y, w, h};
         rectFor = cs;
     }
 

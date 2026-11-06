@@ -52,6 +52,8 @@ public final class LoadoutSwapper {
     private static long startedMs = 0L;
     private static long clickTick = -1L;
     private static Object lastLevel = null;
+    /** The /loadouts page a page-arrow click left, until the next page's screen replaces it. */
+    private static Screen turnedFrom;
     private static boolean[] wasDown = new boolean[12];
     private static boolean openWasDown;
     /** Test hook (docs/TESTING-HOOKS.md): stands in for the Open Loadouts key being held, since a harness key press
@@ -67,7 +69,7 @@ public final class LoadoutSwapper {
 
     private static boolean lastSwapped;
 
-    /** Selects Hypixel loadout {@code number} (1-12) the way a slot key set to Open, Swap, Close does; the Inventory
+    /** Selects Hypixel loadout {@code number} (1-{@link LoadoutKeybindsFeature#MAX_LOADOUT}; past 12 it pages there first) the way a slot key set to Open, Swap, Close does; the Inventory
      *  Sorter calls it before a layout with a loadout sorts (killer560, 2026-11-04). False, with nothing sent, while a
      *  swap runs, a menu is open or {@code number} is out of range. Poll {@link #isBusy} and {@link #lastSwapped}. */
     public static boolean requestLoadout(Minecraft client, int number) {
@@ -190,10 +192,10 @@ public final class LoadoutSwapper {
         return any;
     }
 
-    /** Starts a swap to slot {@code index} (0-11). False, with nothing sent, while one is running or a menu is open. */
+    /** Starts a swap to loadout {@code index + 1} (index 0-11 is page 1). False, with nothing sent, while one is running or a menu is open. */
     static boolean request(Minecraft client, int index) {
         LocalPlayer player = client.player;
-        if (stage != Stage.IDLE || player == null || index < 0 || index >= LoadoutKeybindsFeature.LOADOUT_SLOTS.length) {
+        if (stage != Stage.IDLE || player == null || index < 0 || index >= LoadoutKeybindsFeature.MAX_LOADOUT) {
             return false;
         }
         if (ActionGate.containerScreenOpen(client) || player.containerMenu != player.inventoryMenu) {
@@ -207,6 +209,7 @@ public final class LoadoutSwapper {
         startedMs = System.currentTimeMillis();
         phaseStartedMs = startedMs;
         clickTick = -1L;
+        turnedFrom = null;
         stage = Stage.AWAIT_MENU;
         LOGGER.info("[LoadoutKeybinds] slot {}: /loadouts sent.", index + 1);
         return true;
@@ -243,20 +246,48 @@ public final class LoadoutSwapper {
 
     private static void click(Minecraft client, LocalPlayer player, long now) {
         AbstractContainerScreen<?> screen = loadoutScreen(client);
+        if (screen == null && turnedFrom != null && LoadoutKeybindsFeature.isLoadoutScreen(McCompat.screen(client))
+                && now - phaseStartedMs <= STEP_TIMEOUT_MS) {
+            return; // the next page is up, its items not yet
+        }
         if (screen == null) {
             // Closed, or replaced by something that is not the loadout menu: nothing of ours left to click or close.
             finish("menu went away before the click");
             return;
         }
         if (now - phaseStartedMs > STEP_TIMEOUT_MS) {
-            finish("click never got a tick");
+            finish(screen == turnedFrom ? "the next page never opened" : "click never got a tick");
+            return;
+        }
+        if (screen == turnedFrom) {
+            return;
+        }
+        java.util.regex.Matcher page = LoadoutKeybindsFeature.LOADOUT_TITLE.matcher(screen.getTitle().getString());
+        boolean found = page.find(); // isLoadoutScreen matched it, so this holds
+        int at = found ? Integer.parseInt(page.group(1)) : 1;
+        int of = found ? Integer.parseInt(page.group(2)) : 1;
+        int want = slotIndex / LoadoutKeybindsFeature.LOADOUT_SLOTS.length + 1;
+        if (want > of) {
+            ModChat.send(CHAT, ModChat.bad("Loadout " + (slotIndex + 1) + " isn't there: /loadouts has " + of + " page(s)."));
+            screen.onClose();
+            finish("no page " + want);
             return;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.LOADOUT_SWAP_MENU, screen)) {
             return;
         }
-        int slot = LoadoutKeybindsFeature.LOADOUT_SLOTS[slotIndex];
+        int slot = at == want ? LoadoutKeybindsFeature.LOADOUT_SLOTS[slotIndex % LoadoutKeybindsFeature.LOADOUT_SLOTS.length]
+                : at < want ? LoadoutKeybindsFeature.NEXT_PAGE_SLOT : LoadoutKeybindsFeature.PREVIOUS_PAGE_SLOT;
+        // The page as it is now: after this click the clicked loadout sits on the cursor until the menu closes, which the
+        // cache does not take (loadout1-1105), so a page seen only during a swap would never be remembered.
+        com.killer560.hub.invsort.InvSortLoadoutCache.tick(client);
         client.gameMode.handleContainerInput(screen.getMenu().containerId, slot, 0, ContainerInput.PICKUP, player);
+        if (at != want) {
+            turnedFrom = screen;
+            phaseStartedMs = now;
+            LOGGER.info("[LoadoutKeybinds] slot {}: page {} -> {} (menu slot {}).", slotIndex + 1, at, want, slot);
+            return;
+        }
         clickTick = ActionGate.currentTick();
         stage = Stage.CLOSE;
         phaseStartedMs = now;
@@ -291,5 +322,6 @@ public final class LoadoutSwapper {
         stage = Stage.IDLE;
         slotIndex = -1;
         clickTick = -1L;
+        turnedFrom = null;
     }
 }

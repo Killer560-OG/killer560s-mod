@@ -53,7 +53,7 @@ public final class InventorySorterConfig {
     /** Dump Into Chest (killer560, 2026-11-04): show the button on chest screens. */
     private boolean dumpButton = true;
     /** Dump Into Chest also moves the hotbar (never slot 8). Off by default. */
-    private boolean dumpHotbar = false;
+    private boolean dumpHotbar = true;
     /** Key (or mouse button) code that dumps into the open chest, KeyUtil.NONE for none. */
     private int dumpKey = KeyUtil.NONE;
 
@@ -89,7 +89,8 @@ public final class InventorySorterConfig {
             cfg.openMenuKey = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openMenuKey", KeyUtil.NONE));
             cfg.instant = ConfigJson.getBool(obj, "instant", cfg.instant);
             cfg.dumpButton = ConfigJson.getBool(obj, "dumpButton", cfg.dumpButton);
-            cfg.dumpHotbar = ConfigJson.getBool(obj, "dumpHotbar", cfg.dumpHotbar);
+            // Dump Hotbar became ON by default (dumpbtn-1105): a file without the version key gets it ON once.
+            cfg.dumpHotbar = !obj.has("dumpHotbarV2") || ConfigJson.getBool(obj, "dumpHotbar", cfg.dumpHotbar);
             cfg.dumpKey = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "dumpKey", KeyUtil.NONE));
             if (obj.has("layoutOrder") && obj.get("layoutOrder").isJsonArray()) {
                 for (com.google.gson.JsonElement el : obj.getAsJsonArray("layoutOrder")) {
@@ -130,6 +131,7 @@ public final class InventorySorterConfig {
             obj.addProperty("instant", instant);
             obj.addProperty("dumpButton", dumpButton);
             obj.addProperty("dumpHotbar", dumpHotbar);
+            obj.addProperty("dumpHotbarV2", true);
             obj.addProperty("dumpKey", dumpKey);
             com.google.gson.JsonArray order = new com.google.gson.JsonArray();
             for (String name : layoutOrder) {

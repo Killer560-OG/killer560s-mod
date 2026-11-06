@@ -42,6 +42,8 @@ public final class SupportersAutoShare {
     private static volatile String lastPushedKey;
     private static volatile long lastPushAtMs = -1L;
     private static volatile long requestSeq;
+    /** Whether this session last pushed a non-empty entry for the signed-in account (only then may an empty push clear it). */
+    private static volatile boolean sharedSomething;
 
     private SupportersAutoShare() {
     }
@@ -88,6 +90,11 @@ public final class SupportersAutoShare {
         String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation + "|" + trail
                 + "|" + sendMob;
         if (key.equals(lastPushedKey)) return;
+        boolean empty = rawName.isEmpty() && trail == null && sendMob == null;
+        // Nothing to share and nothing shared from here this session: send nothing (songfix-1106). A clear is only for
+        // taking back what this instance put up; an instance with default cosmetics (26.3 Default, a second PC) must
+        // never wipe the name, colors and mob his main instance shares. It did, and he vanished from the supporter list.
+        if (empty && !sharedSomething) return;
         long now = System.currentTimeMillis();
         if (lastPushAtMs > 0 && now - lastPushAtMs < MIN_PUSH_GAP_MS) {
             return; // too soon - the next rebuild (another keystroke, or just time passing) retries this
@@ -98,7 +105,8 @@ public final class SupportersAutoShare {
         lastPushAtMs = now;
         lastPushedKey = key;
         long seq = ++requestSeq;
-        CompletableFuture<SupportersSelfService.SaveResult> future = rawName.isEmpty() && trail == null && sendMob == null
+        sharedSomething = !empty;
+        CompletableFuture<SupportersSelfService.SaveResult> future = empty
                 ? SupportersSelfService.clear()
                 : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation, trail, sendMob);
         future.whenComplete((result, ignored) -> Minecraft.getInstance().execute(() -> {
@@ -153,8 +161,14 @@ public final class SupportersAutoShare {
         }
         if (now < nextStartupCheckAtMs) return;
         startupInFlight = true;
-        SupportersSelfService.fetchMe().whenComplete((result, error) ->
-                Minecraft.getInstance().execute(() -> onStartupMe(result)));
+        long seq = requestSeq;
+        SupportersSelfService.fetchMe().whenComplete((result, error) -> Minecraft.getInstance().execute(() -> {
+            if (seq != requestSeq) {
+                startupInFlight = false; // asked for the account before a swap: ask again
+                return;
+            }
+            onStartupMe(result);
+        }));
     }
 
     /** The startup check's answer (on the client thread). Public for the testkit, which feeds it a made-up answer. */
@@ -178,6 +192,43 @@ public final class SupportersAutoShare {
 
     /** "waiting", "linked", "not linked" or "retry in N s after K failure(s): reason" - for the testkit. */
     public static String startupCheckState() { return startupState; }
+
+    /** Your display name as shared: its text without the color (sent separately), with an {@code &l} in front when Bold
+     *  Name is on. The relay accepts {@code &k-o} (SupporterNameValidator); until songfix-1106 only the Cosmetics tab's
+     *  copy button added the bold, so others saw his name without it ("my name didnt show bold for his screen"). */
+    public static String sharedPlainName() {
+        NameChangerConfig nc = NameChangerConfig.getInstance();
+        String text = NameColor.migrate(nc.getOwnDisplayName()).text();
+        return nc.isOwnBold() && !text.isEmpty() ? "&l" + text : text;
+    }
+
+    /** The in-game account switcher swapped accounts: nothing known about the old one carries over (its linked status,
+     *  what was pushed for it, an answer still in flight); the startup check runs again for the new one. */
+    public static void accountChanged() {
+        requestSeq++;
+        linked = false;
+        sharedSomething = false;
+        lastPushedKey = null;
+        lastPushAtMs = -1L;
+        startupDone = false;
+        startupFailures = 0;
+        nextStartupCheckAtMs = -1L;
+        startupState = "waiting";
+    }
+
+    /** Reset Cosmetics was pressed: the next push may clear the shared entry even if nothing was shared this session. */
+    public static void clearOnNextShare() {
+        sharedSomething = true;
+        lastPushedKey = null;
+    }
+
+    /** The fetched supporter list has no entry for {@code self} although this session shared one: someone else cleared
+     *  it (another instance on the same account, staff). Forget the last push so the next nudge puts it back. */
+    static void selfMissing() {
+        if (linked && sharedSomething) {
+            lastPushedKey = null;
+        }
+    }
 
     /** Your Ribbon Trail as it is shared: only while Share Trail is on and your Ribbon Trail is on, else null (no trail
      *  field). The squares Trail is never shared (killer560, 2026-10-14). */
@@ -207,7 +258,7 @@ public final class SupportersAutoShare {
     public static void shareCurrent(Consumer<String> onError) {
         SupportersConfig cfg = SupportersConfig.getInstance();
         NameChangerConfig nc = NameChangerConfig.getInstance();
-        maybeShare(cfg.isShareIfSupporter(), linked, NameColor.migrate(nc.getOwnDisplayName()).text(), nc.getOwnColor(),
+        maybeShare(cfg.isShareIfSupporter(), linked, sharedPlainName(), nc.getOwnColor(),
                 com.killer560.hub.namechanger.NameChangerFeature.ownShareColours(),
                 com.killer560.hub.namechanger.NameChangerFeature.ownShareAnimation(), cfg.getOwnScale(),
                 trailToShare(), mobToShare(), onError);

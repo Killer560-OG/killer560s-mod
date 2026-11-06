@@ -27,14 +27,14 @@ import java.util.function.IntUnaryOperator;
  * that room. Two or more: nothing. A placement over an unidentified room's tile counts as a fit but is never drawn. Two
  * rooms whose only placements claim one tile: nothing for either. A claimed tile counts as that room's in the next round,
  * so one room's completion can settle another's (until nothing changes).</li>
- * <li><b>Full floor.</b> Hypixel fills every slot of a floor's grid, so on a known floor (not the sim) with no slot seen
- * empty, every unseen tile no room claimed is drawn as an unknown room: the unopened gray with "?".</li>
  * <li><b>Forced door.</b> Every room has a door. A room whose whole shape is known (seen, or completed by rule 1), with no
  * seen door, and exactly one side that could still hold one (an unknown gap, or a seen join to another room the scan may
  * have misread, never towards a slot seen empty), has its door there.</li>
  * </ol>
- * Drawn in Predictive Rooms' guess style (the room or door color darkened by {@link PredictedRoomsPainter#GUESS_DARKEN};
- * the unopened gray with "?"), and only on cells nothing was seen on, so real data replaces it the moment it arrives: the
+ * Drawn in the room's (or door's) own color, as if seen, and only on cells nothing was seen on (killer560, 2026-11-05,
+ * his Pipes: "the guess is perfect just have it as the same color as the rest of pipes"; until mapq-1105 it was darkened by
+ * PredictedRoomsPainter.GUESS_DARKEN, and a full floor's unclaimed unseen tiles were gray "?" rooms: "dont show those
+ * question mark rooms"). Real data replaces it the moment it arrives: the
  * result is worked out again whenever the map data changes ({@link LiveMapFeature#mapVersion}, the map item's version,
  * the floor), never per frame. Display only: {@link DungeonLayout}, the pathfinders and every automation read the real
  * data, never this.
@@ -52,9 +52,8 @@ final class MapInference {
     static final int GAP_DOOR = 1;
     static final int GAP_WALL = 2;
     static final int GAP_JOIN = 3;
-    /** {@link Result#cell} of a cell nothing was inferred on, and of an unseen tile of a full floor (some room). */
+    /** {@link Result#cell} of a cell nothing was inferred on. */
     static final int NOTHING = -1;
-    static final int ANY_ROOM = -3;
 
     /** What it concluded, by grid cell: the room (id) an inferred cell belongs to, and the inferred doors. */
     record Result(int[] cell, boolean[] door, int count) {
@@ -73,9 +72,8 @@ final class MapInference {
      * @param tile   per grid cell (room cells only): a room id, {@link #UNSEEN} or {@link #EMPTY}
      * @param gap    per grid cell (gaps between two room slots): {@link #GAP_UNKNOWN} ... {@link #GAP_JOIN}
      * @param shapes per room id: the database shape ("1x1".."1x4", "2x2", "L"), or null when unidentified
-     * @param full   whether every slot of the floor is known to hold a room
      */
-    static Result infer(int cols, int rows, int[] tile, int[] gap, String[] shapes, boolean full) {
+    static Result infer(int cols, int rows, int[] tile, int[] gap, String[] shapes) {
         int rooms = shapes.length;
         // 1. Shape completion, in rounds: a tile one room's only placement claims is that room's from then on, which can
         // leave another room only one placement (Gold's second tile settles which way Pit runs).
@@ -105,7 +103,7 @@ final class MapInference {
                 only[room] = onlyPlacement(room, shape, known[room], seen, gap, shapes, cols, rows);
                 for (int s : only[room] == null ? new int[0] : only[room]) {
                     if (seen[s] == UNSEEN) {
-                        claimedBy[s] = claimedBy[s] == NOTHING ? room : ANY_ROOM;
+                        claimedBy[s] = claimedBy[s] == NOTHING ? room : -2; // wanted by two rooms
                     }
                 }
             }
@@ -158,19 +156,7 @@ final class MapInference {
                 }
             }
         }
-        // 2. Full floor: every unseen tile left is some room.
-        if (full) {
-            for (int r = 0; r < rows; r++) {
-                for (int c = 0; c < cols; c++) {
-                    int s = slot(c, r);
-                    if (seen[s] == UNSEEN) {
-                        cell[s] = ANY_ROOM;
-                        count++;
-                    }
-                }
-            }
-        }
-        // 3. Forced door.
+        // 2. Forced door.
         boolean[] door = new boolean[G * G];
         Arrays.fill(known, 0);
         for (int r = 0; r < rows; r++) {
@@ -422,15 +408,12 @@ final class MapInference {
         }
         int[] tile = new int[G * G];
         int[] gap = new int[G * G];
-        // Rule 2 only where the scanned floor is drawn: on the map item map every room not reached yet would turn "?".
-        boolean full = !hide && !sim && floor != null && !floor.isEmpty();
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 int idx = slot(c, r);
                 int gid = LiveMapFeature.groupIdAt(idx);
                 tile[idx] = gid >= 0 && gid < shown.length && shown[gid] ? gid
                         : !hide && LiveMapFeature.seenEmpty(idx) ? EMPTY : UNSEEN;
-                full &= tile[idx] != EMPTY;
             }
         }
         for (int gz = 0; gz < 2 * rows - 1; gz++) {
@@ -457,7 +440,7 @@ final class MapInference {
                 };
             }
         }
-        return infer(cols, rows, tile, gap, shapes, full);
+        return infer(cols, rows, tile, gap, shapes);
     }
 
     // ------------------------------------------------------------------------------------------------------ drawing
@@ -469,12 +452,12 @@ final class MapInference {
             return;
         }
         List<LiveMapFeature.RoomGroup> groups = LiveMapFeature.groupsView();
-        paint(graphics, cfg, res, gid -> gid < groups.size() && MapPainter.isRevealed(groups.get(gid))
+        paint(graphics, res, gid -> gid < groups.size() && MapPainter.isRevealed(groups.get(gid))
                 ? MapPainter.roomColor(groups.get(gid), cfg) : 0, idx -> MapPainter.connectorColor(idx, cfg), ox, oy, ppu);
     }
 
-    /** {@code roomColor}: a room's own fill by id (0 = not drawn); the inferred parts are drawn darkened from it. */
-    private static void paint(GuiGraphicsExtractor graphics, LiveMapConfig cfg, Result res, IntUnaryOperator roomColor,
+    /** {@code roomColor}: a room's own fill by id (0 = not drawn); the inferred parts are drawn in it, as if seen. */
+    private static void paint(GuiGraphicsExtractor graphics, Result res, IntUnaryOperator roomColor,
                               IntUnaryOperator doorColor, float ox, float oy, float ppu) {
         GuiRects rects = GuiRects.begin(graphics);
         for (int idx = 0; idx < res.cell().length; idx++) {
@@ -483,29 +466,22 @@ final class MapInference {
             if (res.door()[idx]) {
                 float[] b = MapPainter.doorUnits(gx, gz);
                 rects.fill(MapPainter.px(ox, b[0], ppu), MapPainter.px(oy, b[1], ppu), MapPainter.px(ox, b[0] + b[2], ppu),
-                        MapPainter.px(oy, b[1] + b[3], ppu),
-                        MapPainter.multiply(doorColor.applyAsInt(idx), PredictedRoomsPainter.GUESS_DARKEN));
+                        MapPainter.px(oy, b[1] + b[3], ppu), doorColor.applyAsInt(idx));
                 continue;
             }
             int owner = res.cell()[idx];
             if (owner == NOTHING) {
                 continue;
             }
-            int color = owner == ANY_ROOM ? MapPainter.unopenedFill(cfg) : roomColor.applyAsInt(owner);
+            int color = roomColor.applyAsInt(owner);
             if (color == 0) {
                 continue;
             }
             rects.fill(MapPainter.px(ox, MapPainter.cellPos(gx), ppu), MapPainter.px(oy, MapPainter.cellPos(gz), ppu),
                     MapPainter.px(ox, MapPainter.cellPos(gx) + MapPainter.cellSize(gx), ppu),
-                    MapPainter.px(oy, MapPainter.cellPos(gz) + MapPainter.cellSize(gz), ppu),
-                    owner == ANY_ROOM ? color : MapPainter.multiply(color, PredictedRoomsPainter.GUESS_DARKEN));
+                    MapPainter.px(oy, MapPainter.cellPos(gz) + MapPainter.cellSize(gz), ppu), color);
         }
         rects.submit();
-        for (int idx = 0; idx < res.cell().length; idx++) {
-            if (res.cell()[idx] == ANY_ROOM) {
-                PredictedRoomsPainter.question(graphics, null, cfg, idx % G, idx / G, ox, oy, ppu);
-            }
-        }
     }
 
     // ---------------------------------------------------------------------------------------------------- test hooks
@@ -516,16 +492,16 @@ final class MapInference {
      * empty. A gap: ' ' or '?' unknown, 'D' door, '#' wall, '=' join. {@code shapes[letter]}: the room's shape, or null
      * when unidentified. Answers {@link #describe}.
      */
-    public static String testInfer(String[] rows, String[] shapes, boolean full) {
-        return describe(inferText(rows, shapes, full), null);
+    public static String testInfer(String[] rows, String[] shapes) {
+        return describe(inferText(rows, shapes), null);
     }
 
     /** Test hook: {@link #testInfer}'s floor drawn by the map's own painter, room letter i in {@code colors[i]}; an
      *  inferred door in the color of the inferred room beside it, else room a's. */
-    public static void testDraw(GuiGraphicsExtractor graphics, String[] rows, String[] shapes, boolean full, int[] colors,
+    public static void testDraw(GuiGraphicsExtractor graphics, String[] rows, String[] shapes, int[] colors,
                                 float ox, float oy, float ppu) {
-        Result res = inferText(rows, shapes, full);
-        paint(graphics, LiveMapConfig.getInstance(), res, id -> colors[id], idx -> {
+        Result res = inferText(rows, shapes);
+        paint(graphics, res, id -> colors[id], idx -> {
             int[] t = HeldMap.sides(idx);
             for (int s : t) {
                 if (s >= 0 && s < G * G && res.cell()[s] >= 0) {
@@ -552,7 +528,7 @@ final class MapInference {
         return describe(res, names);
     }
 
-    private static Result inferText(String[] rows, String[] shapes, boolean full) {
+    private static Result inferText(String[] rows, String[] shapes) {
         int[] tile = new int[G * G];
         int[] gap = new int[G * G];
         for (int gz = 0; gz < rows.length; gz++) {
@@ -566,18 +542,16 @@ final class MapInference {
                 }
             }
         }
-        return infer((rows[0].length() + 1) / 2, (rows.length + 1) / 2, tile, gap, shapes, full);
+        return infer((rows[0].length() + 1) / 2, (rows.length + 1) / 2, tile, gap, shapes);
     }
 
-    /** "room@gx,gz" for each inferred cell ("?" for an unknown room of a full floor) and "door@gx,gz", in grid order. */
+    /** "room@gx,gz" for each inferred cell and "door@gx,gz", in grid order. */
     static String describe(Result res, String[] names) {
         List<String> out = new ArrayList<>();
         for (int idx = 0; idx < res.cell().length; idx++) {
             int owner = res.cell()[idx];
             String at = "@" + idx % G + "," + idx / G;
-            if (owner == ANY_ROOM) {
-                out.add("?" + at);
-            } else if (owner >= 0) {
+            if (owner >= 0) {
                 out.add((names != null && owner < names.length && names[owner] != null ? names[owner]
                         : names != null ? "#" + owner : String.valueOf((char) ('a' + owner))) + at);
             }

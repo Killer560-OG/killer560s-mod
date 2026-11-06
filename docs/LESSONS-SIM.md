@@ -47,7 +47,7 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   until fire ticks were canceled and the build placed with `UPDATE_SKIP_ON_PLACE` (hoppers' onPlace re-checked power).
 - Read a hole off the capture before cutting one: Hypixel's core floor is a 7x7 gold and bedrock plug at y 113 over a
   shaft already open to P4, while the plan's hole at 105-106 cut solid stone under it and nobody fell (bossfloor-1104).
-- One capture file for every boss phase let a P3 `/simbosscapture` overwrite his P1 room (2026-11-04 23:21), so the sim's
+- One capture file for every boss phase let a P3 capture overwrite his P1 room (2026-11-04 23:21), so the sim's
   fight start was built from a P3 world. Each capture now goes to its phase's file (K5BA v2 records the phase); the fight
   starts from P1's, and P3's start takes only the cells of P3's band where the P3 capture differs from the P1 one.
 - **Every landing goes through `roomsim/SimArrival`, and the loading bar reads only `SimWorld.progress()`** (simspawn-1104,
