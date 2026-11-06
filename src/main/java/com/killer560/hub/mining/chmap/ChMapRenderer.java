@@ -209,12 +209,12 @@ public final class ChMapRenderer {
         }
     }
 
-    /** A rectangle outline, solid or dashed (3 on, 3 off), clipped to the panel. */
     /** ARGB of map quadrant i (Jungle, Mithril, Goblin, Precursor): the zone's Crystal Hollows Walls color, translucent. */
     public static int zoneFill(int i) {
         return 0x30000000 | com.killer560.hub.miningqol.MiningQolConfig.getInstance().getChWallColor(com.killer560.hub.miningqol.CrystalHollowsWalls.Zone.values()[i]);
     }
 
+    /** A rectangle outline, solid or dashed (3 on, 3 off), clipped to the panel. */
     private void border(int ax, int ay, int bx, int by, int color, boolean solid) {
         int dash = solid ? 1 << 28 : 3;
         for (int x = ax; x <= bx; x += dash * 2) {
