@@ -7,3 +7,4 @@ df0e0a0b13eae3828fc090e64d31ea92f5a0d8d7:docs/SIM-SECRETS.md:generic-api-key:251
 03c4ac5b1f350d96441adeeadee36af65f38caef:src/main/java/com/killer560/hub/roomsim/SimKeys.java:generic-api-key:95
 03c4ac5b1f350d96441adeeadee36af65f38caef:src/main/java/com/killer560/hub/roomsim/SimKeys.java:generic-api-key:96
 320b99bf7fe286efac17eefb87949f4d35cd2a90:src/main/java/com/killer560/hub/roomsim/SimSecretItems.java:generic-api-key:92
+0f316d53f784d330b052da1e0316223e40233a80:src/main/java/com/killer560/hub/util/ModPaths.java:generic-api-key:124
