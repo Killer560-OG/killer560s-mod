@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.modusers.ModUsers;
 import com.killer560.hub.relay.RelayClient;
+import com.killer560.hub.relay.RelayTap;
 import com.killer560.hub.supporters.SlurFilter;
 import com.killer560.hub.supporters.SupportersFeature;
 import net.minecraft.ChatFormatting;
@@ -128,7 +129,7 @@ public final class RemoteSongs {
         if (mc != null && mc.player != null && from.equals(mc.player.getGameProfile().name())) return "own packet";
         UUID uuid = parseUuid(uuidText);
         if (uuid == null) return "no sender uuid";
-        if (ModUsers.variantOf(from) == null) return "not a mod user";
+        if (!modUser(from)) return "not a mod user";
         if (!SupportersFeature.isSupporter(uuid)) return "not a supporter";
         if (value == null || !value.isJsonObject()) return "not an object";
         if (value.toString().length() > MAX_VALUE_CHARS) return "too long";
@@ -197,7 +198,7 @@ public final class RemoteSongs {
     /** The live entry for {@code name}, or null: every gate checked again on every lookup. */
     private static Entry live(String name, UUID entityId) {
         if (name == null || entityId == null || SONGS.isEmpty() || !SongShareConfig.getInstance().isShowOthers()
-                || !(testConnected || RelayClient.isConnected())) {
+                || !(testConnected || RelayClient.isConnected() || RelayTap.isConnected())) {
             return null;
         }
         Entry e = SONGS.get(name);
@@ -206,8 +207,13 @@ public final class RemoteSongs {
             SONGS.remove(name, e);
             return null;
         }
-        if (ModUsers.variantOf(name) == null || !SupportersFeature.isSupporter(entityId)) return null;
+        if (!modUser(name) || !SupportersFeature.isSupporter(entityId)) return null;
         return e;
+    }
+
+    /** A mod user in the main relay room or, through Song Tag's lobby link, in this lobby. */
+    private static boolean modUser(String name) {
+        return ModUsers.variantOf(name) != null || RelayTap.isModUser(name);
     }
 
     /**
@@ -261,7 +267,7 @@ public final class RemoteSongs {
     private static volatile int lastRemoteLit = -1;
 
     /** A player left the room. */
-    static void forget(String name) {
+    public static void forget(String name) {
         if (name != null) {
             SONGS.remove(name);
         }
