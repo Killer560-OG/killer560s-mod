@@ -573,6 +573,19 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   after every automation's input mixin); "still" is judged on what LEFT the connection (`InventoryWalkFeature.noteLeft`
   from Blink's send hook); during a hold the clicks join the hold behind the still tick (`BlinkFeature.clicksJoinHold`).
   Test helpers that close a menu with `setScreen(null)` send no close packet at all - `onClose()` does, as Escape does.
+- Hypixel's "Bad client inventory move." limbo is movement after a click in his OWN inventory (window 0) with no close of
+  window 0 since, worst with an item on the server's cursor (invwalk-1105; his 26.3 log 2026-11-05 23:14:34: a held pick-up
+  of slot 40 went out, he walked 3 ticks later carrying it; 23:15:54: two pick-ups and a swap sent standing, then walking with
+  the inventory still open). GrimAC does not flag it, so only his log shows it. Fix (vanilla's own shape): in window 0 the
+  pick-up stays unsent while he walks carrying the item; the put-down sends one keyless tick, the clicks, then
+  `ServerboundContainerClosePacket(0)`, so the server never has a window-0 click unclosed while he moves. Server menus keep the
+  plain still-tick hold and are never closed; the SkyBlock Menu star is excluded, and the craft grid must be empty. Testkit
+  1105-iw-carry fails on f76d17ccc (the old jar stops him while carrying).
+- Inventory Walk's Look Key turns the view through `MouseHandler.turnPlayer` from a HEAD inject on `onMove` (26.3
+  `(JDDDD)V`, 26.2 `(JDD)V`: read x/y with MixinExtras `@Local(argsOnly = true, ordinal = 0/1)`, which both share), then
+  warps the cursor back to `xpos/ypos` so the menu sees no move (26.3 is SDL: `SDL_WarpMouseInWindow`; 26.2 GLFW
+  `glfwSetCursorPos`; both in `compat/McWindow.warpCursor`). Reading the cursor from GLFW/SDL instead would miss the
+  testkit's synthetic moves. Testkit 1105-iw-look (same-tick shift-click, close, walking click).
 - A turn applied at START_CLIENT_TICK must come before every use that tick (leapsame-1105, testkit 1105-leaplook-same-*). Leap Takes Target's Look ran after `LeapManager.onStartTick` in Fast Leap's tick, so a Fast Leap use in the turn tick left at the old look and the movement packet reported the new one: BadPacketsJ on default and experimental GrimAC, as did a use sent between ticks at the old look just before the turn tick. Fix: the turn runs first, and waits a tick when a use_item already went out since the last client_tick_end (`LeapRotation.useThisTick`, fed by the send tap). A container click, an attack and the teleport accept in the turn tick carry no look and are clean on default and experimental GrimAC; a hand right click is read in handleKeybinds after START, so it carries the turned look.
 - Two item uses in one client tick with DIFFERENT looks are BadPacketsJ: each use must carry a rotation that tick's single
   movement packet reports (javap 2.3.74: a use whose yaw/pitch differs from the tick's previous use flags, and at the tick

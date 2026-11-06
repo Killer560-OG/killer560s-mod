@@ -43,6 +43,8 @@ public final class InventoryWalkConfig {
     private int pauseAfterClickTicks = 0;
     /** Hold a click made while walking until a tick with no movement keys and no sprint has reached the server. */
     private boolean stopToClick = true;
+    /** While held with a menu open, the mouse turns his view instead of moving the cursor (KeyUtil code, NONE = off). */
+    private int lookKeyCode = com.killer560.hub.util.KeyUtil.NONE;
 
     private InventoryWalkConfig() {
     }
@@ -65,6 +67,7 @@ public final class InventoryWalkConfig {
                 cfg.sprint = ConfigJson.getBool(obj, "sprint", cfg.sprint);
                 cfg.setPauseAfterClickTicks(ConfigJson.getInt(obj, "pauseAfterClickTicks", cfg.pauseAfterClickTicks));
                 cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
+                cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             } catch (Exception e) {
                 cfg = new InventoryWalkConfig();
             }
@@ -82,6 +85,7 @@ public final class InventoryWalkConfig {
             obj.addProperty("sprint", sprint);
             obj.addProperty("pauseAfterClickTicks", pauseAfterClickTicks);
             obj.addProperty("stopToClick", stopToClick);
+            obj.addProperty("lookKeyCode", lookKeyCode);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -133,5 +137,13 @@ public final class InventoryWalkConfig {
 
     public void setStopToClick(boolean stopToClick) {
         this.stopToClick = stopToClick;
+    }
+
+    public int getLookKeyCode() {
+        return lookKeyCode;
+    }
+
+    public void setLookKeyCode(int code) {
+        this.lookKeyCode = code;
     }
 }
