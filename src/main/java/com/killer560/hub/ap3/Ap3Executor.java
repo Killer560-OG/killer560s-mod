@@ -2166,6 +2166,12 @@ public final class Ap3Executor {
         if (actNode == null || actFired || client.player != self || client.level == null || client.gameMode == null) {
             return;
         }
+        // His own use / click already went this tick: a hotbar change after it is GrimAC PacketOrderE (and a place after
+        // his use PacketOrderN), so the act waits for the next tick (START arms it again; SWAP_TIMEOUT bounds it).
+        if (actSlot >= 0 && self.getInventory().getSelectedSlot() != actSlot
+                && com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
+            return;
+        }
         // Written, not flushed: the movement packet sendPosition sends next flushes them with it, one write, so the
         // server reads the place and the packet carrying its aim together however loaded either side is (holdFlush).
         holdFlush = true;

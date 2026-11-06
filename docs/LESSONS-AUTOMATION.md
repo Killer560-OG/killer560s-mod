@@ -63,6 +63,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   killer560s-mod-logs/grimsame-1105-audit.md. His swap / use during a 20/s route chain and during the boss auras is clean.
   BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
   (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
+  grimgapA-1105: AP3's USE / BLOCK / BOOM act sends its hotbar change at the head of `sendPosition`, AFTER his right click
+  of that tick: PacketOrderE (+ PacketOrderN for a place), experimental. The act now waits for the next tick while
+  `HotbarSelect.swapWouldFlag()` (bounded by SWAP_TIMEOUT, so a click EVERY tick fails the node: tested at 10 cps).
+  Charge sent his scroll live while the tick's move was banked and the ping answers ran a second late, so a flying, his
+  `set_carried_item`, then an answer reached GrimAC: Post "held item change" (GrimAC Post resets only on a valid answer,
+  not on `client_tick_end`). It now waits in `preHeld` for the next move sent, like a sprint command. A tick with a use
+  is never banked by design, so Charge cases click only around the shot. Testkit `SameTick.Act.USE` sends at START, BEFORE
+  `gameMode.tick` sends a pending slot, which no real click does; `Act.KEYUSE` clicks the use key so `handleKeybinds` sends
+  it (AP3 cases). His use / swap / teleport in AP3 nodes, Camera and Sent-Yaw aligns, Charge shots and ZPEW Aimed Warps
+  are clean on both configs (1105-ap3-same-*, 1105-blink-charge-same-*, 1105-zpew-aimed-same-*).
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
 - **One block per server tick is GrimAC's hard limit for digs, from any source (multibreak-1102).** MultiBreak (2.3.74,
   `checks/impl/breaking/MultiBreak.java` 37-65) flags a START or STOP (not ABORT) on another block or face until a tick

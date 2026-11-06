@@ -603,10 +603,12 @@ public final class BlinkCharge {
                 }
                 return true;
             }
-            if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket && tpSegs.isEmpty()) {
-                // A sprint or sneak action goes right before the next move that is SENT. In a banked tick the move is
-                // withheld; the action sent alone sat after his last sent move, and the next answer made GrimAC's Post
-                // check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint).
+            if ((packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket) && tpSegs.isEmpty()) {
+                // A sprint or sneak action, or a hotbar change, goes right before the next move that is SENT. In a banked
+                // tick the move is withheld; the action sent alone sat after his last sent move, and the next answer made
+                // GrimAC's Post check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint;
+                // "held item change", his scroll while charged, 1105-blink-charge-same-swap). A use or click flushes it first.
                 preHeld.addLast(new Held(packet, listener, flush));
                 return true;
             }
