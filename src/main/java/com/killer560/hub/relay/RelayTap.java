@@ -77,6 +77,12 @@ public final class RelayTap {
         return send(packet);
     }
 
+    /** WORKER thread: drops the socket and connects again (the account changed; see RelayClient.forgetToken). */
+    static void reconnect() {
+        connectedRoom = "";
+        reconcile();
+    }
+
     private static void reconcile() {
         String room = wantRoom;
         if (room.equals(connectedRoom) && (socket != null || retry != null || attempt > 0)) return;

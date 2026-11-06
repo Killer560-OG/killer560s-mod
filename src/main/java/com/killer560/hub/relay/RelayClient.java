@@ -132,12 +132,19 @@ public final class RelayClient {
 
     public static void setListener(RelayListener value) { listener = value == null ? NO_LISTENER : value; }
 
-    /** Drops the cached relay token, so the next connect signs in again (after an in-game account swap). */
+    /**
+     * Drops the cached relay token and reconnects both relay sockets, so they sign in again as the account swapped to:
+     * a socket left open would keep speaking (and being listed) as the previous account (spotreal-1106).
+     */
     public static void forgetToken() {
         WORKER.execute(() -> {
             token = null;
             tokenUrl = "";
             tokenAccount = "";
+            connectedUrl = "";
+            connectedRoom = "";
+            reconcile();
+            RelayTap.reconnect();
         });
     }
 
@@ -314,6 +321,8 @@ public final class RelayClient {
     }
 
     static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
+        String forTest = RelayCalls.tokenForTest();
+        if (forTest != null) return CompletableFuture.completedFuture(new RelayAuth.Token(forTest, Long.MAX_VALUE));
         RelayAuth.Token cached = token;
         String account = currentAccount();
         if (cached != null && url.equals(tokenUrl) && account.equals(tokenAccount)
