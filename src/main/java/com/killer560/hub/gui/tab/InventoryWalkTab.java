@@ -4,6 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.invwalk.InventoryWalkConfig;
+import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -13,9 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Inventory Walk - cheat-only (see {@link com.killer560.hub.invwalk.InventoryWalkFeature}). Misc's cheat block. */
-public class InventoryWalkTab extends BaseTab {
+public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
 
     private static final int ROW = 18;
+    private boolean capturing;
 
     public InventoryWalkTab() {
         super("Inventory Walk");
@@ -24,6 +26,38 @@ public class InventoryWalkTab extends BaseTab {
     @Override
     public boolean isCheatOnly() {
         return true;
+    }
+
+    @Override
+    public boolean isListeningForKey() {
+        return capturing;
+    }
+
+    @Override
+    public void cancelKeyCapture() {
+        capturing = false;
+    }
+
+    @Override
+    public void onKeyCaptured(int keyCode) {
+        setLookKey(keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : keyCode);
+    }
+
+    @Override
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        setLookKey(KeyUtil.codeForMouseButton(button));
+    }
+
+    private void setLookKey(int code) {
+        InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
+        cfg.setLookKeyCode(code);
+        cfg.save();
+        capturing = false;
     }
 
     @Override
@@ -37,7 +71,7 @@ public class InventoryWalkTab extends BaseTab {
         int y = contentY;
         w.add(onOffButton("Inventory Walk", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Inventory Walk", true));
@@ -74,6 +108,11 @@ public class InventoryWalkTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
+        y += ROW + 4;
+        w.add(SettingsButtonWidget.builder(BlinkTab.keyText("Look Key", cfg.getLookKeyCode(), capturing), btn -> {
+                    capturing = true;
+                    btn.setMessage(Component.literal("Look Key: §ePress any key..."));
+                }).bounds(contentX, y, contentWidth, ROW).build());
         return w;
     }
 

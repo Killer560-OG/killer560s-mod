@@ -251,6 +251,8 @@ final class SettingTooltipsData {
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
         d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes; also what an AP3 Blink Charge node with no number banks. Past 20, Hypixel sets it back.");
+        d.put("inventory walk/stop to click", "A click while you move waits until you stand still for a tick. In your own inventory you keep walking with an item on the cursor: it is sent when you put it down, with one still tick and a close, as a normal client would.");
+        d.put("inventory walk/look key", "Hold it with a menu open and moving the mouse turns you (your normal sensitivity) instead of the cursor; let go and the mouse moves the cursor again. Not Set by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
         d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
