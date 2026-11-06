@@ -48,6 +48,12 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   Smooth Teleport (`smoothtp/`) relies on it; testkit 396-sim-smooth-tp hits a wall 2.5 blocks past the landing on the
   first frame while the camera is still 14.5 blocks back.
 
+- Hypixel fires Fabric's `ClientPlayConnectionEvents.JOIN` again on every server switch (warp, party warp, island, hub)
+  over the SAME `Connection`: the proxy sends a new login, so a new `ClientPacketListener` is made, but the connection object
+  stays. State that must last for the session (the party) must key on `handler.getConnection()`, not on JOIN: PartyTracker
+  cleared the party on every JOIN, so after a party warp the two members' games disagreed on the party and asked the relay
+  for different rooms, and his friend never saw his Song Tag lyric (spotshare-1105; testkit 1105-hx-songtag-party-warp).
+
 ## World and entities
 
 - **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2 and 26.2: `iconst_1; ireturn`), and so is

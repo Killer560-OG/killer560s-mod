@@ -290,6 +290,15 @@ public final class SongShare {
         return mc != null && mc.player != null && SupportersFeature.isSupporter(mc.player.getUUID());
     }
 
+    /** Whose songs can reach you right now, from the relay room you are in (the Show Others' Songs hover). */
+    public static String receiveScope() {
+        if (!RelayClient.isConnected()) return "On, but not connected to the mod's relay right now, so no one's song can reach you.";
+        String room = RelayClient.room();
+        if (room != null && room.startsWith("party:")) return "You see the songs of mod users in your party (Mod Chat's Party room)."
+                + " Players outside your party, and party members whose game does not list you, are not seen.";
+        return "You see the songs of mod users in this lobby. They must have Share My Song on and be within 16 blocks.";
+    }
+
     /** Why your song is not reaching other mod users right now, or null when it is (or Share My Song is off). */
     public static String notSentReason() {
         if (!SongShareConfig.getInstance().isShareSong()) return null;
