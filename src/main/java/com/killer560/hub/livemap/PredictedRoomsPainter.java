@@ -16,9 +16,10 @@ import java.util.Set;
  * room (a room the held map shows opened, or anything on the cheat build's full map, is drawn by {@link MapPainter} as
  * before and left alone here).
  *
- * <p>A predicted room: its certain tiles in its type's color, joined where they touch, with its name; the tiles it may
- * or may not cover gray with a "?". No doors - the map's doors come from the held map only. A guessed one-tile room:
- * split into vertical strips of the special rooms it can still be (darkened, as the guess they are), with a "?".
+ * <p>A predicted room: its certain tiles in its type's color, joined where they touch, with its name. The tiles it may
+ * or may not cover are not drawn (killer560, 2026-11-05: "dont show those question mark rooms"; they were gray with a
+ * "?"). No doors - the map's doors come from the held map only. A guessed one-tile room: split into vertical strips of
+ * the special rooms it can still be (darkened, as the guess they are), with a "?".
  */
 public final class PredictedRoomsPainter {
 
@@ -54,33 +55,16 @@ public final class PredictedRoomsPainter {
         if (pc.isEnabled()) {
             Set<String> seen = new HashSet<>();
             List<RoomPredictor.Prediction> shown = new ArrayList<>();
-            Set<Integer> certainAnywhere = new HashSet<>();
             for (RoomPredictor.Prediction p : RoomPredictor.predictions()) {
                 if (!seen.add(p.name() + java.util.Arrays.toString(p.certainTiles())) || alreadyNamed(p.certainTiles())) {
                     continue;
                 }
                 shown.add(p);
                 for (int t : p.certainTiles()) {
-                    certainAnywhere.add(t);
                     drawn.add(t);
                 }
                 for (int t : p.uncertainTiles()) {
-                    drawn.add(t);
-                }
-            }
-            // Every "?" first, then every named room over them (2026-10-19): the room ahead's unsure tiles can lie on the
-            // room beyond it, and drawn in map order they painted gray over that room's name - plan() already let a name win.
-            for (RoomPredictor.Prediction p : shown) {
-                for (int t : p.uncertainTiles()) {
-                    if (!certainAnywhere.contains(t)) {
-                        int gx = t % DungeonLayout.GRID;
-                        int gz = t / DungeonLayout.GRID;
-                        // The gray MapPainter.roomColor gives every unopened room, Darken Unexplored included: it was
-                        // the plain Unopened color, so with his saved 0.4 an unsure tile read lighter than every
-                        // other "?" room (killer560's 14:47:48 screenshot, 2026-10-19).
-                        fill(graphics, ox, oy, ppu, gx, gz, MapPainter.unopenedFill(cfg));
-                        question(graphics, font, cfg, gx, gz, ox, oy, ppu);
-                    }
+                    drawn.add(t); // not drawn, but no Special Room Guess over a tile a predicted room may cover
                 }
             }
             for (RoomPredictor.Prediction p : shown) {
@@ -252,10 +236,11 @@ public final class PredictedRoomsPainter {
                 oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS / 2f) * ppu, ppu);
     }
 
-    /** Test hook: what the painter would put on each tile now - "name" for a predicted tile, "?" for an unsure one,
-     *  "guess:TYPE+TYPE" for a guessed one - without drawing. Grid index to text. */
+    /** Test hook: what the painter would put on each tile now - "name" for a predicted tile, "guess:TYPE+TYPE" for a
+     *  guessed one (never on a predicted room's unsure tile, which is left blank) - without drawing. Grid index to text. */
     public static java.util.Map<Integer, String> plan(boolean hideUnrevealed) {
         java.util.Map<Integer, String> out = new java.util.TreeMap<>();
+        Set<Integer> unsure = new HashSet<>();
         PredictiveRoomsConfig pc = PredictiveRoomsConfig.getInstance();
         if (pc.isEnabled()) {
             for (RoomPredictor.Prediction p : RoomPredictor.predictions()) {
@@ -266,13 +251,13 @@ public final class PredictedRoomsPainter {
                     out.put(t, p.name());
                 }
                 for (int t : p.uncertainTiles()) {
-                    out.putIfAbsent(t, "?");
+                    unsure.add(t);
                 }
             }
         }
         if (pc.isSpecialGuess() && hideUnrevealed) {
             for (int tile = 0; tile < DungeonLayout.GRID * DungeonLayout.GRID; tile += 2) {
-                if ((tile / DungeonLayout.GRID) % 2 != 0 || out.containsKey(tile)) {
+                if ((tile / DungeonLayout.GRID) % 2 != 0 || out.containsKey(tile) || unsure.contains(tile)) {
                     continue;
                 }
                 List<String> types = SpecialRoomGuess.candidates(tile);
