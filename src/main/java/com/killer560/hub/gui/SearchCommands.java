@@ -43,9 +43,7 @@ public final class SearchCommands {
             Map.entry("autoroutes", "AutoRoutesTab"),
             Map.entry("customitems", "CustomItemsTab"),
             Map.entry("ah", "AuctionHouseTab"),
-            Map.entry("hypixelah", "AuctionHouseTab"),
             Map.entry("bz", "BazaarTab"),
-            Map.entry("hypixelbz", "BazaarTab"),
             Map.entry("bzflip", "BazaarAdvisorTab"),
             Map.entry("bazaarflip", "BazaarFlipTab"),
             Map.entry("bzscan", "BazaarFlipTab"),
@@ -55,13 +53,11 @@ public final class SearchCommands {
             Map.entry("k", "LegitGfsTab"),
             Map.entry("luck", "LuckTab"),
             Map.entry("kc", "ModChatTab"),
-            Map.entry("k560path", "PathfindingTab"),
             Map.entry("runlog", "RunSummaryTab"),
             Map.entry("bestfriends", "BestFriendsTab"),
             Map.entry("bf", "BestFriendsTab"),
             Map.entry("fl", "FriendsListTab"),
             Map.entry("flcustom", "FriendsListTab"),
-            Map.entry("flhypixel", "FriendsListTab"),
             Map.entry("streamer", "StreamerModeTab"),
             Map.entry("streamermode", "StreamerModeTab"),
             Map.entry("search", "StorageSearchTab"),
@@ -109,8 +105,6 @@ public final class SearchCommands {
     public static final Map<String, String> NO_CARD = Map.ofEntries(
             Map.entry("killer560", "opens this menu"),
             Map.entry("k560tested", "testing build: marks a tab tested"),
-            Map.entry("ahmenudump", "developer: records an AH menu"),
-            Map.entry("simbosscapture", "developer: captures a boss room for the sim"),
             Map.entry("reboot", "restarts the game; no setting"));
 
     private static final String ROOT = "com.killer560.hub.";

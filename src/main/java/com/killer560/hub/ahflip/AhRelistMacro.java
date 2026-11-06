@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  * best-known ones from public mods (NEU's Create BIN Auction slots 13/29/31, SkyHanni's "Manage Auctions" and
  * "Status: Sold!/Expired!" lore, Skyblocker's "Collect Auction" and "... Auction View" titles), and every match is
  * tolerant (case, a word inside a longer name, a fixed slot only as the last resort) and logged with the whole page
- * ({@code [AhRelist]} lines), so the {@code /ahmenudump} recording ({@link AhMenuRecorder}) can correct them. A page it
+ * ({@code [AhRelist]} lines), so they can be corrected from a real recording. A page it
  * does not know, a button it cannot find, a price that reads back wrong or a step that times out closes the menu and ends
  * the cycle; three failed cycles in a row halt it until it is switched off and on (or Relist Now is pressed).
  *

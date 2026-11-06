@@ -143,7 +143,7 @@ project CLAUDE.md. Compiling lessons
 - **Auto Relist's /ah menu names are from public mods, not a recording** (2026-11-02): NEU's Create BIN Auction slots 13
   (item) / 29 (create) / 31 (price), SkyHanni's "Manage Auctions" and "Status: Sold!/Expired!" lore, Skyblocker's "Collect
   Auction" and "... Auction View". Every match is a case-insensitive "contains" with the fixed slot only as a fallback, and
-  each page is logged (`[AhRelist]`). Correct them from a `/ahmenudump` recording (`killer560smod-ahflip-menudump.txt`)
+  each page is logged (`[AhRelist]`). Correct them from a real recording of the menus
   before trusting it on Hypixel; the price sign's lines and the bids page's claimable lore are the least certain.
 - The Auction House endpoints (`/v2/skyblock/auctions`, `auctions_ended`) need no API key, so the AH Flipper polls Hypixel
   directly; nothing goes through the relay (checked 2026-11-01).
@@ -474,8 +474,7 @@ project CLAUDE.md. Compiling lessons
   sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
 - A per-BLOCK mining decision needs the block's own area, not the player's (killer560, 2026-11-03: "i can stand in one zone
   but the blocks are in another"). `miningqol/MinesAreaMap` gives it with no hand-made boxes: SkyHanni-REPO's
-  `constants/island_graphs/DWARVEN_MINES.json` (downloaded by `pathfinding/GraphRepository`, refreshed every 12 h, `/k560path
-  reload` forces it) has 264 `area`-tagged nodes (named "Upper Mines", "Rampart's Quarry", ..., or "no_area") sitting in
+  `constants/island_graphs/DWARVEN_MINES.json` (downloaded by `pathfinding/GraphRepository`, refreshed every 12 h) has 264 `area`-tagged nodes (named "Upper Mines", "Rampart's Quarry", ..., or "no_area") sitting in
   pairs on either side of each way between areas. A multi-source Dijkstra from them labels every node with the area it
   reaches fastest (SkyHanni's own IslandAreaBackend rule); a block takes its nearest node's area within 24 blocks, cached
   per chunk section. "no_area" and no node near mean unknown, and the player's area decides. Offline check of the real

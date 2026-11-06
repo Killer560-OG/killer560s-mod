@@ -19,7 +19,7 @@ import net.minecraft.client.Minecraft;
  * Bazaar menus (reskinned into the same screen, see {@link BazaarReskin}).
  * <p>
  * Commands (2026-10-07): {@code /killer560bz} opens the screen without a menu, and only with an active Booster Cookie
- * ({@link BoosterCookie}) - the remote Bazaar a Cookie grants on Hypixel; {@code /bz} and {@code /hypixelbz} are always
+ * ({@link BoosterCookie}) - the remote Bazaar a Cookie grants on Hypixel; {@code /bz} is always
  * Hypixel's own command, forwarded through {@link com.killer560.hub.util.ServerCommands#toServer} - never
  * {@code sendCommand}, since "bz" is itself a client command this mod registers and would be handed back to us. Hypixel's
  * Bazaar menu (the NPC, or {@code /bz}) opens as the same screen through the reskin.
@@ -43,17 +43,6 @@ public final class BazaarFeature {
             // argued line with "Incorrect argument for command at position 3" and Hypixel never saw it (killer560,
             // 2026-10-06).
             dispatcher.register(ClientCommands.literal("bz").executes(ctx -> {
-                forwardToServer("bz");
-                return 1;
-            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
-                String line = "bz " + StringArgumentType.getString(ctx, "args");
-                if (!com.killer560.hub.auction.MenuSearch.tryInMenu(line)) {
-                    forwardToServer(line);
-                }
-                return 1;
-            })));
-            // Kept as an alias of /bz for anyone used to typing it.
-            dispatcher.register(ClientCommands.literal("hypixelbz").executes(ctx -> {
                 forwardToServer("bz");
                 return 1;
             }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
