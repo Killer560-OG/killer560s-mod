@@ -37,7 +37,6 @@ public final class ChMapRenderer {
     private static final int PLAYER_COLOR = 0xFF55FF55;
     private static final int WAYPOINT_COLOR = 0xFFCC6600;
     private static final int TARGET_COLOR = 0xFFFFFFFF;
-    private static final int[] ZONE_COLORS = {0x30C050FF, 0x3040D040, 0x30E0A020, 0x304070FF};
     private static final String[] ZONE_NAMES = {"Jungle", "Mithril Deposits", "Goblin Holdout", "Precursor Remnants"};
 
     private final boolean labels;
@@ -175,7 +174,7 @@ public final class ChMapRenderer {
             int mz = sy(ZONE_SPLIT);
             int[][] q = {{c0, r0, mx, mz}, {mx, r0, c1, mz}, {c0, mz, mx, r1}, {mx, mz, c1, r1}};
             for (int i = 0; i < 4; i++) {
-                rect(q[i][0], q[i][1], q[i][2], q[i][3], ZONE_COLORS[i]);
+                rect(q[i][0], q[i][1], q[i][2], q[i][3], zoneFill(i)); // the walls' color: one table
                 label(labels ? ZONE_NAMES[i] : null, (q[i][0] + q[i][2]) / 2, (q[i][1] + q[i][3]) / 2, DIM, true);
             }
             rect(sx(463), sy(460), sx(560), sy(563), 0x30FFFFFF);
@@ -211,6 +210,11 @@ public final class ChMapRenderer {
     }
 
     /** A rectangle outline, solid or dashed (3 on, 3 off), clipped to the panel. */
+    /** ARGB of map quadrant i (Jungle, Mithril, Goblin, Precursor): the zone's Crystal Hollows Walls color, translucent. */
+    public static int zoneFill(int i) {
+        return 0x30000000 | com.killer560.hub.miningqol.MiningQolConfig.getInstance().getChWallColor(com.killer560.hub.miningqol.CrystalHollowsWalls.Zone.values()[i]);
+    }
+
     private void border(int ax, int ay, int bx, int by, int color, boolean solid) {
         int dash = solid ? 1 << 28 : 3;
         for (int x = ax; x <= bx; x += dash * 2) {
