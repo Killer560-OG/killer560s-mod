@@ -381,6 +381,24 @@ public final class ActionGate {
     /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
     public static long currentTick() { return tick; }
 
+    /** His own press of {@code key} waiting for this tick's handleKeybinds, after every START_CLIENT_TICK actor (cheat build). */
+    public static boolean hisClickQueued(net.minecraft.client.KeyMapping key) {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && key instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k && k.killer560smod$getClickCount() > 0;
+    }
+
+    /**
+     * Whether his right click goes out in this tick's handleKeybinds, after us: a queued press, or the held key once
+     * vanilla's rightClickDelay (counted down after START_CLIENT_TICK) reaches 0. An attack of ours before it is GrimAC
+     * PacketOrderJ (use after attack in one tick, grimgapB-1105).
+     */
+    public static boolean hisUseGoesThisTick(Minecraft client) {
+        return hisClickQueued(client.options.keyUse) || (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && client.options.keyUse.isDown() && client.player != null && !client.player.isUsingItem()
+                && client instanceof com.killer560.hub.zpew.mixin.ZpewMinecraftAccessor m
+                && m.killer560smod$getRightClickDelay() <= 1);
+    }
+
     /**
      * A millisecond delay setting as whole client ticks, for a trigger bot timed on the tick: rounded UP to the next
      * 50 ms, so 0 ms is no wait, 1-50 ms one tick, 51-100 ms two, 300 ms six. Never shorter than the setting asks.
@@ -571,9 +589,7 @@ public final class ActionGate {
                 // His own left click queued for this tick's handleKeybinds goes after us in the same server tick: an
                 // attack after our interact / use / dig is GrimAC PacketOrderI, and a second entity MultiInteractA
                 // (grimsame-1105, 1105-same-termaura-attack). His click goes first; we act next tick.
-                if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                        && client.options.keyAttack instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k
-                        && k.killer560smod$getClickCount() > 0) {
+                if (hisClickQueued(client.options.keyAttack)) {
                     return deny(actor, "his own attack click goes this tick");
                 }
             }

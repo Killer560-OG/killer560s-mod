@@ -64,6 +64,18 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
   (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
+- **His hand during a body-turning aura (grimgapB-1105).** GrimAC judges his attack by the look of the NEXT movement
+  packet, so an attack of his while Breaker Aura (BreakerAim) or a TurnFirst aura (Secret Aura...) has the body turned is
+  Hitboxes on the entity under his crosshair. Both now give the body back in the tick his attack click is queued
+  (`ActionGate.hisClickQueued`) and never turn in it: a turned click needs a free tick to turn and one to click, so at 10
+  CPS of his own clicking the turned picks / levers wait (testkit spaces his clicks 3 ticks). His held left click digging
+  another block while the aura digs is MultiBreak: `DigWindow.handDigsThisTick` predicts his START / STOP from the
+  destroy delay and progress, and the aura holds that tick. The Wither bot's attack before his right click in one tick
+  is PacketOrderJ: `ActionGate.hisUseGoesThisTick` (queued keyUse, or held keyUse with `rightClickDelay` <= 1) holds a
+  melee attack. A test of his use must be a real key press (SameTick `USE_KEY`): a raw `gameMode.useItem` at START LATE
+  is invisible to the feature and is not what his click does. Testkit 1105-same-{breaker,autoss,goldor,witherbot,thorn}-* and 62-argrim-1105-same-secretaura-*.
+  The Auto SS cases had done nothing since 1a4e48f60 (the Auto Simon Says master switch): every Auto Solve test must turn on
+  `AutoSimonSaysEnabled`.
 - **One block per server tick is GrimAC's hard limit for digs, from any source (multibreak-1102).** MultiBreak (2.3.74,
   `checks/impl/breaking/MultiBreak.java` 37-65) flags a START or STOP (not ABORT) on another block or face until a tick
   packet clears it; the tick packet is a movement packet, or `client_tick_end` only when no movement packet went that tick

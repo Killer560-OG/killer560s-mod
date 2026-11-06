@@ -135,7 +135,13 @@ public final class TurnFirst {
             return;
         }
         ticksSinceTurn++;
-        if (pending || ticksSinceTurn < 1) {
+        // His attack goes out this tick: the body is given back in this tick's movement packet, which GrimAC judges his
+        // hit by (Hitboxes on a turned body, testkit 62-argrim-1105-same-secretaura-attack); the turned click waits.
+        boolean hisAttack = hisAttackThisTick();
+        if (hisAttack) {
+            pending = false;
+        }
+        if (!hisAttack && (pending || ticksSinceTurn < 1)) {
             ViewFreeze.hold(player.getYRot(), player.getXRot()); // renew the lease; keeps the first view
             myLastHold = ViewFreeze.holdCount();
             return;
@@ -165,6 +171,10 @@ public final class TurnFirst {
             ViewFreeze.release();
         }
         onWrite.run();
+    }
+
+    private static boolean hisAttackThisTick() {
+        return ActionGate.hisClickQueued(net.minecraft.client.Minecraft.getInstance().options.keyAttack);
     }
 
     private void release() {
@@ -210,8 +220,8 @@ public final class TurnFirst {
             LOGGER.info("[TurnFirst] click on {} with {}", what, turned ? method : "the look he already had");
             return true;
         }
-        if (current != null && current != this) {
-            return false; // another aura's turn is out: wait for its hand-back instead of turning him under it
+        if ((current != null && current != this) || hisAttackThisTick()) {
+            return false; // another aura's turn is out (wait for its hand-back), or his attack goes this tick (no turn under it)
         }
         if (!turned && bodyOwned()) {
             return false; // AP3 is aligning or aiming with this body: the turn waits for it to let go
@@ -252,7 +262,10 @@ public final class TurnFirst {
         }
         ViewFreeze.hold(player.getYRot(), player.getXRot());
         myLastHold = ViewFreeze.holdCount();
-        float run = player.getYRot() + Mth.wrapDegrees(yaw - player.getYRot());
+        // From the yaw the server last HEARD: a hand-back and the next turn in one tick never reach it, and turning from the
+        // given-back yaw put a 327-degree step on the wire (GrimAC AimModulo360, testkit 422-boss-ss-autosolve-norotate-behind).
+        float heard = player instanceof com.killer560.hub.blink.mixin.BlinkReminderAccessor a ? a.killer560$yRotLast() : player.getYRot();
+        float run = heard + Mth.wrapDegrees(yaw - heard);
         player.setYRot(run);
         player.setYHeadRot(run);
         player.setXRot(Mth.clamp(pitch, -90f, 90f));

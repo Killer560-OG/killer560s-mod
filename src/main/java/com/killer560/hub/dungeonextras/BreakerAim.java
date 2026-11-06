@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonextras;
 
+import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.DigAim;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ViewFreeze;
@@ -67,7 +68,11 @@ final class BreakerAim {
     }
 
     private static boolean handsBusy(Minecraft client) {
-        return client.options.keyUse.isDown() || client.options.keyAttack.isDown();
+        // A press queued for this tick counts too (a click shorter than a tick is never isDown): his attack / use then goes
+        // with the look the next movement packet sends, so the body must be his again (Hitboxes, 1105-same-breaker-attack).
+        var o = client.options;
+        return o.keyUse.isDown() || o.keyAttack.isDown() || ActionGate.hisClickQueued(o.keyAttack)
+                || ActionGate.hisClickQueued(o.keyUse);
     }
 
     private static boolean someoneElseHolds() {

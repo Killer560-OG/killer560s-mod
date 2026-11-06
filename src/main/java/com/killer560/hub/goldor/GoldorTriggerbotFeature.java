@@ -138,10 +138,12 @@ public final class GoldorTriggerbotFeature {
         }
         // The one-interaction-per-tick gate, checked after the interval has elapsed and before anything is sent
         // or rolled: a denied tick must leave the aim and the due time exactly where they are.
-        if (!ActionGate.tryAct(GATE_ACTOR)) {
+        // His right click goes after us this tick: an attack before it is PacketOrderJ (1105-same-witherbot-use).
+        boolean attack = cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK;
+        if ((attack && melee && ActionGate.hisUseGoesThisTick(client)) || !ActionGate.tryAct(GATE_ACTOR)) {
             return;
         }
-        if (cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK) {
+        if (attack) {
             if (melee) {
                 client.gameMode.attack(player, target);
                 attacks++;

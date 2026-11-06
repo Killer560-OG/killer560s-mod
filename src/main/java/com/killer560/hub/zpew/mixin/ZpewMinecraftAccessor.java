@@ -14,4 +14,7 @@ public interface ZpewMinecraftAccessor {
 
     @Accessor("rightClickDelay")
     void killer560smod$setRightClickDelay(int ticks);
+
+    @Accessor("rightClickDelay")
+    int killer560smod$getRightClickDelay();
 }
