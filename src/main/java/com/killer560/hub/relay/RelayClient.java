@@ -132,12 +132,19 @@ public final class RelayClient {
 
     public static void setListener(RelayListener value) { listener = value == null ? NO_LISTENER : value; }
 
-    /** Drops the cached relay token, so the next connect signs in again (after an in-game account swap). */
+    /**
+     * Drops the cached relay token and reconnects both relay sockets, so they sign in again as the account swapped to:
+     * a socket left open would keep speaking (and being listed) as the previous account (spotreal-1106).
+     */
     public static void forgetToken() {
         WORKER.execute(() -> {
             token = null;
             tokenUrl = "";
             tokenAccount = "";
+            connectedUrl = "";
+            connectedRoom = "";
+            reconcile();
+            RelayTap.reconnect();
         });
     }
 
@@ -285,10 +292,11 @@ public final class RelayClient {
         connectedRoom = room;
         lastError = "";
         state = State.CONNECTING;
+        Socket listener = new Socket(gen);
         tokenFor(url)
                 .thenCompose(issued -> ModNet.webSocket(HTTP.newWebSocketBuilder()
                         .connectTimeout(Duration.ofSeconds(15)),
-                        RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
+                        RelayEndpoint.websocket(url, room, issued.value()), listener))
                 .whenComplete((ws, error) -> WORKER.execute(() -> {
                     if (gen != generation) {
                         if (ws != null) {
@@ -308,10 +316,13 @@ public final class RelayClient {
                     lastError = "";
                     startKeepAlive(gen);
                     LOGGER.info("[Relay] Connected to {} (room {})", url, room);
+                    listener.live.complete(null);
                 }));
     }
 
     static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
+        String forTest = RelayCalls.tokenForTest();
+        if (forTest != null) return CompletableFuture.completedFuture(new RelayAuth.Token(forTest, Long.MAX_VALUE));
         RelayAuth.Token cached = token;
         String account = currentAccount();
         if (cached != null && url.equals(tokenUrl) && account.equals(tokenAccount)
@@ -435,6 +446,13 @@ public final class RelayClient {
         /** A text message can arrive in several frames; nothing may be parsed until {@code last}. */
         private final StringBuilder buffer = new StringBuilder();
 
+        /**
+         * Completed on WORKER once {@link #connect} has made this the live socket. The relay sends its welcome the moment
+         * the socket opens, often before that, and a welcome handled first sent its hello into no socket: the player never
+         * showed as a mod user in that room, so every viewer dropped his song ("not a mod user", spotreal-1106).
+         */
+        final CompletableFuture<Void> live = new CompletableFuture<>();
+
         private Socket(long gen) { this.gen = gen; }
 
         @Override
@@ -443,9 +461,14 @@ public final class RelayClient {
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             buffer.append(data);
-            if (last) {
-                String text = buffer.toString();
-                buffer.setLength(0);
+            if (!last) {
+                webSocket.request(1);
+                return null;
+            }
+            String text = buffer.toString();
+            buffer.setLength(0);
+            // The next message is requested only after this one ran, so a message held until live keeps its order.
+            live.thenRun(() -> {
                 if (gen == generation) {
                     try {
                         handle(text);
@@ -453,8 +476,8 @@ public final class RelayClient {
                         LOGGER.warn("[Relay] Bad packet: {}", e.toString());
                     }
                 }
-            }
-            webSocket.request(1);
+                webSocket.request(1);
+            });
             return null;
         }
 
@@ -549,7 +572,7 @@ public final class RelayClient {
         }
     }
 
-    private static List<String> names(JsonObject packet) {
+    static List<String> names(JsonObject packet) {
         JsonElement element = packet.get("online");
         if (element == null || !element.isJsonArray()) return List.of();
         JsonArray array = element.getAsJsonArray();

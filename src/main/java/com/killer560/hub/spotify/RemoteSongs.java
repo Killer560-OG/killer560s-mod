@@ -2,7 +2,6 @@ package com.killer560.hub.spotify;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.killer560.hub.modusers.ModUsers;
 import com.killer560.hub.relay.RelayClient;
 import com.killer560.hub.relay.RelayTap;
 import com.killer560.hub.supporters.SlurFilter;
@@ -23,9 +22,11 @@ import java.util.regex.Pattern;
  * packet's {@code from}/{@code uuid}, stamped by the relay from the sender's verified token, are the only thing trusted
  * about who sent it; the payload carries no name at all.
  * <p>
- * A packet is kept only when its sender shows as a mod user ({@link ModUsers}) and is in the supporter list
- * ({@link SupportersFeature#isSupporter}); both are checked again every time the tag is looked up, so a sender who stops
- * showing or leaves the supporter list loses the tag at once. Everything in it is hostile: the value is capped at
+ * A packet is kept only when its sender is in the supporter list ({@link SupportersFeature#isSupporter}), checked again
+ * every time the tag is looked up, so a sender who leaves the list loses the tag at once. It is NOT also asked to show as
+ * a mod user ({@code ModUsers}, spotreal-1106): a song packet comes only from the mod (the relay stamps who sent it), so
+ * it is its own proof, and that bookkeeping lost the sender whenever his hello missed a room ("not a mod user"; the song
+ * then showed only after a reconnect, minutes later). The sender still sends nothing unless he shows as a mod user. Everything in it is hostile: the value is capped at
  * {@link #MAX_VALUE_CHARS} before it is read, every string is cleaned ({@link #clean}: no section signs, control,
  * format, bidi or invisible characters, whitespace collapsed, length capped), a slur in the artist or title hides the
  * tag (a slur in a shared lyric line drops the line), and other swear words are starred at YOUR Display Censor level
@@ -42,6 +43,7 @@ public final class RemoteSongs {
 
     /** The relay {@code data} key. Versioned like PartyData's {@code dg.v1.*}. */
     public static final String KEY = "np.v1";
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
     /** Raised from 512 for the shared lyric line (2026-11-01); the relay's own limit is 4 KB a message. */
     static final int MAX_VALUE_CHARS = 1024;
     /** A shared lyric line: at most this many characters and words, "into" and word offsets at most a minute. */
@@ -118,6 +120,9 @@ public final class RemoteSongs {
             accepted++;
         } else {
             rejected++;
+            if (!why.equals(lastReject) && !"too fast".equals(why)) {
+                LOGGER.info("[SongTag] dropped a song from {}: {}", from, why);
+            }
             lastReject = why;
         }
     }
@@ -129,7 +134,6 @@ public final class RemoteSongs {
         if (mc != null && mc.player != null && from.equals(mc.player.getGameProfile().name())) return "own packet";
         UUID uuid = parseUuid(uuidText);
         if (uuid == null) return "no sender uuid";
-        if (!modUser(from)) return "not a mod user";
         if (!SupportersFeature.isSupporter(uuid)) return "not a supporter";
         if (value == null || !value.isJsonObject()) return "not an object";
         if (value.toString().length() > MAX_VALUE_CHARS) return "too long";
@@ -168,7 +172,9 @@ public final class RemoteSongs {
             SONGS.remove(from);
             return "no title";
         }
-        SONGS.put(from, new Entry(uuid, artist, title, words, into, wordMs, now));
+        if (SONGS.put(from, new Entry(uuid, artist, title, words, into, wordMs, now)) == null) {
+            LOGGER.info("[SongTag] showing {}'s song: {}", from, title.isEmpty() ? "(lyric line only)" : title);
+        }
         return null;
     }
 
@@ -207,13 +213,8 @@ public final class RemoteSongs {
             SONGS.remove(name, e);
             return null;
         }
-        if (!modUser(name) || !SupportersFeature.isSupporter(entityId)) return null;
+        if (!SupportersFeature.isSupporter(entityId)) return null;
         return e;
-    }
-
-    /** A mod user in the main relay room or, through Song Tag's lobby link, in this lobby. */
-    private static boolean modUser(String name) {
-        return ModUsers.variantOf(name) != null || RelayTap.isModUser(name);
     }
 
     /**

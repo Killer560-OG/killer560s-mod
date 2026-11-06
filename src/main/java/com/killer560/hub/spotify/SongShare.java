@@ -38,6 +38,7 @@ import java.util.function.BiPredicate;
  */
 public final class SongShare {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
     static final long MIN_SEND_MS = 1_000;
     static final long HEARTBEAT_MS = 30_000;
     private static final int TICK_EVERY = 5;
@@ -69,15 +70,19 @@ public final class SongShare {
         SongShareConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SongShare", client -> tick()));
         RelayClient.addListener(new RelayListener() {
+            // Songs are not cleared when the main socket changes room: those heard through the lobby link are still right,
+            // and their senders resend only every 30 s. A sender who left both rooms is forgotten by his leave; a stale one
+            // expires (RemoteSongs.EXPIRE_MS).
             @Override
             public void onConnected(String room, List<String> online) {
-                RemoteSongs.clear();
                 roomChanged = true;
             }
 
             @Override
             public void onDisconnected(String reason) {
-                RemoteSongs.clear();
+                if (!RelayTap.isConnected()) {
+                    RemoteSongs.clear();
+                }
                 roomChanged = true;
             }
 
@@ -85,7 +90,7 @@ public final class SongShare {
             public void onPresence(String event, String name, List<String> online) {
                 if ("join".equals(event)) {
                     resend = true;
-                } else if ("leave".equals(event)) {
+                } else if ("leave".equals(event) && !RelayTap.stillHere(name)) {
                     RemoteSongs.forget(name);
                 }
             }
@@ -149,7 +154,11 @@ public final class SongShare {
     static JsonObject payload() {
         JsonObject o = new JsonObject();
         String why = blockReason();
-        lastBlock = why == null ? "" : why;
+        String block = why == null ? "" : why;
+        if (!block.equals(lastBlock) && SongShareConfig.getInstance().isShareSong()) {
+            LOGGER.info("[SongTag] sharing: {}", block.isEmpty() ? "allowed" : "blocked, " + block);
+        }
+        lastBlock = block;
         NowPlaying np = nowPlaying();
         String title = np == null ? "" : RemoteSongs.clean(np.title(), RemoteSongs.TITLE_MAX);
         if (why != null || np == null || np.kind() != NowPlaying.Kind.TRACK || title.isEmpty()) {

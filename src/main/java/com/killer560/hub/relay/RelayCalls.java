@@ -93,7 +93,7 @@ public final class RelayCalls {
     }
 
     private static CompletableFuture<String> token(String base) {
-        String forTest = System.getProperty("fabric.client.gametest") != null ? testToken : null;
+        String forTest = tokenForTest();
         if (forTest != null) {
             return CompletableFuture.completedFuture(forTest);
         }
@@ -126,8 +126,13 @@ public final class RelayCalls {
         return message == null || message.isBlank() ? "couldn't reach the relay" : message;
     }
 
-    /** Test hook: the bearer token sent instead of the chat-key login; null for the real login. */
+    /** Test hook: the bearer token sent instead of the chat-key login; null for the real login. Also the relay sockets'. */
     public static void setTokenForTest(String token) {
         testToken = token;
+    }
+
+    /** The test token while a client game test runs, else null. */
+    static String tokenForTest() {
+        return System.getProperty("fabric.client.gametest") != null ? testToken : null;
     }
 }

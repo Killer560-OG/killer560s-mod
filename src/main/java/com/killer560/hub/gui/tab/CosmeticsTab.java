@@ -258,6 +258,7 @@ public class CosmeticsTab extends BaseTab {
                     SupportersConfig.getInstance().resetModelShape();
                     SupportersConfig.getInstance().setOwnMob("");
                     SupportersConfig.getInstance().save();
+                    SupportersAutoShare.clearOnNextShare(); // his own Reset: take the shared entry back too
                     shareError = null;
                     requestRebuild.run();
                 }).bounds(contentX + halfW + gap, y, contentWidth - halfW - gap, 20).build());
@@ -390,7 +391,7 @@ public class CosmeticsTab extends BaseTab {
      *  route if the relay push isn't usable. */
     private void copySettingsForBot() {
         NameChangerConfig ncCfg = NameChangerConfig.getInstance();
-        String plain = plainOwnName();
+        String plain = SupportersAutoShare.sharedPlainName();
         int argb = ncCfg.getOwnColor();
         String rawName = plain.isEmpty() ? "" : (argb == NameColor.NONE ? "" : "&" + NameColor.codeFor(argb)) + plain;
         String text = "name=" + rawName + ";scale=" + (float) SupportersAutoShare.sharedScale(SupportersConfig.getInstance().getOwnScale());
@@ -398,13 +399,6 @@ public class CosmeticsTab extends BaseTab {
         ModOverlayMessage.show("§a[Cosmetics] Copied - hand this to staff for the Discord bot route.", 3000);
     }
 
-    /** Your display name as shared: its text without the color (sent separately), with an {@code &l} in front when
-     *  Bold Name is on - the relay accepts {@code &k-o} (SupporterNameValidator), so bold is shared with no relay change. */
-    private String plainOwnName() {
-        NameChangerConfig nc = NameChangerConfig.getInstance();
-        String text = NameColor.migrate(nc.getOwnDisplayName()).text();
-        return nc.isOwnBold() && !text.isEmpty() ? "&l" + text : text;
-    }
 
     private void startFetch(Runnable requestRebuild) {
         if (fetchInFlight) {

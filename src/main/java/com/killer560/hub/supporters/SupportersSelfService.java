@@ -203,14 +203,18 @@ public final class SupportersSelfService {
     }
 
     private static CompletableFuture<RelayAuth.Token> token(String base) {
+        // Keyed by account too (songfix-1106): after an in-game account swap the old account's token was reused, so
+        // the new account's empty cosmetics were pushed AS the old account and wiped his supporter entry.
+        net.minecraft.client.User user = net.minecraft.client.Minecraft.getInstance().getUser();
+        String key = base + "|" + (user == null ? "" : user.getProfileId());
         RelayAuth.Token cached = cachedToken;
-        if (cached != null && base.equals(cachedTokenBaseUrl)
+        if (cached != null && key.equals(cachedTokenBaseUrl)
                 && cached.expiresAtMs() - System.currentTimeMillis() > TOKEN_REUSE_MARGIN_MS) {
             return CompletableFuture.completedFuture(cached);
         }
         return RelayAuth.authenticate(HTTP, base).thenApply(issued -> {
             cachedToken = issued;
-            cachedTokenBaseUrl = base;
+            cachedTokenBaseUrl = key;
             return issued;
         });
     }

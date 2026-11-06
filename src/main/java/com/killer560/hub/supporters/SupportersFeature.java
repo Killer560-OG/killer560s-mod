@@ -92,6 +92,10 @@ public final class SupportersFeature {
             }
         }
         byUuid = Map.copyOf(map);
+        Minecraft mc = Minecraft.getInstance();
+        if (persist && mc != null && mc.getUser() != null && !map.containsKey(mc.getUser().getProfileId())) {
+            SupportersAutoShare.selfMissing();
+        }
         // Wave/Pulse names are recolored where text is drawn (NameAnimation), recognized by these painted texts.
         com.killer560.hub.namechanger.NameAnimation.setShared(animated);
         if (persist) {
