@@ -74,6 +74,8 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   is PacketOrderJ: `ActionGate.hisUseGoesThisTick` (queued keyUse, or held keyUse with `rightClickDelay` <= 1) holds a
   melee attack. A test of his use must be a real key press (SameTick `USE_KEY`): a raw `gameMode.useItem` at START LATE
   is invisible to the feature and is not what his click does. Testkit 1105-same-{breaker,autoss,goldor,witherbot,thorn}-* and 62-argrim-1105-same-secretaura-*.
+  A turn is computed from the yaw the server last HEARD (`yRotLast`), never the live one: TurnFirst's hand-back and the
+  next turn in one tick went 90 -> 253.8 from a heard -73.8 (AimModulo360, 422-boss-ss-autosolve-norotate-behind).
   The Auto SS cases had done nothing since 1a4e48f60 (the Auto Simon Says master switch): every Auto Solve test must turn on
   `AutoSimonSaysEnabled`.
 - **One block per server tick is GrimAC's hard limit for digs, from any source (multibreak-1102).** MultiBreak (2.3.74,
