@@ -38,6 +38,7 @@ import java.util.function.BiPredicate;
  */
 public final class SongShare {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
     static final long MIN_SEND_MS = 1_000;
     static final long HEARTBEAT_MS = 30_000;
     private static final int TICK_EVERY = 5;
@@ -149,7 +150,11 @@ public final class SongShare {
     static JsonObject payload() {
         JsonObject o = new JsonObject();
         String why = blockReason();
-        lastBlock = why == null ? "" : why;
+        String block = why == null ? "" : why;
+        if (!block.equals(lastBlock) && SongShareConfig.getInstance().isShareSong()) {
+            LOGGER.info("[SongTag] sharing: {}", block.isEmpty() ? "allowed" : "blocked, " + block);
+        }
+        lastBlock = block;
         NowPlaying np = nowPlaying();
         String title = np == null ? "" : RemoteSongs.clean(np.title(), RemoteSongs.TITLE_MAX);
         if (why != null || np == null || np.kind() != NowPlaying.Kind.TRACK || title.isEmpty()) {
