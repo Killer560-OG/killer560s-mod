@@ -518,6 +518,9 @@ public final class ZeroPingEtherwarp {
                     LOGGER.info(String.format(Locale.ROOT, "[ZPEW] Aimed Warps: press at yaw %.2f pitch %.2f sent as yaw %.2f "
                             + "(turned from %.2f%s)", l.yaw(), pitch, yaw, from, first ? ", the yaw on the wire" : ""));
                     BODY.turn(player, yaw, pitch);
+                    // His slot change still pending from between ticks goes first, as vanilla useItem sends it (else the use
+                    // is made with his old item and the swap after it is GrimAC PacketOrderE, 62-argrim-1105-same-chain-swap).
+                    invoker.killer560smod$invokeEnsureHasSentCarriedItem();
                     invoker.killer560smod$invokeStartPrediction(mc.level,
                             sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
                 };
