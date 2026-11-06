@@ -568,6 +568,14 @@ public final class ActionGate {
                 if (armed && tick - lastScreenTick < CROSS_CLASS_TICKS && !sameFlow(actor, lastScreenActor)) {
                     return deny(actor, "a GUI automation just clicked");
                 }
+                // His own left click queued for this tick's handleKeybinds goes after us in the same server tick: an
+                // attack after our interact / use / dig is GrimAC PacketOrderI, and a second entity MultiInteractA
+                // (grimsame-1105, 1105-same-termaura-attack). His click goes first; we act next tick.
+                if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                        && client.options.keyAttack instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k
+                        && k.killer560smod$getClickCount() > 0) {
+                    return deny(actor, "his own attack click goes this tick");
+                }
             }
             case SCREEN -> {
                 if (headlessMenu != null) {
