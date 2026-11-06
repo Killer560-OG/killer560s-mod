@@ -781,6 +781,18 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   less what he moved since the ping before the latest (while pings come at tick rate), and a split's second part waits
   for two new pings (at most 300 ms). Lowering the cap alone (8.5) did not help. `grim consoledebug <player>` plus the
   server log's "moved too quickly" line told the two apart: GrimAC predicted every shot tick exactly.
+- That budget is a MODERN vanilla rule (ServerGamePacketListenerImpl: more than 5 move packets in one server tick count
+  as one, so 10 blocks per server tick). Hypixel runs a 1.8 server, whose NetHandlerPlayServer.processPlayer judges
+  "moved too quickly" per packet from the last accepted position, with no per-tick count, so on Hypixel the split only
+  cost him: his 26.3 log (2026-11-05, "it releases the blink in 3 packets sets") shows 20-tick Speed shots going out
+  as 8+8+4, 5+9+6, 10+9+1 about 100 ms apart. blinkone-1105: `BlinkCharge.serverTickBudget` skips the budget on
+  hypixel.net (and singleplayer) and keeps it elsewhere. Testkit 1105-blink-oneshot stands in for Hypixel with the
+  gamerule `player_movement_check false` and the hook `tickBudgetForTest = FALSE`: one burst of 21 moves, server
+  agreeing, GrimAC silent; with the rule on, the same shot still splits. Watchdog itself cannot be tested here.
+- The landing box (`BlinkCharge.landingEstimate`) runs his last step through `Ap3RouteCollide.collide`, the exact copy
+  of Entity.collide, for every banked tick plus the firing tick (gravity and drag after a vertical miss), once per
+  client tick. The old box stopped at the first block in the way, so a half slab or a stair stopped it (killer560
+  2026-11-05); testkit 1105-blink-predict-step shoots over a slab, a stair and a raised floor.
 
 - State that is counted per tick (a wait after a world change, a cooldown) must be counted before a feature's "switched
   off" early return. Blink's spawn settle (5fa141f2) was counted only while Blink was on, so with Blink off at the world

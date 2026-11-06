@@ -87,6 +87,22 @@ public final class BlinkCharge {
      * 1025-blink-charge-far, 2026-10-25). Past this the rest of the shot runs the next tick.
      */
     private static final double SHOT_BLOCKS_PER_TICK = 9.5;
+    /** Test hook: null = decide by the server (see {@link #serverTickBudget}); TRUE/FALSE forces it. */
+    static Boolean tickBudgetForTest;
+
+    /**
+     * Whether the server sets back more than 10 blocks inside ONE of its ticks, so a shot past the budget is split
+     * (blinkone-1105). A modern server does (above). Hypixel's 1.8 server does not: its NetHandlerPlayServer.processPlayer
+     * moves the player on every flying packet and judges "moved too quickly" from the last accepted packet (10 blocks a
+     * packet; a shot tick moves at most ~1), with no per-server-tick count. There the split only spread one shot over 2-3
+     * bursts ~100 ms apart (owner's log 2026-11-05: 20-tick Speed shots as 8+8+4, 5+9+6). Singleplayer skips the check.
+     * "Hypixel" is the real one (address and a non-local remote), not the testkit's loopback server labeled with its name.
+     */
+    private static boolean serverTickBudget(Minecraft client) {
+        Boolean forced = tickBudgetForTest;
+        return forced != null ? forced
+                : !client.hasSingleplayerServer() && !com.killer560.hub.util.PerTickServerClock.onHypixel();
+    }
     /*
      * 2026-10-27 (ap3-s2ee3-262-1027): the 10 blocks are per SERVER tick, measured from where its tick began, and a server
      * that falls behind ("Can't keep up") takes two or more client ticks in one of its own. A split shot's second part
@@ -1501,6 +1517,7 @@ public final class BlinkCharge {
         if (prevPingPos != null && nowMs - lastPingMs < PING_FRESH_MS && lastPingMs - prevPingMs < PING_FRESH_MS) {
             budget = Math.max(0.0, SHOT_BLOCKS_PER_TICK - prevPingPos.distanceTo(from));
         }
+        boolean tickBudget = serverTickBudget(client);
         long t0 = System.nanoTime();
         int shotPacketsAtStart = shotPacketsSent;
         int ran = 0;
@@ -1546,8 +1563,9 @@ public final class BlinkCharge {
                 // 9.5 less his run since the ping before last, ap3-s2ee3-262-1027). The cap is vanilla's "moved too
                 // quickly" (ServerGamePacketListenerImpl.handleMovePlayer), which vanilla skips for the singleplayer
                 // owner (shouldCheckPlayerMovement -> isSingleplayerOwner, javap 26.1.2), so in a singleplayer world
-                // (the sim) the whole bank goes in one tick (blink-fastcover-1027).
-                if (i > 0 && !client.hasSingleplayerServer() && sofar + 3 * lastStep > budget) {
+                // (the sim) the whole bank goes in one tick (blink-fastcover-1027), and so does Hypixel's 1.8 server,
+                // which judges it per move packet (serverTickBudget).
+                if (i > 0 && tickBudget && sofar + 3 * lastStep > budget) {
                     shotLeft = n - i;
                     shotLeftWhy = why;
                     shotLeftAt = tickStamp;
@@ -2048,9 +2066,12 @@ public final class BlinkCharge {
     }
 
     /**
-     * Where a shot would put him if he fired now and kept doing what he is doing: his last tick's movement repeated for
-     * every banked tick, stopping at the first block in the way. An estimate (no jump arcs, no speed changes); null when
-     * nothing is banked or he is standing still.
+     * Where a shot would put him if he fired now and kept doing what he is doing: his last tick's horizontal movement
+     * repeated for every banked tick plus the firing tick, through vanilla's own collision ({@code Ap3RouteCollide}, read
+     * off Entity.collide: the 0.6 step up over slabs, stairs, carpets and snow, walls clip, gravity off a ledge). Killer560
+     * 2026-11-05: "the prediction needs to account for things like stepping up over half slabs"; the old box stopped at
+     * the first block in the way. No jump arcs or speed changes. Worked out once per client tick (the render asks every
+     * frame). Null when nothing is banked or he is standing still.
      */
     public static net.minecraft.world.phys.Vec3 landingEstimate() {
         LocalPlayer p = Minecraft.getInstance().player;
@@ -2058,19 +2079,64 @@ public final class BlinkCharge {
         if (!active || n <= 0 || p == null) {
             return null;
         }
-        net.minecraft.world.phys.Vec3 step = new net.minecraft.world.phys.Vec3(p.getX() - p.xo, 0, p.getZ() - p.zo);
-        if (step.lengthSqr() < 1.0E-4) {
+        if (p.tickCount != estimateTick || n != estimateN || p != estimateFor) {
+            estimateTick = p.tickCount;
+            estimateN = n;
+            estimateFor = p;
+            estimate = simulateRun(p, n + 1);
+        }
+        return estimate;
+    }
+
+    private static int estimateTick = -1;
+    private static int estimateN = -1;
+    private static LocalPlayer estimateFor;
+    private static net.minecraft.world.phys.Vec3 estimate;
+
+    /** {@code ticks} ticks of his last tick's horizontal step from where he is, moved as vanilla moves him. */
+    static net.minecraft.world.phys.Vec3 simulateRun(LocalPlayer p, int ticks) {
+        double dx = p.getX() - p.xo;
+        double dz = p.getZ() - p.zo;
+        if (dx * dx + dz * dz < 1.0E-4) {
             return null;
         }
-        net.minecraft.world.phys.AABB box = p.getBoundingBox();
-        for (int i = 0; i < n; i++) {
-            net.minecraft.world.phys.AABB next = box.move(step);
-            if (!p.level().noCollision(p, next)) {
-                break;
+        net.minecraft.world.level.Level level = p.level();
+        net.minecraft.core.BlockPos.MutableBlockPos pos = new net.minecraft.core.BlockPos.MutableBlockPos();
+        com.killer560.hub.ap3.Ap3RouteCollide.Shapes world = (minX, minY, minZ, maxX, maxY, maxZ, out) -> {
+            for (int bx = (int) Math.floor(minX); bx <= (int) Math.floor(maxX); bx++) {
+                for (int bz = (int) Math.floor(minZ); bz <= (int) Math.floor(maxZ); bz++) {
+                    // One block lower too: a fence's or wall's 1.5-high shape reaches up out of the block below.
+                    for (int by = (int) Math.floor(minY) - 1; by <= (int) Math.floor(maxY); by++) {
+                        net.minecraft.world.phys.shapes.VoxelShape shape = level.getBlockState(pos.set(bx, by, bz))
+                                .getCollisionShape(level, pos);
+                        if (shape.isEmpty()) {
+                            continue;
+                        }
+                        for (net.minecraft.world.phys.AABB b : shape.toAabbs()) {
+                            out.add(new com.killer560.hub.ap3.Ap3RouteCollide.Box(bx + b.minX, by + b.minY, bz + b.minZ,
+                                    bx + b.maxX, by + b.maxY, bz + b.maxZ));
+                        }
+                    }
+                }
             }
-            box = next;
+        };
+        com.killer560.hub.ap3.Ap3RouteCollide.Scratch sc = com.killer560.hub.ap3.Ap3RouteCollide.scratch();
+        double x = p.getX();
+        double y = p.getY();
+        double z = p.getZ();
+        double vy = p.getDeltaMovement().y;
+        boolean ground = p.onGround();
+        for (int i = 0; i < ticks; i++) {
+            com.killer560.hub.ap3.Ap3RouteCollide.Result r = com.killer560.hub.ap3.Ap3RouteCollide.collide(x, y, z,
+                    p.getBbHeight(), dx, vy, dz, ground, world, sc);
+            x += r.dx;
+            y += r.dy;
+            z += r.dz;
+            ground = r.onGround;
+            // LivingEntity.travel: a vertical hit stops the fall, then gravity and air drag.
+            vy = ((r.hitY ? 0.0 : vy) - 0.08) * 0.98;
         }
-        return new net.minecraft.world.phys.Vec3((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2);
+        return new net.minecraft.world.phys.Vec3(x, y, z);
     }
 
     public static boolean isActive() {

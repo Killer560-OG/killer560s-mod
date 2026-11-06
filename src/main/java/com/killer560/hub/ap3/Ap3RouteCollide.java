@@ -26,7 +26,7 @@ import java.util.List;
  * {@code Entity.getBlockSpeedFactor} (soul sand / honey). Neither is on a dungeon floor, and both are additions to
  * this, not corrections of it.
  */
-final class Ap3RouteCollide {
+public final class Ap3RouteCollide {
 
     private Ap3RouteCollide() {
     }
@@ -45,13 +45,13 @@ final class Ap3RouteCollide {
     private static final double STEP_SEARCH_SLIVER = 9.999999747378752E-6;
 
     /** An axis-aligned box - a block's collision shape, or the player's own. */
-    static final class Box {
+    public static final class Box {
         double minX, minY, minZ, maxX, maxY, maxZ;
 
         Box() {
         }
 
-        Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        public Box(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
             this.minX = minX;
             this.minY = minY;
             this.minZ = minZ;
@@ -98,7 +98,7 @@ final class Ap3RouteCollide {
     }
 
     /** Where the collision boxes come from: everything that overlaps the query is appended to {@code out}. */
-    interface Shapes {
+    public interface Shapes {
         void collect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, List<Box> out);
     }
 
@@ -422,7 +422,7 @@ final class Ap3RouteCollide {
      * Reusable working room for one thread's collide calls. The beam search runs this hundreds of thousands of
      * times per plan, so the sweep allocates nothing.
      */
-    static final class Scratch {
+    public static final class Scratch {
         final List<Box> shapes = new ArrayList<>(16);
         final List<Box> stepShapes = new ArrayList<>(16);
         final Box box = new Box();
@@ -436,27 +436,27 @@ final class Ap3RouteCollide {
 
     private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
 
-    static Scratch scratch() {
+    public static Scratch scratch() {
         return SCRATCH.get();
     }
 
     /** What one move did: how far it actually went, and which walls it found. */
-    static final class Result {
+    public static final class Result {
         /** The move that actually happened. */
-        double dx, dy, dz;
+        public double dx, dy, dz;
         /** Vanilla's {@code Mth.equal} test - a hit small enough to ignore does not zero the velocity. */
         boolean hitX, hitZ;
         /** {@code movement.y != vec3.y}: something stopped the vertical move (a floor, a ceiling, or a step up). */
-        boolean hitY;
+        public boolean hitY;
         /** {@code verticalCollisionBelow}: the vertical move was downward and got stopped - i.e. you are standing. */
-        boolean onGround;
+        public boolean onGround;
     }
 
     /**
      * {@code Entity.collide} followed by the part of {@code Entity.move} that decides the flags. Feed it the move
      * the tick wants and the box it starts in; it returns the move that really happens.
      */
-    static Result collide(double x, double y, double z, double height,
+    public static Result collide(double x, double y, double z, double height,
                           double dx, double dy, double dz, boolean wasOnGround, Shapes world, Scratch sc) {
         Box box = sc.box;
         box.minX = x - HALF_WIDTH;
