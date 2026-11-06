@@ -108,11 +108,23 @@ public final class TreasureChests {
         long ms = System.currentTimeMillis();
         if (CLICKS.size() >= MAX_CLICKS) CLICKS.pollFirst();
         CLICKS.addLast(new Click(key, ms));
-        if (CHESTS.containsKey(key) && PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
-            // Client-only: only the chest's model is skipped (TreasureChestHideMixin); the block stays a chest, so no
-            // ghost block and the server's state is untouched.
-            HIDDEN.put(key, ms + HIDDEN_MS);
+    }
+
+    /**
+     * Hide Opened Chests: a chest the server confirmed opened (lid, its loot or "already looted" naming it, its block gone
+     * after his click) stops being drawn. Never at the click, which the server may drop (chestretry-1105). Client-only:
+     * only the model is skipped (TreasureChestHideMixin); the block stays a chest, so no ghost block.
+     */
+    private static void hide(BlockPos pos) {
+        if (PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
+            HIDDEN.put(pos, System.currentTimeMillis() + HIDDEN_MS);
         }
+    }
+
+    private static boolean clicked(BlockPos pos) {
+        long since = System.currentTimeMillis() - CLICK_MS;
+        for (Click k : CLICKS) if (k.ms() >= since && k.pos().equals(pos)) return true;
+        return false;
     }
 
     /** The one chest every click in the {@link #CLICK_MS} before {@code upTo} was on, or null (none, or several). */
@@ -130,7 +142,10 @@ public final class TreasureChests {
     /** {@code pos} answered: its clicks are done, and a highlighted chest there is collected. */
     private static void collected(BlockPos pos) {
         CLICKS.removeIf(k -> k.pos().equals(pos));
-        if (CHESTS.remove(pos) != null) MISSING.remove(pos);
+        if (CHESTS.remove(pos) != null) {
+            MISSING.remove(pos);
+            hide(pos);
+        }
     }
 
     /**
@@ -168,7 +183,7 @@ public final class TreasureChests {
     private static int lastCountdownColor = 0;
     private static String lastCountdownText = null;
 
-    /** True when the chest at {@code pos} is one he clicked and Hide Opened Chests is on (the render mixin's question). */
+    /** True when the chest at {@code pos} was confirmed opened and Hide Opened Chests is on (the render mixin's question). */
     public static boolean shouldHide(BlockPos pos) {
         if (HIDDEN.isEmpty() || !PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
             return false;
@@ -280,6 +295,7 @@ public final class TreasureChests {
         CLICKS.removeIf(k -> k.pos().equals(pos)); // the lid answered them
         if (CHESTS.remove(pos) != null) {
             MISSING.remove(pos);
+            hide(pos);
             opened++;
             if (lootDebt > 0) {
                 lootDebt--; // its loot line came first
@@ -354,8 +370,8 @@ public final class TreasureChests {
             boolean chest = client.level.getBlockState(key).is(Blocks.CHEST);
             if (chest) {
                 MISSING.remove(key);
-            } else {
-                MISSING.putIfAbsent(key, now);
+            } else if (MISSING.putIfAbsent(key, now) == null && clicked(key)) {
+                hide(key); // he clicked it and it went: opened (the resend that may follow stays hidden)
             }
             if (now - e.getValue() > LIFETIME_TICKS + GRACE_TICKS || (!chest && now - MISSING.get(key) > GONE_TICKS)) {
                 MISSING.remove(key);
