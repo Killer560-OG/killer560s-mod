@@ -114,6 +114,8 @@ public final class PerTickServerClock {
     private static long censusGameTime;
     private static int testChainId = -100;
     private static long testNanos;
+    /** Testkit: the wall time, in ms, a case set with {@link #wallForTest}; MIN_VALUE when none (real time). */
+    private static volatile long testWallMs = Long.MIN_VALUE;
 
     private static final java.util.List<Runnable> LISTENERS = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
@@ -167,6 +169,7 @@ public final class PerTickServerClock {
     public static synchronized void hypixelForTest(Boolean on) {
         forcedHypixel = on;
         hypixel = on != null && on;
+        testWallMs = Long.MIN_VALUE;
     }
 
     private static synchronized void untrust() {
@@ -566,6 +569,19 @@ public final class PerTickServerClock {
     /** Testkit: the server's time packet with this game time, on the test's own wall clock. */
     public static void serverTimeForTest(long gameTime) {
         onServerTime(gameTime, testNanos);
+    }
+
+    /** Testkit: set the test's wall clock to {@code ms} (pings and time packets are timed on it, and Split Timers' lag
+     *  reads it too, until the next {@link #hypixelForTest}), so a case can place a ping at any millisecond. */
+    public static void wallForTest(long ms) {
+        testNanos = ms * 1_000_000L;
+        testWallMs = ms;
+    }
+
+    /** The wall time a case set ({@link #wallForTest}), else {@code System.currentTimeMillis()}. */
+    public static long wallMs() {
+        long t = testWallMs;
+        return t == Long.MIN_VALUE ? System.currentTimeMillis() : t;
     }
 
     /** A client tick, and 50 ms of the test's own wall clock. */
