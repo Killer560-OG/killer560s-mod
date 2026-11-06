@@ -285,10 +285,11 @@ public final class RelayClient {
         connectedRoom = room;
         lastError = "";
         state = State.CONNECTING;
+        Socket listener = new Socket(gen);
         tokenFor(url)
                 .thenCompose(issued -> ModNet.webSocket(HTTP.newWebSocketBuilder()
                         .connectTimeout(Duration.ofSeconds(15)),
-                        RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
+                        RelayEndpoint.websocket(url, room, issued.value()), listener))
                 .whenComplete((ws, error) -> WORKER.execute(() -> {
                     if (gen != generation) {
                         if (ws != null) {
@@ -308,6 +309,7 @@ public final class RelayClient {
                     lastError = "";
                     startKeepAlive(gen);
                     LOGGER.info("[Relay] Connected to {} (room {})", url, room);
+                    listener.live.complete(null);
                 }));
     }
 
@@ -435,6 +437,13 @@ public final class RelayClient {
         /** A text message can arrive in several frames; nothing may be parsed until {@code last}. */
         private final StringBuilder buffer = new StringBuilder();
 
+        /**
+         * Completed on WORKER once {@link #connect} has made this the live socket. The relay sends its welcome the moment
+         * the socket opens, often before that, and a welcome handled first sent its hello into no socket: the player never
+         * showed as a mod user in that room, so every viewer dropped his song ("not a mod user", spotreal-1106).
+         */
+        final CompletableFuture<Void> live = new CompletableFuture<>();
+
         private Socket(long gen) { this.gen = gen; }
 
         @Override
@@ -443,9 +452,14 @@ public final class RelayClient {
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             buffer.append(data);
-            if (last) {
-                String text = buffer.toString();
-                buffer.setLength(0);
+            if (!last) {
+                webSocket.request(1);
+                return null;
+            }
+            String text = buffer.toString();
+            buffer.setLength(0);
+            // The next message is requested only after this one ran, so a message held until live keeps its order.
+            live.thenRun(() -> {
                 if (gen == generation) {
                     try {
                         handle(text);
@@ -453,8 +467,8 @@ public final class RelayClient {
                         LOGGER.warn("[Relay] Bad packet: {}", e.toString());
                     }
                 }
-            }
-            webSocket.request(1);
+                webSocket.request(1);
+            });
             return null;
         }
 
@@ -549,7 +563,7 @@ public final class RelayClient {
         }
     }
 
-    private static List<String> names(JsonObject packet) {
+    static List<String> names(JsonObject packet) {
         JsonElement element = packet.get("online");
         if (element == null || !element.isJsonArray()) return List.of();
         JsonArray array = element.getAsJsonArray();

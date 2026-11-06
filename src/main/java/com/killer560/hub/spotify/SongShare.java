@@ -70,15 +70,19 @@ public final class SongShare {
         SongShareConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SongShare", client -> tick()));
         RelayClient.addListener(new RelayListener() {
+            // Songs are not cleared when the main socket changes room: those heard through the lobby link are still right,
+            // and their senders resend only every 30 s. A sender who left both rooms is forgotten by his leave; a stale one
+            // expires (RemoteSongs.EXPIRE_MS).
             @Override
             public void onConnected(String room, List<String> online) {
-                RemoteSongs.clear();
                 roomChanged = true;
             }
 
             @Override
             public void onDisconnected(String reason) {
-                RemoteSongs.clear();
+                if (!RelayTap.isConnected()) {
+                    RemoteSongs.clear();
+                }
                 roomChanged = true;
             }
 
@@ -86,7 +90,7 @@ public final class SongShare {
             public void onPresence(String event, String name, List<String> online) {
                 if ("join".equals(event)) {
                     resend = true;
-                } else if ("leave".equals(event)) {
+                } else if ("leave".equals(event) && !RelayTap.stillHere(name)) {
                     RemoteSongs.forget(name);
                 }
             }

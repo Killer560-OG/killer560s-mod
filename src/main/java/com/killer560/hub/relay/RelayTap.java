@@ -12,10 +12,9 @@ import org.slf4j.Logger;
 
 import java.net.http.WebSocket;
 import java.time.Duration;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -32,9 +31,8 @@ import java.util.concurrent.TimeUnit;
 public final class RelayTap {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-relay");
-    /** Lobby mod users this socket has seen (name to shared variant), for {@link RemoteSongs}' mod-user check. */
-    private static final int MAX_MODS = 200;
-    private static final Map<String, String> MODS = new ConcurrentHashMap<>();
+    /** Who the relay has in the lobby room right now (from its welcome and presence lists). */
+    private static volatile List<String> online = List.of();
 
     private static volatile String wantUrl = "";
     private static volatile String wantRoom = "";
@@ -64,8 +62,11 @@ public final class RelayTap {
 
     public static String room() { return activeRoom; }
 
-    /** True when the lobby room lists {@code name} as a mod user who shows himself. */
-    public static boolean isModUser(String name) { return name != null && MODS.containsKey(name); }
+    /** Everyone in the lobby room, you included; empty while not connected. */
+    public static List<String> online() { return online; }
+
+    /** Whether {@code name} still has a socket in either relay room (a leave of one of his two sockets is not him leaving). */
+    public static boolean stillHere(String name) { return online.contains(name) || RelayClient.online().contains(name); }
 
     public static boolean sendData(String key, JsonElement value) {
         if (socket == null) return false;
@@ -104,7 +105,7 @@ public final class RelayTap {
         WebSocket ws = socket;
         socket = null;
         activeRoom = "";
-        MODS.clear();
+        online = List.of();
         if (ws != null) {
             try {
                 ws.abort();
@@ -118,10 +119,11 @@ public final class RelayTap {
         final long gen = ++generation;
         connectedRoom = room;
         attempt++;
+        Socket listener = new Socket(gen);
         RelayClient.tokenFor(url)
                 .thenCompose(issued -> ModNet.webSocket(RelayClient.HTTP.newWebSocketBuilder()
                         .connectTimeout(Duration.ofSeconds(15)),
-                        RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
+                        RelayEndpoint.websocket(url, room, issued.value()), listener))
                 .whenComplete((ws, error) -> RelayClient.WORKER.execute(() -> {
                     if (gen != generation) {
                         if (ws != null) ws.abort();
@@ -138,6 +140,7 @@ public final class RelayTap {
                         if (gen == generation) send(RelayClient.ping());
                     }, RelayClient.KEEPALIVE_SECONDS, RelayClient.KEEPALIVE_SECONDS, TimeUnit.SECONDS);
                     LOGGER.info("[Relay] Song Tag lobby link connected (room {})", room);
+                    listener.live.complete(null);
                 }));
     }
 
@@ -181,14 +184,7 @@ public final class RelayTap {
         String name = RelayClient.str(packet, "name");
         switch (RelayClient.str(packet, "type")) {
             case "welcome" -> {
-                MODS.clear();
-                JsonElement mods = packet.get("mods");
-                if (mods != null && mods.isJsonObject()) {
-                    for (Map.Entry<String, JsonElement> e : mods.getAsJsonObject().entrySet()) {
-                        if (MODS.size() >= MAX_MODS) break;
-                        MODS.put(e.getKey(), "");
-                    }
-                }
+                online = RelayClient.names(packet);
                 ModUserConfig cfg = ModUserConfig.getInstance();
                 JsonObject hello = new JsonObject();
                 hello.addProperty("type", "hello");
@@ -200,15 +196,12 @@ public final class RelayTap {
             }
             case "presence" -> {
                 String event = RelayClient.str(packet, "event");
-                JsonElement shared = packet.get("shareAs");
-                if ("mod".equals(event) && shared != null && shared.isJsonPrimitive() && MODS.size() < MAX_MODS) {
-                    MODS.put(name, "");
-                } else if ("mod".equals(event) || "leave".equals(event)) {
-                    MODS.remove(name);
+                if (packet.has("online")) {
+                    online = RelayClient.names(packet);
                 }
                 if ("join".equals(event)) {
                     SongShare.resendSoon();
-                } else if ("leave".equals(event) && !RelayClient.online().contains(name)) {
+                } else if ("leave".equals(event) && !stillHere(name)) {
                     RemoteSongs.forget(name);
                 }
             }
@@ -228,6 +221,9 @@ public final class RelayTap {
         private final long gen;
         private final StringBuilder buffer = new StringBuilder();
 
+        /** Completed once {@link #connect} set {@link #socket}: see RelayClient's Socket.live (the hello was lost). */
+        final CompletableFuture<Void> live = new CompletableFuture<>();
+
         private Socket(long gen) { this.gen = gen; }
 
         @Override
@@ -236,12 +232,16 @@ public final class RelayTap {
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             buffer.append(data);
-            if (last) {
-                String text = buffer.toString();
-                buffer.setLength(0);
-                if (gen == generation) handle(text);
+            if (!last) {
+                webSocket.request(1);
+                return null;
             }
-            webSocket.request(1);
+            String text = buffer.toString();
+            buffer.setLength(0);
+            live.thenRun(() -> {
+                if (gen == generation) handle(text);
+                webSocket.request(1);
+            });
             return null;
         }
 
