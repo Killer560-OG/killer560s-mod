@@ -65,6 +65,10 @@ public final class LyricsEngine {
      * about the time before (a paused position, or the last song's), so it is not believed until a newer one arrives.
      */
     private long lastEventMs = 0;
+    /** Wall time the clock last stopped for a pause: a playing reading Spotify took after it is the resume. */
+    private long pausedAtMs = 0;
+    /** Whether the window title said paused at the last poll. */
+    private boolean titlePaused;
     /** Whether the clock has been set from Spotify's real position at least once on this track. */
     private boolean positionFromSpotify = false;
 
@@ -476,6 +480,17 @@ public final class LyricsEngine {
     public synchronized void pollAt(NowPlaying nowPlaying, SpotifyMediaSession.Timeline timeline, long now,
                                     boolean fullLyricsMode) {
         {
+            // Spotify's own reading of a resume can come before its window title stops saying paused (lyrictime-1106):
+            // a playing reading of this track taken after the clock stopped is the resume, so the clock runs from it
+            // at once instead of waiting a poll or more for the title. Not on the poll that first sees the title paused
+            // with the clock running: then the playing reading is from before the pause.
+            boolean titleWasPaused = titlePaused;
+            titlePaused = nowPlaying.kind() == NowPlaying.Kind.PAUSED;
+            if (titlePaused && timeline != null && timeline.playing() && lastTrackKey != null
+                    && !lastWasAd && timeline.updatedMs() > pausedAtMs && (titleWasPaused || !clock.running())
+                    && timeline.matches(lastArtist, lastTitle)) {
+                nowPlaying = NowPlaying.track(lastArtist, lastTitle);
+            }
             lastNowPlaying = nowPlaying;
             if (timeline != null) {
                 lastSeenUpdatedMs = timeline.updatedMs();
@@ -486,6 +501,7 @@ public final class LyricsEngine {
                 // as a brand new track every time he paused and un-paused.
                 if (clock.running()) {
                     resyncPending = true;   // Spotify's reading of the pause is exact: take the next one as it is
+                    pausedAtMs = now;
                 }
                 clock.pause(now);
                 // A scrub while paused: Spotify's paused position is believed, so the line shown is where it resumes.
@@ -541,8 +557,11 @@ public final class LyricsEngine {
                 lyricsRequestedFor = null;
                 SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}'",
                         nowPlaying.artist(), title);
-            } else if (!clock.running()) {
-                clock.resume(now);   // resumed after a pause, same track: on from the same position
+            } else if (!clock.running() && (titleWasPaused || timeline == null || !timeline.paused()
+                    || timeline.updatedMs() < lastEventMs || !timeline.matches(nowPlaying.artist(), nowPlaying.title()))) {
+                // Resumed after a pause, same track: on from the same position. Not while the title has said playing
+                // all along and Spotify's reading since the last resume says paused (its title lags the pause).
+                clock.resume(now);
                 lastEventMs = now;
                 resyncPending = true;   // the resume was seen up to a poll late: Spotify's reading of it fixes that
             }
@@ -569,9 +588,12 @@ public final class LyricsEngine {
                     spotifyDurationSeconds = length;
                     choose();
                 }
-                if (timeline.paused()) {
+                // A paused reading older than the resume this engine saw is from before it (the session lags the
+                // title): believing it stopped the clock again every poll until Spotify's next reading.
+                if (timeline.paused() && timeline.updatedMs() >= lastEventMs) {
                     if (clock.running()) {
                         resyncPending = true;
+                        pausedAtMs = now;
                     }
                     clock.pause(now);
                     pausedBySession = true;

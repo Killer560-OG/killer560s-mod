@@ -96,6 +96,11 @@ public final class SpotifyMediaSession {
     }
 
     private volatile Timeline latest;
+    /** Called on the reader thread when Spotify's reading changes (play state, its time or the track). */
+    private volatile Runnable onChange;
+
+    /** {@code r} runs on the reader thread on each changed reading, so the lyric clock need not wait for its next poll. */
+    public void onChange(Runnable r) { onChange = r; }
     private volatile Cover cover;
     private volatile Process process;
     private long nextStartMs;
@@ -339,7 +344,13 @@ public final class SpotifyMediaSession {
                         }
                     }
                 }
+                Timeline prev = latest;
                 latest = t;
+                Runnable change = onChange;
+                if (change != null && t != null && (prev == null || prev.status() != t.status()
+                        || prev.updatedMs() != t.updatedMs() || !prev.title().equals(t.title()))) {
+                    change.run();
+                }
                 if (t != null && t.coverSeq() != coverSeq) {
                     coverSeq = t.coverSeq();
                     try {
@@ -507,6 +518,7 @@ public final class SpotifyMediaSession {
                     $retryAt = 0
                     try { if (SaveCover $props) { $seq++ } } catch { }
                   }
+                  $emSt = [int]$pb.PlaybackStatus; $emUpd = $tl.LastUpdatedTime.ToUnixTimeMilliseconds()
                   $line = "S`t" + (Clean $props.Artist) + "`t" + (Clean $props.Title) + "`t" + [int]$pb.PlaybackStatus + "`t" + [long]$tl.Position.TotalMilliseconds + "`t" + [long]$tl.EndTime.TotalMilliseconds + "`t" + $tl.LastUpdatedTime.ToUnixTimeMilliseconds() + "`t" + $seq
                   if ($audioReady -and ($i % 4) -eq 0) { try { $vol = GetVol } catch { $vol = -1 } }
                   $c = $pb.Controls
@@ -528,7 +540,14 @@ public final class SpotifyMediaSession {
                 $left = $deadline - [Environment]::TickCount
                 if ($left -le 0) { break }
                 $got = $false
-                try { $got = $pending.Wait($left) } catch { exit 0 }
+                try { $got = $pending.Wait([Math]::Min($left, 100)) } catch { exit 0 }
+                # A pause, resume, seek or new reading from Spotify goes out at once, not up to half a second later
+                # (lyrictime-1106): two cheap property reads every 100 ms on the session already found.
+                if (-not $got -and $line.StartsWith('S')) {
+                  $moved = $false
+                  try { $moved = [int]$s.GetPlaybackInfo().PlaybackStatus -ne $emSt -or $s.GetTimelineProperties().LastUpdatedTime.ToUnixTimeMilliseconds() -ne $emUpd } catch { }
+                  if ($moved) { break }
+                }
                 if ($got) {
                   $cmds = [System.Collections.Generic.List[string]]::new()
                   $eof = $false

@@ -89,6 +89,21 @@ public final class SpotifyLyricsFeature {
         // Affordable because the window handle is cached in SpotifyDesktopSource and the process-id lookup for
         // five seconds, so a poll that finds nothing new is two syscalls.
         SCHEDULER.scheduleAtFixedRate(SpotifyLyricsFeature::safeTick, 250, POLL_MS, TimeUnit.MILLISECONDS);
+        // A changed media reading (pause, resume, seek, Spotify's own time) is taken at once, not on the next 250 ms beat
+        // (lyrictime-1106: those waits were most of the 0.35-0.8 s the lyric clock was off after each pause or resume).
+        MEDIA.onChange(SpotifyLyricsFeature::pollSoon);
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean POLL_QUEUED = new java.util.concurrent.atomic.AtomicBoolean();
+
+    /** One extra poll on the poll thread, however many readings ask for it before it runs. */
+    private static void pollSoon() {
+        if (POLL_QUEUED.compareAndSet(false, true)) {
+            SCHEDULER.execute(() -> {
+                POLL_QUEUED.set(false);
+                safeTick();
+            });
+        }
     }
 
     /** A throw out of a scheduleAtFixedRate task silently cancels every later run, so nothing may escape tick(). */
