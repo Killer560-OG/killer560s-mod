@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -65,7 +66,7 @@ public final class TreasureChests {
     private static final Map<BlockPos, Long> MISSING = new HashMap<>();
     private static final long GONE_TICKS = 10L;
     // Loot blocks with no lid event yet (the lid event and the chat line can arrive in either order): the next lid event
-    // pays one, else the fallback owner is picked after LOOT_WAIT_MS (chestrace-1105).
+    // pays one, else the chest clicked before it is the owner after LOOT_WAIT_MS (chestrace-1105).
     private static int lootDebt = 0;
     private static long lootDebtAt = 0L;
     private static final long LOOT_WAIT_MS = 200L;
@@ -73,10 +74,19 @@ public final class TreasureChests {
 
     private static int claims = 0;
     private static int alerts = 0;
-    // The highlighted chest he last right-clicked, and when (ms): the loot block belongs to it, not to the nearest one
-    // (killer560, 2026-11-03: opening a farther chest removed the closest one's highlight).
-    private static BlockPos lastUsed = null;
-    private static long lastUsedAt = 0L;
+    /**
+     * Chest clicks that left the client (wire hook, so ones another listener or ActionGate stopped never count), oldest
+     * first, at most {@link #MAX_CLICKS}, each kept {@link #CLICK_MS}. A loot block or an "already looted" reply says only
+     * that SOME chest answered, so it names its chest only when every click in that window was on one chest: a click the
+     * server ignored, or a second chest clicked before the first one's answer came, makes it ambiguous, and then nothing
+     * is removed (the block going still ends the right one). Until 2026-11-05 the chest clicked last (any age up to 10 s),
+     * else the NEAREST claimed chest, took the loot, so a chest the bot never collected lost its highlight and the bot
+     * stopped clicking it (killer560, chestretry-1105: "it just tried clicking this chest but it didnt collect it").
+     */
+    private static final ArrayDeque<Click> CLICKS = new ArrayDeque<>();
+    private record Click(BlockPos pos, long ms) { }
+    private static final int MAX_CLICKS = 8;
+    static final long CLICK_MS = 1500L;
     static final long USED_MS = 10_000L;
     // Highlighted chests that left on their lid opening, not yet matched by a loot block (capped), and when.
     private static int openedCredits = 0;
@@ -89,20 +99,48 @@ public final class TreasureChests {
      * highlighted one as "last used": that chest then lost its highlight while still there (killer560 2026-11-04, "a chest
      * that isnt highlighting", chestfx-1104).
      */
-    static void onUseBlock(BlockPos pos) {
+    public static void onUseBlock(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
         if (pos == null || client.level == null || !client.level.getBlockState(pos).is(Blocks.CHEST)) {
             return;
         }
-        lastUsed = pos.immutable();
-        lastUsedAt = System.currentTimeMillis();
-        if (CHESTS.containsKey(pos)) {
-            if (PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
-                // Client-only: only the chest's model is skipped (TreasureChestHideMixin); the block stays a chest, so no
-                // ghost block and the server's state is untouched.
-                HIDDEN.put(lastUsed, System.currentTimeMillis() + HIDDEN_MS);
-            }
+        BlockPos key = pos.immutable();
+        long ms = System.currentTimeMillis();
+        if (CLICKS.size() >= MAX_CLICKS) CLICKS.pollFirst();
+        CLICKS.addLast(new Click(key, ms));
+        if (CHESTS.containsKey(key) && PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
+            // Client-only: only the chest's model is skipped (TreasureChestHideMixin); the block stays a chest, so no
+            // ghost block and the server's state is untouched.
+            HIDDEN.put(key, ms + HIDDEN_MS);
         }
+    }
+
+    /** The one chest every click in the {@link #CLICK_MS} before {@code upTo} was on, or null (none, or several). */
+    private static BlockPos answered(long upTo) {
+        while (!CLICKS.isEmpty() && upTo - CLICKS.peekFirst().ms() > CLICK_MS) CLICKS.pollFirst();
+        BlockPos one = null;
+        for (Click k : CLICKS) {
+            if (k.ms() > upTo) break;
+            if (one != null && !one.equals(k.pos())) return null;
+            one = k.pos();
+        }
+        return one;
+    }
+
+    /** {@code pos} answered: its clicks are done, and a highlighted chest there is collected. */
+    private static void collected(BlockPos pos) {
+        CLICKS.removeIf(k -> k.pos().equals(pos));
+        if (CHESTS.remove(pos) != null) MISSING.remove(pos);
+    }
+
+    /**
+     * "This chest has already been looted." (from {@link PowderChat}): the reply to a click on a chest that is done. When the
+     * clicks name one chest, that chest goes (and the bot stops clicking it); the bot's extra clicks after a loot get this
+     * too, and once the loot removed their chest they name nothing.
+     */
+    static void onAlreadyLooted() {
+        BlockPos pos = answered(System.currentTimeMillis());
+        if (pos != null) collected(pos);
     }
 
     /**
@@ -148,8 +186,12 @@ public final class TreasureChests {
     }
 
     static boolean tracking() {
+        return featuresOn() && MiningState.crystalHollows();
+    }
+
+    private static boolean featuresOn() {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        return (cfg.isTreasureChest() || cfg.isLockpickHelper() || cfg.isChestTriggerbot()) && MiningState.crystalHollows();
+        return cfg.isTreasureChest() || cfg.isLockpickHelper() || cfg.isChestTriggerbot();
     }
 
     /** A block changed (client thread, after the change is in the level). */
@@ -235,6 +277,7 @@ public final class TreasureChests {
      * says that SOME chest was looted; the loot block that follows is then paid for by {@link #openedCredits}.
      */
     public static void onChestOpened(BlockPos pos) {
+        CLICKS.removeIf(k -> k.pos().equals(pos)); // the lid answered them
         if (CHESTS.remove(pos) != null) {
             MISSING.remove(pos);
             opened++;
@@ -248,8 +291,8 @@ public final class TreasureChests {
     }
 
     /**
-     * The loot block came: a chest whose lid opened pays for it; else the chest he clicked last (if highlighted); else, with
-     * no chest click in {@link #USED_MS}, the nearest claimed chest within 8 blocks (its block goes on its own).
+     * The loot block came: a chest whose lid opened pays for it; else, after {@link #LOOT_WAIT_MS}, the one chest the clicks
+     * before it name ({@link #answered}); else nothing (the block going ends it).
      */
     static void onLooted() {
         PowderMining.markChest();
@@ -267,26 +310,11 @@ public final class TreasureChests {
         lootDebt = Math.min(lootDebt + 1, 4);
     }
 
-    /** A loot block no lid event claimed within {@link #LOOT_WAIT_MS}: the chest he clicked last, else the nearest. */
-    private static void settleLoot(Minecraft client, long ms) {
+    /** A loot block no lid event claimed within {@link #LOOT_WAIT_MS}: the chest the clicks before it name, if one. */
+    private static void settleLoot() {
         lootDebt--;
-        if (lastUsed != null && ms - lastUsedAt <= USED_MS) {
-            CHESTS.remove(lastUsed); // nothing when the chest he clicked was not a highlighted one
-            lastUsed = null;
-            return;
-        }
-        BlockPos best = null;
-        double bestD = 64.0;
-        for (BlockPos p : CHESTS.keySet()) {
-            double d = p.distToCenterSqr(client.player.getEyePosition());
-            if (d <= bestD) {
-                bestD = d;
-                best = p;
-            }
-        }
-        if (best != null) {
-            CHESTS.remove(best);
-        }
+        BlockPos pos = answered(lootDebtAt); // clicks sent while it waited for a lid are not its owner
+        if (pos != null) collected(pos);
     }
 
     static void tick(Minecraft client) {
@@ -311,13 +339,14 @@ public final class TreasureChests {
                 }
             }
         }
-        if (!tracking()) {
+        if (!featuresOn()) {
             CHESTS.clear();
             UNCLAIMED.clear();
             pendingLines = 0;
             lootDebt = 0;
             return;
         }
+        if (!MiningState.crystalHollows()) return; // an island read lapse keeps the chests: only the world going ends them
         long now = PerTickServerClock.now();
         for (Iterator<Map.Entry<BlockPos, Long>> it = CHESTS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<BlockPos, Long> e = it.next();
@@ -336,7 +365,7 @@ public final class TreasureChests {
         UNCLAIMED.values().removeIf(t -> now - t > MATCH_TICKS);
         long wall = System.currentTimeMillis();
         while (lootDebt > 0 && wall - lootDebtAt >= LOOT_WAIT_MS) {
-            settleLoot(client, wall);
+            settleLoot();
         }
         if (pendingLines > 0 && now - pendingAt > MATCH_TICKS) {
             pendingLines = 0;
@@ -352,7 +381,7 @@ public final class TreasureChests {
         pendingLines = 0;
         lootDebt = 0;
         openedCredits = 0;
-        lastUsed = null;
+        CLICKS.clear();
     }
 
     /** The chest's box (a chest is 14/16 wide and tall, centered). */

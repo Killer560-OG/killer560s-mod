@@ -43,6 +43,7 @@ public final class PowderChat {
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-powdermining");
 
     static final Pattern UNCOVERED = Pattern.compile("^You uncovered a treasure chest!$");
+    private static final Pattern LOOTED = Pattern.compile("^This chest has already been looted\\.$");
     static final Pattern HEADER = Pattern.compile("^(?:CHEST LOCKPICKED|LOOT CHEST COLLECTED)$");
     static final Pattern REWARDS = Pattern.compile("^REWARDS$");
     /** A reward line, trimmed: an optional gemstone icon ("⸕ Rough Amber Gemstone x24"), the name, an optional " xN". */
@@ -144,6 +145,10 @@ public final class PowderChat {
         }
         if (t.length() <= 40 && UNCOVERED.matcher(t).matches()) {
             TreasureChests.onUncovered();
+            return true;
+        }
+        if (t.length() <= 40 && hollows && LOOTED.matcher(t).matches()) {
+            TreasureChests.onAlreadyLooted();
             return true;
         }
         if (t.length() <= 100 && t.contains("2X POWDER")) {

@@ -20,12 +20,6 @@ public final class PowderMiningFeatures {
         PowderMiningConfig.getInstance();
         com.killer560.hub.util.PerTickServerClock.register();
         PowderChat.register();
-        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            if (level.isClientSide() && player == net.minecraft.client.Minecraft.getInstance().player && hitResult != null) {
-                TreasureChests.onUseBlock(hitResult.getBlockPos());
-            }
-            return net.minecraft.world.InteractionResult.PASS;
-        });
         HudElementRegistry.register(new TreasureChests.Timer());
         HudElementRegistry.register(new PowderTracker.Hud());
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PowderMiningFeatures", client -> {
