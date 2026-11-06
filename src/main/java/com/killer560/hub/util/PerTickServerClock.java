@@ -38,7 +38,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * The clock is one count: each counted ping advances it while trusted; while not, it follows the client's game time (a
  * tick a tick, plus forward set-time corrections; never down), so it is continuous across a change of source.
  * {@link #deficitTicksSince} is how far it is behind the client's ticks (a catch-up burst pays it back);
- * {@link #stallTicksSince} counts every stall, paid back or not. Once per world, 60 s after its first ping, one INFO line
+ * {@link #stallTicksSince} is {@link StallLag}'s lag in ticks (stalls, paid back or not, and a slow server). Once per world, 60 s after its first ping, one INFO line
  * gives the ping census (ids 0 and non-zero, chain and off-chain, per 50 ms of wall time, chain direction).
  */
 public final class PerTickServerClock {
@@ -56,9 +56,6 @@ public final class PerTickServerClock {
     static final double HYPIXEL_SLACK = 1.5;
     /** hypixel.net: credit a stall banks for its catch-up burst (vanilla catches up at most 2 s of ticks, then skips). */
     static final double HYPIXEL_CREDIT = 40.0;
-    /** A rise of the trusted deficit (client ticks minus pings) of more than this many ticks over its low point is a stall;
-     *  one or two is arrival jitter (a late ping lands in the next tick). Split Timers' 150 ms rule, in ticks. */
-    static final int STALL_TICKS = 2;
     private static final long CENSUS_NANOS = 60_000_000_000L;
     /** hypixel.net: the count may differ from the server's game time by this much (whether a tick's ping or its time packet
      *  comes first) before {@link #onServerTime} moves it. */
@@ -86,10 +83,6 @@ public final class PerTickServerClock {
     /** Client ticks and pings counted while trusted: the stall is the ticks the pings did not keep up with. */
     private static long trustedTicks;
     private static long trustedPings;
-    /** The trusted deficit's low point since the last counted stall, every stall tick counted, and whether one is rising. */
-    private static long deficitLow;
-    private static long stallTicksTotal;
-    private static boolean inStall;
     /** Pings minus elapsed 50 ms steps in this world (non-Hypixel only), floored at -{@link #EXCESS_FLOOR}. */
     private static double excess;
     /** How far the counted ticks are ahead of the wall clock ({@link #withinWall}); negative is banked catch-up credit. */
@@ -128,6 +121,7 @@ public final class PerTickServerClock {
         registered = true;
         ServerTickClock.register(); // its ping mixin calls onPingId
         TickAudit.register();
+        subscribe(StallLag::onTick);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PerTickServerClock", client -> {
             long gameTime = client.level == null ? lastGameTime : client.level.getGameTime();
             long delta = gameTime - lastGameTime;
@@ -142,11 +136,13 @@ public final class PerTickServerClock {
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             untrust();
+            StallLag.reset();
             setHypixel(forcedHypixel != null ? forcedHypixel : AttackCooldown.onHypixel(client)
                     && !isLocal(handler.getConnection().getRemoteAddress()));
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             untrust();
+            StallLag.reset();
             setHypixel(forcedHypixel != null && forcedHypixel);
         });
     }
@@ -180,8 +176,6 @@ public final class PerTickServerClock {
         windowTicksWithPing = 0;
         pingsThisTick = 0;
         goodWindows = 0;
-        inStall = false;
-        deficitLow = trustedTicks - trustedPings;
         excess = 0.0;
         wallExcess = 0.0;
         lastPingNanos = Long.MIN_VALUE;
@@ -377,21 +371,6 @@ public final class PerTickServerClock {
         }
     }
 
-    /** At a trusted client tick's end: count the deficit's rise as a stall once it passes {@link #STALL_TICKS}, and keep
-     *  counting while it goes on rising. A catch-up burst lowers the low point and pays nothing back (tickfix2-1104). */
-    private static void countStall() {
-        long deficit = trustedTicks - trustedPings;
-        long rise = deficit - deficitLow;
-        if (rise > STALL_TICKS || (inStall && rise > 0)) {
-            stallTicksTotal += rise;
-            deficitLow = deficit;
-            inStall = true;
-        } else if (rise <= 0) {
-            deficitLow = Math.min(deficitLow, deficit);
-            inStall = false;
-        }
-    }
-
     private static void onClientTick(long untrustedStep) {
         long advanced;
         synchronized (PerTickServerClock.class) {
@@ -450,7 +429,6 @@ public final class PerTickServerClock {
             clock += untrustedStep;
         } else {
             trustedTicks++;
-            countStall();
         }
         if (pingsThisTick > 0) {
             windowTicksWithPing++;
@@ -505,18 +483,21 @@ public final class PerTickServerClock {
     public static long now() { return clock; }
 
     /** The counters at once, for {@link #stallTicksSince} and {@link #deficitTicksSince}: {pings while trusted, client
-     *  ticks while trusted, stall ticks counted}. */
-    public static synchronized long[] mark() {
-        return new long[]{trustedPings, trustedTicks, stallTicksTotal};
+     *  ticks while trusted, {@link StallLag#lagMs} in ms}. */
+    public static long[] mark() {
+        long lag = StallLag.lagMs();
+        synchronized (PerTickServerClock.class) {
+            return new long[]{trustedPings, trustedTicks, lag};
+        }
     }
 
-    /** The server's stalls since {@code mark}, in client ticks (0 while it is not trusted): every rise of more than
-     *  {@link #STALL_TICKS} counts in full and stays counted when a burst of catch-up pings follows. For a lag READING. */
-    public static synchronized long stallTicksSince(long[] mark) {
+    /** The server's lag since {@code mark}, in 50 ms ticks ({@link StallLag}: 0 while it is not trusted, a stall counts in
+     *  full and stays counted after its catch-up burst, network jitter counts nothing; bcstall-1105). For a lag READING. */
+    public static long stallTicksSince(long[] mark) {
         if (mark == null || mark.length < 3) {
             return 0L;
         }
-        return Math.max(0L, stallTicksTotal - mark[2]);
+        return Math.max(0L, StallLag.lagMs() - mark[2]) / 50L;
     }
 
     /** Client ticks since {@code mark} the server has not (yet) made up: client ticks minus pings while trusted, never
@@ -584,9 +565,10 @@ public final class PerTickServerClock {
         return t == Long.MIN_VALUE ? System.currentTimeMillis() : t;
     }
 
-    /** A client tick, and 50 ms of the test's own wall clock. */
+    /** A client tick, and 50 ms of the test's own wall clock (and of {@link #wallMs} once a case set it). */
     public static void tickForTest() {
         testNanos += 50_000_000L;
+        if (testWallMs != Long.MIN_VALUE) testWallMs += 50L;
         onClientTick(1L);
     }
 
