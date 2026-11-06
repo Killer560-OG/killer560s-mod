@@ -391,3 +391,17 @@ They are the same rules as before; only where they live changed.
   (`SupportersAutoShare.accountChanged`). Bold Name is shared as `&l` (`sharedPlainName`). No viewer gate exists: a
   non-supporter at default settings sees a supporter's song and style (testkit 1106-hx-songfix-viewer/-sender/-noclear).
   When "nobody sees X", fetch the live relay list (`/supporters`) before reading code.
+- A relay socket's FIRST message can reach its listener before `buildAsync(...).whenComplete` stored the socket: the relay
+  sends its welcome the moment it accepts, so `RelayClient`/`RelayTap` answered it with a hello on a null socket and the
+  hello was lost - on a local wrangler relay 8 connects of 8 (spotreal-1106, testkit 2870). Nobody was then listed as a mod
+  user, and viewers dropped every song "not a mod user" (killer560's autoballz account, 2026-11-06). Every socket now holds
+  its messages behind a `live` future completed after the socket is stored, and a viewer no longer needs a mod-user listing
+  (the SENDER decides whether to share). testkit's FakeRelay calls `handle` directly and never saw it: test a relay socket
+  against a real relay (wrangler dev, TOKEN_SECRET song-e2e-secret-not-real, `-PnetOverride=relay=http://127.0.0.1:8811`).
+- Spotify lyric timing (spotreal-1106, measured with the real app): Windows' media-session position (reading + time since
+  LastUpdatedTime) matches the SOUND within about 70 ms (WASAPI loopback, killer560s-mod-logs/spotreal/audiolat2.py), so
+  there is no constant latency to add. The error was the lyrics VERSION: lrclib's listing closest to Spotify's length was a
+  hand sync off -0.8..+1.0 s, while 17 others agreed within 50 ms; `LyricsEngine.consensus` now picks the listing whose
+  lines agree with the others. And after a seek or a skip Spotify sends a second reading when the sound starts (50-200 ms
+  later); it is taken exactly now (`resyncPending = jump`), else the clock ran ~106 ms ahead until two more readings, 9 s.
+  Testkit 2871 checks every frame against the real app (TESTKIT_REAL_SPOTIFY=1).
