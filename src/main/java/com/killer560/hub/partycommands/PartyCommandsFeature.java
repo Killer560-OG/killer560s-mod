@@ -121,8 +121,8 @@ public final class PartyCommandsFeature {
         CommandChatListener.register();
         InfoReplies.register();
         // A new connection has no known party leader (a volatile write, safe on the netty thread).
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PartyLeaderTracker.resetIfSet());
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> PartyLeaderTracker.resetIfSet());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
         // "!ping" answers with the measured round trip, so keep one measured while that command is on.
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
@@ -140,9 +140,9 @@ public final class PartyCommandsFeature {
         if (plain == null || plain.isEmpty()) return;
         PartyLeaderTracker.onServerLine(plain);
         // A party that disbands (kicking its last other member does) must not drop a queued !reinv: the invite starts a new one.
-        if (!REJOIN.isEmpty() && plain.endsWith(" party!")) {
+        if (!REJOIN.isEmpty() && plain.contains(" has invited you to join ")) {
             Matcher inv = INVITED_YOU.matcher(plain);
-            if (inv.matches()) acceptFormerMember(inv.group(1));
+            if (inv.find()) acceptFormerMember(inv.group(1));
         }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
             // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat.
@@ -192,7 +192,7 @@ public final class PartyCommandsFeature {
         // that targets the sender would act on yourself: a bare "!pt", warp+transfer, demote, promote, reinv, a DM invite.
         Minecraft selfClient = Minecraft.getInstance();
         String selfName = selfClient.player == null ? null : selfClient.player.getGameProfile().name();
-        if (selfName != null && selfName.equalsIgnoreCase(sender) && targetsSender(command, words.length > 1, channel)) {
+        if (selfName != null && selfName.equalsIgnoreCase(sender) && targetsSender(command, arg, selfName, channel)) {
             LOGGER.info("[PartyCommands] Ignored your own \"!{}\" - it would act on yourself", word);
             return false;
         }
@@ -229,9 +229,9 @@ public final class PartyCommandsFeature {
     }
 
     /** Commands whose action is "do it to the sender" - meaningless when the sender is you. */
-    private static boolean targetsSender(Command command, boolean hasArg, Channel channel) {
+    private static boolean targetsSender(Command command, String arg, String self, Channel channel) {
         return switch (command) {
-            case TRANSFER -> !hasArg;
+            case TRANSFER -> arg == null || arg.equalsIgnoreCase(self);
             case WARP_TRANSFER, DEMOTE, PROMOTE, REINVITE -> true;
             case INVITE -> channel == Channel.PRIVATE;
             default -> false;
@@ -657,11 +657,11 @@ public final class PartyCommandsFeature {
     }
 
     /** Invite lines: "[MVP+] Name has invited you to join their party!" / "... join Other's party!". */
-    private static final Pattern INVITED_YOU = Pattern.compile("^(?:\\[[^]]{1,20}] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|[A-Za-z0-9_]{1,16}'s) party!$");
+    private static final Pattern INVITED_YOU = Pattern.compile("^(?:\\[[^]]{1,20}] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|[A-Za-z0-9_]{1,16}'s) party!");
     /** How long after a !reinv an invite from one of that party's members is accepted without asking. */
     private static final long REJOIN_WINDOW_MS = 60_000L;
     /** lower-case name -> accept-until (ms), from the last !reinv: the party's members then. At most a party's worth. */
-    private static final Map<String, Long> REJOIN = new HashMap<>();
+    private static final Map<String, Long> REJOIN = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static void rememberForRejoin(String sender) {
         long until = System.currentTimeMillis() + REJOIN_WINDOW_MS;
