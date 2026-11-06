@@ -558,7 +558,9 @@ public final class BlinkCharge {
                 return true;
             }
             if (passing) {
-                if (packet instanceof ServerboundMovePlayerPacket) {
+                // Held actions go before anything a shot tick sends: a held scroll sent after the aimed use's own fresh
+                // hotbar change put the old slot back and repeated one (BadPacketsA, 1105-zpew-aimed-same-swap on 26.2).
+                if (!answer && !flushingPre) {
                     flushPreLocked();
                 }
                 return false;
@@ -603,10 +605,12 @@ public final class BlinkCharge {
                 }
                 return true;
             }
-            if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket && tpSegs.isEmpty()) {
-                // A sprint or sneak action goes right before the next move that is SENT. In a banked tick the move is
-                // withheld; the action sent alone sat after his last sent move, and the next answer made GrimAC's Post
-                // check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint).
+            if ((packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket) && tpSegs.isEmpty()) {
+                // A sprint or sneak action, or a hotbar change, goes right before the next move that is SENT. In a banked
+                // tick the move is withheld; the action sent alone sat after his last sent move, and the next answer made
+                // GrimAC's Post check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint;
+                // "held item change", his scroll while charged, 1105-blink-charge-same-swap). A use or click flushes it first.
                 preHeld.addLast(new Held(packet, listener, flush));
                 return true;
             }
@@ -1004,6 +1008,7 @@ public final class BlinkCharge {
         }
         boolean was = passing;
         passing = true;
+        flushingPre = true;
         try {
             while (!preHeld.isEmpty()) {
                 Held h = preHeld.pollFirst();
@@ -1011,8 +1016,12 @@ public final class BlinkCharge {
             }
         } finally {
             passing = was;
+            flushingPre = false;
         }
     }
+
+    /** {@link #flushPreLocked} is sending: its own packets must not start another flush (they would overtake each other). */
+    private static boolean flushingPre;
 
     /**
      * The server pushed the local player (an explosion with knockback, a velocity packet): GrimAC brackets it with pings
@@ -1873,13 +1882,15 @@ public final class BlinkCharge {
                 sendLocked(stash);
             }
             stash = null;
+            pushAnswerNext = false;
+            pausedWhy = null;
+            releaseAnswersLocked();
+            // Held actions with no move left to go before: after the answers, never between his last move and them
+            // (GrimAC Post "held item change" at charge off, 1105-zpew-aimed-same-swap on 26.2).
             if (connection != null && connection.isConnected()) {
                 flushPreLocked();
             }
             preHeld.clear();
-            pushAnswerNext = false;
-            pausedWhy = null;
-            releaseAnswersLocked();
             tpSegs.clear();
             deferredWhy = null;
             connection = null;
