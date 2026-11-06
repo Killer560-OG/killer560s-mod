@@ -170,9 +170,13 @@ public final class SpiritLeapOverlayFeature {
     private static final long LEAP_DEBOUNCE_MS = 750L;
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (!SpiritLeapOverlayConfig.getInstance().isEnabled()
-                || !(screen instanceof AbstractContainerScreen<?> containerScreen)
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)
                 || !isLeapTitle(containerScreen.getTitle().getString())) {
+            return;
+        }
+        if (!SpiritLeapOverlayConfig.getInstance().isEnabled()) {
+            // The plain chest leap menu: the tick timers still draw over it (the custom menu's own pass does it otherwise).
+            ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> com.killer560.hub.hud.HudInGameRenderer.drawOverScreen(g));
             return;
         }
         activeScreen = screen;
@@ -213,6 +217,7 @@ public final class SpiritLeapOverlayFeature {
                         renderEmptyNotice(graphics, s.width, s.height);
                     }
                 }
+                com.killer560.hub.hud.HudInGameRenderer.drawOverScreen(graphics);
             }
         });
 
