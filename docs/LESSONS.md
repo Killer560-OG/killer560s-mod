@@ -223,6 +223,15 @@ project CLAUDE.md. Compiling lessons
   item was not captured. It now waits a cursor stack out mid-pair and gates each step on the menu's state id changing
   (`AbstractContainerMenu.getStateId`, which only the server's slot/content packets move), so a client prediction is never
   read as the server's answer. 292-297 then passed twice on 26.2.
+- **Never copy a menu page while the cursor holds an item.** A PICKUP click moves the clicked item onto the cursor on
+  the client at once, and the slot reads empty until the server resyncs. Loadout Keybinds' swap clicks a loadout and
+  closes /loadouts on the next tick, before that resync, so the Inventory Sorter's loadout cache (an END_CLIENT_TICK copy)
+  saved his equipped loadout 1 as an empty slot and the picker drew no icon there (killer560 2026-11-05, loadout1-1105:
+  his log showed the swap at 22:24:44, the empty picker at 22:24:53, and a hand-opened /loadouts at 22:25:54 refilled
+  it). `InvSortLoadoutCache.tick` now skips a page while `getMenu().getCarried()` is not empty, and the swapper hands it
+  the page just before each click (it clicks on START of the tick the items arrive, so the END copy never saw it clean).
+  Hypixel marks the equipped loadout only by leaving "Left-click to equip!" out of its lore. Testkit
+  1105-invsort-loadout-equipped.
 
 ## Settings, profiles and migrations
 
