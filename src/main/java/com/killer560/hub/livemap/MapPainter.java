@@ -1517,6 +1517,30 @@ public final class MapPainter {
         return LABEL_CACHE;
     }
 
+    /** A predicted room's certain tiles plus the painted tiles of the map's own room around each of them (an unidentified
+     *  room, or one of the same name), so its text centers on the whole room; the certain tiles alone when the join
+     *  would exceed the room's shape. */
+    static int[] knownTiles(int[] certain, String name) {
+        com.killer560.hub.roomdatabase.RoomEntry entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+        java.util.Set<Integer> set = new java.util.TreeSet<>();
+        for (int t : certain) {
+            set.add(t);
+            int gid = LiveMapFeature.groupIdAt(t);
+            LiveMapFeature.RoomGroup g = gid >= 0 ? LiveMapFeature.groupsView().get(gid) : null;
+            if (g != null && (g.entry == null || g.entry.name == null || g.entry.name.equals(name))) {
+                for (int u : g.tiles) {
+                    if (cellRevealed(u)) {
+                        set.add(u);
+                    }
+                }
+            }
+        }
+        if (entry != null && set.size() > com.killer560.hub.roomdatabase.RoomDatabase.shapeTileCount(entry.shape)) {
+            return certain;
+        }
+        return set.stream().mapToInt(Integer::intValue).toArray();
+    }
+
     /** {@link #labelBox} over the room's tiles the map actually paints (all of them when it paints none), so the text
      *  never lands on a tile of the room that is not drawn. */
     private static float[] drawnLabelBox(LiveMapFeature.RoomGroup group) {
