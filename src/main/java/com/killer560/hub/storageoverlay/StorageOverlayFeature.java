@@ -788,10 +788,12 @@ public final class StorageOverlayFeature {
         lastBackButton = null;
         lastSearchButton = null;
         lastScanButton = null;
+        lastDumpSlot = null;
         if (lastPos == null) return;
         String scanLabel = scanButtonLabel();
         // Wide enough for the Scan All button's progress ("Stop 12/27"), all three the same width.
-        int w = Math.max(58, Minecraft.getInstance().font.width(scanLabel) + 10);
+        int w = Math.max(Math.max(58, Minecraft.getInstance().font.width(scanLabel) + 10),
+                com.killer560.hub.invsort.InvSortDump.sideButtonWidth());
         int h = 16;
         // Real bug found 2026-09-30, from killer560's screenshot ("the Search box is drawn on top of the
         // Ender Chest #1 title"): this used to be Math.max(2, lastPos[0] - w - 6), so whenever the grid
@@ -827,6 +829,14 @@ public final class StorageOverlayFeature {
         // on each page it opens, and this button shows the progress and stops it; Escape closes the page and stops it.
         drawSideButton(graphics, x, y, w, h, scanLabel, mouseX, mouseY);
         lastScanButton = new int[]{x, y, w, h};
+        // Inventory Sorter's Dump Into Chest goes next to Scan All, drawn by InvSortDump with drawSideButton.
+        lastDumpSlot = besideGrid ? new int[]{x, y + h + 4, w, h} : new int[]{x + w + 4, y, w, h};
+        lastDumpScreen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
+    }
+
+    /** Where Dump Into Chest sits on this screen (below Scan All, or next in the row), or null without the side buttons. */
+    public static int[] dumpSlot(Object screen) {
+        return lastDumpSlot != null && lastDumpScreen == screen ? lastDumpSlot : null;
     }
 
     /** "Scan All", or while a scan runs "Stop" and its progress: pages done / pages planned ("..." until the Storage
@@ -851,7 +861,7 @@ public final class StorageOverlayFeature {
         com.killer560.hub.storagesearch.StorageScanAll.start(true);
     }
 
-    private static void drawSideButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label,
+    public static void drawSideButton(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String label,
                                         int mouseX, int mouseY) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
@@ -1117,6 +1127,8 @@ public final class StorageOverlayFeature {
     private static int[] lastSearchButton = null;
     /** The Scan All button's last drawn {x, y, w, h} in GUI units, or null (read by the testkit to click it). */
     private static int[] lastScanButton = null;
+    private static int[] lastDumpSlot = null;
+    private static Object lastDumpScreen = null;
     /** Just the clickable LABEL strip of each panel from the most recent render (a subset of that
      *  panel's full {@link #lastPanelBounds} rect - the whole thing for a not-yet-opened placeholder,
      *  since there's no separate item area to protect there) - what a double-click is hit-tested

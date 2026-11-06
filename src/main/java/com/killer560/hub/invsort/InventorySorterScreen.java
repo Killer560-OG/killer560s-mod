@@ -604,7 +604,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         this.minecraft.setScreenAndShow(new InvSortLoadoutPick(this, layout.loadout()));
     }
 
-    /** Sets the selected layout's Hypixel loadout (0 = none, 1-12) and saves it; the picker calls it. Public for tests. */
+    /** Sets the selected layout's Hypixel loadout (0 = none, 1-108: 13-24 are on /loadouts page 2) and saves it; the picker calls it. Public for tests. */
     public void setLoadout(int loadout) {
         InventoryLayout layout = selected == null ? null : InventoryLayoutStore.getInstance().get(selected);
         if (layout == null) {
@@ -987,7 +987,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 && mouseY >= loadoutButton.getY() && mouseY < loadoutButton.getY() + loadoutButton.getHeight()) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.literal("Loadout"));
-            lines.add(Component.literal("§7Applying this layout first selects this loadout from /loadouts (page 1, 1-12),"));
+            lines.add(Component.literal("§7Applying this layout first selects this loadout from /loadouts (any page; 13+ through Next Page),"));
             lines.add(Component.literal("§7then sorts. Click: pick one (or None) from a copy of /loadouts. None: the loadout is left alone."));
             graphics.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!hover.isEmpty()) {

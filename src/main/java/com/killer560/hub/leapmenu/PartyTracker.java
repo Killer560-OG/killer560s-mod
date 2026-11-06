@@ -79,6 +79,8 @@ public final class PartyTracker {
     private static boolean wasInDungeon = false;
     private static boolean readingList = false;
     private static int tickCounter = 0;
+    /** The connection the party was learned on (weak: a closed one is not kept alive). Render thread only. */
+    private static java.lang.ref.WeakReference<Object> lastConnection = new java.lang.ref.WeakReference<>(null);
 
     private PartyTracker() {
     }
@@ -89,7 +91,16 @@ public final class PartyTracker {
         // is offline, so names kept from before a rejoin were never taken out, and a solo player's Custom Party Finder
         // listing went up as 5/5 and came straight down as "your party is full" (killer560, 2026-10-22; testkit
         // 1022-hx-pf-solo-queue). JOIN runs on the render thread (handleLogin), before any chat of the new connection.
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> clearParty());
+        // Only a NEW connection: Hypixel fires JOIN again on every server switch (party warp, island, hub) over the same
+        // Connection, and the party lives on through it. Clearing there split a party's relay room: the warped member
+        // forgot the leader while the leader kept the member, so Song Tag and Mod Chat went to two different rooms
+        // (spotshare-1105, his log 2026-11-05 23:06-23:08 with autowd; testkit 1105-hx-songtag-party-warp).
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (lastConnection.get() != handler.getConnection()) {
+                lastConnection = new java.lang.ref.WeakReference<>(handler.getConnection());
+                clearParty();
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyTracker", client -> {
             if (++tickCounter < 10) {
                 return;

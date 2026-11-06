@@ -82,7 +82,6 @@ public final class AhFlipper {
         AhFlipMacro.register();
         AhPriceCopier.register();
         AhPriceButtons.register();
-        AhMenuRecorder.register();
     }
 
     private static void tick(Minecraft client) {

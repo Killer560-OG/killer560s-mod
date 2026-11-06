@@ -61,15 +61,6 @@ public final class AuctionHouseFeature {
                 }
                 return 1;
             })));
-            // Explicit bypass - "Hypixel's still reachable by an explicit command" - always the real menu
-            // regardless of the override toggle.
-            dispatcher.register(ClientCommands.literal("hypixelah").executes(ctx -> {
-                forwardToServer("ah");
-                return 1;
-            }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
-                forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
-                return 1;
-            })));
             // /killer560ah was removed (killer560, 2026-11-01: "they are not needed"); the browser opens from /ah
             // (with Override /ah on), its key and the Items tab.
         });

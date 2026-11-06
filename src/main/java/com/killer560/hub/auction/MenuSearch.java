@@ -28,9 +28,8 @@ import java.util.Set;
 public final class MenuSearch {
 
     /** Command names (no slash, lower case) that mean the Bazaar. */
-    public static final Set<String> BAZAAR_NAMES = Set.of("bazaar", "bz", "hypixelbz");
-    /** Command names (no slash, lower case) that mean the Auction House. "/hypixelah" is left out on purpose: it is the
-     *  explicit bypass that always reaches Hypixel's own menu. */
+    public static final Set<String> BAZAAR_NAMES = Set.of("bazaar", "bz");
+    /** Command names (no slash, lower case) that mean the Auction House. */
     public static final Set<String> AH_NAMES = Set.of("ah");
 
     private MenuSearch() {

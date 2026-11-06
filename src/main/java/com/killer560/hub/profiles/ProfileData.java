@@ -64,7 +64,7 @@ public final class ProfileData {
             // Caches and diagnostics: GIF audio converted to WAV, the Pack Disabler's "missing models" list, sim map
             // dumps, old sim measurement output, the sim world-version marker, the generated Spotify guide.
             "gifs", "menu-themebackgrounds", "gifs-cache", "packdisabler-missing.txt", "mapdumps", "measurements.txt", "sim-world.txt",
-            // The sim's F7 boss room capture (bosssim.BossCapture): a few MB of Hypixel's blocks, re-captured in a boss.
+            // The sim's F7 boss room capture (dev capture): a few MB of Hypixel's blocks, re-captured in a boss.
             "sim-bossarena.bin", "sim-bossarena-p2.bin", "sim-bossarena-p3.bin", "sim-bossarena-p4.bin", "sim-bossarena-p5.bin",
             "spotify-setup-guide.txt",
             // The Party Finder's cache of other players' dungeon stats (re-fetched on view).
@@ -88,7 +88,7 @@ public final class ProfileData {
             "session-recorder-disabled",
             // The Performance HUD's stutter log and its rolled copy (stutter-1026): diagnostics of one PC.
             "lagdisplay-stutters.log", "lagdisplay-stutters.1.log",
-            // /ahmenudump's recording of Hypixel's Auction House menus (ahflip.AhMenuRecorder, 2026-11-02): a log.
+            // an old recording of Hypixel's Auction House menus (2026-11-02, command removed): a log.
             "ahflip-menudump.txt",
             // The Armor HUD's cache of the equipment it last saw in the equipment menu (2026-11-03): game state.
             "armorhud-equipment.json"

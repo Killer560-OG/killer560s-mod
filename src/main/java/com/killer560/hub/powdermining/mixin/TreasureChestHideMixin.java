@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Hide Opened Chests (Treasure Chest Highlight): a chest he already clicked has no render state extracted, so nothing of it
+ * Hide Opened Chests (Treasure Chest Highlight): a chest the server confirmed opened has no render state extracted, so nothing of it
  * is drawn. Client-only and visual: the block is never changed (a client-side air block would be a ghost block) and no
  * packet is involved. {@code tryExtractRenderState} has the same descriptor on 26.3 and 26.2 (javap, 2026-11-04).
  */

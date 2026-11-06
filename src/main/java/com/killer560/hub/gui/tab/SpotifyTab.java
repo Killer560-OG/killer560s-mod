@@ -177,7 +177,11 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, half, 20).build());
         widgets.add(onOffButton("Share Current Word", () -> tag().isShareWord(), v -> tag().setShareWord(v), () -> tag().save(), null, contentX + half + 8, y, contentWidth - half - 8, 20));
         y += 24;
-        widgets.add(onOffButton("Show Others' Songs", () -> tag().isShowOthers(), v -> tag().setShowOthers(v), () -> tag().save(), null, contentX, y, contentWidth, 20));
+        SettingsButtonWidget others = onOffButton("Show Others' Songs", () -> tag().isShowOthers(), v -> tag().setShowOthers(v), () -> tag().save(), null, contentX, y, contentWidth, 20);
+        widgets.add(others);
+        // Says whose songs can reach you (spotshare-1105: a friend had it on and saw nothing; the relay room decides).
+        SettingTooltips.live(others, () -> !tag().isShowOthers() ? null
+                : SettingTooltips.describe(null, "Show Others' Songs") + " Right now: " + SongShare.receiveScope());
         y += 24;
 
         return widgets;

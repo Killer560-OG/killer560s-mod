@@ -22,13 +22,20 @@ import java.util.regex.Pattern;
  */
 public final class LoadoutKeybindsFeature {
 
-    static final Pattern LOADOUT_TITLE = Pattern.compile("\\((\\d)/(\\d)\\) Loadout");
+    /** "(N/M) Loadouts": page N of M. */
+    public static final Pattern LOADOUT_TITLE = Pattern.compile("\\((\\d)/(\\d)\\) Loadout");
     static final int[] LOADOUT_SLOTS = {
             14, 15, 16,
             23, 24, 25,
             32, 33, 34,
             41, 42, 43
     };
+
+    /** Every page's Next Page / Previous Page arrow. */
+    public static final int NEXT_PAGE_SLOT = 44;
+    public static final int PREVIOUS_PAGE_SLOT = 17;
+    /** 12 loadouts a page, and the title has one digit a page. */
+    public static final int MAX_LOADOUT = 9 * 12;
 
     /** The menu slot holding loadout {@code n} (1-12). */
     public static int slotOf(int n) {
@@ -105,12 +112,12 @@ public final class LoadoutKeybindsFeature {
             if (current >= total) {
                 return false;
             }
-            slot = 44;
+            slot = NEXT_PAGE_SLOT;
         } else if (previous) {
             if (current <= 1) {
                 return false;
             }
-            slot = 17;
+            slot = PREVIOUS_PAGE_SLOT;
         } else {
             slot = LOADOUT_SLOTS[keyIndex];
         }
