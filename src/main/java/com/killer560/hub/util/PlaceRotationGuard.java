@@ -69,13 +69,41 @@ public final class PlaceRotationGuard {
      *         camera-turn detectors - ever sees the nudge), or NaN when nothing was moved
      */
     public static float beforeSend(LocalPlayer self, float yRotLast) {
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return Float.NaN; // a legit jar never touches what his own mouse sends; the automation it guards is cheat-only
+        if (!Float.isNaN(useUnNudged)) {
+            // beforeUse already moved this tick's yaw ahead of an item use: the packet reports that look, put back after.
+            float yaw = useUnNudged;
+            useUnNudged = Float.NaN;
+            return yaw;
         }
         if (Float.isNaN(clickTurn) || useSinceMove) {
             // An item use went out since the last tick packet: it carries this tick's look, and GrimAC BadPacketsJ wants
             // the movement packet to report exactly that look - nothing may move it (62-argrim-1020-acbat, gridexp-1102).
             return Float.NaN;
+        }
+        return nudge(self, yRotLast);
+    }
+
+    /** The yaw {@link #beforeUse} moved for this tick's item use, put back after the tick's sendPosition; NaN when none. */
+    private static float useUnNudged = Float.NaN;
+
+    /**
+     * From the head of {@code MultiPlayerGameMode.useItem} (his right click or a feature's): the {@code use_item} carries
+     * this tick's look and the movement packet after it must report the same (BadPacketsJ), so a turn that would repeat
+     * the one before the last block click is moved here, before the use, and kept through this tick's sendPosition
+     * (grimsame-1105: the Lights Aura's turn plus his right click in one tick drew DuplicateRotPlace, 1105-same-lights-use).
+     */
+    public static void beforeUse(LocalPlayer self) {
+        if (useSinceMove || !Float.isNaN(useUnNudged) || Float.isNaN(clickTurn)
+                || !(self instanceof com.killer560.hub.blink.mixin.BlinkReminderAccessor a)) {
+            return;
+        }
+        useUnNudged = nudge(self, a.killer560$yRotLast());
+    }
+
+    /** Moves the yaw by {@link #NUDGE} when its turn would repeat the click turn; returns the yaw it had, or NaN. */
+    private static float nudge(LocalPlayer self, float yRotLast) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return Float.NaN; // a legit jar never touches what his own mouse sends; the automation it guards is cheat-only
         }
         float yaw = self.getYRot();
         float turn = Math.abs(yaw - yRotLast);

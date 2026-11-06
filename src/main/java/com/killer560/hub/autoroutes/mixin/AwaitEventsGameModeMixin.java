@@ -46,6 +46,8 @@ public abstract class AwaitEventsGameModeMixin {
     @Inject(method = "useItem", at = @At("HEAD"), require = 0)
     private void killer560smod$awaitUse(Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         AwaitEvents.onLocalWeaponUse();
+        // GrimAC DuplicateRotPlace: a repeating feature turn moves before the use_item carries it.
+        if (player instanceof LocalPlayer lp) com.killer560.hub.util.PlaceRotationGuard.beforeUse(lp);
     }
 
     @Inject(method = "attack", at = @At("HEAD"), require = 0)

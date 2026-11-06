@@ -6371,6 +6371,9 @@ public final class RouteExecutor {
         // block within reach, the click on that block goes first, as a vanilla right click sends it (util/RightClick).
         com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[AutoRoutes] Use");
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+            // His slot change still pending from between ticks goes first, as vanilla useItem sends it (else the use
+            // is made with his old item and the swap after it is GrimAC PacketOrderE, 62-argrim-1105-same-chain-swap).
+            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
         } else {

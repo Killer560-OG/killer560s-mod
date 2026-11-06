@@ -47,6 +47,20 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   previous block click - automation snapping to 45-degree node yaws did it twice in a row. Fix: `util/PlaceRotationGuard`
   moves the yaw 0.01 for the one send when a turn would repeat (sendPosition head), never in a tick whose movement packet
   must report a `use_item`'s look (moving it there is BadPacketsJ - 11 flags in 62-argrim-1020-acbat on the first try).
+  That left HIS right click unguarded (grimsame-1105): in the tick a feature turned, his own `use_item` went out first
+  with the turned look, so sendPosition could not move it and the repeated turn reached the next block click
+  (1105-same-lights-use, experimental, x2). `PlaceRotationGuard.beforeUse` (head of `MultiPlayerGameMode.useItem`) now
+  moves the yaw before the use carries it and keeps it through that tick's sendPosition.
+- **His own action in the same server tick as a feature's (grimsame-1105, testkit `SameTick`).** Test a feature with him
+  clicking, not idle: an idle-after case misses every flag below. His left click after a world aura's interact / use in
+  one tick is PacketOrderI (`type=attack, rightClicking=true`) plus MultiInteractA on a second entity (1105-same-termaura-
+  attack, experimental). `ActionGate` now refuses WORLD actors while the attack key has a queued click
+  (`KeyMapping.clickCount` > 0 at START): his click goes this tick, the aura next. His scroll / hotbar key between ticks
+  is sent by `gameMode.tick` AFTER the START actors, so a raw `startPrediction` use_item (Auto Routes, Auto Clear, ZPEW
+  Aimed Warps) went out with his OLD item and the slot after it: PacketOrderE (62-argrim-1105-same-chain-swap,
+  experimental). Every raw use now calls `ensureHasSentCarriedItem` first, as vanilla `useItem` does. Auto Routes takes
+  his left click mid-chain (held for the next await), so no hand dig of his reaches the wire then. Coverage table and open gaps:
+  killer560s-mod-logs/grimsame-1105-audit.md. His swap / use during a 20/s route chain and during the boss auras is clean.
   BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
   (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.

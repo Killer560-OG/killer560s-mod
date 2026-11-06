@@ -2290,6 +2290,9 @@ public final class ClearExecutor {
         com.killer560.hub.zpew.ZpewSource zpew = com.killer560.hub.zpew.ZeroPingEtherwarp.sending(hopSource());
         try {
             if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+                // His slot change still pending from between ticks goes first, as vanilla useItem sends it (else the use
+                // is made with his old item and the swap after it is GrimAC PacketOrderE, 62-argrim-1105-same-chain-swap).
+                invoker.killer560smod$invokeEnsureHasSentCarriedItem();
                 invoker.killer560smod$invokeStartPrediction(client.level,
                         sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
             } else {
