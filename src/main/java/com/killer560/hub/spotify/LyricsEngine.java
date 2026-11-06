@@ -482,11 +482,13 @@ public final class LyricsEngine {
         {
             // Spotify's own reading of a resume can come before its window title stops saying paused (lyrictime-1106):
             // a playing reading of this track taken after the clock stopped is the resume, so the clock runs from it
-            // at once instead of waiting a poll or more for the title.
+            // at once instead of waiting a poll or more for the title. Not on the poll that first sees the title paused
+            // with the clock running: then the playing reading is from before the pause.
             boolean titleWasPaused = titlePaused;
             titlePaused = nowPlaying.kind() == NowPlaying.Kind.PAUSED;
             if (titlePaused && timeline != null && timeline.playing() && lastTrackKey != null
-                    && !lastWasAd && timeline.updatedMs() > pausedAtMs && timeline.matches(lastArtist, lastTitle)) {
+                    && !lastWasAd && timeline.updatedMs() > pausedAtMs && (titleWasPaused || !clock.running())
+                    && timeline.matches(lastArtist, lastTitle)) {
                 nowPlaying = NowPlaying.track(lastArtist, lastTitle);
             }
             lastNowPlaying = nowPlaying;
