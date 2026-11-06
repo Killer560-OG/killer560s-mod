@@ -1,18 +1,14 @@
 package com.killer560.hub.fastleap;
 
 import com.killer560.hub.BuildVariant;
-import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -22,7 +18,7 @@ import java.util.Locale;
 /**
  * Leap rotation (leaprot-1104, killer560: "sometimes you leap to someone and you will be rotated 180 degrees").
  *
- * <p>What his own log showed (26.3, 63 teleports with the logger below): Hypixel sends a teleport's look ABSOLUTE, and
+ * <p>What his own log showed (26.3, 63 teleports with the since-removed logger): Hypixel sends a teleport's look ABSOLUTE, and
  * for a leap that look is the leaped-to player's ("if it is longer then it is the rotation of the player you leap to and
  * that is what you want"). But a teleport that comes within about 1 s of the one before (every one at 221-997 ms) has its
  * look RELATIVE 0/0, "on any teleport to not turn you": a leap in that window keeps his own look instead of the target's.
@@ -36,27 +32,16 @@ import java.util.Locale;
  * a use already went out at the old one (GrimAC BadPacketsJ; testkit 1105-leaplook-same-*). Every other
  * teleport (etherwarp, setback, an absolute leap) is left as vanilla applies it. Event-driven; the tick does work only
  * while a turn is pending.
- *
- * <p>The logger (cheat build, logger {@code killer560smod-leaprot}): one line per server teleport and one per
- * look-carrying packet sent within {@link #WATCH_MS} of it (at most {@link #WATCH_MAX}).
  */
 public final class LeapRotation {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-leaprot");
-    private static final long WATCH_MS = 1500L;
-    private static final int WATCH_MAX = 40;
     static final double LEAP_MIN_BLOCKS = 2.0;
     static final long PAIR_MS = 1500L;
     static final long FIND_MS = 2000L;
     static final double NEAR_BLOCKS = 6.0;
 
-    private static long lastTeleportMs;
-    private static int watched;
-    private static long lastSentMs;
-    private static float lastSentYaw = Float.NaN;
-    private static float lastSentPitch = Float.NaN;
-    /** handleMovePlayer's before-half, read by its after-half (client thread, never nested). */
-    private static float beforeYaw;
+    /** handleMovePlayer's before-half (position), read by its after-half (client thread, never nested). */
     private static Vec3 beforePos;
     private static boolean inTeleport;
     /** The last relative-look teleport that moved him, and the last own-leap line: a pair makes a turn. */
@@ -93,7 +78,6 @@ public final class LeapRotation {
         LocalPlayer p = Minecraft.getInstance().player;
         inTeleport = on() && p != null && packet != null && packet.change() != null;
         if (inTeleport) {
-            beforeYaw = p.getYRot();
             beforePos = p.position();
         }
     }
@@ -107,16 +91,7 @@ public final class LeapRotation {
         }
         inTeleport = false;
         long now = System.currentTimeMillis();
-        PositionMoveRotation c = packet.change();
         double moved = p.position().distanceTo(beforePos);
-        LOGGER.info(String.format(Locale.ROOT,
-                "[LeapRotation] teleport: %d ms since the last one, packet yaw %.1f pitch %.1f relatives %s; look before "
-                        + "%.1f, after %.1f/%.1f (yaw change %.1f); last look sent %.1f/%.1f %d ms ago; moved %.2f blocks",
-                lastTeleportMs == 0 ? -1 : now - lastTeleportMs, c.yRot(), c.xRot(), packet.relatives(), beforeYaw,
-                p.getYRot(), p.getXRot(), Mth.wrapDegrees(p.getYRot() - beforeYaw), lastSentYaw, lastSentPitch,
-                lastSentMs == 0 ? -1 : now - lastSentMs, moved));
-        lastTeleportMs = now;
-        watched = 0;
         if (packet.relatives().contains(Relative.Y_ROT) && moved >= LEAP_MIN_BLOCKS) {
             relTeleportMs = now;
             pair(now);
@@ -174,47 +149,10 @@ public final class LeapRotation {
         }
     }
 
-    /** Every packet that went on the wire (Connection.send's tail): looks are remembered, and logged near a teleport. */
+    /** Every packet that went on the wire (Connection.send's tail): a use_item since the last client_tick_end. */
     public static void onSent(Object packet) {
-        float yaw;
-        float pitch;
-        String what;
-        boolean ground = false;
         if (packet instanceof ServerboundUseItemPacket || packet instanceof ServerboundClientTickEndPacket) {
             useThisTick = packet instanceof ServerboundUseItemPacket;
-            return;
-        }
-        if (packet instanceof ServerboundMovePlayerPacket move) {
-            ground = move.isOnGround();
-            if (!move.hasRotation()) {
-                yaw = Float.NaN;
-                pitch = Float.NaN;
-                what = "move (position only)";
-            } else {
-                yaw = move.getYRot(0f);
-                pitch = move.getXRot(0f);
-                what = move.hasPosition() ? "move+look" : "look";
-            }
-        } else if (packet instanceof ServerboundAcceptTeleportationPacket accept) {
-            yaw = McPackets.acceptYRot(accept);
-            pitch = McPackets.acceptXRot(accept);
-            what = "teleport accept";
-        } else {
-            return;
-        }
-        if (!on()) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (!Float.isNaN(yaw)) {
-            lastSentYaw = yaw;
-            lastSentPitch = pitch;
-            lastSentMs = now;
-        }
-        if (lastTeleportMs != 0 && now - lastTeleportMs <= WATCH_MS && watched < WATCH_MAX) {
-            watched++;
-            LOGGER.info(String.format(Locale.ROOT, "[LeapRotation] sent %s yaw %.1f pitch %.1f onGround %s, %d ms after "
-                    + "the teleport", what, yaw, pitch, ground, now - lastTeleportMs));
         }
     }
 }

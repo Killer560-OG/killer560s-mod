@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** {@link LeapRotation}: the looks that really went on the wire. The tail of {@code send(Packet, ChannelFutureListener,
+/** {@link LeapRotation}: whether a use_item went on the wire this tick (leapsame's same-tick wait). The tail of {@code send(Packet, ChannelFutureListener,
  *  boolean)} (ZpewWireMixin's point): a packet Blink holds is canceled at the head and only counts once it is let go. */
 @Mixin(Connection.class)
 public abstract class LeapRotationSendMixin {

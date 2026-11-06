@@ -755,7 +755,7 @@ public final class LeapManager {
         return null;
     }
 
-    static boolean isExactLeapMenu(Screen screen) {
+    private static boolean isExactLeapMenu(Screen screen) {
         return screen instanceof AbstractContainerScreen<?> container && isLeapMenuTitle(container.getTitle().getString());
     }
 
