@@ -120,6 +120,8 @@ public final class MaskInvincibilityFeature {
         String raw = com.killer560.hub.util.ChatObserver.strip(message);
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
+                com.killer560.hub.util.TickAudit.truth(t.label + " cooldown", "proc line (ready before it, never after)");
+                com.killer560.hub.util.TickAudit.predict(t.label + " cooldown", t.cooldownTicks);
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
                 if (!cfg.isEnabled()) return;
@@ -200,6 +202,9 @@ public final class MaskInvincibilityFeature {
             int cooldown = cooldownRemaining.get(t);
             if (cooldown > 0) {
                 cooldownRemaining.put(t, Math.max(0, cooldown - step));
+                if (cooldown <= step) {
+                    com.killer560.hub.util.TickAudit.predict(t.label + " cooldown", 0);
+                }
             }
         }
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();

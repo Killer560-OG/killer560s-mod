@@ -83,8 +83,10 @@ public final class QuizState {
         if (msg.equals(INTRO)) {
             set(1, now + FIRST_LOCK_TICKS, now, "Oruo began");
         } else if (msg.equals(SECOND)) {
+            com.killer560.hub.util.TickAudit.truth("Quiz next line", "question 2's line");
             set(2, now + LATER_LOCK_TICKS, now, "question 2");
         } else if (msg.equals(THIRD)) {
+            com.killer560.hub.util.TickAudit.truth("Quiz next line", "question 3's line");
             set(3, now + LATER_LOCK_TICKS, now, "question 3");
         } else if (WRONG.matcher(msg).matches()) {
             LOGGER.info("[QuizState] wrong answer at question {} (server tick {}) - the puzzle fails", question, now);
@@ -104,6 +106,7 @@ public final class QuizState {
                 question = n;
                 answered = true;
                 answerAt = -1;
+                com.killer560.hub.util.TickAudit.predict("Quiz next line", NEXT_LINE_TICKS);
                 LOGGER.info("[QuizState] question {} answered by {} (server tick {})", n, m.group(1), now);
             }
         }
@@ -114,6 +117,7 @@ public final class QuizState {
         answered = false;
         answerAt = at;
         lastLineAt = now;
+        com.killer560.hub.util.TickAudit.predict("Quiz question " + q + " answerable", at - now);
         LOGGER.info("[QuizState] {}: question {} of 3 answerable at server tick {} ({} ticks from now {})", why, q, at,
                 at - now, now);
     }

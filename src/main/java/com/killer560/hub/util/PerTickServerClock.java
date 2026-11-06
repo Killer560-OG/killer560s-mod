@@ -109,6 +109,7 @@ public final class PerTickServerClock {
         if (registered) return;
         registered = true;
         ServerTickClock.register(); // its ping mixin calls onPingId
+        TickAudit.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PerTickServerClock", client -> {
             long gameTime = client.level == null ? lastGameTime : client.level.getGameTime();
             long delta = gameTime - lastGameTime;
@@ -415,6 +416,14 @@ public final class PerTickServerClock {
             LOGGER.info("[PerTickServerClock] server {} per-tick pinger: {} pings, {} of {} ticks with a ping", trusted
                     ? "is a" : "is no longer a", windowPings, windowTicksWithPing, WINDOW_TICKS);
         }
+    }
+
+    /** The clock's state in words, for the Tick Timer Audit ({@link TickAudit}): trusted or not, hypixel.net's chain or
+     *  the pace rule, the wall credit (ticks the count may still gain on the wall clock) and the raw pings. */
+    public static synchronized String auditState() {
+        return String.format(java.util.Locale.ROOT, "%s, %s, wall credit %.1f, %d pings", trusted ? "trusted" : "untrusted",
+                hypixel ? (offChain ? "hypixel.net chain (last ping off it)" : "hypixel.net chain")
+                        : notPerTick ? "pace rule (not a per-tick pinger)" : "pace rule", 0.0 - wallExcess + 0.0, rawPings);
     }
 
     /** The clock now (server ticks while trusted, client ticks otherwise). */

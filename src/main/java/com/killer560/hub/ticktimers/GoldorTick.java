@@ -2,6 +2,7 @@ package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.PerTickServerClock;
+import com.killer560.hub.util.TickAudit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import org.slf4j.Logger;
@@ -131,6 +132,7 @@ public final class GoldorTick {
         relocks = 0;
         lineMark = TimerMark.now();
         lastLoggedZero = Long.MIN_VALUE;
+        TickAudit.predict("Goldor tick", FIRST_HIT, PERIOD);
         LOGGER.info("[TickTimers] Goldor line: {} ticks after Storm's death line, first hit predicted at line+{}, clock {}",
                 stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(startReadAt - stormDeathTick), FIRST_HIT,
                 PerTickServerClock.trusted() ? "trusted" : "untrusted");
@@ -145,6 +147,7 @@ public final class GoldorTick {
         long t = now();
         if (remaining() == 0 && t != lastLoggedZero) {
             lastLoggedZero = t;
+            TickAudit.predict("Goldor tick", 0, PERIOD);
             LOGGER.info("[TickTimers] Goldor tick 0 (predicted{}): line+{} / storm+{}, {}", locked ? "" : ", not yet locked",
                     t - startTick, stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(t - stormDeathTick),
                     lineMark == null ? "" : lineMark.since());
@@ -194,6 +197,7 @@ public final class GoldorTick {
     }
 
     private static void logHit(long t, String why, int off, String result) {
+        TickAudit.truth("Goldor tick", why + ", " + result);
         LOGGER.info("[TickTimers] Goldor hit ({}): {} off -> {}; line+{} / storm+{}, {}", why, off, result, t - startTick,
                 stormDeathTick == Long.MIN_VALUE ? "?" : String.valueOf(t - stormDeathTick),
                 lineMark == null ? "" : lineMark.since());

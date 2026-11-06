@@ -98,6 +98,7 @@ public final class PowderGhast {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         if (SPAWN.matcher(raw).matches()) {
             deadline = now + LIFETIME_TICKS;
+            com.killer560.hub.util.TickAudit.predict("Powder Ghast minute", LIFETIME_TICKS);
             place = null;
             partySent = false;
             partyDueAt = now + 40L; // two seconds of server time
@@ -154,6 +155,9 @@ public final class PowderGhast {
             targetId = -1;
             cur = null;
         } else if (cur == null || cur.isRemoved()) {
+            if (cur != null) {
+                com.killer560.hub.util.TickAudit.truth("Powder Ghast minute", "the ghast entity was removed (despawn or out of range)");
+            }
             targetId = -1;
             cur = find(client);
             if (cur != null) {
@@ -165,12 +169,14 @@ public final class PowderGhast {
             // Every hit resets its minute (wiki): the hurt flash starting is a hit.
             if (l.hurtTime > 0 && lastHurt == 0 && deadline != 0L) {
                 deadline = now + LIFETIME_TICKS;
+                com.killer560.hub.util.TickAudit.predict("Powder Ghast minute", LIFETIME_TICKS);
             }
             lastHurt = l.hurtTime;
         }
         if (deadline != 0L && now >= deadline) {
             // The minute is up. A ghast still loaded stays drawn ("alive") until it dies or goes.
             deadline = 0L;
+            com.killer560.hub.util.TickAudit.predict("Powder Ghast minute", 0);
             if (targetId < 0) {
                 place = null;
             }

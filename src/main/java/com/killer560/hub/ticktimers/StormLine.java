@@ -1,6 +1,7 @@
 package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.util.PerTickServerClock;
+import com.killer560.hub.util.TickAudit;
 
 /**
  * Storm's one Tick Timers line in F7/M7 Phase 2 (killer560, 2026-11-02: "for lightning and pad have lightning as the tick
@@ -48,6 +49,8 @@ public final class StormLine {
         startReadAt = now;
         startMark = TimerMark.now();
         lightningLogged = false;
+        TickAudit.predict("Storm Lightning", LIGHTNING_TICKS);
+        TickAudit.predict("Storm Pad", PAD_PERIOD, PAD_PERIOD);
     }
 
     private static TimerMark startMark;
@@ -60,9 +63,11 @@ public final class StormLine {
         if (phase == Phase.LIGHTNING && !lightningLogged && remaining() == 0) {
             lightningLogged = true;
             TimerMark.proc("Storm Lightning", startMark);
+            TickAudit.predict("Storm Lightning", 0);
         } else if (phase == Phase.PURPLE && !purpleLogged && remaining() == 0) {
             purpleLogged = true;
             TimerMark.proc("Storm Purple", purpleMark);
+            TickAudit.predict("Storm Purple", 0);
         }
     }
 
@@ -91,17 +96,23 @@ public final class StormLine {
     static void onLightning() {
         if (phase == Phase.LIGHTNING) {
             TimerMark.proc("Storm lightning line (" + remaining() + " ticks left on Lightning)", startMark);
+            TickAudit.truth("Storm Lightning", "Storm's lightning line");
             phase = Phase.PURPLE;
             purpleReadAt = PerTickServerClock.now();
             purpleAt = purpleReadAt + PURPLE_TICKS;
             purpleMark = TimerMark.now();
             purpleLogged = false;
+            TickAudit.predict("Storm Purple", PURPLE_TICKS);
         }
     }
 
     /** Storm was crushed. A crush can only follow the lightning, so a missed lightning line is caught up here too. */
     static void onCrush() {
+        TickAudit.truth("Storm Pad", "Storm's crush line");
         if (phase == Phase.LIGHTNING || phase == Phase.PURPLE || phase == Phase.WAITING) {
+            if (phase != Phase.LIGHTNING) {
+                TickAudit.truth("Storm Purple", "Storm's first crush line");
+            }
             phase = Phase.YELLOW;
         }
     }

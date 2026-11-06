@@ -144,6 +144,7 @@ public final class WitherDragonsFeature {
             if (d.timeToSpawn > 0) {
                 d.timeToSpawn--;
             } else if (d.state == WitherDragon.State.SPAWNING) {
+                com.killer560.hub.util.TickAudit.predict(d.name() + " dragon spawn", 0);
                 setAlive(d, null);
             }
         }
@@ -226,6 +227,7 @@ public final class WitherDragonsFeature {
             if (!d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) continue;
             d.state = WitherDragon.State.SPAWNING;
             d.timeToSpawn = 100;
+            com.killer560.hub.util.TickAudit.predict(d.name() + " dragon spawn", 100);
             dragons.add(d);
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
             if (messagesOn() && cfg.isDragonTitle() && cfg.getTitleMode() == WitherDragonsConfig.TitleMode.EVERY) {
@@ -255,6 +257,7 @@ public final class WitherDragonsFeature {
         DRAGON_ENTITIES.put(dragon.getUUID(), dragon);
         for (WitherDragon d : WitherDragon.values()) {
             if (d.box.contains(dragon.position())) {
+                com.killer560.hub.util.TickAudit.truth(d.name() + " dragon spawn", "dragon entity added");
                 setAlive(d, dragon.getUUID());
                 return;
             }

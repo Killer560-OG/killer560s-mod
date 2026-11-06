@@ -140,7 +140,9 @@ public final class MaxorCrystalsFeature {
     /** MaxorsCrystals.kt's {@code TickEvent.Server} countdown, on this mod's shared server-tick clock. */
     private static void onServerTick() {
         if (tickTimer > 0) {
-            tickTimer--;
+            if (--tickTimer == 0) {
+                com.killer560.hub.util.TickAudit.predict("Maxor crystals", 0);
+            }
         } else if (tickTimer == 0) {
             tickTimer = -1;
         }
@@ -157,6 +159,9 @@ public final class MaxorCrystalsFeature {
      * the next set can be picked up"; it used to hold 2/2 until the next set's first placement line).
      */
     private static void nextSetReady(String why) {
+        if (nextSetTicks >= 0 && why.startsWith("crystal")) {
+            com.killer560.hub.util.TickAudit.truth("Maxor crystals", why);
+        }
         nextSetTicks = -1;
         if (totalCrystals > 0 && activeCrystals != 0) {
             LOGGER.info("[Maxor] next crystal set up ({}): active {}/{} -> 0/{}", why, activeCrystals, totalCrystals, totalCrystals);
@@ -221,6 +226,7 @@ public final class MaxorCrystalsFeature {
                 tickTimer = RESPAWN_TICKS;
             }
             nextSetTicks = RESPAWN_TICKS + NEXT_SET_SLACK_TICKS;
+            com.killer560.hub.util.TickAudit.predict("Maxor crystals", RESPAWN_TICKS);
         }
         Matcher active = ACTIVE.matcher(plain);
         if (active.matches()) {

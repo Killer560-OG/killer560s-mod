@@ -130,6 +130,7 @@ public final class LividSolverFeature {
         String raw = ChatObserver.strip(message);
         if (raw.equals(LIVID_START_LINE)) {
             invulnTicks = INVULN_TICKS;
+            com.killer560.hub.util.TickAudit.predict("Livid", INVULN_TICKS);
         }
     }
 
@@ -147,6 +148,7 @@ public final class LividSolverFeature {
         if (invulnTicks > 0) {
             invulnTicks = Math.max(0, invulnTicks - step); // server ticks (2026-11-03)
             if (invulnTicks == 0) {
+                com.killer560.hub.util.TickAudit.predict("Livid", 0);
                 onInvulnEnded(client);
             }
         }
