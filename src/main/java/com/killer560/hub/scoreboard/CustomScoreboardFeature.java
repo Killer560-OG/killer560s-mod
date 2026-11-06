@@ -513,6 +513,8 @@ public final class CustomScoreboardFeature {
     /** Frames the Bazaar screen drew vanilla's sidebar (testkit). */
     public static long vanillaOverBazaarFrames() { return vanillaOverBazaarFrames; }
 
+    private static final int[] DRAWN_BOX = new int[4];
+
     private static int[] drawInGame(GuiGraphicsExtractor graphics, boolean bazaar) {
         Minecraft client = Minecraft.getInstance();
         lastLayout = null;
@@ -559,8 +561,12 @@ public final class CustomScoreboardFeature {
         } finally {
             graphics.pose().popMatrix();
         }
-        int[] drawnBox = new int[]{Math.round(drawX), pos[1],
-                Math.max(1, Math.round(Element.INSTANCE.width() * scale)), Math.max(1, Math.round(Element.INSTANCE.height() * scale))};
+        // One reused box (render thread; the only reader, BazaarView, copies it at once): no int[] per frame.
+        int[] drawnBox = DRAWN_BOX;
+        drawnBox[0] = Math.round(drawX);
+        drawnBox[1] = pos[1];
+        drawnBox[2] = Math.max(1, Math.round(Element.INSTANCE.width() * scale));
+        drawnBox[3] = Math.max(1, Math.round(Element.INSTANCE.height() * scale));
         if (!chatOpen) {
             return drawnBox; // hover and click only exist while chat is open; nothing to lay out for them
         }
