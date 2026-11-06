@@ -90,7 +90,7 @@ public final class AuctionConfig {
     private boolean bazaarEnabled = false;
     private boolean listingHelperEnabled = false;
     /** killer560's item 8.1: "/ah replacement toggle" - OFF by default, real Hypixel /ah always still
-     *  reachable via the explicit {@code /hypixelah} command regardless of this. */
+     *  reachable through the Hypixel AH button. */
     private boolean overrideAhCommand = false;
     /** The /bz override is gone (2026-10-07): killer560, "The custom bazaar menu should essentially fully replace the
      *  bazaar ... So the command /killer560bz should only work with a booster cookie." /bz is always Hypixel's own

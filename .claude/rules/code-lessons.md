@@ -343,7 +343,8 @@ They are the same rules as before; only where they live changed.
   reads to him as "unknown command": `/killer560 ew` and `/killer560 profile` were registered fine, they only needed a
   word after them (2026-11-01, both removed). A command meant to be typed bare needs its own `.executes`.
 - Command removals (killer560, 2026-11-01, mod cmdclean-1101): no `/class`, `/log`, `/k560search`, `/lag`, `/k560textures`,
-  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and no `/killer560 class|ew|mapdump|profile|sim`.
+  `/autoclear`, `/autosecret`, `/blink`, `/freezestate`, `/rewind`, `/test`, and (cmdtrim2-1105) no `/k560path`, `/hypixelah`,
+  `/hypixelbz`, `/flhypixel`, `/ahmenudump`, `/simbosscapture`, and no `/killer560 class|ew|mapdump|profile|sim`.
   What they reached stays reachable from a key or the menu: Auto Clear's Clear Toggle Key, Auto Secret's key, the Freeze
   State keys, Blink's keys, the Profiles tab, `/runlog`, `/search`, `/ew`. The Bat Test (/test) was dropped entirely and
   the Insta Clear readout/mark/threshold/window have no UI (his call: "why do i need a bat test? autosecret had its own

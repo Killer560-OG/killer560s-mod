@@ -1549,7 +1549,7 @@ final class SettingTooltipsData {
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
         d.put("auto fairy souls/free camera", "On: your camera stays where you point it while your character walks and turns. Off: you see the walk turning. Either way any key or click stops it.");
         d.put("auto fairy souls/warp when stuck", "When it cannot get out on foot (or with a pearl or etherwarp it is allowed), it warps to this island's spawn and walks back to the soul once before skipping it.");
-        d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
+        d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button).");
 
         // Terminal overlay colors
         d.put("panes color", "Highlight color for the Correct all the panes terminal.");
@@ -2823,7 +2823,7 @@ final class SettingTooltipsData {
         d.put("best friends/track party time", "Counts the time you spend in a party with each player and the dungeon runs you clear together, for the /bestfriends list.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
-        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours and /flhypixel always opens Hypixel's.");
+        d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");
         d.put("pet wheel/mode", "Hold the key and release over a slice, or press the key and then click a slice.");
@@ -2842,7 +2842,7 @@ final class SettingTooltipsData {
         d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (its keybind or Open Auction House) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser.");
         d.put("auction house/open auction house", "Opens the Auction House browser now.");
-        d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; /hypixelah still opens Hypixel's.");
+        d.put("auction house/ah override", "Makes /ah open this browser instead of Hypixel's menu; the Hypixel AH button still opens Hypixel's.");
         d.put("auction house/listing helper", "In Hypixel's Create BIN Auction menu, shows the lowest similar BIN and an estimated value.");
         d.put("auction house/hypixel menu key", "Hold this key to see Hypixel's own Auction House menu instead of the reskin (Backspace clears it).");
         d.put("auction house/recent searches & items", "Keeps your recent searches and viewed auctions on the left of the Auction House.");

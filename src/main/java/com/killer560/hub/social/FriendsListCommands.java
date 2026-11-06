@@ -14,11 +14,10 @@ import java.util.Locale;
  * <li>bare {@code /fl} opens {@link FriendsListScreen} when {@link FriendsListConfig#isEnabled()} is on,
  * otherwise forward straight to Hypixel's real {@code /fl} - unchanged behavior, since the setting ships
  * OFF (the brief's explicit "must never hijack his /fl until he turns it on").</li>
- * <li>{@code /flcustom} always opens our list, {@code /flhypixel} always forward to Hypixel's - both work
- * regardless of the toggle, so neither one is ever unreachable.</li>
+ * <li>{@code /flcustom} always opens our list, regardless of the toggle, so it is never unreachable.</li>
  * </ul>
  * <b>Collision check done before writing this</b> (see impl-bestfriends.md): this mod registers no other
- * {@code fl}/{@code flcustom}/{@code flhypixel} command anywhere, and registering a client-side {@code fl}
+ * {@code fl}/{@code flcustom} command anywhere, and registering a client-side {@code fl}
  * literal has no effect on the separate {@code f} literal Hypixel's own {@code /f add}, {@code /f remove},
  * etc. use - this class never touches {@code f} at all, so those keep working exactly as before.
  * <p>
@@ -45,11 +44,6 @@ public final class FriendsListCommands {
                     .executes(context -> customSubcommand(""))
                     .then(ClientCommands.argument("args", StringArgumentType.greedyString())
                             .executes(context -> customSubcommand(StringArgumentType.getString(context, "args")))));
-
-            dispatcher.register(ClientCommands.literal("flhypixel")
-                    .executes(context -> forwardToHypixel(""))
-                    .then(ClientCommands.argument("args", StringArgumentType.greedyString())
-                            .executes(context -> forwardToHypixel(StringArgumentType.getString(context, "args")))));
         });
     }
 
@@ -83,7 +77,7 @@ public final class FriendsListCommands {
             }
             default -> {
                 ModChat.send("Friends List", ModChat.bad("Unknown option \"" + sub + "\". "),
-                        ModChat.text("Use /fl, /fl add <name>, /fl remove <name>, or /flhypixel."));
+                        ModChat.text("Use /fl, /fl add <name>, /fl remove <name>."));
                 return 0;
             }
         }

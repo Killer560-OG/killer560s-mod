@@ -158,7 +158,6 @@ public final class BossSim {
                                     .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"),
                                             StringArgumentType.getString(ctx, "mode"))))));
         });
-        BossCapture.register();
         BossPortal.register();
     }
 
