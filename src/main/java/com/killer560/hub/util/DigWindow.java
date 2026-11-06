@@ -93,6 +93,35 @@ public final class DigWindow {
         return false;
     }
 
+    /**
+     * True when HIS held left click will dig this tick (grimgapB-1105). Vanilla's {@code continueAttack} runs in
+     * {@code handleKeybinds}, after every START_CLIENT_TICK actor: with the attack key held on a block it sends a
+     * START_DESTROY_BLOCK on a new target, or the STOP that finishes the current one ({@code continueDestroyBlock}, javap
+     * 26.3). The send tap sees it only after an automated START dig went, so the two are GrimAC MultiBreak on two blocks.
+     * Asked at START; his queued click ({@code startAttack}) is ActionGate's rule. Free while the key is up.
+     */
+    public static boolean handDigsThisTick(net.minecraft.client.Minecraft mc) {
+        if (!mc.options.keyAttack.isDown() || mc.player == null || mc.level == null
+                || com.killer560.hub.compat.McCompat.screen(mc) != null || mc.missTime > 0 || mc.player.isUsingItem()
+                || !mc.mouseHandler.isMouseGrabbed()
+                || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker gm)
+                || gm.killer560smod$getDestroyDelay() > 0) {
+            return false;
+        }
+        // Picked fresh: vanilla picks again after START, on the look the START actors left.
+        if (!(mc.player.pick(mc.player.blockInteractionRange(), 1f, false) instanceof net.minecraft.world.phys.BlockHitResult hit)
+                || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return false;
+        }
+        BlockPos pos = hit.getBlockPos();
+        var state = mc.level.getBlockState(pos);
+        if (state.isAir()) return false;
+        boolean same = pos.equals(gm.killer560smod$getDestroyBlockPos()) && net.minecraft.world.item.ItemStack
+                .isSameItemSameComponents(gm.killer560smod$getDestroyingItem(), mc.player.getMainHandItem());
+        return !same || mc.player.getAbilities().instabuild
+                || gm.killer560smod$getDestroyProgress() + state.getDestroyProgress(mc.player, mc.level, pos) >= 1f;
+    }
+
     /** A dig on {@code pos} is queued for the head of this tick's movement packet ({@link BeforeMove}). */
     public static void reserve(BlockPos pos) { pending = pos.immutable(); }
 

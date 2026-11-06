@@ -681,7 +681,8 @@ public final class BreakerAuraFeature {
         if (OBSIDIAN.active()) {
             double r = cfg.getBreakerAuraReach();
             com.killer560.hub.dungeonbreaker.ObsidianDig.Result res = OBSIDIAN.tick(client, player, r * r,
-                    () -> ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA), null);
+                    () -> !com.killer560.hub.util.DigWindow.handDigsThisTick(client)
+                            && ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA), null);
             if (res == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
                 lastSkipReason = null;
                 idleSinceSwapTicks = 0;
@@ -910,9 +911,11 @@ public final class BreakerAuraFeature {
         // The gate is still asked - Breaker Aura still takes its turn among the other actors, and still stands
         // down for a screen, a teleport, a world swap or a higher-priority actor. Having won the tick it sends one
         // break (Multi Break, several on one tick, was removed 2026-11-02 for GrimAC MultiBreak).
-        if (!burst && !order.isEmpty() && !com.killer560.hub.util.DigWindow.open()) {
-            // Something already dug (or queued a dig for) this server tick - a route's breaker or boom, his own hand. A
-            // second block now is GrimAC MultiBreak; it goes next tick (util/DigWindow).
+        if (!burst && !order.isEmpty() && (!com.killer560.hub.util.DigWindow.open()
+                || com.killer560.hub.util.DigWindow.handDigsThisTick(client))) {
+            // Something already dug (or queued a dig for) this server tick - a route's breaker or boom - or his held left
+            // click digs in this tick's handleKeybinds, after us (grimgapB-1105). A second block now is GrimAC MultiBreak;
+            // it goes next tick (util/DigWindow).
             com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
             logRated("window", "[BreakerAura] held: a dig already went this server tick (GrimAC MultiBreak), {} target(s)"
                     + " in reach, first {}", order.size(), order.get(0).toShortString());
