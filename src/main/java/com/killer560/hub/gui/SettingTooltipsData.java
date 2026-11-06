@@ -2641,7 +2641,7 @@ final class SettingTooltipsData {
         d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key.");
         d.put("wither doors/fairy door", "Highlights the door into the Fairy room once you know it is one: your map draws it like a Wither door but you have seen its doorway is empty. Clears when you or a teammate enter Fairy.");
         d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above.");
-        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway, its name in gray until you go in; tiles it is not sure of stay \"?\".");
+        d.put("dungeon map/predictive rooms", "Names a room you have not entered from what you saw of it through a doorway, its name in gray until you go in; tiles it is not sure of are left blank.");
         d.put("dungeon map/special room guess", "Splits an unopened one-tile room on your map into the colors of the special rooms it can still be (Puzzle, Trap, Miniboss), from what your map shows.");
         d.put("wither doors/door labels", "Puts a waypoint label (\"Wither Door 34m\") over each highlighted door, readable through walls.");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Mask.");
