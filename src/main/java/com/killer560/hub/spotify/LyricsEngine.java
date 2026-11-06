@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -296,6 +297,7 @@ public final class LyricsEngine {
         double nearestAny = 0;
         double nearestAnyDiff = Double.MAX_VALUE;
         Candidate byName = null;
+        List<Candidate> same = new ArrayList<>();
         int n = 0;
         for (Candidate c : candidates) {
             boolean titleOk = want.isEmpty() || titleKey(c.title()).equals(want);
@@ -315,9 +317,12 @@ public final class LyricsEngine {
             if (byName == null) {
                 byName = c;
             }
-            if (diff <= SAME_VERSION_SECONDS && diff < bestSameDiff) {
-                bestSameDiff = diff;
-                bestSame = c;
+            if (diff <= SAME_VERSION_SECONDS) {
+                same.add(c);
+                if (diff < bestSameDiff) {
+                    bestSameDiff = diff;
+                    bestSame = c;
+                }
             }
             if (diff < closestDiff) {
                 closestDiff = diff;
@@ -332,6 +337,12 @@ public final class LyricsEngine {
             return new Choice(pick, false, 0, why + " -> '" + pick.title() + "' " + pick.durationSeconds()
                     + " s: the best name match (Spotify's length not known)");
         }
+        Candidate consensus = consensus(same, spotifySeconds);
+        if (consensus != null && consensus != bestSame) {
+            return new Choice(consensus, false, 0, why + " -> '" + consensus.title() + "' " + consensus.durationSeconds()
+                    + " s: same song; its line times agree best with the other " + (same.size() - 1)
+                    + " listings of this length (the closest length, " + bestSame.durationSeconds() + " s, does not)");
+        }
         if (bestSame != null) {
             return new Choice(bestSame, false, 0, why + " -> '" + bestSame.title() + "' " + bestSame.durationSeconds()
                     + " s: same song, " + Math.round(bestSameDiff * 10) / 10.0 + " s from Spotify's length");
@@ -342,6 +353,59 @@ public final class LyricsEngine {
                     + " s; the closest is used and the HUD says it is another version");
         }
         return new Choice(null, true, nearestAny, why + " -> none: no listing is this song by this artist");
+    }
+
+    /**
+     * Among three or more listings of the same recording, the one whose line times sit closest to the others' (the
+     * smallest median distance from each of its lines to the nearest line of each other listing), or null with fewer.
+     * Found with the real Spotify app (spotreal-1106): "I Really Want to Stay at Your House" has 19 listings within 2 s;
+     * the one closest in length was a hand sync off by -0.8..+1.0 s from Spotify's own lyric view, while 17 agreed
+     * within 50 ms of each other. A tie (within 50 ms) keeps the earlier, closer-length listing.
+     */
+    static Candidate consensus(List<Candidate> same, double spotifySeconds) {
+        if (same.size() < 3) return null;
+        same.sort(Comparator.comparingDouble(c -> Math.abs(c.durationSeconds() - spotifySeconds)));
+        Candidate best = null;
+        double bestScore = Double.MAX_VALUE;
+        double[] perOther = new double[same.size() - 1];
+        for (Candidate c : same) {
+            int k = 0;
+            for (Candidate o : same) {
+                if (o != c) perOther[k++] = medianGap(c.lines(), o.lines());
+            }
+            double score = median(perOther);
+            if (score < bestScore - 0.05) {
+                bestScore = score;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    /** Median over a's lines of the distance to b's nearest line, in seconds (b sorted by time). */
+    private static double medianGap(List<LyricLine> a, List<LyricLine> b) {
+        if (a.isEmpty() || b.isEmpty()) return Double.MAX_VALUE;
+        double[] gaps = new double[a.size()];
+        for (int i = 0; i < gaps.length; i++) {
+            double t = a.get(i).timeSeconds();
+            int lo = 0;
+            int hi = b.size() - 1;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (b.get(mid).timeSeconds() < t) lo = mid + 1;
+                else hi = mid;
+            }
+            double g = Math.abs(b.get(lo).timeSeconds() - t);
+            if (lo > 0) g = Math.min(g, t - b.get(lo - 1).timeSeconds());
+            gaps[i] = g;
+        }
+        return median(gaps);
+    }
+
+    private static double median(double[] v) {
+        double[] s = v.clone();
+        java.util.Arrays.sort(s);
+        return s[s.length / 2];
     }
 
     /** The title as Spotify gives it, and with a trailing " - X" written as " (X)" when it has one. */
