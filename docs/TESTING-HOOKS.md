@@ -185,6 +185,17 @@ container dump and its rings; `resetDumpGapForTest()` lets the next container du
 - `FeatureBits.snapshot()` returns `name=true|false` per gated listener after a refresh; `count()` how many are
   registered. Testkit 95-perf-bits reads them (and the `ON`/`names` fields directly, to see a bit without refreshing).
 
+## Tick Timer Audit (`util/TickAudit`)
+
+On only when the game folder holds the empty marker file `killer560smod-ticklog` (`TickAudit.MARKER`), read at every world
+join; there is no menu row and no system property (ticklog-1105, killer560 2026-11-05: "a logger for all tick related timers for
+just my instance"). Ship 8 writes the marker into his `26.3` instance only; never into any other instance. While on, every
+server-tick timer logs a prediction / reached-0 line and a TRUE line (offset in server ticks, wall ms, client ticks and game
+time) to logger `killer560smod-ticklog` (kept in a release) and to `killer560-ticklog/ticklog-<launch>.log` (newest 10 kept), plus
+one world summary. `TickAudit.refresh()` re-reads the marker, `on()` reads the switch, `fileForTest()` drains the writer and
+returns this launch's file, `endWorldForTest()` writes the summary. `PerTickServerClock.auditState()` is the clock-state text.
+Testkit 1105-logic-ticklog, 1105-logic-ticklog-off.
+
 ## Title Screen Switcher (`mainmenu/TitleScreenLooks`)
 
 The switcher exists only in the Prism instance "Title Screen GUI" (killer560, 2026-10-16: it "will never be loaded into a

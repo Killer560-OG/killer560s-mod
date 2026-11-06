@@ -7,6 +7,7 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.PerTickServerClock;
+import com.killer560.hub.util.TickAudit;
 import com.killer560.hub.util.SkyblockGate;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -169,15 +170,18 @@ public final class TickTimersFeature {
             necronTicks = 60;
             necronEnd = now + 60;
             necronMark = TimerMark.now();
+            TickAudit.predict("Necron drop", 60);
         } else if (MAXOR_START_REGEX.matcher(raw).matches()) {
             maxorStartTime = MAXOR_START_TICKS;
             maxorStartEnd = now + MAXOR_START_TICKS;
             maxorStartMark = TimerMark.now();
+            TickAudit.predict("Maxor Start", MAXOR_START_TICKS);
         } else if (GOLDOR_REGEX.matcher(raw).matches()) {
             if (goldorStartMark != null && goldorStartEnd != Long.MIN_VALUE) {
                 // How far the "Start:" countdown was from Goldor's line when it landed (0 = the 17-tick gap was right).
                 TimerMark.proc("Goldor Start (Goldor's line, " + (goldorStartEnd - now) + " ticks left on it)", goldorStartMark);
             }
+            TickAudit.truth("Goldor Start", "Goldor's line");
             GoldorTick.start();
             goldorPhaseStartTick = now;
             // "Start:" counts from Storm's death to this line, so the line itself ends it whatever the pacing.
@@ -192,6 +196,7 @@ public final class TickTimersFeature {
             goldorStartTime = GOLDOR_START_TICKS;
             goldorStartEnd = now + GOLDOR_START_TICKS;
             goldorStartMark = TimerMark.now();
+            TickAudit.predict("Goldor Start", GOLDOR_START_TICKS);
             GoldorTick.stormDeath();
             StormLine.stop();
         } else if (STORM_START_REGEX.matcher(raw).matches()) {
@@ -240,16 +245,19 @@ public final class TickTimersFeature {
         maxorStartTime = remainingTo(maxorStartEnd, now);
         if (was > 0 && maxorStartTime == 0) {
             TimerMark.proc("Maxor Start", maxorStartMark);
+            TickAudit.predict("Maxor Start", 0);
         }
         was = necronTicks;
         necronTicks = remainingTo(necronEnd, now);
         if (was > 0 && necronTicks == 0) {
             TimerMark.proc("Necron drop", necronMark);
+            TickAudit.predict("Necron drop", 0);
         }
         was = goldorStartTime;
         goldorStartTime = remainingTo(goldorStartEnd, now);
         if (was > 0 && goldorStartTime == 0) {
             TimerMark.proc("Goldor Start", goldorStartMark);
+            TickAudit.predict("Goldor Start", 0);
         }
         GoldorTick.serverTick();
         StormLine.serverTick();

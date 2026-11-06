@@ -149,6 +149,7 @@ public final class KingRelicsFeature {
             reset();
             p5StartTick = PerTickServerClock.now();
             relicTicksToSpawn = WitherDragonsConfig.getInstance().getRelicSpawnTicks();
+            com.killer560.hub.util.TickAudit.predict("King Relics spawn", relicTicksToSpawn);
             P5Splits.p5Started(System.currentTimeMillis());
             return;
         }
@@ -163,8 +164,8 @@ public final class KingRelicsFeature {
 
     private static void onServerTick() {
         if (!active()) return;
-        if (relicTicksToSpawn > 0) {
-            relicTicksToSpawn--;
+        if (relicTicksToSpawn > 0 && --relicTicksToSpawn == 0) {
+            com.killer560.hub.util.TickAudit.predict("King Relics spawn", 0);
         }
         if (!P5State.inP5()) return;
         // heldRelic() reads every inventory slot's custom data (a tag copy each) - 20 times a second. A relic cannot be
@@ -230,6 +231,7 @@ public final class KingRelicsFeature {
             KingRelic relic = KingRelic.fromStack(stack);
             if (relic == null) continue;
             announcedSpawn = true;
+            com.killer560.hub.util.TickAudit.truth("King Relics spawn", relic.key() + " relic on an armor stand");
             double seconds = (PerTickServerClock.now() - p5StartTick) / 20.0;
             P5Splits.relicSpawned(System.currentTimeMillis());
             if (messagesOn()) {

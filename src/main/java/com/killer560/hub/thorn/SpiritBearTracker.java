@@ -140,6 +140,9 @@ public final class SpiritBearTracker {
         int step = STEP.take();
         if (timer > 0) {
             timer = Math.max(0, timer - step); // server ticks (2026-11-03), as Odin's ping-based timer
+            if (timer == 0) {
+                com.killer560.hub.util.TickAudit.predict("Spirit Bear", 0);
+            }
         }
 
         int lights = 0;
@@ -179,6 +182,7 @@ public final class SpiritBearTracker {
                 lights++;
                 if (isLast) {
                     timer = BEAR_SPAWN_TICKS;
+                    com.killer560.hub.util.TickAudit.predict("Spirit Bear", BEAR_SPAWN_TICKS);
                 }
             } else if (before && !now && isLast) {
                 timer = -1;
@@ -209,6 +213,9 @@ public final class SpiritBearTracker {
         }
         countedDeaths.retainAll(present);
         if (bearNow) {
+            if (!bearAliveNow) {
+                com.killer560.hub.util.TickAudit.truth("Spirit Bear", "Spirit Bear player entity alive");
+            }
             bearSeenAlive = true;
         }
         bearAliveNow = bearNow;

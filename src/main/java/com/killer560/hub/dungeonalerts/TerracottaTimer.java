@@ -54,13 +54,19 @@ final class TerracottaTimer {
                 return;
             }
             for (int i = 0; i < step; i++) {
-                SPAWNS.removeIf(t -> --t.ticksLeft <= 0);
+                SPAWNS.removeIf(TerracottaTimer::ended);
                 if (clearInTicks >= 0 && clearInTicks-- == 0) {
                     SPAWNS.clear();
                 }
             }
         }));
         ChatObserver.subscribe(TerracottaTimer::onChat);
+    }
+
+    private static boolean ended(Terracotta t) {
+        if (--t.ticksLeft > 0) return false;
+        com.killer560.hub.util.TickAudit.predict("Terracotta @" + t.pos.toShortString(), 0);
+        return true;
     }
 
     private static boolean active() {
@@ -86,6 +92,7 @@ final class TerracottaTimer {
         }
         int ticks = DungeonAlertsFeature.isMasterMode() ? 240 : 300;
         SPAWNS.add(new Terracotta(pos.immutable(), ticks));
+        com.killer560.hub.util.TickAudit.predict("Terracotta @" + pos.toShortString(), ticks);
     }
 
     static void onWorldChange() {
