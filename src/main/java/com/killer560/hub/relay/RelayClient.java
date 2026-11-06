@@ -67,16 +67,16 @@ public final class RelayClient {
 
     /** The relay's own limit (Worker {@code room.ts}); truncating here keeps the reported length honest. */
     private static final int MAX_CHAT_CHARS = 512;
-    private static final long KEEPALIVE_SECONDS = 30L;
+    static final long KEEPALIVE_SECONDS = 30L;
     private static final long BACKOFF_BASE_MS = 2_000L;
     private static final long BACKOFF_CAP_MS = 120_000L;
     /** Re-authenticating costs two HTTP round trips, so a still-valid token is reused until it is nearly up. */
     private static final long TOKEN_REUSE_MARGIN_MS = 5 * 60_000L;
 
-    private static final ScheduledExecutorService WORKER =
+    static final ScheduledExecutorService WORKER =
             Executors.newSingleThreadScheduledExecutor(daemon("killer560smod-relay"));
     private static final ExecutorService IO = Executors.newCachedThreadPool(daemon("killer560smod-relay-io"));
-    private static final HttpClient HTTP = HttpClient.newBuilder()
+    static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .executor(IO)
@@ -132,12 +132,19 @@ public final class RelayClient {
 
     public static void setListener(RelayListener value) { listener = value == null ? NO_LISTENER : value; }
 
-    /** Drops the cached relay token, so the next connect signs in again (after an in-game account swap). */
+    /**
+     * Drops the cached relay token and reconnects both relay sockets, so they sign in again as the account swapped to:
+     * a socket left open would keep speaking (and being listed) as the previous account (spotreal-1106).
+     */
     public static void forgetToken() {
         WORKER.execute(() -> {
             token = null;
             tokenUrl = "";
             tokenAccount = "";
+            connectedUrl = "";
+            connectedRoom = "";
+            reconcile();
+            RelayTap.reconnect();
         });
     }
 
@@ -285,10 +292,11 @@ public final class RelayClient {
         connectedRoom = room;
         lastError = "";
         state = State.CONNECTING;
+        Socket listener = new Socket(gen);
         tokenFor(url)
                 .thenCompose(issued -> ModNet.webSocket(HTTP.newWebSocketBuilder()
                         .connectTimeout(Duration.ofSeconds(15)),
-                        RelayEndpoint.websocket(url, room, issued.value()), new Socket(gen)))
+                        RelayEndpoint.websocket(url, room, issued.value()), listener))
                 .whenComplete((ws, error) -> WORKER.execute(() -> {
                     if (gen != generation) {
                         if (ws != null) {
@@ -308,10 +316,13 @@ public final class RelayClient {
                     lastError = "";
                     startKeepAlive(gen);
                     LOGGER.info("[Relay] Connected to {} (room {})", url, room);
+                    listener.live.complete(null);
                 }));
     }
 
-    private static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
+    static CompletableFuture<RelayAuth.Token> tokenFor(String url) {
+        String forTest = RelayCalls.tokenForTest();
+        if (forTest != null) return CompletableFuture.completedFuture(new RelayAuth.Token(forTest, Long.MAX_VALUE));
         RelayAuth.Token cached = token;
         String account = currentAccount();
         if (cached != null && url.equals(tokenUrl) && account.equals(tokenAccount)
@@ -361,7 +372,7 @@ public final class RelayClient {
     }
 
     /** 2s, 4s, 8s ... capped at 2 minutes, with +/-20% jitter so a whole party doesn't reconnect in lockstep. */
-    private static long backoffMs(int failures) {
+    static long backoffMs(int failures) {
         long base = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS << Math.min(Math.max(failures - 1, 0), 6));
         long jitter = base / 5;
         return base + ThreadLocalRandom.current().nextLong(-jitter, jitter + 1);
@@ -375,7 +386,7 @@ public final class RelayClient {
         }, KEEPALIVE_SECONDS, KEEPALIVE_SECONDS, TimeUnit.SECONDS);
     }
 
-    private static JsonObject ping() {
+    static JsonObject ping() {
         JsonObject packet = new JsonObject();
         packet.addProperty("type", "ping");
         packet.addProperty("t", System.currentTimeMillis());
@@ -435,6 +446,13 @@ public final class RelayClient {
         /** A text message can arrive in several frames; nothing may be parsed until {@code last}. */
         private final StringBuilder buffer = new StringBuilder();
 
+        /**
+         * Completed on WORKER once {@link #connect} has made this the live socket. The relay sends its welcome the moment
+         * the socket opens, often before that, and a welcome handled first sent its hello into no socket: the player never
+         * showed as a mod user in that room, so every viewer dropped his song ("not a mod user", spotreal-1106).
+         */
+        final CompletableFuture<Void> live = new CompletableFuture<>();
+
         private Socket(long gen) { this.gen = gen; }
 
         @Override
@@ -443,9 +461,14 @@ public final class RelayClient {
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             buffer.append(data);
-            if (last) {
-                String text = buffer.toString();
-                buffer.setLength(0);
+            if (!last) {
+                webSocket.request(1);
+                return null;
+            }
+            String text = buffer.toString();
+            buffer.setLength(0);
+            // The next message is requested only after this one ran, so a message held until live keeps its order.
+            live.thenRun(() -> {
                 if (gen == generation) {
                     try {
                         handle(text);
@@ -453,8 +476,8 @@ public final class RelayClient {
                         LOGGER.warn("[Relay] Bad packet: {}", e.toString());
                     }
                 }
-            }
-            webSocket.request(1);
+                webSocket.request(1);
+            });
             return null;
         }
 
@@ -549,7 +572,7 @@ public final class RelayClient {
         }
     }
 
-    private static List<String> names(JsonObject packet) {
+    static List<String> names(JsonObject packet) {
         JsonElement element = packet.get("online");
         if (element == null || !element.isJsonArray()) return List.of();
         JsonArray array = element.getAsJsonArray();
@@ -562,7 +585,7 @@ public final class RelayClient {
         return List.copyOf(out);
     }
 
-    private static String str(JsonObject packet, String key) {
+    static String str(JsonObject packet, String key) {
         JsonElement element = packet.get(key);
         if (element == null || !element.isJsonPrimitive()) return "";
         try {
@@ -573,7 +596,7 @@ public final class RelayClient {
     }
 
     /** One short phrase a player can act on, instead of a stack trace or a class name. */
-    private static String reason(Throwable error) {
+    static String reason(Throwable error) {
         Throwable cause = error;
         while ((cause instanceof CompletionException || cause instanceof java.util.concurrent.ExecutionException)
                 && cause.getCause() != null) {

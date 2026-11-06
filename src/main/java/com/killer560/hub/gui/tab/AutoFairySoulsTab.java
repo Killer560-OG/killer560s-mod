@@ -80,7 +80,7 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     capturingResumeKey = true;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 18).build());
-        // No Start/Stop button (killer560, 2026-10-11): the Start/Stop key and /k560path souls auto start it.
+        // No Start/Stop button (killer560, 2026-10-11): the Start/Stop key starts it.
         return widgets;
     }
 

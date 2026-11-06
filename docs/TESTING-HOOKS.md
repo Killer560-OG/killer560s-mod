@@ -42,7 +42,7 @@ case can put the bridge in a Hypixel-shaped run (testkit 1101-noamm-never).
 ## Discord Link (`discordlink/`)
 
 Service key `discordlink-relay` (the relay's `/discord-link/*` alone, read on every call). `relay/RelayCalls.setTokenForTest`
-gives every `RelayCalls` caller a bearer token without a Mojang chat key (only with `fabric.client.gametest` set);
+gives every `RelayCalls` caller, and both relay sockets (`RelayClient`, `RelayTap`), a bearer token without a Mojang chat key (only with `fabric.client.gametest` set);
 `DiscordLink.resetForTest()` drops the state, code, watcher and any status poll (testkit 1105-discordlink-*).
 
 ## Custom Party Finder (`lfg/`)

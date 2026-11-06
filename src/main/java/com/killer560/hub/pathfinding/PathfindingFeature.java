@@ -6,20 +6,11 @@ import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.util.KeyUtil;
-import com.killer560.hub.util.ModChat;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,12 +21,11 @@ import com.killer560.hub.compat.McCompat;
  * Pathfinding: "show me the fastest way there" navigation on Hypixel Skyblock islands, built on SkyHanni's public
  * island graph data (see {@link IslandGraph} and {@link GraphRepository} for the data source and license).
  * <p>
- * Registers the tick/render hooks, the {@code /k560path} command and the HUD element. Everything is off by default.
+ * Registers the tick/render hooks and the HUD element. Everything is off by default.
  */
 public final class PathfindingFeature {
 
     public static final String ELEMENT_ID = "pathfinding";
-    private static final String CHAT = "Pathfinding";
 
     private static volatile boolean startKeyPressed;
     private static boolean resumeMouseWasDown;
@@ -64,7 +54,6 @@ public final class PathfindingFeature {
             // Auto Fairy Souls' camera turns every render frame (WalkCamera), not in 20 Hz tick steps.
             LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> AutoWalker.frame());
         }
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(command()));
         com.killer560.hub.hud.HudElementRegistry.register(HudElementImpl.INSTANCE);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "pathfinding_hud"),
@@ -135,159 +124,6 @@ public final class PathfindingFeature {
             AutoSoulRunner.stop("the Start/Stop key", true);
         } else {
             AutoSoulRunner.start();
-        }
-    }
-
-
-    private static LiteralArgumentBuilder<FabricClientCommandSource> command() {
-        SuggestionProvider<FabricClientCommandSource> destinations = (context, builder) -> {
-            String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-            String island = IslandDetector.graphIsland();
-            IslandGraph graph = GraphRepository.get(island);
-            if (graph != null) {
-                for (String name : graph.destinationNames()) {
-                    if (name.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                        builder.suggest(name.contains(" ") ? "\"" + name + "\"" : name);
-                    }
-                }
-            }
-            return builder.buildFuture();
-        };
-        return ClientCommands.literal("k560path")
-                .executes(ctx -> {
-                    usage();
-                    return 1;
-                })
-                .then(run("stop", () -> {
-                    AutoSoulRunner.stop("command", false);
-                    FairySoulsFeature.stopGuide(false);
-                    NavigationManager.stop("command", true);
-                }))
-                .then(ClientCommands.literal("reload").executes(ctx -> {
-                    String island = IslandDetector.graphIsland();
-                    if (island == null) {
-                        ModChat.send(CHAT, ModChat.bad("Unknown island."));
-                        return 0;
-                    }
-                    GraphRepository.forceReload(island);
-                    ModChat.send(CHAT, ModChat.text("Re-downloading the "), ModChat.value(island), ModChat.text(" graph..."));
-                    return 1;
-                }))
-                .then(run("info", () -> info()))
-                .then(ClientCommands.literal("souls")
-                        .executes(ctx -> {
-                            FairySoulsFeature.start(PathfindingConfig.getInstance().getSoulMode());
-                            return 1;
-                        })
-                        .then(run("nearest", () -> FairySoulsFeature.guideNearest()))
-                        .then(run("route", () -> FairySoulsFeature.routeIsland()))
-                        .then(run("stop", () -> {
-                            AutoSoulRunner.stop("command", false);
-                            FairySoulsFeature.stopGuide(true);
-                        }))
-                        .then(ClientCommands.literal("auto").executes(ctx -> {
-                            if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-                                ModChat.send(CHAT, ModChat.bad("Auto walking only exists in the cheat build."));
-                                return 0;
-                            }
-                            AutoSoulRunner.start();
-                            return 1;
-                        }))
-                        .then(run("reset", () -> FairySoulsFeature.resetProfile()))
-                        .then(run("resetisland", () -> FairySoulsFeature.resetIsland()))
-                        .then(run("foundall", () -> FairySoulsFeature.markIslandFound())))
-                .then(ClientCommands.argument("destination", com.killer560.hub.util.ExceptWords.of(
-                        StringArgumentType.greedyString(), "stop", "reload", "info", "souls"))
-                        .suggests(destinations)
-                        .executes(ctx -> navigateCommand(StringArgumentType.getString(ctx, "destination"))));
-    }
-
-    /** A subcommand that runs one action and succeeds. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> run(String name, Runnable action) {
-        return ClientCommands.literal(name).executes(ctx -> {
-            action.run();
-            return 1;
-        });
-    }
-
-    private static int navigateCommand(String input) {
-        PathfindingConfig cfg = PathfindingConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            ModChat.send(CHAT, ModChat.bad("Fairy Souls is off "),
-                    ModChat.dim("(/killer560 > Misc > Fairy Souls)"));
-            return 0;
-        }
-        Minecraft client = Minecraft.getInstance();
-        LocalPlayer player = client.player;
-        String island = IslandDetector.graphIsland();
-        IslandGraph graph = GraphRepository.get(island);
-        if (player == null) return 0;
-        String text = input.trim().replace("\"", "");
-        String[] parts = text.split("\\s+");
-        if (parts.length == 3) {
-            try {
-                double x = Double.parseDouble(parts[0]);
-                double y = Double.parseDouble(parts[1]);
-                double z = Double.parseDouble(parts[2]);
-                if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
-                    ModChat.send(CHAT, ModChat.bad("Those are not coordinates."));
-                    return 0;
-                }
-                NavigationManager.navigate(String.format(Locale.US, "%.0f, %.0f, %.0f", x, y, z),
-                        new Vec3(x + 0.5, y, z + 0.5), -1, false, null);
-                return 1;
-            } catch (NumberFormatException ignored) {
-                // not coordinates - fall through to a name lookup
-            }
-        }
-        if (graph == null) {
-            GraphRepository.ensureLoading(island, false);
-            ModChat.send(CHAT, ModChat.bad(island == null ? "No navigation graph for this island."
-                    : "Still downloading the " + island + " graph - try again in a moment."));
-            return 0;
-        }
-        List<IslandGraph.Node> matches = graph.named(text);
-        if (matches.isEmpty()) {
-            for (IslandGraph.Node node : graph.nodes) {
-                if (node.cleanName != null && node.cleanName.toLowerCase(Locale.ROOT).contains(text.toLowerCase(Locale.ROOT))) {
-                    matches.add(node);
-                }
-            }
-        }
-        if (matches.isEmpty()) {
-            ModChat.send(CHAT, ModChat.bad("Nothing called "), ModChat.value(text), ModChat.bad(" on this island."));
-            return 0;
-        }
-        Vec3 pos = player.position();
-        IslandGraph.Node best = GraphPathfinder.closestByCost(graph, pos.x, pos.y + 1.0, pos.z, matches);
-        NavigationManager.navigate(best.cleanName == null ? text : best.cleanName,
-                NavigationManager.centre(best), best.index, false, null);
-        return 1;
-    }
-
-    private static void usage() {
-        ModChat.send(CHAT, ModChat.text("/k560path <place | x y z>"), ModChat.dim(" - navigate"));
-        ModChat.send(CHAT, ModChat.text("/k560path souls [nearest|route|stop|auto|reset|resetisland|foundall]"));
-        ModChat.send(CHAT, ModChat.text("/k560path stop | reload | info"));
-    }
-
-    private static void info() {
-        String island = IslandDetector.graphIsland();
-        IslandGraph graph = GraphRepository.get(island);
-        ModChat.send(CHAT, ModChat.text("Island: "), ModChat.value(IslandDetector.islandName().isEmpty()
-                        ? "unknown" : IslandDetector.islandName()),
-                ModChat.dim(" (" + (island == null ? "no graph" : island) + ")"));
-        ModChat.send(CHAT, ModChat.text("Graph: "), graph == null
-                ? ModChat.bad("not loaded" + (island != null && GraphRepository.lastError(island) != null
-                        ? " - " + GraphRepository.lastError(island) : ""))
-                : ModChat.value(graph.nodes.length + " nodes, " + graph.withTag(IslandGraph.TAG_FAIRY_SOUL).size()
-                        + " fairy souls"));
-        int[] counts = FairySoulsFeature.islandCounts();
-        if (counts != null) {
-            FairySoulStore.IslandRecord record = FairySoulsFeature.menuRecord();
-            ModChat.send(CHAT, ModChat.text("Souls found: "), ModChat.value(counts[0] + "/" + counts[1]),
-                    ModChat.dim(" profile " + ProfileTracker.displayName()
-                            + (record == null ? "" : ", Hypixel menu said " + record.menuFound + "/" + record.menuTotal)));
         }
     }
 

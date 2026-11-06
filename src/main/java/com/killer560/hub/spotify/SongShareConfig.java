@@ -24,7 +24,7 @@ public final class SongShareConfig {
     private static volatile SongShareConfig instance;
 
     private volatile boolean shareSong = false;
-    private volatile boolean showOthers = false;
+    private volatile boolean showOthers = true; // on by default like other players' names and skins (killer560, 2026-11-06)
     /**
      * My Lyrics In F5 (2026-10-26): the lyric line being sung, over your own head in third person. Local only, never
      * sent. OFF by default since 2026-11-04 (killer560: spotify lyrics off).
@@ -91,7 +91,7 @@ public final class SongShareConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
-                cfg.showOthers = ConfigJson.getBool(obj, "showOthers", false);
+                cfg.showOthers = ConfigJson.getBool(obj, "showOthers", true);
                 cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
                 cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
                 cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);

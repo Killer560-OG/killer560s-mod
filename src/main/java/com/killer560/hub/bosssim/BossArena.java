@@ -28,7 +28,7 @@ import java.util.zip.GZIPInputStream;
  * <p>Two sources, best first:
  * <ol>
  * <li><b>A capture of the real room</b> ({@code config/killer560/dungeons/sim/killer560smod-sim-bossarena.bin}), written by
- * {@link BossCapture} on Hypixel in an F7/M7 boss. Block for block, so every route and landing matches.</li>
+ * a dev capture on Hypixel in an F7/M7 boss. Block for block, so every route and landing matches.</li>
  * <li><b>The built-in plan</b> ({@link #plan}): floors, walls, the P3 ring and core, gates, the terminal, lever and device
  * spots, the P4 and P5 floors, built from the coordinates this mod already reads Hypixel's boss by (the terminal, lever
  * and device positions, the section boxes, the gates, the Storm pillars and pads, the Necron platforms, the dragon and

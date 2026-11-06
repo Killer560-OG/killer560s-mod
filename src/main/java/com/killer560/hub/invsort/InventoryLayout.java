@@ -44,12 +44,12 @@ public final class InventoryLayout {
     /** Storage mode's dump page ({@code enderchest_3}, {@code backpack_5}): items in the inventory that the layout does
      *  not use are shift-clicked into it first. Null for none. */
     private final String dumpPage;
-    /** The Hypixel loadout (1..{@link #MAX_LOADOUT}, the slot in /loadouts' first page) applying the layout selects first,
+    /** The Hypixel loadout (1..{@link #MAX_LOADOUT}; 13-24 are on /loadouts' page 2 and so on) applying the layout selects first,
      *  or 0 for none (killer560, 2026-11-04: "allow invsort to select a loadout"). */
     private final int loadout;
 
-    /** /loadouts' first page shows 12 loadouts; the selector clicks on that page only. */
-    public static final int MAX_LOADOUT = 12;
+    /** Any /loadouts page (loadout1-1105), as far as Loadout Keybinds can page. */
+    public static final int MAX_LOADOUT = com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature.MAX_LOADOUT;
 
     public InventoryLayout(String name, Map<Integer, String> slotIdentities) {
         this(name, slotIdentities, Map.of());

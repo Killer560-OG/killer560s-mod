@@ -67,6 +67,9 @@ public final class AccountApplier {
         }
         // A relay token issued to the previous account must never be reused for this one.
         com.killer560.hub.relay.RelayClient.forgetToken();
+        // ...nor its supporter status or what was shared for it (songfix-1106: the swap pushed the new account's empty
+        // cosmetics as the old one and cleared his entry).
+        com.killer560.hub.supporters.SupportersAutoShare.accountChanged();
         // Run history, best friends, Croesus run memory... are per account in the shared store: follow the switch.
         com.killer560.hub.shared.SharedRecords.accountChanged();
     }

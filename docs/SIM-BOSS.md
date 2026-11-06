@@ -29,7 +29,7 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 
 ## The room
 
-`BossArena`: a capture (`/simbosscapture`, dev builds, on Hypixel in a boss; file `config/killer560/dungeons/sim/
+`BossArena`: a capture (the `/simbosscapture` command was removed 2026-11-05; read-only now; file `config/killer560/dungeons/sim/
 killer560smod-sim-bossarena.bin` for P1, `killer560smod-sim-bossarena-p3.bin` for P3 and so on: each capture goes to the
 file of the boss phase it was taken in (Floor7Tracker), format K5BA v2 = v1 plus the phase after the version; v1: gzip, box,
 palette of block-state strings, run-length cells; a v1 file counts as its file name's phase) when one

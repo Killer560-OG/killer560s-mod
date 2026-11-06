@@ -97,6 +97,13 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   draws: unrevealed groups count as unseen, names only from `identityRevealed`, a gap beside an unseen tile from the map
   item byte, and no "every blank slot is a room" fill (it turned the whole floor into "?" before the map item was read).
   Test text floors: check `'x'` before the `a-z` room letters, or the empty tile reads as room 23 (a vacuous door).
+- **Which painter drew it?** With Funny Map on, the Dungeon Map is `MapPainter` plus `MapInference`, and
+  `PredictedRoomsPainter` (Predictive Rooms, Special Room Guess) draws nothing (`PredictedRoomsPainter.shown()`). His 11-05 F7
+  shot (five gray "?" tiles on the top row, a darker Pipes tile) was MapInference's full-floor rule and its darkened shape
+  completion, not Predictive Rooms (mapq-1105). Read his config's Funny Map before blaming a painter. Since mapq-1105 (killer560:
+  "dont show those question mark rooms", "just have it as the same color as the rest of pipes") inferred rooms and doors take
+  the room's/door's own color, the full-floor "?" rule is gone, and Predictive Rooms leaves its unsure tiles blank (testkit
+  1105-logic-mapq-*). Hypixel's own unopened "?" rooms and the Special Room Guess strips stay.
 - A marker outline drawn as one-unit side strips per row is not an outline: the back edge had none and the tip rows were
   all edge, so only 69% of the old map arrow's edge was dark and the green arrow vanished on the green Entrance (testkit 395).
   Draw a solid outline shape one unit bigger UNDER the fill (`MapPainter.outlinedTriangle`): 100%, 15.3:1.
