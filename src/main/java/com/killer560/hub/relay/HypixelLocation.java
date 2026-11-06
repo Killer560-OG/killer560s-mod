@@ -94,6 +94,9 @@ public final class HypixelLocation {
         if (serverId != null || attemptsThisJoin >= MAX_ATTEMPTS_PER_JOIN) return;
         long now = System.currentTimeMillis();
         if (now - lastSentAtMs < RETRY_INTERVAL_MS) return;
+        // A command typed mid-walk draws experimental Grim's ChatC (found by the Inventory Walk gate, 2026-11-06): wait until he stands still.
+        net.minecraft.world.entity.player.Input k = client.player.input.keyPresses;
+        if (k.forward() || k.backward() || k.left() || k.right() || k.sprint() || k.shift() || client.player.isSprinting()) return;
         lastSentAtMs = now;
         attemptsThisJoin++;
         ensureRewriter();
