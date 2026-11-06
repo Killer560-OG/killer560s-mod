@@ -42,6 +42,7 @@ public final class RemoteSongs {
 
     /** The relay {@code data} key. Versioned like PartyData's {@code dg.v1.*}. */
     public static final String KEY = "np.v1";
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
     /** Raised from 512 for the shared lyric line (2026-11-01); the relay's own limit is 4 KB a message. */
     static final int MAX_VALUE_CHARS = 1024;
     /** A shared lyric line: at most this many characters and words, "into" and word offsets at most a minute. */
@@ -118,6 +119,9 @@ public final class RemoteSongs {
             accepted++;
         } else {
             rejected++;
+            if (!why.equals(lastReject) && !"too fast".equals(why)) {
+                LOGGER.info("[SongTag] dropped a song from {}: {}", from, why);
+            }
             lastReject = why;
         }
     }
