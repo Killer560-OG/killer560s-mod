@@ -31,7 +31,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * {@link #TRUST_TICKS_WITH_PING} ticks saw a ping and no more than {@link #MAX_WINDOW_PINGS} came in all (GrimAC's ~15
  * transactions a second fail it; testkit 177, 792), loses it after two failing windows, and loses it for the rest of the
  * world once its pings run more than {@link #MAX_EXCESS} ahead of the wall clock (goldfix-1104: a quiet Grim server pings
- * about once a tick, then every hit adds transactions; 1102-hx-goldor-tick read the hits 5, 3, 7, 11 ticks late).
+ * about once a tick, then every hit adds transactions; 1102-hx-goldor-tick read the hits 5, 3, 7, 11 ticks late). A loaded
+ * one banks lag below the wall clock and so never trips that rule: while trusted its pings count only within
+ * {@link #HYPIXEL_SLACK} of the wall clock too ({@link #withinWall}, gold-flake-1105).
  * <p>
  * The clock is one count: each counted ping advances it while trusted; while not, it follows the client's game time (a
  * tick a tick, plus forward set-time corrections; never down), so it is continuous across a change of source.
@@ -90,6 +92,8 @@ public final class PerTickServerClock {
     private static boolean inStall;
     /** Pings minus elapsed 50 ms steps in this world (non-Hypixel only), floored at -{@link #EXCESS_FLOOR}. */
     private static double excess;
+    /** How far the counted ticks are ahead of the wall clock ({@link #withinWall}); negative is banked catch-up credit. */
+    private static double wallExcess;
     private static long lastPingNanos = Long.MIN_VALUE;
     /** The per-tick chain's last id, and the last id off it (two in a row there means the chain was that one). */
     private static int chainId;
@@ -175,6 +179,7 @@ public final class PerTickServerClock {
         inStall = false;
         deficitLow = trustedTicks - trustedPings;
         excess = 0.0;
+        wallExcess = 0.0;
         lastPingNanos = Long.MIN_VALUE;
         notPerTick = false;
         chainSet = false;
@@ -202,15 +207,16 @@ public final class PerTickServerClock {
             windowPings++;
             pingsThisTick++;
             offChain = hypixel && !inChain;
+            double since = since(nanos);
             if (hypixel) {
                 if (!trusted) {
                     trusted = true;
                     trustChanges++;
                 }
-                advanced = inChain && withinWall(nanos);
+                advanced = inChain && withinWall(since);
             } else {
-                checkPace(nanos);
-                advanced = trusted;
+                checkPace(since);
+                advanced = trusted && withinWall(since);
             }
             if (advanced) {
                 clock++;
@@ -275,27 +281,28 @@ public final class PerTickServerClock {
         }
     }
 
-    /** Takes the wall time since the last paced ping off {@link #excess} (down to -{@code floor}); false for the first
-     *  ping and for an unpaced test ping ({@link #pingForTest}), which move nothing. */
-    private static boolean drain(long nanos, double floor) {
+    /** Ticks of wall time since the last paced ping; -1 for the first ping and for an unpaced test ping
+     *  ({@link #pingForTest}), which move no pace. */
+    private static double since(long nanos) {
         if (nanos == Long.MIN_VALUE) {
-            return false;
+            return -1.0;
         }
         boolean first = lastPingNanos == Long.MIN_VALUE || nanos < lastPingNanos;
-        if (!first) {
-            excess = Math.max(-floor, excess - (nanos - lastPingNanos) / 50_000_000.0);
-        }
+        double since = first ? -1.0 : (nanos - lastPingNanos) / 50_000_000.0;
         lastPingNanos = nanos;
-        return !first;
+        return since;
     }
 
-    /** hypixel.net, a chain ping: whether it counts, i.e. the count stays within {@link #HYPIXEL_SLACK} of the wall clock. */
-    private static boolean withinWall(long nanos) {
-        if (drain(nanos, HYPIXEL_CREDIT)) {
-            if (excess + 1.0 > HYPIXEL_SLACK) {
+    /** A ping the clock would count: whether it does, i.e. the count stays within {@link #HYPIXEL_SLACK} of the wall
+     *  clock. Every server, not only hypixel.net (gold-flake-1105): a loaded GrimAC server earns the trust (a slow client
+     *  sees a ping every tick) and its per-hit transactions then ran Goldor's line 4 ticks ahead a cycle. */
+    private static boolean withinWall(double since) {
+        if (since >= 0.0) {
+            wallExcess = Math.max(-HYPIXEL_CREDIT, wallExcess - since);
+            if (wallExcess + 1.0 > HYPIXEL_SLACK) {
                 return false;
             }
-            excess += 1.0;
+            wallExcess += 1.0;
         }
         return true;
     }
@@ -328,7 +335,7 @@ public final class PerTickServerClock {
         }
         lastServerTime = gameTime;
         CENSUS[5]++;
-        drain(nanos, HYPIXEL_CREDIT);
+        since(nanos); // the next chain ping's wall time starts here; the lead below replaces the bank
         long behind = gameTime + timeOffset - clock;
         int up = 0;
         if (behind > TIME_SLACK) {
@@ -343,16 +350,16 @@ public final class PerTickServerClock {
             LOGGER.info("[PerTickServerClock] hypixel.net's game time: the count was {} ticks {} it ({})", Math.abs(behind),
                     behind > 0 ? "behind" : "ahead of", behind > 0 ? "moved up" : "held until the wall clock pays it back");
         }
-        excess = clock - (gameTime + timeOffset); // a lead holds the chain back; a lag was just paid
+        wallExcess = clock - (gameTime + timeOffset); // a lead holds the chain back (withinWall); a lag was just paid
         return up;
     }
 
     /** Non-Hypixel, every ping: {@link #excess}, and the end of trust for a server that pings faster than it ticks. */
-    private static void checkPace(long nanos) {
-        if (!drain(nanos, EXCESS_FLOOR)) {
+    private static void checkPace(double since) {
+        if (since < 0.0) {
             return;
         }
-        excess += 1.0;
+        excess = Math.max(-EXCESS_FLOOR, excess - since) + 1.0;
         if (excess > MAX_EXCESS && !notPerTick) {
             notPerTick = true;
             goodWindows = 0;
@@ -463,6 +470,9 @@ public final class PerTickServerClock {
         if (windowTicksWithPing >= TRUST_TICKS_WITH_PING && windowPings <= MAX_WINDOW_PINGS) {
             shortWindows = 0;
             if (++goodWindows >= 2 && !notPerTick) {
+                if (!trusted) {
+                    wallExcess = 0.0; // the lag banked while untrusted is no credit for the trusted count
+                }
                 trusted = true;
             }
         } else {
