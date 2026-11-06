@@ -61,6 +61,15 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   experimental). Every raw use now calls `ensureHasSentCarriedItem` first, as vanilla `useItem` does. Auto Routes takes
   his left click mid-chain (held for the next await), so no hand dig of his reaches the wire then. Coverage table and open gaps:
   killer560s-mod-logs/grimsame-1105-audit.md. His swap / use during a 20/s route chain and during the boss auras is clean.
+  grimgapC-1105 closed the container-click and hotbar/drop gaps with no mod change and no flag on either Grim config:
+  Auto Sell and (Block Input off) Auto Terminals share server ticks with his own screen click; Auto Terminals with Block
+  Input on and the Inventory Sorter swallow his clicks; Swap To Drill On Pigeon is set at END and sent by vanilla at the
+  next tick's start, so his use shares that tick (slot first) while his END attack / scroll hold it a tick
+  (`swapWouldFlag`); Auto Ult's START drop goes before his use, and `ActionGate` puts it a tick after his queued attack.
+  Test traps: a stick's click on a treasure chest opens its lid and ends the claim; `ChatObserver` drops a repeated line
+  inside 250 ms; the server never re-sends the slot after a raw DROP_ITEM, so count drops on the server; a harness END
+  click can land on a terminal before its first frame, when the solver has not yet read it (Block Input then misses it;
+  a real click comes after the draw).
   BadPacketsH: every START/STOP dig and use must carry the last sequence + 1; AP3's boom START went out with sequence 0
   (the constructor without one). Fix: it goes through `RouteExecutor.sendBoomTap` (vanilla's `startPrediction`).
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
