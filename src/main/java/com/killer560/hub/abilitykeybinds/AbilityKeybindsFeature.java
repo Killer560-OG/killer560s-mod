@@ -10,6 +10,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McInput;
+import com.killer560.hub.util.ChatObserver;
+import com.mojang.blaze3d.platform.InputConstants;
+import java.util.regex.Pattern;
 
 /**
  * Real dungeon class ability keybinds, ported from Noamm's own {@code Abilities.kt} (the keybind half
@@ -32,10 +36,21 @@ public final class AbilityKeybindsFeature {
     private static boolean abilityKeyWasDown = false;
     private static boolean ultimateKeyWasDown = false;
 
+    /** How long a shared ability/player-list key is held before the list shows anyway (killer560, 2026-11-06). */
+    static final long LIST_HOLD_MS = 300;
+    private static final Pattern ON_COOLDOWN = Pattern.compile("^This [A-Za-z]+ is on cooldown");
+    private static long listHoldSince;
+    private static boolean listCooldownSeen;
+
     private AbilityKeybindsFeature() {
     }
 
     public static void register() {
+        ChatObserver.subscribe(m -> {
+            if (listHoldSince != 0 && ON_COOLDOWN.matcher(ChatObserver.strip(m)).find()) {
+                listCooldownSeen = true;
+            }
+        });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", FeatureBits.register("Ability Keybinds tick", () -> AbilityKeybindsConfig.getInstance().isEnabledRaw()), AbilityKeybindsFeature::tick));
     }
 
@@ -58,6 +73,47 @@ public final class AbilityKeybindsFeature {
             useAbility(client, true);
         }
         ultimateKeyWasDown = ultimateDown;
+    }
+
+    /**
+     * True while the vanilla player list must stay hidden: its key is also the Ability/Ultimate bind and the press is a
+     * quick tap that casts (killer560, 2026-11-06). The list shows again once the key is held {@link #LIST_HOLD_MS}, or
+     * at once when Hypixel says the ability is on cooldown (nothing was cast); outside a dungeon nothing casts, so it
+     * never hides. Asked once a frame by {@code tabtop/TabOnTop}, and only does work while the list key is down.
+     */
+    public static boolean hidesPlayerList(Minecraft client) {
+        boolean shared = false;
+        if (client.options.keyPlayerList.isDown() && client.player != null && McCompat.screen(client) == null
+                && DungeonState.isInDungeon()) {
+            AbilityKeybindsConfig cfg = AbilityKeybindsConfig.getInstance();
+            shared = cfg.isEnabled() && (sharedDown(client, cfg.getAbilityKeyCode()) || sharedDown(client, cfg.getUltimateKeyCode()));
+        }
+        return listHidden(shared, System.currentTimeMillis());
+    }
+
+    /** The tap/hold rule alone (the testkit drives it with its own clock): {@code shared} is the shared key being held now. */
+    public static boolean listHidden(boolean shared, long now) {
+        if (!shared) {
+            listHoldSince = 0;
+            listCooldownSeen = false;
+            return false;
+        }
+        if (listHoldSince == 0) {
+            listHoldSince = now;
+        }
+        return !listCooldownSeen && now - listHoldSince < LIST_HOLD_MS;
+    }
+
+    /** The bind is held and is the key vanilla's player list is on (compared in native numbering, as LoadoutSwapper does). */
+    private static boolean sharedDown(Minecraft client, int code) {
+        if (!isBindDown(client, code)) {
+            return false;
+        }
+        InputConstants.Key want = AbilityKeybindsConfig.isMouseCode(code)
+                ? McInput.storedButtonInput(AbilityKeybindsConfig.mouseButton(code)) : McInput.storedKeyInput(code);
+        InputConstants.Key bound = ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) client.options.keyPlayerList)
+                .killer560smod$getKey();
+        return bound != null && want != InputConstants.UNKNOWN && bound.getValue() == want.getValue() && bound.getType() == want.getType();
     }
 
     /**
