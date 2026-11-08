@@ -133,6 +133,46 @@ public final class HudInGameRenderer {
         }
     }
 
+    /** The server-tick countdown elements that stay on top of the Spirit Leap menu (killer560, 2026-11-06: "in a leap menu
+     *  i should still be able to see everything tick timer related"): Tick Timers (Goldor, Storm, Necron), Mask
+     *  Invincibility, Livid invulnerability, King Relics and Maxor crystals, and Split Timers' readout. */
+    private static final Set<String> OVER_LEAP_IDS = Set.of("tick_timers", "mask_invincibility", "livid_invuln_timer",
+            "king_relic_timer", "maxor_crystals", "split_timers");
+    private static List<HudElement> overLeapList = List.of();
+    private static int overLeapVersion = -1;
+
+    /** Draws {@link #OVER_LEAP_IDS} at their usual HUD position, from the leap menu's own afterExtract (the HUD layer sits
+     *  under a screen's dim). Same gates as {@link #draw} except the open-menu one. */
+    public static void drawOverScreen(GuiGraphicsExtractor graphics) {
+        if (!hudAllowed(Minecraft.getInstance())) {
+            return;
+        }
+        int version = com.killer560.hub.hud.HudElementRegistry.version();
+        if (version != overLeapVersion) {
+            List<HudElement> out = new java.util.ArrayList<>();
+            for (HudElement element : com.killer560.hub.hud.HudElementRegistry.all()) {
+                if (OVER_LEAP_IDS.contains(element.id())) {
+                    out.add(element);
+                }
+            }
+            overLeapList = out;
+            overLeapVersion = version;
+        }
+        HudTextCache.begin();
+        HudVisibility.overScreen = true;
+        try {
+            for (int i = 0; i < overLeapList.size(); i++) {
+                HudElement element = overLeapList.get(i);
+                if (element.isEnabledInSettings()) {
+                    com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);
+                }
+            }
+        } finally {
+            HudVisibility.overScreen = false;
+            HudTextCache.end();
+        }
+    }
+
     private static List<HudElement> drawList = List.of();
     private static int drawListVersion = -1;
 

@@ -19,6 +19,10 @@ public final class HudVisibility {
     private HudVisibility() {
     }
 
+    /** Set by {@link HudInGameRenderer#drawOverScreen} while it draws the tick elements on top of a leap menu, so their
+     *  own {@link #hidesHud} gate lets them through. Render thread only. */
+    static boolean overScreen;
+
     /** True for the vanilla chat screen (and subclasses). */
     public static boolean isChat(Screen screen) {
         return screen instanceof ChatScreen;
@@ -40,6 +44,9 @@ public final class HudVisibility {
      * preview, so an element that bailed out here would show up in the editor as an empty box.
      */
     public static boolean hidesHud() {
+        if (overScreen) {
+            return false;
+        }
         Screen screen = McCompat.screen(Minecraft.getInstance());
         return screen != null && !isChat(screen) && !(screen instanceof HudEditorScreen) && !isTerminalMenu(screen);
     }
