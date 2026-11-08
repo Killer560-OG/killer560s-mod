@@ -381,6 +381,62 @@ final class ExtraPages {
         }
     }
 
+    private static final ItemStack[] SBPV_COL_ICONS = {new ItemStack(Items.GOLDEN_HOE), new ItemStack(Items.STONE_PICKAXE),
+            new ItemStack(Items.STONE_SWORD), new ItemStack(Items.JUNGLE_SAPLING), new ItemStack(Items.FISHING_ROD), new ItemStack(Items.MYCELIUM)};
+    private static final List<String> SBPV_COL_IDS = List.of("FARMING", "MINING", "COMBAT", "FORAGING", "FISHING", "RIFT");
+
+    /** SkyBlockPV's Collections page (CommonCollectionScreen): its categories as the right-edge tabs, and the category's
+     *  collections two to a row (5 px apart, centered): the item, then "Name: amount" over a 91 px bar and "N% to tier"
+     *  or "Maxed". Its Minion tab is left out: our data has no minion tiers. */
+    private void drawSbpvCollections(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.CollectionCategory> cats, int mx, int my) {
+        s.subView = Math.max(0, Math.min(s.subView, cats.size() - 1));
+        for (int i = 0; i < cats.size(); i++) {
+            final int idx = i;
+            ExtraTables.CollectionCategory c = cats.get(i);
+            int tx = s.panelX + s.panelW - 9, ty = s.panelY + 20 + 22 * i, k = SBPV_COL_IDS.indexOf(c.id());
+            PvStyleChrome.sideTab(g, s.pvStyle(), tx, ty, i == s.subView);
+            g.item(k >= 0 ? SBPV_COL_ICONS[k] : c.items().isEmpty() ? ItemStack.EMPTY : ItemIcons.forId(c.items().get(0).id()), tx + 10, ty + 2);
+            if (hover(mx, my, tx, ty, 31, 20)) {
+                tip(List.of(line(c.name(), VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(tx, ty, 31, 20, () -> s.subView = idx));
+        }
+        List<ExtraTables.CollectionItem> items = cats.get(s.subView).items();
+        int text = PvStyleChrome.sbpvText(s.pvStyle()), w0 = 0, w1 = 0;
+        for (int j = 0; j < items.size(); j++) {
+            int w = sbpvColWidth(ex, items.get(j));
+            if (j % 2 == 0) w0 = Math.max(w0, w); else w1 = Math.max(w1, w);
+        }
+        int x0 = s.panelX + 10 + (s.panelW - 20 - (w0 + (w1 > 0 ? 5 + w1 : 0))) / 2, bottom = s.panelY + s.panelH - 4;
+        for (int j = 0; j < items.size(); j++) {
+            int x = x0 + (j % 2) * (w0 + 5), y = s.contentY + (j / 2) * 24;
+            if (y + 19 > bottom) break;
+            ExtraTables.CollectionItem it = items.get(j);
+            long amount = ex.collections.getOrDefault(it.id(), 0L);
+            long[] tiers = it.tiers();
+            int tier = countAtOrBelow(tiers, amount);
+            boolean maxed = tier >= tiers.length;
+            long prev = tier == 0 ? 0 : tiers[tier - 1];
+            float next = maxed ? 1f : (float) (amount - prev) / Math.max(1, tiers[tier] - prev);
+            g.item(ItemIcons.forId(it.id()), x, y + 1);
+            g.text(s.font(), it.name() + ": " + shorten(amount), x + 21, y, text, false);
+            PvStyleChrome.bar(g, x + 21, y + 12, next);
+            g.text(s.font(), maxed ? "Maxed" : Math.round(next * 100) + "% to " + (tier + 1), x + 115, y + 10, maxed ? 0xFF00AA00 : text, false);
+            if (hover(mx, my, x, y, w0, 19)) {
+                tip(List.of(line(it.name(), VALUE), line("Collected: " + commas(amount), TEXT),
+                        line(maxed ? "Maxed" : "Progress to " + (tier + 1) + ": " + Math.round(next * 100) + "%", DIM)));
+            }
+        }
+    }
+
+    /** One SkyBlockPV collection entry's width: item 16 + 5, then the wider of its name line and bar + 3 + progress text. */
+    private int sbpvColWidth(ProfileExtras ex, ExtraTables.CollectionItem it) {
+        long amount = ex.collections.getOrDefault(it.id(), 0L);
+        int tier = countAtOrBelow(it.tiers(), amount);
+        String prog = tier >= it.tiers().length ? "Maxed" : "100% to " + (tier + 1);
+        return 21 + Math.max(s.font().width(it.name() + ": " + shorten(amount)), 94 + s.font().width(prog));
+    }
+
     private void drawCollections(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
@@ -396,6 +452,10 @@ final class ExtraPages {
         }
         if (s.neuPage()) {
             drawNeuCollections(g, ex, cats, mx, my);
+            return;
+        }
+        if (s.sbpvStyle()) {
+            drawSbpvCollections(g, ex, cats, mx, my);
             return;
         }
         int navW = 84;

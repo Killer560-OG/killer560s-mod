@@ -2005,6 +2005,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** A content box: the menu's card. */
     /** NEU Classic's Basic, Dungeons, Inventories, Pets and Collections pages: its own page texture paints the boxes (pv_basic, pv_dung, pv_invs,
      *  pv_pets, pv_cols). */
+    ProfileViewerConfig.Style pvStyle() { return pvStyle; }
+
+    /** One of the SkyBlockPV styles, with a profile loaded. */
+    boolean sbpvStyle() {
+        return pvStyle != ProfileViewerConfig.Style.DEFAULT && pvStyle != ProfileViewerConfig.Style.NEU && state == State.READY;
+    }
+
     boolean neuPage() {
         return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= PAGE_BASIC && page <= PAGE_COLLECTIONS;
     }

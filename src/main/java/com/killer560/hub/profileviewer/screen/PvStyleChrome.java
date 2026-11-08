@@ -92,6 +92,18 @@ final class PvStyleChrome {
     static void title(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h) {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, TITLE[s == Style.SBPV_DARK ? 1 : s == Style.SBPV_CLEAR ? 2 : 0], x, y, w, h);
     }
+    /** SkyBlockPV's 91 x 5 progress bar (progressbar/*, one set for every theme), filled to {@code done}. */
+    static void bar(GuiGraphicsExtractor g, int x, int y, float done) {
+        int w = (int) (91 * Math.min(1f, done));
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, BAR_BG, x, y, 91, 5);
+        if (w > 0) {
+            g.enableScissor(x, y, x + w, y + 5);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, w >= 91 ? BAR_MAXED : BAR_FG, x, y, 91, 5);
+            g.disableScissor();
+        }
+    }
+    private static final Identifier BAR_BG = id("sbpv/bar_background"), BAR_FG = id("sbpv/bar_foreground"),
+            BAR_MAXED = id("sbpv/bar_foreground_maxed");
     private static final Identifier[] TITLE = {id("sbpv/light/title"), id("sbpv/dark/title"), id("sbpv/clear/title")};
 
     static final int NEU_W = 431;
