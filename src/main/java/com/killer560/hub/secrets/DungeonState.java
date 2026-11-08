@@ -88,6 +88,21 @@ public final class DungeonState {
     // real block's getShape() is queried often) and logs every time it actually CHANGES, so a real
     // dungeon run's log can show exactly what this class saw and when.
     private static String cachedFloor;
+    /** The world the floor was last read in from the sidebar, and whether the held floor was logged this run. */
+    private static Object floorLevel;
+    private static boolean floorHeldLogged;
+    private static String areaText;
+    private static boolean areaElsewhere;
+
+    /** The sidebar has an area line ("⏣ Village") that is not the Catacombs one; judged once per sidebar text. */
+    private static boolean showsOtherArea(String text) {
+        if (text != areaText) {
+            areaText = text;
+            int i = text.indexOf('⏣');
+            areaElsewhere = i >= 0 && text.indexOf("Catac", i) < 0;
+        }
+        return areaElsewhere;
+    }
 
     private DungeonState() {
     }
@@ -105,6 +120,26 @@ public final class DungeonState {
                 simOverrideActive = false;
             }
             String floor = computeCurrentFloor();
+            if (floor != null) {
+                floorLevel = client.level;
+                floorHeldLogged = false;
+            } else if (bossPhaseActive && client.level != null && client.level == floorLevel
+                    && ("F7".equals(cachedFloor) || "M7".equals(cachedFloor)) && client.player != null
+                    && client.player.getX() >= 0 && client.player.getZ() >= 0 && !showsOtherArea(readSidebarText())) {
+                // Hypixel's M7 P5 sidebar has no "The Catacombs (M7)" line (killer560's 2026-11-06 log: floor
+                // 'M7' -> 'null' at "Wither King: You... again?" in every run), which ended the boss phase, so
+                // Wither Dragons, King Relics and the end-of-run splits never ran. The floor holds in that boss until the world
+                // changes, he leaves the boss arena (x/z >= 0, the rooms are at negative x/z) or the sidebar names another area.
+                if (!floorHeldLogged) {
+                    floorHeldLogged = true;
+                    String text = readSidebarText();
+                    LOGGER.info("[Secrets] Sidebar lost the floor in the {} boss, holding it until the world changes (sidebar: '{}')",
+                            cachedFloor, text.length() > 300 ? text.substring(0, 300) : text);
+                }
+                floor = cachedFloor;
+            } else if (client.level != floorLevel) {
+                floorLevel = null; // never keep an old world alive
+            }
             // Real bug found and fixed (2026-09-14): this used to auto-clear the override the instant
             // ANY real floor was detected, on the theory that real detection had "taken over" - but a
             // real p3sim.net test showed real floor detection succeeding within the same second the

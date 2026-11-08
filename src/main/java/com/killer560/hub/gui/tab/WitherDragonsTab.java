@@ -9,7 +9,6 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -86,26 +85,20 @@ public class WitherDragonsTab extends BaseTab {
 
             header(w, contentX, y, contentWidth, "Dragon Priority");
             toggle(w, contentX, y[0], half, "Dragon Priority", cfg::isDragonPriority, cfg::setDragonPriority, cfg);
-            toggle(w, colB, y[0], half, "Paul Buff", cfg::isPaulBuff, cfg::setPaulBuff, cfg);
+            toggle(w, colB, y[0], half, "First Dragon Only", cfg::isFirstDragonOnly, cfg::setFirstDragonOnly, cfg);
             y[0] += 22;
 
-            w.add(powerSlider(cfg, contentX, y[0], half, true));
-            w.add(powerSlider(cfg, colB, y[0], half, false));
-            y[0] += 22;
-
-            w.add(SettingsButtonWidget.cycling(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label), (btn, dir) -> {
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Solo Priority", cfg.getSoloDebuff().label), (btn, dir) -> {
                         cfg.setSoloDebuff(dir > 0 ? cfg.getSoloDebuff().next() : cfg.getSoloDebuff().previous());
                         cfg.save();
-                        btn.setMessage(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label));
+                        btn.setMessage(cycleLabel("Solo Priority", cfg.getSoloDebuff().label));
                     }).bounds(contentX, y[0], half, 18).build());
-            toggle(w, colB, y[0], half, "Solo Debuff On All Splits", cfg::isSoloDebuffOnAll, cfg::setSoloDebuffOnAll, cfg);
-            y[0] += 22;
 
             w.add(SettingsButtonWidget.cycling(cycleLabel("Your Class", cfg.getClassOverride().label), (btn, dir) -> {
                         cfg.setClassOverride(dir > 0 ? cfg.getClassOverride().next() : cfg.getClassOverride().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Your Class", cfg.getClassOverride().label));
-                    }).bounds(contentX, y[0], half, 18).build());
+                    }).bounds(colB, y[0], half, 18).build());
             y[0] += 24;
         }
 
@@ -165,32 +158,6 @@ public class WitherDragonsTab extends BaseTab {
         }
 
         return w;
-    }
-
-    private static AbstractWidget powerSlider(WitherDragonsConfig cfg, int x, int y, int width, boolean normal) {
-        return new ThemedSliderButton(x, y, width, 18, powerLabel(cfg, normal),
-                (normal ? cfg.getNormalPower() : cfg.getEasyPower()) / 32.0) {
-            @Override
-            protected void updateMessage() {
-                setMessage(powerLabel(cfg, normal));
-            }
-
-            @Override
-            protected void applyValue() {
-                float power = (float) (Math.round(this.value * 64) / 2.0);
-                if (normal) {
-                    cfg.setNormalPower(power);
-                } else {
-                    cfg.setEasyPower(power);
-                }
-                saveOnRelease(() -> cfg.save());
-            }
-        };
-    }
-
-    private static Component powerLabel(WitherDragonsConfig cfg, boolean normal) {
-        float value = normal ? cfg.getNormalPower() : cfg.getEasyPower();
-        return Component.literal(String.format(Locale.US, "%s Power: §6%.1f", normal ? "Normal" : "Easy", value));
     }
 
     private static Component relicTicksLabel(WitherDragonsConfig cfg) {
