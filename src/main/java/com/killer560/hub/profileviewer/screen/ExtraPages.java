@@ -1543,12 +1543,106 @@ final class ExtraPages {
     }
 
 
+    /** The Rift's items, decoded off the render thread once a profile. */
+    private CompletableFuture<RiftInventory> riftInventory(SbProfile p, ProfileExtras.Rift r) {
+        return riftInventories.computeIfAbsent(p, prof -> CompletableFuture.supplyAsync(() -> {
+            JsonObject inv = r.inventory();
+            List<ItemStack> ender = LegacyItems.decodeInventory(inv.get("ender_chest_contents"));
+            List<List<ItemStack>> pages = new ArrayList<>();
+            for (int i = 0; i < ender.size(); i += 45) {
+                pages.add(new ArrayList<>(ender.subList(i, Math.min(ender.size(), i + 45))));
+            }
+            return new RiftInventory(LegacyItems.decodeInventory(inv.get("inv_contents")), LegacyItems.decodeInventory(inv.get("inv_armor")),
+                    LegacyItems.decodeInventory(inv.get("equipment_contents")), pages);
+        }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
+    }
+
+    private ItemStack[] neuRiftIcons;
+
+    /** NEU Classic's Rift page (RiftPage over pv_rift): Motes centered at 45, 16, armor and equipment columns at 27 and 46
+     *  from 64, the pet cell at 35, 156; Timecharms, Vampire (its bar at 320, 71), Burger and Enigma Souls on the right;
+     *  the Inventory / Ender Chest buttons at 156 and 222, 16 over a chest panel centered on 203 (4 rows and the hotbar at
+     *  154, or an Ender Chest page of 5 rows from 91). */
+    private void drawNeuRift(GuiGraphicsExtractor g, SbProfile p, ProfileExtras.Rift r, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (neuRiftIcons == null) {
+            neuRiftIcons = new ItemStack[]{new ItemStack(Items.GLASS), new ItemStack(Items.COOKED_BEEF), new ItemStack(McItems.PURPLE_DYE),
+                    new ItemStack(Items.CHEST), new ItemStack(Items.ENDER_CHEST)};
+        }
+        s.centeredIn(g, "§dMotes: §f" + shorten(r.motes()), l + 3, 84, t + 16, 0xFFFFFFFF);
+        if (hover(mx, my, l + 3, t + 3, 87, 22)) {
+            tip(List.of(line("Lifetime Motes: " + shorten(r.lifetimeMotes()), 0xFFFF55FF)));
+        }
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, l + 35, t + 156, 20, 20);
+        JsonObject tables = ExtraTables.section("rift");
+        int charms = tables.has("trophies") ? tables.getAsJsonArray("trophies").size() : 8;
+        neuAligned(g, "Timecharms:", 0xFFFF5555, r.trophies().size() + "/" + charms, l + 336, t + 39, 83);
+        g.item(neuRiftIcons[0], l + 316, t + 36);
+        LevelTables.Slayer vamp = null;
+        for (LevelTables.Slayer sl : LevelTables.slayers()) {
+            vamp = sl.apiId().equals("vampire") ? sl : vamp;
+        }
+        SbProfile.SlayerStat st = p.slayers.get("vampire");
+        LevelTables.Level lvl = vamp == null ? null : LevelTables.slayerLevel(vamp, st == null ? 0 : st.xp());
+        neuAligned(g, "Vampire", 0xFFFFAA00, String.valueOf(lvl == null ? 0 : lvl.level()), l + 336, t + 61, 60);
+        ScreenChrome.progress(g, l + 320, t + 71, 90, 4, lvl == null ? 0 : lvl.maxed() ? 1 : (float) lvl.progress(), lvl != null && lvl.maxed() ? MAXED : ACCENT);
+        int grub = tables.has("grubber_max") ? tables.get("grubber_max").getAsInt() : 5;
+        neuAligned(g, "Burger:", 0xFFFFAA00, r.grubberStacks() + "/" + grub, l + 331, t + 87, 83);
+        g.item(neuRiftIcons[1], l + 314, t + 84);
+        int souls = tables.has("enigma_souls") ? tables.get("enigma_souls").getAsInt() : 52;
+        neuAligned(g, "Enigma Souls:", 0xFFAA00AA, r.souls().size() + "/" + souls, l + 331, t + 110, 83);
+        g.item(neuRiftIcons[2], l + 314, t + 106);
+        if (r.inventory() == null) {
+            s.centeredIn(g, "Inventory API not enabled!", l, 431, t + 61, 0xFFFF5555);
+            return;
+        }
+        boolean inInv = s.subView != 2;
+        for (int b = 0; b < 2; b++) {
+            final int view = b == 0 ? 0 : 2;
+            int bx = l + (b == 0 ? 156 : 222), by = t + 16;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, inInv == (b == 0) ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, bx, by, 20, 20);
+            g.item(neuRiftIcons[3 + b], bx + 2, by + 2);
+            if (hover(mx, my, bx, by, 20, 20)) {
+                tip(List.of(line(b == 0 ? "Inventory" : "Ender Chest", 0xFFAAAAAA)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(bx, by, 20, 20, () -> s.subView = view));
+        }
+        int rows = inInv ? 4 : 5, h = rows * 18 + 17, x = l + 203 - 88, y = t + 130 - (h + 7) / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y, 0f, 0f, 176, h, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y + h, 0f, 215f, 176, 7, 256, 256);
+        g.text(f(), inInv ? "Inventory" : "Ender Chest", l + 122, t + (inInv ? 88 : 79), 0xFF404040, false);
+        RiftInventory inv = ExtraTables.now(riftInventory(p, r));
+        if (inv == null) {
+            return;
+        }
+        for (int i = 0; i < 4; i++) {
+            s.slotItem(g, l + 26, t + 63 + i * 18, inv.armor().size() == 4 ? inv.armor().get(3 - i) : ItemStack.EMPTY, mx, my);
+            s.slotItem(g, l + 45, t + 63 + i * 18, ProfileViewerScreen.get(inv.equipment(), i), mx, my);
+        }
+        if (inInv) {
+            for (int i = 0; i < 36; i++) {
+                int ix = i < 9 ? l + 123 + i * 18 : x + 8 + (i - 9) % 9 * 18, iy = i < 9 ? t + 154 : y + 18 + (i - 9) / 9 * 18;
+                s.slotItem(g, ix - 1, iy - 1, ProfileViewerScreen.get(inv.inventory(), i), mx, my);
+            }
+        } else if (!inv.enderChest().isEmpty()) {
+            s.pageScroll = Math.max(0, Math.min(s.pageScroll, inv.enderChest().size() - 1));
+            List<ItemStack> page = inv.enderChest().get(s.pageScroll);
+            for (int j = 0; j < page.size(); j++) {
+                s.slotItem(g, x + 7 + j % 9 * 18, t + 90 + j / 9 * 18, page.get(j), mx, my);
+            }
+        }
+    }
+
     private void drawRift(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
         ProfileExtras.Rift r = ex.rift;
         if (!r.present()) {
             center(g, "This profile hasn't visited the Rift.", s.contentX, s.contentW, DIM);
+            return;
+        }
+        if (s.neuPage()) {
+            drawNeuRift(g, p, r, mx, my);
             return;
         }
         int navW = 84;
@@ -1608,16 +1702,7 @@ final class ExtraPages {
             center(g, "Rift inventory API is disabled.", rx, rw, DIM);
             return;
         }
-        CompletableFuture<RiftInventory> inf = riftInventories.computeIfAbsent(p, prof -> CompletableFuture.supplyAsync(() -> {
-            JsonObject inv = r.inventory();
-            List<ItemStack> ender = LegacyItems.decodeInventory(inv.get("ender_chest_contents"));
-            List<List<ItemStack>> pages = new ArrayList<>();
-            for (int i = 0; i < ender.size(); i += 45) {
-                pages.add(new ArrayList<>(ender.subList(i, Math.min(ender.size(), i + 45))));
-            }
-            return new RiftInventory(LegacyItems.decodeInventory(inv.get("inv_contents")), LegacyItems.decodeInventory(inv.get("inv_armor")),
-                    LegacyItems.decodeInventory(inv.get("equipment_contents")), pages);
-        }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
+        CompletableFuture<RiftInventory> inf = riftInventory(p, r);
         RiftInventory inv = ExtraTables.now(inf);
         if (inv == null) {
             center(g, inf.isDone() ? "Couldn't decode the Rift items." : "Decoding items" + s.dots(), rx, rw, inf.isDone() ? BAD : VALUE);
