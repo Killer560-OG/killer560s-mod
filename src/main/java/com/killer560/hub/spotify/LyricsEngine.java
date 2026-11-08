@@ -1041,6 +1041,8 @@ public final class LyricsEngine {
     /** What lrclib gave for one track: every version with synced lines, and the first listing's length (0 = unknown). */
     private record Fetched(List<Candidate> candidates, double durationSeconds) {
         static final Fetched NOTHING = new Fetched(List.of(), 0);
+        /** No answer at all (refused, timed out): asking again or by other names would fail the same way. */
+        static final Fetched UNREACHABLE = new Fetched(List.of(), 0);
     }
 
     public NowPlaying lastNowPlaying() { return lastNowPlaying; }
@@ -1069,8 +1071,8 @@ public final class LyricsEngine {
     /**
      * lrclib by artist and title, then (only while nothing of this song is found) by title alone and by a free-text
      * "artist title" query: its artist search misses listings whose artist is spelled differently or carries a feature,
-     * and {@link #chooseFrom} still requires the title, the artist and the length. A busy or failed answer (HTTP 429, 5xx,
-     * no answer) is asked again after 1 s and 3 s while the track is still playing; it lost whole songs during fast
+     * and {@link #chooseFrom} still requires the title, the artist and the length. A busy answer (HTTP 429, 5xx) is asked
+     * again after 1 s and 3 s while the track is still playing (no answer at all ends the lookup); it lost whole songs during fast
      * skipping (his 11-06 log: "HTTP 429").
      */
     private Fetched lookUp(String forTrackKey, String artist, String title) {
@@ -1086,6 +1088,7 @@ public final class LyricsEngine {
                 if (attempt > 0 && !waitWhileCurrent(forTrackKey, attempt == 1 ? 1000 : 3000)) return Fetched.NOTHING;
                 f = fetchLyrics(LRCLIB_URL + q, artist, title);
             }
+            if (f == Fetched.UNREACHABLE) break;
             if (f == null) continue;
             if (duration == 0) duration = f.durationSeconds();
             for (Candidate c : f.candidates()) {
@@ -1149,7 +1152,7 @@ public final class LyricsEngine {
     /** Test hook: answers an lrclib search instead of the network (null answer = HTTP 429). */
     static volatile java.util.function.Function<String, String> testLrclib;
 
-    /** One lrclib search; null when it should be asked again (busy, server error, no answer). */
+    /** One lrclib search; null when it should be asked again (busy, server error), UNREACHABLE with no answer. */
     private Fetched fetchLyrics(String url, String artist, String title) {
         try {
             java.util.function.Function<String, String> fake = testLrclib;
@@ -1204,7 +1207,7 @@ public final class LyricsEngine {
             return new Fetched(List.copyOf(exact), duration);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("lrclib search threw for artist='{}' title='{}': {}", artist, title, e.toString());
-            return null;
+            return Fetched.UNREACHABLE;
         }
     }
 
