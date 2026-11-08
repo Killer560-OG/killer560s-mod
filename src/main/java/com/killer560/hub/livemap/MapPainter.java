@@ -565,7 +565,7 @@ public final class MapPainter {
      * 0xFFFFAA00) are the two outlines it was always drawn with, one on the edge and one just outside.
      */
     static void witherDoorOutline(Outliner out, int x0, int y0, int x1, int y1, LiveMapConfig cfg) {
-        int color = cfg.getWitherDoorOutlineColor();
+        int color = cfg.drawnWitherDoorOutlineColor();
         for (int ring = cfg.getWitherDoorOutlineThickness() - 1; ring >= 0; ring--) {
             out.outline(x0 - ring, y0 - ring, x1 - x0 + 2 * ring, y1 - y0 + 2 * ring, color);
         }

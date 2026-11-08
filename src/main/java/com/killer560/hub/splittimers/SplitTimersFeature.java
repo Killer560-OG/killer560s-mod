@@ -17,7 +17,9 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
@@ -552,7 +554,55 @@ public final class SplitTimersFeature {
         private static final int SPLIT_COLUMN_WIDTH = 160;
 
         /** One drawn line: its text and where it goes, relative to the element's top-left. */
-        private record Line(String text, int dx, int dy) {
+        private record Line(String text, int dx, int dy, String time, int timeDx, int timeW) {
+            Line(String text, int dx, int dy) {
+                this(text, dx, dy, null, 0, 0);
+            }
+        }
+
+        /** A "name§f: time" row split once and measured once (killer560, 2026-11-08: names in one column on the left, times
+         *  in one column pushed right). Keyed by the row text, so a finished row costs one lookup a frame; bounded. */
+        private record Parts(String name, String time, int nameW, int timeW) {
+        }
+
+        private static final Map<String, Parts> PARTS = new HashMap<>();
+        private static final String NAME_TIME_SEP = "§f: ";
+        private static final int TIME_GAP = 6;
+
+        private static Parts parts(String text) {
+            Parts p = PARTS.get(text);
+            if (p == null) {
+                int i = text.indexOf(NAME_TIME_SEP);
+                net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+                String name = i < 0 ? text : text.substring(0, i);
+                String time = i < 0 ? null : text.substring(i + NAME_TIME_SEP.length());
+                p = new Parts(name, time, font.width(name), time == null ? 0 : font.width(time));
+                if (PARTS.size() > 96) PARTS.clear();
+                PARTS.put(text, p);
+            }
+            return p;
+        }
+
+        /** Adds {@code texts} down from {@code y} at {@code dx}: names left-aligned in one column, times right-aligned in
+         *  one column (widest name + a gap + widest time). Rows with no "name: time" shape draw as they are. Returns the
+         *  next y. */
+        private static int addAligned(List<Line> out, List<String> texts, int dx, int y) {
+            int nameW = 0;
+            int timeW = 0;
+            for (String t : texts) {
+                Parts p = parts(t);
+                if (p.time() != null) {
+                    nameW = Math.max(nameW, p.nameW());
+                    timeW = Math.max(timeW, p.timeW());
+                }
+            }
+            for (String t : texts) {
+                Parts p = parts(t);
+                out.add(p.time() == null ? new Line(t, dx, y)
+                        : new Line(p.name(), dx, y, p.time(), dx + nameW + TIME_GAP + timeW - p.timeW(), p.timeW()));
+                y += ROW_HEIGHT;
+            }
+            return y;
         }
 
         private static boolean inEditor() {
@@ -591,28 +641,14 @@ public final class SplitTimersFeature {
             int lineY = 0;
             if (!SplitTimersConfig.getInstance().isEnabled()) {
                 // Core Entry on its own (Show With Splits Off): its rows alone, where the splits would start.
-                for (String line : coreLines()) {
-                    out.add(new Line(line, 0, lineY));
-                    lineY += ROW_HEIGHT;
-                }
-                for (String line : slowestCoreLine()) {
-                    out.add(new Line(line, 0, lineY));
-                    lineY += ROW_HEIGHT;
-                }
+                addAligned(out, coreAndSlowest(), 0, lineY);
                 return out;
             }
             List<String> rows = editor ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
-            for (String row : rows) {
-                out.add(new Line(row, 0, lineY));
-                lineY += ROW_HEIGHT;
-            }
+            lineY = addAligned(out, rows, 0, lineY);
             boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
             int p5X = right ? SPLIT_COLUMN_WIDTH : 0;
-            int p5Y = right ? 0 : lineY;
-            for (String line : p5Lines()) {
-                out.add(new Line(line, p5X, p5Y));
-                p5Y += ROW_HEIGHT;
-            }
+            int p5Y = addAligned(out, p5Lines(), p5X, right ? 0 : lineY);
             int extraY = right ? lineY : p5Y;
             List<String> cores = coreLines();
             if ((!cores.isEmpty() || !slowestCoreLine().isEmpty()) && !rows.isEmpty()) {
@@ -621,15 +657,16 @@ public final class SplitTimersFeature {
                 out.add(new Line(DIVIDER_TEXT, 0, extraY));
                 extraY += ROW_HEIGHT;
             }
-            for (String line : cores) {
-                out.add(new Line(line, 0, extraY));
-                extraY += ROW_HEIGHT;
-            }
-            for (String line : slowestCoreLine()) {
-                out.add(new Line(line, 0, extraY));
-                extraY += ROW_HEIGHT;
-            }
+            addAligned(out, coreAndSlowest(), 0, extraY);
             return out;
+        }
+
+        private static List<String> coreAndSlowest() {
+            List<String> slow = slowestCoreLine();
+            if (slow.isEmpty()) return coreLines();
+            List<String> all = new ArrayList<>(coreLines());
+            all.addAll(slow);
+            return all;
         }
 
         @Override
@@ -637,7 +674,7 @@ public final class SplitTimersFeature {
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
             int w = 0;
             for (Line line : layout()) {
-                w = Math.max(w, line.dx() + font.width(line.text()));
+                w = Math.max(w, line.time() != null ? line.timeDx() + line.timeW() : line.dx() + font.width(line.text()));
             }
             return Math.max(20, w);
         }
@@ -755,6 +792,9 @@ public final class SplitTimersFeature {
             List<Line> lines = layout();
             for (Line line : lines) {
                 graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);
+                if (line.time() != null) {
+                    graphics.text(Minecraft.getInstance().font, line.time(), x + line.timeDx(), y + line.dy(), 0xFFFFFFFF, false);
+                }
             }
             if (!lines.isEmpty()) {
                 HudSeen.markDrawn(id());
