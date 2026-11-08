@@ -1152,6 +1152,94 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** SkyBlockPV's label: its title bar (w - 10 wide, 20 high, the title centered over w) over a box {@code inner} + 0
      *  high; returns the y of the box's first content line (7 in). */
+    private static final String[] SBPV_CLASSES = {"healer", "mage", "berserk", "archer", "tank"},
+            SBPV_BOSSES = {"Bonzo", "Scarf", "Prof.", "Thorn", "Livid", "Sadan", "Necron"};
+    private SbProfile.DungeonStats sbpvDunFor;
+    private String[] sbpvDunInfo, sbpvDunLevels;
+    private float[] sbpvDunDone;
+    private String[][] sbpvDunRuns;
+    private int[] sbpvDunCols;
+
+    /** SkyBlockPV's DungeonScreen: Dungeon Info, Dungeon Levels (Catacombs and the five classes, each with its bar, the
+     *  selected class dark green) and Dungeon Runs (boss, Cata, Master completions, then Total), side by side 5 apart and
+     *  centered, each label its content plus 20 a side; stacked when they do not fit. The text is built once a profile. */
+    private void drawSbpvDungeons(GuiGraphicsExtractor g, SbProfile.DungeonStats d) {
+        if (sbpvDunFor != d) {
+            sbpvDunFor = d;
+            sbpvDunLevels = new String[6];
+            sbpvDunDone = new float[6];
+            LevelTables.Level cata = LevelTables.catacombsLevel(d.catacombsXp(), true);
+            sbpvDunLevels[0] = "Catacombs: " + cata.level();
+            sbpvDunDone[0] = cata.level() >= 50 ? 1 : (float) cata.progress();
+            double sum = 0;
+            for (int i = 0; i < 5; i++) {
+                LevelTables.Level l = LevelTables.catacombsLevel(d.classXp().getOrDefault(SBPV_CLASSES[i], 0L), false);
+                sum += Math.min(50, l.level());
+                sbpvDunLevels[i + 1] = SbProfile.titleCase(SBPV_CLASSES[i]) + ": " + l.level();
+                sbpvDunDone[i + 1] = l.maxed() || l.level() >= 50 ? 1 : (float) l.progress();
+            }
+            sbpvDunInfo = new String[] {"Class Average: " + String.format(Locale.ROOT, "%.2f", sum / 5), "Secrets: " + commas(d.secrets()),
+                    "Secrets/Run: " + String.format(Locale.ROOT, "%.2f", d.totalRuns() == 0 ? 0 : (double) d.secrets() / d.totalRuns())};
+            sbpvDunRuns = new String[9][];
+            sbpvDunRuns[0] = new String[] {"", "Cata", "Master"};
+            long cTotal = 0, mTotal = 0;
+            for (int f = 1; f <= 7; f++) {
+                SbProfile.Floor n = d.normal().get(f), m = d.master().get(f);
+                long c = n == null ? 0 : n.completions(), mc = m == null ? 0 : m.completions();
+                cTotal += c;
+                mTotal += mc;
+                sbpvDunRuns[f] = new String[] {SBPV_BOSSES[f - 1], commas(c), commas(mc)};
+            }
+            sbpvDunRuns[8] = new String[] {"Total", commas(cTotal), commas(mTotal)};
+            sbpvDunCols = new int[3];
+            for (String[] row : sbpvDunRuns) {
+                for (int c = 0; c < 3; c++) {
+                    sbpvDunCols[c] = Math.max(sbpvDunCols[c], this.font.width(row[c]));
+                }
+            }
+        }
+        int text = PvStyleChrome.sbpvText(pvStyle), infoW = 0, levW = 91, runW = sbpvDunCols[0] + sbpvDunCols[1] + sbpvDunCols[2] + 20;
+        for (String line : sbpvDunInfo) {
+            infoW = Math.max(infoW, this.font.width(line));
+        }
+        for (String line : sbpvDunLevels) {
+            levW = Math.max(levW, this.font.width(line));
+        }
+        boolean row = infoW + levW + runW + 120 + 10 <= panelW;
+        int x = row ? panelX + (panelW - infoW - levW - runW - 130) / 2 : 0, y = contentY;
+        int lx = row ? x : panelX + (panelW - infoW - 40) / 2;
+        int cy = sbpvLabel(g, "Dungeon Info", lx, y, infoW + 50, 7 + 3 * 11 - 2 + 7, text);
+        for (String line : sbpvDunInfo) {
+            cy = sbpvLine(g, line, lx + 20, cy, infoW, text);
+        }
+        if (row) {
+            x += infoW + 45;
+        } else {
+            y = cy + 10;
+        }
+        lx = row ? x : panelX + (panelW - levW - 40) / 2;
+        cy = sbpvLabel(g, "Dungeon Levels", lx, y, levW + 50, 7 + 6 * 15 + 5 * 5 + 7, text);
+        for (int i = 0; i < 6; i++) {
+            boolean sel = i > 0 && SBPV_CLASSES[i - 1].equals(d.selectedClass());
+            g.text(this.font, sbpvDunLevels[i], lx + 20, cy, i == 0 ? text : sel ? 0xFF00AA00 : 0xFF555555, false);
+            PvStyleChrome.bar(g, lx + 20, cy + 10, sbpvDunDone[i]);
+            cy += 20;
+        }
+        if (row) {
+            x += levW + 45;
+        } else {
+            y = cy + 7;
+        }
+        lx = row ? x : panelX + (panelW - runW - 40) / 2;
+        cy = sbpvLabel(g, "Dungeon Runs", lx, y, runW + 50, 7 + 9 * 11 - 2 + 7, text);
+        for (String[] r : sbpvDunRuns) {
+            for (int c = 0, cx = lx + 20; c < 3; cx += sbpvDunCols[c++] + 10) {
+                g.text(this.font, r[c], cx, cy, 0xFF555555, false);
+            }
+            cy += 11;
+        }
+    }
+
     private int sbpvLabel(GuiGraphicsExtractor g, String title, int x, int y, int w, int inner, int text) {
         PvStyleChrome.title(g, pvStyle, x, y, w - 10, 20);
         g.text(this.font, title, x + (w - this.font.width(title)) / 2, y + 6, text, false);
@@ -1388,6 +1476,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         SbProfile.DungeonStats d = p.dungeons;
         if (neuPage()) {
             drawNeuDungeons(g, d, mx, my);
+            return;
+        }
+        if (sbpvStyle()) {
+            drawSbpvDungeons(g, d);
             return;
         }
         int leftW = 170;
