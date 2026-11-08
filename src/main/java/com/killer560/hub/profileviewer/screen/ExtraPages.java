@@ -1762,6 +1762,117 @@ final class ExtraPages {
             "MELON", "Melon");
     private static final List<String> MEDALS = List.of("diamond", "platinum", "gold", "silver", "bronze");
 
+    /** GardenPage's CropType order (API names), NEU-REPO's plots (id and x * 5 + y), visitor rarities and compost rows. */
+    private static final String[] NEU_CROPS = {"WHEAT", "NETHER_STALK", "SUGAR_CANE", "CARROT_ITEM", "POTATO_ITEM", "INK_SACK:3", "PUMPKIN",
+            "MELON", "CACTUS", "MUSHROOM_COLLECTION"},
+            NEU_CROP_NAMES = {"Wheat", "Nether Wart", "Sugar Cane", "Carrot", "Potato", "Cocoa Beans", "Pumpkin", "Melon", "Cactus", "Mushroom"},
+            NEU_PLOTS = {"beginner_1","beginner_2","beginner_3","beginner_4","intermediate_1","intermediate_2","intermediate_3","intermediate_4","advanced_1","advanced_2","advanced_3","advanced_4","advanced_5","advanced_6","advanced_7","advanced_8","advanced_9","advanced_10","advanced_11","advanced_12","expert_1","expert_2","expert_3","expert_4"},
+            NEU_RARITIES = {"§aUncommon", "§9Rare", "§6Legendary", "§dMythic", "§cSpecial", "§7Total"},
+            NEU_COMPOST = {"speed", "multi_drop", "fuel_cap", "organic_matter_cap", "cost_reduction"},
+            NEU_COMPOST_NAMES = {"§aSpeed", "§aMulti Drop", "§aFuel Cap", "§aOrganic Matter Cap", "§aCost Reduction"};
+    private static final int[] NEU_PLOT_AT = {7, 11, 13, 17, 6, 8, 16, 18, 1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23, 0, 4, 20, 24};
+    private ItemStack[] neuGardenIcons;
+    private JsonObject neuGardenFor;
+    private final String[][] neuGardenText = new String[2][10];
+    private final long[][] neuGardenHave = new long[2][10];
+    private final String[] neuVisitorText = new String[7], neuCompostText = new String[5];
+    private final boolean[] neuPlotOpen = new boolean[NEU_PLOTS.length];
+    private LevelTables.Level neuGardenLevel;
+    private String neuGardenLevelText, neuCopperText;
+
+    /** NEU Classic's Garden page (GardenPage over garden/background) for Farming: Crop Milestones from 26, 10 and Crop
+     *  Upgrades from 26, 105 (two columns of five, 70 apart, 14 down), the garden level at 206, 20 with Copper and Farming
+     *  Weight under it, the 5 x 5 plots (22 apart) at 192, 79 with the barn in the middle, Visitors at 322, 17 and Compost
+     *  Upgrades at 322, 122. Everything it shows is worked out once a garden. */
+    private void drawNeuGarden(GuiGraphicsExtractor g, ProfileExtras.Farming fa, JsonObject garden, JsonObject tables, boolean done, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (garden == null) {
+            s.centeredIn(g, done ? "§cMissing Profile Data" : "§eLoading Data", l + 170, 100, t + 97, 0xFFFFFFFF);
+            return;
+        }
+        if (neuGardenIcons == null) {
+            neuGardenIcons = new ItemStack[NEU_CROPS.length + 3];
+            for (int i = 0; i < NEU_CROPS.length; i++) {
+                neuGardenIcons[i] = ItemIcons.forId(NEU_CROPS[i]);
+            }
+            neuGardenIcons[10] = new ItemStack(Items.GRASS_BLOCK);
+            neuGardenIcons[11] = new ItemStack(Items.BARRIER);
+            neuGardenIcons[12] = new ItemStack(Items.OAK_PLANKS);
+        }
+        if (neuGardenFor != garden) {
+            neuGardenFor = garden;
+            JsonObject milestones = tables.has("crop_milestones") ? tables.getAsJsonObject("crop_milestones") : new JsonObject();
+            for (int part = 0; part < 2; part++) {
+                JsonObject src = SbProfile.asObj(garden.get(part == 0 ? "resources_collected" : "crop_upgrade_levels"));
+                for (int i = 0; i < 10; i++) {
+                    long have = src == null ? 0 : (long) SbProfile.num(src.get(NEU_CROPS[i]));
+                    neuGardenHave[part][i] = have;
+                    neuGardenText[part][i] = String.valueOf(part == 1 ? have : thresholdLevel(ExtraTables.tableCumulative(milestones.get(NEU_CROPS[i])), have).level());
+                }
+            }
+            neuGardenLevel = thresholdLevel(ExtraTables.tableCumulative(tables.get("garden_level")), (long) SbProfile.num(garden.get("garden_experience")));
+            neuGardenLevelText = "§aGarden Level " + neuGardenLevel.level();
+            neuCopperText = commas(fa.copper());
+            List<String> unlocked = ExtraTables.tableStrings(garden.get("unlocked_plots_ids"));
+            for (int i = 0; i < NEU_PLOTS.length; i++) {
+                neuPlotOpen[i] = unlocked.contains(NEU_PLOTS[i]);
+            }
+            JsonObject comm = SbProfile.asObj(garden.get("commission_data"));
+            JsonObject rarity = tables.has("neu_visitors") ? tables.getAsJsonObject("neu_visitors") : new JsonObject();
+            long[][] counts = new long[2][6];
+            for (int k = 0; k < 2; k++) {
+                JsonObject per = comm == null ? null : SbProfile.asObj(comm.get(k == 0 ? "visits" : "completed"));
+                for (Map.Entry<String, JsonElement> e : per == null ? java.util.Set.<Map.Entry<String, JsonElement>>of() : per.entrySet()) {
+                    int r = rarity.has(e.getKey()) ? "URLMS".indexOf(rarity.get(e.getKey()).getAsString()) : -1;
+                    if (r >= 0) {
+                        counts[k][r] += (long) SbProfile.num(e.getValue());
+                        counts[k][5] += (long) SbProfile.num(e.getValue());
+                    }
+                }
+            }
+            neuVisitorText[6] = commas(comm == null ? 0 : SbProfile.num(comm.get("unique_npcs_served"))) + "/" + rarity.size();
+            for (int r = 0; r < 6; r++) {
+                neuVisitorText[r] = commas(counts[1][r]) + "/" + commas(counts[0][r]);
+            }
+            JsonObject comp = SbProfile.asObj(garden.get("composter_data"));
+            JsonObject up = comp == null ? null : SbProfile.asObj(comp.get("upgrades"));
+            for (int i = 0; i < 5; i++) {
+                neuCompostText[i] = up == null ? null : String.valueOf((long) SbProfile.num(up.get(NEU_COMPOST[i])));
+            }
+        }
+        for (int part = 0; part < 2; part++) {
+            int top = t + (part == 0 ? 10 : 105);
+            s.centeredIn(g, part == 0 ? "§eCrop Milestones" : "§eCrop Upgrades", l + 44, 105, top + 5, 0xFFFFFFFF);
+            for (int i = 0; i < 10; i++) {
+                int x = l + 26 + (i / 5) * 70, y = top + 14 * (i % 5 + 1);
+                g.item(neuGardenIcons[i], x + 2, y);
+                neuAligned(g, "§e" + NEU_CROP_NAMES[i], 0xFFFFFFFF, neuGardenText[part][i], x + 20, y + 5, 50);
+                if (hover(mx, my, x + 20, y, 50, 14)) {
+                    tip(List.of(line(NEU_CROP_NAMES[i], 0xFF55FF55), line((part == 0 ? "Collected: " : "Tier: ") + commas(neuGardenHave[part][i]), 0xFFAAAAAA)));
+                }
+            }
+        }
+        g.item(neuGardenIcons[10], l + 206, t + 14);
+        s.centeredIn(g, neuGardenLevelText, l + 226, 80, t + 18, 0xFFFFFFFF);
+        ScreenChrome.progress(g, l + 206, t + 30, 80, 4, neuGardenLevel.maxed() ? 1 : (float) neuGardenLevel.progress(), neuGardenLevel.maxed() ? MAXED : ACCENT);
+        neuAligned(g, "§cCopper", 0xFFFFFFFF, neuCopperText, l + 206, t + 40, 80);
+        neuAligned(g, "§eFarming Weight", 0xFFFFFFFF, "-", l + 201, t + 51, 90);
+        for (int i = 0; i <= NEU_PLOTS.length; i++) {
+            int at = i < NEU_PLOTS.length ? NEU_PLOT_AT[i] : 12, x = l + 192 + at / 5 * 22, y = t + 79 + at % 5 * 22;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            g.item(neuGardenIcons[i == NEU_PLOTS.length ? 12 : neuPlotOpen[i] ? 10 : 11], x + 2, y + 2);
+        }
+        s.centeredIn(g, "§eVisitors", l + 322, 80, t + 15, 0xFFFFFFFF);
+        neuAligned(g, "§eUnique Visitors", 0xFFFFFFFF, neuVisitorText[6], l + 322, t + 27, 80);
+        for (int r = 0; r < 6; r++) {
+            neuAligned(g, NEU_RARITIES[r], 0xFFFFFFFF, neuVisitorText[r], l + 322, t + 37 + 12 * r, 80);
+        }
+        s.centeredIn(g, "§eCompost Upgrades", l + 322, 80, t + 120, 0xFFFFFFFF);
+        for (int i = 0; i < 5 && neuCompostText[i] != null; i++) {
+            neuAligned(g, NEU_COMPOST_NAMES[i], 0xFFFFFFFF, neuCompostText[i], l + 322, t + 134 + 12 * i, 80);
+        }
+    }
+
     private void drawFarming(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
@@ -1769,6 +1880,10 @@ final class ExtraPages {
         JsonObject gardenTables = ExtraTables.section("garden");
         CompletableFuture<ProfileViewerApi.AuxResult> gf = aux(ProfileViewerApi.AuxKind.GARDEN, p.profileId);
         JsonObject garden = gf.isDone() && !gf.isCompletedExceptionally() && gf.getNow(null) != null ? gf.getNow(null).data() : null;
+        if (s.neuPage()) {
+            drawNeuGarden(g, fa, garden, gardenTables, gf.isDone(), mx, my);
+            return;
+        }
 
         int lw = 150;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);

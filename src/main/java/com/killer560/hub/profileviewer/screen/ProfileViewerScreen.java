@@ -718,6 +718,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 case PAGE_MUSEUM -> PvStyleChrome.NEU_MUSEUM;
                 case PAGE_BESTIARY -> PvStyleChrome.NEU_BESTIARY;
                 case PAGE_RIFT -> PvStyleChrome.NEU_RIFT;
+                case PAGE_FARMING -> PvStyleChrome.NEU_GARDEN;
                 default -> null;
             };
             if (over != null) {
@@ -2228,10 +2229,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** The pages NEU Classic draws in NEU's own layout, as bits of the page number. */
     private static final int NEU_PAGES = 1 << PAGE_BASIC | 1 << PAGE_DUNGEONS | 1 << PAGE_INVENTORIES | 1 << PAGE_PETS
-            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON | 1 << PAGE_MUSEUM | 1 << PAGE_BESTIARY | 1 << PAGE_RIFT;
+            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON | 1 << PAGE_MUSEUM | 1 << PAGE_BESTIARY | 1 << PAGE_RIFT | 1 << PAGE_FARMING;
 
     /** NEU Classic's pages in NEU's own layout (its page textures pv_basic, pv_dung, pv_invs, pv_pets, pv_cols,
-     *  pv_crimson_isle_page, pv_museum, pv_bestiary_tab, pv_rift paint the boxes; Mining is plain pv_bg). */
+     *  pv_crimson_isle_page, pv_museum, pv_bestiary_tab, pv_rift, garden/background paint the boxes; Mining is plain pv_bg). */
     boolean neuPage() {
         return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= 0 && (NEU_PAGES >> page & 1) != 0;
     }
