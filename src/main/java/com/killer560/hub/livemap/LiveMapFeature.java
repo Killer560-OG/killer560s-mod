@@ -1637,7 +1637,7 @@ public final class LiveMapFeature {
             int w = mapPx();
             int h = extraInfoHeight(lines);
             // Inside the map's frame, which paintMap draws round both parts: leave its sides and bottom edge alone.
-            int edge = (cfg.getMapBorderColor() >>> 24) != 0 ? 1 : 0;
+            int edge = (cfg.drawnBorderColor() >>> 24) != 0 ? 1 : 0;
             graphics.fill(x + edge, y, x + w - edge, y + h - edge, cfg.getMapBackground());
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
             float s = extraDrawScale(lines);
@@ -1699,7 +1699,7 @@ public final class LiveMapFeature {
                 if (!lines.isEmpty()) {
                     int ey = y + mapPx();
                     MapDrawCache.Key k = MapDrawCache.frameKey(EXTRA_KEY.begin(), graphics);
-                    k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
+                    k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.drawnBorderColor())
                             .add(cfg.isTextShadow()).add(extraTextScale()).ref(lines);
                     paintGraphics = graphics;
                     paintX = x;
@@ -1824,11 +1824,11 @@ public final class LiveMapFeature {
                 k.add(c);
             }
             k.add(cfg.getDarkenUnopened()).add(MapPainter.standingTile())
-                    .add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
+                    .add(cfg.getMapBackground()).add(cfg.drawnBorderColor())
                     .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
                     .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())
                     .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx())
-                    .add(cfg.isWitherDoorOutline()).add(cfg.getWitherDoorOutlineColor())
+                    .add(cfg.isWitherDoorOutline()).add(cfg.drawnWitherDoorOutlineColor())
                     .add(cfg.getWitherDoorOutlineThickness())
                     .add(extraInfoLines().size()); // the frame wraps the Extra Info rows too
             com.killer560.hub.livemap.predict.PredictiveRoomsConfig pc =
@@ -1927,7 +1927,7 @@ public final class LiveMapFeature {
                                      DungeonLayout layout, float ox, float oy, float ppu) {
             int size = mapPx();
             graphics.fill(x, y, x + size, y + size, cfg.getMapBackground());
-            int border = cfg.getMapBorderColor();
+            int border = cfg.drawnBorderColor();
             if ((border >>> 24) != 0) {
                 // One frame round the map AND the Extra Info under it, as NoammAddons draws them (renderBackground: one
                 // 128x140 box), not a box with a second strip hanging off it.

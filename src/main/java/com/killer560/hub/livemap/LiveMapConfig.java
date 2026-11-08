@@ -583,6 +583,19 @@ public final class LiveMapConfig {
         this.mapBackground = v;
     }
 
+    /** The border as drawn: the untouched default (white; also the old orange) follows the menu theme's accent, a color the
+     *  player picked stays (killer560, 2026-11-08: the map outline was not following the theme). Amber keeps the default. */
+    public int drawnBorderColor() {
+        return mapBorderColor == DEFAULT_MAP_BORDER && com.killer560.hub.gui.ThemeAccent.themed() != null
+                ? com.killer560.hub.gui.ThemeAccent.accent(0xFFCC6600) : mapBorderColor;
+    }
+
+    /** The Wither Door Outline as drawn: the default amber follows the theme, a picked color stays. */
+    public int drawnWitherDoorOutlineColor() {
+        return witherDoorOutlineColor == DEFAULT_WITHER_DOOR_OUTLINE_COLOR
+                ? com.killer560.hub.gui.ThemeAccent.light(DEFAULT_WITHER_DOOR_OUTLINE_COLOR) : witherDoorOutlineColor;
+    }
+
     public int getMapBorderColor() {
         return mapBorderColor;
     }
