@@ -101,6 +101,7 @@ project CLAUDE.md. Compiling lessons
 
 ## Bazaar and Croesus
 
+- **Attribute shards in a Croesus chest screen all carry the one custom id `ATTRIBUTE_SHARD`** (croesus1108, killer560: "it isnt tracking shards in chests"), so `DungeonChestValuer.priceStack` priced them as nothing; the name decides now ("X Shard", optional "xN", else the stack count) and the Bazaar id is `SHARD_<NAME>` (checked against NEU attribute_shards.json: 307 of 325 match, the odd ones are not dungeon drops). Testkit 1108-menu-croesus-shards.
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
