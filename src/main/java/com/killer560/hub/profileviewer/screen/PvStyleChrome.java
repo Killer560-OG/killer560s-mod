@@ -64,7 +64,7 @@ final class PvStyleChrome {
     static final Identifier NEU_INVS = id("neu/pv_invs"), NEU_INV_TAB = id("neu/inv_tab"), NEU_INV_TAB_ON = id("neu/inv_tab_on"),
             NEU_PET_SEL = id("neu/pet_sel"), NEU_PETS = id("neu/pv_pets"),
             NEU_COLS = id("neu/pv_cols"), NEU_CRIMSON = id("neu/pv_crimson"),
-            NEU_MUSEUM = id("neu/pv_museum");
+            NEU_MUSEUM = id("neu/pv_museum"), NEU_BESTIARY = id("neu/pv_bestiary");
     /** NEU's boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
     static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108}, NEU_BASIC_STATS = {128, 49, 89, 95}, NEU_BASIC_SKILLS = {232, 15, 181, 172};
     static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},

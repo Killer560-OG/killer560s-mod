@@ -858,6 +858,10 @@ final class ExtraPages {
         if (bestiaryStatsEx != ex || bestiaryStatsCats != cats) {
             computeBestiaryStats(ex, cats);
         }
+        if (s.neuPage()) {
+            drawNeuBestiary(g, ex, cats, mx, my);
+            return;
+        }
         int totalTiers = bestiaryTotalTiers;
         int maxed = bestiaryMaxed;
         int families = bestiaryFamilies;
@@ -924,6 +928,54 @@ final class ExtraPages {
             }
         }
         scrollbar(g, rx + rw - 5, top, visible * cell, rows, visible);
+    }
+
+    private final Map<ExtraTables.BestiaryCategory, ItemStack> categoryIcons = new IdentityHashMap<>();
+
+    /** NEU Classic's Bestiary page (BestiaryPage over pv_bestiary_tab): the category cells spread over 350 px from 30, 10,
+     *  the families 9 a row in the left 240 px (cells 26 apart from 29, 37 apart from 47, the tier centered under each),
+     *  and Milestone, Families Found and Families Completed with their bars from 280, 50 on the right (110 wide). */
+    private void drawNeuBestiary(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.BestiaryCategory> cats, int mx, int my) {
+        int l = s.panelX, t = s.panelY, n = cats.size(), step = (int) (350f / (n - 1 + 0.0000001f));
+        s.subView = Math.max(0, Math.min(s.subView, n - 1));
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
+            ExtraTables.BestiaryCategory c = cats.get(i);
+            int cx = l + 30 + step * i, cy = t + 10;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, i == s.subView ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(categoryIcons.computeIfAbsent(c, k -> k.texture() != null ? LegacyItems.skull(k.texture(), null) : ItemIcons.forItem(k.icon())), cx + 2, cy + 2);
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(c.name(), 0xFFAAAAAA)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> s.subView = idx));
+        }
+        neuAligned(g, "Milestone: ", 0xFFFF5555, "§7" + bestiaryTotalTiers / 10.0, l + 280, t + 50, 110);
+        ExtraTables.BestiaryCategory cat = cats.get(s.subView);
+        int total = cat.families().size(), found = 0, done = 0;
+        for (int i = 0; i < total; i++) {
+            ExtraTables.BestiaryFamily fam = cat.families().get(i);
+            long k = familyKills(ex, fam);
+            int[] tiers = fam.tiers();
+            int tier = countAtOrBelow(tiers, k);
+            boolean maxed = tiers.length > 0 && tier >= tiers.length;
+            found += k > 0 ? 1 : 0;
+            done += maxed ? 1 : 0;
+            if (i >= 45) {
+                continue;
+            }
+            int x = l + 29 + 26 * (i % 9), y = t + 47 + 37 * (i / 9);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            g.item(familyIcon(fam), x + 2, y + 2);
+            s.centeredIn(g, String.valueOf(tier), x, 20, y + 26, maxed ? 0xFFFFAA00 : 0xFF808080);
+            if (hover(mx, my, x + 2, y + 2, 16, 16)) {
+                tip(List.of(line(fam.name() + " " + tier, 0xFFAAAAAA), line("Kills: " + commas(k), 0xFF55FF55),
+                        line("Tier: " + tier + " / " + tiers.length, 0xFFAAAAAA)));
+            }
+        }
+        neuAligned(g, "Families Found:", 0xFFFF5555, (found == total ? "§6" : "§7") + found + "/" + total, l + 280, t + 70, 110);
+        ScreenChrome.progress(g, l + 280, t + 80, 112, 4, total == 0 ? 0 : found / (float) total, found == total ? MAXED : ACCENT);
+        neuAligned(g, "Families Completed:", 0xFFFF5555, (done == total ? "§6" : "§7") + done + "/" + total, l + 280, t + 90, 110);
+        ScreenChrome.progress(g, l + 280, t + 100, 112, 4, total == 0 ? 0 : done / (float) total, done == total ? MAXED : ACCENT);
     }
 
     private static long familyKills(ProfileExtras ex, ExtraTables.BestiaryFamily fam) {
