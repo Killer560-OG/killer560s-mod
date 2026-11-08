@@ -266,18 +266,27 @@ public final class ArmorHudFeature {
 
     /** A loadout swap: show what that loadout wore the last time a menu showed its equipment. */
     private static void followLoadout() {
-        int n = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.lastEquippedLoadout();
-        if (n == loadoutSeen) {
+        String key = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.equippedKey();
+        if (key.equals(seenKey)) {
             return;
         }
+        seenKey = key;
+        int n = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.lastEquippedLoadout();
         loadoutSeen = n;
-        String[] b = BY_LOADOUT.get(n);
-        if (n > 0 && b != null) {
+        String[] b = n > 0 ? BY_LOADOUT.get(n) : null;
+        if (b != null) {
             pendingBlobs = b.clone();
             decodePending();
-            loadoutSwaps++;
+        } else {
+            // A loadout (or a renamed one) no menu has shown yet: the old one's equipment is wrong, so show none until
+            // the next /equipment or /stats read (invfix-1108, "doesnt update equipment if i change my loadout").
+            pendingBlobs = null;
+            java.util.Arrays.fill(equipment, null);
         }
+        loadoutSwaps++;
     }
+
+    private static String seenKey = "";
 
     private static int loadoutSwaps = 0;
 
@@ -405,6 +414,7 @@ public final class ArmorHudFeature {
         pendingBlobs = null;
         BY_LOADOUT.clear();
         loadoutSeen = 0;
+        seenKey = com.killer560.hub.loadoutkeybinds.LoadoutHighlight.equippedKey();
         loadoutSwaps = 0;
         loaded = true;
         try {
