@@ -1804,6 +1804,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             drawNeuPets(g, p, mx, my);
             return;
         }
+        if (pvStyle != ProfileViewerConfig.Style.DEFAULT) {
+            drawSbpvPets(g, p, mx, my);
+            return;
+        }
         int infoW = 150;
         int gx = contentX;
         int gw = contentW - infoW - 6;
@@ -1912,6 +1916,54 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         g.item(show.icon(), 0, 0);
         g.pose().popMatrix();
         petInfo(g, show, panelX + 319, panelY + 28, 98);
+    }
+
+    /** SkyBlockPV's Pets page (PetScreen): 22 px slots 27 apart over the left 65 % (the selected pet's tinted green, each
+     *  pet's level in its rarity color), and the Info label (title bar + box) on the right with its gray lines. */
+    private void drawSbpvPets(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        int x0 = panelX + 5, y0 = contentY, left = (panelW - 10) * 65 / 100, right = panelW - 10 - left;
+        int perRow = Math.max(1, left / 28), rows = Math.max(1, (panelY + panelH - y0) / 27);
+        int totalRows = (p.pets.size() + perRow - 1) / perRow;
+        petScroll = Math.max(0, Math.min(petScroll, totalRows - rows));
+        SbProfile.Pet sel = pinnedPet != null ? pinnedPet : activePet(p);
+        for (int i = petScroll * perRow; i < p.pets.size() && i / perRow - petScroll < rows; i++) {
+            SbProfile.Pet pet = p.pets.get(i);
+            int x = x0 + (i % perRow) * 27, y = y0 + (i / perRow - petScroll) * 27;
+            int rarity = 0xFF000000 | LevelTables.rarityColor(pet.tier);
+            PvStyleChrome.slot(g, pvStyle, x, y, 22, pet == sel ? 0xFF55FF55 : -1);
+            g.item(pet.icon(), x + 3, y + 3);
+            String lvl = String.valueOf(pet.level.level());
+            g.text(this.font, lvl, x + 20 - this.font.width(lvl), y + 12, rarity, true);
+            if (inside(mx, my, x, y, 22, 22) && !dropdownOpen) {
+                pendingTooltip = List.of(Component.literal("[Lvl " + lvl + "] " + pet.displayName()).withStyle(style(rarity)));
+            }
+            hotspots.add(new Hotspot(x, y, 22, 22, () -> pinnedPet = pet));
+        }
+        int ix = x0 + left + 5, text = PvStyleChrome.sbpvText(pvStyle);
+        PvStyleChrome.title(g, pvStyle, ix, y0, right - 10, 20);
+        g.text(this.font, "Info", ix + (right - this.font.width("Info")) / 2, y0 + 6, text, false);
+        int n = sel == null ? 1 : 4 + (sel.candyUsed > 0 ? 1 : 0) + (sel.heldItem != null ? 1 : 0);
+        box(g, ix, y0 + 20, right - 10, 12 + n * 11);
+        int y = sbpvLine(g, "Name: " + (sel == null ? "Unknown" : SbProfile.titleCase(sel.type)), ix + 10, y0 + 27, right - 20, text);
+        if (sel == null) {
+            return;
+        }
+        y = sbpvLine(g, "Level: " + sel.level.level(), ix + 10, y, right - 20, text);
+        y = sbpvLine(g, "Exp: " + shorten(sel.exp), ix + 10, y, right - 20, text);
+        y = sbpvLine(g, sel.level.maxed() ? "Progress Max: Maxed" : "Progress Next: " + Math.round(sel.level.progress() * 100) + "%",
+                ix + 10, y, right - 20, text);
+        if (sel.candyUsed > 0) {
+            y = sbpvLine(g, "Candy Used: " + sel.candyUsed + "/10", ix + 10, y, right - 20, text);
+        }
+        if (sel.heldItem != null) {
+            sbpvLine(g, "Held Item: " + SbProfile.titleCase(sel.heldItem.replace("PET_ITEM_", "")), ix + 10, y, right - 20, text);
+        }
+    }
+
+    /** One of SkyBlockPV's gray, unshadowed info lines; returns the next line's y (9 + its 2 px spacing). */
+    private int sbpvLine(GuiGraphicsExtractor g, String s, int x, int y, int w, int color) {
+        g.text(this.font, this.font.plainSubstrByWidth(s, w), x, y, color, false);
+        return y + 11;
     }
 
     /** The pet's level, XP, held item, candy and skin lines from x, y, w wide. */

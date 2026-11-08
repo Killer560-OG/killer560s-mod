@@ -80,8 +80,19 @@ final class PvStyleChrome {
 
     /** The style's item slot sprite at {@code size} (SkyBlockPv's is nine_slice, NEU's is drawn 1:1 at 18). */
     static void slot(GuiGraphicsExtractor g, Style s, int x, int y, int size) {
-        g.blitSprite(RenderPipelines.GUI_TEXTURED, of(s).slot, x, y, size, size);
+        slot(g, s, x, y, size, -1);
     }
+
+    /** The slot tinted by {@code color} (SkyBlockPV tints a selected one green, PvColors.GREEN 0x55FF55). */
+    static void slot(GuiGraphicsExtractor g, Style s, int x, int y, int size, int color) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, of(s).slot, x, y, size, size, color);
+    }
+
+    /** SkyBlockPV's label title bar (box/title, nine-sliced). */
+    static void title(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, TITLE[s == Style.SBPV_DARK ? 1 : s == Style.SBPV_CLEAR ? 2 : 0], x, y, w, h);
+    }
+    private static final Identifier[] TITLE = {id("sbpv/light/title"), id("sbpv/dark/title"), id("sbpv/clear/title")};
 
     static final int NEU_W = 431;
     static final int NEU_H = 202;
