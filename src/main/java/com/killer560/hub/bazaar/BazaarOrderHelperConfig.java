@@ -38,6 +38,7 @@ public final class BazaarOrderHelperConfig {
     private int outbidColor = DEFAULT_OUTBID_COLOR;
     private int filledColor = DEFAULT_FILLED_COLOR;
     private boolean highlightExpired = true;
+    private boolean highlightAuctions = true;
     private int expiredColor = DEFAULT_EXPIRED_COLOR;
 
     private BazaarOrderHelperConfig() {
@@ -66,6 +67,7 @@ public final class BazaarOrderHelperConfig {
                 cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
                 cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
                 cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
+                cfg.highlightAuctions = ConfigJson.getBool(obj, "highlightAuctions", true);
             } catch (Exception ignored) {
                 cfg = new BazaarOrderHelperConfig();
             }
@@ -84,6 +86,7 @@ public final class BazaarOrderHelperConfig {
             obj.addProperty("filledColor", filledColor);
             obj.addProperty("highlightExpired", highlightExpired);
             obj.addProperty("expiredColor", expiredColor);
+            obj.addProperty("highlightAuctions", highlightAuctions);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -140,6 +143,14 @@ public final class BazaarOrderHelperConfig {
 
     public synchronized void setHighlightExpired(boolean v) {
         highlightExpired = v;
+    }
+
+    public synchronized boolean isHighlightAuctions() {
+        return highlightAuctions;
+    }
+
+    public synchronized void setHighlightAuctions(boolean v) {
+        highlightAuctions = v;
     }
 
     public synchronized int getExpiredColor() {

@@ -82,22 +82,6 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(col2, y, half, 18).build());
         y += 26;
 
-        Set<Integer> shown = new LinkedHashSet<>();
-        for (Map.Entry<Integer, Integer> entry : cfg.getBinds().entrySet()) {
-            int a = Math.min(entry.getKey(), entry.getValue());
-            int b = Math.max(entry.getKey(), entry.getValue());
-            if (!shown.add(a * 1000 + b)) {
-                continue;
-            }
-            widgets.add(new StringWidget(contentX, y, 150, 12,
-                    Component.literal("Slot " + a + " <-> Slot " + b), Minecraft.getInstance().font));
-            widgets.add(SettingsButtonWidget.builder(Component.literal("§cRemove"), btn -> {
-                        cfg.removeBind(a);
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX + 150, y - 2, 70, 16).build());
-            y += 16;
-        }
         // (b) killer560, 2026-09-27: "remove the no binds yet section in the menu" - an empty list just
         // shows nothing below the toggles above instead of an explicit "No binds set yet." placeholder.
 
