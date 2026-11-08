@@ -121,6 +121,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     static final int PAGE_WEIGHT = 13;
 
     private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Bags"};
+    /** NEU Classic's selector icons for the views above (InventoriesPage's vanilla stand-ins), and their numbers. */
+    private static final ItemStack[] INV_ICONS = {new ItemStack(Items.CHEST), new ItemStack(Items.ENDER_CHEST),
+            new ItemStack(Items.BUNDLE), new ItemStack(Items.LEATHER_CHESTPLATE), new ItemStack(Items.GOLDEN_APPLE),
+            new ItemStack(Items.IRON_DOOR), new ItemStack(Items.COD)};
+    private static final String[] INV_NUMBERS = {"1", "2", "3", "4", "5", "6", "7"};
+    private static final net.minecraft.resources.Identifier CHEST_TEXTURE =
+            net.minecraft.resources.Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
 
     private enum State { LOADING, ERROR, EMPTY, READY }
 
@@ -367,12 +374,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // Recent-views sidebar: only when it fits in the panel's own centering margin, so it never
         // squeezes the main content or overlaps the edge of the window on a small screen.
         int margin = (this.width - panelW) / 2;
-        sidebarVisible = margin >= SIDEBAR_GAP + SIDEBAR_W;
+        int gap = SIDEBAR_GAP + (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU ? 0 : 24); // SkyBlockPV's right tabs
+        sidebarVisible = margin >= gap + SIDEBAR_W;
         switchBox = null;
         if (sidebarVisible) {
-            sidebarX = panelX + panelW + SIDEBAR_GAP;
+            sidebarX = panelX + panelW + gap;
             sidebarY = panelY;
-            sidebarW = Math.min(SIDEBAR_W_WANTED, margin - SIDEBAR_GAP - 2);
+            sidebarW = Math.min(SIDEBAR_W_WANTED, margin - gap - 2);
             sidebarH = panelH;
             switchBox = new ThemedEditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"))
                     .hint("Name...");
@@ -694,8 +702,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
             PvStyleChrome.frame(g, pvStyle, panelX, panelY, panelW, panelH);
             if (neuPage()) {
-                g.blitSprite(RenderPipelines.GUI_TEXTURED, page == PAGE_BASIC ? PvStyleChrome.NEU_BASIC : PvStyleChrome.NEU_DUNG,
-                        panelX, panelY, PvStyleChrome.NEU_W, PvStyleChrome.NEU_H);
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, switch (page) {
+                    case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
+                    case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
+                    case PAGE_PETS -> PvStyleChrome.NEU_PETS;
+                    case PAGE_COLLECTIONS -> PvStyleChrome.NEU_COLS;
+                    default -> PvStyleChrome.NEU_INVS;
+                }, panelX, panelY, PvStyleChrome.NEU_W, PvStyleChrome.NEU_H);
             }
         }
 
@@ -771,7 +784,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             nameX = panelX + 16 + this.font.width("Profile Viewer");
             tx(g, "·", nameX - 4, panelY + 8, DIM);
         }
-        tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
+        if (!neuPage() || page == PAGE_BASIC) { // NEU draws the name on its Basic page only
+            tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
+        }
 
         SbProfile p = profile();
         String profileLabel = p == null ? null : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
@@ -1401,21 +1416,48 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private void drawInventories(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int navW = 84;
-        box(g, contentX, contentY, navW, contentH);
+        boolean neu = neuPage(), sbpv = pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu;
+        if (!sbpv) {
+            box(g, contentX, contentY, navW, contentH);
+        }
         int ny = contentY + 4;
         for (int i = 0; i < INV_VIEWS.length; i++) {
             final int idx = i;
-            button(g, contentX + 4, ny, navW - 8, 16, INV_VIEWS[i], mx, my, i == invView, () -> {
+            Runnable pick = () -> {
                 invView = idx;
                 invPage = 0;
                 invScroll = 0;
-            });
-            ny += 19;
+            };
+            if (neu) { // NEU's selector: pv_elements cells, 3 a row, the item numbered (InventoriesPage)
+                int ix = panelX + 19 + 34 * (i % 3), iy = panelY + 26 + 34 * (i / 3), o = i == invView ? 1 : 0;
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, ix - 2, iy - 2, 20, 20);
+                g.item(INV_ICONS[i], ix + o, iy + o);
+                g.itemDecorations(this.font, INV_ICONS[i], ix + o, iy + o, INV_NUMBERS[i]);
+                hotspots.add(new Hotspot(ix - 2, iy - 2, 20, 20, pick));
+                if (inside(mx, my, ix - 2, iy - 2, 20, 20)) {
+                    pendingTooltip = List.of(Component.literal(INV_VIEWS[i]));
+                }
+            } else if (sbpv) { // SkyBlockPV's categories: tabs/right on the window's right edge, 22 apart from y + 20
+                int tx = panelX + panelW - 9, ty = panelY + 20 + 22 * i;
+                PvStyleChrome.sideTab(g, pvStyle, tx, ty, i == invView);
+                g.item(INV_ICONS[i], tx + 10, ty + 2);
+                hotspots.add(new Hotspot(tx, ty, 31, 20, pick));
+                if (inside(mx, my, tx, ty, 31, 20)) {
+                    pendingTooltip = List.of(Component.literal(INV_VIEWS[i]));
+                }
+            } else {
+                button(g, contentX + 4, ny, navW - 8, 16, INV_VIEWS[i], mx, my, i == invView, pick);
+                ny += 19;
+            }
         }
 
-        int rx = contentX + navW + 6;
-        int rw = contentW - navW - 6;
-        box(g, rx, contentY, rw, contentH);
+        // NEU: everything right of pv_invs' second line (x 221) is the selected inventory's.
+        // SkyBlockPV: the views float on the window, no boxes.
+        int rx = neu ? panelX + 222 : sbpv ? contentX : contentX + navW + 6;
+        int rw = neu ? PvStyleChrome.NEU_W - 226 : sbpv ? contentW : contentW - navW - 6;
+        if (!sbpv) {
+            box(g, rx, contentY, rw, contentH);
+        }
 
         if (!p.inventoryApi) {
             centeredIn(g, "Inventory API is disabled for this profile.", rx, rw, contentY + contentH / 2 - 4, DIM);
@@ -1437,6 +1479,14 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int top = contentY + 22;
         switch (invView) {
             case 0 -> {
+                if (neu) {
+                    drawNeuInventory(g, inv, mx, my);
+                    return;
+                }
+                if (sbpv) {
+                    drawSbpvInventory(g, inv, mx, my);
+                    return;
+                }
                 tx(g, "Inventory", rx + 6, contentY + 6, ACCENT);
                 // Armor (helmet first) + equipment beside the main grid.
                 int sideX = rx + 8;
@@ -1520,6 +1570,45 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 grid(g, bags.get(invPage), gridX, top, mx, my, -1);
             }
         }
+    }
+
+    /** NEU's Inventory view on pv_invs: armor and equipment in its 2 x 4 box (InventoriesPage: armor at 173, 67 - 18i,
+     *  equipment at 192, 13 + 18i; its weapon, rod and tool boxes stay empty, we have no "best item" pick), and the
+     *  inventory in a vanilla chest panel centered on 320, 101 with the hotbar as its fourth row. */
+    private void drawNeuInventory(GuiGraphicsExtractor g, SbProfile.Inventories inv, int mx, int my) {
+        List<ItemStack> armor = inv.armor();
+        for (int i = 0; i < 4; i++) {
+            slotItem(g, panelX + 172, panelY + 66 - 18 * i, armor.size() == 4 ? armor.get(i) : ItemStack.EMPTY, mx, my);
+            slotItem(g, panelX + 191, panelY + 12 + 18 * i, get(inv.equipment(), i), mx, my);
+        }
+        int rows = 4, h = rows * 18 + 17, x = panelX + 320 - 88, y = panelY + 101 - (h + 7) / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, CHEST_TEXTURE, x, y, 0f, 0f, 176, h, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, CHEST_TEXTURE, x, y + h, 0f, 215f, 176, 7, 256, 256);
+        g.text(this.font, INV_VIEWS[0], x + 8, y + 6, 0xFF404040, false);
+        List<ItemStack> items = inv.inventory();
+        for (int i = 0; i < 36; i++) {
+            int row = i < 9 ? 3 : (i - 9) / 9;
+            slotItem(g, x + 7 + (i % 9) * 18, y + 17 + row * 18, get(items, i), mx, my);
+        }
+    }
+
+    /** SkyBlockPV's Inventory view (InventoryScreen): armor (helmet first) and equipment in a 2 x 4 block, 10 px, then
+     *  the inventory 9 x 4 with the hotbar as its last row; 20 px cells inside 2 px padding, the row centered in the window. */
+    private void drawSbpvInventory(GuiGraphicsExtractor g, SbProfile.Inventories inv, int mx, int my) {
+        int x = panelX + (panelW - 238) / 2 + 2, y = panelY + (panelH - 84) / 2 + 2;
+        List<ItemStack> armor = inv.armor(), items = inv.inventory();
+        for (int i = 0; i < 4; i++) {
+            sbpvCell(g, x, y + 20 * i, armor.size() == 4 ? armor.get(3 - i) : ItemStack.EMPTY, mx, my);
+            sbpvCell(g, x + 20, y + 20 * i, get(inv.equipment(), i), mx, my);
+        }
+        for (int i = 0; i < 36; i++) {
+            sbpvCell(g, x + 54 + (i % 9) * 20, y + 20 * (i < 9 ? 3 : i / 9 - 1), get(items, i), mx, my);
+        }
+    }
+
+    private void sbpvCell(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my) {
+        slotBox(g, x, y, 20, 0);
+        slotItem(g, x + 1, y + 1, stack, mx, my);
     }
 
     private void pagedGrid(GuiGraphicsExtractor g, String title, List<List<ItemStack>> pages, int rx, int rw, int gridX,
@@ -1672,6 +1761,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     void slot(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my, boolean highlight) {
         slotBox(g, x, y, 18, highlight ? ACCENT : 0);
+        slotItem(g, x, y, stack, mx, my);
+    }
+
+    /** The item of an 18 px slot at x, y, without the cell (NEU's page textures paint their own). */
+    private void slotItem(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my) {
         if (!stack.isEmpty()) {
             rarity(g, stack, x + 1, y + 1);
             g.item(stack, x + 1, y + 1);
@@ -1706,6 +1800,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
 
     private void drawPets(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        if (neuPage()) {
+            drawNeuPets(g, p, mx, my);
+            return;
+        }
         int infoW = 150;
         int gx = contentX;
         int gw = contentW - infoW - 6;
@@ -1775,9 +1873,50 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         g.item(show.icon(), x, y);
         tx(g, this.font.plainSubstrByWidth(show.displayName(), infoW - 30), x + 20, y, rarity);
         tx(g, SbProfile.titleCase(show.tier) + (show.active ? " · Active" : ""), x + 20, y + 10, DIM);
-        y += 26;
+        petInfo(g, show, x, y + 26, infoW - 12);
+    }
+
+    /** NEU Classic's Pets page on pv_pets: 20 pets a page in 5 x 4 pv_elements cells over the left 190 px (the selected
+     *  one tinted orange), the pet drawn large in the white frame and its numbers in the gray box at 319 (PetsPage). */
+    private void drawNeuPets(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        int pages = Math.max(1, (p.pets.size() + 19) / 20);
+        petScroll = Math.floorMod(petScroll, pages);
+        centeredIn(g, "Pets", panelX, 200, panelY + 10, VALUE);
+        if (pages > 1) {
+            button(g, panelX + 73, panelY + 6, 12, 16, "<", mx, my, false, () -> petScroll--);
+            button(g, panelX + 115, panelY + 6, 12, 16, ">", mx, my, false, () -> petScroll++);
+        }
+        SbProfile.Pet hovered = null;
+        for (int i = petScroll * 20; i < Math.min(p.pets.size(), petScroll * 20 + 20); i++) {
+            SbProfile.Pet pet = p.pets.get(i);
+            int x = panelX + 5 + Math.round(15 + 35 * (i % 5)), y = panelY + 7 + Math.round(24.4f + 44.4f * ((i % 20) / 5));
+            SbProfile.Pet sel = pinnedPet != null ? pinnedPet : activePet(p);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, pet == sel ? PvStyleChrome.NEU_PET_SEL : PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            g.item(pet.icon(), x + 2, y + 2);
+            if (inside(mx, my, x, y, 20, 20) && !dropdownOpen) {
+                hovered = pet;
+                pendingTooltip = List.of(Component.literal("[Lvl " + pet.level.level() + "] " + pet.displayName())
+                        .withStyle(style(0xFF000000 | LevelTables.rarityColor(pet.tier))));
+            }
+            hotspots.add(new Hotspot(x, y, 20, 20, () -> pinnedPet = pinnedPet == pet ? null : pet));
+        }
+        SbProfile.Pet show = hovered != null ? hovered : pinnedPet != null ? pinnedPet : activePet(p);
+        if (show == null) {
+            return;
+        }
+        int rarity = ScreenChrome.readable(0xFF000000 | LevelTables.rarityColor(show.tier));
+        centeredIn(g, this.font.plainSubstrByWidth(show.displayName(), 96), panelX + 204, 96, panelY + 30, rarity);
+        g.pose().pushMatrix();
+        g.pose().translate(panelX + 220, panelY + 66);
+        g.pose().scale(4f, 4f);
+        g.item(show.icon(), 0, 0);
+        g.pose().popMatrix();
+        petInfo(g, show, panelX + 319, panelY + 28, 98);
+    }
+
+    /** The pet's level, XP, held item, candy and skin lines from x, y, w wide. */
+    private void petInfo(GuiGraphicsExtractor g, SbProfile.Pet show, int x, int y, int w) {
         LevelTables.Level lvl = show.level;
-        int w = infoW - 12;
         y = stat2(g, x, y, w, "Level", String.valueOf(lvl.level()));
         ScreenChrome.progress(g, x, y, w, 4, lvl.maxed() ? 1 : lvl.progress(), lvl.maxed() ? MAXED : ACCENT);
         y += 8;
@@ -1812,9 +1951,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     net.minecraft.client.gui.Font font() { return this.font; }
 
     /** A content box: the menu's card. */
-    /** NEU Classic's Basic and Dungeons pages: its own page texture paints the boxes (pv_basic, pv_dung). */
-    private boolean neuPage() {
-        return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && (page == PAGE_BASIC || page == PAGE_DUNGEONS);
+    /** NEU Classic's Basic, Dungeons, Inventories, Pets and Collections pages: its own page texture paints the boxes (pv_basic, pv_dung, pv_invs,
+     *  pv_pets, pv_cols). */
+    boolean neuPage() {
+        return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= PAGE_BASIC && page <= PAGE_COLLECTIONS;
     }
 
     void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {

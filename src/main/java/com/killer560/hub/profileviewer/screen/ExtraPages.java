@@ -13,6 +13,7 @@ import com.killer560.hub.profileviewer.item.LegacyItems;
 import com.killer560.hub.profileviewer.item.LegacyText;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -315,6 +316,71 @@ final class ExtraPages {
         collStatsCats = cats;
     }
 
+    private static final String[] ROMAN = new String[21];
+    static {
+        for (int i = 1; i <= 20; i++) {
+            ROMAN[i] = com.killer560.hub.blessings.Blessing.toRoman(i);
+        }
+    }
+
+    /** NEU Classic's Collections page on pv_cols (CollectionsPage): the categories down the left in pv_elements cells
+     *  162 px apart in all, 20 collections a page in a 5 x 4 grid from x 39 (each cell filled orange from the bottom by
+     *  its share of the max tier, the tier above, the amount below), and the right half for minions, left empty: the API
+     *  data we read has no minion tiers. */
+    private void drawNeuCollections(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.CollectionCategory> cats, int mx, int my) {
+        int px = s.panelX, py = s.panelY, n = cats.size();
+        s.subView = Math.max(0, Math.min(s.subView, n - 1));
+        int catY = (int) (162f / (n - 1 + 0.0000001f));
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
+            boolean on = i == s.subView;
+            int y = py + 10 + catY * i;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, on ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, px + 7, y, 20, 20);
+            ExtraTables.CollectionCategory c = cats.get(i);
+            if (!c.items().isEmpty()) {
+                g.item(ItemIcons.forId(c.items().get(0).id()), px + (on ? 10 : 9), y + (on ? 3 : 2));
+            }
+            if (hover(mx, my, px + 7, y, 20, 20)) {
+                tip(List.of(line(c.name(), VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(px + 7, y, 20, 20, () -> {
+                s.subView = idx;
+                s.subPage = 0;
+            }));
+        }
+        ExtraTables.CollectionCategory cat = cats.get(s.subView);
+        int pages = Math.max(1, (cat.items().size() + 19) / 20);
+        s.subPage = Math.floorMod(s.subPage, pages);
+        s.centeredIn(g, cat.name() + " Collections", px + 39, 190, py + 10, VALUE);
+        s.centeredIn(g, cat.name() + " Minions", px + 231, 190, py + 10, VALUE);
+        if (pages > 1) {
+            s.button(g, px + 73, py + 6, 12, 16, "<", mx, my, false, () -> s.subPage--);
+            s.button(g, px + 365, py + 6, 12, 16, ">", mx, my, false, () -> s.subPage++);
+        }
+        for (int j = s.subPage * 20; j < Math.min(cat.items().size(), s.subPage * 20 + 20); j++) {
+            ExtraTables.CollectionItem it = cat.items().get(j);
+            int k = j % 20, x = px + 39 + Math.round(15 + 35 * (k % 5)), y = py + 7 + Math.round(24.4f + 44.4f * (k / 5));
+            long amount = ex.collections.getOrDefault(it.id(), 0L);
+            long[] tiers = it.tiers();
+            int tier = countAtOrBelow(tiers, amount);
+            float done = tiers.length == 0 ? 0 : Math.min(1f, (float) amount / tiers[tiers.length - 1]);
+            int fill = Math.round(20 * done);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            if (fill > 0) {
+                g.enableScissor(x, y + 20 - fill, x + 20, y + 20);
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_PET_SEL, x, y, 20, 20);
+                g.disableScissor();
+            }
+            g.item(ItemIcons.forId(it.id()), x + 2, y + 2);
+            String roman = tier > 0 && tier <= 20 ? ROMAN[tier] : String.valueOf(tier);
+            s.centeredIn(g, roman, x - 40, 100, y - 9, done >= 1 ? 0xFFFFD700 : 0xFF808080);
+            s.centeredIn(g, shorten(amount), x - 40, 100, y + 22, 0xFF808080);
+            if (hover(mx, my, x + 2, y + 2, 16, 16)) {
+                tip(List.of(line(it.name() + " " + roman, done >= 1 ? MAXED : DIM), line("Collected: " + commas(amount), TEXT)));
+            }
+        }
+    }
+
     private void drawCollections(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
@@ -326,6 +392,10 @@ final class ExtraPages {
         List<ExtraTables.CollectionCategory> cats = ExtraTables.now(tf);
         if (cats == null) {
             center(g, tf.isDone() ? "Couldn't load collection tiers." : "Loading collection tiers" + s.dots(), s.contentX, s.contentW, tf.isDone() ? BAD : VALUE);
+            return;
+        }
+        if (s.neuPage()) {
+            drawNeuCollections(g, ex, cats, mx, my);
             return;
         }
         int navW = 84;

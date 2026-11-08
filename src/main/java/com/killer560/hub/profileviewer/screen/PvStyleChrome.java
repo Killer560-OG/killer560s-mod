@@ -60,10 +60,23 @@ final class PvStyleChrome {
      *  per-page {@code Minecraft.getTextureManager().bindTexture(pv_*)} at guiLeft, guiTop). */
     static final Identifier NEU_BASIC = id("neu/pv_basic");
     static final Identifier NEU_DUNG = id("neu/pv_dung");
+    /** pv_invs.png and pv_elements' 20 x 20 selector cell (the selected one is the same cell turned over). */
+    static final Identifier NEU_INVS = id("neu/pv_invs"), NEU_INV_TAB = id("neu/inv_tab"), NEU_INV_TAB_ON = id("neu/inv_tab_on"),
+            NEU_PET_SEL = id("neu/pet_sel"), NEU_PETS = id("neu/pv_pets"),
+            NEU_COLS = id("neu/pv_cols");
     /** NEU's boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
     static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108}, NEU_BASIC_STATS = {128, 49, 89, 95}, NEU_BASIC_SKILLS = {232, 15, 181, 172};
     static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},
             NEU_DUNG_FLOORS = {154, 16, 124, 170}, NEU_DUNG_CLASSES = {292, 16, 124, 170};
+
+    /** SkyBlockPV's category tab on the window's right edge (tabs/right, 31 x 20; darkmode has no selected one and
+     *  keeps the default's, as its top tabs do). */
+    static void sideTab(GuiGraphicsExtractor g, Style s, int x, int y, boolean on) {
+        int i = s == Style.SBPV_DARK ? 1 : s == Style.SBPV_CLEAR ? 2 : 0;
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, (on ? SIDE_ON : SIDE)[i], x, y, 31, 20);
+    }
+    private static final Identifier[] SIDE = {id("sbpv/light/side_tab"), id("sbpv/dark/side_tab"), id("sbpv/clear/side_tab")};
+    private static final Identifier[] SIDE_ON = {id("sbpv/light/side_tab_on"), id("sbpv/light/side_tab_on"), id("sbpv/clear/side_tab_on")};
 
     /** The style's item slot sprite at {@code size} (SkyBlockPv's is nine_slice, NEU's is drawn 1:1 at 18). */
     static void slot(GuiGraphicsExtractor g, Style s, int x, int y, int size) {
