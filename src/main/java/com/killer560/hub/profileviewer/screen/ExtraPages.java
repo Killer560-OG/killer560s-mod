@@ -1000,6 +1000,10 @@ final class ExtraPages {
             return;
         }
         JsonObject tables = ExtraTables.section("crimson_isle");
+        if (s.neuPage()) {
+            drawNeuCrimson(g, c, tables, mx, my);
+            return;
+        }
         int colW = (s.contentW - 12) / 3;
         int x0 = s.contentX;
 
@@ -1111,6 +1115,70 @@ final class ExtraPages {
         y = s.stat2(g, x, y, w, "Total Points", anyDojo ? commas(points) : "-");
         s.stat2(g, x, y, w, "Belt", anyDojo ? ExtraTables.threshold(tables.get("dojo_belts"), "belt", points) : "None");
     }
+
+    /** NEU's renderAlignedString: the label at x, the value flush right at x + w. */
+    private void neuAligned(GuiGraphicsExtractor g, String label, int labelColor, String value, int x, int y, int w) {
+        tx(g, label, x, y, labelColor);
+        rightText(g, value, x + w, y, 0xFFFFFFFF);
+    }
+
+    /** NEU Classic's Crimson Isle page (CrimsonIslePage over pv_crimson_isle_page): Kuudra on the left (a key and two lines
+     *  per tier from 8/23, 30, 30 apart; total runs at 180), Dojo in the middle (lines from 146, 30, 12 apart; points and
+     *  belt under them), Faction Reputation top right and the Last Matriarch Attempt under it (both from 290, 130 wide). */
+    private void drawNeuCrimson(GuiGraphicsExtractor g, ProfileExtras.Crimson c, JsonObject tables, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        JsonObject kNames = tables.has("kuudra_names") ? tables.getAsJsonObject("kuudra_names") : new JsonObject();
+        s.centeredIn(g, "Kuudra Stats", l + 28, 100, t + 14, 0xFFFF5555);
+        int total = 0;
+        for (int n : c.kuudraCompletions().values()) {
+            total += n;
+        }
+        if (total == 0) {
+            tx(g, "No kuudra stats found!", l + 15, t + 101, 0xFFFF5555);
+        } else {
+            int y = t + 30; // the five tiers, in KUUDRA_IDS order
+            for (Map.Entry<String, Integer> e : c.kuudraCompletions().entrySet()) {
+                int wave = c.kuudraHighestWave().getOrDefault(e.getKey(), 0);
+                g.item(NEU_KUUDRA_KEY, l + 8, y - 4);
+                String name = kNames.has(e.getKey()) ? kNames.get(e.getKey()).getAsString() : SbProfile.titleCase(e.getKey());
+                neuAligned(g, name + ": ", 0xFFFF5555, commas(e.getValue()), l + 23, y, 110);
+                neuAligned(g, "Highest Wave: ", 0xFFFF5555, wave != 0 ? String.valueOf(wave) : "N/A", l + 23, y + 12, 110);
+                y += 30;
+            }
+            neuAligned(g, "Total runs: ", 0xFFFF5555, commas(total), l + 23, t + 180, 110);
+        }
+        s.centeredIn(g, "Dojo Stats", l + 161, 100, t + 14, 0xFFFFFF55);
+        JsonObject dojoNames = tables.has("dojo_names") ? tables.getAsJsonObject("dojo_names") : new JsonObject();
+        int points = 0, y = t + 30;
+        for (Map.Entry<String, Integer> e : c.dojoPoints().entrySet()) {
+            int pts = Math.max(0, e.getValue());
+            points += pts;
+            String name = dojoNames.has(e.getKey()) ? dojoNames.get(e.getKey()).getAsString() : SbProfile.titleCase(e.getKey());
+            neuAligned(g, name + ": ", 0xFFFFAA00, pts + " (" + ExtraTables.threshold(tables.get("dojo_grades"), "grade", pts) + ")", l + 146, y, 130);
+            y += 12;
+        }
+        neuAligned(g, "Points: ", 0xFFAAAAAA, commas(points), l + 146, y + 10, 130);
+        neuAligned(g, "Rank: ", 0xFFAAAAAA, ExtraTables.threshold(tables.get("dojo_belts"), "belt", points), l + 146, y + 22, 130);
+        s.centeredIn(g, "Faction Reputation", l + 303, 100, t + 14, 0xFFAA00AA);
+        JsonObject factionNames = tables.has("faction_names") ? tables.getAsJsonObject("faction_names") : new JsonObject();
+        String f = c.selectedFaction();
+        neuAligned(g, "Faction: ", 0xFF55FF55, f.isEmpty() ? "N/A" : factionNames.has(f) ? factionNames.get(f).getAsString() : SbProfile.titleCase(f),
+                l + 290, t + 30, 130);
+        int mageY = t + 42 + (f.equals("mages") || f.isEmpty() ? 0 : 24), barbY = t + 42 + (f.equals("barbarians") ? 0 : 24);
+        neuAligned(g, "Mage Reputation: ", 0xFFAA00AA, String.valueOf(c.magesRep()), l + 290, mageY, 130);
+        neuAligned(g, "Title: ", 0xFFAA00AA, ExtraTables.threshold(tables.get("faction_reputation"), "name", c.magesRep()), l + 290, mageY + 12, 130);
+        neuAligned(g, "Barbarian Reputation: ", 0xFFFF5555, String.valueOf(c.barbariansRep()), l + 290, barbY, 130);
+        neuAligned(g, "Title: ", 0xFFFF5555, ExtraTables.threshold(tables.get("faction_reputation"), "name", c.barbariansRep()), l + 290, barbY + 12, 130);
+        s.centeredIn(g, "Last Matriarch Attempt", l + 303, 100, t + 104, 0xFFFFAA00);
+        if (c.matriarchLastAttempt() <= 0) {
+            tx(g, "No attempts found!", l + 290, t + 119, 0xFFFF5555);
+        } else {
+            neuAligned(g, "Heavy Pearls Acquired: ", 0xFFFFAA00, commas(c.matriarchPearls()), l + 290, t + 119, 130);
+            neuAligned(g, "Last Attempt: ", 0xFFFFAA00, date(c.matriarchLastAttempt()), l + 290, t + 131, 130);
+        }
+    }
+
+    private static final ItemStack NEU_KUUDRA_KEY = new ItemStack(Items.TRIPWIRE_HOOK);
 
     private static int gradeColor(String grade) {
         return switch (grade) {
