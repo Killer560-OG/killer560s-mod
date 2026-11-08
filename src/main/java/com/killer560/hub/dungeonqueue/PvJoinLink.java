@@ -80,12 +80,13 @@ public final class PvJoinLink {
         if (self == null || self.equalsIgnoreCase(name)) {
             return;
         }
-        MutableComponent link = Component.literal("[PV]").withStyle(s -> s.withColor(ChatFormatting.GOLD)
-                .withBold(true).withUnderlined(true)
+        // One component carries the click and hover, so the whole line opens the viewer; the children inherit it.
+        int accent = com.killer560.hub.gui.ThemeAccent.light(0xFFAA00) & 0xFFFFFF;
+        MutableComponent line = Component.literal(">> [PV] ").withStyle(s -> s.withColor(accent).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/pv " + name))
-                .withHoverEvent(new HoverEvent.ShowText(Component.literal("/pv " + name))));
-        MutableComponent line = Component.literal("   ").append(link)
-                .append(Component.literal(" " + name).withStyle(ChatFormatting.GRAY));
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to open " + name + "'s profile"))))
+                .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" - click to open their profile").withStyle(ChatFormatting.GRAY));
         synchronized (shown) {
             shown.add(name);
         }

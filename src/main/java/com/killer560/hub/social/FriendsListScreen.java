@@ -236,16 +236,15 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         return out;
     }
 
-    /** The command a row's /pv button sends (without the slash), or null for a name that is not a valid username. */
-    static String pvCommand(String name) { return name != null && name.matches("[A-Za-z0-9_]{1,16}") ? "pv " + name : null; }
-
+    /** Opens the mod's own profile viewer for a row (/pv is a client command; nothing goes to the server). */
     private void profileView(FriendsListConfig.Friend f) {
-        String cmd = f == null ? null : pvCommand(f.name);
-        if (cmd != null && com.killer560.hub.util.ServerCommands.toServer(cmd)) {
-            statusMessage = "Sent /" + cmd;
+        if (f != null && f.name != null && f.name.matches("[A-Za-z0-9_]{1,16}")) {
+            com.killer560.hub.profileviewer.ProfileViewerFeature.openDeferred(
+                    com.killer560.hub.profileviewer.ProfileViewerFeature.targetForName(f.name));
+            statusMessage = "Opening " + f.name + "'s profile";
             statusColor = ModChat.DIM;
         } else {
-            statusMessage = "Could not send /pv.";
+            statusMessage = "Could not open the profile viewer.";
             statusColor = ModChat.BAD;
         }
     }
