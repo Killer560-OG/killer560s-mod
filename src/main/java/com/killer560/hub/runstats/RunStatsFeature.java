@@ -39,6 +39,9 @@ public final class RunStatsFeature {
     private static boolean summarisedThisRun = false;
     private static int pendingTicks = -1;
     private static int pollTick = 0;
+    private static int secretTick = 0;
+    /** Ticks left to wait for the secret counts to catch up with the run after the summary printed, or -1. */
+    private static int lateTicks = -1;
 
     private RunStatsFeature() {
     }
@@ -78,6 +81,8 @@ public final class RunStatsFeature {
             lastLevel = client.level;
             summarisedThisRun = false;
             pendingTicks = -1;
+            lateTicks = -1;
+            secretTick = 0;
             RunStatsTracker.resetRun();
         }
         RunStatsConfig cfg = RunStatsConfig.getInstance();
@@ -86,12 +91,20 @@ public final class RunStatsFeature {
             return;
         }
         if (DungeonState.isInDungeon()) {
-            if (!RunStatsTracker.snapshotTaken()) {
+            if (secretTick++ % 100 == 0 && !summarisedThisRun) {
                 RunStatsTracker.snapshotSecrets(client);
             }
             if (++pollTick >= 5) {
                 pollTick = 0;
                 RunStatsTracker.pollRooms(client);
+            }
+        }
+        if (lateTicks >= 0 && --lateTicks % 300 == 0) {
+            if (lateTicks > 0 && RunStatsTracker.secretsPending()) {
+                RunStatsTracker.captureSecrets(client);
+            } else {
+                lateTicks = -1;
+                printSecrets(client, RunStatsTracker.buildRows(client));
             }
         }
         if (pendingTicks < 0 || pendingTicks-- > 0) return;
@@ -108,8 +121,26 @@ public final class RunStatsFeature {
         for (PlayerRunStats row : rows) {
             client.player.sendSystemMessage(rowComponent(row, cfg));
         }
+        int team = RunStatsTracker.teamSecrets();
+        if (team >= 0) {
+            ModChat.send(FEATURE, ModChat.text("Team secrets: "), ModChat.value(String.valueOf(team)));
+        }
+        if (RunStatsTracker.secretsPending()) {
+            lateTicks = 1800;
+        }
         if (cfg.isAnnounceToParty()) {
             com.killer560.hub.util.OutgoingChat.command("pc " + partyLine(rows, cfg));
+        }
+    }
+
+    /** The late per-player secrets line, once the counts caught up (or the wait ran out). */
+    private static void printSecrets(Minecraft client, List<PlayerRunStats> rows) {
+        StringBuilder sb = new StringBuilder();
+        for (PlayerRunStats row : rows) {
+            if (row.hasSecrets()) sb.append(sb.isEmpty() ? "" : " | ").append(row.name()).append(' ').append(row.secrets());
+        }
+        if (!sb.isEmpty() && client.player != null) {
+            ModChat.send(FEATURE, ModChat.text("Secrets: "), ModChat.value(sb.toString()));
         }
     }
 
