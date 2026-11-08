@@ -76,6 +76,9 @@ public final class LyricsEngine {
     /** The current track's artist and title, kept through a pause so the HUD can still name it. */
     private String lastArtist = "";
     private String lastTitle = "";
+    /** The names lyrics are looked up and matched by: {@link #lookupNames} of the shown ones (a video's real artist and song). */
+    private String matchArtist = "";
+    private String matchTitle = "";
     private boolean lastWasAd = false;
     /** Spotify's own length for the current track (media session), seconds, or 0 when unknown. */
     private double spotifyDurationSeconds = 0;
@@ -176,13 +179,14 @@ public final class LyricsEngine {
         if (wordTimedLines != null) {
             // Word-timed lyrics of Spotify's own recording (Kugou KRC, matched on title, artist and length): every word
             // has its real start, so they win over lrclib's line times.
-            syncedLyrics = wordTimedLines;
+            Choice lrc = chooseFrom(candidates, matchArtist, matchTitle, spotifyDurationSeconds);
+            syncedLyrics = lrc.pick() == null || lrc.mismatch() ? wordTimedLines : onto(wordTimedLines, lrc.pick().lines());
             durationSeconds = spotifyDurationSeconds;
             versionMismatch = false;
             mismatchSeconds = 0;
             return;
         }
-        Choice c = chooseFrom(candidates, lastArtist, lastTitle, spotifyDurationSeconds);
+        Choice c = chooseFrom(candidates, matchArtist, matchTitle, spotifyDurationSeconds);
         syncedLyrics = c.pick() == null ? List.of() : c.pick().lines();
         if (c.pick() != null || !candidates.isEmpty()) {
             durationSeconds = c.pick() == null ? 0 : c.pick().durationSeconds();
@@ -382,6 +386,40 @@ public final class LyricsEngine {
         return best;
     }
 
+    /**
+     * Kugou's word-timed lines moved by their median offset onto lrclib's chosen lines, when at least five lines pair up
+     * within 1.5 s. Kugou keeps the words; lrclib's agreed listing keeps the clock: recorded against the sound
+     * (spotify1108, vocal onsets on the loopback) lrclib's lines sat 60 ms from the vocals where Kugou's ran 480 ms late,
+     * and over six songs Kugou's lines ran a median 68-280 ms after lrclib's in four.
+     */
+    static List<LyricLine> onto(List<LyricLine> words, List<LyricLine> lines) {
+        if (words.isEmpty() || lines.isEmpty()) return words;
+        double[] d = new double[words.size()];
+        int n = 0;
+        for (LyricLine w : words) {
+            double t = w.timeSeconds();
+            double best = Double.MAX_VALUE;
+            for (LyricLine l : lines) {
+                double g = t - l.timeSeconds();
+                if (Math.abs(g) < Math.abs(best)) best = g;
+            }
+            if (Math.abs(best) < 1.5) d[n++] = best;
+        }
+        if (n < 5) return words;
+        double off = median(java.util.Arrays.copyOf(d, n));
+        if (Math.abs(off) < 0.03) return words;
+        List<LyricLine> out = new ArrayList<>(words.size());
+        for (LyricLine w : words) {
+            LyricTiming.Parsed p = w.parsed();
+            double[] st = p.wordStarts().clone();
+            for (int i = 0; i < st.length; i++) {
+                st[i] -= off;
+            }
+            out.add(new LyricLine(w.timeSeconds() - off, w.text(), new LyricTiming.Parsed(p.text(), p.words(), st, p.weights())));
+        }
+        return List.copyOf(out);
+    }
+
     /** Median over a's lines of the distance to b's nearest line, in seconds (b sorted by time). */
     private static double medianGap(List<LyricLine> a, List<LyricLine> b) {
         if (a.isEmpty() || b.isEmpty()) return Double.MAX_VALUE;
@@ -478,7 +516,7 @@ public final class LyricsEngine {
     private static java.util.Set<String> splitArtists(String credit) {
         java.util.Set<String> out = new java.util.HashSet<>();
         for (String part : credit.toLowerCase(java.util.Locale.ROOT)
-                .split("\\s*(?:,|&|;|/|\\bfeat\\.?|\\bft\\.?|\\bfeaturing\\b|\\bwith\\b|\\sx\\s|\\band\\b)\\s*")) {
+                .split("\\s*(?:,|\u3001|&|;|/|\\bfeat\\.?|\\bft\\.?|\\bfeaturing\\b|\\bwith\\b|\\sx\\s|\\band\\b)\\s*")) {
             String p = part.trim();
             if (!p.isEmpty()) {
                 out.add(p);
@@ -602,6 +640,9 @@ public final class LyricsEngine {
                 lastTrackTitle = title;
                 lastArtist = isAd ? "" : nowPlaying.artist();
                 lastTitle = isAd ? "" : nowPlaying.title();
+                String[] names = lookupNames(lastArtist, lastTitle);
+                matchArtist = names[0];
+                matchTitle = names[1];
                 lastWasAd = isAd;
                 durationSeconds = 0;
                 spotifyDurationSeconds = 0;
@@ -640,7 +681,7 @@ public final class LyricsEngine {
             // polls); turning either on part-way through a song still fetches that song's lyrics on the next poll.
             if (!isAd && wantLyrics && !trackKey.equals(lyricsRequestedFor)) {
                 lyricsRequestedFor = trackKey;
-                requestLyrics(trackKey, nowPlaying.artist(), nowPlaying.title());
+                requestLyrics(trackKey, matchArtist, matchTitle);
             }
 
             // Spotify's own clock, when Windows reports it for this track: its length, a pause the title has not
@@ -668,8 +709,8 @@ public final class LyricsEngine {
                 } else if (timeline.playing() && timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
                     follow(timeline, now);
                 }
-                maybeLookUpWordTimed(trackKey, nowPlaying.artist(), nowPlaying.title());
-                maybeLookUpByLength(trackKey, nowPlaying.artist(), nowPlaying.title());
+                maybeLookUpWordTimed(trackKey, matchArtist, matchTitle);
+                maybeLookUpByLength(trackKey, matchArtist, matchTitle);
             }
             if (pausedBySession) {
                 currentLyric = "";
@@ -735,7 +776,7 @@ public final class LyricsEngine {
                 fetched = FETCH_CACHE.get(forTrackKey);
             }
             if (fetched == null) {
-                fetched = fetchLyrics(artist, title);
+                fetched = lookUp(forTrackKey, artist, title);
                 if (!fetched.candidates().isEmpty()) {
                     synchronized (FETCH_CACHE) {
                         FETCH_CACHE.put(forTrackKey, fetched);
@@ -861,7 +902,17 @@ public final class LyricsEngine {
                 recent[recentCount % recent.length] = diff;
                 recentCount++;
                 long med = median();
-                if (recentCount >= 2 && Math.abs(med) > PlaybackClock.DRIFT_MS) {
+                if (recentCount >= 2 && Math.abs(med) > SNAP_MS) {
+                    // Two readings agree the clock is this far off (Spotify's late start-of-sound reading after a
+                    // skip, his 11-07 log: -478 ms eased over 4 s): set it now, easing would show the wrong line.
+                    clock.set(clock.elapsedMs(now) + med, now);
+                    recentCount = 0;
+                    slewLeftMs = 0;
+                    corrections++;
+                    lastCorrectionMs = med;
+                    SpotifyLyricsFeature.LOGGER.info("Spotify lyric clock set {} ms onto Spotify (drift)",
+                            (med > 0 ? "+" : "") + med);
+                } else if (recentCount >= 2 && Math.abs(med) > PlaybackClock.DRIFT_MS) {
                     slewLeftMs = med;
                     driftTotalMs = med;
                 }
@@ -888,6 +939,8 @@ public final class LyricsEngine {
 
     /** Drift is eased in by at most this much a poll (250 ms), so a lit word never jumps back more than this. */
     static final long SLEW_MS = 30;
+    /** Drift two readings agree on above this is set at once, not eased. */
+    static final long SNAP_MS = 250;
     /** A pause, resume or track start was just seen: the next new reading is taken exactly, not filtered. */
     private boolean resyncPending;
     private final long[] recent = new long[3];
@@ -1013,19 +1066,111 @@ public final class LyricsEngine {
         return current;
     }
 
-    private Fetched fetchLyrics(String artist, String title) {
+    /**
+     * lrclib by artist and title, then (only while nothing of this song is found) by title alone and by a free-text
+     * "artist title" query: its artist search misses listings whose artist is spelled differently or carries a feature,
+     * and {@link #chooseFrom} still requires the title, the artist and the length. A busy or failed answer (HTTP 429, 5xx,
+     * no answer) is asked again after 1 s and 3 s while the track is still playing; it lost whole songs during fast
+     * skipping (his 11-06 log: "HTTP 429").
+     */
+    private Fetched lookUp(String forTrackKey, String artist, String title) {
+        List<Candidate> all = new ArrayList<>();
+        double duration = 0;
+        String[] queries = {
+                "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title),
+                "?track_name=" + urlEncode(title),
+                "?q=" + urlEncode(artist + " " + title)};
+        for (String q : queries) {
+            Fetched f = null;
+            for (int attempt = 0; f == null && attempt < 3; attempt++) {
+                if (attempt > 0 && !waitWhileCurrent(forTrackKey, attempt == 1 ? 1000 : 3000)) return Fetched.NOTHING;
+                f = fetchLyrics(LRCLIB_URL + q, artist, title);
+            }
+            if (f == null) continue;
+            if (duration == 0) duration = f.durationSeconds();
+            for (Candidate c : f.candidates()) {
+                if (!all.contains(c)) all.add(c);
+            }
+            if (hasSong(all, artist, title)) break;
+        }
+        return all.isEmpty() ? Fetched.NOTHING : new Fetched(List.copyOf(all), duration);
+    }
+
+    /** Whether any listing is this song (title and artist; the length is judged later, once Spotify's is known). */
+    static boolean hasSong(List<Candidate> listings, String artist, String title) {
+        String want = titleKey(title);
+        for (Candidate c : listings) {
+            if (titleKey(c.title()).equals(want) && artistListHas(c.artist(), artist)) return true;
+        }
+        return false;
+    }
+
+    private boolean waitWhileCurrent(String forTrackKey, long ms) {
         try {
-            String url = LRCLIB_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(java.time.Duration.ofSeconds(10)).GET().build();
-            HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                SpotifyLyricsFeature.LOGGER.warn("lrclib search failed: HTTP {} for artist='{}' title='{}'",
-                        response.statusCode(), artist, title);
-                return Fetched.NOTHING;
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        synchronized (this) {
+            return forTrackKey.equals(lastTrackKey);
+        }
+    }
+
+    /** Noise a video or upload adds to a song's title: "(Official Music Video)", "[HD]", "(Lyrics)", "| Label". */
+    private static final Pattern VIDEO_NOISE = Pattern.compile(
+            "(?i)\\s*[(\\[][^)\\]]{0,40}?\\b(?:official|video|audio|lyrics?|visuali[sz]er|hd|hq|4k|mv|m/v)\\b[^)\\]]{0,40}[)\\]]"
+                    + "|\\s+\\|.{0,120}$");
+    /** A channel name around an artist's: "Artist - Topic", "ArtistVEVO", "Artist Official". */
+    private static final Pattern CHANNEL = Pattern.compile("(?i)\\s*-\\s*topic$|vevo$|\\s+official$");
+
+    /**
+     * The artist and title to look lyrics up by. A music app's are used as they are; a video's are cleaned: its noise
+     * dropped from the title, "- Topic" / "VEVO" from the channel, and a "Artist - Song" title split when its left part
+     * is the channel's artist or the title carried video noise (a channel uploading someone's song).
+     */
+    static String[] lookupNames(String artist, String title) {
+        if (artist == null || title == null) return new String[] {artist == null ? "" : artist, title == null ? "" : title};
+        String a = CHANNEL.matcher(artist).replaceAll("").trim();
+        String t = VIDEO_NOISE.matcher(title).replaceAll("").trim();
+        boolean video = !t.equals(title) || !a.equals(artist);
+        int dash = t.indexOf(" - ");
+        if (dash > 0 && dash + 3 < t.length()) {
+            String left = t.substring(0, dash).trim();
+            String compactLeft = left.toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+            String compactArtist = a.toLowerCase(java.util.Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+            if (video || (!compactLeft.isEmpty() && compactLeft.equals(compactArtist))) {
+                return new String[] {left, t.substring(dash + 3).trim()};
+            }
+        }
+        return new String[] {a.isEmpty() ? artist : a, t.isEmpty() ? title : t};
+    }
+
+    /** Test hook: answers an lrclib search instead of the network (null answer = HTTP 429). */
+    static volatile java.util.function.Function<String, String> testLrclib;
+
+    /** One lrclib search; null when it should be asked again (busy, server error, no answer). */
+    private Fetched fetchLyrics(String url, String artist, String title) {
+        try {
+            java.util.function.Function<String, String> fake = testLrclib;
+            int status;
+            String body;
+            if (fake != null) {
+                body = fake.apply(url);
+                status = body == null ? 429 : 200;
+            } else {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                        .timeout(java.time.Duration.ofSeconds(10)).GET().build();
+                HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
+                status = response.statusCode();
+                body = response.body();
+            }
+            if (status / 100 != 2) {
+                SpotifyLyricsFeature.LOGGER.warn("lrclib search failed: HTTP {} for artist='{}' title='{}'", status, artist, title);
+                return status == 429 || status >= 500 ? null : Fetched.NOTHING;
             }
 
-            JsonArray results = JsonParser.parseString(response.body()).getAsJsonArray();
+            JsonArray results = JsonParser.parseString(body).getAsJsonArray();
             if (results.isEmpty()) {
                 SpotifyLyricsFeature.LOGGER.info("lrclib had no results at all for artist='{}' title='{}'", artist, title);
                 return Fetched.NOTHING;
@@ -1059,7 +1204,7 @@ public final class LyricsEngine {
             return new Fetched(List.copyOf(exact), duration);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("lrclib search threw for artist='{}' title='{}': {}", artist, title, e.toString());
-            return Fetched.NOTHING;
+            return null;
         }
     }
 
