@@ -59,7 +59,7 @@ public final class WitherDragonsConfig {
         public NameStyle previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
-    /** Odin "Purple Solo Debuff": the class that solo-debuffs purple; the other one helps Berserk/Mage. */
+    /** NoammAddons "Solo Priority": the class that takes the LATER of two spawning dragons. */
     public enum SoloDebuff {
         TANK("Tank"), HEALER("Healer");
         public final String label;
@@ -117,11 +117,8 @@ public final class WitherDragonsConfig {
     private boolean sendArrows = true;
     private boolean sendConfirmation = true;
     private boolean dragonPriority = true;
-    private float normalPower = 0f;
-    private float easyPower = 0f;
     private SoloDebuff soloDebuff = SoloDebuff.TANK;
-    private boolean soloDebuffOnAll = false;
-    private boolean paulBuff = false;
+    private boolean firstDragonOnly = true;
     private ClassOverride classOverride = ClassOverride.AUTO;
 
     // ---- King Relics (Odin KingRelics.kt + NoammAddons M7Relics.kt) ----
@@ -183,11 +180,8 @@ public final class WitherDragonsConfig {
                 cfg.sendArrows = ConfigJson.getBool(o, "sendArrows", true);
                 cfg.sendConfirmation = ConfigJson.getBool(o, "sendConfirmation", true);
                 cfg.dragonPriority = ConfigJson.getBool(o, "dragonPriority", true);
-                cfg.normalPower = clampPower(ConfigJson.getFloat(o, "normalPower", 0f));
-                cfg.easyPower = clampPower(ConfigJson.getFloat(o, "easyPower", 0f));
                 cfg.soloDebuff = ConfigJson.getEnum(o, "soloDebuff", SoloDebuff.class, SoloDebuff.TANK);
-                cfg.soloDebuffOnAll = ConfigJson.getBool(o, "soloDebuffOnAll", false);
-                cfg.paulBuff = ConfigJson.getBool(o, "paulBuff", false);
+                cfg.firstDragonOnly = ConfigJson.getBool(o, "firstDragonOnly", true);
                 cfg.classOverride = ConfigJson.getEnum(o, "classOverride", ClassOverride.class, ClassOverride.AUTO);
                 cfg.relicsEnabled = ConfigJson.getBool(o, "relicsEnabled", false);
                 cfg.relicSpawnTimer = ConfigJson.getBool(o, "relicSpawnTimer", true);
@@ -225,11 +219,8 @@ public final class WitherDragonsConfig {
             o.addProperty("sendArrows", sendArrows);
             o.addProperty("sendConfirmation", sendConfirmation);
             o.addProperty("dragonPriority", dragonPriority);
-            o.addProperty("normalPower", normalPower);
-            o.addProperty("easyPower", easyPower);
             o.addProperty("soloDebuff", soloDebuff.name());
-            o.addProperty("soloDebuffOnAll", soloDebuffOnAll);
-            o.addProperty("paulBuff", paulBuff);
+            o.addProperty("firstDragonOnly", firstDragonOnly);
             o.addProperty("classOverride", classOverride.name());
             o.addProperty("relicsEnabled", relicsEnabled);
             o.addProperty("relicSpawnTimer", relicSpawnTimer);
@@ -244,7 +235,6 @@ public final class WitherDragonsConfig {
         }
     }
 
-    private static float clampPower(float v) { return Math.max(0f, Math.min(32f, Math.round(v * 2f) / 2f)); }
 
     // ---- masters (Skyblock Only gate) ----
 
@@ -293,16 +283,10 @@ public final class WitherDragonsConfig {
     public void setSendConfirmation(boolean v) { sendConfirmation = v; }
     public boolean isDragonPriority() { return dragonPriority; }
     public void setDragonPriority(boolean v) { dragonPriority = v; }
-    public float getNormalPower() { return normalPower; }
-    public void setNormalPower(float v) { normalPower = clampPower(v); }
-    public float getEasyPower() { return easyPower; }
-    public void setEasyPower(float v) { easyPower = clampPower(v); }
     public SoloDebuff getSoloDebuff() { return soloDebuff; }
     public void setSoloDebuff(SoloDebuff v) { soloDebuff = v == null ? SoloDebuff.TANK : v; }
-    public boolean isSoloDebuffOnAll() { return soloDebuffOnAll; }
-    public void setSoloDebuffOnAll(boolean v) { soloDebuffOnAll = v; }
-    public boolean isPaulBuff() { return paulBuff; }
-    public void setPaulBuff(boolean v) { paulBuff = v; }
+    public boolean isFirstDragonOnly() { return firstDragonOnly; }
+    public void setFirstDragonOnly(boolean v) { firstDragonOnly = v; }
     public ClassOverride getClassOverride() { return classOverride; }
     public void setClassOverride(ClassOverride v) { classOverride = v == null ? ClassOverride.AUTO : v; }
 

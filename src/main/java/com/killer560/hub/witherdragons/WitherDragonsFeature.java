@@ -1,5 +1,6 @@
 package com.killer560.hub.witherdragons;
 
+import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
@@ -37,6 +38,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +51,7 @@ import com.killer560.hub.compat.McRender;
 /**
  * M7 Phase 5 Wither Dragons - port of Odin's {@code WitherDragons} module
  * (https://github.com/odtheking/Odin/tree/main/src/main/kotlin/com/odtheking/odin/features/impl/boss :
- * WitherDragons.kt, WitherDragonsEnum.kt, DragonCheck.kt, DragonPriority.kt), with NoammAddons' additions
+ * WitherDragons.kt, WitherDragonsEnum.kt, DragonCheck.kt), with NoammAddons' additions
  * (arrow-hit counter, packed-ice spray check - local copy a local NoammAddons checkout,
  * features/impl/floor7/dragons). SkyHanni has no M7 dragon features (its dragon code is End dragons only).
  * <p>
@@ -57,8 +59,7 @@ import com.killer560.hub.compat.McRender;
  * <ul>
  * <li>Spawn: Hypixel plays a FLAME particle burst (count 20, y 19, spread 2/3/2, speed 0, whole-block x/z) over a
  * dragon's statue ~5s before it spawns. The x/z range picks the dragon -&gt; SPAWNING with a 100 server-tick
- * countdown. When two are spawning at once (or at least two have spawned before), the priority dragon is picked
- * ({@link DragonPriority}) and titled.
+ * countdown. The priority dragon is the one that spawns first ({@link #choosePriority}) and is titled.
  * <li>Alive: countdown reaching 0, or an EnderDragon added inside that dragon's box.
  * <li>Dead: synched health &lt;= 0 (timed "alive for"), its statue block turning to air, or a Wither King
  * "counts" line ("Oh, this one hurts!" etc.) for the last/first living dragon.
@@ -114,7 +115,6 @@ public final class WitherDragonsFeature {
             DEAD_DRAGON_UUIDS.clear();
             priorityDragon = null;
             lastDragonDeath = null;
-            P5State.reset();
         }
         // Outside the P5 gate: leaving P5 without changing level (dying, a /warp out) otherwise strands every
         // dragon entity in the map until the next world change.
@@ -186,6 +186,7 @@ public final class WitherDragonsFeature {
         boolean wasPriority = priorityDragon == d;
         if (wasPriority) {
             priorityDragon = null;
+            choosePriority(); // Odin: the next one in spawn order
         }
         if (!wasAlive) return;
         long nowMs = System.currentTimeMillis();
@@ -216,38 +217,56 @@ public final class WitherDragonsFeature {
             return;
         }
         if (!trackingActive() || !P5State.inP5()) return;
-        int spawned = 0;
-        List<WitherDragon> dragons = new ArrayList<>();
+        boolean started = false;
         for (WitherDragon d : WitherDragon.values()) {
-            spawned += d.timesSpawned;
-            if (d.state == WitherDragon.State.SPAWNING) {
-                dragons.add(d);
-                continue;
-            }
-            if (!d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) continue;
+            if (d.state == WitherDragon.State.SPAWNING || !d.particleInRange(McPackets.particleX(p), McPackets.particleZ(p))) continue;
             d.state = WitherDragon.State.SPAWNING;
             d.timeToSpawn = 100;
             com.killer560.hub.util.TickAudit.predict(d.name() + " dragon spawn", 100);
-            dragons.add(d);
+            started = true;
             WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
             if (messagesOn() && cfg.isDragonTitle() && cfg.getTitleMode() == WitherDragonsConfig.TitleMode.EVERY) {
                 alert(d, "");
             }
         }
-        if (!dragons.isEmpty() && (dragons.size() == 2 || spawned >= 2) && priorityDragon == null) {
-            DragonPriority.Result result = DragonPriority.findPriority(dragons);
-            priorityDragon = result.dragon();
-            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
-            if (!messagesOn()) return;
-            String list = joinColored(dragons);
-            if (cfg.isDragonTitle()) {
-                alert(priorityDragon, dragons.size() > 1 && cfg.isDragonPriority()
-                        ? "§7" + list + " §8-> §fgo " + priorityDragon.colored() : "");
-            }
-            if (cfg.isDragonPriority() && dragons.size() > 1) {
-                send(Component.literal(list + "§r -> " + priorityDragon.colored() + " §7is your priority dragon! §8("
-                        + result.reason() + ")"));
-            }
+        // A living priority keeps its place until it dies (Auto Debuff may be on it); a spawning one is re-judged.
+        if (started && (priorityDragon == null || priorityDragon.state == WitherDragon.State.SPAWNING)) {
+            choosePriority();
+        }
+    }
+
+    /**
+     * Today's rule in both references (Odin {@code spawnOrder.first()}; NoammAddons e00d160a/c57e51b6, 2026-10-06, which
+     * dropped the power/class split): the priority is the dragon that spawned or spawns FIRST. With Dragon Priority on, the
+     * Solo Priority class takes the LAST one instead, and with First Dragon Only only while fewer than two have spawned.
+     * Titles and tells him whenever the priority moves to a spawning dragon.
+     */
+    private static void choosePriority() {
+        WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+        List<WitherDragon> live = new ArrayList<>(2);
+        int spawned = 0;
+        long now = PerTickServerClock.now();
+        for (WitherDragon d : WitherDragon.values()) {
+            spawned += d.timesSpawned;
+            if (d.state != WitherDragon.State.DEAD) live.add(d);
+        }
+        if (live.isEmpty()) return;
+        // Spawn order: a living dragon by its spawn tick, a spawning one by its countdown; ties keep enum order.
+        live.sort(Comparator.comparingLong(d -> d.state == WitherDragon.State.ALIVE ? d.spawnedTick - now : d.timeToSpawn));
+        DungeonClass solo = cfg.getSoloDebuff() == WitherDragonsConfig.SoloDebuff.HEALER ? DungeonClass.HEALER : DungeonClass.TANK;
+        boolean last = live.size() > 1 && cfg.isDragonPriority() && (!cfg.isFirstDragonOnly() || spawned < 2)
+                && P5State.selfClass() == solo;
+        WitherDragon pick = live.get(last ? live.size() - 1 : 0);
+        if (pick == priorityDragon) return;
+        priorityDragon = pick;
+        if (!messagesOn() || pick.state != WitherDragon.State.SPAWNING) return;
+        String list = joinColored(live);
+        if (cfg.isDragonTitle() && cfg.getTitleMode() == WitherDragonsConfig.TitleMode.PRIORITY) {
+            alert(pick, live.size() > 1 ? "§7" + list + " §8-> §fgo " + pick.colored() : "");
+        }
+        if (live.size() > 1) {
+            send(Component.literal(list + "§r -> " + pick.colored() + " §7is your priority dragon! §8("
+                    + (last ? cfg.getSoloDebuff().label + " solo" : "spawns first") + ")"));
         }
     }
 
@@ -445,6 +464,7 @@ public final class WitherDragonsFeature {
                 }
             }
         }
+        boolean box = false;
         for (WitherDragon d : WitherDragon.values()) {
             if (cfg.isDragonTimer() && d.timeToSpawn > 0) {
                 renderWorldText(context, spawnLabel(d, formatTimer(d.timeToSpawn)),
@@ -453,7 +473,11 @@ public final class WitherDragonsFeature {
             if (cfg.isDragonBoxes() && d.state != WitherDragon.State.DEAD) {
                 float[] c = WorldRenderUtils.argbToFloats(d.argb);
                 WorldRenderUtils.renderOutlineBox(context, d.box, c[0], c[1], c[2], 1f, 2f);
+                box = true;
             }
+        }
+        if (box) {
+            boxFrames++;
         }
         WitherDragon p = priorityDragon;
         if (cfg.isDragonTracer() && p != null && p.state == WitherDragon.State.SPAWNING) {
@@ -462,8 +486,15 @@ public final class WitherDragonsFeature {
             // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - same head-instead-of-crosshair
             // bug killer560 reported on doorkeys/wither ESP's tracers (2026-09-27); this one moves the same way.
             WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context), target), c[0], c[1], c[2], 1f, 2f);
+            tracerFrames++;
         }
     }
+
+    /** Frames that drew a dragon box / the priority tracer (testkit readout: proof the draws ran). */
+    private static long boxFrames;
+    private static long tracerFrames;
+
+    public static long[] drawnFrames() { return new long[]{boxFrames, tracerFrames}; }
 
     // The spawn-timer label per dragon, rebuilt only when its timer text (the memoized String above) or its display name
     // (one of the dragon's two final names, per the Name Style setting) is a different object.
