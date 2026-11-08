@@ -13,9 +13,13 @@ import com.killer560.hub.profileviewer.item.LegacyItems;
 import com.killer560.hub.profileviewer.item.LegacyText;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import com.killer560.hub.gui.ScreenChrome;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Items;
 
 import java.time.Instant;
@@ -315,6 +319,127 @@ final class ExtraPages {
         collStatsCats = cats;
     }
 
+    private static final String[] ROMAN = new String[21];
+    static {
+        for (int i = 1; i <= 20; i++) {
+            ROMAN[i] = com.killer560.hub.blessings.Blessing.toRoman(i);
+        }
+    }
+
+    /** NEU Classic's Collections page on pv_cols (CollectionsPage): the categories down the left in pv_elements cells
+     *  162 px apart in all, 20 collections a page in a 5 x 4 grid from x 39 (each cell filled orange from the bottom by
+     *  its share of the max tier, the tier above, the amount below), and the right half for minions, left empty: the API
+     *  data we read has no minion tiers. */
+    private void drawNeuCollections(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.CollectionCategory> cats, int mx, int my) {
+        int px = s.panelX, py = s.panelY, n = cats.size();
+        s.subView = Math.max(0, Math.min(s.subView, n - 1));
+        int catY = (int) (162f / (n - 1 + 0.0000001f));
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
+            boolean on = i == s.subView;
+            int y = py + 10 + catY * i;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, on ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, px + 7, y, 20, 20);
+            ExtraTables.CollectionCategory c = cats.get(i);
+            if (!c.items().isEmpty()) {
+                g.item(ItemIcons.forId(c.items().get(0).id()), px + (on ? 10 : 9), y + (on ? 3 : 2));
+            }
+            if (hover(mx, my, px + 7, y, 20, 20)) {
+                tip(List.of(line(c.name(), VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(px + 7, y, 20, 20, () -> {
+                s.subView = idx;
+                s.subPage = 0;
+            }));
+        }
+        ExtraTables.CollectionCategory cat = cats.get(s.subView);
+        int pages = Math.max(1, (cat.items().size() + 19) / 20);
+        s.subPage = Math.floorMod(s.subPage, pages);
+        s.centeredIn(g, cat.name() + " Collections", px + 39, 190, py + 10, VALUE);
+        s.centeredIn(g, cat.name() + " Minions", px + 231, 190, py + 10, VALUE);
+        if (pages > 1) {
+            s.button(g, px + 73, py + 6, 12, 16, "<", mx, my, false, () -> s.subPage--);
+            s.button(g, px + 365, py + 6, 12, 16, ">", mx, my, false, () -> s.subPage++);
+        }
+        for (int j = s.subPage * 20; j < Math.min(cat.items().size(), s.subPage * 20 + 20); j++) {
+            ExtraTables.CollectionItem it = cat.items().get(j);
+            int k = j % 20, x = px + 39 + Math.round(15 + 35 * (k % 5)), y = py + 7 + Math.round(24.4f + 44.4f * (k / 5));
+            long amount = ex.collections.getOrDefault(it.id(), 0L);
+            long[] tiers = it.tiers();
+            int tier = countAtOrBelow(tiers, amount);
+            float done = tiers.length == 0 ? 0 : Math.min(1f, (float) amount / tiers[tiers.length - 1]);
+            int fill = Math.round(20 * done);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            if (fill > 0) {
+                g.enableScissor(x, y + 20 - fill, x + 20, y + 20);
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_PET_SEL, x, y, 20, 20);
+                g.disableScissor();
+            }
+            g.item(ItemIcons.forId(it.id()), x + 2, y + 2);
+            String roman = tier > 0 && tier <= 20 ? ROMAN[tier] : String.valueOf(tier);
+            s.centeredIn(g, roman, x - 40, 100, y - 9, done >= 1 ? 0xFFFFD700 : 0xFF808080);
+            s.centeredIn(g, shorten(amount), x - 40, 100, y + 22, 0xFF808080);
+            if (hover(mx, my, x + 2, y + 2, 16, 16)) {
+                tip(List.of(line(it.name() + " " + roman, done >= 1 ? MAXED : DIM), line("Collected: " + commas(amount), TEXT)));
+            }
+        }
+    }
+
+    private static final ItemStack[] SBPV_COL_ICONS = {new ItemStack(Items.GOLDEN_HOE), new ItemStack(Items.STONE_PICKAXE),
+            new ItemStack(Items.STONE_SWORD), new ItemStack(Items.JUNGLE_SAPLING), new ItemStack(Items.FISHING_ROD), new ItemStack(Items.MYCELIUM)};
+    private static final List<String> SBPV_COL_IDS = List.of("FARMING", "MINING", "COMBAT", "FORAGING", "FISHING", "RIFT");
+
+    /** SkyBlockPV's Collections page (CommonCollectionScreen): its categories as the right-edge tabs, and the category's
+     *  collections two to a row (5 px apart, centered): the item, then "Name: amount" over a 91 px bar and "N% to tier"
+     *  or "Maxed". Its Minion tab is left out: our data has no minion tiers. */
+    private void drawSbpvCollections(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.CollectionCategory> cats, int mx, int my) {
+        s.subView = Math.max(0, Math.min(s.subView, cats.size() - 1));
+        for (int i = 0; i < cats.size(); i++) {
+            final int idx = i;
+            ExtraTables.CollectionCategory c = cats.get(i);
+            int tx = s.panelX + s.panelW - 9, ty = s.panelY + 20 + 22 * i, k = SBPV_COL_IDS.indexOf(c.id());
+            PvStyleChrome.sideTab(g, s.pvStyle(), tx, ty, i == s.subView);
+            g.item(k >= 0 ? SBPV_COL_ICONS[k] : c.items().isEmpty() ? ItemStack.EMPTY : ItemIcons.forId(c.items().get(0).id()), tx + 10, ty + 2);
+            if (hover(mx, my, tx, ty, 31, 20)) {
+                tip(List.of(line(c.name(), VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(tx, ty, 31, 20, () -> s.subView = idx));
+        }
+        List<ExtraTables.CollectionItem> items = cats.get(s.subView).items();
+        int text = PvStyleChrome.sbpvText(s.pvStyle()), w0 = 0, w1 = 0;
+        for (int j = 0; j < items.size(); j++) {
+            int w = sbpvColWidth(ex, items.get(j));
+            if (j % 2 == 0) w0 = Math.max(w0, w); else w1 = Math.max(w1, w);
+        }
+        int x0 = s.panelX + 10 + (s.panelW - 20 - (w0 + (w1 > 0 ? 5 + w1 : 0))) / 2, bottom = s.panelY + s.panelH - 4;
+        for (int j = 0; j < items.size(); j++) {
+            int x = x0 + (j % 2) * (w0 + 5), y = s.contentY + (j / 2) * 24;
+            if (y + 19 > bottom) break;
+            ExtraTables.CollectionItem it = items.get(j);
+            long amount = ex.collections.getOrDefault(it.id(), 0L);
+            long[] tiers = it.tiers();
+            int tier = countAtOrBelow(tiers, amount);
+            boolean maxed = tier >= tiers.length;
+            long prev = tier == 0 ? 0 : tiers[tier - 1];
+            float next = maxed ? 1f : (float) (amount - prev) / Math.max(1, tiers[tier] - prev);
+            g.item(ItemIcons.forId(it.id()), x, y + 1);
+            g.text(s.font(), it.name() + ": " + shorten(amount), x + 21, y, text, false);
+            PvStyleChrome.bar(g, x + 21, y + 12, next);
+            g.text(s.font(), maxed ? "Maxed" : Math.round(next * 100) + "% to " + (tier + 1), x + 115, y + 10, maxed ? 0xFF00AA00 : text, false);
+            if (hover(mx, my, x, y, w0, 19)) {
+                tip(List.of(line(it.name(), VALUE), line("Collected: " + commas(amount), TEXT),
+                        line(maxed ? "Maxed" : "Progress to " + (tier + 1) + ": " + Math.round(next * 100) + "%", DIM)));
+            }
+        }
+    }
+
+    /** One SkyBlockPV collection entry's width: item 16 + 5, then the wider of its name line and bar + 3 + progress text. */
+    private int sbpvColWidth(ProfileExtras ex, ExtraTables.CollectionItem it) {
+        long amount = ex.collections.getOrDefault(it.id(), 0L);
+        int tier = countAtOrBelow(it.tiers(), amount);
+        String prog = tier >= it.tiers().length ? "Maxed" : "100% to " + (tier + 1);
+        return 21 + Math.max(s.font().width(it.name() + ": " + shorten(amount)), 94 + s.font().width(prog));
+    }
+
     private void drawCollections(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
@@ -326,6 +451,14 @@ final class ExtraPages {
         List<ExtraTables.CollectionCategory> cats = ExtraTables.now(tf);
         if (cats == null) {
             center(g, tf.isDone() ? "Couldn't load collection tiers." : "Loading collection tiers" + s.dots(), s.contentX, s.contentW, tf.isDone() ? BAD : VALUE);
+            return;
+        }
+        if (s.neuPage()) {
+            drawNeuCollections(g, ex, cats, mx, my);
+            return;
+        }
+        if (s.sbpvStyle()) {
+            drawSbpvCollections(g, ex, cats, mx, my);
             return;
         }
         int navW = 84;
@@ -407,6 +540,10 @@ final class ExtraPages {
     private void drawMining(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
+        if (s.neuPage()) {
+            drawNeuMining(g, ex, mx, my);
+            return;
+        }
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
         // killer560: rename "Mountain" to "HOTM" - matches the perk tree's own name (Heart of the Mountain).
@@ -419,6 +556,85 @@ final class ExtraPages {
             case 1 -> drawGlacite(g, ex.mining, rx, rw, mx, my);
             default -> drawForaging(g, ex.foraging, rx, rw, mx, my);
         }
+    }
+
+    private static final ItemStack[] NEU_MINING_ICONS = {new ItemStack(Items.DIAMOND_PICKAXE), new ItemStack(Items.PACKED_ICE),
+            new ItemStack(Items.OAK_SAPLING)};
+    private static final String[] NEU_MINING_VIEWS = {"HOTM", "Glacite", "Foraging"};
+    /** NEU's crystal colors (MiningPage.crystalToColor), in {@link #CRYSTALS}' order. */
+    private static final int[] NEU_CRYSTAL_COLORS = {0xFF55FF55, 0xFFAA00AA, 0xFFFFFF55, 0xFF55FFFF, 0xFFFFAA00, 0xFFFF5555,
+            0xFFFF55FF, 0xFFFFFFFF, 0xFF5555FF, 0xFFAA0000, 0xFF00AA00, 0xFF555555};
+
+    /** NEU Classic's Mining page (MiningPage, on plain pv_bg): the HOTM bar at 23, 25 (110 wide), the powder table under it
+     *  (headers 51, rows 71 and 81), the crystals in two columns from 20, 101 with the nucleus runs at that box's foot, the
+     *  forge anvil at 149, 20 (its slots on hover) and our perk list where NEU draws its tree (249..412 x 16..185). Glacite
+     *  and Foraging, which NEU has no page for, are two more pv_elements cells beside the HOTM one at 226, 18. */
+    private void drawNeuMining(GuiGraphicsExtractor g, ProfileExtras ex, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        s.subView = Math.max(0, Math.min(s.subView, 2));
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            int cx = l + 226, cy = t + 18 + 22 * i, o = i == s.subView ? 1 : 0;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(NEU_MINING_ICONS[i], cx + 2 + o, cy + 2 + o);
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(NEU_MINING_VIEWS[i], VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> {
+                s.subView = idx;
+                s.pageScroll = 0;
+            }));
+        }
+        ProfileExtras.Mining m = ex.mining;
+        if (s.subView != 0) {
+            if (s.subView == 1) drawGlacite(g, m, l + 4, 218, mx, my); else drawForaging(g, ex.foraging, l + 4, 218, mx, my);
+            return;
+        }
+        if (!m.present()) {
+            s.centeredIn(g, "No Heart of the Mountain data.", l, 222, t + 100, DIM);
+            return;
+        }
+        long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get("hotm_levels"));
+        s.bar(g, l + 23, t + 25, 110, NEU_MINING_ICONS[0], "HOTM", thresholdLevel(table, m.hotmXp()), mx, my, m.hotmXp());
+        int x = l + 22, y = t + 27;
+        String[] names = {"Mithril", "Gemstone", "Glacite"};
+        int[] colors = {0xFF00AA00, 0xFFFF55FF, 0xFF55FFFF}, head = {45, 85, 145};
+        tx(g, "Powder:", x, y + 44, 0xFFFFFFFF);
+        tx(g, "Total:", x, y + 54, 0xFFFFFFFF);
+        for (int i = 0; i < 3; i++) {
+            tx(g, names[i], x + head[i], y + 24, colors[i]);
+            tx(g, shorten(m.powderAvailable()[i]), x + 50 + 50 * i, y + 44, colors[i]);
+            tx(g, shorten(m.powderTotal()[i]), x + 50 + 50 * i, y + 54, colors[i]);
+        }
+        // Crystals: NEU's rect 16, 97 (214 x 89) less 4 padding, two columns 101 wide 105 apart, filled down first.
+        int rows = (CRYSTALS.length + 1) / 2, runs = Integer.MAX_VALUE;
+        for (int i = 0; i < CRYSTALS.length; i++) {
+            ProfileExtras.Crystal c = m.crystals().get(CRYSTALS[i]);
+            int cx = l + 20 + (i / rows) * 105, cy = t + 101 + (i % rows) * 10;
+            tx(g, SbProfile.titleCase(CRYSTALS[i].replace("_crystal", "")) + ":", cx, cy, NEU_CRYSTAL_COLORS[i]);
+            boolean found = c != null && c.state().equals("FOUND");
+            rightText(g, found ? "\u2714" : "\u2716", cx + 101, cy, found ? 0xFF55FF55 : 0xFFFF5555);
+            if (i < 5) {
+                runs = Math.min(runs, c == null ? 0 : c.placed());
+            }
+        }
+        tx(g, "Nucleus Runs Completed:", l + 20, t + 172, 0xFF5555FF);
+        rightText(g, commas(runs), l + 226, t + 172, 0xFFFFFFFF);
+        // The forge: NEU's anvil at 149, 20, its slots in the tooltip.
+        int fx = l + 149, fy = t + 20;
+        g.item(new ItemStack(Items.ANVIL), fx, fy);
+        if (hover(mx, my, fx, fy, 16, 16)) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(line("Forge", 0xFFFFAA00));
+            for (ProfileExtras.ForgeSlot slot : m.forge()) {
+                lines.add(line(slot.slot() + ": " + SbProfile.titleCase(slot.id()), TEXT));
+            }
+            if (m.forge().isEmpty()) {
+                lines.add(line("Empty", DIM));
+            }
+            tip(lines);
+        }
+        perkList(g, "Perks", m.nodes(), l + 253, t + 20, 155, mx, my);
     }
 
     private void drawHotm(GuiGraphicsExtractor g, ProfileExtras.Mining m, int rx, int rw, int mx, int my) {
@@ -642,6 +858,10 @@ final class ExtraPages {
         if (bestiaryStatsEx != ex || bestiaryStatsCats != cats) {
             computeBestiaryStats(ex, cats);
         }
+        if (s.neuPage()) {
+            drawNeuBestiary(g, ex, cats, mx, my);
+            return;
+        }
         int totalTiers = bestiaryTotalTiers;
         int maxed = bestiaryMaxed;
         int families = bestiaryFamilies;
@@ -708,6 +928,54 @@ final class ExtraPages {
             }
         }
         scrollbar(g, rx + rw - 5, top, visible * cell, rows, visible);
+    }
+
+    private final Map<ExtraTables.BestiaryCategory, ItemStack> categoryIcons = new IdentityHashMap<>();
+
+    /** NEU Classic's Bestiary page (BestiaryPage over pv_bestiary_tab): the category cells spread over 350 px from 30, 10,
+     *  the families 9 a row in the left 240 px (cells 26 apart from 29, 37 apart from 47, the tier centered under each),
+     *  and Milestone, Families Found and Families Completed with their bars from 280, 50 on the right (110 wide). */
+    private void drawNeuBestiary(GuiGraphicsExtractor g, ProfileExtras ex, List<ExtraTables.BestiaryCategory> cats, int mx, int my) {
+        int l = s.panelX, t = s.panelY, n = cats.size(), step = (int) (350f / (n - 1 + 0.0000001f));
+        s.subView = Math.max(0, Math.min(s.subView, n - 1));
+        for (int i = 0; i < n; i++) {
+            final int idx = i;
+            ExtraTables.BestiaryCategory c = cats.get(i);
+            int cx = l + 30 + step * i, cy = t + 10;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, i == s.subView ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(categoryIcons.computeIfAbsent(c, k -> k.texture() != null ? LegacyItems.skull(k.texture(), null) : ItemIcons.forItem(k.icon())), cx + 2, cy + 2);
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(c.name(), 0xFFAAAAAA)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> s.subView = idx));
+        }
+        neuAligned(g, "Milestone: ", 0xFFFF5555, "§7" + bestiaryTotalTiers / 10.0, l + 280, t + 50, 110);
+        ExtraTables.BestiaryCategory cat = cats.get(s.subView);
+        int total = cat.families().size(), found = 0, done = 0;
+        for (int i = 0; i < total; i++) {
+            ExtraTables.BestiaryFamily fam = cat.families().get(i);
+            long k = familyKills(ex, fam);
+            int[] tiers = fam.tiers();
+            int tier = countAtOrBelow(tiers, k);
+            boolean maxed = tiers.length > 0 && tier >= tiers.length;
+            found += k > 0 ? 1 : 0;
+            done += maxed ? 1 : 0;
+            if (i >= 45) {
+                continue;
+            }
+            int x = l + 29 + 26 * (i % 9), y = t + 47 + 37 * (i / 9);
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            g.item(familyIcon(fam), x + 2, y + 2);
+            s.centeredIn(g, String.valueOf(tier), x, 20, y + 26, maxed ? 0xFFFFAA00 : 0xFF808080);
+            if (hover(mx, my, x + 2, y + 2, 16, 16)) {
+                tip(List.of(line(fam.name() + " " + tier, 0xFFAAAAAA), line("Kills: " + commas(k), 0xFF55FF55),
+                        line("Tier: " + tier + " / " + tiers.length, 0xFFAAAAAA)));
+            }
+        }
+        neuAligned(g, "Families Found:", 0xFFFF5555, (found == total ? "§6" : "§7") + found + "/" + total, l + 280, t + 70, 110);
+        ScreenChrome.progress(g, l + 280, t + 80, 112, 4, total == 0 ? 0 : found / (float) total, found == total ? MAXED : ACCENT);
+        neuAligned(g, "Families Completed:", 0xFFFF5555, (done == total ? "§6" : "§7") + done + "/" + total, l + 280, t + 90, 110);
+        ScreenChrome.progress(g, l + 280, t + 100, 112, 4, total == 0 ? 0 : done / (float) total, done == total ? MAXED : ACCENT);
     }
 
     private static long familyKills(ProfileExtras ex, ExtraTables.BestiaryFamily fam) {
@@ -787,6 +1055,10 @@ final class ExtraPages {
             return;
         }
         JsonObject tables = ExtraTables.section("crimson_isle");
+        if (s.neuPage()) {
+            drawNeuCrimson(g, c, tables, mx, my);
+            return;
+        }
         int colW = (s.contentW - 12) / 3;
         int x0 = s.contentX;
 
@@ -899,6 +1171,78 @@ final class ExtraPages {
         s.stat2(g, x, y, w, "Belt", anyDojo ? ExtraTables.threshold(tables.get("dojo_belts"), "belt", points) : "None");
     }
 
+    /** NEU's renderAlignedString: the label at x, the value flush right at x + w; when "label value" is w or wider, NEU
+     *  draws it as one line centered on x + w / 2 instead. */
+    private void neuAligned(GuiGraphicsExtractor g, String label, int labelColor, String value, int x, int y, int w) {
+        int lw = f().width(label), all = lw + f().width(" ") + f().width(value);
+        if (all >= w) {
+            int lx = x + (w - all) / 2;
+            tx(g, label, lx, y, labelColor);
+            rightText(g, value, lx + all, y, 0xFFFFFFFF);
+            return;
+        }
+        tx(g, label, x, y, labelColor);
+        rightText(g, value, x + w, y, 0xFFFFFFFF);
+    }
+
+    /** NEU Classic's Crimson Isle page (CrimsonIslePage over pv_crimson_isle_page): Kuudra on the left (a key and two lines
+     *  per tier from 8/23, 30, 30 apart; total runs at 180), Dojo in the middle (lines from 146, 30, 12 apart; points and
+     *  belt under them), Faction Reputation top right and the Last Matriarch Attempt under it (both from 290, 130 wide). */
+    private void drawNeuCrimson(GuiGraphicsExtractor g, ProfileExtras.Crimson c, JsonObject tables, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        JsonObject kNames = tables.has("kuudra_names") ? tables.getAsJsonObject("kuudra_names") : new JsonObject();
+        s.centeredIn(g, "Kuudra Stats", l + 28, 100, t + 14, 0xFFFF5555);
+        int total = 0;
+        for (int n : c.kuudraCompletions().values()) {
+            total += n;
+        }
+        if (total == 0) {
+            tx(g, "No kuudra stats found!", l + 15, t + 101, 0xFFFF5555);
+        } else {
+            int y = t + 30; // the five tiers, in KUUDRA_IDS order
+            for (Map.Entry<String, Integer> e : c.kuudraCompletions().entrySet()) {
+                int wave = c.kuudraHighestWave().getOrDefault(e.getKey(), 0);
+                g.item(NEU_KUUDRA_KEY, l + 8, y - 4);
+                String name = kNames.has(e.getKey()) ? kNames.get(e.getKey()).getAsString() : SbProfile.titleCase(e.getKey());
+                neuAligned(g, name + ": ", 0xFFFF5555, commas(e.getValue()), l + 23, y, 110);
+                neuAligned(g, "Highest Wave: ", 0xFFFF5555, wave != 0 ? String.valueOf(wave) : "N/A", l + 23, y + 12, 110);
+                y += 30;
+            }
+            neuAligned(g, "Total runs: ", 0xFFFF5555, commas(total), l + 23, t + 180, 110);
+        }
+        s.centeredIn(g, "Dojo Stats", l + 161, 100, t + 14, 0xFFFFFF55);
+        JsonObject dojoNames = tables.has("dojo_names") ? tables.getAsJsonObject("dojo_names") : new JsonObject();
+        int points = 0, y = t + 30;
+        for (Map.Entry<String, Integer> e : c.dojoPoints().entrySet()) {
+            int pts = Math.max(0, e.getValue());
+            points += pts;
+            String name = dojoNames.has(e.getKey()) ? dojoNames.get(e.getKey()).getAsString() : SbProfile.titleCase(e.getKey());
+            neuAligned(g, name + ": ", 0xFFFFAA00, pts + " (" + ExtraTables.threshold(tables.get("dojo_grades"), "grade", pts) + ")", l + 146, y, 130);
+            y += 12;
+        }
+        neuAligned(g, "Points: ", 0xFFAAAAAA, commas(points), l + 146, y + 10, 130);
+        neuAligned(g, "Rank: ", 0xFFAAAAAA, ExtraTables.threshold(tables.get("dojo_belts"), "belt", points), l + 146, y + 22, 130);
+        s.centeredIn(g, "Faction Reputation", l + 303, 100, t + 14, 0xFFAA00AA);
+        JsonObject factionNames = tables.has("faction_names") ? tables.getAsJsonObject("faction_names") : new JsonObject();
+        String f = c.selectedFaction();
+        neuAligned(g, "Faction: ", 0xFF55FF55, f.isEmpty() ? "N/A" : factionNames.has(f) ? factionNames.get(f).getAsString() : SbProfile.titleCase(f),
+                l + 290, t + 30, 130);
+        int mageY = t + 42 + (f.equals("mages") || f.isEmpty() ? 0 : 24), barbY = t + 42 + (f.equals("barbarians") ? 0 : 24);
+        neuAligned(g, "Mage Reputation: ", 0xFFAA00AA, String.valueOf(c.magesRep()), l + 290, mageY, 130);
+        neuAligned(g, "Title: ", 0xFFAA00AA, ExtraTables.threshold(tables.get("faction_reputation"), "name", c.magesRep()), l + 290, mageY + 12, 130);
+        neuAligned(g, "Barbarian Reputation: ", 0xFFFF5555, String.valueOf(c.barbariansRep()), l + 290, barbY, 130);
+        neuAligned(g, "Title: ", 0xFFFF5555, ExtraTables.threshold(tables.get("faction_reputation"), "name", c.barbariansRep()), l + 290, barbY + 12, 130);
+        s.centeredIn(g, "Last Matriarch Attempt", l + 303, 100, t + 104, 0xFFFFAA00);
+        if (c.matriarchLastAttempt() <= 0) {
+            tx(g, "No attempts found!", l + 290, t + 119, 0xFFFF5555);
+        } else {
+            neuAligned(g, "Heavy Pearls Acquired: ", 0xFFFFAA00, commas(c.matriarchPearls()), l + 290, t + 119, 130);
+            neuAligned(g, "Last Attempt: ", 0xFFFFAA00, date(c.matriarchLastAttempt()), l + 290, t + 131, 130);
+        }
+    }
+
+    private static final ItemStack NEU_KUUDRA_KEY = new ItemStack(Items.TRIPWIRE_HOOK);
+
     private static int gradeColor(String grade) {
         return switch (grade) {
             case "S" -> 0xFFFFAA00;
@@ -971,6 +1315,10 @@ final class ExtraPages {
             museumKeyTables = tables;
         }
         List<String> catIds = museumCatIds;
+        if (s.neuPage()) {
+            drawNeuMuseum(g, view, tables, mx, my);
+            return;
+        }
 
         int lw = 140;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
@@ -1039,6 +1387,93 @@ final class ExtraPages {
             s.slot(g, startX + (i % cols) * 18, top + row * 18, stacks.get(i), mx, my, false);
         }
         scrollbar(g, rx + rw - 5, top, visible * 18, rows, visible);
+    }
+
+    private static final String[] NEU_MUSEUM_CATS = {"weapons", "armor", "rarities", "special"};
+    private static final String[] NEU_MUSEUM_NAMES = {"Weapons", "Armor Sets", "Rarities", "Special Items"};
+    private static final String NEU_RARITIES_SKULL = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODZhZGRiZDVkZWRhZDQwOTk5NDczYmU0YTdmNDhmNjIzNmE3OWEwZGNlOTcxYjVkYmQ3MzcyMDE0YWUzOTRkIn19fQ";
+    private ItemStack[] neuMuseumIcons;
+
+    /** NEU Classic's Museum page (MuseumPage over pv_museum): value and donation bars down the left (21, 25 to 145, 114
+     *  wide), the four category cells at 16 + 34 i, 172, the category's name over a 4-row chest centered on 251, 101, its
+     *  items 7 a row from 26 in (28 a page, a missing one as gray dye) and page arrows at 34. */
+    private void drawNeuMuseum(GuiGraphicsExtractor g, MuseumView view, ExtraTables.MuseumTables tables, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (neuMuseumIcons == null) {
+            neuMuseumIcons = new ItemStack[]{new ItemStack(Items.DIAMOND_SWORD), new ItemStack(Items.DIAMOND_CHESTPLATE),
+                    LegacyItems.skull(NEU_RARITIES_SKULL, Component.literal("Rarities")), new ItemStack(Items.CAKE)};
+        }
+        s.subView = Math.max(0, Math.min(s.subView, 3));
+        for (int i = 0; i < 4; i++) {
+            final int idx = i;
+            int cx = l + 16 + 34 * i, cy = t + 172, o = i == s.subView ? 1 : 0;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(neuMuseumIcons[i], cx + 2 + o, cy + 2 + o);
+            g.itemDecorations(f(), neuMuseumIcons[i], cx + 2 + o, cy + 2 + o, String.valueOf(i + 1));
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(NEU_MUSEUM_NAMES[i], 0xFFFFAA00)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> {
+                s.subView = idx;
+                s.pageScroll = 0;
+            }));
+        }
+        neuAligned(g, "Museum Value", 0xFFFFAA00, shorten(view.value()), l + 21, t + 25, 114);
+        int weapons = countDonated(view, tables, "weapons"), armor = countDonated(view, tables, "armor"),
+                rarities = countDonated(view, tables, "rarities");
+        int[] donated = {weapons + armor + rarities, weapons, armor, rarities};
+        String[] labels = {"Total Donations", "Weapons Donated", "Armor Donated", "Rarities Donated"}, keys = {"total", "weapons", "armor", "rarities"};
+        for (int i = 0; i < 4; i++) {
+            int y = t + 45 + 25 * i;
+            neuAligned(g, labels[i], 0xFF5555FF, String.valueOf(donated[i]), l + 21, y, 114);
+            Integer max = tables == null ? null : tables.maxValues().get(keys[i]);
+            ScreenChrome.progress(g, l + 20, y + 10, 116, 4, max == null || max <= 0 ? 0 : Math.min(1f, donated[i] / (float) max), ACCENT);
+        }
+        neuAligned(g, "Special Items Donated", 0xFF5555FF, String.valueOf(view.special().size()), l + 21, t + 145, 114);
+        String cat = NEU_MUSEUM_CATS[s.subView];
+        s.centeredIn(g, NEU_MUSEUM_NAMES[s.subView], l + 201, 100, t + 14, 0xFF404040);
+        int h = 4 * 18 + 17, x = l + 251 - 88, y = t + 101 - (h + 7) / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y, 0f, 0f, 176, h, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y + h, 0f, 215f, 176, 7, 256, 256);
+        List<ItemStack> stacks = museumStacks.computeIfAbsent("neu:" + cat, c -> neuMuseumStacks(cat, view, tables));
+        int pages = Math.max(1, (stacks.size() + 27) / 28);
+        s.pageScroll = Math.max(0, Math.min(s.pageScroll, pages - 1));
+        int page = s.pageScroll;
+        if (page > 0) {
+            neuArrow(g, "<", l + 251 - 12, t + 34, -1, mx, my);
+        }
+        if (page < pages - 1) {
+            neuArrow(g, ">", l + 251, t + 34, 1, mx, my);
+        }
+        for (int i = page * 28, end = Math.min(stacks.size(), i + 28); i < end; i++) {
+            int k = i - page * 28;
+            s.slotItem(g, x + 25 + (k % 7) * 18, t + 70 + (k / 7) * 18, stacks.get(i), mx, my);
+        }
+    }
+
+    private void neuArrow(GuiGraphicsExtractor g, String arrow, int x, int y, int step, int mx, int my) {
+        tx(g, arrow, x + 3, y + 4, hover(mx, my, x, y, 12, 16) ? 0xFFFFFF55 : 0xFFFFFFFF);
+        s.hotspots.add(new ProfileViewerScreen.Hotspot(x, y, 12, 16, () -> s.pageScroll += step));
+    }
+
+    /** A NEU museum category in NEU's order: every item the repo lists (the first donated copy, else a gray dye named for
+     *  it), or for Special Items every donated one. */
+    private static List<ItemStack> neuMuseumStacks(String cat, MuseumView view, ExtraTables.MuseumTables tables) {
+        if (cat.equals("special")) {
+            return view.special();
+        }
+        List<ItemStack> out = new ArrayList<>();
+        for (String id : tables == null ? List.<String>of() : tables.categories().getOrDefault(cat, List.of())) {
+            List<ItemStack> got = view.items().get(id);
+            if (got != null && !got.isEmpty()) {
+                out.add(got.get(0));
+            } else {
+                ItemStack missing = new ItemStack(McItems.GRAY_DYE);
+                missing.set(DataComponents.CUSTOM_NAME, Component.literal(SbProfile.titleCase(id) + " (Missing)").withStyle(ChatFormatting.RED));
+                out.add(missing);
+            }
+        }
+        return out;
     }
 
     private static int countDonated(MuseumView view, ExtraTables.MuseumTables tables, String cat) {
@@ -1116,12 +1551,106 @@ final class ExtraPages {
     }
 
 
+    /** The Rift's items, decoded off the render thread once a profile. */
+    private CompletableFuture<RiftInventory> riftInventory(SbProfile p, ProfileExtras.Rift r) {
+        return riftInventories.computeIfAbsent(p, prof -> CompletableFuture.supplyAsync(() -> {
+            JsonObject inv = r.inventory();
+            List<ItemStack> ender = LegacyItems.decodeInventory(inv.get("ender_chest_contents"));
+            List<List<ItemStack>> pages = new ArrayList<>();
+            for (int i = 0; i < ender.size(); i += 45) {
+                pages.add(new ArrayList<>(ender.subList(i, Math.min(ender.size(), i + 45))));
+            }
+            return new RiftInventory(LegacyItems.decodeInventory(inv.get("inv_contents")), LegacyItems.decodeInventory(inv.get("inv_armor")),
+                    LegacyItems.decodeInventory(inv.get("equipment_contents")), pages);
+        }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
+    }
+
+    private ItemStack[] neuRiftIcons;
+
+    /** NEU Classic's Rift page (RiftPage over pv_rift): Motes centered at 45, 16, armor and equipment columns at 27 and 46
+     *  from 64, the pet cell at 35, 156; Timecharms, Vampire (its bar at 320, 71), Burger and Enigma Souls on the right;
+     *  the Inventory / Ender Chest buttons at 156 and 222, 16 over a chest panel centered on 203 (4 rows and the hotbar at
+     *  154, or an Ender Chest page of 5 rows from 91). */
+    private void drawNeuRift(GuiGraphicsExtractor g, SbProfile p, ProfileExtras.Rift r, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (neuRiftIcons == null) {
+            neuRiftIcons = new ItemStack[]{new ItemStack(Items.GLASS), new ItemStack(Items.COOKED_BEEF), new ItemStack(McItems.PURPLE_DYE),
+                    new ItemStack(Items.CHEST), new ItemStack(Items.ENDER_CHEST)};
+        }
+        s.centeredIn(g, "§dMotes: §f" + shorten(r.motes()), l + 3, 84, t + 16, 0xFFFFFFFF);
+        if (hover(mx, my, l + 3, t + 3, 87, 22)) {
+            tip(List.of(line("Lifetime Motes: " + shorten(r.lifetimeMotes()), 0xFFFF55FF)));
+        }
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, l + 35, t + 156, 20, 20);
+        JsonObject tables = ExtraTables.section("rift");
+        int charms = tables.has("trophies") ? tables.getAsJsonArray("trophies").size() : 8;
+        neuAligned(g, "Timecharms:", 0xFFFF5555, r.trophies().size() + "/" + charms, l + 336, t + 39, 83);
+        g.item(neuRiftIcons[0], l + 316, t + 36);
+        LevelTables.Slayer vamp = null;
+        for (LevelTables.Slayer sl : LevelTables.slayers()) {
+            vamp = sl.apiId().equals("vampire") ? sl : vamp;
+        }
+        SbProfile.SlayerStat st = p.slayers.get("vampire");
+        LevelTables.Level lvl = vamp == null ? null : LevelTables.slayerLevel(vamp, st == null ? 0 : st.xp());
+        neuAligned(g, "Vampire", 0xFFFFAA00, String.valueOf(lvl == null ? 0 : lvl.level()), l + 336, t + 61, 60);
+        ScreenChrome.progress(g, l + 320, t + 71, 90, 4, lvl == null ? 0 : lvl.maxed() ? 1 : (float) lvl.progress(), lvl != null && lvl.maxed() ? MAXED : ACCENT);
+        int grub = tables.has("grubber_max") ? tables.get("grubber_max").getAsInt() : 5;
+        neuAligned(g, "Burger:", 0xFFFFAA00, r.grubberStacks() + "/" + grub, l + 331, t + 87, 83);
+        g.item(neuRiftIcons[1], l + 314, t + 84);
+        int souls = tables.has("enigma_souls") ? tables.get("enigma_souls").getAsInt() : 52;
+        neuAligned(g, "Enigma Souls:", 0xFFAA00AA, r.souls().size() + "/" + souls, l + 331, t + 110, 83);
+        g.item(neuRiftIcons[2], l + 314, t + 106);
+        if (r.inventory() == null) {
+            s.centeredIn(g, "Inventory API not enabled!", l, 431, t + 61, 0xFFFF5555);
+            return;
+        }
+        boolean inInv = s.subView != 2;
+        for (int b = 0; b < 2; b++) {
+            final int view = b == 0 ? 0 : 2;
+            int bx = l + (b == 0 ? 156 : 222), by = t + 16;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, inInv == (b == 0) ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, bx, by, 20, 20);
+            g.item(neuRiftIcons[3 + b], bx + 2, by + 2);
+            if (hover(mx, my, bx, by, 20, 20)) {
+                tip(List.of(line(b == 0 ? "Inventory" : "Ender Chest", 0xFFAAAAAA)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(bx, by, 20, 20, () -> s.subView = view));
+        }
+        int rows = inInv ? 4 : 5, h = rows * 18 + 17, x = l + 203 - 88, y = t + 130 - (h + 7) / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y, 0f, 0f, 176, h, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y + h, 0f, 215f, 176, 7, 256, 256);
+        g.text(f(), inInv ? "Inventory" : "Ender Chest", l + 122, t + (inInv ? 88 : 79), 0xFF404040, false);
+        RiftInventory inv = ExtraTables.now(riftInventory(p, r));
+        if (inv == null) {
+            return;
+        }
+        for (int i = 0; i < 4; i++) {
+            s.slotItem(g, l + 26, t + 63 + i * 18, inv.armor().size() == 4 ? inv.armor().get(3 - i) : ItemStack.EMPTY, mx, my);
+            s.slotItem(g, l + 45, t + 63 + i * 18, ProfileViewerScreen.get(inv.equipment(), i), mx, my);
+        }
+        if (inInv) {
+            for (int i = 0; i < 36; i++) {
+                int ix = i < 9 ? l + 123 + i * 18 : x + 8 + (i - 9) % 9 * 18, iy = i < 9 ? t + 154 : y + 18 + (i - 9) / 9 * 18;
+                s.slotItem(g, ix - 1, iy - 1, ProfileViewerScreen.get(inv.inventory(), i), mx, my);
+            }
+        } else if (!inv.enderChest().isEmpty()) {
+            s.pageScroll = Math.max(0, Math.min(s.pageScroll, inv.enderChest().size() - 1));
+            List<ItemStack> page = inv.enderChest().get(s.pageScroll);
+            for (int j = 0; j < page.size(); j++) {
+                s.slotItem(g, x + 7 + j % 9 * 18, t + 90 + j / 9 * 18, page.get(j), mx, my);
+            }
+        }
+    }
+
     private void drawRift(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
         ProfileExtras.Rift r = ex.rift;
         if (!r.present()) {
             center(g, "This profile hasn't visited the Rift.", s.contentX, s.contentW, DIM);
+            return;
+        }
+        if (s.neuPage()) {
+            drawNeuRift(g, p, r, mx, my);
             return;
         }
         int navW = 84;
@@ -1181,16 +1710,7 @@ final class ExtraPages {
             center(g, "Rift inventory API is disabled.", rx, rw, DIM);
             return;
         }
-        CompletableFuture<RiftInventory> inf = riftInventories.computeIfAbsent(p, prof -> CompletableFuture.supplyAsync(() -> {
-            JsonObject inv = r.inventory();
-            List<ItemStack> ender = LegacyItems.decodeInventory(inv.get("ender_chest_contents"));
-            List<List<ItemStack>> pages = new ArrayList<>();
-            for (int i = 0; i < ender.size(); i += 45) {
-                pages.add(new ArrayList<>(ender.subList(i, Math.min(ender.size(), i + 45))));
-            }
-            return new RiftInventory(LegacyItems.decodeInventory(inv.get("inv_contents")), LegacyItems.decodeInventory(inv.get("inv_armor")),
-                    LegacyItems.decodeInventory(inv.get("equipment_contents")), pages);
-        }, ProfileViewerApi.EXECUTOR).exceptionally(t -> null));
+        CompletableFuture<RiftInventory> inf = riftInventory(p, r);
         RiftInventory inv = ExtraTables.now(inf);
         if (inv == null) {
             center(g, inf.isDone() ? "Couldn't decode the Rift items." : "Decoding items" + s.dots(), rx, rw, inf.isDone() ? BAD : VALUE);
@@ -1250,6 +1770,117 @@ final class ExtraPages {
             "MELON", "Melon");
     private static final List<String> MEDALS = List.of("diamond", "platinum", "gold", "silver", "bronze");
 
+    /** GardenPage's CropType order (API names), NEU-REPO's plots (id and x * 5 + y), visitor rarities and compost rows. */
+    private static final String[] NEU_CROPS = {"WHEAT", "NETHER_STALK", "SUGAR_CANE", "CARROT_ITEM", "POTATO_ITEM", "INK_SACK:3", "PUMPKIN",
+            "MELON", "CACTUS", "MUSHROOM_COLLECTION"},
+            NEU_CROP_NAMES = {"Wheat", "Nether Wart", "Sugar Cane", "Carrot", "Potato", "Cocoa Beans", "Pumpkin", "Melon", "Cactus", "Mushroom"},
+            NEU_PLOTS = {"beginner_1","beginner_2","beginner_3","beginner_4","intermediate_1","intermediate_2","intermediate_3","intermediate_4","advanced_1","advanced_2","advanced_3","advanced_4","advanced_5","advanced_6","advanced_7","advanced_8","advanced_9","advanced_10","advanced_11","advanced_12","expert_1","expert_2","expert_3","expert_4"},
+            NEU_RARITIES = {"§aUncommon", "§9Rare", "§6Legendary", "§dMythic", "§cSpecial", "§7Total"},
+            NEU_COMPOST = {"speed", "multi_drop", "fuel_cap", "organic_matter_cap", "cost_reduction"},
+            NEU_COMPOST_NAMES = {"§aSpeed", "§aMulti Drop", "§aFuel Cap", "§aOrganic Matter Cap", "§aCost Reduction"};
+    private static final int[] NEU_PLOT_AT = {7, 11, 13, 17, 6, 8, 16, 18, 1, 2, 3, 5, 9, 10, 14, 15, 19, 21, 22, 23, 0, 4, 20, 24};
+    private ItemStack[] neuGardenIcons;
+    private JsonObject neuGardenFor;
+    private final String[][] neuGardenText = new String[2][10];
+    private final long[][] neuGardenHave = new long[2][10];
+    private final String[] neuVisitorText = new String[7], neuCompostText = new String[5];
+    private final boolean[] neuPlotOpen = new boolean[NEU_PLOTS.length];
+    private LevelTables.Level neuGardenLevel;
+    private String neuGardenLevelText, neuCopperText;
+
+    /** NEU Classic's Garden page (GardenPage over garden/background) for Farming: Crop Milestones from 26, 10 and Crop
+     *  Upgrades from 26, 105 (two columns of five, 70 apart, 14 down), the garden level at 206, 20 with Copper and Farming
+     *  Weight under it, the 5 x 5 plots (22 apart) at 192, 79 with the barn in the middle, Visitors at 322, 17 and Compost
+     *  Upgrades at 322, 122. Everything it shows is worked out once a garden. */
+    private void drawNeuGarden(GuiGraphicsExtractor g, ProfileExtras.Farming fa, JsonObject garden, JsonObject tables, boolean done, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (garden == null) {
+            s.centeredIn(g, done ? "§cMissing Profile Data" : "§eLoading Data", l + 170, 100, t + 97, 0xFFFFFFFF);
+            return;
+        }
+        if (neuGardenIcons == null) {
+            neuGardenIcons = new ItemStack[NEU_CROPS.length + 3];
+            for (int i = 0; i < NEU_CROPS.length; i++) {
+                neuGardenIcons[i] = ItemIcons.forId(NEU_CROPS[i]);
+            }
+            neuGardenIcons[10] = new ItemStack(Items.GRASS_BLOCK);
+            neuGardenIcons[11] = new ItemStack(Items.BARRIER);
+            neuGardenIcons[12] = new ItemStack(Items.OAK_PLANKS);
+        }
+        if (neuGardenFor != garden) {
+            neuGardenFor = garden;
+            JsonObject milestones = tables.has("crop_milestones") ? tables.getAsJsonObject("crop_milestones") : new JsonObject();
+            for (int part = 0; part < 2; part++) {
+                JsonObject src = SbProfile.asObj(garden.get(part == 0 ? "resources_collected" : "crop_upgrade_levels"));
+                for (int i = 0; i < 10; i++) {
+                    long have = src == null ? 0 : (long) SbProfile.num(src.get(NEU_CROPS[i]));
+                    neuGardenHave[part][i] = have;
+                    neuGardenText[part][i] = String.valueOf(part == 1 ? have : thresholdLevel(ExtraTables.tableCumulative(milestones.get(NEU_CROPS[i])), have).level());
+                }
+            }
+            neuGardenLevel = thresholdLevel(ExtraTables.tableCumulative(tables.get("garden_level")), (long) SbProfile.num(garden.get("garden_experience")));
+            neuGardenLevelText = "§aGarden Level " + neuGardenLevel.level();
+            neuCopperText = commas(fa.copper());
+            List<String> unlocked = ExtraTables.tableStrings(garden.get("unlocked_plots_ids"));
+            for (int i = 0; i < NEU_PLOTS.length; i++) {
+                neuPlotOpen[i] = unlocked.contains(NEU_PLOTS[i]);
+            }
+            JsonObject comm = SbProfile.asObj(garden.get("commission_data"));
+            JsonObject rarity = tables.has("neu_visitors") ? tables.getAsJsonObject("neu_visitors") : new JsonObject();
+            long[][] counts = new long[2][6];
+            for (int k = 0; k < 2; k++) {
+                JsonObject per = comm == null ? null : SbProfile.asObj(comm.get(k == 0 ? "visits" : "completed"));
+                for (Map.Entry<String, JsonElement> e : per == null ? java.util.Set.<Map.Entry<String, JsonElement>>of() : per.entrySet()) {
+                    int r = rarity.has(e.getKey()) ? "URLMS".indexOf(rarity.get(e.getKey()).getAsString()) : -1;
+                    if (r >= 0) {
+                        counts[k][r] += (long) SbProfile.num(e.getValue());
+                        counts[k][5] += (long) SbProfile.num(e.getValue());
+                    }
+                }
+            }
+            neuVisitorText[6] = commas(comm == null ? 0 : SbProfile.num(comm.get("unique_npcs_served"))) + "/" + rarity.size();
+            for (int r = 0; r < 6; r++) {
+                neuVisitorText[r] = commas(counts[1][r]) + "/" + commas(counts[0][r]);
+            }
+            JsonObject comp = SbProfile.asObj(garden.get("composter_data"));
+            JsonObject up = comp == null ? null : SbProfile.asObj(comp.get("upgrades"));
+            for (int i = 0; i < 5; i++) {
+                neuCompostText[i] = up == null ? null : String.valueOf((long) SbProfile.num(up.get(NEU_COMPOST[i])));
+            }
+        }
+        for (int part = 0; part < 2; part++) {
+            int top = t + (part == 0 ? 10 : 105);
+            s.centeredIn(g, part == 0 ? "§eCrop Milestones" : "§eCrop Upgrades", l + 44, 105, top + 5, 0xFFFFFFFF);
+            for (int i = 0; i < 10; i++) {
+                int x = l + 26 + (i / 5) * 70, y = top + 14 * (i % 5 + 1);
+                g.item(neuGardenIcons[i], x + 2, y);
+                neuAligned(g, "§e" + NEU_CROP_NAMES[i], 0xFFFFFFFF, neuGardenText[part][i], x + 20, y + 5, 50);
+                if (hover(mx, my, x + 20, y, 50, 14)) {
+                    tip(List.of(line(NEU_CROP_NAMES[i], 0xFF55FF55), line((part == 0 ? "Collected: " : "Tier: ") + commas(neuGardenHave[part][i]), 0xFFAAAAAA)));
+                }
+            }
+        }
+        g.item(neuGardenIcons[10], l + 206, t + 14);
+        s.centeredIn(g, neuGardenLevelText, l + 226, 80, t + 18, 0xFFFFFFFF);
+        ScreenChrome.progress(g, l + 206, t + 30, 80, 4, neuGardenLevel.maxed() ? 1 : (float) neuGardenLevel.progress(), neuGardenLevel.maxed() ? MAXED : ACCENT);
+        neuAligned(g, "§cCopper", 0xFFFFFFFF, neuCopperText, l + 206, t + 40, 80);
+        neuAligned(g, "§eFarming Weight", 0xFFFFFFFF, "-", l + 201, t + 51, 90);
+        for (int i = 0; i <= NEU_PLOTS.length; i++) {
+            int at = i < NEU_PLOTS.length ? NEU_PLOT_AT[i] : 12, x = l + 192 + at / 5 * 22, y = t + 79 + at % 5 * 22;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_INV_TAB, x, y, 20, 20);
+            g.item(neuGardenIcons[i == NEU_PLOTS.length ? 12 : neuPlotOpen[i] ? 10 : 11], x + 2, y + 2);
+        }
+        s.centeredIn(g, "§eVisitors", l + 322, 80, t + 15, 0xFFFFFFFF);
+        neuAligned(g, "§eUnique Visitors", 0xFFFFFFFF, neuVisitorText[6], l + 322, t + 27, 80);
+        for (int r = 0; r < 6; r++) {
+            neuAligned(g, NEU_RARITIES[r], 0xFFFFFFFF, neuVisitorText[r], l + 322, t + 37 + 12 * r, 80);
+        }
+        s.centeredIn(g, "§eCompost Upgrades", l + 322, 80, t + 120, 0xFFFFFFFF);
+        for (int i = 0; i < 5 && neuCompostText[i] != null; i++) {
+            neuAligned(g, NEU_COMPOST_NAMES[i], 0xFFFFFFFF, neuCompostText[i], l + 322, t + 134 + 12 * i, 80);
+        }
+    }
+
     private void drawFarming(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
@@ -1257,6 +1888,10 @@ final class ExtraPages {
         JsonObject gardenTables = ExtraTables.section("garden");
         CompletableFuture<ProfileViewerApi.AuxResult> gf = aux(ProfileViewerApi.AuxKind.GARDEN, p.profileId);
         JsonObject garden = gf.isDone() && !gf.isCompletedExceptionally() && gf.getNow(null) != null ? gf.getNow(null).data() : null;
+        if (s.neuPage()) {
+            drawNeuGarden(g, fa, garden, gardenTables, gf.isDone(), mx, my);
+            return;
+        }
 
         int lw = 150;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
