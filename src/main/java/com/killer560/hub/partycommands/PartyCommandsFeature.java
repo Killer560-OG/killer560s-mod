@@ -121,8 +121,8 @@ public final class PartyCommandsFeature {
         CommandChatListener.register();
         InfoReplies.register();
         // A new connection has no known party leader (a volatile write, safe on the netty thread).
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PartyLeaderTracker.resetIfSet());
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> PartyLeaderTracker.resetIfSet());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
         // "!ping" answers with the measured round trip, so keep one measured while that command is on.
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
@@ -138,8 +138,11 @@ public final class PartyCommandsFeature {
      */
     static void onServerLine(String plain) {
         if (plain == null || plain.isEmpty()) return;
-        if (PartyLeaderTracker.onServerLine(plain)) {
-            cancelReinvites("you're no longer in that party");
+        PartyLeaderTracker.onServerLine(plain);
+        // A party that disbands (kicking its last other member does) must not drop a queued !reinv: the invite starts a new one.
+        if (!REJOIN.isEmpty() && plain.contains(" has invited you to join ")) {
+            Matcher inv = INVITED_YOU.matcher(plain);
+            if (inv.find()) acceptFormerMember(inv.group(1));
         }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
             // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat.
@@ -184,13 +187,13 @@ public final class PartyCommandsFeature {
         // Security audit 2026-10-24: a DM'd !invite only for someone on his Hypixel friends list, and no command at all
         // (info replies included: !coords, !location, !time and !holding say where he is and his time zone) for
         // anyone who is neither a teammate nor a friend, whatever chat it came from.
-        // Your own "!pt dirt" in party chat is never a request to this client (killer560, 2026-11-03: it transferred
-        // his party away; "this shouldn't happen ever"). Only a floor request runs for you (2026-11-04: his own "!f3" as
-        // party leader was ignored while a teammate's worked).
+        // Your own party line runs like anyone's (killer560, 2026-11-06: "I should be able to set off my own commands";
+        // Hypixel echoes it back once, and the mod's replies never start with "!", so nothing loops). Only a command
+        // that targets the sender would act on yourself: a bare "!pt", warp+transfer, demote, promote, reinv, a DM invite.
         Minecraft selfClient = Minecraft.getInstance();
         String selfName = selfClient.player == null ? null : selfClient.player.getGameProfile().name();
-        if (selfName != null && selfName.equalsIgnoreCase(sender) && command != Command.QUEUE_INSTANCE) {
-            LOGGER.info("[PartyCommands] Ignored your own \"!{}\"", word);
+        if (selfName != null && selfName.equalsIgnoreCase(sender) && targetsSender(command, arg, selfName, channel)) {
+            LOGGER.info("[PartyCommands] Ignored your own \"!{}\" - it would act on yourself", word);
             return false;
         }
         boolean dmInvite = command == Command.INVITE && channel == Channel.PRIVATE;
@@ -223,6 +226,16 @@ public final class PartyCommandsFeature {
             }
         });
         return true;
+    }
+
+    /** Commands whose action is "do it to the sender" - meaningless when the sender is you. */
+    private static boolean targetsSender(Command command, String arg, String self, Channel channel) {
+        return switch (command) {
+            case TRANSFER -> arg == null || arg.equalsIgnoreCase(self);
+            case WARP_TRANSFER, DEMOTE, PROMOTE, REINVITE -> true;
+            case INVITE -> channel == Channel.PRIVATE;
+            default -> false;
+        };
     }
 
     /** The command a "!" word names, or null. Which chat it came from never changes the answer. */
@@ -473,8 +486,7 @@ public final class PartyCommandsFeature {
 
     /**
      * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back {@link #REINVITE_DELAY_MS}
-     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and canceled from
-     * {@link #onServerLine} the moment this client stops being in that party.
+     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and kept even if the party disbands.
      */
     private static void reinvite(String sender) {
         String key = REINVITE_KEY + sender.toLowerCase(Locale.US);
@@ -485,6 +497,7 @@ public final class PartyCommandsFeature {
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
         boolean wasInDungeon = DungeonState.isInDungeon();
+        rememberForRejoin(sender);
         execute(sender, "p kick " + sender,
                 "asked to be re-invited - kicked, inviting back in " + (REINVITE_DELAY_MS / 1000) + "s");
         schedule(REINVITE_DELAY_MS, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
@@ -643,20 +656,26 @@ public final class PartyCommandsFeature {
         }
     }
 
-    private static void cancelReinvites(String reason) {
-        List<String> cancelled = new ArrayList<>();
-        synchronized (PENDING) {
-            for (int i = PENDING.size() - 1; i >= 0; i--) {
-                String key = PENDING.get(i).key();
-                if (key != null && key.startsWith(REINVITE_KEY)) {
-                    cancelled.add(key.substring(REINVITE_KEY.length()));
-                    PENDING.remove(i);
-                }
-            }
+    /** Invite lines: "[MVP+] Name has invited you to join their party!" / "... join Other's party!". */
+    private static final Pattern INVITED_YOU = Pattern.compile("^(?:\\[[^]]{1,20}] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|[A-Za-z0-9_]{1,16}'s) party!");
+    /** How long after a !reinv an invite from one of that party's members is accepted without asking. */
+    private static final long REJOIN_WINDOW_MS = 60_000L;
+    /** lower-case name -> accept-until (ms), from the last !reinv: the party's members then. At most a party's worth. */
+    private static final Map<String, Long> REJOIN = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static void rememberForRejoin(String sender) {
+        long until = System.currentTimeMillis() + REJOIN_WINDOW_MS;
+        REJOIN.clear();
+        for (String m : PartyTracker.teammates()) REJOIN.put(m.toLowerCase(Locale.US), until);
+        REJOIN.put(sender.toLowerCase(Locale.US), until);
+    }
+
+    private static void acceptFormerMember(String name) {
+        Long until = REJOIN.remove(name.toLowerCase(Locale.US));
+        long now = System.currentTimeMillis();
+        REJOIN.values().removeIf(t -> t < now);
+        if (until != null && until >= now && toServer("p accept " + name)) {
+            log(name, "was in the re-invited party - accepted their party invite");
         }
-        if (cancelled.isEmpty()) return;
-        ModChat.send("Party Commands", ModChat.bad("Re-invite canceled"), ModChat.text(" for "),
-                ModChat.value(String.join(", ", cancelled)), ModChat.dim(" - " + reason + "."));
-        LOGGER.info("[PartyCommands] Canceled queued re-invite(s) {} - {}", cancelled, reason);
     }
 }
