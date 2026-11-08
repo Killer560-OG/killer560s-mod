@@ -45,6 +45,8 @@ public final class InventoryWalkConfig {
     private boolean stopToClick = true;
     /** While held with a menu open, the mouse turns his view instead of moving the cursor (KeyUtil code, NONE = off). */
     private int lookKeyCode = com.killer560.hub.util.KeyUtil.NONE;
+    /** With Stop To Click: a storage menu's pick-up stays unsent while he walks carrying it (iwbypass-1108). */
+    private boolean carryInChests = false;
 
     private InventoryWalkConfig() {
     }
@@ -68,6 +70,7 @@ public final class InventoryWalkConfig {
                 cfg.setPauseAfterClickTicks(ConfigJson.getInt(obj, "pauseAfterClickTicks", cfg.pauseAfterClickTicks));
                 cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
                 cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
+                cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
             } catch (Exception e) {
                 cfg = new InventoryWalkConfig();
             }
@@ -86,6 +89,7 @@ public final class InventoryWalkConfig {
             obj.addProperty("pauseAfterClickTicks", pauseAfterClickTicks);
             obj.addProperty("stopToClick", stopToClick);
             obj.addProperty("lookKeyCode", lookKeyCode);
+            obj.addProperty("carryInChests", carryInChests);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -145,5 +149,13 @@ public final class InventoryWalkConfig {
 
     public void setLookKeyCode(int code) {
         this.lookKeyCode = code;
+    }
+
+    public boolean isCarryInChests() {
+        return carryInChests;
+    }
+
+    public void setCarryInChests(boolean on) {
+        this.carryInChests = on;
     }
 }

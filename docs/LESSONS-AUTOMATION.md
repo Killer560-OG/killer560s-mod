@@ -581,6 +581,14 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `ServerboundContainerClosePacket(0)`, so the server never has a window-0 click unclosed while he moves. Server menus keep the
   plain still-tick hold and are never closed; the SkyBlock Menu star is excluded, and the craft grid must be empty. Testkit
   1105-iw-carry fails on f76d17ccc (the old jar stops him while carrying).
+- Carry In Chests (iwbypass-1108, cheat, default OFF) gives server STORAGE menus the same carry: chest, large chest, ender
+  chest, barrel by title, and Hypixel Ender Chest pages / backpacks below their top row (buttons). The clicks then take the
+  full stop and no close (a close would shut the menu). Every other server menu is buttons and keeps the plain hold. Two
+  faults the 1105 carry had: (a) only a CLOSE flushed the waiting pick-up, so a put-down that could not wait (into the craft
+  grid, which then is not empty) reached the server AHEAD of its pick-up; now any other click, button or close sends the
+  carried clicks first, in order. (b) If the client cursor goes empty while clicks wait (a server resync, a new or closed
+  menu), the server has reset it, so the waiting clicks are dropped, never sent later. Vanilla applies a click locally before
+  sending it, so `containerMenu.getCarried()` at send time is already the state after the click. Testkit 1108-iw-chestcarry.
 - Inventory Walk's Look Key turns the view through `MouseHandler.turnPlayer` from a HEAD inject on `onMove` (26.3
   `(JDDDD)V`, 26.2 `(JDD)V`: read x/y with MixinExtras `@Local(argsOnly = true, ordinal = 0/1)`, which both share), then
   warps the cursor back to `xpos/ypos` so the menu sees no move (26.3 is SDL: `SDL_WarpMouseInWindow`; 26.2 GLFW
