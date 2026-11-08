@@ -29,8 +29,7 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
 
 ## The room
 
-`BossArena`: a capture (the `/simbosscapture` command was removed 2026-11-05; read-only now; file `config/killer560/dungeons/sim/
-killer560smod-sim-bossarena.bin` for P1, `killer560smod-sim-bossarena-p3.bin` for P3 and so on: each capture goes to the
+`BossArena`: a capture (the `/simbosscapture` command was removed 2026-11-05; read-only now; file `sim-boss/killer560smod-sim-bossarena.bin` in the shared store (`%USERPROFILE%\.killer560smod\shared\`, one for every instance since bosssim1108; an instance's old config copy is moved in on first look; a PC with no capture anywhere gets the built-in plan) for P1, `killer560smod-sim-bossarena-p3.bin` for P3 and so on: each capture goes to the
 file of the boss phase it was taken in (Floor7Tracker), format K5BA v2 = v1 plus the phase after the version; v1: gzip, box,
 palette of block-state strings, run-length cells; a v1 file counts as its file name's phase) when one
 exists, else the built-in plan: plain floors at P1 220, P2 168, P3 106 (lava inside the ring), P4 62 (lava with
