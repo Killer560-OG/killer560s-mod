@@ -127,7 +127,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             new ItemStack(Items.BUNDLE), new ItemStack(Items.LEATHER_CHESTPLATE), new ItemStack(Items.GOLDEN_APPLE),
             new ItemStack(Items.IRON_DOOR), new ItemStack(Items.COD)};
     private static final String[] INV_NUMBERS = {"1", "2", "3", "4", "5", "6", "7"};
-    private static final net.minecraft.resources.Identifier CHEST_TEXTURE =
+    static final net.minecraft.resources.Identifier CHEST_TEXTURE =
             net.minecraft.resources.Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
 
     private enum State { LOADING, ERROR, EMPTY, READY }
@@ -715,6 +715,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 case PAGE_PETS -> PvStyleChrome.NEU_PETS;
                 case PAGE_COLLECTIONS -> PvStyleChrome.NEU_COLS;
                 case PAGE_CRIMSON -> PvStyleChrome.NEU_CRIMSON;
+                case PAGE_MUSEUM -> PvStyleChrome.NEU_MUSEUM;
                 default -> null;
             };
             if (over != null) {
@@ -1886,7 +1887,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The item of an 18 px slot at x, y, without the cell (NEU's page textures paint their own). */
-    private void slotItem(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my) {
+    void slotItem(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my) {
         if (!stack.isEmpty()) {
             rarity(g, stack, x + 1, y + 1);
             g.item(stack, x + 1, y + 1);
@@ -2133,10 +2134,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** The pages NEU Classic draws in NEU's own layout, as bits of the page number. */
     private static final int NEU_PAGES = 1 << PAGE_BASIC | 1 << PAGE_DUNGEONS | 1 << PAGE_INVENTORIES | 1 << PAGE_PETS
-            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON;
+            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON | 1 << PAGE_MUSEUM;
 
     /** NEU Classic's pages in NEU's own layout (its page textures pv_basic, pv_dung, pv_invs, pv_pets, pv_cols,
-     *  pv_crimson_isle_page paint the boxes; Mining is plain pv_bg). */
+     *  pv_crimson_isle_page, pv_museum paint the boxes; Mining is plain pv_bg). */
     boolean neuPage() {
         return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= 0 && (NEU_PAGES >> page & 1) != 0;
     }

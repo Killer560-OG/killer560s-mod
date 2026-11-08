@@ -17,6 +17,9 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import com.killer560.hub.gui.ScreenChrome;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Items;
 
 import java.time.Instant;
@@ -1252,6 +1255,10 @@ final class ExtraPages {
             museumKeyTables = tables;
         }
         List<String> catIds = museumCatIds;
+        if (s.neuPage()) {
+            drawNeuMuseum(g, view, tables, mx, my);
+            return;
+        }
 
         int lw = 140;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
@@ -1320,6 +1327,93 @@ final class ExtraPages {
             s.slot(g, startX + (i % cols) * 18, top + row * 18, stacks.get(i), mx, my, false);
         }
         scrollbar(g, rx + rw - 5, top, visible * 18, rows, visible);
+    }
+
+    private static final String[] NEU_MUSEUM_CATS = {"weapons", "armor", "rarities", "special"};
+    private static final String[] NEU_MUSEUM_NAMES = {"Weapons", "Armor Sets", "Rarities", "Special Items"};
+    private static final String NEU_RARITIES_SKULL = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODZhZGRiZDVkZWRhZDQwOTk5NDczYmU0YTdmNDhmNjIzNmE3OWEwZGNlOTcxYjVkYmQ3MzcyMDE0YWUzOTRkIn19fQ";
+    private ItemStack[] neuMuseumIcons;
+
+    /** NEU Classic's Museum page (MuseumPage over pv_museum): value and donation bars down the left (21, 25 to 145, 114
+     *  wide), the four category cells at 16 + 34 i, 172, the category's name over a 4-row chest centered on 251, 101, its
+     *  items 7 a row from 26 in (28 a page, a missing one as gray dye) and page arrows at 34. */
+    private void drawNeuMuseum(GuiGraphicsExtractor g, MuseumView view, ExtraTables.MuseumTables tables, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        if (neuMuseumIcons == null) {
+            neuMuseumIcons = new ItemStack[]{new ItemStack(Items.DIAMOND_SWORD), new ItemStack(Items.DIAMOND_CHESTPLATE),
+                    LegacyItems.skull(NEU_RARITIES_SKULL, Component.literal("Rarities")), new ItemStack(Items.CAKE)};
+        }
+        s.subView = Math.max(0, Math.min(s.subView, 3));
+        for (int i = 0; i < 4; i++) {
+            final int idx = i;
+            int cx = l + 16 + 34 * i, cy = t + 172, o = i == s.subView ? 1 : 0;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(neuMuseumIcons[i], cx + 2 + o, cy + 2 + o);
+            g.itemDecorations(f(), neuMuseumIcons[i], cx + 2 + o, cy + 2 + o, String.valueOf(i + 1));
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(NEU_MUSEUM_NAMES[i], 0xFFFFAA00)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> {
+                s.subView = idx;
+                s.pageScroll = 0;
+            }));
+        }
+        neuAligned(g, "Museum Value", 0xFFFFAA00, shorten(view.value()), l + 21, t + 25, 114);
+        int weapons = countDonated(view, tables, "weapons"), armor = countDonated(view, tables, "armor"),
+                rarities = countDonated(view, tables, "rarities");
+        int[] donated = {weapons + armor + rarities, weapons, armor, rarities};
+        String[] labels = {"Total Donations", "Weapons Donated", "Armor Donated", "Rarities Donated"}, keys = {"total", "weapons", "armor", "rarities"};
+        for (int i = 0; i < 4; i++) {
+            int y = t + 45 + 25 * i;
+            neuAligned(g, labels[i], 0xFF5555FF, String.valueOf(donated[i]), l + 21, y, 114);
+            Integer max = tables == null ? null : tables.maxValues().get(keys[i]);
+            ScreenChrome.progress(g, l + 20, y + 10, 116, 4, max == null || max <= 0 ? 0 : Math.min(1f, donated[i] / (float) max), ACCENT);
+        }
+        neuAligned(g, "Special Items Donated", 0xFF5555FF, String.valueOf(view.special().size()), l + 21, t + 145, 114);
+        String cat = NEU_MUSEUM_CATS[s.subView];
+        s.centeredIn(g, NEU_MUSEUM_NAMES[s.subView], l + 201, 100, t + 14, 0xFF404040);
+        int h = 4 * 18 + 17, x = l + 251 - 88, y = t + 101 - (h + 7) / 2;
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y, 0f, 0f, 176, h, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, ProfileViewerScreen.CHEST_TEXTURE, x, y + h, 0f, 215f, 176, 7, 256, 256);
+        List<ItemStack> stacks = museumStacks.computeIfAbsent("neu:" + cat, c -> neuMuseumStacks(cat, view, tables));
+        int pages = Math.max(1, (stacks.size() + 27) / 28);
+        s.pageScroll = Math.max(0, Math.min(s.pageScroll, pages - 1));
+        int page = s.pageScroll;
+        if (page > 0) {
+            neuArrow(g, "<", l + 251 - 12, t + 34, -1, mx, my);
+        }
+        if (page < pages - 1) {
+            neuArrow(g, ">", l + 251, t + 34, 1, mx, my);
+        }
+        for (int i = page * 28, end = Math.min(stacks.size(), i + 28); i < end; i++) {
+            int k = i - page * 28;
+            s.slotItem(g, x + 25 + (k % 7) * 18, t + 70 + (k / 7) * 18, stacks.get(i), mx, my);
+        }
+    }
+
+    private void neuArrow(GuiGraphicsExtractor g, String arrow, int x, int y, int step, int mx, int my) {
+        tx(g, arrow, x + 3, y + 4, hover(mx, my, x, y, 12, 16) ? 0xFFFFFF55 : 0xFFFFFFFF);
+        s.hotspots.add(new ProfileViewerScreen.Hotspot(x, y, 12, 16, () -> s.pageScroll += step));
+    }
+
+    /** A NEU museum category in NEU's order: every item the repo lists (the first donated copy, else a gray dye named for
+     *  it), or for Special Items every donated one. */
+    private static List<ItemStack> neuMuseumStacks(String cat, MuseumView view, ExtraTables.MuseumTables tables) {
+        if (cat.equals("special")) {
+            return view.special();
+        }
+        List<ItemStack> out = new ArrayList<>();
+        for (String id : tables == null ? List.<String>of() : tables.categories().getOrDefault(cat, List.of())) {
+            List<ItemStack> got = view.items().get(id);
+            if (got != null && !got.isEmpty()) {
+                out.add(got.get(0));
+            } else {
+                ItemStack missing = new ItemStack(McItems.GRAY_DYE);
+                missing.set(DataComponents.CUSTOM_NAME, Component.literal(SbProfile.titleCase(id) + " (Missing)").withStyle(ChatFormatting.RED));
+                out.add(missing);
+            }
+        }
+        return out;
     }
 
     private static int countDonated(MuseumView view, ExtraTables.MuseumTables tables, String cat) {
