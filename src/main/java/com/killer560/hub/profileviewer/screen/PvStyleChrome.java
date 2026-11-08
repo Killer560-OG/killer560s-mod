@@ -28,23 +28,24 @@ final class PvStyleChrome {
         return Identifier.fromNamespaceAndPath("killer560smod", "pv/" + path);
     }
 
-    /** One style's sprites: panel, content box, tab normal / hovered / selected / selected+hovered, button, hovered. */
+    /** One style's sprites: panel, content box, tab normal / hovered / selected / selected+hovered, button, hovered,
+     *  item slot (NEU: one cell of pv_invs.png; SkyBlockPv: one cell of its theme's inventory/mono.png). */
     private record Sprites(Identifier panel, Identifier box, Identifier tab, Identifier tabHover, Identifier tabSel,
-                           Identifier tabSelHover, Identifier button, Identifier buttonHover) {
+                           Identifier tabSelHover, Identifier button, Identifier buttonHover, Identifier slot) {
     }
 
     private static final Identifier NEU_TAB_FIRST_SELECTED = id("neu/tab_first_selected");
     private static final Sprites NEU = new Sprites(id("neu/panel"), id("neu/box"), id("neu/tab"), id("neu/tab"),
-            id("neu/tab_selected"), id("neu/tab_selected"), id("neu/button"), id("neu/button"));
+            id("neu/tab_selected"), id("neu/tab_selected"), id("neu/button"), id("neu/button"), id("neu/slot"));
     private static final Sprites LIGHT = new Sprites(id("sbpv/light/panel"), id("sbpv/light/box"), id("sbpv/light/tab_normal"),
             id("sbpv/light/tab_hovered"), id("sbpv/light/tab_selected"), id("sbpv/light/tab_selected_hovered"),
-            id("sbpv/button"), id("sbpv/button_hovered"));
+            id("sbpv/button"), id("sbpv/button_hovered"), id("sbpv/light/slot"));
     // darkmode.json maps the normal and hovered tab to one sprite and keeps the default (green) selected one.
     private static final Sprites DARK = new Sprites(id("sbpv/dark/panel"), id("sbpv/dark/box"), id("sbpv/dark/tab_normal"),
-            id("sbpv/dark/tab_normal"), LIGHT.tabSel, LIGHT.tabSelHover, LIGHT.button, LIGHT.buttonHover);
+            id("sbpv/dark/tab_normal"), LIGHT.tabSel, LIGHT.tabSelHover, LIGHT.button, LIGHT.buttonHover, id("sbpv/dark/slot"));
     private static final Sprites CLEAR = new Sprites(id("sbpv/clear/panel"), id("sbpv/clear/box"), id("sbpv/clear/tab_normal"),
             id("sbpv/clear/tab_hovered"), id("sbpv/clear/tab_selected"), id("sbpv/clear/tab_selected_hovered"),
-            id("sbpv/clear/button"), id("sbpv/clear/button_hovered"));
+            id("sbpv/clear/button"), id("sbpv/clear/button_hovered"), id("sbpv/clear/slot"));
 
     private static Sprites of(Style s) {
         return switch (s) {
@@ -53,6 +54,20 @@ final class PvStyleChrome {
             case SBPV_CLEAR -> CLEAR;
             default -> LIGHT;
         };
+    }
+
+    /** NEU's page overlays (pv_basic.png, pv_dung.png), drawn over pv_bg at the panel's corner (GuiProfileViewer's
+     *  per-page {@code Minecraft.getTextureManager().bindTexture(pv_*)} at guiLeft, guiTop). */
+    static final Identifier NEU_BASIC = id("neu/pv_basic");
+    static final Identifier NEU_DUNG = id("neu/pv_dung");
+    /** NEU's boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
+    static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108}, NEU_BASIC_STATS = {128, 49, 89, 95}, NEU_BASIC_SKILLS = {232, 15, 181, 172};
+    static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},
+            NEU_DUNG_FLOORS = {154, 16, 124, 170}, NEU_DUNG_CLASSES = {292, 16, 124, 170};
+
+    /** The style's item slot sprite at {@code size} (SkyBlockPv's is nine_slice, NEU's is drawn 1:1 at 18). */
+    static void slot(GuiGraphicsExtractor g, Style s, int x, int y, int size) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, of(s).slot, x, y, size, size);
     }
 
     static final int NEU_W = 431;

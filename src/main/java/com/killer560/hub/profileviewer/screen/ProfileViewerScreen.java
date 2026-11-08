@@ -14,6 +14,7 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.PlayerSkinWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -350,11 +351,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         contentH = Math.max(60, panelY + panelH - 8 - contentY);
 
         if (page == PAGE_BASIC && skinProfile != null && profile() != null && ProfileViewerConfig.getInstance().isShowSkin()) {
-            int skinH = Math.min(120, contentH - 90);
+            // NEU Classic: in pv_basic's model frame; otherwise at the top of the left box.
+            boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
+            int[] m = PvStyleChrome.NEU_BASIC_MODEL;
+            int skinH = neu ? m[3] - 8 : Math.min(120, contentH - 90);
             if (skinH >= 50) {
                 PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(),
                         this.minecraft.getSkinManager().createLookup(skinProfile, false));
-                skin.setPosition(contentX + (118 - (skinH / 2 + 10)) / 2, contentY + 4);
+                skin.setPosition(neu ? panelX + m[0] + (m[2] - (skinH / 2 + 10)) / 2 : contentX + (118 - (skinH / 2 + 10)) / 2,
+                        neu ? panelY + m[1] + 4 : contentY + 4);
                 addRenderableWidget(skin);
             }
         }
@@ -658,14 +663,27 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    /** SkyBlockPv draws its text without a shadow, so its styles turn the menu's shadow off for this screen's frame only. */
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        syncTheme(); // first: the palette sets the shadow, which the SkyBlockPv styles then turn off
+        boolean shadow = MenuStyle.TEXT_SHADOW;
+        if (pvStyle != ProfileViewerConfig.Style.DEFAULT && pvStyle != ProfileViewerConfig.Style.NEU) {
+            MenuStyle.TEXT_SHADOW = false;
+        }
+        try {
+            drawScreen(g, mouseX, mouseY, partialTick);
+        } finally {
+            MenuStyle.TEXT_SHADOW = shadow;
+        }
+    }
+
+    private void drawScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         hotspots.clear();
         overlayHotspots.clear();
         pendingTooltip = null;
         pendingItemTooltip = ItemStack.EMPTY;
 
-        syncTheme();
         if (pvStyle == ProfileViewerConfig.Style.DEFAULT) {
             ScreenChrome.backdrop(g, this.width, this.height);
             ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
@@ -675,6 +693,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 drawIconTabs(g, mouseX, mouseY, true);
             }
             PvStyleChrome.frame(g, pvStyle, panelX, panelY, panelW, panelH);
+            if (neuPage()) {
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, page == PAGE_BASIC ? PvStyleChrome.NEU_BASIC : PvStyleChrome.NEU_DUNG,
+                        panelX, panelY, PvStyleChrome.NEU_W, PvStyleChrome.NEU_H);
+            }
         }
 
         drawingHeader = true;
@@ -1039,23 +1061,27 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private void drawBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int leftW = 118;
         box(g, contentX, contentY, leftW, contentH);
+        // NEU Classic puts the stats in pv_basic's middle box and the skills in its right one (the skin is in its frame).
+        boolean neu = neuPage();
+        int[] nst = PvStyleChrome.NEU_BASIC_STATS, nsk = PvStyleChrome.NEU_BASIC_SKILLS;
         int skinBottom = contentY + 4 + (skinProfile != null && ProfileViewerConfig.getInstance().isShowSkin()
                 ? Math.min(120, contentH - 90) + 4 : 0);
-        int y = Math.max(skinBottom, contentY + 6);
-        int lx = contentX + 6;
-        y = stat2(g, lx, y, 106, "SB Level", p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""));
-        y = stat2(g, lx, y, 106, "Fairy Souls", String.valueOf(p.fairySouls));
-        y = stat2(g, lx, y, 106, "Purse", shorten(p.purse));
+        int y = neu ? panelY + nst[1] + 5 : Math.max(skinBottom, contentY + 6);
+        int lx = neu ? panelX + nst[0] + 6 : contentX + 6;
+        int sw = neu ? nst[2] - 12 : 106;
+        y = stat2(g, lx, y, sw, "SB Level", p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""));
+        y = stat2(g, lx, y, sw, "Fairy Souls", String.valueOf(p.fairySouls));
+        y = stat2(g, lx, y, sw, "Purse", shorten(p.purse));
         if (p.bank >= 0) {
             int by = y;
-            y = stat2(g, lx, y, 106, "Bank", shorten(p.bank) + (p.personalBank > 0 ? " / " + shorten(p.personalBank) : ""));
-            if (inside(mx, my, lx, by, leftW - 12, 10)) {
+            y = stat2(g, lx, y, sw, "Bank", shorten(p.bank) + (p.personalBank > 0 ? " / " + shorten(p.personalBank) : ""));
+            if (inside(mx, my, lx, by, sw, 10)) {
                 pendingTooltip = List.of(
                         Component.literal("Co-op bank: " + commas(p.bank)).withStyle(style(VALUE)),
                         Component.literal("Personal bank: " + commas(p.personalBank)).withStyle(style(VALUE)));
             }
         } else {
-            y = stat2(g, lx, y, 106, "Bank", "API off");
+            y = stat2(g, lx, y, sw, "Bank", "API off");
         }
         // killer560, 2026-10-08: "a line below the bank that says the networth". The same estimate as the
         // Networth page (shared cache), and a click opens that page.
@@ -1063,32 +1089,33 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int ny = y;
         boolean nonCos = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance().isNonCosmeticNetworth();
         lastBasicNetworth = nw.result() == null ? null : nw.result().total(nonCos);
-        y = stat2(g, lx, y, 106, "Networth", nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...");
-        if (inside(mx, my, lx, ny, leftW - 12, 10) && !dropdownOpen) {
+        y = stat2(g, lx, y, sw, "Networth", nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...");
+        if (inside(mx, my, lx, ny, sw, 10) && !dropdownOpen) {
             pendingTooltip = List.of(
                     Component.literal(nw.result() != null ? commas(nw.result().total(nonCos)) + " coins (estimate)"
                             : nw.failed() ? "Couldn't calculate networth." : "Calculating...").withStyle(style(VALUE)),
                     Component.literal("Click for the Networth page").withStyle(style(DIM)));
         }
-        hotspots.add(new Hotspot(lx, ny, leftW - 12, 10, () -> setPage(PAGE_NETWORTH)));
+        hotspots.add(new Hotspot(lx, ny, sw, 10, () -> setPage(PAGE_NETWORTH)));
         if (p.motes > 0) {
-            y = stat2(g, lx, y, 106, "Motes", shorten(p.motes));
+            y = stat2(g, lx, y, sw, "Motes", shorten(p.motes));
         }
         if (p.firstJoin > 0) {
-            y = stat2(g, lx, y, 106, "Joined", JOINED_FORMAT
+            y = stat2(g, lx, y, sw, "Joined", JOINED_FORMAT
                     .format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())));
         }
         if (p.memberCount > 1) {
-            stat2(g, lx, y, 106, "Co-op", p.memberCount + " members");
+            stat2(g, lx, y, sw, "Co-op", p.memberCount + " members");
         }
 
-        int rx = contentX + leftW + 6;
-        int rw = contentW - leftW - 6;
+        int rx = neu ? panelX + nsk[0] : contentX + leftW + 6;
+        int rw = neu ? nsk[2] : contentW - leftW - 6;
+        int rh = neu ? nsk[3] : contentH;
         box(g, rx, contentY, rw, contentH);
 
         // Skills: 6 rows, then Slayers: 2 rows; rows close up (21 -> 17) to fit NEU's 202 px panel.
-        int rowH = Math.max(17, Math.min(21, (contentH - 31) / 8));
-        int sy = contentY + 5;
+        int rowH = Math.max(17, Math.min(21, (rh - 31) / 8));
+        int sy = (neu ? panelY + nsk[1] : contentY) + 5;
         if (p.skillXp == null) {
             tx(g, "Skills", rx + 6, sy, ACCENT);
             tx(g, "Skills API is disabled.", rx + 6, sy + 14, DIM);
@@ -1221,6 +1248,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private void drawDungeons(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         SbProfile.DungeonStats d = p.dungeons;
+        if (neuPage()) {
+            drawNeuDungeons(g, d, mx, my);
+            return;
+        }
         int leftW = 170;
         box(g, contentX, contentY, leftW, contentH);
         int x = contentX + 6;
@@ -1276,9 +1307,65 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
+    /** NEU Classic's Dungeons page: our numbers in pv_dung's five boxes (level, stats, selected class, floors, classes). */
+    private void drawNeuDungeons(GuiGraphicsExtractor g, SbProfile.DungeonStats d, int mx, int my) {
+        int[] lv = PvStyleChrome.NEU_DUNG_LEVEL, st = PvStyleChrome.NEU_DUNG_STATS, cl = PvStyleChrome.NEU_DUNG_CLASS,
+                fl = PvStyleChrome.NEU_DUNG_FLOORS, cs = PvStyleChrome.NEU_DUNG_CLASSES;
+        int x = panelX + lv[0] + 5, w = lv[2] - 10, y = panelY + lv[1] + 5;
+        tx(g, "Catacombs", x, y, ACCENT);
+        LevelTables.Level cata = LevelTables.catacombsLevel(d.catacombsXp(), true);
+        bar(g, x, y + 12, w, new ItemStack(Items.WITHER_SKELETON_SKULL), "Catacombs", cata, mx, my, d.catacombsXp());
+        double classSum = 0;
+        int cx = panelX + cs[0] + 5, cy = panelY + cs[1] + 5;
+        tx(g, "Classes", cx, cy, ACCENT);
+        cy += 12;
+        for (Map.Entry<String, Long> e : d.classXp().entrySet()) {
+            LevelTables.Level lvl = LevelTables.catacombsLevel(e.getValue(), false);
+            classSum += Math.min(50, lvl.level());
+            String name = SbProfile.titleCase(e.getKey());
+            if (e.getKey().equals(d.selectedClass())) {
+                selBand(g, cx - 2, cy - 1, w + 4, 18);
+                int sy = panelY + cl[1] + 5;
+                tx(g, "Selected Class", x, sy, ACCENT);
+                bar(g, x, sy + 12, w, classIcon(e.getKey()), name, lvl, mx, my, e.getValue());
+            }
+            bar(g, cx, cy, w, classIcon(e.getKey()), name, lvl, mx, my, e.getValue());
+            cy += 22;
+        }
+        if (d.selectedClass().isEmpty()) {
+            stat2(g, x, panelY + cl[1] + 5, w, "Selected Class", "None");
+        }
+        stat2(g, x, y + 32, w, "Class Average", String.format(Locale.ROOT, "%.2f", d.classXp().isEmpty() ? 0 : classSum / d.classXp().size()));
+        int sy = panelY + st[1] + 5;
+        sy = stat2(g, x, sy, w, "Secrets", commas(d.secrets()));
+        sy = stat2(g, x, sy, w, "Total Runs", commas(d.totalRuns()));
+        if (d.totalRuns() > 0) {
+            stat2(g, x, sy, w, "Secrets / Run", String.format(Locale.ROOT, "%.2f", (double) d.secrets() / d.totalRuns()));
+        }
+        int fx = panelX + fl[0];
+        int[] cols = {fx + 5, fx + 20, fx + 44, fx + 70, fx + 97};
+        int ty = panelY + fl[1] + 4;
+        tx(g, "Runs", cols[1], ty, ACCENT);
+        tx(g, "Best", cols[2], ty, ACCENT);
+        tx(g, "S+", cols[3], ty, ACCENT);
+        tx(g, "S", cols[4], ty, ACCENT);
+        ty += 11;
+        for (int floor = 0; floor <= 7; floor++) {
+            ty = floorRow(g, cols, fx + fl[2] - 2, ty, 10, floor == 0 ? "E" : "F" + floor, d.normal().get(floor), floor % 2 == 0);
+        }
+        ty += 2;
+        for (int floor = 1; floor <= 7; floor++) {
+            ty = floorRow(g, cols, fx + fl[2] - 2, ty, 10, "M" + floor, d.master().get(floor), floor % 2 == 1);
+        }
+    }
+
     private int floorRow(GuiGraphicsExtractor g, int[] cols, int y, int rowH, String label, SbProfile.Floor f, boolean shade) {
+        return floorRow(g, cols, contentX + contentW - 6, y, rowH, label, f, shade);
+    }
+
+    private int floorRow(GuiGraphicsExtractor g, int[] cols, int right, int y, int rowH, String label, SbProfile.Floor f, boolean shade) {
         if (shade) {
-            g.fill(cols[0] - 3, y - 1, cols[0] - 3 + (contentX + contentW - cols[0] - 3), y + rowH - 1, STRIPE);
+            g.fill(cols[0] - 3, y - 1, right, y + rowH - 1, STRIPE);
         }
         tx(g, label, cols[0], y, f == null ? DIM : TEXT);
         tx(g, f == null ? "-" : commas(f.completions()), cols[1], y, f == null ? DIM : VALUE);
@@ -1725,7 +1812,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     net.minecraft.client.gui.Font font() { return this.font; }
 
     /** A content box: the menu's card. */
+    /** NEU Classic's Basic and Dungeons pages: its own page texture paints the boxes (pv_basic, pv_dung). */
+    private boolean neuPage() {
+        return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && (page == PAGE_BASIC || page == PAGE_DUNGEONS);
+    }
+
     void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        if (neuPage()) {
+            return;
+        }
         if (pvStyle == ProfileViewerConfig.Style.DEFAULT) {
             ScreenChrome.card(g, x, y, w, h, false);
         } else {
@@ -1735,6 +1830,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** A recessed item square; {@code edge} 0 is the plain outline, anything else an accent/rarity edge inside it. */
     void slotBox(GuiGraphicsExtractor g, int x, int y, int size, int edge) {
+        if (pvStyle != ProfileViewerConfig.Style.DEFAULT) {
+            PvStyleChrome.slot(g, pvStyle, x, y, size);
+            if (edge != 0) {
+                GuiRects.begin(g).outline(x, y, size, size, edge).submit();
+            }
+            return;
+        }
         GuiRects r = GuiRects.begin(g);
         r.fill(x + 1, y + 1, x + size - 1, y + size - 1, SLOT_BG);
         r.outline(x, y, size, size, SLOT_EDGE);
