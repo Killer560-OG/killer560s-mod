@@ -581,6 +581,20 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `ServerboundContainerClosePacket(0)`, so the server never has a window-0 click unclosed while he moves. Server menus keep the
   plain still-tick hold and are never closed; the SkyBlock Menu star is excluded, and the craft grid must be empty. Testkit
   1105-iw-carry fails on f76d17ccc (the old jar stops him while carrying).
+- Carry In Chests (iwbypass-1108, cheat, default OFF) gives server STORAGE menus the same carry: chest, large chest, ender
+  chest, barrel by title, and Hypixel Ender Chest pages / backpacks below their top row (buttons). The clicks then take the
+  full stop and no close (a close would shut the menu). Every other server menu is buttons and keeps the plain hold. Two
+  faults the 1105 carry had: (a) only a CLOSE flushed the waiting pick-up, so a put-down that could not wait (into the craft
+  grid, which then is not empty) reached the server AHEAD of its pick-up; now any other click, button or close sends the
+  carried clicks first, in order. (b) If the client cursor goes empty while clicks wait (a server resync, a new or closed
+  menu), the server has reset it, so the waiting clicks are dropped, never sent later. Vanilla applies a click locally before
+  sending it, so `containerMenu.getCarried()` at send time is already the state after the click. Testkit 1108-iw-chestcarry.
+  Same-tick (1108-iw-chestcarry-sametick, clean on default and experimental Grim at every latency): his container click and
+  hotbar swap with the chest open, and his right click / attack after Escape, each share a server tick with the replayed clicks
+  (his click made while the replay is held joins the batch behind it). A use or attack pushed through `gameMode` while a
+  container screen is open is not a player action (the screen takes the mouse) and flags by itself (MultiActionsC; Post when
+  sent after the move at END), so a screen feature's same-tick rows put his world clicks after the close through vanilla's
+  keybinds (SameTick USE_KEY / ATTACK).
 - Inventory Walk's Look Key turns the view through `MouseHandler.turnPlayer` from a HEAD inject on `onMove` (26.3
   `(JDDDD)V`, 26.2 `(JDD)V`: read x/y with MixinExtras `@Local(argsOnly = true, ordinal = 0/1)`, which both share), then
   warps the cursor back to `xpos/ypos` so the menu sees no move (26.3 is SDL: `SDL_WarpMouseInWindow`; 26.2 GLFW
