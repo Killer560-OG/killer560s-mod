@@ -15,6 +15,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.PlayerSkinWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -707,14 +708,16 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 drawIconTabs(g, mouseX, mouseY, true);
             }
             PvStyleChrome.frame(g, pvStyle, panelX, panelY, panelW, panelH);
-            if (neuPage()) {
-                g.blitSprite(RenderPipelines.GUI_TEXTURED, switch (page) {
-                    case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
-                    case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
-                    case PAGE_PETS -> PvStyleChrome.NEU_PETS;
-                    case PAGE_COLLECTIONS -> PvStyleChrome.NEU_COLS;
-                    default -> PvStyleChrome.NEU_INVS;
-                }, panelX, panelY, PvStyleChrome.NEU_W, PvStyleChrome.NEU_H);
+            Identifier over = !neuPage() ? null : switch (page) { // NEU's Mining page has none: plain pv_bg
+                case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
+                case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
+                case PAGE_INVENTORIES -> PvStyleChrome.NEU_INVS;
+                case PAGE_PETS -> PvStyleChrome.NEU_PETS;
+                case PAGE_COLLECTIONS -> PvStyleChrome.NEU_COLS;
+                default -> null;
+            };
+            if (over != null) {
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, over, panelX, panelY, PvStyleChrome.NEU_W, PvStyleChrome.NEU_H);
             }
         }
 
@@ -2120,8 +2123,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     net.minecraft.client.gui.Font font() { return this.font; }
 
     /** A content box: the menu's card. */
-    /** NEU Classic's Basic, Dungeons, Inventories, Pets and Collections pages: its own page texture paints the boxes (pv_basic, pv_dung, pv_invs,
-     *  pv_pets, pv_cols). */
     ProfileViewerConfig.Style pvStyle() { return pvStyle; }
 
     /** One of the SkyBlockPV styles, with a profile loaded. */
@@ -2129,8 +2130,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return pvStyle != ProfileViewerConfig.Style.DEFAULT && pvStyle != ProfileViewerConfig.Style.NEU && state == State.READY;
     }
 
+    /** NEU Classic's Basic, Dungeons, Inventories, Pets, Collections and Mining pages: NEU's own layout (its page textures
+     *  pv_basic, pv_dung, pv_invs, pv_pets, pv_cols paint the boxes; Mining is plain pv_bg). */
     boolean neuPage() {
-        return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= PAGE_BASIC && page <= PAGE_COLLECTIONS;
+        return pvStyle == ProfileViewerConfig.Style.NEU && state == State.READY && page >= PAGE_BASIC && page <= PAGE_MINING;
     }
 
     void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {

@@ -537,6 +537,10 @@ final class ExtraPages {
     private void drawMining(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) return;
+        if (s.neuPage()) {
+            drawNeuMining(g, ex, mx, my);
+            return;
+        }
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
         // killer560: rename "Mountain" to "HOTM" - matches the perk tree's own name (Heart of the Mountain).
@@ -549,6 +553,85 @@ final class ExtraPages {
             case 1 -> drawGlacite(g, ex.mining, rx, rw, mx, my);
             default -> drawForaging(g, ex.foraging, rx, rw, mx, my);
         }
+    }
+
+    private static final ItemStack[] NEU_MINING_ICONS = {new ItemStack(Items.DIAMOND_PICKAXE), new ItemStack(Items.PACKED_ICE),
+            new ItemStack(Items.OAK_SAPLING)};
+    private static final String[] NEU_MINING_VIEWS = {"HOTM", "Glacite", "Foraging"};
+    /** NEU's crystal colors (MiningPage.crystalToColor), in {@link #CRYSTALS}' order. */
+    private static final int[] NEU_CRYSTAL_COLORS = {0xFF55FF55, 0xFFAA00AA, 0xFFFFFF55, 0xFF55FFFF, 0xFFFFAA00, 0xFFFF5555,
+            0xFFFF55FF, 0xFFFFFFFF, 0xFF5555FF, 0xFFAA0000, 0xFF00AA00, 0xFF555555};
+
+    /** NEU Classic's Mining page (MiningPage, on plain pv_bg): the HOTM bar at 23, 25 (110 wide), the powder table under it
+     *  (headers 51, rows 71 and 81), the crystals in two columns from 20, 101 with the nucleus runs at that box's foot, the
+     *  forge anvil at 149, 20 (its slots on hover) and our perk list where NEU draws its tree (249..412 x 16..185). Glacite
+     *  and Foraging, which NEU has no page for, are two more pv_elements cells beside the HOTM one at 226, 18. */
+    private void drawNeuMining(GuiGraphicsExtractor g, ProfileExtras ex, int mx, int my) {
+        int l = s.panelX, t = s.panelY;
+        s.subView = Math.max(0, Math.min(s.subView, 2));
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            int cx = l + 226, cy = t + 18 + 22 * i, o = i == s.subView ? 1 : 0;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, cx, cy, 20, 20);
+            g.item(NEU_MINING_ICONS[i], cx + 2 + o, cy + 2 + o);
+            if (hover(mx, my, cx, cy, 20, 20)) {
+                tip(List.of(line(NEU_MINING_VIEWS[i], VALUE)));
+            }
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(cx, cy, 20, 20, () -> {
+                s.subView = idx;
+                s.pageScroll = 0;
+            }));
+        }
+        ProfileExtras.Mining m = ex.mining;
+        if (s.subView != 0) {
+            if (s.subView == 1) drawGlacite(g, m, l + 4, 218, mx, my); else drawForaging(g, ex.foraging, l + 4, 218, mx, my);
+            return;
+        }
+        if (!m.present()) {
+            s.centeredIn(g, "No Heart of the Mountain data.", l, 222, t + 100, DIM);
+            return;
+        }
+        long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get("hotm_levels"));
+        s.bar(g, l + 23, t + 25, 110, NEU_MINING_ICONS[0], "HOTM", thresholdLevel(table, m.hotmXp()), mx, my, m.hotmXp());
+        int x = l + 22, y = t + 27;
+        String[] names = {"Mithril", "Gemstone", "Glacite"};
+        int[] colors = {0xFF00AA00, 0xFFFF55FF, 0xFF55FFFF}, head = {45, 85, 145};
+        tx(g, "Powder:", x, y + 44, 0xFFFFFFFF);
+        tx(g, "Total:", x, y + 54, 0xFFFFFFFF);
+        for (int i = 0; i < 3; i++) {
+            tx(g, names[i], x + head[i], y + 24, colors[i]);
+            tx(g, shorten(m.powderAvailable()[i]), x + 50 + 50 * i, y + 44, colors[i]);
+            tx(g, shorten(m.powderTotal()[i]), x + 50 + 50 * i, y + 54, colors[i]);
+        }
+        // Crystals: NEU's rect 16, 97 (214 x 89) less 4 padding, two columns 101 wide 105 apart, filled down first.
+        int rows = (CRYSTALS.length + 1) / 2, runs = Integer.MAX_VALUE;
+        for (int i = 0; i < CRYSTALS.length; i++) {
+            ProfileExtras.Crystal c = m.crystals().get(CRYSTALS[i]);
+            int cx = l + 20 + (i / rows) * 105, cy = t + 101 + (i % rows) * 10;
+            tx(g, SbProfile.titleCase(CRYSTALS[i].replace("_crystal", "")) + ":", cx, cy, NEU_CRYSTAL_COLORS[i]);
+            boolean found = c != null && c.state().equals("FOUND");
+            rightText(g, found ? "\u2714" : "\u2716", cx + 101, cy, found ? 0xFF55FF55 : 0xFFFF5555);
+            if (i < 5) {
+                runs = Math.min(runs, c == null ? 0 : c.placed());
+            }
+        }
+        tx(g, "Nucleus Runs Completed:", l + 20, t + 172, 0xFF5555FF);
+        rightText(g, commas(runs), l + 226, t + 172, 0xFFFFFFFF);
+        // The forge: NEU's anvil at 149, 20, its slots in the tooltip.
+        int fx = l + 149, fy = t + 20;
+        g.item(new ItemStack(Items.ANVIL), fx, fy);
+        if (hover(mx, my, fx, fy, 16, 16)) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(line("Forge", 0xFFFFAA00));
+            for (ProfileExtras.ForgeSlot slot : m.forge()) {
+                lines.add(line(slot.slot() + ": " + SbProfile.titleCase(slot.id()), TEXT));
+            }
+            if (m.forge().isEmpty()) {
+                lines.add(line("Empty", DIM));
+            }
+            tip(lines);
+        }
+        perkList(g, "Perks", m.nodes(), l + 253, t + 20, 155, mx, my);
     }
 
     private void drawHotm(GuiGraphicsExtractor g, ProfileExtras.Mining m, int rx, int rw, int mx, int my) {
