@@ -99,3 +99,7 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   rounds 2-4 never lit their first lamp: the solver recorded a short sequence and Auto SS broke the device in round 2. Fixed
   as `beginRound(n, 1)`, then superseded in ship7 by bossfix3's task list, which lights a round's first lamp in the task itself. The testkit's own SS case read the sequence from the sim and never noticed; 1105-boss-simgates lets
   Auto Simon Says solve from what it sees, with only the start pressed.
+- The boss sim's room captures (`killer560smod-sim-bossarena*.bin`, his own, not in the jar) sat in the one instance's config
+  folder, so every other instance built the plain built-in plan ("didn't have the right world setup", bosssim1108). They now
+  live in the shared store's `sim-boss/` (`BossArena.capturePath`, an instance's old copy is moved in on first look). Testkit
+  1108-boss-fresh. A PC with no capture anywhere still gets the plan.
