@@ -299,10 +299,12 @@ public final class LoadoutSwapper {
         Screen screen = McCompat.screen(client);
         if (!LoadoutKeybindsFeature.isLoadoutScreen(screen)) {
             // Hypixel closed it, or he opened something else: that is not ours to close.
+            lastSwapped = true; // the loadout was clicked; Hypixel (or he) closed the menu first, so the swap happened
             finish("menu already gone");
             return;
         }
         if (now - phaseStartedMs > STEP_TIMEOUT_MS) {
+            lastSwapped = true; // clicked already: the swap happened, only our close did not
             finish("close never got a tick");
             return;
         }

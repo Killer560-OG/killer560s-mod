@@ -194,6 +194,7 @@ public final class InventorySorterExecutor {
         instantRun = InventorySorterConfig.getInstance().isInstant();
         storage = null;
         loadoutSent = false;
+        loadoutDoneTick = -1;
         if (layout.looseSlots() > 0) {
             ModChat.log(InventorySorterCommands.FEATURE, ModChat.text(layout.name() + ": " + layout.looseSlots()
                     + " slot(s) were saved before exact items existed, so any copy of that item fills them. Save the layout again to pin the exact one."));
@@ -209,6 +210,8 @@ public final class InventorySorterExecutor {
 
     /** True once the loadout swap of this run was started. */
     private static boolean loadoutSent;
+    private static int loadoutDoneTick = -1;
+    private static final int LOADOUT_SETTLE_TICKS = 5;
 
     /** The loadout step is done (or the layout has none): storage visit if the layout uses it, else the sort. */
     private static void afterLoadout(Minecraft client) {
@@ -403,6 +406,12 @@ public final class InventorySorterExecutor {
         }
         if (!com.killer560.hub.loadoutkeybinds.LoadoutSwapper.lastSwapped()) {
             stop("loadout " + targetLayout.loadout() + " was not selected, so nothing was sorted");
+            return;
+        }
+        if (loadoutDoneTick < 0) {
+            loadoutDoneTick = stateTicks; // let the server settle (menu close, armor and equipment updates) before the next step
+        }
+        if (stateTicks - loadoutDoneTick < LOADOUT_SETTLE_TICKS) {
             return;
         }
         LOGGER.info("[InvSort] Loadout {} selected for {}", targetLayout.loadout(), targetLayout.name());
