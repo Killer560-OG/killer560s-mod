@@ -472,6 +472,9 @@ public final class LeapRunMemory {
 
     /** The reset notice: a title on screen and a chat line, at once (nothing waits on it). */
     private static void showResetNotice() {
+        if (!LeapMenuConfig.getInstance().isShowResetNotice()) {
+            return;
+        }
         noticesShown++;
         Minecraft client = Minecraft.getInstance();
         Runnable show = () -> {

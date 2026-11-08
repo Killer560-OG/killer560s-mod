@@ -56,6 +56,7 @@ public final class LeapMenuConfig {
     private String lastEditedClass = null;
     /** Where every teammate NOT moved by hand goes (2026-10-09). The saved spots above are only the hand-moved ones. */
     private LeapOrderMode defaultOrder = LeapOrderMode.ODIN;
+    private boolean showResetNotice = true;
     /** Spots saved before 2026-10-09, when the editor saved all 4 spots on every swap (so every one read as "moved by
      *  hand" and no default order could ever apply). Kept verbatim in the file, never read, so nothing is lost. */
     private JsonObject legacyClassOrders = null;
@@ -199,6 +200,9 @@ public final class LeapMenuConfig {
                         }
                     }
                 }
+                if (root.has("showResetNotice") && root.get("showResetNotice").isJsonPrimitive()) {
+                    cfg.showResetNotice = root.get("showResetNotice").getAsBoolean();
+                }
                 if (root.has("defaultOrder") && root.get("defaultOrder").isJsonPrimitive()) {
                     cfg.defaultOrder = LeapOrderMode.byName(root.get("defaultOrder").getAsString());
                 }
@@ -334,6 +338,7 @@ public final class LeapMenuConfig {
             JsonObject root = new JsonObject();
             root.addProperty("format", FORMAT);
             root.addProperty("defaultOrder", defaultOrder.name());
+            root.addProperty("showResetNotice", showResetNotice);
             JsonObject orders = new JsonObject();
             classOrders.forEach((key, slots) -> {
                 JsonArray a = new JsonArray();
@@ -401,6 +406,14 @@ public final class LeapMenuConfig {
             out.add(i < slots.size() ? slots.get(i) : null);
         }
         return out;
+    }
+
+    public boolean isShowResetNotice() {
+        return showResetNotice;
+    }
+
+    public void setShowResetNotice(boolean v) {
+        showResetNotice = v;
     }
 
     public LeapOrderMode getDefaultOrder() {

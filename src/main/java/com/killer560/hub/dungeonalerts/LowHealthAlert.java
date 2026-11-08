@@ -22,13 +22,13 @@ import java.util.regex.Matcher;
  * ("Name is low", the health under it) and a sound when a teammate's number turns red, optionally only while you are
  * playing Healer (SkyHanni's default). The sidebar line is matched whole with {@link ScoreboardPattern#TEAMMATES}
  * (bounded name group); the health is shown as text, never parsed. Fires once each time a teammate goes red, again
- * only after that teammate has left red.
+ * only after that teammate has left red. The tier above red (yellow, "getting low", a higher sound) alerts too, with
+ * Alert At Yellow Health on (default); the sidebar is read every tick so the alert comes as soon as Hypixel sends the
+ * line (alerts also fire for red after yellow). Gated on the switch, a dungeon and (optionally) Healer.
  */
 public final class LowHealthAlert {
 
-    private static final int POLL_TICKS = 5;
-    private static final Map<String, Boolean> wasLow = new HashMap<>();
-    private static int poll = 0;
+    private static final Map<String, Integer> wasTier = new HashMap<>();
     private static int alertsFired = 0;
     private static String lastAlertTitle = null;
 
@@ -39,17 +39,14 @@ public final class LowHealthAlert {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         if (!cfg.isLowHealthEnabled() || client.player == null || !DungeonState.isInDungeon()
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
-            wasLow.clear();
+            wasTier.clear();
             return;
         }
-        if (++poll < POLL_TICKS) {
-            return;
-        }
-        poll = 0;
         if (cfg.isLowHealthOnlyHealer() && selfClass() != DungeonClass.HEALER) {
-            wasLow.clear();
+            wasTier.clear();
             return;
         }
+        boolean yellow = cfg.isLowHealthYellow();
         String self = client.player.getGameProfile().name();
         List<String> lines = ScoreboardData.sidebarNow(client);
         Set<String> seen = new HashSet<>();
@@ -64,25 +61,26 @@ public final class LowHealthAlert {
                 continue;
             }
             seen.add(name);
-            boolean low = "c".equals(m.group("color")) && !"DEAD".equals(health);
-            Boolean was = wasLow.put(name, low);
-            if (low && !Boolean.TRUE.equals(was)) {
-                alert(name, health.length() > 12 ? health.substring(0, 12) : health);
+            String color = m.group("color");
+            int tier = "DEAD".equals(health) ? 0 : "c".equals(color) ? 2 : yellow && "e".equals(color) ? 1 : 0;
+            Integer was = wasTier.put(name, tier);
+            if (tier > (was == null ? 0 : was)) {
+                alert(name, health.length() > 12 ? health.substring(0, 12) : health, tier);
             }
         }
-        wasLow.keySet().retainAll(seen);
+        wasTier.keySet().retainAll(seen);
     }
 
-    private static void alert(String name, String health) {
+    private static void alert(String name, String health, int tier) {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        String title = "§c" + name + " §ais low";
+        String title = tier == 2 ? "§c" + name + " §ais low" : "§e" + name + " §ais getting low";
         lastAlertTitle = title;
         alertsFired++;
-        DungeonAlertsFeature.showTitle(Component.literal(title), Component.literal("§c" + health + "❤"), 0, 25, 5);
+        DungeonAlertsFeature.showTitle(Component.literal(title), Component.literal((tier == 2 ? "§c" : "§e") + health + "❤"), 0, 25, 5);
         if (cfg.isLowHealthSound()) {
-            DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 0.6f);
+            DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, tier == 2 ? 0.6f : 1.2f);
         }
-        DungeonAlertsFeature.LOGGER.info("[LowHealth] {} is low ({})", name, health);
+        DungeonAlertsFeature.LOGGER.info("[LowHealth] {} is {} ({})", name, tier == 2 ? "low" : "getting low", health);
     }
 
     /** Your class: the tab list, else a pick on your own IGN ({@link PartyTracker#selfClass}, leaporder-1102). */
@@ -91,7 +89,7 @@ public final class LowHealthAlert {
     }
 
     static void onWorldChange() {
-        wasLow.clear();
+        wasTier.clear();
     }
 
     /** For the testkit: alerts shown since the client started. */
