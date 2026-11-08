@@ -60,6 +60,7 @@ public abstract class RightClickSendMixin {
                     RightClick.onUseOn(mc.player, useOn);
                     // A chest click that really left: what a powder chest's loot or "already looted" reply answers.
                     com.killer560.hub.powdermining.TreasureChests.onUseBlock(McPackets.useItemOnHitResult(useOn).getBlockPos());
+                    com.killer560.hub.dungeonalerts.SecretSound.onUseSent(McPackets.useItemOnHitResult(useOn).getBlockPos());
                     com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, McPackets.useItemOnHand(useOn));
                 } else {
                     RightClick.onUse(mc.player, (ServerboundUseItemPacket) packet);
