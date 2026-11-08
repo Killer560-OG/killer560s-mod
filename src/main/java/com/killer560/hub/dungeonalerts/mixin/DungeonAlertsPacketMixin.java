@@ -6,6 +6,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundInitializeBorderPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,6 +27,12 @@ public abstract class DungeonAlertsPacketMixin {
     @Inject(method = "handleInitializeBorder", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)
     private void killer560smod$dungeonAlerts$onInitializeBorder(ClientboundInitializeBorderPacket packet, CallbackInfo ci) {
         DungeonAlertsPackets.onInitializeBorder(packet);
+    }
+
+    /** The dungeon sidebar's teammate health lines are team prefix/suffix: Low Health Alert reads them after each update. */
+    @Inject(method = "handleSetPlayerTeamPacket", at = @At("TAIL"), require = 0)
+    private void killer560smod$dungeonAlerts$onTeam(ClientboundSetPlayerTeamPacket packet, CallbackInfo ci) {
+        com.killer560.hub.dungeonalerts.LowHealthAlert.markDirty();
     }
 
     @Inject(method = "handleSoundEvent", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER), require = 0)

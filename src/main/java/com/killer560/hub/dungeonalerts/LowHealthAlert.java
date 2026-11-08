@@ -23,12 +23,14 @@ import java.util.regex.Matcher;
  * playing Healer (SkyHanni's default). The sidebar line is matched whole with {@link ScoreboardPattern#TEAMMATES}
  * (bounded name group); the health is shown as text, never parsed. Fires once each time a teammate goes red, again
  * only after that teammate has left red. The tier above red (yellow, "getting low", a higher sound) alerts too, with
- * Alert At Yellow Health on (default); the sidebar is read every tick so the alert comes as soon as Hypixel sends the
- * line (alerts also fire for red after yellow). Gated on the switch, a dungeon and (optionally) Healer.
+ * Alert At Yellow Health on (default); the sidebar is read the tick after Hypixel's team update arrives (and once a second) (alerts also fire for red after yellow). Gated on the switch, a dungeon and (optionally) Healer.
  */
 public final class LowHealthAlert {
 
     private static final Map<String, Integer> wasTier = new HashMap<>();
+    /** Set by the team-packet hook (the sidebar lines are team prefix/suffix), and once a second as a safety net. */
+    private static volatile boolean dirty = true;
+    private static int sinceRead = 0;
     private static int alertsFired = 0;
     private static String lastAlertTitle = null;
 
@@ -40,8 +42,14 @@ public final class LowHealthAlert {
         if (!cfg.isLowHealthEnabled() || client.player == null || !DungeonState.isInDungeon()
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             wasTier.clear();
+            dirty = true;
             return;
         }
+        if (!dirty && ++sinceRead < 20) {
+            return;
+        }
+        dirty = false;
+        sinceRead = 0;
         if (cfg.isLowHealthOnlyHealer() && selfClass() != DungeonClass.HEALER) {
             wasTier.clear();
             return;
@@ -88,7 +96,13 @@ public final class LowHealthAlert {
         return PartyTracker.selfClass();
     }
 
+    /** A scoreboard team changed (DungeonAlertsPacketMixin, after vanilla applied it): read the sidebar next tick. */
+    public static void markDirty() {
+        dirty = true;
+    }
+
     static void onWorldChange() {
+        dirty = true;
         wasTier.clear();
     }
 
