@@ -199,6 +199,21 @@ public final class FriendsListConfig {
         }
     }
 
+    /** A friend read mid-scan shows at once (the final {@link #applyRealSync} still sets the real order and drops the gone). */
+    public void noteScanned(String name, Boolean onlineHint, String activity) {
+        Friend f = friends.computeIfAbsent(name.toLowerCase(Locale.US), k -> {
+            Friend n = new Friend(name);
+            n.firstSeenAtMs = System.currentTimeMillis();
+            return n;
+        });
+        if (onlineHint != null) f.onlineHint = onlineHint;
+        if (activity != null) {
+            f.activity = activity;
+            f.activityAtMs = System.currentTimeMillis();
+        }
+        snapshot = null;
+    }
+
     /**
      * Replaces the whole mirrored list with what {@link FriendsListSync} just parsed off a real {@code /fl} -
      * always a full replace, never a merge, so this can never drift from what Hypixel just said (an add/remove
