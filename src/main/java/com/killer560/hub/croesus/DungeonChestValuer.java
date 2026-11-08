@@ -324,6 +324,13 @@ public final class DungeonChestValuer {
         if (essence.matches()) {
             return priceLine(name);
         }
+        if (SHARD.matcher(name).matches()) {
+            // An attribute shard's custom id is ATTRIBUTE_SHARD (one id for all of them), so it priced as nothing; the
+            // Bazaar product is SHARD_<NAME>. The stack count is the amount when the name carries no "xN".
+            PricedItem shard = priceLine(name);
+            return AMOUNT_SUFFIX.matcher(name).matches() || stack.getCount() <= 1 ? shard
+                    : priced(name, shard.id(), stack.getCount());
+        }
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         if (data == null) {
             return null;
