@@ -1171,8 +1171,16 @@ final class ExtraPages {
         s.stat2(g, x, y, w, "Belt", anyDojo ? ExtraTables.threshold(tables.get("dojo_belts"), "belt", points) : "None");
     }
 
-    /** NEU's renderAlignedString: the label at x, the value flush right at x + w. */
+    /** NEU's renderAlignedString: the label at x, the value flush right at x + w; when "label value" is w or wider, NEU
+     *  draws it as one line centered on x + w / 2 instead. */
     private void neuAligned(GuiGraphicsExtractor g, String label, int labelColor, String value, int x, int y, int w) {
+        int lw = f().width(label), all = lw + f().width(" ") + f().width(value);
+        if (all >= w) {
+            int lx = x + (w - all) / 2;
+            tx(g, label, lx, y, labelColor);
+            rightText(g, value, lx + all, y, 0xFFFFFFFF);
+            return;
+        }
         tx(g, label, x, y, labelColor);
         rightText(g, value, x + w, y, 0xFFFFFFFF);
     }
