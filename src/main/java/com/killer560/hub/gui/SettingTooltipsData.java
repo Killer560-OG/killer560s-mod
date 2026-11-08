@@ -86,6 +86,7 @@ final class SettingTooltipsData {
         d.put("livid solver/announce color", "Sends the real Livid's color to party chat once per answer (at most twice a run).");
         d.put("low health alert", "Shows a title and plays a sound when a teammate's health turns red on the dungeon sidebar.");
         d.put("low health alert/only while healer", "Alerts only while you are playing Healer.");
+        d.put("low health alert/alert at yellow health", "Also alerts one tier earlier, when a teammate's health turns yellow (\"getting low\", higher sound), not only red.");
         d.put("low health alert/alert sound", "Plays a sound with the low health title.");
         part1(d);
         part2(d);
@@ -632,6 +633,7 @@ final class SettingTooltipsData {
         d.put("corner hit message", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
+        d.put("show leap order reset", "Shows the \"Leap Order reset\" title and chat line when a party change resets your pins and picks. Off hides both.");
         d.put("use class colors", "Colors each leap menu box by that teammate's class; off draws every box in orange.");
         d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");
         d.put("show map during clear", "On: during the clear the leap menu is the dungeon map with each teammate's face; boxes again in the boss. Off: the four teammate boxes everywhere. Keys 1-4 work in both.");

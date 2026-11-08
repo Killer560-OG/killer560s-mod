@@ -92,6 +92,11 @@ public class LeapMenuTab extends BaseTab {
                 }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP;
 
+        com.killer560.hub.leapmenu.LeapMenuConfig order = com.killer560.hub.leapmenu.LeapMenuConfig.getInstance();
+        widgets.add(onOffButton("Show Leap Order Reset", order::isShowResetNotice, order::setShowResetNotice, order::save,
+                null, x, y, Math.max(1, width), ROW));
+        y += ROW + GAP;
+
         // No Theme row here any more: the Leap Menu overlay follows the one Theme at the bottom of the tab (killer560,
         // 2026-10-18, ScreenThemes.section).
 

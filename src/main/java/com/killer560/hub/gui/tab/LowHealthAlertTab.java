@@ -26,6 +26,8 @@ public class LowHealthAlertTab extends BaseTab {
         }
         w.add(onOffButton("Only While Healer", cfg::isLowHealthOnlyHealer, cfg::setLowHealthOnlyHealer, cfg::save, null, contentX, y, contentWidth, 18));
         y += 22;
+        w.add(onOffButton("Alert At Yellow Health", cfg::isLowHealthYellow, cfg::setLowHealthYellow, cfg::save, null, contentX, y, contentWidth, 18));
+        y += 22;
         w.add(onOffButton("Alert Sound", cfg::isLowHealthSound, cfg::setLowHealthSound, cfg::save, null, contentX, y, contentWidth, 18));
         return w;
     }
