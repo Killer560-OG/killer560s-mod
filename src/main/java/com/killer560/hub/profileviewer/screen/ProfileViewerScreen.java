@@ -362,7 +362,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
             int[] m = PvStyleChrome.NEU_BASIC_MODEL;
             int skinH = neu ? m[3] - 8 : Math.min(120, contentH - 90);
-            if (skinH >= 50) {
+            if (pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu) { // SkyBlockPV: in its player frame, middle column
+                int w = (int) (panelW * 0.2), h = (int) (w * 1.1);
+                PlayerSkinWidget skin = new PlayerSkinWidget(w, h - h / 10, this.minecraft.getEntityModels(),
+                        this.minecraft.getSkinManager().createLookup(skinProfile, false));
+                skin.setPosition(panelX + (panelW - w) / 2, sbpvPlayerY() + h / 10);
+                addRenderableWidget(skin);
+            } else if (skinH >= 50) {
                 PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(),
                         this.minecraft.getSkinManager().createLookup(skinProfile, false));
                 skin.setPosition(neu ? panelX + m[0] + (m[2] - (skinH / 2 + 10)) / 2 : contentX + (118 - (skinH / 2 + 10)) / 2,
@@ -1073,7 +1079,118 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
 
+    /** SkyBlockPV's player frame on its main page: the middle 20 % column, 1.1 times as high as wide, centered with its
+     *  status button (5 + 20 + 3 below) in the content height; its top. */
+    private int sbpvPlayerY() {
+        return contentY + (panelY + panelH - contentY - (int) ((int) (panelW * 0.2) * 1.1) - 28) / 2;
+    }
+
+    /** SkyBlockPV's main page (MainScreen): Info on the left, the player in the middle 20 %, Skills and Slayer chips on
+     *  the right, each a label (title bar over a box). Its Essence section and status button stay empty (no data). */
+    private void drawSbpvBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        int middle = (int) (panelW * 0.2), side = (panelW - middle) / 2, text = PvStyleChrome.sbpvText(pvStyle);
+        int fh = (int) (middle * 1.1), fy = sbpvPlayerY();
+        PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy, middle, fh);
+        PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy + fh + 5, middle, 20);
+        // Info: the gray lines in a block centered in the column.
+        double sum = 0;
+        int count = 0;
+        if (p.skillXp != null) {
+            for (String id : LevelTables.SKILL_ORDER) {
+                if (LevelTables.countsForAverage(id) && LevelTables.skill(id) != null) {
+                    sum += LevelTables.skillLevel(id, p.skillXp.getOrDefault(id, 0L), p.skillCaps.getOrDefault(id, -1)).level();
+                    count++;
+                }
+            }
+        }
+        ExtraPages.NetworthState nw = extraPages.networthState(p);
+        boolean nonCos = ProfileViewerConfig.getInstance().isNonCosmeticNetworth();
+        String[] info = {"Purse: " + commas(p.purse),
+                "Bank: " + (p.bank < 0 ? "API off" : p.personalBank > 0 && p.bank > 0 ? shorten(p.personalBank) + "/" + shorten(p.bank)
+                        : shorten(Math.max(0, p.bank) + Math.max(0, p.personalBank))),
+                "SkyBlock Level: " + p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""),
+                p.firstJoin > 0 ? "First Join: " + SBPV_JOIN.format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())) : null,
+                count == 0 ? null : "Skill Avg: " + String.format(Locale.ROOT, "%.2f", sum / count),
+                "Fairy Souls: " + p.fairySouls,
+                "Networth: " + (nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...")};
+        int n = 0, maxW = 0;
+        for (String line : info) {
+            if (line != null) {
+                n++;
+                maxW = Math.max(maxW, this.font.width(line));
+            }
+        }
+        int y = sbpvLabel(g, "Info", panelX, contentY, side, 7 + n * 11 - 2 + 7, text);
+        int lx = panelX + (side - maxW) / 2;
+        for (String line : info) {
+            if (line != null) {
+                y = sbpvLine(g, line, lx, y, side - 20, text);
+            }
+        }
+        // Skills, then Slayer: chips of icon + level, as many to a row as fit in side - 20.
+        int rx = panelX + side + middle;
+        int ry = contentY;
+        if (p.skillXp != null) {
+            List<String> ids = LevelTables.SKILL_ORDER;
+            ry = sbpvChips(g, "Skills", rx, ry, side, ids.size(), i -> skillIcon(ids.get(i)),
+                    i -> LevelTables.skillLevel(ids.get(i), p.skillXp.getOrDefault(ids.get(i), 0L), p.skillCaps.getOrDefault(ids.get(i), -1)).level(), text) + 10;
+        }
+        List<LevelTables.Slayer> slayers = LevelTables.slayers();
+        sbpvChips(g, "Slayer", rx, ry, side, slayers.size(), i -> slayerIcon(slayers.get(i).apiId()), i -> {
+            SbProfile.SlayerStat st = p.slayers.get(slayers.get(i).apiId());
+            return LevelTables.slayerLevel(slayers.get(i), st == null ? 0 : st.xp()).level();
+        }, text);
+    }
+
+    private static final DateTimeFormatter SBPV_JOIN = DateTimeFormatter.ofPattern("yyyy.MM.dd", Locale.US);
+
+    /** SkyBlockPV's label: its title bar (w - 10 wide, 20 high, the title centered over w) over a box {@code inner} + 0
+     *  high; returns the y of the box's first content line (7 in). */
+    private int sbpvLabel(GuiGraphicsExtractor g, String title, int x, int y, int w, int inner, int text) {
+        PvStyleChrome.title(g, pvStyle, x, y, w - 10, 20);
+        g.text(this.font, title, x + (w - this.font.width(title)) / 2, y + 6, text, false);
+        box(g, x, y + 20, w - 10, inner);
+        return y + 27;
+    }
+
+    /** A SkyBlockPV createSection: chips (rounded_box_thin, 2 px in: a 12 px icon, 1 px, the level) 5 apart, as many to
+     *  a row as fit (w - 20) / (widest + 10), each row centered; returns the label's bottom. */
+    private int sbpvChips(GuiGraphicsExtractor g, String title, int x, int y, int w, int n,
+                          java.util.function.IntFunction<ItemStack> icon, java.util.function.IntUnaryOperator level, int text) {
+        int chipW = 0;
+        for (int i = 0; i < n; i++) {
+            chipW = Math.max(chipW, 17 + this.font.width(String.valueOf(level.applyAsInt(i))));
+        }
+        int perRow = Math.max(1, (w - 20) / (chipW + 10)), rows = (n + perRow - 1) / perRow;
+        int cy = sbpvLabel(g, title, x, y, w, 14 + rows * 16 + (rows - 1) * 5, text);
+        for (int r = 0; r < rows; r++) {
+            int k0 = r * perRow, k1 = Math.min(n, k0 + perRow), rowW = -5;
+            for (int i = k0; i < k1; i++) {
+                rowW += 22 + this.font.width(String.valueOf(level.applyAsInt(i)));
+            }
+            int cx = x + 10 + (w - 20 - rowW) / 2;
+            for (int i = k0; i < k1; i++) {
+                String lv = String.valueOf(level.applyAsInt(i));
+                int cw = 17 + this.font.width(lv);
+                PvStyleChrome.chip(g, pvStyle, cx, cy, cw, 16);
+                g.pose().pushMatrix();
+                g.pose().translate(cx + 2, cy + 2);
+                g.pose().scale(0.75f, 0.75f);
+                g.item(icon.apply(i), 0, 0);
+                g.pose().popMatrix();
+                g.text(this.font, lv, cx + 15, cy + 4, text, false);
+                cx += cw + 5;
+            }
+            cy += 21;
+        }
+        return cy - 5 + 7;
+    }
+
     private void drawBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        if (sbpvStyle()) {
+            drawSbpvBasic(g, p, mx, my);
+            return;
+        }
         int leftW = 118;
         box(g, contentX, contentY, leftW, contentH);
         // NEU Classic puts the stats in pv_basic's middle box and the skills in its right one (the skin is in its frame).

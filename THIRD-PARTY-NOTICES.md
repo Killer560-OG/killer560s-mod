@@ -41,7 +41,7 @@ were read from their sources.
   GNU Lesser General Public License v3.0 (https://www.gnu.org/licenses/lgpl-3.0.html).
 - `pv/sbpv/light`, `pv/sbpv/dark`, `pv/sbpv/clear`: from [SkyBlockPv](https://github.com/meowdding/skyblock-pv)
   (its default, darkmode and neu theme sprites; `slot.png` is one cell of each theme's `inventory/mono.png`, `side_tab.png` and
-  `side_tab_on.png` are its `tabs/right` sprites, `title.png` its `box/title`, and `bar_*.png` its `progressbar` sprites). SkyBlockPv License v1.1: non-code assets are licensed under
+  `side_tab_on.png` are its `tabs/right` sprites, `title.png` its `box/title`, `chip.png` its `box/rounded_box_thin`, `player_bg.png` its `buttons/disabled`, and `bar_*.png` its `progressbar` sprites). SkyBlockPv License v1.1: non-code assets are licensed under
   Creative Commons Attribution 4.0 International (https://creativecommons.org/licenses/by/4.0/). Portions of these
   assets are from the SkyBlockPv mod.
 - `pv/sbpv/button*.png`: from [Olympus](https://github.com/terrarium-earth/Olympus) (`buttons/dark/*`), used under

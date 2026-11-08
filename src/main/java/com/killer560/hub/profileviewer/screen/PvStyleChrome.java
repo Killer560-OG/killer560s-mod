@@ -106,6 +106,16 @@ final class PvStyleChrome {
             BAR_MAXED = id("sbpv/bar_foreground_maxed");
     private static final Identifier[] TITLE = {id("sbpv/light/title"), id("sbpv/dark/title"), id("sbpv/clear/title")};
 
+    /** SkyBlockPV's skill/slayer chip background (box/rounded_box_thin) and its player frame (buttons/disabled). */
+    static void chip(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, CHIP[s == Style.SBPV_DARK ? 1 : s == Style.SBPV_CLEAR ? 2 : 0], x, y, w, h);
+    }
+    static void playerFrame(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PLAYER[s == Style.SBPV_DARK ? 1 : s == Style.SBPV_CLEAR ? 2 : 0], x, y, w, h);
+    }
+    private static final Identifier[] CHIP = {id("sbpv/light/chip"), id("sbpv/dark/chip"), id("sbpv/clear/chip")};
+    private static final Identifier[] PLAYER = {id("sbpv/light/player_bg"), id("sbpv/dark/player_bg"), id("sbpv/clear/player_bg")};
+
     static final int NEU_W = 431;
     static final int NEU_H = 202;
 
