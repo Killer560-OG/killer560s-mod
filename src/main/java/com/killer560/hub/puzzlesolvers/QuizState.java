@@ -71,6 +71,8 @@ public final class QuizState {
             if (client.level != level.get()) {
                 level = new java.lang.ref.WeakReference<>(client.level);
                 reset("world changed");
+            } else if (question != 0 && com.killer560.hub.livemap.LiveMapFeature.isInBoss()) {
+                reset("boss entered");
             }
         }));
     }

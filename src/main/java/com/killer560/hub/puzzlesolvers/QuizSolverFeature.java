@@ -364,7 +364,7 @@ public final class QuizSolverFeature {
 
     /** The text the Quiz Timer shows now, or null when there is nothing to time (no Quiz in progress). */
     public static String timerText() {
-        if (!QuizState.inProgress()) return null;
+        if (!QuizState.inProgress() || LiveMapFeature.isInBoss()) return null;
         int q = QuizState.nextQuestion();
         if (QuizState.answerable()) return "\u00a7aQuiz " + q + "/3: answer now";
         long t = QuizState.ticksUntilAnswerable();
