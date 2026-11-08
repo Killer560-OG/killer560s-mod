@@ -144,6 +144,7 @@ public final class BloodCampStats {
 
     static void onCampCleared() {
         if (phase == Phase.IDLE || phase == Phase.DONE) {
+            BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared with phase {}: no greeting seen, nothing to report", phase);
             return;
         }
         campLagMs = BloodCampMoveTimer.lagMsSinceGreeting();
@@ -167,7 +168,7 @@ public final class BloodCampStats {
     /** The camp cleared: send the message once, if it is wanted and there is something to say. */
     private static void sendSummary() {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
-        if (sentThisRun || phase == Phase.IDLE || phase == Phase.WAITING_KILL) {
+        if (sentThisRun || phase == Phase.IDLE) {
             return;
         }
         sentThisRun = true;

@@ -20,10 +20,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,8 +51,6 @@ import java.util.regex.Pattern;
  *     same instant (killer560: "Like .2 seconds is all it needs").</li>
  * <li><b>Real lines only.</b> Hypixel chat comes from Fabric's receive events (server packets only, never a line a mod
  *     drew locally); Mod Chat lines come from the relay, whose sender name is stamped from a Mojang-verified login.</li>
- * <li><b>Rate limited</b> per sender and overall ({@link #GLOBAL_MIN_GAP_MS} and friends), so nobody can make your
- *     account flood Hypixel and get muted or kicked.</li>
  * <li><b>Everything a party command does is printed locally</b> through {@link ModChat}.</li>
  * </ul>
  * Argument names are re-validated against {@link #NAME_PATTERN} before they are ever concatenated into a command, so no
@@ -79,24 +74,11 @@ public final class PartyCommandsFeature {
     private static final String[] FLOOR_WORDS = {"one", "two", "three", "four", "five", "six", "seven"};
     private static final String[] KUUDRA_TIERS = {"normal", "hot", "burning", "fiery", "infernal"};
 
-    // Rate limits (Odin has none at all).
-    private static final long GLOBAL_MIN_GAP_MS = 2_000L;
-    private static final long PER_SENDER_MIN_GAP_MS = 8_000L;
-    private static final long WINDOW_MS = 60_000L;
-    private static final int GLOBAL_MAX_PER_WINDOW = 6;
-    private static final int PER_SENDER_MAX_PER_WINDOW = 3;
-    /** A dropped command only ever reports itself this often, so the rejection can't become the spam. */
-    private static final long REJECT_LOG_GAP_MS = 15_000L;
-
     /** {@code !reinv}: how long to leave the player out before inviting them back. */
     private static final long REINVITE_DELAY_MS = 5_000L;
     private static final String REINVITE_KEY = "reinvite:";
     private static final String QUEUE_KEY = "queue-instance";
 
-    private static final Deque<Long> GLOBAL_TIMES = new ArrayDeque<>();
-    private static final Map<String, Deque<Long>> SENDER_TIMES = new HashMap<>();
-    private static long lastGlobalAtMs = 0L;
-    private static long lastRejectLogAtMs = 0L;
 
     /**
      * Pending delayed sends: every reply and command (the reply delay), warp-then-transfer, end-of-run downtime, and
@@ -208,10 +190,6 @@ public final class PartyCommandsFeature {
         }
         if (needsLeader(command) && PartyLeaderTracker.knownNotLeader()) {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - you are not the party leader", word, sender);
-            return true;
-        }
-        // A floor request already waiting out Creation Cooldown is replaced, not rate limited: a retry is not spam.
-        if (!(command == Command.QUEUE_INSTANCE && isPending(QUEUE_KEY)) && !allowRate(sender)) {
             return true;
         }
         long received = System.currentTimeMillis();
@@ -391,50 +369,6 @@ public final class PartyCommandsFeature {
 
     private static String firstNonNull(String a, String b) { return a != null ? a : b; }
 
-
-    private static boolean allowRate(String sender) {
-        long now = System.currentTimeMillis();
-        String key = sender.toLowerCase(Locale.US);
-        Deque<Long> mine = SENDER_TIMES.computeIfAbsent(key, k -> new ArrayDeque<>());
-        prune(GLOBAL_TIMES, now);
-        prune(mine, now);
-        String reason = null;
-        if (now - lastGlobalAtMs < GLOBAL_MIN_GAP_MS) {
-            reason = "too soon after the last one";
-        } else if (GLOBAL_TIMES.size() >= GLOBAL_MAX_PER_WINDOW) {
-            reason = "too many commands this minute";
-        } else if (!mine.isEmpty() && now - mine.peekLast() < PER_SENDER_MIN_GAP_MS) {
-            reason = "they just ran one";
-        } else if (mine.size() >= PER_SENDER_MAX_PER_WINDOW) {
-            reason = "they've hit their limit for this minute";
-        }
-        if (reason != null) {
-            if (now - lastRejectLogAtMs >= REJECT_LOG_GAP_MS) {
-                lastRejectLogAtMs = now;
-                ModChat.send("Party Commands", ModChat.text("Ignoring "), ModChat.value(sender),
-                        ModChat.text(" - "), ModChat.dim(reason + "."));
-            }
-            LOGGER.info("[PartyCommands] Rate limited {} ({})", sender, reason);
-            return false;
-        }
-        lastGlobalAtMs = now;
-        GLOBAL_TIMES.addLast(now);
-        mine.addLast(now);
-        if (SENDER_TIMES.size() > 32) {
-            // Only the current sender's deque was pruned above; prune the rest or they never become empty.
-            SENDER_TIMES.entrySet().removeIf(e -> {
-                prune(e.getValue(), now);
-                return e.getValue().isEmpty();
-            });
-        }
-        return true;
-    }
-
-    private static void prune(Deque<Long> times, long now) {
-        while (!times.isEmpty() && now - times.peekFirst() > WINDOW_MS) {
-            times.removeFirst();
-        }
-    }
 
     // ------------------------------------------------------------------ downtime (Odin's !dt)
 
