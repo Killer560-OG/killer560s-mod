@@ -55,6 +55,9 @@ public class BazaarOrderHelperTab extends BaseTab {
             cfg.setExpiredColor(argb);
             cfg.save();
         }, colBX, y, colW));
+        y += 20;
+        widgets.add(onOffButton("Highlight Auction House", cfg::isHighlightAuctions, cfg::setHighlightAuctions, cfg::save,
+                null, contentX, y, colW, 18));
         return widgets;
     }
 

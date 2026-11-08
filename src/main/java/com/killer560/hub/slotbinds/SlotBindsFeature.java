@@ -265,7 +265,9 @@ public final class SlotBindsFeature {
             return;
         }
         if (held.sharedWithProtect) {
-            if (heldMs < QUICK_PRESS_MS) {
+            if (held.startSlot != null && cfg.getBinds().containsKey(held.startSlot.index)) {
+                pressBind(cfg, pendingSlot, held.startSlot.index); // first press on a bound slot only removes the bind
+            } else if (heldMs < QUICK_PRESS_MS) {
                 ItemProtectFeature.toggleProtectFromSlot(held.startSlot);
             }
             return;

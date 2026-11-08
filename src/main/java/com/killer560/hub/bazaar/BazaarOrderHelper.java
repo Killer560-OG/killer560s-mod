@@ -4,6 +4,7 @@ import com.killer560.hub.auction.BazaarApi;
 import com.killer560.hub.auction.BazaarOrderParser;
 import com.killer560.hub.auction.BazaarOrders;
 import com.killer560.hub.auction.BazaarProduct;
+import com.killer560.hub.auction.ah.AhPages;
 import com.killer560.hub.croesus.DungeonChestValuer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -47,6 +48,10 @@ public final class BazaarOrderHelper {
 
     private static AbstractContainerScreen<?> cachedScreen;
     private static boolean cachedIsOrders;
+    private static boolean cachedIsAuctions;
+    private static final Map<ItemStack, Integer> AH_STATE = new IdentityHashMap<>();
+    /** Hypixel's Auction House lore: "Status: Sold!" / "Ended!" (claimable), "Status: Expired!". */
+    private static final Pattern AH_STATUS = Pattern.compile("^Status: (Sold|Ended|Expired)!?$");
     private static final Map<ItemStack, BazaarOrderParser.Order> PARSED = new IdentityHashMap<>();
     private static final BazaarOrderParser.Order NOT_AN_ORDER = new BazaarOrderParser.Order(BazaarOrderParser.Type.BUY,
             "", null, 0, 0, false, 0, -1, -1, false, false, null, null);
@@ -108,12 +113,41 @@ public final class BazaarOrderHelper {
         if (screen != cachedScreen) {
             cachedScreen = screen;
             PARSED.clear();
+            AH_STATE.clear();
+            AhPages.Kind kind = AhPages.kindOf(BazaarOrderParser.strip(screen.getTitle().getString()));
+            cachedIsAuctions = kind == AhPages.Kind.MANAGE || kind == AhPages.Kind.BIDS;
             cachedIsOrders = ORDERS_TITLE.matcher(BazaarOrderParser.strip(screen.getTitle().getString())).matches();
             if (cachedIsOrders) {
                 BazaarApi.ensureAutoStarted(); // prices for the outbid check even with the Bazaar Browser off
             }
         }
         return cachedIsOrders;
+    }
+
+    /** The ARGB for an Auction House item in Manage Auctions / Your Bids: claimable green, expired red, else 0. */
+    private static int auctionColor(AbstractContainerScreen<?> screen, Slot slot) {
+        BazaarOrderHelperConfig cfg = BazaarOrderHelperConfig.getInstance();
+        if (slot == null || slot.container instanceof Inventory || !cfg.isHighlightAuctions()) {
+            return 0;
+        }
+        isOrdersMenu(screen);
+        ItemStack stack = slot.getItem();
+        if (!cachedIsAuctions || stack == null || stack.isEmpty()) {
+            return 0;
+        }
+        if (AH_STATE.size() > 256) {
+            AH_STATE.clear();
+        }
+        int state = AH_STATE.computeIfAbsent(stack, s -> {
+            for (String line : DungeonChestValuer.cleanLore(s)) {
+                java.util.regex.Matcher m = AH_STATUS.matcher(line);
+                if (m.matches()) {
+                    return m.group(1).equals("Expired") ? 2 : 1;
+                }
+            }
+            return 0;
+        });
+        return state == 1 ? cfg.getFilledColor() : state == 2 ? cfg.getExpiredColor() : 0;
     }
 
     private static BazaarOrderParser.Order orderIn(AbstractContainerScreen<?> screen, Slot slot) {
@@ -143,6 +177,9 @@ public final class BazaarOrderHelper {
                 return;
             }
             int argb = color(orderIn(screen, slot));
+            if (argb == 0) {
+                argb = auctionColor(screen, slot);
+            }
             if (argb == 0) {
                 return;
             }
