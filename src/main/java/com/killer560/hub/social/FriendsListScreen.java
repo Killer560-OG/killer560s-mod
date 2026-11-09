@@ -93,14 +93,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         listW = panelW - 12;
         listH = Math.max(20, panelH - top - (selected != null ? 44 : 8) - STATUS_H);
 
-        // One rate-limited sync per open, same as the old refreshOnlineNames() call this replaces - see
-        // FriendsListSync's doc on why this can never spam Hypixel (opening the menu is an explicit click).
-        // A full sync now walks every page (about a second each), so opening the menu only starts one when the
-        // saved list is missing or over ten minutes old; Refresh always does.
-        FriendsListConfig openCfg = FriendsListConfig.getInstance();
-        if (!openCfg.isEverSynced() || System.currentTimeMillis() - openCfg.getLastSyncedAtMs() > 10 * 60_000L) {
-            FriendsListSync.requestSync(true);
-        }
+        // A refresh on every open (killer560, 2026-11-09): quiet (its chat blocks are hidden), refused while a scan is
+        // already walking or inside the sync interval, so chat is never spammed.
+        FriendsListSync.requestSync(true);
 
         int addBtnW = 70;
         int refreshBtnW = 62;

@@ -200,6 +200,21 @@ public final class FriendsListConfig {
         snapshot = null;
     }
 
+    /** Hypixel lists online friends first, so once a scan reaches its first offline friend every friend it has not read yet
+     *  is offline too: they read offline in the menu at once, while the scan goes on to fill in the rest (the real sync
+     *  still sets everything at the end). */
+    public void markUnseenOffline(java.util.Set<String> seenLower) {
+        long now = System.currentTimeMillis();
+        for (Map.Entry<String, Friend> e : friends.entrySet()) {
+            if (!seenLower.contains(e.getKey())) {
+                e.getValue().onlineHint = false;
+                e.getValue().activity = "Offline";
+                e.getValue().activityAtMs = now;
+            }
+        }
+        snapshot = null;
+    }
+
     /**
      * Replaces the whole mirrored list with what {@link FriendsListSync} just parsed off a real {@code /fl} -
      * always a full replace, never a merge, so this can never drift from what Hypixel just said (an add/remove
