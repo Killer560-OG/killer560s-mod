@@ -19,6 +19,10 @@ public final class AutoCloseChestConfig {
     private static AutoCloseChestConfig instance;
 
     private boolean enabled = false;
+    private Mode mode = Mode.AUTO;
+
+    /** Auto closes the chest before it opens (cheat build only); Click leaves it open until any key or mouse press. */
+    public enum Mode { AUTO, CLICK }
 
     private AutoCloseChestConfig() {
     }
@@ -40,6 +44,7 @@ public final class AutoCloseChestConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AutoCloseChestConfig cfg = new AutoCloseChestConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.AUTO);
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoCloseChestConfig();
@@ -49,15 +54,26 @@ public final class AutoCloseChestConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
+        obj.addProperty("mode", mode.name());
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
-    /** Cheat build only (killer560, 2026-10-07: "auto close chest should be in a cheat only version"). The
-     *  constant folds this to {@code false} in a legit jar, so a saved {@code "enabled": true} carried over
-     *  from a cheat install does nothing there. */
+    /** The feature is on and Skyblock allows it. Auto mode is cheat build only (killer560, 2026-10-07: "auto close chest
+     *  should be in a cheat only version"): {@link #isAuto()} folds to false in a legit jar, where only Click exists. */
     public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
-                && com.killer560.hub.util.SkyblockGate.allows();
+        return enabled && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isAuto() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && mode == Mode.AUTO;
+    }
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
     }
 
     /** The saved value, ungated - for the tab's label, so the button never shows OFF just because the
