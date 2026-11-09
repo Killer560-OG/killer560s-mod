@@ -41,7 +41,17 @@ public class CollectionTrackerTab extends BaseTab {
         y += 24;
         widgets.add(onOffButton("Show Rate", () -> cfg().isShowRate(), v -> cfg().setShowRate(v), () -> cfg().save(), null,
                 contentX, y, contentWidth, 20));
-        y += 28;
+        y += 24;
+        widgets.add(onOffButton("Only Recent", () -> cfg().isOnlyRecent(), v -> cfg().setOnlyRecent(v), () -> cfg().save(),
+                requestRebuild, contentX, y, contentWidth, 20));
+        y += 24;
+        if (cfg().isOnlyRecent() || isSearchScan()) {
+            widgets.add(steppedSlider(contentX, y, contentWidth, 20, recentText(), CollectionTrackerConfig.RECENT_MIN,
+                    CollectionTrackerConfig.RECENT_MAX, cfg().getRecentSeconds(), 5, v -> cfg().setRecentSeconds((int) Math.round(v)),
+                    CollectionTrackerTab::recentText, () -> cfg().save()));
+            y += 24;
+        }
+        y += 4;
 
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Collections", false));
         y += 16;
@@ -91,6 +101,10 @@ public class CollectionTrackerTab extends BaseTab {
         });
         layout.run();
         return widgets;
+    }
+
+    private static Component recentText() {
+        return Component.literal("Recent Window: " + cfg().getRecentSeconds() + " s");
     }
 
     /** Shows the headers and switches matching {@code query} (a category name shows all of it), two switches a row. */
