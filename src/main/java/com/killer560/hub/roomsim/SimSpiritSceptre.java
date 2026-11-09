@@ -206,8 +206,17 @@ public final class SimSpiritSceptre {
             spawnBatEntity(client, bat);
             FLYING.add(bat);
         }
-        client.level.playLocalSound(eye.x, eye.y, eye.z, SoundEvents.BAT_TAKEOFF,
-                SoundSource.PLAYERS, 0.9f, 1.4f, false);
+        // From the server, so every player in the sim hears it (co-op guests too), not this client alone.
+        var server = client.getSingleplayerServer();
+        java.util.UUID who = guest != null ? guest : client.player.getUUID();
+        if (server != null) {
+            server.execute(() -> {
+                var sp = server.getPlayerList().getPlayer(who);
+                if (sp != null) {
+                    sp.level().playSound(null, eye.x, eye.y, eye.z, SoundEvents.BAT_TAKEOFF, SoundSource.PLAYERS, 0.9f, 1.4f);
+                }
+            });
+        }
         return true;
     }
 
@@ -227,6 +236,11 @@ public final class SimSpiritSceptre {
     public static int blasts() { return blastCount; }
 
     private static int blastCount;
+
+    /** Players the last blast's particles were sent to (every player in the sim's level), for tests. */
+    private static volatile int lastBlastViewers;
+
+    public static int lastBlastViewersForTest() { return lastBlastViewers; }
 
     private static void tick(Minecraft client) {
         if (FLYING.isEmpty()) return;
@@ -301,7 +315,8 @@ public final class SimSpiritSceptre {
     }
 
     /**
-     * One bat's explosion: the picture on the client, the damage on the server.
+     * One bat's explosion, all on the server: the particles and the sound are sent to every player in the sim (a
+     * co-op guest saw nothing while they were drawn on his client alone), and the damage is the server's.
      *
      * <p>The damage is worked out server-side from the blast center rather than handed a list of entities the
      * client picked, so it is the server's own view of what is in range that decides - the same rule
@@ -309,17 +324,6 @@ public final class SimSpiritSceptre {
      */
     private static void explode(Minecraft client, Vec3 centre, java.util.UUID guest) {
         blastCount++;
-        client.level.addParticle(ParticleTypes.EXPLOSION, centre.x, centre.y, centre.z, 0.0, 0.0, 0.0);
-        for (int i = 0; i < 8; i++) {
-            client.level.addParticle(ParticleTypes.SOUL,
-                    centre.x + (RNG.nextDouble() - 0.5) * BLAST_RADIUS,
-                    centre.y + (RNG.nextDouble() - 0.5) * BLAST_RADIUS,
-                    centre.z + (RNG.nextDouble() - 0.5) * BLAST_RADIUS,
-                    0.0, 0.02, 0.0);
-        }
-        client.level.playLocalSound(centre.x, centre.y, centre.z, SoundEvents.GENERIC_EXPLODE.value(),
-                SoundSource.PLAYERS, 0.5f, 1.6f, false);
-
         var server = client.getSingleplayerServer();
         if (server == null || client.player == null) return;
         java.util.UUID uuid = guest != null ? guest : client.player.getUUID();
@@ -327,6 +331,11 @@ public final class SimSpiritSceptre {
             var sp = server.getPlayerList().getPlayer(uuid);
             if (sp == null) return;
             ServerLevel level = (ServerLevel) sp.level();
+            lastBlastViewers = level.sendParticles(ParticleTypes.EXPLOSION, centre.x, centre.y, centre.z, 1, 0.0, 0.0, 0.0, 0.0);
+            level.sendParticles(ParticleTypes.SOUL, centre.x, centre.y, centre.z, 8,
+                    BLAST_RADIUS / 4, BLAST_RADIUS / 4, BLAST_RADIUS / 4, 0.02);
+            level.playSound(null, centre.x, centre.y, centre.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS,
+                    0.5f, 1.6f);
             AABB blast = AABB.ofSize(centre, BLAST_RADIUS * 2, BLAST_RADIUS * 2, BLAST_RADIUS * 2);
             var source = level.damageSources().playerAttack(sp);
             for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, blast,

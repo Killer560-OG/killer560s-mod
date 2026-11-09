@@ -31,6 +31,11 @@ public final class SimGuest {
     /** Hellos and states accepted, and refused, since start; for tests. */
     private static volatile int accepted;
     private static volatile int refused;
+    /** The landing the host is holding this guest for, answered once SimArrival lets go; -1 for none. Render thread. */
+    private static int pendingArrive = -1;
+    private static boolean wasAttacking;
+    /** Landings the host announced and Terminator clicks sent, for tests. */
+    private static volatile int arrivesSeen, clicksSent;
 
     private SimGuest() {
     }
@@ -40,14 +45,51 @@ public final class SimGuest {
             if (!eligible(client, handler)) return;
             ClientPlayNetworking.registerReceiver(SimCoop.HELLO, (info, ctx) -> receive(info));
             ClientPlayNetworking.registerReceiver(SimCoop.STATE, (info, ctx) -> receive(info));
+            ClientPlayNetworking.registerReceiver(SimCoop.ARRIVE, (a, ctx) -> arrive(a));
         });
         // DISCONNECT is on the netty thread and a task queued from it can be dropped (code-lessons): a flag the
         // render thread drains.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PENDING_DROP.set(true));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (PENDING_DROP.getAndSet(false)) drop();
+            if (current != null || pendingArrive >= 0) guestTick(client);
         });
     }
+
+    /**
+     * Render thread: the host's server teleported this guest. SimArrival holds the loading screen until the chunks
+     * round the spot are here - the same wait he gets, minus his put-back: that is the host's server's job
+     * ({@link SimCoop#hold}), nothing here writes the position.
+     */
+    private static void arrive(SimCoop.Arrive a) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+        arrivesSeen++;
+        SimArrival.expect(client.player.getUUID(), new double[]{a.x(), a.y(), a.z()});
+        pendingArrive = a.seq();
+    }
+
+    private static void guestTick(Minecraft client) {
+        if (pendingArrive >= 0 && !SimArrival.holding()) {
+            if (ClientPlayNetworking.canSend(SimCoop.ARRIVED)) ClientPlayNetworking.send(new SimCoop.Arrived(pendingArrive));
+            pendingArrive = -1;
+        }
+        // The Terminator's left click (Salvation when armed, else the shot) is the host's SimClass reading HIS attack
+        // key; a guest's press goes to the host's server, which fires it from the guest's own aim.
+        boolean attacking = isGuest(client) && com.killer560.hub.compat.McCompat.screen(client) == null
+                && client.options.keyAttack.isDown();
+        boolean pressed = attacking && !wasAttacking;
+        wasAttacking = attacking;
+        if (pressed && SimTerminator.ITEM_ID.equals(
+                com.killer560.hub.cheatutils.CheatUtils.skyblockId(client.player.getMainHandItem()))
+                && ClientPlayNetworking.canSend(SimCoop.CLICK)) {
+            ClientPlayNetworking.send(new SimCoop.Click());
+            clicksSent++;
+        }
+    }
+
+    /** {landings announced, Terminator clicks sent}, for tests. */
+    public static int[] guestForTest() { return new int[]{arrivesSeen, clicksSent}; }
 
     /** Whether this client is a guest in another player's sim (see {@link SimState#isGuest}). */
     static boolean isGuest(Minecraft client) {
@@ -95,6 +137,8 @@ public final class SimGuest {
     }
 
     private static void drop() {
+        pendingArrive = -1;
+        wasAttacking = false;
         if (current == null) return;
         current = null;
         com.killer560.hub.secrets.DungeonState.simBossEnds();

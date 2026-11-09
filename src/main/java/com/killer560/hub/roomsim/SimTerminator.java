@@ -121,11 +121,14 @@ public final class SimTerminator {
      * <p>Concurrent because it is written from the SERVER thread (the damage hook) and cleared from the
      * CLIENT thread (the moment Salvation fires).
      */
-    private static final java.util.Set<java.util.UUID> MOBS_HIT =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Map<UUID, java.util.Set<UUID>> MOBS_HIT =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Written by the server thread's damage hook, read by the client thread's use(). */
-    private static volatile boolean salvationArmed;
+    /**
+     * Shooters (him or a co-op guest) whose Salvation is armed: each counts its own hits and fires its own (coopsim).
+     * Armed by the server thread's damage hook, spent by the client thread's use(). Both sets hold players only.
+     */
+    private static final java.util.Set<UUID> ARMED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /**
      * Client tick the last shot went out, for the fire rate.
@@ -181,7 +184,7 @@ public final class SimTerminator {
                     && source.getDirectEntity() instanceof TerminatorArrow arrow
                     && entity != arrow.getOwner()) {
                 LAST_HIT_BY.put(entity.getUUID(), arrow.describe());
-                recordHit(entity);
+                recordHit(arrow.getOwner(), entity);
             } else if (SimState.isActive() && source.getDirectEntity() instanceof Arrow stale
                     && stale.getClass() == Arrow.class && stale.pickup == AbstractArrow.Pickup.DISALLOWED) {
                 // A Terminator arrow saved with the world by a jar from before shouldBeSaved() below: it comes back
@@ -204,7 +207,7 @@ public final class SimTerminator {
         MOBS_HIT.clear();
         LAST_HIT_BY.clear();
         shotSeq = 0;
-        salvationArmed = false;
+        ARMED.clear();
         lastShotTick = -1000;
         GUEST_LAST_SHOT.clear();
         tickCounter = 0;
@@ -246,14 +249,14 @@ public final class SimTerminator {
 
     /**
      * {@link #use(Minecraft, boolean)} for the shooter {@code guest} (a co-op guest's UUID; null for the host). A
-     * guest's arrows are owned by and fly from that guest (its aim comes in through SimAim); Salvation is the host's.
+     * guest's arrows are owned by and fly from that guest (its aim comes in through SimAim), and so is its Salvation.
      */
     static boolean use(Minecraft client, boolean leftClick, UUID guest) {
-        if (!SimState.canAct(client)) return false;
-        if (guest == null && salvationArmed && leftClick) {
-            salvation(client);
-            salvationArmed = false;
-            MOBS_HIT.clear();
+        if (!SimState.canAct(client) || client.player == null) return false;
+        UUID who = guest != null ? guest : client.player.getUUID();
+        if (leftClick && ARMED.remove(who)) {
+            MOBS_HIT.remove(who);
+            salvation(client, who);
             return true;
         }
         shoot(client, guest);
@@ -314,13 +317,39 @@ public final class SimTerminator {
      * <p>Runs on the SERVER thread. Distinct mobs only, and the chat line is bounced back to the client
      * thread, which is where {@code ModChat} belongs.
      */
-    private static void recordHit(LivingEntity target) {
-        if (target == null || salvationArmed || !MOBS_HIT.add(target.getUUID())) return;
-        if (MOBS_HIT.size() >= HITS_TO_ARM) {
-            salvationArmed = true;
-            Minecraft.getInstance().execute(() ->
-                    ModChat.log("Sim", ModChat.value("Salvation ready")));
-        }
+    private static void recordHit(Entity shooter, LivingEntity target) {
+        if (target == null || shooter == null) return;
+        UUID who = shooter.getUUID();
+        if (ARMED.contains(who)) return;
+        var hit = MOBS_HIT.computeIfAbsent(who, k -> java.util.concurrent.ConcurrentHashMap.newKeySet());
+        if (!hit.add(target.getUUID()) || hit.size() < HITS_TO_ARM) return;
+        ARMED.add(who);
+        String name = shooter.getName().getString();
+        Minecraft.getInstance().execute(() -> ModChat.log("Sim", ModChat.value("Salvation ready"), ModChat.dim(" " + name)));
+    }
+
+    /** Whether {@code shooter}'s Salvation is armed, for tests. */
+    public static boolean salvationArmedForTest(UUID shooter) { return ARMED.contains(shooter); }
+
+    /** Salvations fired since start, for tests. */
+    private static volatile int salvations;
+
+    public static int salvationsForTest() { return salvations; }
+
+    /**
+     * A co-op guest's left-click PRESS with the Terminator ({@link SimCoop.Click}), on the server thread: the same as
+     * his own left click in SimClass - Salvation when the guest's is armed, else the shot - from the guest's aim.
+     */
+    static void guestLeftClick(ServerPlayer sp) {
+        if (SimCoop.isHost(sp) || !SimAbilities.simServer(sp)
+                || !ITEM_ID.equals(com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getMainHandItem()))) return;
+        SimAim.Aim aim = SimAim.of(sp);
+        UUID guest = sp.getUUID();
+        SimAbilities.onClient(() -> {
+            if (readyToFire(guest)) {
+                SimAim.with(aim, () -> use(Minecraft.getInstance(), true, guest));
+            }
+        });
     }
 
     /**
@@ -347,19 +376,20 @@ public final class SimTerminator {
      * <p>Still hitscan, and deliberately: Salvation IS a beam on Hypixel. It is the ordinary shot that had no
      * business being one.
      */
-    private static void salvation(Minecraft client) {
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 dir = fromAngles(client.player.getYRot(), client.player.getXRot());
-        List<Entity> pierced = firstAlong(client, eye, dir, SALVATION_RANGE, SALVATION_PIERCE);
+    private static void salvation(Minecraft client, UUID who) {
+        salvations++;
+        // SimAim: a guest's beam goes from its own eye and look (the click's), his from his own as before.
+        Vec3 eye = SimAim.eye(client.player);
+        Vec3 dir = fromAngles(SimAim.yaw(client.player), SimAim.pitch(client.player));
+        List<Entity> pierced = firstAlong(client, eye, dir, SALVATION_RANGE, SALVATION_PIERCE, who);
         if (pierced.isEmpty()) {
             com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.shotAlong(client, eye, dir, SALVATION_RANGE);
         }
-        applyDamage(client, pierced.stream().map(Entity::getUUID).toList());
+        applyDamage(client, pierced.stream().map(Entity::getUUID).toList(), who);
         // The visible half, in red.
         var server = client.getSingleplayerServer();
-        if (server != null && client.player != null) {
+        if (server != null) {
             Vec3 end = eye.add(dir.scale(SALVATION_RANGE));
-            java.util.UUID who = client.player.getUUID();
             server.execute(() -> {
                 var sp = server.getPlayerList().getPlayer(who);
                 if (sp != null) {
@@ -378,7 +408,7 @@ public final class SimTerminator {
      * "penetrates up to five" means the five NEAREST, and a beam that skipped the mob in front to hit one
      * behind it would be wrong in the way that matters for lining a shot up.
      */
-    private static List<Entity> firstAlong(Minecraft client, Vec3 eye, Vec3 dir, double range, int limit) {
+    private static List<Entity> firstAlong(Minecraft client, Vec3 eye, Vec3 dir, double range, int limit, UUID shooter) {
         Vec3 end = eye.add(dir.scale(range));
         BlockHitResult wall = client.level.clip(new ClipContext(
                 eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
@@ -386,7 +416,7 @@ public final class SimTerminator {
 
         List<Entity> found = new ArrayList<>();
         for (Entity e : client.level.getEntities(client.player, new AABB(eye, stop).inflate(1.0),
-                e -> e instanceof LivingEntity && e.isAlive() && e != client.player)) {
+                e -> e instanceof LivingEntity && e.isAlive() && e != client.player && !e.getUUID().equals(shooter))) {
             if (e.getBoundingBox().inflate(0.3).clip(eye, stop).isPresent()) {
                 found.add(e);
             }
@@ -395,13 +425,11 @@ public final class SimTerminator {
         return found.size() > limit ? new ArrayList<>(found.subList(0, limit)) : found;
     }
 
-    private static void applyDamage(Minecraft client, List<UUID> ids) {
+    private static void applyDamage(Minecraft client, List<UUID> ids, UUID shooter) {
         if (ids.isEmpty()) return;
         var server = client.getSingleplayerServer();
         if (server == null) return;
         List<UUID> copy = List.copyOf(ids);
-        UUID shooter = client.player == null ? null : client.player.getUUID();
-        if (shooter == null) return;
         server.execute(() -> {
             ServerLevel level = server.overworld();
             var sp = server.getPlayerList().getPlayer(shooter);

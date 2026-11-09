@@ -10,12 +10,16 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Relative;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -79,9 +83,41 @@ public final class SimCoop {
         }
     }
 
+    /**
+     * Host -> guest, right after the host's server teleported it ({@link SimArrival#teleport}): hold the loading screen
+     * until the chunks round {@code (x, y, z)} are in, then answer {@link Arrived} with the same {@code seq}.
+     */
+    public record Arrive(int seq, double x, double y, double z) implements CustomPacketPayload {
+        public Type<Arrive> type() { return ARRIVE; }
+
+        void write(FriendlyByteBuf b) {
+            b.writeVarInt(seq);
+            b.writeDouble(x);
+            b.writeDouble(y);
+            b.writeDouble(z);
+        }
+
+        static Arrive read(FriendlyByteBuf b) {
+            return new Arrive(b.readVarInt(), b.readDouble(), b.readDouble(), b.readDouble());
+        }
+    }
+
+    /** Guest -> host: the chunks round landing {@code seq} are in, so the host's server stops holding it. */
+    public record Arrived(int seq) implements CustomPacketPayload {
+        public Type<Arrived> type() { return ARRIVED; }
+    }
+
+    /** Guest -> host: a left-click PRESS with the Terminator in hand (Salvation or the shot, as the host's own). */
+    public record Click() implements CustomPacketPayload {
+        public Type<Click> type() { return CLICK; }
+    }
+
     public static final CustomPacketPayload.Type<Info> HELLO = type("sim_hello");
     public static final CustomPacketPayload.Type<Info> STATE = type("sim_state");
     public static final CustomPacketPayload.Type<Ack> ACK = type("sim_hello_ack");
+    public static final CustomPacketPayload.Type<Arrive> ARRIVE = type("sim_arrive");
+    public static final CustomPacketPayload.Type<Arrived> ARRIVED = type("sim_arrived");
+    public static final CustomPacketPayload.Type<Click> CLICK = type("sim_click");
 
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> type(String path) {
         return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("killer560smod", path));
@@ -100,6 +136,34 @@ public final class SimCoop {
 
     private static volatile Party party = new Party(List.of(), "");
 
+    /** Longest server-side hold, server ticks: a little past the guest's own 15 s, so its answer normally ends it. */
+    private static final int HOLD_TICKS = 20 * 17;
+    /** Server ticks between two put-backs of a guest that is falling while its chunks load. */
+    private static final int PUT_EVERY = 5;
+
+    /** A guest held after a far teleport, until it answers {@link Arrived}. Server thread only. */
+    private static final class Hold {
+        final int seq;
+        final double x, y, z;
+        final int since;
+        int lastPut = -PUT_EVERY;
+        int puts;
+
+        Hold(int seq, double x, double y, double z, int since) {
+            this.seq = seq;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.since = since;
+        }
+    }
+
+    /** One per guest at most (a new landing replaces it); ends on its answer, the timeout or the guest leaving. */
+    private static final Map<UUID, Hold> HOLDS = new HashMap<>();
+    private static int holdSeq;
+    /** Holds started, answered and put-backs made, for tests. */
+    private static volatile int holdsStarted, holdsAnswered, putBacks;
+
     private SimCoop() {
     }
 
@@ -114,6 +178,12 @@ public final class SimCoop {
             LOGGER.info("[SimCoop] {} joined with protocol {} mod {} MC {} {} {}", ctx.player().getGameProfile().name(),
                     ack.proto(), ack.modVersion(), ack.mc(), ack.variant(), ack.commit());
         });
+        PayloadTypeRegistry.clientboundPlay().register(ARRIVE, CustomPacketPayload.codec(Arrive::write, Arrive::read));
+        PayloadTypeRegistry.serverboundPlay().register(ARRIVED,
+                CustomPacketPayload.codec((a, b) -> b.writeVarInt(a.seq()), b -> new Arrived(b.readVarInt())));
+        PayloadTypeRegistry.serverboundPlay().register(CLICK, StreamCodec.unit(new Click()));
+        ServerPlayNetworking.registerGlobalReceiver(ARRIVED, (a, ctx) -> arrived(ctx.player(), a.seq()));
+        ServerPlayNetworking.registerGlobalReceiver(CLICK, (c, ctx) -> SimTerminator.guestLeftClick(ctx.player()));
         ServerTickEvents.END_SERVER_TICK.register(SimCoop::serverTick);
         SimGuest.register();
     }
@@ -140,8 +210,64 @@ public final class SimCoop {
 
     public static int acksForTest() { return acks; }
 
+    /** {holds started, holds the guest answered, put-backs}, for tests. */
+    public static int[] holdsForTest() { return new int[]{holdsStarted, holdsAnswered, putBacks}; }
+
+    /**
+     * Server thread, from every sim teleport: a co-op guest's client has to wait for the landing's chunks like his
+     * does, but nothing on the guest may write its position. So the guest is told to hold its loading screen
+     * ({@link Arrive}) and, until it answers, THIS server puts it back on the spot whenever it has fallen below it -
+     * the same server-side teleport every sim landing is. No-op for him, a sim miniboss or a vanilla client.
+     */
+    static void hold(ServerPlayer sp, double x, double y, double z) {
+        if (isHost(sp) || sp.connection == null || !ServerPlayNetworking.canSend(sp, ARRIVE.id())) return;
+        Hold h = new Hold(++holdSeq, x, y, z, ticks);
+        HOLDS.put(sp.getUUID(), h);
+        holdsStarted++;
+        ServerPlayNetworking.send(sp, new Arrive(h.seq, x, y, z));
+    }
+
+    /** Server thread: the guest has the chunks round landing {@code seq}; a stale answer for an older one is ignored. */
+    private static void arrived(ServerPlayer sp, int seq) {
+        Hold h = HOLDS.get(sp.getUUID());
+        if (h == null || h.seq != seq) return;
+        HOLDS.remove(sp.getUUID());
+        holdsAnswered++;
+        LOGGER.info("[SimCoop] {} has the chunks round {} {} {} after {} ticks ({} put-back(s))",
+                sp.getGameProfile().name(), Math.round(h.x), Math.round(h.y), Math.round(h.z), ticks - h.since, h.puts);
+    }
+
+    private static void tickHolds(MinecraftServer server) {
+        var it = HOLDS.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            Hold h = e.getValue();
+            ServerPlayer sp = server.getPlayerList().getPlayer(e.getKey());
+            if (sp == null || ticks - h.since > HOLD_TICKS) {
+                if (sp != null) {
+                    LOGGER.warn("[SimCoop] {} never confirmed the chunks round {} {} {} - released after {} ticks",
+                            sp.getGameProfile().name(), Math.round(h.x), Math.round(h.y), Math.round(h.z), ticks - h.since);
+                }
+                it.remove();
+                continue;
+            }
+            // Below the spot and still over it: it fell through chunks its client did not have yet. One sideways was a
+            // later teleport or its own walk, never put back.
+            double dx = sp.getX() - h.x, dz = sp.getZ() - h.z;
+            if (sp.getY() < h.y - 0.2 && dx * dx + dz * dz < 4 && ticks - h.lastPut >= PUT_EVERY
+                    && sp.level() instanceof ServerLevel level) {
+                h.lastPut = ticks;
+                h.puts++;
+                putBacks++;
+                SimArrival.move(sp, level, h.x, h.y, h.z, Set.of(Relative.Y_ROT, Relative.X_ROT), 0f, 0f);
+            }
+        }
+    }
+
     private static void serverTick(MinecraftServer server) {
-        if (++ticks % EVERY != 0) return;
+        ++ticks;
+        if (!HOLDS.isEmpty()) tickHolds(server);
+        if (ticks % EVERY != 0) return;
         Minecraft client = Minecraft.getInstance();
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
         if (!SimState.isActive() || client.getSingleplayerServer() != server || players.size() < 2) {
