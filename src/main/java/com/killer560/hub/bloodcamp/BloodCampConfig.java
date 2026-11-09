@@ -91,6 +91,7 @@ public final class BloodCampConfig {
     /** Auto Blood Camp acts only while his dungeon class is Mage (killer560, 2026-11-01: "Have an option to only toggle
      *  as mage"). Cheat. */
     private boolean mageOnly = false;
+    private boolean outsideRoom = false;
     /** Blood Camp Stats HUD lines (killer560, 2026-11-01): mobs left, mob ticks alive (the ticks lost to slow kills) and
      *  the server lag during the camp. Legit. */
     private boolean hudMobsLeft = false;
@@ -136,6 +137,7 @@ public final class BloodCampConfig {
             .add("countdownStartSound", true, c -> c.countdownStartSound, (c, v) -> c.countdownStartSound = v)
             .add("killSound", true, c -> c.killSound, (c, v) -> c.killSound = v)
             .add("mageOnly", false, c -> c.mageOnly, (c, v) -> c.mageOnly = v)
+            .add("outsideRoom", false, c -> c.outsideRoom, (c, v) -> c.outsideRoom = v)
             .add("hudMobsLeft", false, c -> c.hudMobsLeft, (c, v) -> c.hudMobsLeft = v)
             .add("hudMobTicks", false, c -> c.hudMobTicks, (c, v) -> c.hudMobTicks = v)
             .add("hudCampLag", false, c -> c.hudCampLag, (c, v) -> c.hudCampLag = v)
@@ -396,6 +398,14 @@ public final class BloodCampConfig {
     // ---- 2026-11-01 (doc-blood-1101) ----
 
     /** Cheat: Trigger Bot and Aura act only while his class is Mage. */
+    public boolean isOutsideRoom() {
+        return outsideRoom;
+    }
+
+    public void setOutsideRoom(boolean v) {
+        outsideRoom = v;
+    }
+
     public boolean isMageOnly() {
         return mageOnly;
     }

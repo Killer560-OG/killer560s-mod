@@ -93,6 +93,9 @@ public class AutoBloodCampTab extends BaseTab {
         widgets.add(onOffButton("Mage Only", cfg::isMageOnly, cfg::setMageOnly, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 20;
+        widgets.add(onOffButton("Work Just Outside Blood Room", cfg::isOutsideRoom, cfg::setOutsideRoom, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 20;
 
         if (cfg.getAuraRaw()) {
             // The Aura's own option, so it sits with the switches above the Attack Speed group.

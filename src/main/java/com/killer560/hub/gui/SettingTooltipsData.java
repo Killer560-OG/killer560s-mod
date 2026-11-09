@@ -2526,6 +2526,7 @@ final class SettingTooltipsData {
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
+            d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also act while you stand up to 6 blocks outside the Blood Room (at its door), not only inside. Reach and line of sight still apply.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest/close mode", "Auto stops the secret chest opening at all (cheat build only); Click leaves it open until you press any key or mouse button.");
