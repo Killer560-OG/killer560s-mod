@@ -42,6 +42,34 @@ public final class DungeonItemHighlighter {
         if (!cfg.isEnabled()) {
             return;
         }
+        refresh(screen, cfg);
+        if (mode == Mode.NONE) {
+            return;
+        }
+        ItemStack stack = slot.getItem();
+        if (stack.isEmpty()) {
+            return;
+        }
+        if (cheap(stack, cfg)) {
+            marked++;
+            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, mode == Mode.SALVAGE ? SALVAGE_FILL : SELL_FILL);
+        }
+    }
+
+    /** The ONE check the other slot-background renderers consult (killer560, 2026-11-09: "for the salvage items remove all
+     *  other backgrounds ... only show the items that should be salvaged"): true in the Salvage Items menu, with the
+     *  highlight on, for an item that is not to be salvaged, so the rarity backgrounds skip it there and only the salvage
+     *  marks show. */
+    public static boolean hidesBackground(AbstractContainerScreen<?> screen, ItemStack stack) {
+        DungeonItemHighlightConfig cfg = DungeonItemHighlightConfig.getInstance();
+        if (!cfg.isEnabled() || !cfg.isSalvage()) {
+            return false;
+        }
+        refresh(screen, cfg);
+        return mode == Mode.SALVAGE && !stack.isEmpty() && !cheap(stack, cfg);
+    }
+
+    private static void refresh(AbstractContainerScreen<?> screen, DungeonItemHighlightConfig cfg) {
         if (screen != lastScreen) {
             lastScreen = screen;
             String title = screen.getTitle().getString();
@@ -52,13 +80,9 @@ public final class DungeonItemHighlighter {
                 PriceData.touchFromOtherFeature();
             }
         }
-        if (mode == Mode.NONE) {
-            return;
-        }
-        ItemStack stack = slot.getItem();
-        if (stack.isEmpty()) {
-            return;
-        }
+    }
+
+    private static boolean cheap(ItemStack stack, DungeonItemHighlightConfig cfg) {
         long gen = PriceData.generation();
         if (gen != verdictsPrices || VERDICTS.size() > 256) {
             verdictsPrices = gen;
@@ -69,10 +93,7 @@ public final class DungeonItemHighlighter {
             cheap = cheapGear(stack, cfg.getLimit().coins);
             VERDICTS.put(stack, cheap);
         }
-        if (cheap) {
-            marked++;
-            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, mode == Mode.SALVAGE ? SALVAGE_FILL : SELL_FILL);
-        }
+        return cheap;
     }
 
     /** Dungeon gear whose lowest BIN is known and below {@code limit}. Public for the testkit. */
