@@ -358,9 +358,9 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - A `try { ... } catch { }` around a PowerShell helper step hides a binding failure for good: the Spotify cover never showed
   because `AsStreamForRead` could not take a WinRT COM object (2026-11-01, docs/LESSONS.md). Run a helper script's step outside
   the game against a real or file-backed input before trusting it.
-- `.gitignore`'s `secrets/` line also matches `src/main/java/com/killer560/hub/secrets/`, so `git add` of a tracked file
-  there (DungeonState, ...) fails with "paths are ignored" and the rest of that add is not staged; use `git add -f` on the
-  tracked file (2026-11-01).
+- `.gitignore`'s `secrets/` line also matches the source package `src/main/java/com/killer560/hub/secrets/`, so
+  `git add <path>/secrets/X.java` of a tracked file (DungeonState, ...) aborts the WHOLE add with "paths are ignored"
+  (2026-11-01). Stage it with `git add -u -- <paths>` or `git add -f` on the tracked file.
 - GrimAC 2.3.74's EXPERIMENTAL checks (gridexp-1102; the owner's rule counts them): never two digs on one tick
   (MultiBreak - Multi Break was removed for it), a dig goes at once only when the look the server already HEARD strikes the
   block (`util/DigAim`), else the body turns and the dig goes at the head of that tick's `sendPosition` (`util/BeforeMove`;
@@ -381,26 +381,12 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   96-ar run turned up a third (a path arrival ranked as an etherwarp in a stack); the rest were tests left behind by the
   owner's redesigns or measuring under load. Two testkit fixes (91af48ec, 7d854287) had sat unmerged on old branches for a
   week. Report: killer560s-mod-logs/preexisting-1026-report.md.
-- `.gitignore`'s `secrets/` matches the source package `hub/secrets/`, so `git add <path>/secrets/X.java` aborts the WHOLE
-  add with "paths are ignored" although the file is tracked (2026-11-01). Stage it with `git add -u -- <paths>`.
 - Crypt census (CryptScanner rules against all 134 captures): use `killer560s-mod-logs/doc-secrets-1101/crypt_scan_port.py
   --new --rule crypt_1101_rule.py` (paths fixed for 26.3 Mod Only Test); the older copy in `crypt-census/` points at a
   deleted worktree and the wiped 26.1.2 instance. Run `python -I` on a file, never `python -` with stdin redirected.
 - Chat Hider display-time hides (chattidy-1104): a line a mod feature must READ and the owner wants gone from chat (Breaking Power reminder, [Sacks] lines, "You uncovered a treasure chest!") is hidden in `ChatTidy.shouldHide` (ChatTidyMixin, after ChatObserver dispatched it), never in ObjectHiderFeature's ALLOW_GAME, which would starve the readers. Testkit 1104-chattidy-* (hx session: `-Scenario "100-hx-session:,1104-chattidy"`; a bare case name runs nothing of the session).
 - Inventory Sorter layouts carry an optional Hypixel loadout (invloadout-1104, killer560 2026-11-04): `InventoryLayout.loadout()` 0 (none) or 1-12 (/loadouts page 1 only), saved as `"loadout"` in the layout file. Applying selects it first through `LoadoutSwapper.requestLoadout` (Open, Swap, Close), then storage/sort plan from the inventory it leaves; a failed swap stops the run. Testkit 1104-invsort-loadout-save/-apply.
 - A cheat-only feature's README name goes in the `**Cheat Build Only**` line, never a category line with "(cheat)": testkit 1102-ui-search-readme skips only that line on a legit jar, so Swap To Drill On Pigeon failed it on legit (ship-1104b, 2026-11-04). Its new tab goes in 511's `newCheatLeaves`.
-- BUILD STANDARDS for every feature and fix (killer560, 2026-11-04: what the size/FPS/scan passes of 11-04 enforced, now
-  the default for all new code). FPS: nothing per frame or per tick that can be cached, event-driven or gated on the state
-  it needs (in a dungeon, screen open); no allocation, stream or regex compile in render/tick paths; block scans ask section
-  palettes first; disk, network and big parsing never on the render thread (saves on release or throttled, shared-store
-  writes on `shared/SharedWriter`). Boot: nothing heavy in static init or the client entrypoint; load lazily. Size: fewest
-  lines that stay clear; grep for an existing helper before writing one and never add a second copy (the dup passes merged
-  dozens); delete dead code you touch; no large asset in the jar (big theme assets download on demand, previews only).
-  Leaks: every listener, cache and map is bounded or cleared on world change. Mixins: chaining forms only (see below),
-  targets verified. Render or tick changes run the perf gate; docs/LESSONS-PERF.md has the measured rules.
-- Every failure found gets fixed, even in the middle of a size, perf or other pass (killer560, 2026-11-04: "If you find a
-  failure fix it even during these changes/optimizations"). "Pre-existing" is a finding, not a reason to leave it: start a
-  fix job (mod or test, whichever is wrong) and put it in WORKQUEUE.
 - A quiet GrimAC server pings about once a tick, so `PerTickServerClock` trusted it (20 pings, 19 of 20 ticks), and each hit
   then added transactions and ran the clock ahead: 1102-hx-goldor-tick read Goldor's hits 5, 3, 7, 11 late on 26.3 legit
   (gate-1104b/c; Tick Timers logged "48 pings, 2129 ms (42.6 ticks of wall time)"). goldfix-1104: pings are paced against the
