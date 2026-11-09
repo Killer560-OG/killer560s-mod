@@ -134,6 +134,19 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   re-dig, obsidian starts and Burst Multi Break now dig only on a look the server has processed: turn, dig next tick
   (none spent when the look is already on it; `RouteExecutor.aimTurns` gives up after 3 turns). BeforeMove's one-write
   batching is kept.
+- **Burst Multi Break: as many digs a tick as RotationBreak allows (burstmax-1108).** GrimAC 2.3.74's RotationBreak passes a
+  dig when the eye column (0.4..1.62 above the feet) stands in the block, or a ray along the heard look strikes it from ANY
+  of the three eye heights it always tries (GrimPlayer 313-315, RotationBreak 77-122); default Grim has no per-tick dig
+  limit at all. So `DigAim.strikesAnyEye` counts a pick ready on any of the three rays, and `BreakerAim.aimForMost` aims at
+  the look that strikes the most picks left (a wall face-on is struck by three parallel rays). Before, the post-dig aim
+  could pick a block already dug that tick: 20 boss-sim blocks took 22 ticks (at most 3 a tick); now 6 of 6 in one tick on
+  default Grim with 0 lines, and the boss wall in 10 ticks (the 20 charges are the limit). Experimental Grim's MultiBreak
+  CANCELS every dig after the first in a tick (MultiBreak.java 36-66), so a burst there only re-dug and left picks standing;
+  after 2 refused extras Burst goes one a tick for 100 ticks (not for good: a pick refused for a miscounted charge looks
+  the same). QUOI/RSA's whole-wall "zero tick" digs need no look at all: that is possible
+  only on a server without RotationBreak. The "sticks around" report (Burst + Blink Charge): BlinkCharge.deferBlockUpdate
+  holds the server's break until its ping answer goes (~1 s) while the break sound is not held; a pending pick is now drawn
+  as air through the SectionCompiler hook (`MithrilStone.replace`, remeshed on add/remove, expires at 3 s and on world change).
 - **Inventory Walk's held close went out with the route's sneak down (iwcause-1102, GrimAC MultiActionsD).** With Stop To
   Click on, Inventory Walk holds a container close until a still tick, but lets a held close out AHEAD of any use (a
   use may open the next menu). A chest the route's await counted opened and was closed between two ticks, so the route

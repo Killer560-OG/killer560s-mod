@@ -4,6 +4,7 @@ import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.DigAim;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ViewFreeze;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -138,8 +139,84 @@ final class BreakerAim {
     }
 
     /** True when a dig on {@code pos} sent now is judged by GrimAC on a look that strikes it. */
-    static boolean digReady(LocalPlayer player, BlockPos pos) {
-        return DigAim.heardLookStrikes(player, pos);
+    static boolean digReady(LocalPlayer player, BlockPos pos, boolean anyEye) {
+        return anyEye ? DigAim.heardLookStrikesAnyEye(player, pos) : DigAim.heardLookStrikes(player, pos);
+    }
+
+    /**
+     * Burst (burstmax-1108): turns the body so this tick's movement packet carries the look that strikes the MOST of
+     * {@code targets} from where he will be (pitch only while he walks, else yaw too), so next tick's burst digs them all
+     * on a look the server heard. @return what was done, or null when none can be aimed without steering his walk.
+     */
+    static String aimForMost(Minecraft client, LocalPlayer player, List<BlockPos> targets) {
+        if (targets.isEmpty() || handsBusy(client) || routeRunning() || someoneElseHolds() || !pitchFree(player)) {
+            return null;
+        }
+        Vec3 feet = player.position().add(player.getDeltaMovement());
+        Vec3 now = player.position();
+        double eyeH = player.getEyeHeight();
+        float yaw = player.getYRot();
+        if (aiming && !yawOurs) {
+            float viewYaw = ViewFreeze.viewYaw();
+            if (!Float.isNaN(viewYaw)) {
+                yaw = player.getYRot() + Mth.wrapDegrees(viewYaw - player.getYRot());
+            }
+        }
+        // Pitch only: the middle of the widest run of pitches at the best count.
+        int best = 0;
+        float lo = 0f;
+        float hi = 0f;
+        for (float p = -90f; p <= 90f; p += 0.5f) {
+            int n = struck(feet, now, yaw, p, targets);
+            if (n > best) {
+                best = n;
+                lo = p;
+                hi = p;
+            } else if (n == best && n > 0 && hi == p - 0.5f) {
+                hi = p;
+            }
+        }
+        if (best > 0) {
+            float pitch = (lo + hi) / 2f;
+            turn(player, yaw, pitch, false);
+            pitchAims++;
+            return String.format(java.util.Locale.ROOT, "pitch %.1f (%d of %d)", pitch, best, targets.size());
+        }
+        if (walking(client, player)) {
+            yawWaits++;
+            return null;
+        }
+        // Standing: try the look at each target's center, keep the one striking most.
+        Vec3 eye = feet.add(0, eyeH, 0);
+        float bestYaw = 0f;
+        float bestPitch = 0f;
+        for (BlockPos t : targets) {
+            Vec3 to = Vec3.atCenterOf(t).subtract(eye);
+            float wantPitch = (float) Mth.clamp(Math.toDegrees(-Math.atan2(to.y, Math.hypot(to.x, to.z))), -90, 90);
+            float runYaw = player.getYRot() + Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-to.x, to.z)) - player.getYRot());
+            int n = struck(feet, feet, runYaw, wantPitch, targets);
+            if (n > best) {
+                best = n;
+                bestYaw = runYaw;
+                bestPitch = wantPitch;
+            }
+        }
+        if (best == 0) {
+            return null;
+        }
+        turn(player, bestYaw, bestPitch, true);
+        yawAims++;
+        return String.format(java.util.Locale.ROOT, "yaw %.1f/%.1f (%d of %d)", bestYaw, bestPitch, best, targets.size());
+    }
+
+    private static int struck(Vec3 feet, Vec3 alsoFeet, float yaw, float pitch, List<BlockPos> targets) {
+        int n = 0;
+        for (BlockPos t : targets) {
+            if (DigAim.strikesAnyEye(feet, yaw, pitch, t) && (alsoFeet == feet || DigAim.strikesAnyEye(alsoFeet, yaw, pitch, t))) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /**
