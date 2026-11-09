@@ -178,19 +178,12 @@ public final class ChatTabsFeature {
             chatOpen = false;
             refresh();
         });
-        ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
-            try {
-                draw(s, graphics, mouseX, mouseY);
-            } catch (RuntimeException e) {
-                LOGGER.error("[ChatTabs] draw failed", e);
-            }
-        });
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
             if (!ChatTabsConfig.getInstance().isEnabled() || McInput.button(event) != 0) {
                 return true;
             }
             Tab hit = tabAt(s, event.x(), event.y());
-            if (hit == null) {
+            if (hit == null || suggestionsAt(s, event.x(), event.y())) {
                 return true;
             }
             select(hit);
@@ -222,6 +215,43 @@ public final class ChatTabsFeature {
             x += w + TAB_GAP;
         }
         return null;
+    }
+
+    /** Called from {@code ChatTabsScreenMixin} at the start of the chat screen's render: the vanilla suggestion box and
+     *  usage hint draw after it, so they cover the tabs. */
+    public static void drawTabs(Screen s, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        try {
+            draw(s, graphics, mouseX, mouseY);
+        } catch (RuntimeException e) {
+            LOGGER.error("[ChatTabs] draw failed", e);
+        }
+    }
+
+    private static java.lang.reflect.Field fSuggestions, fList, fRect;
+
+    /** Whether vanilla's suggestion list is open over (x, y): a click there picks the suggestion, never a tab. Reflection
+     *  on the three private fields (looked up once; Minecraft 26.x is unobfuscated), only on a click in the tab row. */
+    static boolean suggestionsAt(Screen s, double x, double y) {
+        net.minecraft.client.renderer.Rect2i r = suggestionRect(s);
+        return r != null && x >= r.getX() && x < r.getX() + r.getWidth() && y >= r.getY() && y < r.getY() + r.getHeight();
+    }
+
+    static net.minecraft.client.renderer.Rect2i suggestionRect(Screen s) {
+        try {
+            if (fSuggestions == null) {
+                fSuggestions = ChatScreen.class.getDeclaredField("commandSuggestions");
+                fList = net.minecraft.client.gui.components.CommandSuggestions.class.getDeclaredField("suggestions");
+                fRect = Class.forName("net.minecraft.client.gui.components.CommandSuggestions$SuggestionsList").getDeclaredField("rect");
+                fSuggestions.setAccessible(true);
+                fList.setAccessible(true);
+                fRect.setAccessible(true);
+            }
+            Object cs = fSuggestions.get(s);
+            Object list = cs == null ? null : fList.get(cs);
+            return list == null ? null : (net.minecraft.client.renderer.Rect2i) fRect.get(list);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
+        }
     }
 
     private static void draw(Screen s, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
