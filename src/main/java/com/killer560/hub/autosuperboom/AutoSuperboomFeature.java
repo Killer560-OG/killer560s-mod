@@ -11,7 +11,6 @@ import com.killer560.hub.util.HotbarSelect;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import com.killer560.hub.bosssim.BossGates;
 import com.killer560.hub.leveraura.P3SectionTracker;
-import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secretwaypoints.CryptScanner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -95,10 +94,10 @@ public final class AutoSuperboomFeature {
                 || isTombBlock(client, pos, s);
     }
 
-    /** Crypt and prince tomb blocks of the room he stands in: {@link CryptScanner} runs only on a click at a block kind a tomb is
-     *  made of, and its answer is kept 5 s per room. */
+    /** Crypt and prince tomb blocks around the click: {@link CryptScanner} runs only on a click at a block kind a tomb is made of,
+     *  over a 33 x 33 window centered on it, and its answer is kept 5 s (or until a click lands 8 blocks from the center). */
     private static final java.util.Set<BlockPos> TOMB = new java.util.HashSet<>();
-    private static int tombRoom = -2;
+    private static BlockPos tombCenter = BlockPos.ZERO;
     private static long tombTick = Long.MIN_VALUE / 2;
 
     private static boolean isTombBlock(Minecraft client, BlockPos pos, BlockState s) {
@@ -106,18 +105,14 @@ public final class AutoSuperboomFeature {
                 || s.is(Blocks.OBSIDIAN) || s.is(Blocks.POLISHED_ANDESITE))) {
             return false;
         }
-        int room = LiveMapFeature.currentRoomIndex();
-        int[] bounds = room < 0 ? null : LiveMapFeature.roomWorldBounds(room);
-        if (bounds == null) {
-            return false;
-        }
         long now = ActionGate.currentTick();
-        if (room != tombRoom || now - tombTick > 100) {
+        if (now - tombTick > 100 || Math.abs(pos.getX() - tombCenter.getX()) > 8 || Math.abs(pos.getZ() - tombCenter.getZ()) > 8) {
             TOMB.clear();
-            for (CryptScanner.Found f : CryptScanner.scan(client.level, bounds)) {
+            for (CryptScanner.Found f : CryptScanner.scan(client.level,
+                    new int[]{pos.getX() - 16, pos.getZ() - 16, pos.getX() + 16, pos.getZ() + 16})) {
                 TOMB.addAll(f.blocks());
             }
-            tombRoom = room;
+            tombCenter = pos;
             tombTick = now;
         }
         return TOMB.contains(pos);
