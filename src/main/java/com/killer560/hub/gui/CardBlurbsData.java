@@ -160,6 +160,7 @@ final class CardBlurbsData {
         d.put("AutoTerminalTab", "Clicks terminals for you.");
         d.put("AutoTrapTab", "Plays your trap-room routes.");
         d.put("AutoUltTab", "Uses your Ultimate on boss lines.");
+        d.put("NoRotateTab", "Leaps keep your look.");
         d.put("BreakerAuraTab", "Breaks picked boss blocks.");
         d.put("DungeonBreakerTab", "Instant Breaker blocks.");
         d.put("FastLeapTab", "Leaps without the menu.");

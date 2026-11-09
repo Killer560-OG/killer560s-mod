@@ -79,23 +79,6 @@ public final class FastLeapSection {
         return BuildVariant.CHEAT_FEATURES_ENABLED && FastLeapConfig.getInstance().isEnabledSetting();
     }
 
-    /** Keep Rotation On Leap's row label (fastleap/LeapRotation). */
-    public static final String TARGET_LOOK = "Leap Takes Target's Look";
-
-    /** The front page's last section, Leap Takes Target's Look (cheat block): its own feature (every leap, Fast Leap on
-     *  or off), so it is built in both states and is in FastLeapTab.masterToggles. */
-    public static int buildTargetLook(List<AbstractWidget> widgets, int x, int y, int width) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return y;
-        }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
-        int w = Math.max(1, width);
-        widgets.add(com.killer560.hub.gui.SectionHeaders.row(x, y, w, "Leap Look", true));
-        y += SECTION_HEADER_H;
-        widgets.add(toggle(x, y, w, TARGET_LOOK, cfg::isLeapTakesTargetLook, v -> cfg.setLeapTakesTargetLook(v), cfg));
-        return y + ROW + GAP;
-    }
-
     public static int buildGeneral(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         return buildGeneral(widgets, x, y, width, requestRebuild, false);
     }

@@ -2184,7 +2184,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
         d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
-        d.put("fast/auto leap/leap takes target's look", "When a leap lands within about a second of an earlier teleport, Hypixel leaves your look where it was instead of giving you the look of the player you leaped to. This turns you to that player's look, as Hypixel does for every other leap. Only your own leaps (Hypixel's \"You have teleported to\" line); every other teleport is left alone, and you are never moved (cheat build only).");
+        d.put("no rotate", "Leaping takes your target's look direction, as Hypixel does for other leaps. Only your own leaps.");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");

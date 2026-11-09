@@ -125,6 +125,7 @@ public class DungeonTab extends FolderTab {
             // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").
             tabs.add(new LightsDeviceTab());
             tabs.add(new AutoUltTab());
+            tabs.add(new NoRotateTab());
             tabs.add(new Ap3Tab());
             tabs.add(new FreezeStateTab());
             // Out of the Croesus tab, 2026-10-12 (killer560: "just like etable and auto etable").
