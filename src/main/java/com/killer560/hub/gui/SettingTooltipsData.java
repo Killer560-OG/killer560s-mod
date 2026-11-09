@@ -2060,8 +2060,9 @@ final class SettingTooltipsData {
         d.put("puzzle times", "Adds the time each puzzle took (or has taken so far) to its row.");
         d.put("puzzle solvers", "Adds the name of the player who solved or failed each puzzle to its row.");
         d.put("reparty", "Type /rp or /reparty as party leader to disband the party and invite everyone back.");
-        d.put("auto reparty", "Reparties by itself a few seconds after a dungeon run ends (party leader only).");
-        d.put("auto reparty delay", "How long after the run's end screen Auto Reparty waits. Left click for longer, right click for shorter.");
+        d.put("invite delay", "Seconds between disbanding the party and inviting everyone back, 0 to 10 in half seconds.");
+        d.put("auto rejoin", "Accepts the invite when another player disbands the party and invites you back within the Rejoin Window.");
+        d.put("rejoin window", "How many seconds after the disband an invite from a former member is accepted.");
         d.put("carry tracker", "Counts every finished dungeon run that a name on your list was in, with a history of the latest runs. Counts are saved for your account and shared by every instance.");
         d.put("room preview", "With chat open, hover a room on the Dungeon Map HUD to see its shape, type, secrets by kind and crypts.");
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");

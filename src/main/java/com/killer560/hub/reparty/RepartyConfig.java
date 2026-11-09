@@ -8,22 +8,26 @@ import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.file.Path;
 
-/** Reparty settings, {@code killer560smod-reparty.json}. The switch and Auto Reparty ship OFF; saved on every GUI change. */
+/**
+ * Reparty settings, {@code killer560smod-reparty.json}. The switch and Auto Rejoin ship OFF. The old Auto Reparty keys
+ * ("auto", "delaySeconds") are no longer read or written (redesign reparty2-1109).
+ */
 public final class RepartyConfig {
 
-    /** The delays Auto Reparty cycles through, in seconds after the run's end screen. */
-    public static final int[] DELAYS = {3, 5, 10, 15, 30};
+    public static final double MIN_DELAY = 0.0, MAX_DELAY = 10.0, DEFAULT_DELAY = 1.0;
+    public static final int MIN_WINDOW = 10, MAX_WINDOW = 120, DEFAULT_WINDOW = 60;
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-reparty.json");
     private static RepartyConfig instance;
 
     private boolean enabled = false;
-    private boolean auto = false;
-    private int delaySeconds = 5;
+    private boolean autoRejoin = false;
+    private double inviteDelay = DEFAULT_DELAY;
+    private int rejoinWindow = DEFAULT_WINDOW;
 
     private static final BoolFields<RepartyConfig> BOOLS = new BoolFields<RepartyConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
-            .add("auto", false, c -> c.auto, (c, v) -> c.auto = v);
+            .add("autoRejoin", false, c -> c.autoRejoin, (c, v) -> c.autoRejoin = v);
 
     private RepartyConfig() {
     }
@@ -40,7 +44,8 @@ public final class RepartyConfig {
         JsonObject obj = ConfigJson.read(CONFIG_PATH);
         if (obj != null) {
             BOOLS.load(cfg, obj);
-            cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", 5));
+            cfg.setInviteDelay(obj.has("inviteDelay") ? obj.get("inviteDelay").getAsDouble() : DEFAULT_DELAY);
+            cfg.setRejoinWindow(ConfigJson.getInt(obj, "rejoinWindow", DEFAULT_WINDOW));
         }
         instance = cfg;
     }
@@ -48,7 +53,8 @@ public final class RepartyConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         BOOLS.save(this, obj);
-        obj.addProperty("delaySeconds", delaySeconds);
+        obj.addProperty("inviteDelay", inviteDelay);
+        obj.addProperty("rejoinWindow", rejoinWindow);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -58,20 +64,20 @@ public final class RepartyConfig {
 
     public void setEnabled(boolean v) { enabled = v; }
 
-    public boolean isAuto() { return auto; }
+    public boolean isAutoRejoin() { return autoRejoin; }
 
-    public void setAuto(boolean v) { auto = v; }
+    public void setAutoRejoin(boolean v) { autoRejoin = v; }
 
-    public int getDelaySeconds() { return delaySeconds; }
+    /** Seconds between disbanding and re-inviting. */
+    public double getInviteDelay() { return inviteDelay; }
 
-    /** Any value is snapped to the nearest allowed delay. */
-    public void setDelaySeconds(int v) {
-        int best = DELAYS[0];
-        for (int d : DELAYS) {
-            if (Math.abs(d - v) < Math.abs(best - v)) {
-                best = d;
-            }
-        }
-        delaySeconds = best;
+    /** Clamped to 0..10 and snapped to half seconds. */
+    public void setInviteDelay(double v) {
+        inviteDelay = Math.round(Math.max(MIN_DELAY, Math.min(MAX_DELAY, v)) * 2) / 2.0;
     }
+
+    /** Seconds after a disband in which an invite from a former member is accepted. */
+    public int getRejoinWindow() { return rejoinWindow; }
+
+    public void setRejoinWindow(int v) { rejoinWindow = Math.max(MIN_WINDOW, Math.min(MAX_WINDOW, v)); }
 }
