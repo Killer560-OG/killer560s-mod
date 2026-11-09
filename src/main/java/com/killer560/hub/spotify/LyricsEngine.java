@@ -777,7 +777,7 @@ public final class LyricsEngine {
             }
             if (fetched == null) {
                 fetched = lookUp(forTrackKey, artist, title);
-                if (!fetched.candidates().isEmpty()) {
+                if (!fetched.candidates().isEmpty() || fetched == Fetched.MISS) {
                     synchronized (FETCH_CACHE) {
                         FETCH_CACHE.put(forTrackKey, fetched);
                     }
@@ -1043,6 +1043,8 @@ public final class LyricsEngine {
         static final Fetched NOTHING = new Fetched(List.of(), 0);
         /** No answer at all (refused, timed out): asking again or by other names would fail the same way. */
         static final Fetched UNREACHABLE = new Fetched(List.of(), 0);
+        /** Every search was answered and none had synced lyrics: remembered, so a replay does not ask again. */
+        static final Fetched MISS = new Fetched(List.of(), 0);
     }
 
     public NowPlaying lastNowPlaying() { return lastNowPlaying; }
@@ -1078,6 +1080,7 @@ public final class LyricsEngine {
     private Fetched lookUp(String forTrackKey, String artist, String title) {
         List<Candidate> all = new ArrayList<>();
         double duration = 0;
+        boolean unreachable = false;
         String[] queries = {
                 "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title),
                 "?track_name=" + urlEncode(title),
@@ -1088,7 +1091,10 @@ public final class LyricsEngine {
                 if (attempt > 0 && !waitWhileCurrent(forTrackKey, attempt == 1 ? 1000 : 3000)) return Fetched.NOTHING;
                 f = fetchLyrics(LRCLIB_URL + q, artist, title);
             }
-            if (f == Fetched.UNREACHABLE) break;
+            if (f == Fetched.UNREACHABLE) {
+                unreachable = true;
+                break;
+            }
             if (f == null) continue;
             if (duration == 0) duration = f.durationSeconds();
             for (Candidate c : f.candidates()) {
@@ -1096,7 +1102,7 @@ public final class LyricsEngine {
             }
             if (hasSong(all, artist, title)) break;
         }
-        return all.isEmpty() ? Fetched.NOTHING : new Fetched(List.copyOf(all), duration);
+        return !all.isEmpty() ? new Fetched(List.copyOf(all), duration) : unreachable ? Fetched.NOTHING : Fetched.MISS;
     }
 
     /** Whether any listing is this song (title and artist; the length is judged later, once Spotify's is known). */
@@ -1125,6 +1131,9 @@ public final class LyricsEngine {
             "(?i)\\s*[(\\[][^)\\]]{0,40}?\\b(?:official|video|audio|lyrics?|visuali[sz]er|hd|hq|4k|mv|m/v)\\b[^)\\]]{0,40}[)\\]]"
                     + "|\\s+\\|.{0,120}$");
     /** A channel name around an artist's: "Artist - Topic", "ArtistVEVO", "Artist Official". */
+    /** A trailing "ft. X" / "feat. X" and a bare "Lyric Video" / "Official Audio" tag a video title carries without brackets. */
+    private static final Pattern VIDEO_TAIL = Pattern.compile(
+            "(?i)\\s+(?:(?:ft|feat)\\.?\\s.*|(?:official\\s+)?(?:lyrics?|music|audio)\\s+video|official\\s+(?:audio|video))$");
     private static final Pattern CHANNEL = Pattern.compile("(?i)\\s*-\\s*topic$|vevo$|\\s+official$");
 
     /**
@@ -1136,6 +1145,7 @@ public final class LyricsEngine {
         if (artist == null || title == null) return new String[] {artist == null ? "" : artist, title == null ? "" : title};
         String a = CHANNEL.matcher(artist).replaceAll("").trim();
         String t = VIDEO_NOISE.matcher(title).replaceAll("").trim();
+        t = VIDEO_TAIL.matcher(t).replaceAll("").trim();
         boolean video = !t.equals(title) || !a.equals(artist);
         int dash = t.indexOf(" - ");
         if (dash > 0 && dash + 3 < t.length()) {
