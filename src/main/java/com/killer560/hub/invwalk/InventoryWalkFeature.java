@@ -21,6 +21,7 @@ import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
@@ -82,10 +83,12 @@ public final class InventoryWalkFeature {
     /** Ticks since masking last ended (a setback in this window is reported as Hide Keys' correction). */
     private static int unmaskedTicks = Integer.MAX_VALUE;
     /**
-     * The input Hide Keys still owes the server, sent just before this tick's client_tick_end unless vanilla sent one of its
-     * own first: two input packets in one client tick are GrimAC's experimental BadPacketsZ (testkit 1108-iw-termwalk).
+     * The input Hide Keys still owes the server. It goes in front of this tick's movement packet (or its client_tick_end)
+     * unless vanilla sent one of its own first: two input packets in one client tick are GrimAC's experimental BadPacketsZ,
+     * one after the movement packet PacketOrderO (testkit 1108-iw-termwalk). Still owed at the next tick's start: sent then.
      */
     private static Input owedInput;
+    private static boolean owedLastTick;
     /** Ticks the current server menu has been open with Hide Keys on (its Hide Keys For limit counts these). */
     private static int menuTicks;
     private static int lastMenuId;
@@ -139,6 +142,10 @@ public final class InventoryWalkFeature {
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         LocalPlayer player = client.player;
         Screen screen = McCompat.screen(client);
+        if (owedInput != null && owedLastTick) {
+            payOwedInput();
+        }
+        owedLastTick = owedInput != null;
         if (!masking && unmaskedTicks < Integer.MAX_VALUE) {
             unmaskedTicks++;
         }
@@ -323,10 +330,8 @@ public final class InventoryWalkFeature {
     public static boolean onPacketSent(Packet<?> packet) {
         if (packet instanceof ServerboundPlayerInputPacket) {
             owedInput = null;
-        } else if (owedInput != null && packet instanceof ServerboundClientTickEndPacket) {
-            Input owed = owedInput;
-            owedInput = null;
-            sendRaw(new ServerboundPlayerInputPacket(owed));
+        } else if (owedInput != null && (packet instanceof ServerboundMovePlayerPacket || packet instanceof ServerboundClientTickEndPacket)) {
+            payOwedInput();
         }
         if (sendingHeld) {
             return false;
@@ -462,11 +467,15 @@ public final class InventoryWalkFeature {
         // He must really be standing still, not just have no keys down: Hypixel limboed him for a click sent while he was
         // still sliding from a sprint after a one-tick "no keys" input (his log, 2026-10-27 16:39:06 and 16:40:02). The
         // position the server saw last tick must equal this one, and his velocity must be gone. Flying (a dungeon ghost) he
-        // is never on the ground: hovering still counts (his 26.3 log 2026-11-08 21:19:27-32, a ghost's leap clicks were
-        // held 40 ticks at 0.00 blocks/s and dropped).
+        // is never on the ground and drifts for seconds on air drag: the keyless tick is enough there (his 26.3 log
+        // 2026-11-08 21:19:27-32, a ghost's leap clicks were held 40 ticks at 0.00 blocks/s and dropped; testkit
+        // 1108-iw-termwalk "flying leap menu, moving then stop" dropped its click on the drift).
+        if (player.getAbilities().flying) {
+            return true;
+        }
         Vec3 v = player.getDeltaMovement();
         if (Math.hypot(v.x, v.z) > STILL_SPEED || Math.hypot(player.getX() - player.xo, player.getZ() - player.zo) > STILL_SPEED
-                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !(player.onGround() || player.getAbilities().flying)) {
+                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !player.onGround()) {
             return false;
         }
         return true;
@@ -635,6 +644,12 @@ public final class InventoryWalkFeature {
             owedInput = on ? hidden(real) : real;
             LOGGER.info("[InvWalk] keys {} the server: his input {}", on ? "hidden from" : "shown to", inputText(real));
         }
+    }
+
+    private static void payOwedInput() {
+        Input owed = owedInput;
+        owedInput = null;
+        sendRaw(new ServerboundPlayerInputPacket(owed));
     }
 
     private static void sendRaw(Packet<?> p) {
