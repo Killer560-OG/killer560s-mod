@@ -103,3 +103,5 @@ Moved out of CLAUDE.md on 2026-10-24 to keep it under 300 lines. Read with [SIM.
   folder, so every other instance built the plain built-in plan ("didn't have the right world setup", bosssim1108). They now
   live in the shared store's `sim-boss/` (`BossArena.capturePath`, an instance's old copy is moved in on first look). Testkit
   1108-boss-fresh. A PC with no capture anywhere still gets the plan.
+
+- Vanilla breaks in the sim (simbreak-1109): `PlayerBlockBreakEvents.BEFORE` fires on the sim's integrated SERVER, where `player` is a ServerPlayer and never `== client.player`, so the old `player != client.player` test made the "nothing breaks through vanilla" gate always pass. It now only checks `SimState.isActive()`. `Level.destroyBlock` (Superboom, SimItems breakIfBreakable) does not fire the event, so dungeonBreak and blasts are unaffected. Testkit 96-ar-vanillabreak calls `ServerPlayer.gameMode.destroyBlock` and asserts false + block still there.

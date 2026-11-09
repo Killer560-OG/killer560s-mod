@@ -151,8 +151,9 @@ public final class SimItems {
         // recoverable.
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (level, player, pos, state, entity) -> {
-                    Minecraft client = Minecraft.getInstance();
-                    if (!SimState.isActive() || client == null || player != client.player) return true;
+                    // Fires on the sim's own integrated server, where player is a ServerPlayer and never
+                    // == client.player (the old comparison made this gate always pass).
+                    if (!SimState.isActive()) return true;
                     // NOTHING breaks through vanilla in the sim, not even the Dungeon Breaker.
                     //
                     // It used to allow the break when the breaker was held, which meant two things destroyed
