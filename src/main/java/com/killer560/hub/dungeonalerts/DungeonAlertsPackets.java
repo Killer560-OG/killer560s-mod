@@ -54,26 +54,38 @@ public final class DungeonAlertsPackets {
     }
 
     public static void onBlockUpdate(ClientboundBlockUpdatePacket packet) {
-        // Only Terracotta Timer reads block updates: with it off, skip the gate and guard on every block packet.
-        if (!DungeonAlertsConfig.getInstance().terracottaEnabled) {
+        // Only Terracotta Timer and Dimensional Slash read block updates: with both off, skip the gate and guard on every block packet.
+        if (!blockWatchers()) {
             return;
         }
         guard("blockUpdate", DungeonAlertsPackets::terracottaBlock, packet);
     }
 
     public static void onSectionUpdate(ClientboundSectionBlocksUpdatePacket packet) {
-        if (!DungeonAlertsConfig.getInstance().terracottaEnabled || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (!blockWatchers() || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         guard("sectionUpdate", DungeonAlertsPackets::terracottaSection, packet);
     }
 
+    private static boolean blockWatchers() {
+        DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
+        return cfg.terracottaEnabled || cfg.dimensionalSlashAlert;
+    }
+
     private static void terracottaBlock(ClientboundBlockUpdatePacket packet) {
-        TerracottaTimer.onBlockChange(packet.getPos(), packet.getBlockState());
+        blockChange(packet.getPos(), packet.getBlockState());
     }
 
     private static void terracottaSection(ClientboundSectionBlocksUpdatePacket packet) {
-        packet.runUpdates(TerracottaTimer::onBlockChange);
+        packet.runUpdates(DungeonAlertsPackets::blockChange);
+    }
+
+    private static void blockChange(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        TerracottaTimer.onBlockChange(pos, state);
+        if (DungeonAlertsConfig.getInstance().dimensionalSlashAlert) {
+            WitherKingAlerts.onBlockChange(pos, state);
+        }
     }
 
     private static void guard(String what, Runnable action) {

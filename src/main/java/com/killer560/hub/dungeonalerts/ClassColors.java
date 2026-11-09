@@ -67,7 +67,7 @@ public final class ClassColors {
             DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
             // Rag Axe used to need this tab-list parse for its Tank/Healer skip; it reads
             // witherdragons.P5State.selfClass() (PartyTracker) instead now, so only Class Colors drives it.
-            boolean needed = cfg.classColorsEnabled;
+            boolean needed = cfg.classColorsEnabled || DuplicateClassAlert.wanted();
             if (!needed || client.getConnection() == null || !DungeonState.isInDungeon() || !com.killer560.hub.util.SkyblockGate.allows()) {
                 return;
             }
@@ -76,6 +76,9 @@ public final class ClassColors {
                 if (plain != null) {
                     parse(plain);
                 }
+            }
+            if (DuplicateClassAlert.wanted()) {
+                DuplicateClassAlert.check(CLASSES);
             }
         }));
     }
