@@ -73,11 +73,11 @@ public final class LfgFeature {
     public static final Pattern DISBANDED = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has disbanded the party!$");
     /** The party ended for us (Odin's PartyUtils leave/disband lines, names bounded). */
     static final List<Pattern> PARTY_ENDED = List.of(
-            DISBANDED,
             Pattern.compile("^You have been kicked from the party by " + RANKED + "$"),
             Pattern.compile("^The party was disbanded because all invites expired and the party was empty\\.$"),
             Pattern.compile("^The party was disbanded because the party leader disconnected\\.$"),
-            Pattern.compile("^You left the party\\.$"));
+            Pattern.compile("^You left the party\\.$"),
+            DISBANDED);
     /**
      * STUB - Hypixel's line for a Party Finder queue that was canceled or delisted is not known (needs killer560's
      * screenshot). Empty, so nothing is matched; when known, add it here anchored on both ends.
