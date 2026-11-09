@@ -1,6 +1,7 @@
 package com.killer560.hub.chocolatefactory;
 
 import com.google.gson.JsonObject;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
@@ -58,27 +59,31 @@ public final class ChocolateFactoryConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<ChocolateFactoryConfig> BOOLS = new BoolFields<ChocolateFactoryConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("highlightBestUpgrade", true, c -> c.highlightBestUpgrade, (c, v) -> c.highlightBestUpgrade = v)
+            .add("highlightStrays", true, c -> c.highlightStrays, (c, v) -> c.highlightStrays = v)
+            .add("strayAlert", true, c -> c.strayAlert, (c, v) -> c.strayAlert = v)
+            .add("timeTowerReminder", true, c -> c.timeTowerReminder, (c, v) -> c.timeTowerReminder = v)
+            .add("infoLine", true, c -> c.infoLine, (c, v) -> c.infoLine = v)
+            .add("eggHud", true, c -> c.eggHud, (c, v) -> c.eggHud = v)
+            .add("eggTracker", false, c -> c.eggTracker, (c, v) -> c.eggTracker = v)
+            .add("eggExtraInfo", false, c -> c.eggExtraInfo, (c, v) -> c.eggExtraInfo = v)
+            .add("hideOutsideHunt", false, c -> c.hideOutsideHunt, (c, v) -> c.hideOutsideHunt = v)
+            .add("hideWhileBusy", false, c -> c.hideWhileBusy, (c, v) -> c.hideWhileBusy = v)
+            .add("eggLocatorLine", true, c -> c.eggLocatorLine, (c, v) -> c.eggLocatorLine = v)
+            .add("eggEsp", false, c -> c.eggEsp, (c, v) -> c.eggEsp = v)
+            .add("eggEspHideFound", true, c -> c.eggEspHideFound, (c, v) -> c.eggEspHideFound = v);
+
     public static void load() {
         ChocolateFactoryConfig cfg = new ChocolateFactoryConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", false);
-                cfg.highlightBestUpgrade = ConfigJson.getBool(o, "highlightBestUpgrade", true);
-                cfg.highlightStrays = ConfigJson.getBool(o, "highlightStrays", true);
-                cfg.strayAlert = ConfigJson.getBool(o, "strayAlert", true);
-                cfg.timeTowerReminder = ConfigJson.getBool(o, "timeTowerReminder", true);
-                cfg.infoLine = ConfigJson.getBool(o, "infoLine", true);
-                cfg.eggHud = ConfigJson.getBool(o, "eggHud", true);
-                cfg.eggTracker = ConfigJson.getBool(o, "eggTracker", false);
+                BOOLS.load(cfg, o);
                 cfg.eggDupeValues = ConfigJson.getBool(o, "eggDupeValues", true);
                 // No fallback to eggDupeValues (on in every saved file): he asked for the six timers alone by default.
-                cfg.eggExtraInfo = ConfigJson.getBool(o, "eggExtraInfo", false);
-                cfg.hideOutsideHunt = ConfigJson.getBool(o, "hideOutsideHunt", false);
-                cfg.hideWhileBusy = ConfigJson.getBool(o, "hideWhileBusy", false);
-                cfg.eggLocatorLine = ConfigJson.getBool(o, "eggLocatorLine", true);
-                cfg.eggEsp = ConfigJson.getBool(o, "eggEsp", false);
-                cfg.eggEspHideFound = ConfigJson.getBool(o, "eggEspHideFound", true);
                 if (o.has("lastCps") && o.get("lastCps").isJsonPrimitive()) {
                     double v = o.get("lastCps").getAsDouble();
                     cfg.lastCps = Double.isFinite(v) && v > 0 ? v : 0;
@@ -92,21 +97,8 @@ public final class ChocolateFactoryConfig {
 
     public void save() {
         JsonObject o = new JsonObject();
-        o.addProperty("enabled", enabled);
-        o.addProperty("highlightBestUpgrade", highlightBestUpgrade);
-        o.addProperty("highlightStrays", highlightStrays);
-        o.addProperty("strayAlert", strayAlert);
-        o.addProperty("timeTowerReminder", timeTowerReminder);
-        o.addProperty("infoLine", infoLine);
-        o.addProperty("eggHud", eggHud);
-        o.addProperty("eggTracker", eggTracker);
+        BOOLS.save(this, o);
         o.addProperty("eggDupeValues", eggDupeValues);
-        o.addProperty("eggExtraInfo", eggExtraInfo);
-        o.addProperty("hideOutsideHunt", hideOutsideHunt);
-        o.addProperty("hideWhileBusy", hideWhileBusy);
-        o.addProperty("eggLocatorLine", eggLocatorLine);
-        o.addProperty("eggEsp", eggEsp);
-        o.addProperty("eggEspHideFound", eggEspHideFound);
         o.addProperty("lastCps", lastCps);
         ConfigJson.write(CONFIG_PATH, o);
     }

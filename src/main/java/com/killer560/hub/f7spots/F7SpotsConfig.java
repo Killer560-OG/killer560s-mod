@@ -1,6 +1,7 @@
 package com.killer560.hub.f7spots;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -96,6 +97,18 @@ public final class F7SpotsConfig {
         com.killer560.hub.util.FeatureBits.changed();
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<F7SpotsConfig> BOOLS = new BoolFields<F7SpotsConfig>()
+            .add("walkLabels", true, c -> c.walkLabels, (c, v) -> c.walkLabels = v)
+            .add("walkDistance", true, c -> c.walkDistance, (c, v) -> c.walkDistance = v)
+            .add("walkCurrentPhaseOnly", true, c -> c.walkCurrentPhaseOnly, (c, v) -> c.walkCurrentPhaseOnly = v)
+            .add("aimLabels", true, c -> c.aimLabels, (c, v) -> c.aimLabels = v)
+            .add("aimDistance", false, c -> c.aimDistance, (c, v) -> c.aimDistance = v)
+            .add("aimAllClasses", false, c -> c.aimAllClasses, (c, v) -> c.aimAllClasses = v)
+            .add("aimAllSituations", false, c -> c.aimAllSituations, (c, v) -> c.aimAllSituations = v)
+            .add("aimArrowStack", false, c -> c.aimArrowStack, (c, v) -> c.aimArrowStack = v)
+            .add("aimDevonianLb", false, c -> c.aimDevonianLb, (c, v) -> c.aimDevonianLb = v);
+
     private static void load0() {
         F7SpotsConfig cfg = new F7SpotsConfig();
         JsonObject obj = null;
@@ -112,9 +125,7 @@ public final class F7SpotsConfig {
             // key is not written back.
             boolean legacyWholeOff = obj.has("f7SpotsEnabled") && !ConfigJson.getBool(obj, "f7SpotsEnabled", true);
             cfg.walkWaypoints = ConfigJson.getBool(obj, "walkWaypoints", false);
-            cfg.walkLabels = ConfigJson.getBool(obj, "walkLabels", true);
-            cfg.walkDistance = ConfigJson.getBool(obj, "walkDistance", true);
-            cfg.walkCurrentPhaseOnly = ConfigJson.getBool(obj, "walkCurrentPhaseOnly", true);
+            BOOLS.load(cfg, obj);
             cfg.setWalkBeamHeight(ConfigJson.getFloat(obj, "walkBeamHeight", 8f));
             cfg.walkColor = ConfigJson.getInt(obj, "walkColor", DEFAULT_WALK_COLOR);
 
@@ -123,12 +134,6 @@ public final class F7SpotsConfig {
                 cfg.walkWaypoints = false;
                 cfg.aimSpots = false;
             }
-            cfg.aimLabels = ConfigJson.getBool(obj, "aimLabels", true);
-            cfg.aimDistance = ConfigJson.getBool(obj, "aimDistance", false);
-            cfg.aimAllClasses = ConfigJson.getBool(obj, "aimAllClasses", false);
-            cfg.aimAllSituations = ConfigJson.getBool(obj, "aimAllSituations", false);
-            cfg.aimArrowStack = ConfigJson.getBool(obj, "aimArrowStack", false);
-            cfg.aimDevonianLb = ConfigJson.getBool(obj, "aimDevonianLb", false);
             cfg.setAimSize(ConfigJson.getFloat(obj, "aimSize", 0.5f));
             cfg.aimColor = ConfigJson.getInt(obj, "aimColor", DEFAULT_AIM_COLOR);
 
@@ -180,19 +185,11 @@ public final class F7SpotsConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("walkWaypoints", walkWaypoints);
-        obj.addProperty("walkLabels", walkLabels);
-        obj.addProperty("walkDistance", walkDistance);
-        obj.addProperty("walkCurrentPhaseOnly", walkCurrentPhaseOnly);
+        BOOLS.save(this, obj);
         obj.addProperty("walkBeamHeight", walkBeamHeight);
         obj.addProperty("walkColor", walkColor);
 
         obj.addProperty("aimSpots", aimSpots);
-        obj.addProperty("aimLabels", aimLabels);
-        obj.addProperty("aimDistance", aimDistance);
-        obj.addProperty("aimAllClasses", aimAllClasses);
-        obj.addProperty("aimAllSituations", aimAllSituations);
-        obj.addProperty("aimArrowStack", aimArrowStack);
-        obj.addProperty("aimDevonianLb", aimDevonianLb);
         obj.addProperty("aimSize", aimSize);
         obj.addProperty("aimColor", aimColor);
 

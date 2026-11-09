@@ -1,6 +1,7 @@
 package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -104,6 +105,27 @@ public final class AutoPuzzlesConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<AutoPuzzlesConfig> BOOLS = new BoolFields<AutoPuzzlesConfig>()
+            .add("autoPuzzlesMasterEnabled", false, c -> c.autoPuzzlesMasterEnabled, (c, v) -> c.autoPuzzlesMasterEnabled = v)
+            .add("autoQuizEnabled", false, c -> c.autoQuizEnabled, (c, v) -> c.autoQuizEnabled = v)
+            .add("autoWeirdosEnabled", false, c -> c.autoWeirdosEnabled, (c, v) -> c.autoWeirdosEnabled = v)
+            .add("weirdosTalkToNpcs", false, c -> c.weirdosTalkToNpcs, (c, v) -> c.weirdosTalkToNpcs = v)
+            .add("autoBlazeEnabled", false, c -> c.autoBlazeEnabled, (c, v) -> c.autoBlazeEnabled = v)
+            .add("autoBeamsEnabled", false, c -> c.autoBeamsEnabled, (c, v) -> c.autoBeamsEnabled = v)
+            .add("autoIcePathEnabled", false, c -> c.autoIcePathEnabled, (c, v) -> c.autoIcePathEnabled = v)
+            .add("etherwarpReposition", false, c -> c.etherwarpReposition, (c, v) -> c.etherwarpReposition = v)
+            .add("autoBoulderEnabled", false, c -> c.autoBoulderEnabled, (c, v) -> c.autoBoulderEnabled = v)
+            .add("autoWaterEnabled", false, c -> c.autoWaterEnabled, (c, v) -> c.autoWaterEnabled = v)
+            .add("autoTicTacToeEnabled", false, c -> c.autoTicTacToeEnabled, (c, v) -> c.autoTicTacToeEnabled = v)
+            .add("autoTeleportMazeEnabled", false, c -> c.autoTeleportMazeEnabled, (c, v) -> c.autoTeleportMazeEnabled = v)
+            .add("autoIceFillEnabled", false, c -> c.autoIceFillEnabled, (c, v) -> c.autoIceFillEnabled = v)
+            .add("iceFillAdaptive", false, c -> c.iceFillAdaptive, (c, v) -> c.iceFillAdaptive = v)
+            .add("autoBlazeSecretEnabled", false, c -> c.autoBlazeSecretEnabled, (c, v) -> c.autoBlazeSecretEnabled = v)
+            .add("ticTacToeAuraChestEnabled", false, c -> c.ticTacToeAuraChestEnabled, (c, v) -> c.ticTacToeAuraChestEnabled = v)
+            .add("autoPuzzlePathingEnabled", true, c -> c.autoPuzzlePathingEnabled, (c, v) -> c.autoPuzzlePathingEnabled = v)
+            .add("ticTacToeWalkOutEnabled", false, c -> c.ticTacToeWalkOutEnabled, (c, v) -> c.ticTacToeWalkOutEnabled = v);
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new AutoPuzzlesConfig();
@@ -112,34 +134,17 @@ public final class AutoPuzzlesConfig {
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             AutoPuzzlesConfig cfg = new AutoPuzzlesConfig();
-            cfg.autoPuzzlesMasterEnabled = ConfigJson.getBool(obj, "autoPuzzlesMasterEnabled", false);
-            cfg.autoQuizEnabled = ConfigJson.getBool(obj, "autoQuizEnabled", false);
+            BOOLS.load(cfg, obj);
             cfg.quizDelayMs = clampDelay(ConfigJson.getInt(obj, "quizDelayMs", cfg.quizDelayMs));
-            cfg.autoWeirdosEnabled = ConfigJson.getBool(obj, "autoWeirdosEnabled", false);
             cfg.weirdosDelayMs = clampDelay(ConfigJson.getInt(obj, "weirdosDelayMs", cfg.weirdosDelayMs));
             if (!ConfigJson.getBool(obj, "weirdosDelayMigrated", false) && cfg.weirdosDelayMs == OLD_WEIRDOS_DELAY_DEFAULT) {
                 cfg.weirdosDelayMs = 0;
             }
-            cfg.weirdosTalkToNpcs = ConfigJson.getBool(obj, "weirdosTalkToNpcs", false);
-            cfg.autoBlazeEnabled = ConfigJson.getBool(obj, "autoBlazeEnabled", false);
-            cfg.autoBeamsEnabled = ConfigJson.getBool(obj, "autoBeamsEnabled", false);
-            cfg.autoIcePathEnabled = ConfigJson.getBool(obj, "autoIcePathEnabled", false);
             cfg.autoBeamsMode = BeamsMode.parse(ConfigJson.getString(obj, "autoBeamsMode", BeamsMode.SHOOT.name()));
             cfg.shootCooldownMs = clamp(ConfigJson.getInt(obj, "shootCooldownMs", cfg.shootCooldownMs), SHOOT_CD_MIN, SHOOT_CD_MAX);
-            cfg.etherwarpReposition = ConfigJson.getBool(obj, "etherwarpReposition", false);
-            cfg.autoBoulderEnabled = ConfigJson.getBool(obj, "autoBoulderEnabled", false);
             cfg.boulderDelayMs = clampDelay(ConfigJson.getInt(obj, "boulderDelayMs", cfg.boulderDelayMs));
-            cfg.autoWaterEnabled = ConfigJson.getBool(obj, "autoWaterEnabled", false);
-            cfg.autoTicTacToeEnabled = ConfigJson.getBool(obj, "autoTicTacToeEnabled", false);
-            cfg.autoTeleportMazeEnabled = ConfigJson.getBool(obj, "autoTeleportMazeEnabled", false);
-            cfg.autoIceFillEnabled = ConfigJson.getBool(obj, "autoIceFillEnabled", false);
-            cfg.iceFillAdaptive = ConfigJson.getBool(obj, "iceFillAdaptive", false);
             cfg.iceFillDelayTicks = clamp(ConfigJson.getInt(obj, "iceFillDelayTicks", cfg.iceFillDelayTicks),
                     ICE_FILL_DELAY_MIN, ICE_FILL_DELAY_MAX);
-            cfg.autoBlazeSecretEnabled = ConfigJson.getBool(obj, "autoBlazeSecretEnabled", false);
-            cfg.ticTacToeAuraChestEnabled = ConfigJson.getBool(obj, "ticTacToeAuraChestEnabled", false);
-            cfg.autoPuzzlePathingEnabled = ConfigJson.getBool(obj, "autoPuzzlePathingEnabled", true);
-            cfg.ticTacToeWalkOutEnabled = ConfigJson.getBool(obj, "ticTacToeWalkOutEnabled", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoPuzzlesConfig();
@@ -148,31 +153,14 @@ public final class AutoPuzzlesConfig {
 
     public void save() {
         JsonObject obj = new JsonObject();
-        obj.addProperty("autoPuzzlesMasterEnabled", autoPuzzlesMasterEnabled);
-        obj.addProperty("autoQuizEnabled", autoQuizEnabled);
+        BOOLS.save(this, obj);
         obj.addProperty("quizDelayMs", quizDelayMs);
-        obj.addProperty("autoWeirdosEnabled", autoWeirdosEnabled);
         obj.addProperty("weirdosDelayMs", weirdosDelayMs);
         obj.addProperty("weirdosDelayMigrated", true);
-        obj.addProperty("weirdosTalkToNpcs", weirdosTalkToNpcs);
-        obj.addProperty("autoBlazeEnabled", autoBlazeEnabled);
-        obj.addProperty("autoBeamsEnabled", autoBeamsEnabled);
-        obj.addProperty("autoIcePathEnabled", autoIcePathEnabled);
         obj.addProperty("autoBeamsMode", autoBeamsMode.name());
         obj.addProperty("shootCooldownMs", shootCooldownMs);
-        obj.addProperty("etherwarpReposition", etherwarpReposition);
-        obj.addProperty("autoBoulderEnabled", autoBoulderEnabled);
         obj.addProperty("boulderDelayMs", boulderDelayMs);
-        obj.addProperty("autoWaterEnabled", autoWaterEnabled);
-        obj.addProperty("autoTicTacToeEnabled", autoTicTacToeEnabled);
-        obj.addProperty("autoTeleportMazeEnabled", autoTeleportMazeEnabled);
-        obj.addProperty("autoIceFillEnabled", autoIceFillEnabled);
         obj.addProperty("iceFillDelayTicks", iceFillDelayTicks);
-        obj.addProperty("iceFillAdaptive", iceFillAdaptive);
-        obj.addProperty("autoBlazeSecretEnabled", autoBlazeSecretEnabled);
-        obj.addProperty("ticTacToeAuraChestEnabled", ticTacToeAuraChestEnabled);
-        obj.addProperty("autoPuzzlePathingEnabled", autoPuzzlePathingEnabled);
-        obj.addProperty("ticTacToeWalkOutEnabled", ticTacToeWalkOutEnabled);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 

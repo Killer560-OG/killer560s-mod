@@ -1,6 +1,7 @@
 package com.killer560.hub.livemap;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -191,15 +192,36 @@ public final class LiveMapConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<LiveMapConfig> BOOLS = new BoolFields<LiveMapConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("showTeammates", true, c -> c.showTeammates, (c, v) -> c.showTeammates = v)
+            .add("leapNames", false, c -> c.leapNames, (c, v) -> c.leapNames = v)
+            .add("classRecolorTeammates", true, c -> c.classRecolorTeammates, (c, v) -> c.classRecolorTeammates = v)
+            .add("markReportedRooms", true, c -> c.markReportedRooms, (c, v) -> c.markReportedRooms = v)
+            .add("colourByType", true, c -> c.colourByType, (c, v) -> c.colourByType = v)
+            .add("customCheckmarks", false, c -> c.customCheckmarks, (c, v) -> c.customCheckmarks = v)
+            .add("funnyMap", false, c -> c.funnyMap, (c, v) -> c.funnyMap = v)
+            .add("showMimicRoom", true, c -> c.showMimicRoom, (c, v) -> c.showMimicRoom = v)
+            .add("interactiveMapEnabled", false, c -> c.interactiveMapEnabled, (c, v) -> c.interactiveMapEnabled = v)
+            .add("closeOnRepress", false, c -> c.closeOnRepress, (c, v) -> c.closeOnRepress = v)
+            .add("openFromHudClick", false, c -> c.openFromHudClick, (c, v) -> c.openFromHudClick = v)
+            .add("textShadow", true, c -> c.textShadow, (c, v) -> c.textShadow = v)
+            .add("witherDoorOutline", false, c -> c.witherDoorOutline, (c, v) -> c.witherDoorOutline = v)
+            .add("mapControlsExpanded", false, c -> c.mapControlsExpanded, (c, v) -> c.mapControlsExpanded = v)
+            .add("classBorderColour", false, c -> c.classBorderColour, (c, v) -> c.classBorderColour = v)
+            .add("showExtraInfo", true, c -> c.showExtraInfo, (c, v) -> c.showExtraInfo = v)
+            .add("faceDoorOnArrival", false, c -> c.faceDoorOnArrival, (c, v) -> c.faceDoorOnArrival = v)
+            .add("showEtherwarpPath", false, c -> c.showEtherwarpPath, (c, v) -> c.showEtherwarpPath = v)
+            .add("mapRetargetMidPath", true, c -> c.mapRetargetMidPath, (c, v) -> c.mapRetargetMidPath = v)
+            .add("mapDoublePressStartNode", true, c -> c.mapDoublePressStartNode, (c, v) -> c.mapDoublePressStartNode = v)
+            .add("bloodRushEnabled", false, c -> c.bloodRushEnabled, (c, v) -> c.bloodRushEnabled = v);
+
     public static void load() {
         LiveMapConfig cfg = new LiveMapConfig();
         JsonObject obj = ConfigJson.read(CONFIG_PATH);
         if (obj != null) {
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.showTeammates = ConfigJson.getBool(obj, "showTeammates", true);
-            cfg.leapNames = ConfigJson.getBool(obj, "leapNames", false);
-            cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
-            cfg.markReportedRooms = ConfigJson.getBool(obj, "markReportedRooms", true);
+            BOOLS.load(cfg, obj);
             cfg.playerHeads = ConfigJson.getBool(obj, "playerHeadMarkers", true);
             // Migration: the old uniform "cellSize" (4..16, default 8) was one grid step; a room is now two
             // of those, so an existing config keeps roughly the map size it had.
@@ -208,7 +230,6 @@ public final class LiveMapConfig {
             cfg.peekKeyCode = ConfigJson.getInt(obj, "peekKeyCode", -1);
             cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
 
-            cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
             cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", DEFAULT_DARKEN_UNOPENED));
             // Migration, once (2026-10-19): a file saved with an OLD default (0.4, then 0.15, then 0.05) never picks up
             // the new one, because a saved key wins over the default - every instance he has still read 0.4, the value
@@ -226,23 +247,15 @@ public final class LiveMapConfig {
             cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", DEFAULT_MAP_BACKGROUND);
             cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", DEFAULT_MAP_BORDER);
             // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.
-            cfg.customCheckmarks = ConfigJson.getBool(obj, "customCheckmarks", false);
             cfg.setCheckmarkSource(ConfigJson.getInt(obj, "checkmarkSource", 0));
 
-            cfg.funnyMap = ConfigJson.getBool(obj, "funnyMap", false);
-            cfg.showMimicRoom = ConfigJson.getBool(obj, "showMimicRoom", true);
             cfg.mimicColor = ConfigJson.getInt(obj, "mimicColor", 0x33FF0000);
 
             loadThemes(cfg, obj);
 
-            cfg.interactiveMapEnabled = ConfigJson.getBool(obj, "interactiveMapEnabled", false);
             cfg.openKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openKeyCode", -1));
-            cfg.closeOnRepress = ConfigJson.getBool(obj, "closeOnRepress", false);
-            cfg.openFromHudClick = ConfigJson.getBool(obj, "openFromHudClick", false);
             cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
             cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
-            cfg.textShadow = ConfigJson.getBool(obj, "textShadow", true);
-            cfg.witherDoorOutline = ConfigJson.getBool(obj, "witherDoorOutline", false);
             cfg.witherDoorOutlineColor = ConfigJson.getInt(obj, "witherDoorOutlineColor", DEFAULT_WITHER_DOOR_OUTLINE_COLOR);
             cfg.setWitherDoorOutlineThickness(ConfigJson.getInt(obj, "witherDoorOutlineThickness",
                     DEFAULT_WITHER_DOOR_OUTLINE_THICKNESS));
@@ -250,16 +263,12 @@ public final class LiveMapConfig {
             // "mapRoomLabels" (the Interactive Map's own copy of Room Labels) is gone: killer560 (2026-10-05)
             // "have the map have the same settings for room name having the secrets ... as the regular map,
             // they should be the same and synced". Both maps read roomLabels; an old key is simply ignored.
-            cfg.mapControlsExpanded = ConfigJson.getBool(obj, "mapControlsExpanded", false);
-            cfg.classBorderColour = ConfigJson.getBool(obj, "classBorderColour", false);
             cfg.setPlayerNames(ConfigJson.getInt(obj, "playerNames", 0));
             cfg.setIconScale(ConfigJson.getFloat(obj, "iconScale", 1f));
-            cfg.showExtraInfo = ConfigJson.getBool(obj, "showExtraInfo", true);
 
             cfg.startKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "startKeyCode", -1));
             cfg.lockedDoorKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lockedDoorKeyCode", -1));
             cfg.goSecretKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "goSecretKeyCode", -1));
-            cfg.faceDoorOnArrival = ConfigJson.getBool(obj, "faceDoorOnArrival", false);
             // Migration: files saved before 2026-09-27 have an explicit "keepChunksLoaded" (usually false,
             // the old default) - honor it. A file with no key at all (fresh install) now ships true.
             cfg.keepChunksLoaded = ConfigJson.getBool(obj, "keepChunksLoaded", true);
@@ -268,12 +277,8 @@ public final class LiveMapConfig {
             cfg.hWeight = Math.max(1.0, Math.min(15.0, ConfigJson.getDouble(obj, "hWeight", 6.7)));
             cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", 670));
             cfg.setEtherwarpTickGap(ConfigJson.getInt(obj, "etherwarpTickGap", 1));
-            cfg.showEtherwarpPath = ConfigJson.getBool(obj, "showEtherwarpPath", false);
-            cfg.mapRetargetMidPath = ConfigJson.getBool(obj, "mapRetargetMidPath", true);
-            cfg.mapDoublePressStartNode = ConfigJson.getBool(obj, "mapDoublePressStartNode", true);
             cfg.setMapDoublePressMs(ConfigJson.getInt(obj, "mapDoublePressMs", 400));
 
-            cfg.bloodRushEnabled = ConfigJson.getBool(obj, "bloodRushEnabled", false);
             cfg.bloodRushKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "bloodRushKeyCode", -1));
             cfg.setBloodRushDoorTimeoutSec(ConfigJson.getInt(obj, "bloodRushDoorTimeoutSec", 15));
         }
@@ -327,27 +332,19 @@ public final class LiveMapConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showTeammates", showTeammates);
-            obj.addProperty("leapNames", leapNames);
-            obj.addProperty("classRecolorTeammates", classRecolorTeammates);
-            obj.addProperty("markReportedRooms", markReportedRooms);
+            BOOLS.save(this, obj);
             obj.addProperty("playerHeadMarkers", playerHeads);
             obj.addProperty("roomPx", roomPx);
             obj.addProperty("roomLabels", roomLabels);
             obj.addProperty("peekKeyCode", peekKeyCode);
             obj.addProperty("peekScale", peekScale);
 
-            obj.addProperty("colourByType", colourByType);
             obj.addProperty("darkenUnopened", darkenUnopened);
             obj.addProperty("darkenUnopenedDefault1019", true);
             obj.addProperty("darkenUnopenedNoamm1019", true);
             obj.addProperty("mapBackground", mapBackground);
             obj.addProperty("mapBorderColor", mapBorderColor);
-            obj.addProperty("customCheckmarks", customCheckmarks);
             obj.addProperty("checkmarkSource", checkmarkSource);
-            obj.addProperty("funnyMap", funnyMap);
-            obj.addProperty("showMimicRoom", showMimicRoom);
             obj.addProperty("mimicColor", mimicColor);
 
             obj.addProperty("mapThemeName", mapTheme.name());
@@ -365,39 +362,26 @@ public final class LiveMapConfig {
             obj.add("mapSchemes", arr);
             obj.addProperty("activeScheme", activeScheme);
 
-            obj.addProperty("interactiveMapEnabled", interactiveMapEnabled);
             obj.addProperty("openKeyCode", openKeyCode);
-            obj.addProperty("closeOnRepress", closeOnRepress);
-            obj.addProperty("openFromHudClick", openFromHudClick);
             obj.addProperty("mapScale", mapScale);
             obj.addProperty("fontScale", fontScale);
-            obj.addProperty("textShadow", textShadow);
-            obj.addProperty("witherDoorOutline", witherDoorOutline);
             obj.addProperty("witherDoorOutlineColor", witherDoorOutlineColor);
             obj.addProperty("witherDoorOutlineThickness", witherDoorOutlineThickness);
             obj.addProperty("noammLook1019", true);
-            obj.addProperty("mapControlsExpanded", mapControlsExpanded);
-            obj.addProperty("classBorderColour", classBorderColour);
             obj.addProperty("playerNames", playerNames);
             obj.addProperty("iconScale", iconScale);
-            obj.addProperty("showExtraInfo", showExtraInfo);
 
             obj.addProperty("startKeyCode", startKeyCode);
             obj.addProperty("lockedDoorKeyCode", lockedDoorKeyCode);
             obj.addProperty("goSecretKeyCode", goSecretKeyCode);
-            obj.addProperty("faceDoorOnArrival", faceDoorOnArrival);
             obj.addProperty("keepChunksLoaded", keepChunksLoaded);
             obj.addProperty("yawStep", yawStep);
             obj.addProperty("pitchStep", pitchStep);
             obj.addProperty("hWeight", hWeight);
             obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("etherwarpTickGap", etherwarpTickGap);
-            obj.addProperty("showEtherwarpPath", showEtherwarpPath);
-            obj.addProperty("mapRetargetMidPath", mapRetargetMidPath);
-            obj.addProperty("mapDoublePressStartNode", mapDoublePressStartNode);
             obj.addProperty("mapDoublePressMs", mapDoublePressMs);
 
-            obj.addProperty("bloodRushEnabled", bloodRushEnabled);
             obj.addProperty("bloodRushKeyCode", bloodRushKeyCode);
             obj.addProperty("bloodRushDoorTimeoutSec", bloodRushDoorTimeoutSec);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);

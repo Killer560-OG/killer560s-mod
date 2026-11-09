@@ -1,6 +1,7 @@
 package com.killer560.hub.itemprotect;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -125,6 +126,19 @@ public final class ItemProtectConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<doc> BOOLS = new BoolFields<doc>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("protectItemEnabled", false, c -> c.protectItemEnabled, (c, v) -> c.protectItemEnabled = v)
+            .add("useItemIdFallback", false, c -> c.useItemIdFallback, (c, v) -> c.useItemIdFallback = v)
+            .add("showStar", true, c -> c.showStar, (c, v) -> c.showStar = v)
+            .add("lockInPlace", false, c -> c.lockInPlace, (c, v) -> c.lockInPlace = v)
+            .add("protectStarredEnabled", false, c -> c.protectStarredEnabled, (c, v) -> c.protectStarredEnabled = v)
+            .add("preventHotbarDropEnabled", false, c -> c.preventHotbarDropEnabled, (c, v) -> c.preventHotbarDropEnabled = v)
+            .add("blockEveryHotbarDrop", false, c -> c.blockEveryHotbarDrop, (c, v) -> c.blockEveryHotbarDrop = v)
+            .add("confirmToForce", true, c -> c.confirmToForce, (c, v) -> c.confirmToForce = v)
+            .add("blockSound", true, c -> c.blockSound, (c, v) -> c.blockSound = v);
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new ItemProtectConfig();
@@ -136,14 +150,10 @@ public final class ItemProtectConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
 
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            BOOLS.load(cfg, obj);
 
-            cfg.protectItemEnabled = ConfigJson.getBool(obj, "protectItemEnabled", false);
             cfg.protectKey = sanitizeBind(ConfigJson.getInt(obj, "protectKey", KeyUtil.NONE));
-            cfg.useItemIdFallback = ConfigJson.getBool(obj, "useItemIdFallback", false);
             cfg.protectedColor = ConfigJson.getInt(obj, "protectedColor", DEFAULT_STAR_COLOR);
-            cfg.showStar = ConfigJson.getBool(obj, "showStar", true);
-            cfg.lockInPlace = ConfigJson.getBool(obj, "lockInPlace", false);
             JsonArray keys = ConfigJson.getArray(obj, "protectedKeys");
             if (keys != null) {
                 for (JsonElement el : keys) {
@@ -169,14 +179,9 @@ public final class ItemProtectConfig {
                 }
             }
 
-            cfg.protectStarredEnabled = ConfigJson.getBool(obj, "protectStarredEnabled", false);
 
-            cfg.preventHotbarDropEnabled = ConfigJson.getBool(obj, "preventHotbarDropEnabled", false);
-            cfg.blockEveryHotbarDrop = ConfigJson.getBool(obj, "blockEveryHotbarDrop", false);
-            cfg.confirmToForce = ConfigJson.getBool(obj, "confirmToForce", true);
             cfg.setForceDrops(ConfigJson.getInt(obj, "forceDrops", DEFAULT_FORCE_DROPS));
 
-            cfg.blockSound = ConfigJson.getBool(obj, "blockSound", true);
 
             readIndices(ConfigJson.getArray(obj, "pendingSlotMigration"), cfg.pendingSlotMigration);
 
@@ -225,14 +230,10 @@ public final class ItemProtectConfig {
 
     public void save() {
         JsonObject obj = new JsonObject();
-        obj.addProperty("enabled", enabled);
+        BOOLS.save(this, obj);
 
-        obj.addProperty("protectItemEnabled", protectItemEnabled);
         obj.addProperty("protectKey", protectKey);
-        obj.addProperty("useItemIdFallback", useItemIdFallback);
         obj.addProperty("protectedColor", protectedColor);
-        obj.addProperty("showStar", showStar);
-        obj.addProperty("lockInPlace", lockInPlace);
         JsonArray keys = new JsonArray();
         for (String key : protectedKeys) {
             keys.add(key);
@@ -244,14 +245,9 @@ public final class ItemProtectConfig {
         }
         obj.add("protectedNames", names);
 
-        obj.addProperty("protectStarredEnabled", protectStarredEnabled);
 
-        obj.addProperty("preventHotbarDropEnabled", preventHotbarDropEnabled);
-        obj.addProperty("blockEveryHotbarDrop", blockEveryHotbarDrop);
-        obj.addProperty("confirmToForce", confirmToForce);
         obj.addProperty("forceDrops", forceDrops);
 
-        obj.addProperty("blockSound", blockSound);
 
         if (!pendingSlotMigration.isEmpty()) {
             JsonArray pending = new JsonArray();

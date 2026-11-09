@@ -1,6 +1,7 @@
 package com.killer560.hub.experiments;
 
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.BoolFields;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -178,6 +179,19 @@ public final class ExperimentsConfig {
         return profitTrackerEnabled;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<ExperimentsConfig> BOOLS = new BoolFields<ExperimentsConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("superpairsEnabled", true, c -> c.superpairsEnabled, (c, v) -> c.superpairsEnabled = v)
+            .add("superpairsHudEnabled", true, c -> c.superpairsHudEnabled, (c, v) -> c.superpairsHudEnabled = v)
+            .add("autonomousMode", false, c -> c.autonomousMode, (c, v) -> c.autonomousMode = v)
+            .add("blockInputEnabled", false, c -> c.blockInputEnabled, (c, v) -> c.blockInputEnabled = v)
+            .add("autoSwapGuardianPet", true, c -> c.autoSwapGuardianPet, (c, v) -> c.autoSwapGuardianPet = v)
+            .add("clickProtectionEnabled", true, c -> c.clickProtectionEnabled, (c, v) -> c.clickProtectionEnabled = v)
+            .add("notifyMaxClicksReached", true, c -> c.notifyMaxClicksReached, (c, v) -> c.notifyMaxClicksReached = v)
+            .add("profitTrackerEnabled", false, c -> c.profitTrackerEnabled, (c, v) -> c.profitTrackerEnabled = v)
+            .add("superpairsAdaptiveTimeout", false, c -> c.superpairsAdaptiveTimeout, (c, v) -> c.superpairsAdaptiveTimeout = v);
+
     private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new ExperimentsConfig();
@@ -191,9 +205,7 @@ public final class ExperimentsConfig {
             // right kind. Until 2026-10-15 one bad value (a hand-edited "delayMs": "fast") threw out of the whole
             // read and every setting in the file was lost to the defaults.
             ExperimentsConfig cfg = new ExperimentsConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.superpairsEnabled = ConfigJson.getBool(obj, "superpairsEnabled", true);
-            cfg.superpairsHudEnabled = ConfigJson.getBool(obj, "superpairsHudEnabled", true);
+            BOOLS.load(cfg, obj);
             cfg.superpairsValuableOnly = ConfigJson.getBool(obj, "superpairsValuableOnly", DEFAULT_SUPERPAIRS_VALUABLE_ONLY);
             cfg.skipGrandExpBottles = ConfigJson.getBool(obj, "skipGrandExpBottles", DEFAULT_SKIP_GRAND_EXP_BOTTLES);
             cfg.skipGuardianPets = ConfigJson.getBool(obj, "skipGuardianPets", DEFAULT_SKIP_GUARDIAN_PETS);
@@ -203,20 +215,13 @@ public final class ExperimentsConfig {
                     ConfigJson.getDouble(obj, "superpairsSkipValueCoins", DEFAULT_SUPERPAIRS_SKIP_VALUE));
             cfg.superpairsT7First = ConfigJson.getBool(obj, "superpairsT7First", DEFAULT_SUPERPAIRS_T7_FIRST);
             cfg.delayMs = clampInt(obj, "delayMs", DEFAULT_DELAY_MS, MIN_CLICK_DELAY_MS, MAX_DELAY_MS);
-            cfg.autonomousMode = ConfigJson.getBool(obj, "autonomousMode", false);
             cfg.firstClickDelayMs = clampInt(obj, "firstClickDelayMs", DEFAULT_FIRST_CLICK_DELAY_MS,
                     MIN_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.stopStrategy = ConfigJson.getEnum(obj, "stopStrategy", ExperimentStopStrategy.class, ExperimentStopStrategy.MAX_CLICKS);
-            cfg.blockInputEnabled = ConfigJson.getBool(obj, "blockInputEnabled", false);
             cfg.autoRenewCount = clampInt(obj, "autoRenewCount", DEFAULT_AUTO_RENEW_COUNT, MIN_AUTO_RENEW_COUNT, MAX_AUTO_RENEW_COUNT);
             double titanic = ConfigJson.getDouble(obj, "titanicMaxPriceCoins", DEFAULT_TITANIC_MAX_PRICE);
             cfg.titanicMaxPriceCoins = Math.max(MIN_TITANIC_MAX_PRICE, Math.min(MAX_TITANIC_MAX_PRICE, titanic));
             cfg.randomDelayMaxMs = clampInt(obj, "randomDelayMaxMs", DEFAULT_RANDOM_DELAY_MAX_MS, MIN_DELAY_MS, MAX_DELAY_MS);
-            cfg.autoSwapGuardianPet = ConfigJson.getBool(obj, "autoSwapGuardianPet", true);
-            cfg.clickProtectionEnabled = ConfigJson.getBool(obj, "clickProtectionEnabled", true);
-            cfg.notifyMaxClicksReached = ConfigJson.getBool(obj, "notifyMaxClicksReached", true);
-            cfg.profitTrackerEnabled = ConfigJson.getBool(obj, "profitTrackerEnabled", false);
-            cfg.superpairsAdaptiveTimeout = ConfigJson.getBool(obj, "superpairsAdaptiveTimeout", false);
             // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
             // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"
             // was a dead leftover underneath it; now the two are independent, so that file would otherwise
@@ -262,9 +267,7 @@ public final class ExperimentsConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("configVersion", CURRENT_CONFIG_VERSION);
-        obj.addProperty("enabled", enabled);
-        obj.addProperty("superpairsEnabled", superpairsEnabled);
-        obj.addProperty("superpairsHudEnabled", superpairsHudEnabled);
+        BOOLS.save(this, obj);
         obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
         obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
         obj.addProperty("skipGuardianPets", skipGuardianPets);
@@ -273,18 +276,11 @@ public final class ExperimentsConfig {
         obj.addProperty("superpairsSkipValueCoins", superpairsSkipValueCoins);
         obj.addProperty("superpairsT7First", superpairsT7First);
         obj.addProperty("delayMs", delayMs);
-        obj.addProperty("autonomousMode", autonomousMode);
         obj.addProperty("firstClickDelayMs", firstClickDelayMs);
         obj.addProperty("stopStrategy", stopStrategy.name());
-        obj.addProperty("blockInputEnabled", blockInputEnabled);
         obj.addProperty("autoRenewCount", autoRenewCount);
         obj.addProperty("titanicMaxPriceCoins", titanicMaxPriceCoins);
         obj.addProperty("randomDelayMaxMs", randomDelayMaxMs);
-        obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
-        obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
-        obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
-        obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
-        obj.addProperty("superpairsAdaptiveTimeout", superpairsAdaptiveTimeout);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 

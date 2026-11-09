@@ -1,6 +1,7 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonObject;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.util.ConfigJson;
@@ -152,72 +153,55 @@ public final class WitherDragonsConfig {
     /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
     public boolean isRelicHighlightRaw() { return relicHighlight; }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<WitherDragonsConfig> BOOLS = new BoolFields<WitherDragonsConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("dragonTimer", true, c -> c.dragonTimer, (c, v) -> c.dragonTimer = v)
+            .add("timerSymbol", true, c -> c.timerSymbol, (c, v) -> c.timerSymbol = v)
+            .add("dragonBoxes", true, c -> c.dragonBoxes, (c, v) -> c.dragonBoxes = v)
+            .add("dragonTracer", true, c -> c.dragonTracer, (c, v) -> c.dragonTracer = v)
+            .add("dragonHealth", true, c -> c.dragonHealth, (c, v) -> c.dragonHealth = v)
+            .add("dragonTitle", true, c -> c.dragonTitle, (c, v) -> c.dragonTitle = v)
+            .add("titleSound", true, c -> c.titleSound, (c, v) -> c.titleSound = v)
+            .add("sendSpawned", true, c -> c.sendSpawned, (c, v) -> c.sendSpawned = v)
+            .add("sendTime", true, c -> c.sendTime, (c, v) -> c.sendTime = v)
+            .add("sendSpray", true, c -> c.sendSpray, (c, v) -> c.sendSpray = v)
+            .add("sendArrows", true, c -> c.sendArrows, (c, v) -> c.sendArrows = v)
+            .add("sendConfirmation", true, c -> c.sendConfirmation, (c, v) -> c.sendConfirmation = v)
+            .add("dragonPriority", true, c -> c.dragonPriority, (c, v) -> c.dragonPriority = v)
+            .add("firstDragonOnly", true, c -> c.firstDragonOnly, (c, v) -> c.firstDragonOnly = v)
+            .add("relicsEnabled", false, c -> c.relicsEnabled, (c, v) -> c.relicsEnabled = v)
+            .add("relicSpawnTimer", true, c -> c.relicSpawnTimer, (c, v) -> c.relicSpawnTimer = v)
+            .add("relicHighlight", true, c -> c.relicHighlight, (c, v) -> c.relicHighlight = v)
+            .add("relicTracer", false, c -> c.relicTracer, (c, v) -> c.relicTracer = v)
+            .add("relicPlaceTime", true, c -> c.relicPlaceTime, (c, v) -> c.relicPlaceTime = v)
+            .add("relicSummary", true, c -> c.relicSummary, (c, v) -> c.relicSummary = v)
+            .add("blockWrongRelic", false, c -> c.blockWrongRelic, (c, v) -> c.blockWrongRelic = v);
+
     private static void load0() {
         WitherDragonsConfig cfg = new WitherDragonsConfig();
         JsonObject o = ConfigJson.read(CONFIG_PATH);
         if (o != null) {
-            cfg.enabled = ConfigJson.getBool(o, "enabled", false);
-            cfg.dragonTimer = ConfigJson.getBool(o, "dragonTimer", true);
+            BOOLS.load(cfg, o);
             cfg.timerStyle = ConfigJson.getEnum(o, "timerStyle", TimerStyle.class, TimerStyle.MILLISECONDS);
-            cfg.timerSymbol = ConfigJson.getBool(o, "timerSymbol", true);
-            cfg.dragonBoxes = ConfigJson.getBool(o, "dragonBoxes", true);
-            cfg.dragonTracer = ConfigJson.getBool(o, "dragonTracer", true);
-            cfg.dragonHealth = ConfigJson.getBool(o, "dragonHealth", true);
-            cfg.dragonTitle = ConfigJson.getBool(o, "dragonTitle", true);
             cfg.titleMode = ConfigJson.getEnum(o, "titleMode", TitleMode.class, TitleMode.PRIORITY);
             cfg.nameStyle = ConfigJson.getEnum(o, "nameStyle", NameStyle.class, NameStyle.COLOUR);
-            cfg.titleSound = ConfigJson.getBool(o, "titleSound", true);
-            cfg.sendSpawned = ConfigJson.getBool(o, "sendSpawned", true);
-            cfg.sendTime = ConfigJson.getBool(o, "sendTime", true);
-            cfg.sendSpray = ConfigJson.getBool(o, "sendSpray", true);
-            cfg.sendArrows = ConfigJson.getBool(o, "sendArrows", true);
-            cfg.sendConfirmation = ConfigJson.getBool(o, "sendConfirmation", true);
-            cfg.dragonPriority = ConfigJson.getBool(o, "dragonPriority", true);
             cfg.soloDebuff = ConfigJson.getEnum(o, "soloDebuff", SoloDebuff.class, SoloDebuff.TANK);
-            cfg.firstDragonOnly = ConfigJson.getBool(o, "firstDragonOnly", true);
             cfg.classOverride = ConfigJson.getEnum(o, "classOverride", ClassOverride.class, ClassOverride.AUTO);
-            cfg.relicsEnabled = ConfigJson.getBool(o, "relicsEnabled", false);
-            cfg.relicSpawnTimer = ConfigJson.getBool(o, "relicSpawnTimer", true);
             cfg.relicSpawnTicks = Math.max(0, Math.min(100, ConfigJson.getInt(o, "relicSpawnTicks", 38)));
-            cfg.relicHighlight = ConfigJson.getBool(o, "relicHighlight", true);
-            cfg.relicTracer = ConfigJson.getBool(o, "relicTracer", false);
-            cfg.relicPlaceTime = ConfigJson.getBool(o, "relicPlaceTime", true);
-            cfg.relicSummary = ConfigJson.getBool(o, "relicSummary", true);
-            cfg.blockWrongRelic = ConfigJson.getBool(o, "blockWrongRelic", false);
         }
         instance = cfg;
     }
 
     public void save() {
         JsonObject o = new JsonObject();
-        o.addProperty("enabled", enabled);
-        o.addProperty("dragonTimer", dragonTimer);
+        BOOLS.save(this, o);
         o.addProperty("timerStyle", timerStyle.name());
-        o.addProperty("timerSymbol", timerSymbol);
-        o.addProperty("dragonBoxes", dragonBoxes);
-        o.addProperty("dragonTracer", dragonTracer);
-        o.addProperty("dragonHealth", dragonHealth);
-        o.addProperty("dragonTitle", dragonTitle);
         o.addProperty("titleMode", titleMode.name());
         o.addProperty("nameStyle", nameStyle.name());
-        o.addProperty("titleSound", titleSound);
-        o.addProperty("sendSpawned", sendSpawned);
-        o.addProperty("sendTime", sendTime);
-        o.addProperty("sendSpray", sendSpray);
-        o.addProperty("sendArrows", sendArrows);
-        o.addProperty("sendConfirmation", sendConfirmation);
-        o.addProperty("dragonPriority", dragonPriority);
         o.addProperty("soloDebuff", soloDebuff.name());
-        o.addProperty("firstDragonOnly", firstDragonOnly);
         o.addProperty("classOverride", classOverride.name());
-        o.addProperty("relicsEnabled", relicsEnabled);
-        o.addProperty("relicSpawnTimer", relicSpawnTimer);
         o.addProperty("relicSpawnTicks", relicSpawnTicks);
-        o.addProperty("relicHighlight", relicHighlight);
-        o.addProperty("relicTracer", relicTracer);
-        o.addProperty("relicPlaceTime", relicPlaceTime);
-        o.addProperty("relicSummary", relicSummary);
-        o.addProperty("blockWrongRelic", blockWrongRelic);
         ConfigJson.write(CONFIG_PATH, o);
     }
 

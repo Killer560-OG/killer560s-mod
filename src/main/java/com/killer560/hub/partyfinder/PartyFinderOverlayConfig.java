@@ -1,6 +1,7 @@
 package com.killer560.hub.partyfinder;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -115,22 +116,27 @@ public final class PartyFinderOverlayConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<PartyFinderOverlayConfig> BOOLS = new BoolFields<PartyFinderOverlayConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("highlight", true, c -> c.highlight, (c, v) -> c.highlight = v)
+            .add("ignoreCataRequirement", false, c -> c.ignoreCataRequirement, (c, v) -> c.ignoreCataRequirement = v)
+            .add("ignoreRoleLevel", false, c -> c.ignoreRoleLevel, (c, v) -> c.ignoreRoleLevel = v)
+            .add("ignoreOwnRole", false, c -> c.ignoreOwnRole, (c, v) -> c.ignoreOwnRole = v)
+            .add("memberCount", true, c -> c.memberCount, (c, v) -> c.memberCount = v)
+            .add("tooltip", true, c -> c.tooltip, (c, v) -> c.tooltip = v)
+            .add("showMissing", true, c -> c.showMissing, (c, v) -> c.showMissing = v)
+            .add("rankNameColors", false, c -> c.rankNameColors, (c, v) -> c.rankNameColors = v);
+
     public static void load() {
         PartyFinderOverlayConfig cfg = new PartyFinderOverlayConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.highlight = ConfigJson.getBool(obj, "highlight", true);
-                cfg.ignoreCataRequirement = ConfigJson.getBool(obj, "ignoreCataRequirement", false);
-                cfg.ignoreRoleLevel = ConfigJson.getBool(obj, "ignoreRoleLevel", false);
-                cfg.ignoreOwnRole = ConfigJson.getBool(obj, "ignoreOwnRole", false);
+                BOOLS.load(cfg, obj);
                 cfg.joinableColor = ConfigJson.getInt(obj, "joinableColor", DEFAULT_JOINABLE_COLOR);
                 cfg.blockedColor = ConfigJson.getInt(obj, "blockedColor", DEFAULT_BLOCKED_COLOR);
-                cfg.memberCount = ConfigJson.getBool(obj, "memberCount", true);
                 cfg.countColor = ConfigJson.getInt(obj, "countColor", DEFAULT_COUNT_COLOR);
-                cfg.tooltip = ConfigJson.getBool(obj, "tooltip", true);
-                cfg.showMissing = ConfigJson.getBool(obj, "showMissing", true);
                 cfg.pbMode = ConfigJson.getEnum(obj, "pbMode", PbMode.class, PbMode.BOTH);
                 cfg.compactMode = ConfigJson.getEnum(obj, "compactMode", CompactMode.class, CompactMode.NONE);
                 cfg.setCustomStyle(ConfigJson.getString(obj, "customStyle", ""));
@@ -144,7 +150,6 @@ public final class PartyFinderOverlayConfig {
                 }
                 String active = ConfigJson.getString(obj, "activeStyle", "");
                 cfg.activeStyle = cfg.findSavedName(active) != null ? cfg.findSavedName(active) : "";
-                cfg.rankNameColors = ConfigJson.getBool(obj, "rankNameColors", false);
             } catch (Exception ignored) {
                 // unreadable file - defaults
             }
@@ -156,17 +161,10 @@ public final class PartyFinderOverlayConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("highlight", highlight);
-            obj.addProperty("ignoreCataRequirement", ignoreCataRequirement);
-            obj.addProperty("ignoreRoleLevel", ignoreRoleLevel);
-            obj.addProperty("ignoreOwnRole", ignoreOwnRole);
+            BOOLS.save(this, obj);
             obj.addProperty("joinableColor", joinableColor);
             obj.addProperty("blockedColor", blockedColor);
-            obj.addProperty("memberCount", memberCount);
             obj.addProperty("countColor", countColor);
-            obj.addProperty("tooltip", tooltip);
-            obj.addProperty("showMissing", showMissing);
             obj.addProperty("pbMode", pbMode.name());
             obj.addProperty("compactMode", compactMode.name());
             obj.addProperty("customStyle", customStyle);
@@ -179,7 +177,6 @@ public final class PartyFinderOverlayConfig {
             });
             obj.add("savedStyles", saved);
             obj.addProperty("activeStyle", activeStyle);
-            obj.addProperty("rankNameColors", rankNameColors);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

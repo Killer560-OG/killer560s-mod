@@ -1,6 +1,7 @@
 package com.killer560.hub.thorn;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -109,6 +110,24 @@ public final class ThornConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<ThornConfig> BOOLS = new BoolFields<ThornConfig>()
+            .add("bearHud", false, c -> c.bearHud, (c, v) -> c.bearHud = v)
+            .add("showOverkill", false, c -> c.showOverkill, (c, v) -> c.showOverkill = v)
+            .add("overkillChat", false, c -> c.overkillChat, (c, v) -> c.overkillChat = v)
+            .add("overkillToParty", false, c -> c.overkillToParty, (c, v) -> c.overkillToParty = v)
+            .add("bearEsp", false, c -> c.bearEsp, (c, v) -> c.bearEsp = v)
+            .add("thornEsp", false, c -> c.thornEsp, (c, v) -> c.thornEsp = v)
+            .add("mobEsp", false, c -> c.mobEsp, (c, v) -> c.mobEsp = v)
+            .add("bowEsp", false, c -> c.bowEsp, (c, v) -> c.bowEsp = v)
+            .add("throughWalls", false, c -> c.throughWalls, (c, v) -> c.throughWalls = v)
+            .add("allMobsThroughWalls", false, c -> c.allMobsThroughWalls, (c, v) -> c.allMobsThroughWalls = v)
+            .add("batsThroughWalls", false, c -> c.batsThroughWalls, (c, v) -> c.batsThroughWalls = v)
+            .add("stunSpots", false, c -> c.stunSpots, (c, v) -> c.stunSpots = v)
+            .add("stunSpotLabels", true, c -> c.stunSpotLabels, (c, v) -> c.stunSpotLabels = v)
+            .add("triggerbot", false, c -> c.triggerbot, (c, v) -> c.triggerbot = v)
+            .add("triggerbotAimed", true, c -> c.triggerbotAimed, (c, v) -> c.triggerbotAimed = v);
+
     public static void load() {
         ThornConfig cfg = new ThornConfig();
         JsonObject obj = null;
@@ -124,27 +143,13 @@ public final class ThornConfig {
             // (2026-10-15): they are independent. A file saved with it OFF had them all standing down, so they load OFF
             // (see below); the key is not written back.
             boolean legacyWholeOff = obj.has("thornEnabled") && !ConfigJson.getBool(obj, "thornEnabled", true);
-            cfg.bearHud = ConfigJson.getBool(obj, "bearHud", false);
-            cfg.showOverkill = ConfigJson.getBool(obj, "showOverkill", false);
-            cfg.overkillChat = ConfigJson.getBool(obj, "overkillChat", false);
-            cfg.overkillToParty = ConfigJson.getBool(obj, "overkillToParty", false);
-            cfg.bearEsp = ConfigJson.getBool(obj, "bearEsp", false);
-            cfg.thornEsp = ConfigJson.getBool(obj, "thornEsp", false);
+            BOOLS.load(cfg, obj);
             cfg.thornColor = ConfigJson.getInt(obj, "thornColor", DEFAULT_THORN_COLOR);
-            cfg.mobEsp = ConfigJson.getBool(obj, "mobEsp", false);
-            cfg.bowEsp = ConfigJson.getBool(obj, "bowEsp", false);
             cfg.bearColor = ConfigJson.getInt(obj, "bearColor", DEFAULT_BEAR_COLOR);
             cfg.mobColor = ConfigJson.getInt(obj, "mobColor", DEFAULT_MOB_COLOR);
             cfg.bowColor = ConfigJson.getInt(obj, "bowColor", DEFAULT_BOW_COLOR);
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.OUTLINE);
             cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2.0f));
-            cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", false);
-            cfg.allMobsThroughWalls = ConfigJson.getBool(obj, "allMobsThroughWalls", false);
-            cfg.batsThroughWalls = ConfigJson.getBool(obj, "batsThroughWalls", false);
-            cfg.stunSpots = ConfigJson.getBool(obj, "stunSpots", false);
-            cfg.stunSpotLabels = ConfigJson.getBool(obj, "stunSpotLabels", true);
-            cfg.triggerbot = ConfigJson.getBool(obj, "triggerbot", false);
-            cfg.triggerbotAimed = ConfigJson.getBool(obj, "triggerbotAimed", true);
             cfg.stunSpotColor = ConfigJson.getInt(obj, "stunSpotColor", DEFAULT_STUN_SPOT_COLOR);
             if (legacyWholeOff) {
                 cfg.bearHud = false;
@@ -178,27 +183,13 @@ public final class ThornConfig {
 
     public void save() {
         JsonObject obj = new JsonObject();
-        obj.addProperty("bearHud", bearHud);
-        obj.addProperty("showOverkill", showOverkill);
-        obj.addProperty("overkillChat", overkillChat);
-        obj.addProperty("overkillToParty", overkillToParty);
-        obj.addProperty("bearEsp", bearEsp);
-        obj.addProperty("thornEsp", thornEsp);
+        BOOLS.save(this, obj);
         obj.addProperty("thornColor", thornColor);
-        obj.addProperty("mobEsp", mobEsp);
-        obj.addProperty("bowEsp", bowEsp);
         obj.addProperty("bearColor", bearColor);
         obj.addProperty("mobColor", mobColor);
         obj.addProperty("bowColor", bowColor);
         obj.addProperty("style", style.name());
         obj.addProperty("lineWidth", lineWidth);
-        obj.addProperty("throughWalls", throughWalls);
-        obj.addProperty("allMobsThroughWalls", allMobsThroughWalls);
-        obj.addProperty("batsThroughWalls", batsThroughWalls);
-        obj.addProperty("stunSpots", stunSpots);
-        obj.addProperty("stunSpotLabels", stunSpotLabels);
-        obj.addProperty("triggerbot", triggerbot);
-        obj.addProperty("triggerbotAimed", triggerbotAimed);
         obj.addProperty("stunSpotColor", stunSpotColor);
         JsonArray spots = new JsonArray();
         for (StunSpot s : stunSpotList) {
