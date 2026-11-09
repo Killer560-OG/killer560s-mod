@@ -820,6 +820,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   of Entity.collide, for every banked tick plus the firing tick (gravity and drag after a vertical miss), once per
   client tick. The old box stopped at the first block in the way, so a half slab or a stair stopped it (killer560
   2026-11-05); testkit 1105-blink-predict-step shoots over a slab, a stair and a raised floor.
+- His attack in the shot's tick was lost (blinkone-1106, 1105-blink-oneshot-same-attack "his ticks 0"): the Charge key is
+  read before that tick's handleKeybinds, so the shot carried him 10+ blocks past what he clicked and vanilla's queued
+  click hit nothing. A key shot now waits while `ActionGate.hisClickQueued(keyAttack)` (at most 250 ms): his click goes
+  alone, the shot the tick after. Then his hits drew Hitboxes: GrimAC places an entity at the pings he has ANSWERED, and
+  Charge holds answers ~1 s, so an entity moved under his crosshair was somewhere else to Grim. While answers are held,
+  moves of entities within 20 blocks (move / teleport / position sync) wait in the held-block queue behind their ping's
+  answer (`BlinkCharge.holdEntityMove`), so he sees them where GrimAC has them.
 
 - State that is counted per tick (a wait after a world change, a cooldown) must be counted before a feature's "switched
   off" early return. Blink's spawn settle (5fa141f2) was counted only while Blink was on, so with Blink off at the world
