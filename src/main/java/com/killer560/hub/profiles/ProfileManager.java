@@ -526,7 +526,6 @@ public final class ProfileManager {
                 com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
                 com.killer560.hub.freelook.FreelookConfig::load,
                 com.killer560.hub.terminatorclicker.TerminatorClickerConfig::load,
-                com.killer560.hub.ghostblock.GhostBlockConfig::load,
                 com.killer560.hub.blink.BlinkConfig::load,
                 com.killer560.hub.invwalk.InventoryWalkConfig::load,
                 com.killer560.hub.zpew.ZeroPingEtherwarpConfig::load,

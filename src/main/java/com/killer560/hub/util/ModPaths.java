@@ -86,7 +86,8 @@ public final class ModPaths {
             "killer560smod-sim-roompicker.txt",                                // sim room picker, replaced by filters
             "killer560smod-sim-runs",                                          // sim runs, now the run history
             "killer560smod-spotify-setup-guide.txt",                           // generated guide, no longer written
-            "killer560smod-dungeonwaypoints.json"                              // Dungeon Waypoints, removed 2026-11-09 (secret waypoints cover it)
+            "killer560smod-dungeonwaypoints.json",                             // Dungeon Waypoints, removed 2026-11-09
+            "killer560smod-ghostblock.json"                                    // Ghost Block, removed 2026-11-09
     );
 
     /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */
@@ -121,7 +122,6 @@ public final class ModPaths {
         t.put("autotrap", "dungeons/autotrap");
         t.put("blink", "dungeons/blink");
         t.put("terminatorclicker", "dungeons/terminatorclicker");
-        t.put("ghostblock", "dungeons/ghostblock");
         t.put("invwalk", "skyblock/invwalk");
         t.put("zpew", "dungeons/zpew");
         t.put("leftclickew", "dungeons/leftclickew");
