@@ -288,7 +288,7 @@ public final class BreakerAuraFeature {
     // tick the aura was live and had something it wanted to break, and says where each one went, once every five
     // seconds and only while it is actually working.
     private static long censusFrom;
-    private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach, cObsidian;
+    private static int cTicks, cSent, cGate, cAim, cWindow, cNoFace, cCooldown, cSwapWait, cOutOfReach, cObsidian;
 
     /** How far ahead of him a block is, along the way he is moving (negative = behind). */
     private static double ahead(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
@@ -313,6 +313,8 @@ public final class BreakerAuraFeature {
         switch (bucket) {
             case "sent" -> cSent++;
             case "gate" -> cGate++;
+            case "aim" -> cAim++;
+            case "window" -> cWindow++;
             case "face" -> cNoFace++;
             case "cooldown" -> cCooldown++;
             case "swap" -> cSwapWait++;
@@ -328,15 +330,16 @@ public final class BreakerAuraFeature {
             return;
         }
         double secs = (now - censusFrom) / 1000.0;
-        if (cSent > 0 || cGate > 0 || cObsidian > 0) {
+        if (cSent > 0 || cGate > 0 || cAim > 0 || cWindow > 0 || cObsidian > 0) {
             LOGGER.info("[DungeonExtras] Breaker Aura {} tick(s) over {}s: {} sent ({} a second, ceiling 20)"
-                            + " | {} gate gave the tick away | {} no face | {} cooldown | {} waiting on the swap"
+                            + " | {} gate gave the tick away | {} aiming or waiting on a look | {} another dig had the"
+                            + " server tick | {} no face | {} cooldown | {} waiting on the swap"
                             + " | {} holding an obsidian dig | {} nothing in reach",
                     cTicks, String.format("%.1f", secs), cSent, String.format("%.1f", cSent / secs),
-                    cGate, cNoFace, cCooldown, cSwapWait, cObsidian, cOutOfReach);
+                    cGate, cAim, cWindow, cNoFace, cCooldown, cSwapWait, cObsidian, cOutOfReach);
         }
         censusFrom = now;
-        cTicks = cSent = cGate = cNoFace = cCooldown = cSwapWait = cOutOfReach = cObsidian = 0;
+        cTicks = cSent = cGate = cAim = cWindow = cNoFace = cCooldown = cSwapWait = cOutOfReach = cObsidian = 0;
     }
 
     private static void skip(String reason) {
@@ -946,7 +949,7 @@ public final class BreakerAuraFeature {
             com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
             logRated("window", "[BreakerAura] held: a dig already went this server tick (GrimAC MultiBreak), {} target(s)"
                     + " in reach, first {}", order.size(), order.get(0).toShortString());
-            census("gate"); // another dig owns this server tick
+            census("window"); // another dig owns this server tick
             return;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
@@ -990,10 +993,10 @@ public final class BreakerAuraFeature {
                     }
                 }
                 logRated("aim", "[BreakerAura] aim: no pick on the look the server has - {} ({} target(s) in reach)",
-                        aimed == null ? "none can be aimed without steering his walk, waiting"
+                        aimed == null ? "no look that keeps his walk strikes one, waiting"
                                 : "aimed " + how + " at " + aimed.toShortString() + ", dug next tick", order.size());
-                skip(aimed == null ? "picks need a yaw turn while you walk" : "aiming at the next pick");
-                census("gate");
+                skip(aimed == null ? "no look that keeps your walk strikes a pick" : "aiming at the next pick");
+                census("aim");
                 return;
             }
             order = burst ? onLook : List.of(ready);
