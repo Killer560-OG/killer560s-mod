@@ -164,10 +164,23 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   the look changes only where it cannot move him: pitch freely (horizontal movement uses yaw alone; not in water, lava,
   gliding or riding), the body's yaw kept on his view's yaw every tick so his mouse still steers; yaw only while no
   movement key is down and he is not sprinting, snapped back to his view the tick a key goes down, before travel. Picks
-  needing a yaw turn while he walks wait (`dungeonextras/BreakerAim`). Scenario 50: 118 blocks cleared, 0 flags (old: 127
+  needing a yaw turn while he walks wait (`dungeonextras/BreakerAim`; since balate-1109 they turn in 45-degree steps with
+  his keys turned to match, see the next entry). Scenario 50: 118 blocks cleared, 0 flags (old: 127
   cleared, 200 digs, 87 flags). Also: a vanilla-instant break must be predicted at once (as vanilla's startDestroyBlock and
   Grim's handleDigging do) - kept standing until the server's update, he walked into a block Grim had as air, Simulation
   x17-19 in 51 once the aura dug one a tick right in front of him.
+- **Breaker Aura was late while he walked, and snapped his camera on S1 (balate-1109).** Picks off his look waited
+  for him to stop (above: no yaw turn while a key is down), so on S1 a wall was reached 3-5 ticks late and a pick he
+  walked past never broke; the census called those waits "gate gave the tick away" (now "aiming or waiting on a look").
+  Fix: movement is his eight-way keys turned by the body yaw, so the body may turn k x 45 degrees off his view when the
+  keys are turned k steps back at the end of `KeyboardInput.tick` (`mixin/BreakerAuraInputMixin`): the push is the same
+  to the bit. Only combinations that keep W when his keys have it (sprint starts and stops on `hasForwardImpulse`,
+  moveVector.y > 0), none on a sprint jump's take-off tick (the boost goes along the yaw), none while AP3 drives (its
+  held walk gives its own allowed yaws, `TurnFirst.yawConstraint`), and never while AP3 owns the body
+  (`TurnFirst.bodyOwned`). The camera snap: under AP3's own view freeze the body yaw is not the camera, and the aura held
+  ViewFreeze with the BODY's yaw while AP3's mouse hook moved only AP3's view, so the camera fell onto the stale hold
+  when AP3 let go. Hold the VIEW (`getViewYRot/XRot`), and AP3's mouse hook turns ViewFreeze's view too. Testkit
+  1109-breaker-walkpast-* measure reach -> first dig per pick on the wire and the camera's per-tick step.
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
