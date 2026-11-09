@@ -695,7 +695,7 @@ final class SettingTooltipsData {
         d.put("posmsg/text scale", "Size of the floating message label on this waypoint.");
         d.put("posmsg/text height", "How many blocks above the waypoint the label floats.");
         d.put("send mel coords on open", "Sends your block position to party chat when a Melody terminal opens (F7/M7 boss).");
-        d.put("milestone display", "A small HUD counting the dungeon milestones you have reached this run (red at 0 and 1, yellow at 2, green at 3), read from the milestone chat lines. Move it in Edit HUD.");
+        d.put("milestone display", "A small HUD counting the dungeon milestones you have reached this run (red at 0 and 1, orange at 2, green from 3, counting up to 9), read from the milestone chat lines. Move it in Edit HUD.");
         d.put("salvage helper", "Marks cheap dungeon gear in the Salvage Items and Trades menus so you can see what is safe to salvage or sell. Highlight only: it never clicks. Needs item prices, which it loads in the background.");
         d.put("salvage helper/highlight in salvage menu", "Yellow marks on dungeon gear worth less than the Max Item Value (its lowest BIN) in the Salvage Items menu and your inventory beside it.");
         d.put("salvage helper/highlight in trades menu", "Green marks on dungeon gear worth less than the Max Item Value in the Trades menu, so you know what to sell.");
