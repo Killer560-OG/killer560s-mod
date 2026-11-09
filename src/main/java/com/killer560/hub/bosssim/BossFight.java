@@ -2079,6 +2079,7 @@ public final class BossFight {
      */
     static final class BossMob {
         final String name;
+        /** Null while the sim's Spawn Withers switch is OFF (the tag and speech stands still show). */
         final SimWither wither;
         Vec3 pos;
         private ArmorStand tag;
@@ -2088,13 +2089,17 @@ public final class BossFight {
         BossMob(String name, Vec3 at, int tagDelay) {
             this.name = name;
             this.pos = at;
-            wither = new SimWither(level);
-            wither.setNoAi(true);
-            wither.setSilent(true);
-            wither.setNoGravity(true);
-            wither.snapTo(at.x, at.y, at.z, 0f, 0f);
-            wither.setHealth(1f);
-            level.addFreshEntity(wither);
+            if (BossStartScreen.spawnWithers()) {
+                wither = new SimWither(level);
+                wither.setNoAi(true);
+                wither.setSilent(true);
+                wither.setNoGravity(true);
+                wither.snapTo(at.x, at.y, at.z, 0f, 0f);
+                wither.setHealth(1f);
+                level.addFreshEntity(wither);
+            } else {
+                wither = null;
+            }
             if (tagDelay <= 0) {
                 showTag();
             } else {
@@ -2103,7 +2108,7 @@ public final class BossFight {
         }
 
         private void showTag() {
-            if (wither.isRemoved()) {
+            if (wither != null && wither.isRemoved()) {
                 return;
             }
             tag = marker("§e﴾ §c§l" + name + "§r §e﴿", 3.6875);
@@ -2138,7 +2143,7 @@ public final class BossFight {
         }
 
         void armour(boolean on) {
-            if (wither.getHealth() > 0f) {
+            if (wither != null && wither.getHealth() > 0f) {
                 wither.setHealth(on ? 1f : wither.getMaxHealth());
             }
         }
@@ -2146,13 +2151,15 @@ public final class BossFight {
         /** Puts him at {@code p}, facing {@code look} (yaw = atan2(-dx, dz), as Hypixel's withers turn); null keeps his yaw. */
         void moveTo(Vec3 p, Vec3 look) {
             pos = p;
-            float yaw = wither.getYRot();
+            float yaw = wither == null ? 0f : wither.getYRot();
             if (look != null && (Math.abs(look.x - p.x) > 1e-6 || Math.abs(look.z - p.z) > 1e-6)) {
                 yaw = (float) Math.toDegrees(Math.atan2(-(look.x - p.x), look.z - p.z));
             }
-            wither.snapTo(p.x, p.y, p.z, yaw, 0f);
-            wither.setYHeadRot(yaw);
-            wither.yBodyRot = yaw;
+            if (wither != null) {
+                wither.snapTo(p.x, p.y, p.z, yaw, 0f);
+                wither.setYHeadRot(yaw);
+                wither.yBodyRot = yaw;
+            }
             if (tag != null) {
                 tag.snapTo(p.x, p.y + 3.6875, p.z, 0f, 0f);
             }
@@ -2174,12 +2181,16 @@ public final class BossFight {
         }
 
         void die() {
-            wither.setHealth(0f);
+            if (wither != null) {
+                wither.setHealth(0f);
+            }
             discardStands();
         }
 
         void remove() {
-            wither.discard();
+            if (wither != null) {
+                wither.discard();
+            }
             discardStands();
         }
 
@@ -2359,7 +2370,7 @@ public final class BossFight {
         switch (boss) {
             case "Maxor", "Goldor", "Necron" -> {
                 BossMob m = mob(boss);
-                if (m != null) {
+                if (m != null && m.wither != null) {
                     onHurt(m.wither, 1);
                 }
             }
@@ -2493,7 +2504,7 @@ public final class BossFight {
     /** Testkit: lava under {@code boss}'s wither and a fire hit with no player behind it; true if any was offered. */
     public static boolean testStrayDamage(String boss) {
         BossMob m = mob(boss);
-        if (m == null) {
+        if (m == null || m.wither == null) {
             return false;
         }
         BossBlocks.set(level, m.wither.blockPosition().below(), BossBlocks.of("minecraft:lava"));
