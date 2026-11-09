@@ -187,8 +187,10 @@ public final class BossFight {
     private static final int[] placedAt = {-1, -1};
     private static final ArmorStand[][] pylonStands = new ArmorStand[2][];
     private static final List<Integer> placeTimes = new ArrayList<>();
-    private static ItemStack savedSlot8;
-    private static int carrying;
+    /** Per player (coopsim-1109): each carrier's own slot 8 comes back to him, never to the host. */
+    private static final java.util.Map<java.util.UUID, ItemStack> savedSlot8 = new java.util.HashMap<>();
+    /** Crystals each player carries (coopsim-1109): a pylon takes only the clicker's own. */
+    private static final java.util.Map<java.util.UUID, Integer> carrying = new java.util.HashMap<>();
     private static boolean pylonsOpen, beaconIn, maxorStunned;
     private static int laserHits, chargeAt = -1, maxorEnrageAt = -1, maxorMoveAt, maxorTauntAt = -1, maxorSkullAt = -1;
     private static int maxorStunLines, maxorDamage, maxorKilledAt = -1, maxorBelowAt = -1;
@@ -255,6 +257,11 @@ public final class BossFight {
         return phase == Phase.P3 ? section : 0;
     }
 
+    /** The fight is Master Mode (the co-op state tells guests). */
+    public static boolean master() {
+        return master;
+    }
+
     public static boolean running() {
         return phase != Phase.IDLE && phase != Phase.DONE;
     }
@@ -284,10 +291,7 @@ public final class BossFight {
             removeStands(pylonStands[i]);
             topLabels[i] = pylonStands[i] = null;
         }
-        if (savedSlot8 != null && server != null) {
-            giveCrystal(server.getPlayerList().getPlayers().stream().findFirst().orElse(null), false);
-        }
-        savedSlot8 = null;
+        returnAllCrystalSlots();
         for (int i = 0; i < 5; i++) {
             discard(dragons[i]);
             dragons[i] = null;
@@ -346,7 +350,7 @@ public final class BossFight {
         level = s.overworld();
         master = masterMode;
         forceChunks(true);
-        carrying = 0;
+        carrying.clear();
         placeTimes.clear();
         java.util.Arrays.fill(placedAt, -1);
         pylonsOpen = beaconIn = maxorStunned = false;
@@ -734,7 +738,7 @@ public final class BossFight {
 
     /** Hypixel needs no click near a crystal: within 1 block of a tower crystal picks it up, within 1 of an open pad places one. */
     private static void walkInCrystals() {
-        if (maxorKilledAt >= 0 || (tops[0] == null && tops[1] == null && carrying <= 0)) {
+        if (maxorKilledAt >= 0 || (tops[0] == null && tops[1] == null && carrying.isEmpty())) {
             return;
         }
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
@@ -743,7 +747,7 @@ public final class BossFight {
                     pickUpCrystal(p, i);
                 }
             }
-            if (carrying > 0) {
+            if (carried(p) > 0) {
                 usePylon(p, 1.0);
             }
         }
@@ -757,7 +761,7 @@ public final class BossFight {
         tops[i] = null;
         removeStands(topLabels[i]);
         topLabels[i] = null;
-        carrying++;
+        carrying.merge(p.getUUID(), 1, Integer::sum);
         giveCrystal(p, true);
         BossChat.chat(server, "§b" + p.getGameProfile().name() + "§r§a picked up an §r§bEnergy Crystal§r§a!");
     }
@@ -768,17 +772,37 @@ public final class BossFight {
             return;
         }
         if (on) {
-            if (savedSlot8 == null) {
-                savedSlot8 = p.getInventory().getItem(8).copy();
-            }
+            savedSlot8.putIfAbsent(p.getUUID(), p.getInventory().getItem(8).copy());
             ItemStack star = new ItemStack(Items.NETHER_STAR);
             star.set(DataComponents.CUSTOM_NAME, Component.literal("Energy Crystal")
                     .withStyle(s -> s.withItalic(false).withColor(ChatFormatting.AQUA)));
             p.getInventory().setItem(8, star);
-        } else if (savedSlot8 != null) {
-            p.getInventory().setItem(8, savedSlot8);
-            savedSlot8 = null;
+        } else {
+            ItemStack saved = savedSlot8.remove(p.getUUID());
+            if (saved != null) {
+                p.getInventory().setItem(8, saved);
+            }
         }
+    }
+
+    private static int carried(ServerPlayer p) {
+        return carrying.getOrDefault(p.getUUID(), 0);
+    }
+
+    /** Every carrier still on the server gets his own slot 8 back; nobody carries anything after. */
+    private static void returnAllCrystalSlots() {
+        if (server != null) {
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                giveCrystal(p, false);
+            }
+        }
+        savedSlot8.clear();
+        carrying.clear();
+    }
+
+    /** Testkit (coopsim-1109): crystals {@code uuid} carries now. */
+    public static int carriedForTest(java.util.UUID uuid) {
+        return carrying.getOrDefault(uuid, 0);
     }
 
     /** A click on a tower crystal or its stands picks it up; a click on a pylon's stand places one. */
@@ -833,12 +857,13 @@ public final class BossFight {
         if (!pylonsOpen || placed[i] != null || maxorKilledAt >= 0) {
             return;
         }
-        if (carrying <= 0) {
-            BossChat.chat(server, "§cYou do not current have an §r§bEnergy Crystal§r§c! Find one and bring it here!");
+        if (carried(p) <= 0) {
+            // Said to the one who clicked, as Hypixel's "You" line is.
+            p.sendSystemMessage(BossChat.legacy("§cYou do not current have an §r§bEnergy Crystal§r§c! Find one and bring it here!"));
             return;
         }
-        carrying--;
-        if (carrying == 0) {
+        if (carrying.merge(p.getUUID(), -1, Integer::sum) <= 0) {
+            carrying.remove(p.getUUID());
             giveCrystal(p, false);
         }
         placed[i] = crystal(PYLONS[i]);
@@ -972,8 +997,7 @@ public final class BossFight {
                 removeStands(pylonStands[i]);
                 pylonStands[i] = null;
             }
-            carrying = 0;
-            giveCrystal(closest(maxor.pos), false);
+            returnAllCrystalSlots();
             LOGGER.info("[BossSim] Maxor down at P1 t {}", t);
         }
         if (since == STORM_AFTER - 3) {

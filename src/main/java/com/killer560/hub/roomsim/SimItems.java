@@ -124,7 +124,9 @@ public final class SimItems {
                 (player, level, hand, pos, direction) -> {
                     if (player instanceof ServerPlayer sp) return onServerAttack(sp, hand, pos.immutable(), direction);
                     Minecraft client = Minecraft.getInstance();
-                    if (!SimState.canAct(client) || player != client.player) return net.minecraft.world.InteractionResult.PASS;
+                    if (!(SimState.canAct(client) || SimState.isGuest(client)) || player != client.player) {
+                        return net.minecraft.world.InteractionResult.PASS;
+                    }
                     // PUZZLES GET THE CLICK FIRST, whatever is in hand.
                     //
                     // Creeper Beams: killer560 (2026-10-01) "creeper beams does nothing when i shoot the
@@ -151,8 +153,12 @@ public final class SimItems {
         // recoverable.
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (level, player, pos, state, entity) -> {
-                    Minecraft client = Minecraft.getInstance();
-                    if (!SimState.isActive() || client == null || player != client.player) return true;
+                    // Fabric fires BEFORE only on the SERVER, with the ServerPlayer: the old `player != client.player`
+                    // test was always true, so this never refused anything (coopsim-1109). Every survival player on
+                    // the sim's server is refused now, host and co-op guest alike; creative still breaks (building).
+                    if (!(player instanceof ServerPlayer sp) || !SimAbilities.simServer(sp) || sp.isCreative()) return true;
+                    com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] vanilla break refused for {} at {}",
+                            sp.getGameProfile().name(), pos.toShortString());
                     // NOTHING breaks through vanilla in the sim, not even the Dungeon Breaker.
                     //
                     // It used to allow the break when the breaker was held, which meant two things destroyed
@@ -365,7 +371,9 @@ public final class SimItems {
                 com.killer560.hub.util.ModLog.get("killer560smod-sim").info(
                         "[Sim] Spirit Sceptre at {} (pitch {}) yaw {}", sp.blockPosition().toShortString(),
                         Float.toString(sp.getXRot()), Float.toString(sp.getYRot()));
-                SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance())));
+                // A co-op guest's bats are its own: they fly from its aim and hurt as it (null: the host, unchanged).
+                java.util.UUID guest = SimCoop.isHost(sp) ? null : sp.getUUID();
+                SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance(), guest)));
                 yield true;
             }
             // Always true, so the click is consumed and vanilla never starts drawing the bow. killer560
@@ -374,9 +382,11 @@ public final class SimItems {
             // particular click produces one. Right click is always the shot, never Salvation.
             case "TERMINATOR" -> {
                 SimAim.Aim aim = SimAim.of(sp);
+                // A co-op guest shoots from itself with its own fire rate; the host's path is unchanged (guest null).
+                java.util.UUID guest = SimCoop.isHost(sp) ? null : sp.getUUID();
                 SimAbilities.onClient(() -> {
-                    if (SimTerminator.readyToFire()) {
-                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false));
+                    if (SimTerminator.readyToFire(guest)) {
+                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false, guest));
                     }
                 });
                 yield true;

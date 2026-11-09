@@ -264,6 +264,7 @@ public final class BossDevices {
     }
 
     static void stop() {
+        java.util.Arrays.fill(lastBy, null);
         ssOn = false;
         ssGen++;
         ssJobs.clear();
@@ -361,8 +362,33 @@ public final class BossDevices {
     }
 
     private static void done(ServerLevel level, int section) {
-        ServerPlayer by = level.getServer().getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        java.util.UUID u = lastBy[section];
+        ServerPlayer by = u == null ? null : level.getServer().getPlayerList().getPlayer(u);
+        if (by == null) {
+            by = level.getServer().getPlayerList().getPlayers().stream().findFirst().orElse(null);
+        }
         BossStations.complete(level, BossStations.device(section), by);
+    }
+
+    /**
+     * Who last worked each device (1 Simon Says, 2 Lights, 3 Arrows, 4 Target), so its completion line names the player
+     * who finished it, not the host (coopsim-1109). A UUID, not the entity: a player who left is no one's credit.
+     */
+    private static final java.util.UUID[] lastBy = new java.util.UUID[5];
+
+    static void noteActor(int section, ServerPlayer sp) {
+        if (sp != null && section >= 1 && section <= 4) {
+            lastBy[section] = sp.getUUID();
+        }
+    }
+
+    /** A block use in the fight: a Simon Says button or a Lights lever names its device's worker. */
+    static void noteBlockUse(ServerPlayer sp, BlockPos p) {
+        if (p.getX() == 110 && p.getY() >= 120 && p.getY() <= 123 && p.getZ() >= 91 && p.getZ() <= 95) {
+            noteActor(1, sp);
+        } else if (p.getZ() == 142 && p.getX() >= 58 && p.getX() <= 62 && p.getY() >= 133 && p.getY() <= 136) {
+            noteActor(2, sp);
+        }
     }
 
     private static boolean powered(BlockState s) {
@@ -642,6 +668,9 @@ public final class BossDevices {
         List<AbstractArrow> hits = level.getEntitiesOfClass(AbstractArrow.class, box, a -> !a.isRemoved());
         if (hits.isEmpty()) {
             return;
+        }
+        if (hits.get(0).getOwner() instanceof ServerPlayer shooter) {
+            noteActor(4, shooter);
         }
         hits.forEach(AbstractArrow::discard);
         if (cur.equals(lit)) {

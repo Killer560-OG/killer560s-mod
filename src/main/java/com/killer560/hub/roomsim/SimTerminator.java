@@ -206,14 +206,22 @@ public final class SimTerminator {
         shotSeq = 0;
         salvationArmed = false;
         lastShotTick = -1000;
+        GUEST_LAST_SHOT.clear();
         tickCounter = 0;
         arrowsFired = 0;
     }
 
     /** Whether enough time has passed since the last shot, and claims the slot if so. */
-    public static boolean readyToFire() {
-        if (tickCounter - lastShotTick < SHOT_COOLDOWN_TICKS) return false;
-        lastShotTick = tickCounter;
+    public static boolean readyToFire() { return readyToFire(null); }
+
+    /** Each co-op guest's last shot (client tick count), by its UUID; cleared with {@link #reset}. */
+    private static final java.util.Map<UUID, Integer> GUEST_LAST_SHOT = new java.util.HashMap<>();
+
+    /** {@link #readyToFire()} for a co-op guest's own fire rate ({@code guest} null: the host's). Client thread. */
+    static boolean readyToFire(UUID guest) {
+        int last = guest == null ? lastShotTick : GUEST_LAST_SHOT.getOrDefault(guest, -1000);
+        if (tickCounter - last < SHOT_COOLDOWN_TICKS) return false;
+        if (guest == null) lastShotTick = tickCounter; else GUEST_LAST_SHOT.put(guest, tickCounter);
         return true;
     }
 
@@ -234,15 +242,21 @@ public final class SimTerminator {
      *
      * @return whether anything was fired
      */
-    public static boolean use(Minecraft client, boolean leftClick) {
+    public static boolean use(Minecraft client, boolean leftClick) { return use(client, leftClick, null); }
+
+    /**
+     * {@link #use(Minecraft, boolean)} for the shooter {@code guest} (a co-op guest's UUID; null for the host). A
+     * guest's arrows are owned by and fly from that guest (its aim comes in through SimAim); Salvation is the host's.
+     */
+    static boolean use(Minecraft client, boolean leftClick, UUID guest) {
         if (!SimState.canAct(client)) return false;
-        if (salvationArmed && leftClick) {
+        if (guest == null && salvationArmed && leftClick) {
             salvation(client);
             salvationArmed = false;
             MOBS_HIT.clear();
             return true;
         }
-        shoot(client);
+        shoot(client, guest);
         return true;
     }
 
@@ -253,13 +267,13 @@ public final class SimTerminator {
      * write in this package - see {@code SimDoors}' class doc. The yaw and pitch are read on the client,
      * because that is the only place that knows where the crosshair is right now; only the spawn crosses over.
      */
-    private static void shoot(Minecraft client) {
+    private static void shoot(Minecraft client, UUID guest) {
         var server = client.getSingleplayerServer();
         if (server == null || client.player == null) return;
         // SimAim: the rotation the use packet carried when the server fired this shot, his own otherwise.
         final float yaw = SimAim.yaw(client.player);
         final float pitch = SimAim.pitch(client.player);
-        final UUID who = client.player.getUUID();
+        final UUID who = guest != null ? guest : client.player.getUUID();
         final int shot = ++shotSeq;
         final Vec3 eyeAt = SimAim.eye(client.player);
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(

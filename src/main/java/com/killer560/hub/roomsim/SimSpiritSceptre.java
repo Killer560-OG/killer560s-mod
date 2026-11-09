@@ -102,6 +102,8 @@ public final class SimSpiritSceptre {
         int ticksLeft = MAX_FLIGHT_TICKS;
         /** The real bat entity carrying this one, or null before it has been spawned. */
         java.util.UUID entity;
+        /** The co-op guest who fired it (its blast hurts as that player, its flight passes through them); null: the host. */
+        java.util.UUID owner;
     }
 
     /**
@@ -183,7 +185,10 @@ public final class SimSpiritSceptre {
      *
      * @return whether anything was fired, so the caller can fall through to normal item behavior if not
      */
-    public static boolean fire(Minecraft client) {
+    public static boolean fire(Minecraft client) { return fire(client, null); }
+
+    /** {@link #fire(Minecraft)} for a co-op guest (its UUID; null for the host), aimed through SimAim. */
+    static boolean fire(Minecraft client, java.util.UUID guest) {
         if (!SimState.canAct(client) || client.player == null || client.level == null) return false;
         // SimAim: the aim the use packet carried when the server fired this, his own otherwise.
         Vec3 eye = SimAim.eye(client.player);
@@ -191,6 +196,7 @@ public final class SimSpiritSceptre {
         for (int i = 0; i < BATS; i++) {
             Bat bat = new Bat();
             bat.delay = i * LAUNCH_GAP;
+            bat.owner = guest;
             Vec3 dir = look.add(
                     (RNG.nextDouble() - 0.5) * 2 * SPREAD,
                     (RNG.nextDouble() - 0.5) * 2 * SPREAD,
@@ -256,7 +262,8 @@ public final class SimSpiritSceptre {
         double nearest = Double.MAX_VALUE;
         AABB sweep = new AABB(from, to).inflate(0.3);
         for (Entity e : client.level.getEntities(client.player, sweep,
-                e -> e instanceof LivingEntity && e.isAlive() && e != client.player)) {
+                e -> e instanceof LivingEntity && e.isAlive() && e != client.player
+                        && (bat.owner == null || !bat.owner.equals(e.getUUID())))) {
             var clip = e.getBoundingBox().inflate(0.3).clip(from, to);
             if (clip.isEmpty()) continue;
             double d = from.distanceToSqr(clip.get());
@@ -275,19 +282,19 @@ public final class SimSpiritSceptre {
 
         if (hitEntity != null && !wallFirst) {
             removeBatEntity(client, bat);
-            explode(client, hitEntity.getBoundingBox().getCenter());
+            explode(client, hitEntity.getBoundingBox().getCenter(), bat.owner);
             return false;
         }
         if (wallFirst) {
             removeBatEntity(client, bat);
-            explode(client, wall.getLocation());
+            explode(client, wall.getLocation(), bat.owner);
             return false;
         }
         bat.at = to;
         moveBatEntity(client, bat, to);
         if (--bat.ticksLeft <= 0) {
             removeBatEntity(client, bat);
-            explode(client, to);
+            explode(client, to, bat.owner);
             return false;
         }
         return true;
@@ -300,7 +307,7 @@ public final class SimSpiritSceptre {
      * client picked, so it is the server's own view of what is in range that decides - the same rule
      * {@code SimAbilities.teleport} and {@code SimDoors.openDoor} follow.
      */
-    private static void explode(Minecraft client, Vec3 centre) {
+    private static void explode(Minecraft client, Vec3 centre, java.util.UUID guest) {
         blastCount++;
         client.level.addParticle(ParticleTypes.EXPLOSION, centre.x, centre.y, centre.z, 0.0, 0.0, 0.0);
         for (int i = 0; i < 8; i++) {
@@ -315,7 +322,7 @@ public final class SimSpiritSceptre {
 
         var server = client.getSingleplayerServer();
         if (server == null || client.player == null) return;
-        java.util.UUID uuid = client.player.getUUID();
+        java.util.UUID uuid = guest != null ? guest : client.player.getUUID();
         server.execute(() -> {
             var sp = server.getPlayerList().getPlayer(uuid);
             if (sp == null) return;

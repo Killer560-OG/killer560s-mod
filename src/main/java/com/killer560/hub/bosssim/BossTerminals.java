@@ -216,6 +216,14 @@ public final class BossTerminals {
 
     /** A right-click on a terminal's stand: a fresh puzzle of a random type, as every open on Hypixel is. */
     static void open(ServerPlayer player, BossStations.Station station) {
+        // One player per terminal (coopsim-1109). Hypixel's rule for a terminal someone else has open is on record
+        // nowhere here; the sim refuses the second opener rather than deal two puzzles on one terminal. The line is
+        // ours, in Hypixel's red refusal style, not a captured Hypixel line.
+        ServerPlayer user = userOf(player.level().getServer(), station);
+        if (user != null && user != player) {
+            player.sendSystemMessage(BossChat.legacy("§cThis Terminal is being used by someone else!"));
+            return;
+        }
         Type type = TYPES.computeIfAbsent(station, k -> Type.values()[RNG.nextInt(Type.values().length)]);
         String forced = System.getProperty("killer560.bosssim.terminal");
         if (forced != null && !forced.isBlank()) {
@@ -548,6 +556,16 @@ public final class BossTerminals {
                 yield true;
             }
         };
+    }
+
+    /** The player who has {@code station}'s window open, or null. */
+    static ServerPlayer userOf(MinecraftServer server, BossStations.Station station) {
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (p.containerMenu instanceof Menu m && m.term.station == station) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /** Closes every open terminal (the fight was stopped). */

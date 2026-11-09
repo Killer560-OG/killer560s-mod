@@ -151,7 +151,7 @@ public final class SimTabList {
      * rows by the exact state compose would print for each, so the lines published are the same ones as before.
      */
     private static List<String> composeIfChanged(Minecraft client) {
-        String self = client.player == null ? "" : client.player.getGameProfile().name();
+        String self = SimCoop.partyKey(client);
         int cleared = SimScore.roomsCleared();
         double percent = SimScore.secretsPercent();
         long second = Math.max(0, SimRun.elapsedMs() / 1000);
@@ -229,12 +229,15 @@ public final class SimTabList {
     static List<String> compose(Minecraft client) {
         String[] slot = new String[SLOTS];
         Arrays.fill(slot, "");
-        String self = client.player == null ? "" : client.player.getGameProfile().name();
-
-        // Column A: the party.
+        // Column A: the party - the real players on the sim's server, host first (just him in single player).
+        List<String> party = SimCoop.partyNames(client);
+        String self = party.get(0);
         int a = 0;
-        slot[a++] = "Party (1)";
-        slot[a] = "[" + SKYBLOCK_LEVEL + "] " + self + " (" + CLASS_TEXT + ")";
+        slot[a++] = "Party (" + party.size() + ")";
+        for (String name : party) {
+            if (a >= ROWS) break;
+            slot[a++] = "[" + SKYBLOCK_LEVEL + "] " + name + " (" + CLASS_TEXT + ")";
+        }
 
         // Column B: the dungeon and its puzzles.
         int b = ROWS;

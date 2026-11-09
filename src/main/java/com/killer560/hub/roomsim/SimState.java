@@ -49,6 +49,14 @@ public final class SimState {
      */
     public static boolean canOpen(Minecraft client) { return client != null && client.getCurrentServer() == null; }
 
+    /**
+     * A guest in ANOTHER player's sim, joined over LAN (roomsim/SimGuest, docs/SIM-COOP.md). READ-ONLY: it opens gates
+     * that only read or predict (DungeonState, the dungeon-server gate, the client halves of the sim's items). Never
+     * gate a position, block or entity write on it: the host's server does every write, and {@link #canAct} stays
+     * false on a guest.
+     */
+    public static boolean isGuest(Minecraft client) { return SimGuest.isGuest(client); }
+
     public static void enter(String code) {
         active = true;
         mapCode = code == null ? "" : code;

@@ -1393,17 +1393,17 @@ public final class SimBuilder {
      * still falls - and falling would drop him back through the region being built.
      */
     public static void holdPlayer(Minecraft client, ServerLevel level) {
-        // One read: this runs on the server thread, where client.player can go null between a check and a use.
-        var player = client.player;
-        var uuid = player == null ? null : player.getUUID();
-        if (uuid == null) return;
+        // EVERY player on the sim's server, not only his (coopsim-1109): a co-op guest left standing in the region being
+        // rebuilt would be inside the walls when it lands. Server thread; the player list is read there.
         level.getServer().execute(() -> {
-            ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
-            if (sp == null) return;
+            var players = java.util.List.copyOf(level.getServer().getPlayerList().getPlayers());
+            if (players.isEmpty()) return;
             level.setBlockAndUpdate(HOLDING_AREA.below(),
                     net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
-            SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
-                    java.util.Set.of(), sp.getYRot(), sp.getXRot());
+            for (ServerPlayer sp : players) {
+                SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
+                        java.util.Set.of(), sp.getYRot(), sp.getXRot());
+            }
         });
     }
 
