@@ -1,6 +1,7 @@
 package com.killer560.hub.autoroutes;
 
 import com.killer560.hub.BuildVariant;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.HudElement;
@@ -134,27 +135,7 @@ public final class AutoRoutesProgressHud {
         return out;
     }
 
-    static final HudElement ELEMENT = new HudElement() {
-        @Override
-        public String id() {
-            return "autoroutes_progress";
-        }
-
-        @Override
-        public String displayName() {
-            return "Auto Routes Progress";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 190;
-        }
-
+    static final HudElement ELEMENT = new BasicHud("autoroutes_progress", "Auto Routes Progress", 10, 190) {
         @Override
         public int width() {
             List<Line> l = shown();

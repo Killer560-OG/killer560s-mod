@@ -1,20 +1,14 @@
 package com.killer560.hub.autoanvil;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Auto Anvil settings ({@code killer560smod-autoanvil.json}). Off by default; cheat build only. */
 public final class AutoAnvilConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autoanvil.json");
 
     public static final int MIN_DELAY_MS = 50;
@@ -44,33 +38,25 @@ public final class AutoAnvilConfig {
 
     public static void load() {
         AutoAnvilConfig cfg = new AutoAnvilConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setMinDelayMs(ConfigJson.getInt(obj, "minDelayMs", cfg.minDelayMs));
-                cfg.setMaxDelayMs(ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs));
-                cfg.cascade = ConfigJson.getBool(obj, "cascade", cfg.cascade);
-                cfg.closeWhenDone = ConfigJson.getBool(obj, "closeWhenDone", cfg.closeWhenDone);
-            } catch (Exception e) {
-                cfg = new AutoAnvilConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setMinDelayMs(ConfigJson.getInt(obj, "minDelayMs", cfg.minDelayMs));
+            cfg.setMaxDelayMs(ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs));
+            cfg.cascade = ConfigJson.getBool(obj, "cascade", cfg.cascade);
+            cfg.closeWhenDone = ConfigJson.getBool(obj, "closeWhenDone", cfg.closeWhenDone);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("minDelayMs", minDelayMs);
-            obj.addProperty("maxDelayMs", maxDelayMs);
-            obj.addProperty("cascade", cascade);
-            obj.addProperty("closeWhenDone", closeWhenDone);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("minDelayMs", minDelayMs);
+        obj.addProperty("maxDelayMs", maxDelayMs);
+        obj.addProperty("cascade", cascade);
+        obj.addProperty("closeWhenDone", closeWhenDone);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Cheat build, the toggle, and the Skyblock Only gate. */

@@ -53,6 +53,18 @@ public final class BoxVerts {
         }
     }
 
+    /** Consecutive line segments through {@code pts}. */
+    public static void lineStrip(PoseStack.Pose pose, VertexConsumer buffer, net.minecraft.world.phys.Vec3[] pts,
+                                 float r, float g, float b, float a, float thickness) {
+        for (int i = 0; i < pts.length - 1; i++) {
+            float sx = (float) pts[i].x, sy = (float) pts[i].y, sz = (float) pts[i].z;
+            float ex = (float) pts[i + 1].x, ey = (float) pts[i + 1].y, ez = (float) pts[i + 1].z;
+            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
+            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
+        }
+    }
+
     public static void filledBox(Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
         float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
         float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;

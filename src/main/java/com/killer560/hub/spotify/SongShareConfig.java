@@ -1,14 +1,9 @@
 package com.killer560.hub.spotify;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -18,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class SongShareConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-spotify-songtag.json");
 
     private static volatile SongShareConfig instance;
@@ -87,43 +81,35 @@ public final class SongShareConfig {
 
     public static synchronized void load() {
         SongShareConfig cfg = new SongShareConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
-                cfg.showOthers = ConfigJson.getBool(obj, "showOthers", true);
-                cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
-                cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
-                cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
-                cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
-                cfg.songInF5 = ConfigJson.getBool(obj, "songInF5", false);
-                cfg.customF5Colors = ConfigJson.getBool(obj, "customF5Colors", false);
-                cfg.f5TextColor = ConfigJson.getInt(obj, "f5TextColor", DEFAULT_F5_TEXT) | 0xFF000000;
-                cfg.f5HighlightColor = ConfigJson.getInt(obj, "f5HighlightColor", DEFAULT_F5_HIGHLIGHT) | 0xFF000000;
-            } catch (Exception ignored) {
-                // a broken file loads as the defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
+            cfg.showOthers = ConfigJson.getBool(obj, "showOthers", true);
+            cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
+            cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
+            cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
+            cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
+            cfg.songInF5 = ConfigJson.getBool(obj, "songInF5", false);
+            cfg.customF5Colors = ConfigJson.getBool(obj, "customF5Colors", false);
+            cfg.f5TextColor = ConfigJson.getInt(obj, "f5TextColor", DEFAULT_F5_TEXT) | 0xFF000000;
+            cfg.f5HighlightColor = ConfigJson.getInt(obj, "f5HighlightColor", DEFAULT_F5_HIGHLIGHT) | 0xFF000000;
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("shareSong", shareSong);
-            obj.addProperty("showOthers", showOthers);
-            obj.addProperty("lyricsOverHead", lyricsOverHead);
-            obj.addProperty("highlightWordInF5", highlightWordInF5);
-            obj.addProperty("shareWhat", shareWhat.name());
-            obj.addProperty("shareWord", shareWord);
-            obj.addProperty("songInF5", songInF5);
-            obj.addProperty("customF5Colors", customF5Colors);
-            obj.addProperty("f5TextColor", f5TextColor);
-            obj.addProperty("f5HighlightColor", f5HighlightColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("shareSong", shareSong);
+        obj.addProperty("showOthers", showOthers);
+        obj.addProperty("lyricsOverHead", lyricsOverHead);
+        obj.addProperty("highlightWordInF5", highlightWordInF5);
+        obj.addProperty("shareWhat", shareWhat.name());
+        obj.addProperty("shareWord", shareWord);
+        obj.addProperty("songInF5", songInF5);
+        obj.addProperty("customF5Colors", customF5Colors);
+        obj.addProperty("f5TextColor", f5TextColor);
+        obj.addProperty("f5HighlightColor", f5HighlightColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isShareSong() { return shareSong; }

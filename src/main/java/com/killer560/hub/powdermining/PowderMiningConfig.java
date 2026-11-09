@@ -1,7 +1,5 @@
 package com.killer560.hub.powdermining;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -24,7 +22,6 @@ import java.nio.file.Path;
  */
 public final class PowderMiningConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-powdermining.json");
 
     public static final int DEFAULT_CHEST_COLOR = 0xFFFFAA00;
@@ -175,47 +172,42 @@ public final class PowderMiningConfig {
     }
 
     public void save() {
-        try {
-            JsonObject o = new JsonObject();
-            o.addProperty("treasureChest", treasureChest);
-            o.addProperty("treasureChestColor", treasureChestColor);
-            o.addProperty("treasureChestTimer", treasureChestTimer);
-            o.addProperty("treasureChestFade", treasureChestFade);
-            o.addProperty("treasureChestEsp", treasureChestEsp);
-            o.addProperty("treasureChestHideOpened", treasureChestHideOpened);
-            o.addProperty("treasureChestTracer", treasureChestTracer);
-            o.addProperty("treasureChestTracerMode", treasureChestTracerMode.name());
-            o.addProperty("treasureChestCountdown", treasureChestCountdown);
-            o.addProperty("chestAlert", chestAlert);
-            o.addProperty("chestAlertSound", chestAlertSound);
-            o.addProperty("chestAlertTitle", chestAlertTitle);
-            o.addProperty("breakSound", breakSound);
-            o.addProperty("breakSoundMute", breakSoundMute);
-            o.addProperty("breakSoundChoice", breakSoundChoice.name());
-            o.addProperty("breakSoundVolumeTenths", breakSoundVolumeTenths);
-            o.addProperty("breakSoundPitchTenths", breakSoundPitchTenths);
-            o.addProperty("lockpickHelper", lockpickHelper);
-            o.addProperty("chestTriggerbot", chestTriggerbot);
-            o.addProperty("chestTriggerbotSwap", chestTriggerbotSwap);
-            o.addProperty("chestTriggerbotMinCps", chestTriggerbotMinCps);
-            o.addProperty("chestTriggerbotMaxCps", chestTriggerbotMaxCps);
-            o.addProperty("chestTriggerbotSwapBack", chestTriggerbotSwapBack);
-            o.addProperty("chestTriggerbotNoSwapMining", chestTriggerbotNoSwapMining);
-            o.addProperty("lockpickColor", lockpickColor);
-            o.addProperty("powderTracker", powderTracker);
-            o.addProperty("powderTrackerMithril", powderTrackerMithril);
-            o.addProperty("powderTrackerItems", powderTrackerItems);
-            o.addProperty("doublePowder", doublePowder);
-            o.addProperty("doublePowderSound", doublePowderSound);
-            o.addProperty("lootCompact", lootCompact);
-            o.addProperty("hideTreasureUncovered", hideTreasureUncovered);
-            o.addProperty("keepRareRewards", keepRareRewards);
-            o.addProperty("lootShow", lootShow.name());
-            Files.createDirectories(CONFIG_PATH.getParent());
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // a failed save keeps the in-memory values
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("treasureChest", treasureChest);
+        o.addProperty("treasureChestColor", treasureChestColor);
+        o.addProperty("treasureChestTimer", treasureChestTimer);
+        o.addProperty("treasureChestFade", treasureChestFade);
+        o.addProperty("treasureChestEsp", treasureChestEsp);
+        o.addProperty("treasureChestHideOpened", treasureChestHideOpened);
+        o.addProperty("treasureChestTracer", treasureChestTracer);
+        o.addProperty("treasureChestTracerMode", treasureChestTracerMode.name());
+        o.addProperty("treasureChestCountdown", treasureChestCountdown);
+        o.addProperty("chestAlert", chestAlert);
+        o.addProperty("chestAlertSound", chestAlertSound);
+        o.addProperty("chestAlertTitle", chestAlertTitle);
+        o.addProperty("breakSound", breakSound);
+        o.addProperty("breakSoundMute", breakSoundMute);
+        o.addProperty("breakSoundChoice", breakSoundChoice.name());
+        o.addProperty("breakSoundVolumeTenths", breakSoundVolumeTenths);
+        o.addProperty("breakSoundPitchTenths", breakSoundPitchTenths);
+        o.addProperty("lockpickHelper", lockpickHelper);
+        o.addProperty("chestTriggerbot", chestTriggerbot);
+        o.addProperty("chestTriggerbotSwap", chestTriggerbotSwap);
+        o.addProperty("chestTriggerbotMinCps", chestTriggerbotMinCps);
+        o.addProperty("chestTriggerbotMaxCps", chestTriggerbotMaxCps);
+        o.addProperty("chestTriggerbotSwapBack", chestTriggerbotSwapBack);
+        o.addProperty("chestTriggerbotNoSwapMining", chestTriggerbotNoSwapMining);
+        o.addProperty("lockpickColor", lockpickColor);
+        o.addProperty("powderTracker", powderTracker);
+        o.addProperty("powderTrackerMithril", powderTrackerMithril);
+        o.addProperty("powderTrackerItems", powderTrackerItems);
+        o.addProperty("doublePowder", doublePowder);
+        o.addProperty("doublePowderSound", doublePowderSound);
+        o.addProperty("lootCompact", lootCompact);
+        o.addProperty("hideTreasureUncovered", hideTreasureUncovered);
+        o.addProperty("keepRareRewards", keepRareRewards);
+        o.addProperty("lootShow", lootShow.name());
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static boolean sb() { return SkyblockGate.allows(); }

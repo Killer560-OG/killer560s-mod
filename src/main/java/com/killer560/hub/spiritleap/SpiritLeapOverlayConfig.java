@@ -2,8 +2,6 @@ package com.killer560.hub.spiritleap;
 
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -16,7 +14,6 @@ import java.nio.file.Path;
  *  this mod. */
 public final class SpiritLeapOverlayConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-spiritleapoverlay.json");
 
@@ -86,17 +83,13 @@ public final class SpiritLeapOverlayConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("useClassColors", useClassColors);
-            obj.addProperty("scale", scale);
-            obj.addProperty("showHeads", showHeads);
-            obj.addProperty("style", style.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("useClassColors", useClassColors);
+        obj.addProperty("scale", scale);
+        obj.addProperty("showHeads", showHeads);
+        obj.addProperty("style", style.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

@@ -1,8 +1,6 @@
 package com.killer560.hub.shorts;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -14,7 +12,6 @@ import java.nio.file.Path;
 /** Persisted "YT Shorts" settings - see {@link ShortsFeature}. Ships disabled, every keybind unset. */
 public final class ShortsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-shorts.json");
 
@@ -241,37 +238,33 @@ public final class ShortsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("anchor", anchor.name());
-            o.addProperty("theme", theme.name());
-            o.addProperty("sizePercent", sizePercent);
-            o.addProperty("margin", margin);
-            o.addProperty("opacity", opacity);
-            o.addProperty("hideWhenUnfocused", hideWhenUnfocused);
-            o.addProperty("hidden", hidden);
-            o.addProperty("pauseWhenHidden", pauseWhenHidden);
-            o.addProperty("volume", volume);
-            o.addProperty("toggleKey", toggleKey);
-            o.addProperty("nextKey", nextKey);
-            o.addProperty("previousKey", previousKey);
-            o.addProperty("playPauseKey", playPauseKey);
-            o.addProperty("muteKey", muteKey);
-            o.addProperty("site", site.name());
-            o.addProperty("customUrl", customUrl);
-            o.addProperty("placementMode", placementMode.name());
-            o.addProperty("customX", customX);
-            o.addProperty("customY", customY);
-            o.addProperty("customW", customW);
-            o.addProperty("customH", customH);
-            o.addProperty("zoomPercent", zoomPercent);
-            o.addProperty("commentsScrollGuard", commentsScrollGuard);
-            o.addProperty("autoScroll", autoScroll);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("anchor", anchor.name());
+        o.addProperty("theme", theme.name());
+        o.addProperty("sizePercent", sizePercent);
+        o.addProperty("margin", margin);
+        o.addProperty("opacity", opacity);
+        o.addProperty("hideWhenUnfocused", hideWhenUnfocused);
+        o.addProperty("hidden", hidden);
+        o.addProperty("pauseWhenHidden", pauseWhenHidden);
+        o.addProperty("volume", volume);
+        o.addProperty("toggleKey", toggleKey);
+        o.addProperty("nextKey", nextKey);
+        o.addProperty("previousKey", previousKey);
+        o.addProperty("playPauseKey", playPauseKey);
+        o.addProperty("muteKey", muteKey);
+        o.addProperty("site", site.name());
+        o.addProperty("customUrl", customUrl);
+        o.addProperty("placementMode", placementMode.name());
+        o.addProperty("customX", customX);
+        o.addProperty("customY", customY);
+        o.addProperty("customW", customW);
+        o.addProperty("customH", customH);
+        o.addProperty("zoomPercent", zoomPercent);
+        o.addProperty("commentsScrollGuard", commentsScrollGuard);
+        o.addProperty("autoScroll", autoScroll);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int intOr(JsonObject o, String key, int def) { return ConfigJson.getInt(o, key, def); }

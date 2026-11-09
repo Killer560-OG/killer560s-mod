@@ -1,8 +1,7 @@
 package com.killer560.hub.accounts.core;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -18,7 +17,6 @@ import java.nio.file.Path;
  */
 public final class SessionLoginStore {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path STORE_PATH =
             ModPaths.config("killer560smod-session-login.json");
 
@@ -57,14 +55,10 @@ public final class SessionLoginStore {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(STORE_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("token", token);
-            obj.addProperty("lastKnownName", lastKnownName);
-            Files.writeString(STORE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("token", token);
+        obj.addProperty("lastKnownName", lastKnownName);
+        ConfigJson.write(STORE_PATH, obj);
     }
 
     public String getToken() {

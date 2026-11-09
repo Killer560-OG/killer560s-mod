@@ -1,8 +1,6 @@
 package com.killer560.hub.voicetotext;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.spotify.ChatDestination;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
 /** Persisted Voice To Text settings - see {@link VoiceToTextFeature}. Ships disabled by default. */
 public final class VoiceToTextConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-voicetotext.json");
 
@@ -98,23 +95,19 @@ public final class VoiceToTextConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("mode", mode.name());
-            obj.addProperty("pushToTalkKeyCode", pushToTalkKeyCode);
-            obj.addProperty("chatDestination", chatDestination.name());
-            // Still written so downgrading to a jar from before 2026-09-30 keeps Party/Guild rather than
-            // resetting to Party. All Chat and Co-op have no boolean equivalent, so they read back as Guild
-            // on such a jar - the closest "not Party" it has.
-            obj.addProperty("sendToPartyChat", chatDestination == ChatDestination.PARTY);
-            obj.addProperty("microphone", microphone);
-            obj.addProperty("openMicSilenceMs", openMicSilenceMs);
-            obj.addProperty("showStatusHud", showStatusHud);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("mode", mode.name());
+        obj.addProperty("pushToTalkKeyCode", pushToTalkKeyCode);
+        obj.addProperty("chatDestination", chatDestination.name());
+        // Still written so downgrading to a jar from before 2026-09-30 keeps Party/Guild rather than
+        // resetting to Party. All Chat and Co-op have no boolean equivalent, so they read back as Guild
+        // on such a jar - the closest "not Party" it has.
+        obj.addProperty("sendToPartyChat", chatDestination == ChatDestination.PARTY);
+        obj.addProperty("microphone", microphone);
+        obj.addProperty("openMicSilenceMs", openMicSilenceMs);
+        obj.addProperty("showStatusHud", showStatusHud);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

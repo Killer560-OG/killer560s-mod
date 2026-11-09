@@ -1,14 +1,9 @@
 package com.killer560.hub.kickrejoin;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -21,7 +16,6 @@ public final class KickRejoinConfig {
     public static final String DEFAULT_PARTY_TEXT = "Kicked from SkyBlock, back in 1 minute!";
     public static final int MAX_PARTY_TEXT = 100;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-kickrejoin.json");
 
     private static KickRejoinConfig instance;
@@ -44,33 +38,25 @@ public final class KickRejoinConfig {
 
     public static void load() {
         KickRejoinConfig cfg = new KickRejoinConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.readyTitle = ConfigJson.getBool(obj, "readyTitle", true);
-                cfg.readySound = ConfigJson.getBool(obj, "readySound", true);
-                cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
-                cfg.setPartyText(ConfigJson.getString(obj, "partyText", DEFAULT_PARTY_TEXT));
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.readyTitle = ConfigJson.getBool(obj, "readyTitle", true);
+            cfg.readySound = ConfigJson.getBool(obj, "readySound", true);
+            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
+            cfg.setPartyText(ConfigJson.getString(obj, "partyText", DEFAULT_PARTY_TEXT));
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("readyTitle", readyTitle);
-            obj.addProperty("readySound", readySound);
-            obj.addProperty("partyMessage", partyMessage);
-            obj.addProperty("partyText", partyText);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("readyTitle", readyTitle);
+        obj.addProperty("readySound", readySound);
+        obj.addProperty("partyMessage", partyMessage);
+        obj.addProperty("partyText", partyText);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

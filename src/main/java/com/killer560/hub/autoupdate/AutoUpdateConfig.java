@@ -1,7 +1,6 @@
 package com.killer560.hub.autoupdate;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ModPaths;
@@ -50,7 +49,6 @@ public final class AutoUpdateConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autoupdate.json");
 
     private static AutoUpdateConfig instance;
@@ -92,14 +90,10 @@ public final class AutoUpdateConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("channel", channel.name());
-            obj.addProperty("enabled", enabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("channel", channel.name());
+        obj.addProperty("enabled", enabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public Channel getChannel() {

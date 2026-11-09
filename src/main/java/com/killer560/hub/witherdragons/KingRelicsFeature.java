@@ -1,6 +1,7 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.util.PerTickServerClock;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudSeen;
@@ -351,18 +352,10 @@ public final class KingRelicsFeature {
 
 
     /** Odin "Relic Hud": "Relics: 1.85s" while the relic spawn countdown runs. */
-    public static final class RelicTimerHudElement implements HudElement {
-        @Override
-        public String id() { return "king_relic_timer"; }
-
-        @Override
-        public String displayName() { return "King Relic Timer"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 240; }
+    public static final class RelicTimerHudElement extends BasicHud {
+        public RelicTimerHudElement() {
+            super("king_relic_timer", "King Relic Timer", 10, 240);
+        }
 
         @Override
         public int width() {

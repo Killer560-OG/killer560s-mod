@@ -1,8 +1,6 @@
 package com.killer560.hub.secrets;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -16,7 +14,6 @@ import java.nio.file.Path;
  *  default, same as every other new feature added going forward per killer560's standing instruction. */
 public final class SecretsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-secrets.json");
 
@@ -107,36 +104,32 @@ public final class SecretsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("masterEnabled", masterEnabled);
-            obj.addProperty("leversEnabled", leversEnabled);
-            obj.addProperty("buttonsEnabled", buttonsEnabled);
-            obj.addProperty("buttonsFullBox", buttonsFullBox);
-            obj.addProperty("buttonShape", buttonShape.name());
-            obj.addProperty("leverShape", leverShape.name());
-            obj.addProperty("chestShape", chestShape.name());
-            obj.addProperty("essenceShape", essenceShape.name());
-            obj.addProperty("buttonWidthPct", buttonWidthPct);
-            obj.addProperty("buttonHeightPct", buttonHeightPct);
-            obj.addProperty("buttonLengthPct", buttonLengthPct);
-            obj.addProperty("leverWidthPct", leverWidthPct);
-            obj.addProperty("leverHeightPct", leverHeightPct);
-            obj.addProperty("leverLengthPct", leverLengthPct);
-            obj.addProperty("chestWidthPct", chestWidthPct);
-            obj.addProperty("chestHeightPct", chestHeightPct);
-            obj.addProperty("chestLengthPct", chestLengthPct);
-            obj.addProperty("essenceWidthPct", essenceWidthPct);
-            obj.addProperty("essenceHeightPct", essenceHeightPct);
-            obj.addProperty("essenceLengthPct", essenceLengthPct);
-            obj.addProperty("chestsEnabled", chestsEnabled);
-            obj.addProperty("essenceEnabled", essenceEnabled);
-            obj.addProperty("dungeonsOnly", dungeonsOnly);
-            obj.addProperty("bossOnly", bossOnly);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("masterEnabled", masterEnabled);
+        obj.addProperty("leversEnabled", leversEnabled);
+        obj.addProperty("buttonsEnabled", buttonsEnabled);
+        obj.addProperty("buttonsFullBox", buttonsFullBox);
+        obj.addProperty("buttonShape", buttonShape.name());
+        obj.addProperty("leverShape", leverShape.name());
+        obj.addProperty("chestShape", chestShape.name());
+        obj.addProperty("essenceShape", essenceShape.name());
+        obj.addProperty("buttonWidthPct", buttonWidthPct);
+        obj.addProperty("buttonHeightPct", buttonHeightPct);
+        obj.addProperty("buttonLengthPct", buttonLengthPct);
+        obj.addProperty("leverWidthPct", leverWidthPct);
+        obj.addProperty("leverHeightPct", leverHeightPct);
+        obj.addProperty("leverLengthPct", leverLengthPct);
+        obj.addProperty("chestWidthPct", chestWidthPct);
+        obj.addProperty("chestHeightPct", chestHeightPct);
+        obj.addProperty("chestLengthPct", chestLengthPct);
+        obj.addProperty("essenceWidthPct", essenceWidthPct);
+        obj.addProperty("essenceHeightPct", essenceHeightPct);
+        obj.addProperty("essenceLengthPct", essenceLengthPct);
+        obj.addProperty("chestsEnabled", chestsEnabled);
+        obj.addProperty("essenceEnabled", essenceEnabled);
+        obj.addProperty("dungeonsOnly", dungeonsOnly);
+        obj.addProperty("bossOnly", bossOnly);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} (2026-09-10) - per

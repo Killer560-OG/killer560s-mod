@@ -1,6 +1,7 @@
 package com.killer560.hub.thorn;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -131,21 +132,9 @@ public final class ThornFeature {
     }
 
     /** "Bear: 17/25" / "Bear: 3.40s" / "Bear: Alive!" + optional overkill line. Movable/scalable in the HUD editor. */
-    private static final class SpiritBearHud implements HudElement {
-
-        @Override
-        public String id() { return "thorn_spirit_bear"; }
-
-        @Override
-        public String displayName() { return "Spirit Bear Counter"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() {
-            // Not 120: Posmsg / Spring Boots / the Score Calculator already default there.
-            return 140;
+    private static final class SpiritBearHud extends BasicHud {
+        SpiritBearHud() {
+            super("thorn_spirit_bear", "Spirit Bear Counter", 10, 140);
         }
 
         /** The lines drawn right now ({line1, line2-or-null}), or null when nothing is; render() and the box both

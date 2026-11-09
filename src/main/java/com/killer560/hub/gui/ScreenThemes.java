@@ -1,7 +1,6 @@
 package com.killer560.hub.gui;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -63,7 +62,6 @@ public final class ScreenThemes {
         return SECTION.getOrDefault(id, id);
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = ModPaths.config("killer560smod-menu-screens.json");
 
     private static Map<String, String> choices;
@@ -103,15 +101,11 @@ public final class ScreenThemes {
     }
 
     public static synchronized void save() {
-        try {
-            Files.createDirectories(PATH.getParent());
-            JsonObject obj = new JsonObject();
-            for (Map.Entry<String, String> e : map().entrySet()) {
-                obj.addProperty(e.getKey(), e.getValue());
-            }
-            Files.writeString(PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        for (Map.Entry<String, String> e : map().entrySet()) {
+            obj.addProperty(e.getKey(), e.getValue());
         }
+        ConfigJson.write(PATH, obj);
     }
 
     public static Path path() {

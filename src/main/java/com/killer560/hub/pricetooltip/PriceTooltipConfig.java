@@ -1,7 +1,5 @@
 package com.killer560.hub.pricetooltip;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -64,7 +62,6 @@ public final class PriceTooltipConfig {
     public static final int MIN_REFRESH_MINUTES = 1;
     public static final int MAX_REFRESH_MINUTES = 30;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-pricetooltip.json");
 
     private static PriceTooltipConfig instance;
@@ -131,26 +128,22 @@ public final class PriceTooltipConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("npcPrice", npcPrice);
-            obj.addProperty("lowestBin", lowestBin);
-            obj.addProperty("averageBin", averageBin);
-            obj.addProperty("averageDays", averageDays);
-            obj.addProperty("bazaar", bazaar);
-            obj.addProperty("estimatedValue", estimatedValue);
-            obj.addProperty("obtained", obtained);
-            obj.addProperty("museum", museum);
-            obj.addProperty("stackPrice", stackPrice.name());
-            obj.addProperty("breakdown", breakdown.name());
-            obj.addProperty("itemValueMode", valueMode.name());
-            obj.addProperty("numberFormat", numberFormat.name());
-            obj.addProperty("refreshMinutes", refreshMinutes);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("npcPrice", npcPrice);
+        obj.addProperty("lowestBin", lowestBin);
+        obj.addProperty("averageBin", averageBin);
+        obj.addProperty("averageDays", averageDays);
+        obj.addProperty("bazaar", bazaar);
+        obj.addProperty("estimatedValue", estimatedValue);
+        obj.addProperty("obtained", obtained);
+        obj.addProperty("museum", museum);
+        obj.addProperty("stackPrice", stackPrice.name());
+        obj.addProperty("breakdown", breakdown.name());
+        obj.addProperty("itemValueMode", valueMode.name());
+        obj.addProperty("numberFormat", numberFormat.name());
+        obj.addProperty("refreshMinutes", refreshMinutes);
+        ConfigJson.write(CONFIG_PATH, obj);
         PriceTooltipFeature.invalidate();
     }
 

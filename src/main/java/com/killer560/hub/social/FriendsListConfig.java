@@ -1,16 +1,11 @@
 package com.killer560.hub.social;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -44,7 +39,6 @@ import java.util.UUID;
  */
 public final class FriendsListConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-friendslist.json");
 
@@ -105,24 +99,20 @@ public final class FriendsListConfig {
 
     public static void load() {
         FriendsListConfig cfg = new FriendsListConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.everSynced = ConfigJson.getBool(obj, "everSynced", false);
-                cfg.lastSyncedAtMs = ConfigJson.getLong(obj, "lastSyncedAtMs", 0L);
-                cfg.lastSyncTruncated = ConfigJson.getBool(obj, "lastSyncTruncated", false);
-                JsonArray array = ConfigJson.getArray(obj, "friends");
-                if (array != null) {
-                    for (JsonElement element : array) {
-                        Friend f = fromJson(element);
-                        if (f != null) {
-                            cfg.friends.put(f.name.toLowerCase(Locale.US), f);
-                        }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.everSynced = ConfigJson.getBool(obj, "everSynced", false);
+            cfg.lastSyncedAtMs = ConfigJson.getLong(obj, "lastSyncedAtMs", 0L);
+            cfg.lastSyncTruncated = ConfigJson.getBool(obj, "lastSyncTruncated", false);
+            JsonArray array = ConfigJson.getArray(obj, "friends");
+            if (array != null) {
+                for (JsonElement element : array) {
+                    Friend f = fromJson(element);
+                    if (f != null) {
+                        cfg.friends.put(f.name.toLowerCase(Locale.US), f);
                     }
                 }
-            } catch (Exception e) {
-                // Malformed file - start with the toggle off and an empty list rather than throwing.
             }
         }
         instance = cfg;
@@ -142,29 +132,25 @@ public final class FriendsListConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("everSynced", everSynced);
-            obj.addProperty("lastSyncedAtMs", lastSyncedAtMs);
-            obj.addProperty("lastSyncTruncated", lastSyncTruncated);
-            JsonArray array = new JsonArray();
-            for (Friend f : friends.values()) {
-                JsonObject entry = new JsonObject();
-                entry.addProperty("name", f.name);
-                entry.addProperty("note", f.note == null ? "" : f.note);
-                entry.addProperty("firstSeenAtMs", f.firstSeenAtMs);
-                if (f.activity != null) {
-                    entry.addProperty("activity", f.activity);
-                    entry.addProperty("activityAtMs", f.activityAtMs);
-                }
-                array.add(entry);
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("everSynced", everSynced);
+        obj.addProperty("lastSyncedAtMs", lastSyncedAtMs);
+        obj.addProperty("lastSyncTruncated", lastSyncTruncated);
+        JsonArray array = new JsonArray();
+        for (Friend f : friends.values()) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("name", f.name);
+            entry.addProperty("note", f.note == null ? "" : f.note);
+            entry.addProperty("firstSeenAtMs", f.firstSeenAtMs);
+            if (f.activity != null) {
+                entry.addProperty("activity", f.activity);
+                entry.addProperty("activityAtMs", f.activityAtMs);
             }
-            obj.add("friends", array);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+            array.add(entry);
         }
+        obj.add("friends", array);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled; }

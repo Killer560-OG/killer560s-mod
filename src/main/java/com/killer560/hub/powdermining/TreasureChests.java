@@ -1,6 +1,7 @@
 package com.killer560.hub.powdermining;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.compat.McRender;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -648,7 +649,10 @@ public final class TreasureChests {
     }
 
     /** The movable despawn timer. */
-    public static final class Timer implements HudElement {
+    public static final class Timer extends BasicHud {
+        public Timer() {
+            super(TIMER_ID, "Treasure Chest Timer", 10, 232);
+        }
 
         private static final String SAMPLE = "§6Treasure Chest§7: §a42s";
 
@@ -656,18 +660,6 @@ public final class TreasureChests {
             String s = hudLine();
             return s == null && HudVisibility.editorOpen() ? SAMPLE : s;
         }
-
-        @Override
-        public String id() { return TIMER_ID; }
-
-        @Override
-        public String displayName() { return "Treasure Chest Timer"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 232; }
 
         @Override
         public int width() {

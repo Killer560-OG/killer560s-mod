@@ -1,8 +1,6 @@
 package com.killer560.hub.etherwarpoverlay;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -43,7 +41,6 @@ public final class EtherwarpOverlayConfig {
     public static final int DEFAULT_SAFE_COLOR = 0xFF33FF33;
     public static final int DEFAULT_FAILED_COLOR = 0xFFFF3333;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-etherwarpoverlay.json");
 
@@ -95,20 +92,16 @@ public final class EtherwarpOverlayConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showWhenFailed", showWhenFailed);
-            obj.addProperty("fullBlock", fullBlock);
-            obj.addProperty("showThroughBlocks", showThroughBlocks);
-            obj.addProperty("serverCrosshair", serverCrosshair);
-            obj.addProperty("style", style.name());
-            obj.addProperty("safeColor", safeColor);
-            obj.addProperty("failedColor", failedColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showWhenFailed", showWhenFailed);
+        obj.addProperty("fullBlock", fullBlock);
+        obj.addProperty("showThroughBlocks", showThroughBlocks);
+        obj.addProperty("serverCrosshair", serverCrosshair);
+        obj.addProperty("style", style.name());
+        obj.addProperty("safeColor", safeColor);
+        obj.addProperty("failedColor", failedColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

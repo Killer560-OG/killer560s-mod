@@ -1,8 +1,7 @@
 package com.killer560.hub.hud;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -16,7 +15,6 @@ import java.util.Map;
 /** Persisted positions for draggable HUD overlays, plus the keybind that opens the position editor. */
 public final class HudConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-hud.json");
 
@@ -81,6 +79,17 @@ public final class HudConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<HudConfig> BOOLS = new BoolFields<HudConfig>()
+            .add("editorShowAll", false, c -> c.editorShowAll, (c, v) -> c.editorShowAll = v)
+            .add("autoScale", true, c -> c.autoScale, (c, v) -> c.autoScale = v)
+            .add("editorSnap", true, c -> c.editorSnap, (c, v) -> c.editorSnap = v)
+            .add("snapElementEdges", true, c -> c.snapElementEdges, (c, v) -> c.snapElementEdges = v)
+            .add("snapElementCentres", true, c -> c.snapElementCentres, (c, v) -> c.snapElementCentres = v)
+            .add("snapScreenEdges", true, c -> c.snapScreenEdges, (c, v) -> c.snapScreenEdges = v)
+            .add("snapScreenCentre", true, c -> c.snapScreenCentre, (c, v) -> c.snapScreenCentre = v)
+            .add("snapEqualSpacing", true, c -> c.snapEqualSpacing, (c, v) -> c.snapEqualSpacing = v);
+
     public static void load() {
         version++;
         HudConfig cfg = new HudConfig();
@@ -91,15 +100,8 @@ public final class HudConfig {
                 cfg.editKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "editKeyCode", -1));
                 cfg.openMenuKeyCode = com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "openMenuKeyCode",
                         cfg.openMenuKeyCode));
-                cfg.editorShowAll = ConfigJson.getBool(obj, "editorShowAll", false);
+                BOOLS.load(cfg, obj);
                 cfg.globalScale = clampGlobalScale(ConfigJson.getFloat(obj, "globalScale", 1.0f));
-                cfg.autoScale = ConfigJson.getBool(obj, "autoScale", true);
-                cfg.editorSnap = ConfigJson.getBool(obj, "editorSnap", true);
-                cfg.snapElementEdges = ConfigJson.getBool(obj, "snapElementEdges", true);
-                cfg.snapElementCentres = ConfigJson.getBool(obj, "snapElementCentres", true);
-                cfg.snapScreenEdges = ConfigJson.getBool(obj, "snapScreenEdges", true);
-                cfg.snapScreenCentre = ConfigJson.getBool(obj, "snapScreenCentre", true);
-                cfg.snapEqualSpacing = ConfigJson.getBool(obj, "snapEqualSpacing", true);
                 JsonObject positions = ConfigJson.getObject(obj, "positions");
                 if (positions != null) {
                     for (String id : positions.keySet()) {
@@ -128,42 +130,31 @@ public final class HudConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("editKeyCode", editKeyCode);
-            obj.addProperty("openMenuKeyCode", openMenuKeyCode);
-            obj.addProperty("editorShowAll", editorShowAll);
-            obj.addProperty("globalScale", globalScale);
-            obj.addProperty("autoScale", autoScale);
-            obj.addProperty("editorSnap", editorSnap);
-            obj.addProperty("snapElementEdges", snapElementEdges);
-            obj.addProperty("snapElementCentres", snapElementCentres);
-            obj.addProperty("snapScreenEdges", snapScreenEdges);
-            obj.addProperty("snapScreenCentre", snapScreenCentre);
-            obj.addProperty("snapEqualSpacing", snapEqualSpacing);
-            JsonObject positions = new JsonObject();
-            for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("editKeyCode", editKeyCode);
+        obj.addProperty("openMenuKeyCode", openMenuKeyCode);
+        BOOLS.save(this, obj);
+        obj.addProperty("globalScale", globalScale);
+        JsonObject positions = new JsonObject();
+        for (Map.Entry<String, int[]> entry : this.positions.entrySet()) {
+            JsonObject pos = new JsonObject();
+            pos.addProperty("x", entry.getValue()[0]);
+            pos.addProperty("y", entry.getValue()[1]);
+            pos.addProperty("scale", scales.getOrDefault(entry.getKey(), 1.0f));
+            positions.add(entry.getKey(), pos);
+        }
+        // Bug fix (2026-09-15 persistence audit): an element resized with the scroll wheel in the HUD
+        // editor but never dragged has a scale and no position - it used to be dropped here, so the
+        // resize reset on restart. Write it scale-only; load() leaves its position on the default.
+        for (Map.Entry<String, Float> entry : this.scales.entrySet()) {
+            if (!this.positions.containsKey(entry.getKey())) {
                 JsonObject pos = new JsonObject();
-                pos.addProperty("x", entry.getValue()[0]);
-                pos.addProperty("y", entry.getValue()[1]);
-                pos.addProperty("scale", scales.getOrDefault(entry.getKey(), 1.0f));
+                pos.addProperty("scale", entry.getValue());
                 positions.add(entry.getKey(), pos);
             }
-            // Bug fix (2026-09-15 persistence audit): an element resized with the scroll wheel in the HUD
-            // editor but never dragged has a scale and no position - it used to be dropped here, so the
-            // resize reset on restart. Write it scale-only; load() leaves its position on the default.
-            for (Map.Entry<String, Float> entry : this.scales.entrySet()) {
-                if (!this.positions.containsKey(entry.getKey())) {
-                    JsonObject pos = new JsonObject();
-                    pos.addProperty("scale", entry.getValue());
-                    positions.add(entry.getKey(), pos);
-                }
-            }
-            obj.add("positions", positions);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
         }
+        obj.add("positions", positions);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public int[] getPosition(String id, int defaultX, int defaultY) {

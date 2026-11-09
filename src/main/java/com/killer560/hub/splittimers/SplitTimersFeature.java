@@ -1,6 +1,7 @@
 package com.killer560.hub.splittimers;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -526,21 +527,9 @@ public final class SplitTimersFeature {
     /** A strikethrough run of spaces - a plain horizontal divider without knowing the font's pixel widths. */
     static final String DIVIDER_TEXT = "§8§m" + " ".repeat(34);
 
-    public static final class SplitTimersHudElement implements HudElement {
-        @Override
-        public String id() { return "split_timers"; }
-
-        @Override
-        public String displayName() { return "Split Timers"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() {
-            // Under Score Calculator's seven rows (160..230), not 320: the Dungeon Map's default sits clamped at the
-            // bottom left, and with its Extra Info lines it reached 320 at GUI scale 2 on 1080p (2026-10-07).
-            return 240;
+    public static final class SplitTimersHudElement extends BasicHud {
+        public SplitTimersHudElement() {
+            super("split_timers", "Split Timers", 10, 240);
         }
 
         /** In game, never on top of the Dungeon Map (and its Extra Info lines): see {@link com.killer560.hub.hud.HudAvoid}.

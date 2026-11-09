@@ -1,14 +1,9 @@
 package com.killer560.hub.leveraura;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Lever Aura settings - see {@link LeverAuraFeature}. Cheat build only; ships disabled. Every getter that
@@ -26,7 +21,6 @@ import java.nio.file.Path;
  *  without them. What is left here is S2's section levers and their range, CPS, swing and chat. */
 public final class LeverAuraConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-leveraura.json");
 
@@ -64,39 +58,35 @@ public final class LeverAuraConfig {
         LeverAuraConfig cfg = new LeverAuraConfig();
         boolean migrateEnabled = false;
         boolean migrateLights = false;
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                // A file from before the merge into Secret Aura: its switch becomes In Boss (never turns it off).
-                migrateEnabled = o.has("enabled");
-                if (migrateEnabled && ConfigJson.getBool(o, "enabled", false)) {
-                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(true);
-                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().save();
-                }
-                cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
-                cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
-                cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-                if (o.has("cps")) {
-                    cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
-                } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
-                    // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
-                    int min = ConfigJson.getInt(o, "minDelayMs", 150);
-                    int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
-                    cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
-                }
-                cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
-                cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
-                // A file from before the Lights Device was its own feature: its Lights options, and the In Boss switch
-                // they ran under (already migrated above when the file is older still), move there once.
-                migrateLights = o.has("lightsPreFlick") || o.has("lightsFinish");
-                if (migrateLights) {
-                    com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
-                            ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
-                            com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
-                            cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
-                }
-            } catch (Exception e) {
-                // unreadable file (not just a bad key) - keep defaults
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            // A file from before the merge into Secret Aura: its switch becomes In Boss (never turns it off).
+            migrateEnabled = o.has("enabled");
+            if (migrateEnabled && ConfigJson.getBool(o, "enabled", false)) {
+                com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(true);
+                com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().save();
+            }
+            cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
+            cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
+            cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
+            if (o.has("cps")) {
+                cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
+            } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
+                // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
+                int min = ConfigJson.getInt(o, "minDelayMs", 150);
+                int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
+                cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
+            }
+            cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
+            cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+            // A file from before the Lights Device was its own feature: its Lights options, and the In Boss switch
+            // they ran under (already migrated above when the file is older still), move there once.
+            migrateLights = o.has("lightsPreFlick") || o.has("lightsFinish");
+            if (migrateLights) {
+                com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
+                        ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
+                        com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
+                        cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
             }
         }
         instance = cfg;
@@ -106,18 +96,14 @@ public final class LeverAuraConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("sectionLevers", sectionLevers);
-            o.addProperty("sectionLeversEarly", sectionLeversEarly);
-            o.addProperty("range", range);
-            o.addProperty("cps", cps);
-            o.addProperty("swingHand", swingHand);
-            o.addProperty("chatFeedback", chatFeedback);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("sectionLevers", sectionLevers);
+        o.addProperty("sectionLeversEarly", sectionLeversEarly);
+        o.addProperty("range", range);
+        o.addProperty("cps", cps);
+        o.addProperty("swingHand", swingHand);
+        o.addProperty("chatFeedback", chatFeedback);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never report true here, even from a copied cheat-build config file. */

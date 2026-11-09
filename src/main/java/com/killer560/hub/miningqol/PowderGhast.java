@@ -1,6 +1,7 @@
 package com.killer560.hub.miningqol;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -321,7 +322,10 @@ public final class PowderGhast {
     }
 
     /** The movable timer: seconds left (or "alive" when found without the spawn line), and the place. */
-    public static final class Timer implements HudElement {
+    public static final class Timer extends BasicHud {
+        public Timer() {
+            super(TIMER_ID, "Powder Ghast Timer", 10, 220);
+        }
 
         private static final String SAMPLE = "§d§lPowder Ghast§7: §e42s §7(Cliffside Veins)";
 
@@ -329,18 +333,6 @@ public final class PowderGhast {
             String s = hudLine();
             return s == null && HudVisibility.editorOpen() ? SAMPLE : s;
         }
-
-        @Override
-        public String id() { return TIMER_ID; }
-
-        @Override
-        public String displayName() { return "Powder Ghast Timer"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 220; }
 
         @Override
         public int width() {

@@ -543,14 +543,9 @@ public final class CustomCrosshairConfig {
 
     public static void load() {
         CustomCrosshairConfig cfg = new CustomCrosshairConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.applyJson(obj, true);
-            } catch (Exception e) {
-                cfg = new CustomCrosshairConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.applyJson(obj, true);
         }
         instance = cfg;
     }

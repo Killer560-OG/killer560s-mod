@@ -1,8 +1,7 @@
 package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +14,6 @@ import java.nio.file.Path;
  *  by default. */
 public final class MaskInvincibilityConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-maskinvincibility.json");
 
@@ -112,6 +110,30 @@ public final class MaskInvincibilityConfig {
         return instance;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<MaskInvincibilityConfig> BOOLS = new BoolFields<MaskInvincibilityConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("announceToParty", false, c -> c.announceToParty, (c, v) -> c.announceToParty = v)
+            .add("procTitle", true, c -> c.procTitle, (c, v) -> c.procTitle = v)
+            .add("showSpirit", true, c -> c.showSpirit, (c, v) -> c.showSpirit = v)
+            .add("showBonzo", true, c -> c.showBonzo, (c, v) -> c.showBonzo = v)
+            .add("showPhoenix", true, c -> c.showPhoenix, (c, v) -> c.showPhoenix = v)
+            .add("autoSwapSpirit", true, c -> c.autoSwapSpirit, (c, v) -> c.autoSwapSpirit = v)
+            .add("autoSwapBonzo", true, c -> c.autoSwapBonzo, (c, v) -> c.autoSwapBonzo = v)
+            .add("autoSwapPhoenix", true, c -> c.autoSwapPhoenix, (c, v) -> c.autoSwapPhoenix = v)
+            .add("showItemIcons", false, c -> c.showItemIcons, (c, v) -> c.showItemIcons = v)
+            .add("hideMaskNames", false, c -> c.hideMaskNames, (c, v) -> c.hideMaskNames = v)
+            .add("onlyInDungeons", false, c -> c.onlyInDungeons, (c, v) -> c.onlyInDungeons = v)
+            .add("bossOnly", false, c -> c.bossOnly, (c, v) -> c.bossOnly = v)
+            .add("autoMaskDungeonsOnly", true, c -> c.autoMaskDungeonsOnly, (c, v) -> c.autoMaskDungeonsOnly = v)
+            .add("maskKeyEnabled", false, c -> c.maskKeyEnabled, (c, v) -> c.maskKeyEnabled = v)
+            .add("maskKeyBonzoFirst", false, c -> c.maskKeyBonzoFirst, (c, v) -> c.maskKeyBonzoFirst = v)
+            .add("maskKeyDungeonsOnly", true, c -> c.maskKeyDungeonsOnly, (c, v) -> c.maskKeyDungeonsOnly = v)
+            .add("maskKeyBossOnly", false, c -> c.maskKeyBossOnly, (c, v) -> c.maskKeyBossOnly = v)
+            .add("autoMaskBossOnly", false, c -> c.autoMaskBossOnly, (c, v) -> c.autoMaskBossOnly = v)
+            .add("rodReturnToPreviousSlot", true, c -> c.rodReturnToPreviousSlot, (c, v) -> c.rodReturnToPreviousSlot = v)
+            .add("autoSwapEnabled", false, c -> c.autoSwapEnabled, (c, v) -> c.autoSwapEnabled = v);
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new MaskInvincibilityConfig();
@@ -121,19 +143,7 @@ public final class MaskInvincibilityConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             MaskInvincibilityConfig cfg = new MaskInvincibilityConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
-            cfg.procTitle = ConfigJson.getBool(obj, "procTitle", true);
-            cfg.showSpirit = ConfigJson.getBool(obj, "showSpirit", true);
-            cfg.showBonzo = ConfigJson.getBool(obj, "showBonzo", true);
-            cfg.showPhoenix = ConfigJson.getBool(obj, "showPhoenix", true);
-            cfg.autoSwapSpirit = ConfigJson.getBool(obj, "autoSwapSpirit", true);
-            cfg.autoSwapBonzo = ConfigJson.getBool(obj, "autoSwapBonzo", true);
-            cfg.autoSwapPhoenix = ConfigJson.getBool(obj, "autoSwapPhoenix", true);
-            cfg.showItemIcons = ConfigJson.getBool(obj, "showItemIcons", false);
-            cfg.hideMaskNames = ConfigJson.getBool(obj, "hideMaskNames", false);
-            cfg.onlyInDungeons = ConfigJson.getBool(obj, "onlyInDungeons", false);
-            cfg.bossOnly = ConfigJson.getBool(obj, "bossOnly", false);
+            BOOLS.load(cfg, obj);
             // Ticks since 2026-10-16. A file from before that has only the millisecond key: ms / 50, rounded, so he
             // keeps about the same pause (350 ms -> 7 ticks). The ms key is not written again.
             if (obj.has("swapStepDelayTicks")) {
@@ -147,15 +157,8 @@ public final class MaskInvincibilityConfig {
             cfg.swapOrder = ConfigJson.getEnum(obj, "autoMaskSwapOrder", SwapOrder.class, SwapOrder.MASK_FIRST);
             cfg.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(
                     ConfigJson.getInt(obj, "autoMaskSwapKey", com.killer560.hub.util.KeyUtil.NONE));
-            cfg.autoMaskDungeonsOnly = ConfigJson.getBool(obj, "autoMaskDungeonsOnly", true);
-            cfg.maskKeyEnabled = ConfigJson.getBool(obj, "maskKeyEnabled", false);
             cfg.maskKey = com.killer560.hub.util.KeyUtil.sanitize(
                     ConfigJson.getInt(obj, "maskKey", com.killer560.hub.util.KeyUtil.NONE));
-            cfg.maskKeyBonzoFirst = ConfigJson.getBool(obj, "maskKeyBonzoFirst", false);
-            cfg.maskKeyDungeonsOnly = ConfigJson.getBool(obj, "maskKeyDungeonsOnly", true);
-            cfg.maskKeyBossOnly = ConfigJson.getBool(obj, "maskKeyBossOnly", false);
-            cfg.autoMaskBossOnly = ConfigJson.getBool(obj, "autoMaskBossOnly", false);
-            cfg.rodReturnToPreviousSlot = ConfigJson.getBool(obj, "rodReturnToPreviousSlot", true);
             cfg.phoenixRoute = ConfigJson.getEnum(obj, "phoenixRoute", PhoenixRoute.class, PhoenixRoute.ROD);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also gate
             // on CHEAT_FEATURES_ENABLED here, forcing the raw field itself to false in memory on a legit
@@ -163,7 +166,6 @@ public final class MaskInvincibilityConfig {
             // same gate on every read, so gating here too just meant a legit-build session that saved ANY
             // other unrelated setting afterward would silently persist "false" back to disk, permanently
             // losing a cheat-build user's real setting the next time they switched builds.
-            cfg.autoSwapEnabled = ConfigJson.getBool(obj, "autoSwapEnabled", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new MaskInvincibilityConfig();
@@ -171,39 +173,15 @@ public final class MaskInvincibilityConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("announceToParty", announceToParty);
-            obj.addProperty("procTitle", procTitle);
-            obj.addProperty("showSpirit", showSpirit);
-            obj.addProperty("showBonzo", showBonzo);
-            obj.addProperty("showPhoenix", showPhoenix);
-            obj.addProperty("autoSwapSpirit", autoSwapSpirit);
-            obj.addProperty("autoSwapBonzo", autoSwapBonzo);
-            obj.addProperty("autoSwapPhoenix", autoSwapPhoenix);
-            obj.addProperty("showItemIcons", showItemIcons);
-            obj.addProperty("hideMaskNames", hideMaskNames);
-            obj.addProperty("onlyInDungeons", onlyInDungeons);
-            obj.addProperty("bossOnly", bossOnly);
-            obj.addProperty("autoSwapEnabled", autoSwapEnabled);
-            obj.addProperty("autoMaskMode", getAutoMaskMode().name());
-            obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
-            obj.addProperty("autoMaskSwapKey", swapKey);
-            obj.addProperty("autoMaskDungeonsOnly", autoMaskDungeonsOnly);
-            obj.addProperty("maskKeyEnabled", maskKeyEnabled);
-            obj.addProperty("maskKey", maskKey);
-            obj.addProperty("maskKeyBonzoFirst", maskKeyBonzoFirst);
-            obj.addProperty("maskKeyDungeonsOnly", maskKeyDungeonsOnly);
-            obj.addProperty("maskKeyBossOnly", maskKeyBossOnly);
-            obj.addProperty("autoMaskBossOnly", autoMaskBossOnly);
-            obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
-            obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
-            obj.addProperty("phoenixRoute", phoenixRoute.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        BOOLS.save(this, obj);
+        obj.addProperty("autoMaskMode", getAutoMaskMode().name());
+        obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
+        obj.addProperty("autoMaskSwapKey", swapKey);
+        obj.addProperty("maskKey", maskKey);
+        obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
+        obj.addProperty("phoenixRoute", phoenixRoute.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

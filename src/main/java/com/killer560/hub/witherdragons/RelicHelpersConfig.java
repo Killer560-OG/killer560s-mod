@@ -1,22 +1,16 @@
 package com.killer560.hub.witherdragons;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Relic Triggerbot and Relic Look settings - see {@link RelicHelpersFeature}. Cheat build only; both ship OFF. */
 public final class RelicHelpersConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-relichelpers.json");
 
     public static final int MAX_COOLDOWN_MS = 1000;
@@ -49,42 +43,34 @@ public final class RelicHelpersConfig {
 
     public static void load() {
         RelicHelpersConfig cfg = new RelicHelpersConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject root = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.triggerEnabled = ConfigJson.getBool(root, "triggerEnabled", false);
-                cfg.triggerPickup = ConfigJson.getBool(root, "triggerPickup", true);
-                cfg.triggerPlace = ConfigJson.getBool(root, "triggerPlace", true);
-                cfg.swapToRelic = ConfigJson.getBool(root, "swapToRelic", true);
-                cfg.cooldownMs = ConfigJson.getInt(root, "cooldownMs", 200);
-                cfg.lookEnabled = ConfigJson.getBool(root, "lookEnabled", false);
-                cfg.lookAtRelic = ConfigJson.getBool(root, "lookAtRelic", true);
-                cfg.lookAtCauldron = ConfigJson.getBool(root, "lookAtCauldron", true);
-                cfg.lookRange = ConfigJson.getInt(root, "lookRange", 8);
-            } catch (Exception ignored) {
-                // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
-            }
+        JsonObject root = ConfigJson.read(CONFIG_PATH);
+        if (root != null) {
+            cfg.triggerEnabled = ConfigJson.getBool(root, "triggerEnabled", false);
+            cfg.triggerPickup = ConfigJson.getBool(root, "triggerPickup", true);
+            cfg.triggerPlace = ConfigJson.getBool(root, "triggerPlace", true);
+            cfg.swapToRelic = ConfigJson.getBool(root, "swapToRelic", true);
+            cfg.cooldownMs = ConfigJson.getInt(root, "cooldownMs", 200);
+            cfg.lookEnabled = ConfigJson.getBool(root, "lookEnabled", false);
+            cfg.lookAtRelic = ConfigJson.getBool(root, "lookAtRelic", true);
+            cfg.lookAtCauldron = ConfigJson.getBool(root, "lookAtCauldron", true);
+            cfg.lookRange = ConfigJson.getInt(root, "lookRange", 8);
         }
         instance = cfg;
         com.killer560.hub.util.FeatureBits.changed();
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("triggerEnabled", triggerEnabled);
-            root.addProperty("triggerPickup", triggerPickup);
-            root.addProperty("triggerPlace", triggerPlace);
-            root.addProperty("swapToRelic", swapToRelic);
-            root.addProperty("cooldownMs", cooldownMs);
-            root.addProperty("lookEnabled", lookEnabled);
-            root.addProperty("lookAtRelic", lookAtRelic);
-            root.addProperty("lookAtCauldron", lookAtCauldron);
-            root.addProperty("lookRange", lookRange);
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("triggerEnabled", triggerEnabled);
+        root.addProperty("triggerPickup", triggerPickup);
+        root.addProperty("triggerPlace", triggerPlace);
+        root.addProperty("swapToRelic", swapToRelic);
+        root.addProperty("cooldownMs", cooldownMs);
+        root.addProperty("lookEnabled", lookEnabled);
+        root.addProperty("lookAtRelic", lookAtRelic);
+        root.addProperty("lookAtCauldron", lookAtCauldron);
+        root.addProperty("lookRange", lookRange);
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */

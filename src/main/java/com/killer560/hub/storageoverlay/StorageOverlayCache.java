@@ -1,10 +1,9 @@
 package com.killer560.hub.storageoverlay;
 
 import com.killer560.hub.storagesearch.StorageSearchNbtCodec;
+import com.killer560.hub.util.ConfigJson;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
@@ -50,7 +49,6 @@ import java.util.Set;
 public final class StorageOverlayCache {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-storageoverlay");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CACHE_PATH =
             ModPaths.config("killer560smod-storageoverlay-cache.json");
 
@@ -157,11 +155,7 @@ public final class StorageOverlayCache {
     private static synchronized void writePending() {
         JsonObject obj = PENDING_WRITE.getAndSet(null);
         if (obj == null) return;
-        try {
-            Files.createDirectories(CACHE_PATH.getParent());
-            Files.writeString(CACHE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        ConfigJson.write(CACHE_PATH, obj);
     }
 
     /** Bumped by every change to what {@link #knownKeysFor} / {@link #get} return, so a caller can keep what it built

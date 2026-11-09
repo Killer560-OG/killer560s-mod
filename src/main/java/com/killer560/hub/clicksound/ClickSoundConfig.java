@@ -1,7 +1,5 @@
 package com.killer560.hub.clicksound;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -18,7 +16,6 @@ import java.nio.file.Path;
  */
 public final class ClickSoundConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-menu-clicksound.json");
 
     private static ClickSoundConfig instance;
@@ -56,14 +53,10 @@ public final class ClickSoundConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("choice", choice);
-            obj.addProperty("volume", volume);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("choice", choice);
+        obj.addProperty("volume", volume);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public String getChoice() {

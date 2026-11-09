@@ -1,7 +1,5 @@
 package com.killer560.hub.fonts;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -37,7 +35,6 @@ public final class FontConfig {
     public static final int MAX_SIZE = 140;
     public static final int SIZE_STEP = 10;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-fonts.json");
 
     private static volatile FontConfig instance;
@@ -80,15 +77,11 @@ public final class FontConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("font", font);
-            obj.addProperty("scope", scope.name());
-            obj.addProperty("size", size);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("font", font);
+        obj.addProperty("scope", scope.name());
+        obj.addProperty("size", size);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public static Path path() {

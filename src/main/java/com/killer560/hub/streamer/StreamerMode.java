@@ -1,7 +1,5 @@
 package com.killer560.hub.streamer;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -39,7 +37,6 @@ public final class StreamerMode {
         public Option next() { return values()[(ordinal() + 1) % values().length]; }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-streamer.json");
 
     private static volatile boolean active;
@@ -92,14 +89,10 @@ public final class StreamerMode {
     }
 
     private static synchronized void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("active", active);
-            obj.addProperty("option", option.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("active", active);
+        obj.addProperty("option", option.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Streamer mode is on (cheat build only). */

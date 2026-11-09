@@ -1,8 +1,6 @@
 package com.killer560.hub.autoroutes;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -29,7 +27,6 @@ import java.util.Map;
  */
 public final class AutoRoutesConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autoroutes-settings.json");
 
@@ -289,54 +286,50 @@ public final class AutoRoutesConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("legitMode", legitMode);
-            o.addProperty("zeroPingChain", zeroPingChain);
-            o.addProperty("blinkChain", blinkChain);
-            o.addProperty("chargedChain", chargedChain);
-            o.addProperty("replanForRange", replanForRange);
-            o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
-            o.addProperty("runWhileMapOpen", runWhileMapOpen);
-            o.addProperty("killMimic", killMimic.name());
-            o.addProperty("cryptWeapon", cryptWeapon.name());
-            o.addProperty("cryptAttackTicks", cryptAttackTicks);
-            o.addProperty("batWeapon", batWeapon.name());
-            o.addProperty("batAttackTicks", batAttackTicks);
-            o.addProperty("mimicTimeoutTicks", mimicTimeoutTicks);
-            o.addProperty("etherwarpsPerSecond", etherwarpsPerSecond);
-            o.addProperty("uniformColor", uniformColor);
-            o.addProperty("colorsSectionOpen", colorsSectionOpen);
-            o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
-            o.addProperty("uniformColorArgb", uniformColorArgb);
-            o.addProperty("activeColorArgb", activeColorArgb);
-            JsonObject colors = new JsonObject();
-            for (RouteNode.Type t : RouteNode.Type.values()) {
-                colors.addProperty(t.name(), nodeColors.get(t));
-            }
-            o.add("nodeColors", colors);
-            o.addProperty("renderStyle", renderStyle.name());
-            o.addProperty("breakerDisplay", breakerDisplay.name());
-            o.addProperty("breakerStyle", breakerStyle.name());
-            o.addProperty("thickness", thickness);
-            o.addProperty("height", height);
-            o.addProperty("interactDelayTicks", interactDelayTicks);
-            o.addProperty("maxDriftDistance", maxDriftDistance);
-            o.addProperty("reachTimeoutTicks", reachTimeoutTicks);
-            o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("showNodeNumbers", showNodeNumbers);
-            o.addProperty("progressHud", progressHud);
-            o.addProperty("progressHudRooms", progressHudRooms);
-            JsonObject keys = new JsonObject();
-            for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
-                keys.addProperty(e.getKey(), e.getValue());
-            }
-            o.add("keybinds", keys);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("legitMode", legitMode);
+        o.addProperty("zeroPingChain", zeroPingChain);
+        o.addProperty("blinkChain", blinkChain);
+        o.addProperty("chargedChain", chargedChain);
+        o.addProperty("replanForRange", replanForRange);
+        o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
+        o.addProperty("runWhileMapOpen", runWhileMapOpen);
+        o.addProperty("killMimic", killMimic.name());
+        o.addProperty("cryptWeapon", cryptWeapon.name());
+        o.addProperty("cryptAttackTicks", cryptAttackTicks);
+        o.addProperty("batWeapon", batWeapon.name());
+        o.addProperty("batAttackTicks", batAttackTicks);
+        o.addProperty("mimicTimeoutTicks", mimicTimeoutTicks);
+        o.addProperty("etherwarpsPerSecond", etherwarpsPerSecond);
+        o.addProperty("uniformColor", uniformColor);
+        o.addProperty("colorsSectionOpen", colorsSectionOpen);
+        o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
+        o.addProperty("uniformColorArgb", uniformColorArgb);
+        o.addProperty("activeColorArgb", activeColorArgb);
+        JsonObject colors = new JsonObject();
+        for (RouteNode.Type t : RouteNode.Type.values()) {
+            colors.addProperty(t.name(), nodeColors.get(t));
         }
+        o.add("nodeColors", colors);
+        o.addProperty("renderStyle", renderStyle.name());
+        o.addProperty("breakerDisplay", breakerDisplay.name());
+        o.addProperty("breakerStyle", breakerStyle.name());
+        o.addProperty("thickness", thickness);
+        o.addProperty("height", height);
+        o.addProperty("interactDelayTicks", interactDelayTicks);
+        o.addProperty("maxDriftDistance", maxDriftDistance);
+        o.addProperty("reachTimeoutTicks", reachTimeoutTicks);
+        o.addProperty("chatFeedback", chatFeedback);
+        o.addProperty("showNodeNumbers", showNodeNumbers);
+        o.addProperty("progressHud", progressHud);
+        o.addProperty("progressHudRooms", progressHudRooms);
+        JsonObject keys = new JsonObject();
+        for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
+            keys.addProperty(e.getKey(), e.getValue());
+        }
+        o.add("keybinds", keys);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never report true here, even from a copied cheat-build config file. */

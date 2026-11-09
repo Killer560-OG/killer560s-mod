@@ -1,6 +1,7 @@
 package com.killer560.hub.ragaxe;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -166,19 +167,7 @@ public final class RagAxeFeature {
     }
 
     /** Up to three optional lines, each its own setting: channel wind-up, buff remaining, cooldown remaining. */
-    public static final HudElement TIMERS_HUD = new HudElement() {
-        @Override
-        public String id() { return "ragnarock_timer"; }
-
-        @Override
-        public String displayName() { return "Ragnarock Timers"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 100; }
-
+    public static final HudElement TIMERS_HUD = new BasicHud("ragnarock_timer", "Ragnarock Timers", 10, 100) {
         /** The rows drawn right now as {label, value}; render() and the box both read it (the box was a fixed
          *  110x30 around what is usually one row). */
         private java.util.List<String[]> rows() {

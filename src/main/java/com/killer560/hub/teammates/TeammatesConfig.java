@@ -1,8 +1,6 @@
 package com.killer560.hub.teammates;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -20,7 +18,6 @@ import java.nio.file.Path;
  */
 public final class TeammatesConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-teammates.json");
 
@@ -104,22 +101,18 @@ public final class TeammatesConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("style", style.name());
-            obj.addProperty("lineWidth", lineWidth);
-            obj.addProperty("range", range);
-            obj.addProperty("highlightSelf", highlightSelf);
-            obj.addProperty("showName", showName);
-            obj.addProperty("showDistance", showDistance);
-            obj.addProperty("unknownColor", unknownColor);
-            obj.addProperty("skipDead", skipDead);
-            obj.addProperty("throughWalls", throughWalls);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("style", style.name());
+        obj.addProperty("lineWidth", lineWidth);
+        obj.addProperty("range", range);
+        obj.addProperty("highlightSelf", highlightSelf);
+        obj.addProperty("showName", showName);
+        obj.addProperty("showDistance", showDistance);
+        obj.addProperty("unknownColor", unknownColor);
+        obj.addProperty("skipDead", skipDead);
+        obj.addProperty("throughWalls", throughWalls);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated on Skyblock like every other feature ({@code SkyblockGate.allows()}). */

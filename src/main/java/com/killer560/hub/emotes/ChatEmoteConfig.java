@@ -1,8 +1,7 @@
 package com.killer560.hub.emotes;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -13,7 +12,6 @@ import java.nio.file.Path;
 /** Persisted Chat Emotes setting: on/off. Defaults on, per killer560 - these are meant to "just work". */
 public final class ChatEmoteConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-emotes.json");
 
@@ -48,13 +46,9 @@ public final class ChatEmoteConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

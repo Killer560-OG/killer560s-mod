@@ -1,14 +1,9 @@
 package com.killer560.hub.heldoutline;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -59,7 +54,6 @@ public final class HeldOutlineConfig {
     public static final float MAX_WIDTH = 10.0f;
     public static final float DEFAULT_WIDTH = 3.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-heldoutline.json");
 
     private static HeldOutlineConfig instance;
@@ -159,49 +153,40 @@ public final class HeldOutlineConfig {
 
     public static void load() {
         HeldOutlineConfig cfg = new HeldOutlineConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                String s = ConfigJson.getString(o, "style", cfg.style.name());
-                for (Style st : Style.values()) {
-                    if (st.name().equalsIgnoreCase(s)) {
-                        cfg.style = st;
-                    }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
+            String s = ConfigJson.getString(o, "style", cfg.style.name());
+            for (Style st : Style.values()) {
+                if (st.name().equalsIgnoreCase(s)) {
+                    cfg.style = st;
                 }
-                String sd = ConfigJson.getString(o, "side", cfg.side.name());
-                for (Side v : Side.values()) {
-                    if (v.name().equalsIgnoreCase(sd)) {
-                        cfg.side = v;
-                    }
-                }
-                cfg.outlineColor = ConfigJson.getInt(o, "outlineColor", cfg.outlineColor);
-                cfg.fillColor = ConfigJson.getInt(o, "fillColor", cfg.fillColor);
-                cfg.width = clampWidth(ConfigJson.getFloat(o, "width", cfg.width));
-                cfg.mainHand = ConfigJson.getBool(o, "mainHand", cfg.mainHand);
-                cfg.offHand = ConfigJson.getBool(o, "offHand", cfg.offHand);
-            } catch (Exception e) {
-                cfg = new HeldOutlineConfig();
             }
+            String sd = ConfigJson.getString(o, "side", cfg.side.name());
+            for (Side v : Side.values()) {
+                if (v.name().equalsIgnoreCase(sd)) {
+                    cfg.side = v;
+                }
+            }
+            cfg.outlineColor = ConfigJson.getInt(o, "outlineColor", cfg.outlineColor);
+            cfg.fillColor = ConfigJson.getInt(o, "fillColor", cfg.fillColor);
+            cfg.width = clampWidth(ConfigJson.getFloat(o, "width", cfg.width));
+            cfg.mainHand = ConfigJson.getBool(o, "mainHand", cfg.mainHand);
+            cfg.offHand = ConfigJson.getBool(o, "offHand", cfg.offHand);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("style", style.name());
-            o.addProperty("side", side.name());
-            o.addProperty("outlineColor", outlineColor);
-            o.addProperty("fillColor", fillColor);
-            o.addProperty("width", width);
-            o.addProperty("mainHand", mainHand);
-            o.addProperty("offHand", offHand);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("style", style.name());
+        o.addProperty("side", side.name());
+        o.addProperty("outlineColor", outlineColor);
+        o.addProperty("fillColor", fillColor);
+        o.addProperty("width", width);
+        o.addProperty("mainHand", mainHand);
+        o.addProperty("offHand", offHand);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 }

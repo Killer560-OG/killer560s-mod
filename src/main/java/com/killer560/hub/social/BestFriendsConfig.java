@@ -1,8 +1,6 @@
 package com.killer560.hub.social;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -24,7 +22,6 @@ import java.nio.file.Path;
  */
 public final class BestFriendsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-bestfriends.json");
 
@@ -83,15 +80,11 @@ public final class BestFriendsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("sortMode", sortMode.name());
-            obj.addProperty("dungeonOnlyFilter", dungeonOnlyFilter);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("sortMode", sortMode.name());
+        obj.addProperty("dungeonOnlyFilter", dungeonOnlyFilter);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated on Skyblock like every other feature, and this is also the master switch for whether

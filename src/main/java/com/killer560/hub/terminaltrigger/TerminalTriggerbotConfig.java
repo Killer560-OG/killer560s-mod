@@ -1,8 +1,6 @@
 package com.killer560.hub.terminaltrigger;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -18,7 +16,6 @@ import java.nio.file.Path;
  *  no meaning here: opening a terminal doesn't use the held item. Cheat build only; ships disabled. */
 public final class TerminalTriggerbotConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-terminaltriggerbot.json");
 
@@ -68,16 +65,12 @@ public final class TerminalTriggerbotConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("enabled", enabled);
-            root.addProperty("delayMs", delayMs);
-            root.addProperty("cooldownMs", cooldownMs);
-            root.addProperty("range", range);
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("enabled", enabled);
+        root.addProperty("delayMs", delayMs);
+        root.addProperty("cooldownMs", cooldownMs);
+        root.addProperty("range", range);
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */

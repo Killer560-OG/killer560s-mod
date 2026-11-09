@@ -138,7 +138,7 @@ public final class SolverEspRender {
                                         float b, float a, float thickness) {
         if (off(solver)) return;
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) ->
-                lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
+                com.killer560.hub.util.BoxVerts.lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
     }
 
     /** A solver waypoint in the solver's Waypoint Style - an outline, or a translucent full block. */
@@ -156,7 +156,7 @@ public final class SolverEspRender {
                                        float b, float a) {
         if (off(solver)) return;
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.FILLED : Depth.FILLED, (pose, buffer) ->
-                filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
+                com.killer560.hub.util.BoxVerts.filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
     }
 
     public static void renderLineStrip(SolverEspConfig.Solver solver, LevelRenderContext context, List<Vec3> points,
@@ -166,58 +166,7 @@ public final class SolverEspRender {
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists.
         final Vec3[] pts = points.toArray(new Vec3[0]);
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) -> {
-            for (int i = 0; i < pts.length - 1; i++) {
-                Vec3 start = pts[i];
-                Vec3 end = pts[i + 1];
-                float sx = (float) start.x, sy = (float) start.y, sz = (float) start.z;
-                float ex = (float) end.x, ey = (float) end.y, ez = (float) end.z;
-                float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-                buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-                buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(thickness);
-            }
+            com.killer560.hub.util.BoxVerts.lineStrip(pose, buffer, pts, r, g, b, a, thickness);
         });
-    }
-
-    private static final int[] EDGES = {
-            0, 1, 1, 5, 5, 4, 4, 0,
-            3, 2, 2, 6, 6, 7, 7, 3,
-            0, 3, 1, 2, 5, 6, 4, 7
-    };
-
-    private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float r, float g, float bl, float a,
-                                float width) {
-        float x0 = (float) b.minX, y0 = (float) b.minY, z0 = (float) b.minZ;
-        float x1 = (float) b.maxX, y1 = (float) b.maxY, z1 = (float) b.maxZ;
-        float[] corners = {
-                x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0,
-                x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1
-        };
-        for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            float sx = corners[i0], sy = corners[i0 + 1], sz = corners[i0 + 2];
-            float ex = corners[i1], ey = corners[i1 + 1], ez = corners[i1 + 2];
-            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        }
-    }
-
-    private static void filledBox(Matrix4f m, VertexConsumer buf, AABB box, float r, float g, float b, float a) {
-        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
-        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        float[][] quads = {
-                {x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0},
-                {x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1},
-                {x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0},
-                {x1, y0, z1, x1, y1, z1, x0, y1, z1, x0, y0, z1},
-                {x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1},
-                {x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0}
-        };
-        for (float[] q : quads) {
-            for (int i = 0; i < 12; i += 3) {
-                buf.addVertex(m, q[i], q[i + 1], q[i + 2]).setColor(r, g, b, a);
-            }
-        }
     }
 }

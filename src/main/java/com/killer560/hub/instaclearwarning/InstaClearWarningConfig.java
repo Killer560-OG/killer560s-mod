@@ -1,14 +1,9 @@
 package com.killer560.hub.instaclearwarning;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +12,6 @@ import java.nio.file.Path;
  */
 public final class InstaClearWarningConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-instaclearwarning.json");
 
     /** The owner's default line (to-do Doc 2026-11-01). */
@@ -45,33 +39,25 @@ public final class InstaClearWarningConfig {
 
     public static void load() {
         InstaClearWarningConfig cfg = new InstaClearWarningConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.hudPopup = ConfigJson.getBool(obj, "hudPopup", true);
-                cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", true);
-                cfg.setMessage(ConfigJson.getString(obj, "message", DEFAULT_MESSAGE));
-                cfg.requeue = ConfigJson.getBool(obj, "requeue", false);
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.hudPopup = ConfigJson.getBool(obj, "hudPopup", true);
+            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", true);
+            cfg.setMessage(ConfigJson.getString(obj, "message", DEFAULT_MESSAGE));
+            cfg.requeue = ConfigJson.getBool(obj, "requeue", false);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("hudPopup", hudPopup);
-            obj.addProperty("partyMessage", partyMessage);
-            obj.addProperty("message", message);
-            obj.addProperty("requeue", requeue);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("hudPopup", hudPopup);
+        obj.addProperty("partyMessage", partyMessage);
+        obj.addProperty("message", message);
+        obj.addProperty("requeue", requeue);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

@@ -1,6 +1,7 @@
 package com.killer560.hub.instaclearwarning;
 
 import com.killer560.hub.autoclear.AutoClearTargets;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.autoclear.KeyRooms;
 import com.killer560.hub.commandshortcuts.CommandShortcutsFeature;
 import com.killer560.hub.compat.McCompat;
@@ -376,28 +377,8 @@ public final class InstaClearWarningFeature {
         }
     }
 
-    public static final HudElement HUD = new HudElement() {
+    public static final HudElement HUD = new BasicHud("insta_clear_warning", "Insta Clear Warning", 200, 60) {
         private static final String TITLE = "Blood rush room was insta cleared!";
-
-        @Override
-        public String id() {
-            return "insta_clear_warning";
-        }
-
-        @Override
-        public String displayName() {
-            return "Insta Clear Warning";
-        }
-
-        @Override
-        public int defaultX() {
-            return 200;
-        }
-
-        @Override
-        public int defaultY() {
-            return 60;
-        }
 
         @Override
         public int width() {

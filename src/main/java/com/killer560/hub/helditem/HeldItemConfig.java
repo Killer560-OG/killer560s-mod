@@ -1,14 +1,9 @@
 package com.killer560.hub.helditem;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted "Held Item Transform" settings - resize/reposition/reorient the first-person held item, plus
@@ -33,7 +28,6 @@ public final class HeldItemConfig {
     public static final float MIN_SWING_RANGE = 0.0f;
     public static final float MAX_SWING_RANGE = 3.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-helditem.json");
 
@@ -111,26 +105,22 @@ public final class HeldItemConfig {
 
     public static void load() {
         HeldItemConfig cfg = new HeldItemConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.separateOffHand = ConfigJson.getBool(obj, "separateOffHand", cfg.separateOffHand);
-                cfg.noSwing = ConfigJson.getBool(obj, "noSwing", cfg.noSwing);
-                cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
-                cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
-                cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
-                cfg.swingRange = clamp(getFloat(obj, "swingRange", 1.0f), MIN_SWING_RANGE, MAX_SWING_RANGE);
-                JsonObject main = ConfigJson.getObject(obj, "mainHand");
-                if (main != null) {
-                    cfg.mainHand.fromJson(main);
-                }
-                JsonObject off = ConfigJson.getObject(obj, "offHand");
-                if (off != null) {
-                    cfg.offHand.fromJson(off);
-                }
-            } catch (Exception e) {
-                cfg = new HeldItemConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.separateOffHand = ConfigJson.getBool(obj, "separateOffHand", cfg.separateOffHand);
+            cfg.noSwing = ConfigJson.getBool(obj, "noSwing", cfg.noSwing);
+            cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
+            cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
+            cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
+            cfg.swingRange = clamp(getFloat(obj, "swingRange", 1.0f), MIN_SWING_RANGE, MAX_SWING_RANGE);
+            JsonObject main = ConfigJson.getObject(obj, "mainHand");
+            if (main != null) {
+                cfg.mainHand.fromJson(main);
+            }
+            JsonObject off = ConfigJson.getObject(obj, "offHand");
+            if (off != null) {
+                cfg.offHand.fromJson(off);
             }
         }
         instance = cfg;
@@ -138,21 +128,17 @@ public final class HeldItemConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("separateOffHand", separateOffHand);
-            obj.addProperty("noSwing", noSwing);
-            obj.addProperty("noEquip", noEquip);
-            obj.addProperty("noHandSway", noHandSway);
-            obj.addProperty("swingSpeed", swingSpeed);
-            obj.addProperty("swingRange", swingRange);
-            obj.add("mainHand", mainHand.toJson());
-            obj.add("offHand", offHand.toJson());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("separateOffHand", separateOffHand);
+        obj.addProperty("noSwing", noSwing);
+        obj.addProperty("noEquip", noEquip);
+        obj.addProperty("noHandSway", noHandSway);
+        obj.addProperty("swingSpeed", swingSpeed);
+        obj.addProperty("swingRange", swingRange);
+        obj.add("mainHand", mainHand.toJson());
+        obj.add("offHand", offHand.toJson());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Resets every value (both hands, toggles, swing speed) to vanilla - leaves the master toggle alone. */

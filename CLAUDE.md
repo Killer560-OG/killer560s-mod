@@ -97,6 +97,7 @@ the post-2.0 staging work stays unpushed.
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
 boss-phase detection; `util/ViewFreeze` holds the camera still while something rotates the real player.
+Duplicate helpers (unify-1108): a HUD element with a constant id, name and default position extends `hud/BasicHud` (`super(id, name, x, y)`), not `implements HudElement` with four one-line methods; `bazaarflip/autopilot/FlipAction` has default `productId()`, `name()` and `order()`, so a record that carries no order overrides nothing. A config's plain on/off switches go in a `util/BoolFields` table, its file reads and writes through `ConfigJson.read/write` (never `JsonParser.parseString(Files.readString(..))` or a private pretty Gson), and box/line vertices through `util/BoxVerts` (`lineBox`, `filledBox`, `lineStrip`).
 Main menu pictures: he (or a theme's designer) paints them and we only animate them (killer560, 2026-10-16) -
 `mainmenu/PictureScene` is the pipeline (texture, patches, ripples, overlays); `TargetScene` and `MilkyWayTexScene` are specs.
 Theme assets on demand (themedl-1104): the full main menu pictures and the theme music loops live in `theme-assets/` at the

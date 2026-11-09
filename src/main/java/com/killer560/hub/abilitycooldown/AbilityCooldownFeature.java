@@ -1,6 +1,7 @@
 package com.killer560.hub.abilitycooldown;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
 import com.killer560.hub.hud.HudVisibility;
@@ -83,33 +84,15 @@ public final class AbilityCooldownFeature {
      * Movable cooldown list. Sound detection reaches {@link AbilityCooldownState#onSoundPacket} through the
      * existing {@code DungeonAlertsPackets.onSound} bridge - see this feature's registration notes.
      */
-    public static final class CooldownHudElement implements HudElement {
+    public static final class CooldownHudElement extends BasicHud {
+        public CooldownHudElement() {
+            super(HUD_ID, "Ability Cooldowns", 200, 200);
+        }
 
         private static final int COLOR_SOON = 0xFFFF5555;
         private static final int COLOR_MID = 0xFFFFAA00;
         private static final int COLOR_FAR = 0xFFFFFFFF;
         private static final int COLOR_READY = 0xFF55FF55;
-
-        @Override
-        public String id() {
-            return HUD_ID;
-        }
-
-        @Override
-        public String displayName() {
-            return "Ability Cooldowns";
-        }
-
-        @Override
-        public int defaultX() {
-            // Second column (x=200): the old 10/320 sat exactly on Split Timers.
-            return 200;
-        }
-
-        @Override
-        public int defaultY() {
-            return 200;
-        }
 
         @Override
         public int width() {

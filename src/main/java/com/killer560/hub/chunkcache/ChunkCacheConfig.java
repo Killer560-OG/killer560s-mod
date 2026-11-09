@@ -1,14 +1,9 @@
 package com.killer560.hub.chunkcache;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Chunk Cache settings - see {@link ChunkCacheManager}. Ships disabled by default, same as every other
@@ -19,7 +14,6 @@ public final class ChunkCacheConfig {
     public static final int MAX_CHUNKS = 20000;
     public static final int DEFAULT_CHUNKS = 4000;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-chunkcache.json");
 
@@ -41,30 +35,22 @@ public final class ChunkCacheConfig {
 
     public static void load() {
         ChunkCacheConfig cfg = new ChunkCacheConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                // One-time switch-on: files written before the default changed saved the old OFF default, so they
-                // come up ON once (marked by defaultOnV1); after that his own choice is kept.
-                cfg.enabled = obj.has("defaultOnV1") ? ConfigJson.getBool(obj, "enabled", true) : true;
-                cfg.setMaxChunks(ConfigJson.getInt(obj, "maxChunks", DEFAULT_CHUNKS));
-            } catch (Exception ignored) {
-                // per-key readers above never throw; only an unreadable/non-object file lands here
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            // One-time switch-on: files written before the default changed saved the old OFF default, so they
+            // come up ON once (marked by defaultOnV1); after that his own choice is kept.
+            cfg.enabled = obj.has("defaultOnV1") ? ConfigJson.getBool(obj, "enabled", true) : true;
+            cfg.setMaxChunks(ConfigJson.getInt(obj, "maxChunks", DEFAULT_CHUNKS));
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("maxChunks", maxChunks);
-            obj.addProperty("defaultOnV1", true);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("maxChunks", maxChunks);
+        obj.addProperty("defaultOnV1", true);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated by "Skyblock Only" like every other feature getter - the settings screen still sees the raw value. */

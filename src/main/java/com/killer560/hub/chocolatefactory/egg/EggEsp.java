@@ -204,24 +204,4 @@ public final class EggEsp {
 
         static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
-
-    private static final int[] EDGES = {
-            0, 1, 1, 5, 5, 4, 4, 0,
-            3, 2, 2, 6, 6, 7, 7, 3,
-            0, 3, 1, 2, 5, 6, 4, 7
-    };
-
-    static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB box, float r, float g, float b, float a,
-                                float width) {
-        float x0 = (float) box.minX, y0 = (float) box.minY, z0 = (float) box.minZ;
-        float x1 = (float) box.maxX, y1 = (float) box.maxY, z1 = (float) box.maxZ;
-        float[] c = {x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1};
-        for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            float dx = c[i1] - c[i0], dy = c[i1 + 1] - c[i0 + 1], dz = c[i1 + 2] - c[i0 + 2];
-            buffer.addVertex(pose, c[i0], c[i0 + 1], c[i0 + 2]).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-            buffer.addVertex(pose, c[i1], c[i1 + 1], c[i1 + 2]).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        }
-    }
 }

@@ -1,8 +1,6 @@
 package com.killer560.hub.goldor;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -28,7 +26,6 @@ import java.nio.file.Path;
  */
 public final class GoldorTriggerbotConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-goldortriggerbot.json");
 
@@ -106,19 +103,15 @@ public final class GoldorTriggerbotConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("cpsMin", cpsMin);
-            obj.addProperty("cpsMax", cpsMax);
-            obj.addProperty("clickType", clickType.name());
-            obj.addProperty("aimDelayMs", aimDelayMs);
-            obj.addProperty("allWithers", allWithers);
-            obj.addProperty("classes", String.join(",", classes.stream().map(Enum::name).toList()));
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("cpsMin", cpsMin);
+        obj.addProperty("cpsMax", cpsMax);
+        obj.addProperty("clickType", clickType.name());
+        obj.addProperty("aimDelayMs", aimDelayMs);
+        obj.addProperty("allWithers", allWithers);
+        obj.addProperty("classes", String.join(",", classes.stream().map(Enum::name).toList()));
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */

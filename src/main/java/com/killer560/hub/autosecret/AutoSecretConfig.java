@@ -1,15 +1,10 @@
 package com.killer560.hub.autosecret;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -18,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class AutoSecretConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autosecret.json");
 
     public static final int MIN_PUZZLE_WAIT_S = 0;
@@ -166,87 +160,79 @@ public final class AutoSecretConfig {
 
     public static void load() {
         AutoSecretConfig cfg = new AutoSecretConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.toggleKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "toggleKey", cfg.toggleKey));
-                cfg.instaClear = ConfigJson.getBool(o, "instaClear", cfg.instaClear);
-                cfg.iceFillFirst = ConfigJson.getBool(o, "iceFillFirst", cfg.iceFillFirst);
-                cfg.quizFirst = ConfigJson.getBool(o, "quizFirst", cfg.quizFirst);
-                cfg.autoClearRooms = ConfigJson.getBool(o, "autoClearRooms", cfg.autoClearRooms);
-                cfg.setPuzzleWaitSeconds(ConfigJson.getInt(o, "puzzleWaitSeconds", cfg.puzzleWaitSeconds));
-                cfg.setRouteStallSeconds(ConfigJson.getInt(o, "routeStallSeconds", cfg.routeStallSeconds));
-                cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
-                cfg.autopilotKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "autopilotKey", cfg.autopilotKey));
-                String mode = ConfigJson.getString(o, "runMode", cfg.runMode.name());
-                for (RunMode m : RunMode.values()) {
-                    if (m.name().equals(mode)) {
-                        cfg.runMode = m;
-                    }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.toggleKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "toggleKey", cfg.toggleKey));
+            cfg.instaClear = ConfigJson.getBool(o, "instaClear", cfg.instaClear);
+            cfg.iceFillFirst = ConfigJson.getBool(o, "iceFillFirst", cfg.iceFillFirst);
+            cfg.quizFirst = ConfigJson.getBool(o, "quizFirst", cfg.quizFirst);
+            cfg.autoClearRooms = ConfigJson.getBool(o, "autoClearRooms", cfg.autoClearRooms);
+            cfg.setPuzzleWaitSeconds(ConfigJson.getInt(o, "puzzleWaitSeconds", cfg.puzzleWaitSeconds));
+            cfg.setRouteStallSeconds(ConfigJson.getInt(o, "routeStallSeconds", cfg.routeStallSeconds));
+            cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+            cfg.autopilotKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "autopilotKey", cfg.autopilotKey));
+            String mode = ConfigJson.getString(o, "runMode", cfg.runMode.name());
+            for (RunMode m : RunMode.values()) {
+                if (m.name().equals(mode)) {
+                    cfg.runMode = m;
                 }
-                cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
-                String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
-                for (SecretBloodFirst m : SecretBloodFirst.values()) {
-                    if (m.name().equals(sbf)) {
-                        cfg.secretBloodFirst = m;
-                    }
-                }
-                String so = ConfigJson.getString(o, "secretOrder", cfg.secretOrder.name());
-                for (SecretOrder m : SecretOrder.values()) {
-                    if (m.name().equals(so)) {
-                        cfg.secretOrder = m;
-                    }
-                }
-                // The names of the first version (2026-10-18, a few hours old): LARGEST_FIRST, FEWEST_WARPS.
-                if ("LARGEST_FIRST".equals(so)) {
-                    cfg.secretOrder = SecretOrder.LARGEST_TO_SMALLEST;
-                } else if ("FEWEST_WARPS".equals(so)) {
-                    cfg.secretOrder = SecretOrder.LEAST_ETHERWARPS;
-                }
-                String rp = ConfigJson.getString(o, "roomPlan", cfg.roomPlan.name());
-                for (RoomPlan m : RoomPlan.values()) {
-                    if (m.name().equals(rp)) {
-                        cfg.roomPlan = m;
-                    }
-                }
-                cfg.skipUnneededSecrets = ConfigJson.getBool(o, "skipUnneededSecrets", cfg.skipUnneededSecrets);
-                cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
-                // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
-                cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
-                // getDouble drops a non-finite value (a hand-edited NaN made key pickup never reach).
-                cfg.setKeyBaseRange(ConfigJson.getDouble(o, "keyBaseRange", cfg.keyBaseRange));
-            } catch (Exception e) {
-                // unreadable file - keep defaults
             }
+            cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
+            String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
+            for (SecretBloodFirst m : SecretBloodFirst.values()) {
+                if (m.name().equals(sbf)) {
+                    cfg.secretBloodFirst = m;
+                }
+            }
+            String so = ConfigJson.getString(o, "secretOrder", cfg.secretOrder.name());
+            for (SecretOrder m : SecretOrder.values()) {
+                if (m.name().equals(so)) {
+                    cfg.secretOrder = m;
+                }
+            }
+            // The names of the first version (2026-10-18, a few hours old): LARGEST_FIRST, FEWEST_WARPS.
+            if ("LARGEST_FIRST".equals(so)) {
+                cfg.secretOrder = SecretOrder.LARGEST_TO_SMALLEST;
+            } else if ("FEWEST_WARPS".equals(so)) {
+                cfg.secretOrder = SecretOrder.LEAST_ETHERWARPS;
+            }
+            String rp = ConfigJson.getString(o, "roomPlan", cfg.roomPlan.name());
+            for (RoomPlan m : RoomPlan.values()) {
+                if (m.name().equals(rp)) {
+                    cfg.roomPlan = m;
+                }
+            }
+            cfg.skipUnneededSecrets = ConfigJson.getBool(o, "skipUnneededSecrets", cfg.skipUnneededSecrets);
+            cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
+            // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
+            cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
+            // getDouble drops a non-finite value (a hand-edited NaN made key pickup never reach).
+            cfg.setKeyBaseRange(ConfigJson.getDouble(o, "keyBaseRange", cfg.keyBaseRange));
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("toggleKey", toggleKey);
-            o.addProperty("instaClear", instaClear);
-            o.addProperty("iceFillFirst", iceFillFirst);
-            o.addProperty("quizFirst", quizFirst);
-            o.addProperty("autoClearRooms", autoClearRooms);
-            o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
-            o.addProperty("routeStallSeconds", routeStallSeconds);
-            o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("autopilotKey", autopilotKey);
-            o.addProperty("runMode", runMode.name());
-            o.addProperty("bloodFirst", bloodFirst);
-            o.addProperty("secretBloodFirst", secretBloodFirst.name());
-            o.addProperty("secretOrder", secretOrder.name());
-            o.addProperty("roomPlan", roomPlan.name());
-            o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
-            o.addProperty("doPuzzles", doPuzzles);
-            o.addProperty("statusHud", statusHud);
-            o.addProperty("keyBaseRange", keyBaseRange);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("toggleKey", toggleKey);
+        o.addProperty("instaClear", instaClear);
+        o.addProperty("iceFillFirst", iceFillFirst);
+        o.addProperty("quizFirst", quizFirst);
+        o.addProperty("autoClearRooms", autoClearRooms);
+        o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
+        o.addProperty("routeStallSeconds", routeStallSeconds);
+        o.addProperty("chatFeedback", chatFeedback);
+        o.addProperty("autopilotKey", autopilotKey);
+        o.addProperty("runMode", runMode.name());
+        o.addProperty("bloodFirst", bloodFirst);
+        o.addProperty("secretBloodFirst", secretBloodFirst.name());
+        o.addProperty("secretOrder", secretOrder.name());
+        o.addProperty("roomPlan", roomPlan.name());
+        o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
+        o.addProperty("doPuzzles", doPuzzles);
+        o.addProperty("statusHud", statusHud);
+        o.addProperty("keyBaseRange", keyBaseRange);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never run it, even from a copied cheat-build config. */

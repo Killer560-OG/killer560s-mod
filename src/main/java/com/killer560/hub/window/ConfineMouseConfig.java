@@ -1,7 +1,6 @@
 package com.killer560.hub.window;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ModPaths;
@@ -15,7 +14,6 @@ import java.nio.file.Path;
  *  The key is only written once it has been set. */
 public final class ConfineMouseConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-window-confinemouse.json");
 
     private static ConfineMouseConfig instance;
@@ -54,16 +52,12 @@ public final class ConfineMouseConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            if (enabled != null) {
-                obj.addProperty("enabled", enabled);
-            }
-            obj.addProperty("onlyInDungeons", onlyInDungeons);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        if (enabled != null) {
+            obj.addProperty("enabled", enabled);
         }
+        obj.addProperty("onlyInDungeons", onlyInDungeons);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The saved value, or OFF with none saved. */

@@ -1,8 +1,6 @@
 package com.killer560.hub.terminalaura;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -18,7 +16,6 @@ import java.nio.file.Path;
  *  {@link SkyblockGate#allows()}; {@link #isEnabledRaw()} is the un-gated value, for the tab's own label. */
 public final class TerminalAuraConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-terminalaura.json");
 
@@ -95,21 +92,17 @@ public final class TerminalAuraConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("enabled", enabled);
-            root.addProperty("range", range);
-            root.addProperty("delayMs", delayMs);
-            root.addProperty("groundOnly", groundOnly);
-            root.addProperty("leapDelayEnabled", leapDelayEnabled);
-            root.addProperty("leapDelaySeconds", leapDelaySeconds);
-            root.addProperty("pauseOnMovementKeys", pauseOnMovementKeys);
-            root.addProperty("fovDegrees", fovDegrees);
-            root.addProperty("turnToTerminal", turnToTerminal);
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("enabled", enabled);
+        root.addProperty("range", range);
+        root.addProperty("delayMs", delayMs);
+        root.addProperty("groundOnly", groundOnly);
+        root.addProperty("leapDelayEnabled", leapDelayEnabled);
+        root.addProperty("leapDelaySeconds", leapDelaySeconds);
+        root.addProperty("pauseOnMovementKeys", pauseOnMovementKeys);
+        root.addProperty("fovDegrees", fovDegrees);
+        root.addProperty("turnToTerminal", turnToTerminal);
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
     /** The gate the feature itself checks - false on the legit jar and outside Skyblock, always. */

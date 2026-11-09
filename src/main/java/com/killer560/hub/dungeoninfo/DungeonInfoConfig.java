@@ -1,8 +1,6 @@
 package com.killer560.hub.dungeoninfo;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -28,7 +26,6 @@ import java.nio.file.Path;
  *  optional (it's the only thing the HUD shows now), so {@code showPerRoomSecrets} is gone with it. */
 public final class DungeonInfoConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-dungeoninfo.json");
 
@@ -67,14 +64,10 @@ public final class DungeonInfoConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("secretsHudEnabled", secretsHudEnabled);
-            obj.addProperty("textColor", textColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("secretsHudEnabled", secretsHudEnabled);
+        obj.addProperty("textColor", textColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isSecretsHudEnabled() {

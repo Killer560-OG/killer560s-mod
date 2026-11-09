@@ -1,8 +1,7 @@
 package com.killer560.hub.simonsays;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -24,7 +23,6 @@ public final class SimonSaysConfig {
         FILLED, OUTLINE, FILLED_OUTLINE
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-simonsays.json");
 
@@ -214,43 +212,39 @@ public final class SimonSaysConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("solverEnabled", solverEnabled);
-            obj.addProperty("style", style.name());
-            obj.addProperty("numberOverlay", numberOverlay);
-            obj.addProperty("numberScale", numberScale);
-            obj.addProperty("firstColor", firstColor);
-            obj.addProperty("secondColor", secondColor);
-            obj.addProperty("thirdColor", thirdColor);
-            obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
-            obj.addProperty("announceProgress", announceProgress);
-            obj.addProperty("partyProgressTrackerEnabled", partyProgressTrackerEnabled);
-            obj.addProperty("triggerBotEnabled", triggerBotEnabled);
-            obj.addProperty("autoSimonSaysEnabled", autoSimonSaysEnabled);
-            obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
-            obj.addProperty("autoSolveEnabled", autoSolveEnabled);
-            obj.addProperty("autoSolveRotate", autoSolveRotate);
-            obj.addProperty("clickTimerTargetMs", clickTimerTargetMs);
-            obj.addProperty("clickTimerVarianceMs", clickTimerVarianceMs);
-            obj.addProperty("autoSolveFixedDelayMode", autoSolveFixedDelayMode);
-            obj.addProperty("autoSolveFixedDelayMs", autoSolveFixedDelayMs);
-            obj.addProperty("autoSolveStim", autoSolveStim);
-            obj.addProperty("autoSolveMomentum", autoSolveMomentum);
-            obj.addProperty("autoStartEnabled", autoStartEnabled);
-            obj.addProperty("autoStartClicks", autoStartClicks);
-            obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
-            obj.addProperty("resetKeyCode", announceKeyCode);
-            obj.addProperty("autoRestartEnabled", autoRestartEnabled);
-            obj.addProperty("restartKeyCode", restartKeyCode);
-            obj.addProperty("autoSendResetMessage", autoSendResetMessage);
-            obj.addProperty("resetMessageText", resetMessageText);
-            obj.addProperty("diagnosticLoggingEnabled", diagnosticLoggingEnabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("solverEnabled", solverEnabled);
+        obj.addProperty("style", style.name());
+        obj.addProperty("numberOverlay", numberOverlay);
+        obj.addProperty("numberScale", numberScale);
+        obj.addProperty("firstColor", firstColor);
+        obj.addProperty("secondColor", secondColor);
+        obj.addProperty("thirdColor", thirdColor);
+        obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
+        obj.addProperty("announceProgress", announceProgress);
+        obj.addProperty("partyProgressTrackerEnabled", partyProgressTrackerEnabled);
+        obj.addProperty("triggerBotEnabled", triggerBotEnabled);
+        obj.addProperty("autoSimonSaysEnabled", autoSimonSaysEnabled);
+        obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
+        obj.addProperty("autoSolveEnabled", autoSolveEnabled);
+        obj.addProperty("autoSolveRotate", autoSolveRotate);
+        obj.addProperty("clickTimerTargetMs", clickTimerTargetMs);
+        obj.addProperty("clickTimerVarianceMs", clickTimerVarianceMs);
+        obj.addProperty("autoSolveFixedDelayMode", autoSolveFixedDelayMode);
+        obj.addProperty("autoSolveFixedDelayMs", autoSolveFixedDelayMs);
+        obj.addProperty("autoSolveStim", autoSolveStim);
+        obj.addProperty("autoSolveMomentum", autoSolveMomentum);
+        obj.addProperty("autoStartEnabled", autoStartEnabled);
+        obj.addProperty("autoStartClicks", autoStartClicks);
+        obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
+        obj.addProperty("resetKeyCode", announceKeyCode);
+        obj.addProperty("autoRestartEnabled", autoRestartEnabled);
+        obj.addProperty("restartKeyCode", restartKeyCode);
+        obj.addProperty("autoSendResetMessage", autoSendResetMessage);
+        obj.addProperty("resetMessageText", resetMessageText);
+        obj.addProperty("diagnosticLoggingEnabled", diagnosticLoggingEnabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static boolean getBool(JsonObject obj, String key, boolean def) {

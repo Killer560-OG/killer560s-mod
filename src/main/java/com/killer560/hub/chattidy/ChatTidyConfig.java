@@ -1,7 +1,5 @@
 package com.killer560.hub.chattidy;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -26,7 +24,6 @@ import java.nio.file.Path;
  */
 public final class ChatTidyConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-chattidy.json");
     /** Where Hide Chat Messages' six switches lived until 2026-10-08. */
     private static final Path OBJECT_HIDER_PATH = ModPaths.config("killer560smod-objecthider.json");
@@ -141,31 +138,27 @@ public final class ChatTidyConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("stackDuplicates", stackDuplicates);
-            obj.addProperty("hideDamageMessages", hideDamageMessages);
-            obj.addProperty("hideUselessMessages", hideUselessMessages);
-            obj.addProperty("hideDiscordWarnings", hideDiscordWarnings);
-            obj.addProperty("hideMicrosoftWarnings", hideMicrosoftWarnings);
-            obj.addProperty("hideEmptyChatMessages", hideEmptyChatMessages);
-            obj.addProperty("hideActionbar", hideActionbar);
-            obj.addProperty("hideNonRankInvites", hideNonRankInvites);
-            obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
-            obj.addProperty("hideMiningReminders", hideMiningReminders);
-            obj.addProperty("hideSackMessages", hideSackMessages);
-            obj.addProperty("hideAlreadyLooted", hideAlreadyLooted);
-            obj.addProperty("hideBossDialogue", hideBossDialogue);
-            obj.addProperty("hideMort", hideMort);
-            obj.addProperty("hideBlessings", hideBlessings);
-            obj.addProperty("hideOthersPickups", hideOthersPickups);
-            obj.addProperty("hideAbilitySpam", hideAbilitySpam);
-            obj.addProperty("hideDungeonBreaker", hideDungeonBreaker);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("stackDuplicates", stackDuplicates);
+        obj.addProperty("hideDamageMessages", hideDamageMessages);
+        obj.addProperty("hideUselessMessages", hideUselessMessages);
+        obj.addProperty("hideDiscordWarnings", hideDiscordWarnings);
+        obj.addProperty("hideMicrosoftWarnings", hideMicrosoftWarnings);
+        obj.addProperty("hideEmptyChatMessages", hideEmptyChatMessages);
+        obj.addProperty("hideActionbar", hideActionbar);
+        obj.addProperty("hideNonRankInvites", hideNonRankInvites);
+        obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
+        obj.addProperty("hideMiningReminders", hideMiningReminders);
+        obj.addProperty("hideSackMessages", hideSackMessages);
+        obj.addProperty("hideAlreadyLooted", hideAlreadyLooted);
+        obj.addProperty("hideBossDialogue", hideBossDialogue);
+        obj.addProperty("hideMort", hideMort);
+        obj.addProperty("hideBlessings", hideBlessings);
+        obj.addProperty("hideOthersPickups", hideOthersPickups);
+        obj.addProperty("hideAbilitySpam", hideAbilitySpam);
+        obj.addProperty("hideDungeonBreaker", hideDungeonBreaker);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     // ---- gated (what the features read): master AND rule AND Skyblock Only ------------------------------------

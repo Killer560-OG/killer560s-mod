@@ -1,8 +1,6 @@
 package com.killer560.hub.updatecheck;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -26,7 +24,6 @@ import java.nio.file.Path;
  */
 public final class UpdateCheckConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-updatecheck.json");
 
@@ -61,13 +58,9 @@ public final class UpdateCheckConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("notifyOnStart", notifyOnStart);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("notifyOnStart", notifyOnStart);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isNotifyOnStart() { return notifyOnStart; }

@@ -1,8 +1,7 @@
 package com.killer560.hub.bloodcamp;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.BoolFields;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -41,7 +40,6 @@ public final class BloodCampConfig {
     /** Countdown Start Sound and Kill Sound volume, 0-1 (Secret Sound's default). */
     public static final float DEFAULT_SOUND_VOLUME = 0.5f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-bloodcamp.json");
 
@@ -124,6 +122,27 @@ public final class BloodCampConfig {
         return showOverlay;
     }
 
+    /** The plain on/off settings: key, default, and how to read and write the field. */
+    private static final BoolFields<BloodCampConfig> BOOLS = new BoolFields<BloodCampConfig>()
+            .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
+            .add("showOverlay", true, c -> c.showOverlay, (c, v) -> c.showOverlay = v)
+            .add("triggerBotEnabled", false, c -> c.triggerBotEnabled, (c, v) -> c.triggerBotEnabled = v)
+            .add("auraEnabled", false, c -> c.auraEnabled, (c, v) -> c.auraEnabled = v)
+            .add("autoDetectLag", true, c -> c.autoDetectLag, (c, v) -> c.autoDetectLag = v)
+            .add("auraFreecam", false, c -> c.auraFreecam, (c, v) -> c.auraFreecam = v)
+            .add("neverMiss", false, c -> c.neverMiss, (c, v) -> c.neverMiss = v)
+            .add("killPopup", false, c -> c.killPopup, (c, v) -> c.killPopup = v)
+            .add("spawnLine", true, c -> c.spawnLine, (c, v) -> c.spawnLine = v)
+            .add("countdownStartSound", true, c -> c.countdownStartSound, (c, v) -> c.countdownStartSound = v)
+            .add("killSound", true, c -> c.killSound, (c, v) -> c.killSound = v)
+            .add("mageOnly", false, c -> c.mageOnly, (c, v) -> c.mageOnly = v)
+            .add("hudMobsLeft", false, c -> c.hudMobsLeft, (c, v) -> c.hudMobsLeft = v)
+            .add("hudMobTicks", false, c -> c.hudMobTicks, (c, v) -> c.hudMobTicks = v)
+            .add("hudCampLag", false, c -> c.hudCampLag, (c, v) -> c.hudCampLag = v)
+            .add("partyMessage", false, c -> c.partyMessage, (c, v) -> c.partyMessage = v)
+            .add("partyMessageLag", false, c -> c.partyMessageLag, (c, v) -> c.partyMessageLag = v)
+            .add("partyMessageAnyClass", false, c -> c.partyMessageAnyClass, (c, v) -> c.partyMessageAnyClass = v);
+
     private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new BloodCampConfig();
@@ -133,11 +152,7 @@ public final class BloodCampConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             BloodCampConfig cfg = new BloodCampConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.showOverlay = ConfigJson.getBool(obj, "showOverlay", true);
-            cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
-            cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
-            cfg.autoDetectLag = ConfigJson.getBool(obj, "autoDetectLag", true);
+            BOOLS.load(cfg, obj);
             // The old hitLeadTicks / manualTickOffset keys are ignored on purpose: they counted from the server-side
             // due moment, this counts from the kill timer he sees, so the old number would not mean the same click.
             int offset = ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS);
@@ -145,26 +160,13 @@ public final class BloodCampConfig {
                 offset = -offset; // saved as "positive early": the same click moment on the new slider
             }
             cfg.setTriggerOffsetTicks(offset);
-            cfg.auraFreecam = ConfigJson.getBool(obj, "auraFreecam", false);
-            cfg.neverMiss = ConfigJson.getBool(obj, "neverMiss", false);
-            cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
             cfg.setTimerTextColor(ConfigJson.getInt(obj, "timerTextColor", DEFAULT_TIMER_TEXT_COLOR));
-            cfg.spawnLine = ConfigJson.getBool(obj, "spawnLine", true);
             cfg.setSpawnLineWidth(ConfigJson.getFloat(obj, "spawnLineWidth", DEFAULT_SPAWN_LINE_WIDTH));
-            cfg.countdownStartSound = ConfigJson.getBool(obj, "countdownStartSound", true);
-            cfg.killSound = ConfigJson.getBool(obj, "killSound", true);
             cfg.setCountdownStartSoundId(ConfigJson.getString(obj, "countdownStartSoundId", cfg.countdownStartSoundId));
             cfg.setKillSoundId(ConfigJson.getString(obj, "killSoundId", cfg.killSoundId));
             cfg.setSoundVolume(ConfigJson.getFloat(obj, "soundVolume", DEFAULT_SOUND_VOLUME));
-            cfg.mageOnly = ConfigJson.getBool(obj, "mageOnly", false);
-            cfg.hudMobsLeft = ConfigJson.getBool(obj, "hudMobsLeft", false);
-            cfg.hudMobTicks = ConfigJson.getBool(obj, "hudMobTicks", false);
-            cfg.hudCampLag = ConfigJson.getBool(obj, "hudCampLag", false);
-            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
-            cfg.partyMessageLag = ConfigJson.getBool(obj, "partyMessageLag", false);
-            cfg.partyMessageAnyClass = ConfigJson.getBool(obj, "partyMessageAnyClass", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new BloodCampConfig();
@@ -172,39 +174,18 @@ public final class BloodCampConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showOverlay", showOverlay);
-            obj.addProperty("triggerBotEnabled", triggerBotEnabled);
-            obj.addProperty("auraEnabled", auraEnabled);
-            obj.addProperty("autoDetectLag", autoDetectLag);
-            obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
-            obj.addProperty("triggerOffsetVersion", TRIGGER_OFFSET_VERSION);
-            obj.addProperty("auraFreecam", auraFreecam);
-            obj.addProperty("neverMiss", neverMiss);
-            obj.addProperty("killPopup", killPopup);
-            obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
-            obj.addProperty("timerTextScale", timerTextScale);
-            obj.addProperty("timerTextColor", timerTextColor);
-            obj.addProperty("spawnLine", spawnLine);
-            obj.addProperty("spawnLineWidth", spawnLineWidth);
-            obj.addProperty("countdownStartSound", countdownStartSound);
-            obj.addProperty("killSound", killSound);
-            obj.addProperty("countdownStartSoundId", countdownStartSoundId);
-            obj.addProperty("killSoundId", killSoundId);
-            obj.addProperty("soundVolume", soundVolume);
-            obj.addProperty("mageOnly", mageOnly);
-            obj.addProperty("hudMobsLeft", hudMobsLeft);
-            obj.addProperty("hudMobTicks", hudMobTicks);
-            obj.addProperty("hudCampLag", hudCampLag);
-            obj.addProperty("partyMessage", partyMessage);
-            obj.addProperty("partyMessageLag", partyMessageLag);
-            obj.addProperty("partyMessageAnyClass", partyMessageAnyClass);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        BOOLS.save(this, obj);
+        obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
+        obj.addProperty("triggerOffsetVersion", TRIGGER_OFFSET_VERSION);
+        obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
+        obj.addProperty("timerTextScale", timerTextScale);
+        obj.addProperty("timerTextColor", timerTextColor);
+        obj.addProperty("spawnLineWidth", spawnLineWidth);
+        obj.addProperty("countdownStartSoundId", countdownStartSoundId);
+        obj.addProperty("killSoundId", killSoundId);
+        obj.addProperty("soundVolume", soundVolume);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

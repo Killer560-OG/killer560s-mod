@@ -1,7 +1,5 @@
 package com.killer560.hub.autosprint;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -14,7 +12,6 @@ import java.nio.file.Path;
 /** Persisted Auto Sprint switch - see {@link AutoSprintFeature}. Off by default, like every new feature. */
 public final class AutoSprintConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autosprint.json");
 
     private static AutoSprintConfig instance;
@@ -48,13 +45,9 @@ public final class AutoSprintConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** On and allowed here (the mod's "Skyblock Only" gate). */

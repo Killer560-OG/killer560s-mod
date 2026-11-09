@@ -1,14 +1,9 @@
 package com.killer560.hub.creationcooldown;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -18,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class CreationCooldownConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-creationcooldown.json");
 
     private static CreationCooldownConfig instance;
@@ -41,33 +35,25 @@ public final class CreationCooldownConfig {
 
     public static void load() {
         CreationCooldownConfig cfg = new CreationCooldownConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.showOnAllIslands = ConfigJson.getBool(obj, "showOnAllIslands", false);
-                cfg.onlyInGreenRoom = ConfigJson.getBool(obj, "onlyInGreenRoom", true);
-                cfg.chatWhenOver = ConfigJson.getBool(obj, "chatWhenOver", false);
-                cfg.blockCreation = ConfigJson.getBool(obj, "blockCreation", false);
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showOnAllIslands = ConfigJson.getBool(obj, "showOnAllIslands", false);
+            cfg.onlyInGreenRoom = ConfigJson.getBool(obj, "onlyInGreenRoom", true);
+            cfg.chatWhenOver = ConfigJson.getBool(obj, "chatWhenOver", false);
+            cfg.blockCreation = ConfigJson.getBool(obj, "blockCreation", false);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showOnAllIslands", showOnAllIslands);
-            obj.addProperty("onlyInGreenRoom", onlyInGreenRoom);
-            obj.addProperty("chatWhenOver", chatWhenOver);
-            obj.addProperty("blockCreation", blockCreation);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showOnAllIslands", showOnAllIslands);
+        obj.addProperty("onlyInGreenRoom", onlyInGreenRoom);
+        obj.addProperty("chatWhenOver", chatWhenOver);
+        obj.addProperty("blockCreation", blockCreation);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The HUD switch, behind the Skyblock gate. */

@@ -1,6 +1,7 @@
 package com.killer560.hub.miningqol;
 
 import com.killer560.hub.compat.McRender;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
@@ -223,7 +224,10 @@ public final class CommissionHud {
     public static Component lastLabel() { return lastLabel; }
 
     /** The movable HUD element. */
-    public static final class Element implements HudElement {
+    public static final class Element extends BasicHud {
+        public Element() {
+            super(HUD_ID, "Commission HUD", 10, 120);
+        }
 
         private static final List<String> SAMPLE = List.of("§6§lCommissions", "§fGoblin Slayer: §e75%",
                 "§fLava Springs Mithril: §c12%", "§fTitanium Miner: §aDONE");
@@ -233,18 +237,6 @@ public final class CommissionHud {
             if (l.isEmpty() && HudVisibility.editorOpen()) return SAMPLE;
             return l;
         }
-
-        @Override
-        public String id() { return HUD_ID; }
-
-        @Override
-        public String displayName() { return "Commission HUD"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 120; }
 
         @Override
         public int width() {

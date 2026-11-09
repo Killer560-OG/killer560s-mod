@@ -1,6 +1,7 @@
 package com.killer560.hub.miningqol;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
 import com.killer560.hub.hud.HudVisibility;
@@ -290,25 +291,16 @@ public final class AbilityReadyAlert {
     }
 
     /** The cooldown lines. */
-    public static final class Timer implements HudElement {
+    public static final class Timer extends BasicHud {
+        public Timer() {
+            super(TIMER_ID, "Ability Timer", 10, 200);
+        }
 
         private List<String> shown() {
             List<String> l = timerLines;
             if (l.isEmpty() && HudVisibility.editorOpen()) return List.of("§6Pickobulus: §e34s");
             return l;
         }
-
-        @Override
-        public String id() { return TIMER_ID; }
-
-        @Override
-        public String displayName() { return "Ability Timer"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 200; }
 
         @Override
         public int width() {

@@ -2,14 +2,11 @@ package com.killer560.hub.pathfinding;
 
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -113,13 +110,8 @@ public final class PathfindingConfig {
     private static void load0() {
         PathfindingConfig cfg = new PathfindingConfig();
         instance = cfg;
-        if (!Files.exists(CONFIG_PATH)) return;
-        try {
-            JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            cfg.readFrom(obj);
-        } catch (Exception ignored) {
-            // per-key readers already fall back one key at a time; this only catches an unreadable file
-        }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) cfg.readFrom(obj);
     }
 
     /** Reads every key, migrating a version-1 file (see the class doc). */

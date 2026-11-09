@@ -2,8 +2,6 @@ package com.killer560.hub.i4sensors;
 
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -19,7 +17,6 @@ import java.util.List;
  *  written back unchanged so an existing config round-trips, but nothing uses it any more. */
 public final class I4SensorsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-i4sensors.json");
 
@@ -174,28 +171,24 @@ public final class I4SensorsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", legacyVerboseEnabled);
-            obj.addProperty("solverEnabled", solverEnabled);
-            obj.addProperty("solverColor", solverColor);
-            obj.addProperty("autoI4Enabled", autoI4Enabled);
-            obj.addProperty("autoI4Rotate", autoI4Rotate);
-            obj.addProperty("autoI4RotationTimeMs", autoI4RotationTimeMs);
-            obj.addProperty("autoI4PrefireLeadMs", autoI4PrefireLeadMs);
-            obj.addProperty("autoI4Predictions", autoI4Predictions);
-            obj.addProperty("autoI4Weapon", autoI4Weapon.name());
-            obj.addProperty("autoSwapToBow", autoSwapToBow);
-            obj.addProperty("autoMask", autoMask);
-            obj.addProperty("maskOrderIndex", maskOrderIndex);
-            obj.addProperty("maskOrderVersion", MASK_ORDER_VERSION);
-            obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
-            obj.addProperty("cpsMin", cpsMin);
-            obj.addProperty("cpsMax", cpsMax);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", legacyVerboseEnabled);
+        obj.addProperty("solverEnabled", solverEnabled);
+        obj.addProperty("solverColor", solverColor);
+        obj.addProperty("autoI4Enabled", autoI4Enabled);
+        obj.addProperty("autoI4Rotate", autoI4Rotate);
+        obj.addProperty("autoI4RotationTimeMs", autoI4RotationTimeMs);
+        obj.addProperty("autoI4PrefireLeadMs", autoI4PrefireLeadMs);
+        obj.addProperty("autoI4Predictions", autoI4Predictions);
+        obj.addProperty("autoI4Weapon", autoI4Weapon.name());
+        obj.addProperty("autoSwapToBow", autoSwapToBow);
+        obj.addProperty("autoMask", autoMask);
+        obj.addProperty("maskOrderIndex", maskOrderIndex);
+        obj.addProperty("maskOrderVersion", MASK_ORDER_VERSION);
+        obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
+        obj.addProperty("cpsMin", cpsMin);
+        obj.addProperty("cpsMax", cpsMax);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Visual only - available on both builds. */

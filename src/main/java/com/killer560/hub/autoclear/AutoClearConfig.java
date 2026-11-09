@@ -1,15 +1,10 @@
 package com.killer560.hub.autoclear;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -19,7 +14,6 @@ import java.nio.file.Path;
  */
 public final class AutoClearConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autoclear.json");
 
     /** Which rooms a toggle-started clear works through. */
@@ -105,45 +99,37 @@ public final class AutoClearConfig {
 
     public static void load() {
         AutoClearConfig cfg = new AutoClearConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                cfg.mode = ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode);
-                cfg.weapon = ConfigJson.getEnum(o, "weapon", Weapon.class, cfg.weapon);
-                cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
-                cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
-                cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
-                cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
-                cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
-                cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
-                cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
-                // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
-                // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
-            } catch (Exception e) {
-                // unreadable file (not just a bad key) - keep defaults
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
+            cfg.mode = ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode);
+            cfg.weapon = ConfigJson.getEnum(o, "weapon", Weapon.class, cfg.weapon);
+            cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
+            cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
+            cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
+            cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
+            cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
+            cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
+            cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
+            // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
+            // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("mode", mode.name());
-            o.addProperty("weapon", weapon.name());
-            o.addProperty("keybind", keybind);
-            o.addProperty("hyperionHops", hyperionHops);
-            o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
-            o.addProperty("pickUpKeys", pickUpKeys);
-            o.addProperty("walkWhenFaster", walkWhenFaster);
-            o.addProperty("predictiveBats", predictiveBats);
-            o.addProperty("oneTap", oneTap.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("mode", mode.name());
+        o.addProperty("weapon", weapon.name());
+        o.addProperty("keybind", keybind);
+        o.addProperty("hyperionHops", hyperionHops);
+        o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
+        o.addProperty("pickUpKeys", pickUpKeys);
+        o.addProperty("walkWhenFaster", walkWhenFaster);
+        o.addProperty("predictiveBats", predictiveBats);
+        o.addProperty("oneTap", oneTap.name());
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The feature switch the tab shows. The legit jar can never report true, even from a copied cheat config. */

@@ -1,8 +1,6 @@
 package com.killer560.hub.mobesp;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -26,7 +24,6 @@ import java.nio.file.Path;
  */
 public final class MobEspConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-mobesp.json");
     private static final Path OLD_CHEATUTILS_PATH =
@@ -245,36 +242,32 @@ public final class MobEspConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("starredMobs", starredMobs);
-            obj.addProperty("bats", bats);
-            obj.addProperty("bloodMobs", bloodMobs);
-            obj.addProperty("bloodColor", bloodColor);
-            obj.addProperty("felSkulls", felSkulls);
-            obj.addProperty("felColor", felColor);
-            obj.addProperty("mimic", mimic);
-            obj.addProperty("mimicColor", mimicColor);
-            obj.addProperty("withers", withers);
-            obj.addProperty("witherTracer", witherTracer);
-            obj.addProperty("witherTracerThickness", witherTracerThickness);
-            obj.addProperty("witherHighlight", witherHighlight);
-            obj.addProperty("starredColor", starredColor);
-            obj.addProperty("starredColorAmberMigrated", starredColorAmberMigrated);
-            obj.addProperty("batColor", batColor);
-            obj.addProperty("witherHighlightColor", witherHighlightColor);
-            obj.addProperty("witherHighlightStyle", witherHighlightStyle.name());
-            obj.addProperty("style", style.name());
-            obj.addProperty("lineWidth", lineWidth);
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("esp", esp);
-            obj.addProperty("range", range);
-            obj.addProperty("roomScoped", roomScoped);
-            obj.addProperty("roomMargin", roomMargin);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("starredMobs", starredMobs);
+        obj.addProperty("bats", bats);
+        obj.addProperty("bloodMobs", bloodMobs);
+        obj.addProperty("bloodColor", bloodColor);
+        obj.addProperty("felSkulls", felSkulls);
+        obj.addProperty("felColor", felColor);
+        obj.addProperty("mimic", mimic);
+        obj.addProperty("mimicColor", mimicColor);
+        obj.addProperty("withers", withers);
+        obj.addProperty("witherTracer", witherTracer);
+        obj.addProperty("witherTracerThickness", witherTracerThickness);
+        obj.addProperty("witherHighlight", witherHighlight);
+        obj.addProperty("starredColor", starredColor);
+        obj.addProperty("starredColorAmberMigrated", starredColorAmberMigrated);
+        obj.addProperty("batColor", batColor);
+        obj.addProperty("witherHighlightColor", witherHighlightColor);
+        obj.addProperty("witherHighlightStyle", witherHighlightStyle.name());
+        obj.addProperty("style", style.name());
+        obj.addProperty("lineWidth", lineWidth);
+        obj.addProperty("throughWalls", throughWalls);
+        obj.addProperty("esp", esp);
+        obj.addProperty("range", range);
+        obj.addProperty("roomScoped", roomScoped);
+        obj.addProperty("roomMargin", roomMargin);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static boolean cheat() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED; }

@@ -103,13 +103,9 @@ public final class DvdConfig {
             } catch (Exception ignored) {
             }
         }
-        if (Files.exists(MASTER_PATH)) {
-            try {
-                JsonObject master = JsonParser.parseString(Files.readString(MASTER_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.dvdEnabled = ConfigJson.getBool(master, "dvdEnabled", false);
-            } catch (Exception ignored) {
-            }
+        JsonObject master = ConfigJson.read(MASTER_PATH);
+        if (master != null) {
+            cfg.dvdEnabled = ConfigJson.getBool(master, "dvdEnabled", false);
         }
         instance = cfg;
     }

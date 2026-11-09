@@ -1,8 +1,6 @@
 package com.killer560.hub.interop;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -21,7 +19,6 @@ import java.nio.file.Path;
  */
 public final class InteropConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-interop.json");
 
@@ -64,17 +61,13 @@ public final class InteropConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("selfDerivation", selfDerivation);
-            obj.addProperty("chatParsing", chatParsing);
-            obj.addProperty("localBridge", localBridge);
-            obj.addProperty("relayData", relayData);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("selfDerivation", selfDerivation);
+        obj.addProperty("chatParsing", chatParsing);
+        obj.addProperty("localBridge", localBridge);
+        obj.addProperty("relayData", relayData);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated by "Skyblock Only" like every other feature - nothing here runs outside Skyblock/p3sim. */

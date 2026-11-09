@@ -1,14 +1,9 @@
 package com.killer560.hub.secrettrigger;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted "Secret Triggerbot" settings - see {@link SecretTriggerbotFeature}. Cheat build only, ships disabled.
@@ -19,7 +14,6 @@ public final class SecretTriggerbotConfig {
     public static final int MAX_DELAY_MS = 500;
     public static final int MAX_COOLDOWN_MS = 2000;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-secrettriggerbot.json");
 
@@ -44,35 +38,27 @@ public final class SecretTriggerbotConfig {
 
     public static void load() {
         SecretTriggerbotConfig cfg = new SecretTriggerbotConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setDelayMs(ConfigJson.getInt(obj, "delayMs", cfg.delayMs));
-                cfg.setCooldownMs(ConfigJson.getInt(obj, "cooldownMs", cfg.cooldownMs));
-                cfg.swapEnabled = ConfigJson.getBool(obj, "swapEnabled", cfg.swapEnabled);
-                cfg.setSwapSlot(ConfigJson.getInt(obj, "swapSlot", cfg.swapSlot));
-                cfg.swapBack = ConfigJson.getBool(obj, "swapBack", cfg.swapBack);
-            } catch (Exception e) {
-                cfg = new SecretTriggerbotConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setDelayMs(ConfigJson.getInt(obj, "delayMs", cfg.delayMs));
+            cfg.setCooldownMs(ConfigJson.getInt(obj, "cooldownMs", cfg.cooldownMs));
+            cfg.swapEnabled = ConfigJson.getBool(obj, "swapEnabled", cfg.swapEnabled);
+            cfg.setSwapSlot(ConfigJson.getInt(obj, "swapSlot", cfg.swapSlot));
+            cfg.swapBack = ConfigJson.getBool(obj, "swapBack", cfg.swapBack);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("delayMs", delayMs);
-            obj.addProperty("cooldownMs", cooldownMs);
-            obj.addProperty("swapEnabled", swapEnabled);
-            obj.addProperty("swapSlot", swapSlot);
-            obj.addProperty("swapBack", swapBack);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("delayMs", delayMs);
+        obj.addProperty("cooldownMs", cooldownMs);
+        obj.addProperty("swapEnabled", swapEnabled);
+        obj.addProperty("swapSlot", swapSlot);
+        obj.addProperty("swapBack", swapBack);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Hard-gated: the legit jar can never report true, even from a copied cheat-build config. */

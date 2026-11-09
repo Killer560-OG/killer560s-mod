@@ -1,8 +1,6 @@
 package com.killer560.hub.scorecalc;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -23,7 +21,6 @@ import java.nio.file.Path;
  *  configured there. */
 public final class ScoreCalculatorConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-scorecalc.json");
     private static final Path LEGACY_DUNGEON_INFO_CONFIG_PATH =
@@ -125,55 +122,51 @@ public final class ScoreCalculatorConfig {
 
     public static void load() {
         ScoreCalculatorConfig cfg = new ScoreCalculatorConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.showBreakdown = ConfigJson.getBool(obj, "showBreakdown", cfg.showBreakdown);
-                cfg.showSecretsNeeded = ConfigJson.getBool(obj, "showSecretsNeeded", cfg.showSecretsNeeded);
-                boolean oldCryptsDeaths = ConfigJson.getBool(obj, "showCryptsDeaths", true);
-                cfg.showCrypts = ConfigJson.getBool(obj, "showCrypts", oldCryptsDeaths);
-                cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", oldCryptsDeaths);
-                cfg.labelColor = ConfigJson.getInt(obj, "labelColor", cfg.labelColor) & 0xFFFFFF;
-                cfg.subLabelColor = ConfigJson.getInt(obj, "subLabelColor", cfg.subLabelColor) & 0xFFFFFF;
-                cfg.valueColor = ConfigJson.getInt(obj, "valueColor", cfg.valueColor) & 0xFFFFFF;
-                cfg.goodColor = ConfigJson.getInt(obj, "goodColor", cfg.goodColor) & 0xFFFFFF;
-                cfg.badColor = ConfigJson.getInt(obj, "badColor", cfg.badColor) & 0xFFFFFF;
-                cfg.showMimicPrince = ConfigJson.getBool(obj, "showMimicPrince", cfg.showMimicPrince);
-                cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
-                cfg.paulMode = ConfigJson.getEnum(obj, "paulMode", PaulMode.class, cfg.paulMode);
-                cfg.assumeSpiritPet = ConfigJson.getBool(obj, "assumeSpiritPet", cfg.assumeSpiritPet);
-                cfg.title270 = ConfigJson.getBool(obj, "title270", cfg.title270);
-                cfg.title270Text = ConfigJson.getString(obj, "title270Text", cfg.title270Text);
-                cfg.party270 = ConfigJson.getBool(obj, "party270", cfg.party270);
-                cfg.party270Message = ConfigJson.getString(obj, "party270Message", cfg.party270Message);
-                cfg.title300 = ConfigJson.getBool(obj, "title300", cfg.title300);
-                cfg.title300Text = ConfigJson.getString(obj, "title300Text", cfg.title300Text);
-                cfg.party300 = ConfigJson.getBool(obj, "party300", cfg.party300);
-                cfg.party300Message = ConfigJson.getString(obj, "party300Message", cfg.party300Message);
-                cfg.chatNote = ConfigJson.getBool(obj, "chatNote", cfg.chatNote);
-                cfg.alertSound = ConfigJson.getBool(obj, "alertSound", cfg.alertSound);
-                cfg.preBossWarning = ConfigJson.getBool(obj, "preBossWarning", cfg.preBossWarning);
-                cfg.preBossMageOnly = ConfigJson.getBool(obj, "preBossMageOnly", cfg.preBossMageOnly);
-                cfg.preBossPermanent = ConfigJson.getBool(obj, "preBossPermanent", cfg.preBossPermanent);
-                cfg.preBossListMissing = ConfigJson.getBool(obj, "preBossListMissing", cfg.preBossListMissing);
-                cfg.preBossPortalColor = ConfigJson.getBool(obj, "preBossPortalColor", cfg.preBossPortalColor);
-                cfg.preBossHidePortalParticles = ConfigJson.getBool(obj, "preBossHidePortalParticles", cfg.preBossHidePortalParticles);
-                cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
-                int remindAt = ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds);
-                cfg.setCryptReminderSeconds(remindAt == OLD_DEFAULT_CRYPT_REMINDER_SECONDS ? DEFAULT_CRYPT_REMINDER_SECONDS : remindAt);
-                cfg.cryptReminderParty = ConfigJson.getBool(obj, "cryptReminderParty", cfg.cryptReminderParty);
-                cfg.scoreWarningSound = ConfigJson.getBool(obj, "scoreWarningSound", cfg.scoreWarningSound);
-                cfg.mimicAlertEnabled = ConfigJson.getBool(obj, "mimicAlertEnabled", cfg.mimicAlertEnabled);
-                cfg.mimicAlertMessage = ConfigJson.getString(obj, "mimicAlertMessage", cfg.mimicAlertMessage);
-                cfg.princeAlertEnabled = ConfigJson.getBool(obj, "princeAlertEnabled", cfg.princeAlertEnabled);
-                cfg.princeAlertMessage = ConfigJson.getString(obj, "princeAlertMessage", cfg.princeAlertMessage);
-                cfg.batAlertEnabled = ConfigJson.getBool(obj, "batAlertEnabled", cfg.batAlertEnabled);
-                cfg.batAlertMessage = ConfigJson.getString(obj, "batAlertMessage", cfg.batAlertMessage);
-                cfg.legacyAlertsMigrated = ConfigJson.getBool(obj, "legacyAlertsMigrated", cfg.legacyAlertsMigrated);
-            } catch (Exception ignored) {
-                // Unparseable file: keep defaults for this session (per-key readers cover single bad values).
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.showBreakdown = ConfigJson.getBool(obj, "showBreakdown", cfg.showBreakdown);
+            cfg.showSecretsNeeded = ConfigJson.getBool(obj, "showSecretsNeeded", cfg.showSecretsNeeded);
+            boolean oldCryptsDeaths = ConfigJson.getBool(obj, "showCryptsDeaths", true);
+            cfg.showCrypts = ConfigJson.getBool(obj, "showCrypts", oldCryptsDeaths);
+            cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", oldCryptsDeaths);
+            cfg.labelColor = ConfigJson.getInt(obj, "labelColor", cfg.labelColor) & 0xFFFFFF;
+            cfg.subLabelColor = ConfigJson.getInt(obj, "subLabelColor", cfg.subLabelColor) & 0xFFFFFF;
+            cfg.valueColor = ConfigJson.getInt(obj, "valueColor", cfg.valueColor) & 0xFFFFFF;
+            cfg.goodColor = ConfigJson.getInt(obj, "goodColor", cfg.goodColor) & 0xFFFFFF;
+            cfg.badColor = ConfigJson.getInt(obj, "badColor", cfg.badColor) & 0xFFFFFF;
+            cfg.showMimicPrince = ConfigJson.getBool(obj, "showMimicPrince", cfg.showMimicPrince);
+            cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
+            cfg.paulMode = ConfigJson.getEnum(obj, "paulMode", PaulMode.class, cfg.paulMode);
+            cfg.assumeSpiritPet = ConfigJson.getBool(obj, "assumeSpiritPet", cfg.assumeSpiritPet);
+            cfg.title270 = ConfigJson.getBool(obj, "title270", cfg.title270);
+            cfg.title270Text = ConfigJson.getString(obj, "title270Text", cfg.title270Text);
+            cfg.party270 = ConfigJson.getBool(obj, "party270", cfg.party270);
+            cfg.party270Message = ConfigJson.getString(obj, "party270Message", cfg.party270Message);
+            cfg.title300 = ConfigJson.getBool(obj, "title300", cfg.title300);
+            cfg.title300Text = ConfigJson.getString(obj, "title300Text", cfg.title300Text);
+            cfg.party300 = ConfigJson.getBool(obj, "party300", cfg.party300);
+            cfg.party300Message = ConfigJson.getString(obj, "party300Message", cfg.party300Message);
+            cfg.chatNote = ConfigJson.getBool(obj, "chatNote", cfg.chatNote);
+            cfg.alertSound = ConfigJson.getBool(obj, "alertSound", cfg.alertSound);
+            cfg.preBossWarning = ConfigJson.getBool(obj, "preBossWarning", cfg.preBossWarning);
+            cfg.preBossMageOnly = ConfigJson.getBool(obj, "preBossMageOnly", cfg.preBossMageOnly);
+            cfg.preBossPermanent = ConfigJson.getBool(obj, "preBossPermanent", cfg.preBossPermanent);
+            cfg.preBossListMissing = ConfigJson.getBool(obj, "preBossListMissing", cfg.preBossListMissing);
+            cfg.preBossPortalColor = ConfigJson.getBool(obj, "preBossPortalColor", cfg.preBossPortalColor);
+            cfg.preBossHidePortalParticles = ConfigJson.getBool(obj, "preBossHidePortalParticles", cfg.preBossHidePortalParticles);
+            cfg.cryptReminder = ConfigJson.getBool(obj, "cryptReminder", cfg.cryptReminder);
+            int remindAt = ConfigJson.getInt(obj, "cryptReminderSeconds", cfg.cryptReminderSeconds);
+            cfg.setCryptReminderSeconds(remindAt == OLD_DEFAULT_CRYPT_REMINDER_SECONDS ? DEFAULT_CRYPT_REMINDER_SECONDS : remindAt);
+            cfg.cryptReminderParty = ConfigJson.getBool(obj, "cryptReminderParty", cfg.cryptReminderParty);
+            cfg.scoreWarningSound = ConfigJson.getBool(obj, "scoreWarningSound", cfg.scoreWarningSound);
+            cfg.mimicAlertEnabled = ConfigJson.getBool(obj, "mimicAlertEnabled", cfg.mimicAlertEnabled);
+            cfg.mimicAlertMessage = ConfigJson.getString(obj, "mimicAlertMessage", cfg.mimicAlertMessage);
+            cfg.princeAlertEnabled = ConfigJson.getBool(obj, "princeAlertEnabled", cfg.princeAlertEnabled);
+            cfg.princeAlertMessage = ConfigJson.getString(obj, "princeAlertMessage", cfg.princeAlertMessage);
+            cfg.batAlertEnabled = ConfigJson.getBool(obj, "batAlertEnabled", cfg.batAlertEnabled);
+            cfg.batAlertMessage = ConfigJson.getString(obj, "batAlertMessage", cfg.batAlertMessage);
+            cfg.legacyAlertsMigrated = ConfigJson.getBool(obj, "legacyAlertsMigrated", cfg.legacyAlertsMigrated);
         }
         if (!cfg.legacyAlertsMigrated) {
             migrateLegacyDungeonInfoSettings(cfg);
@@ -233,53 +226,49 @@ public final class ScoreCalculatorConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("preBossWarning", preBossWarning);
-            obj.addProperty("preBossMageOnly", preBossMageOnly);
-            obj.addProperty("preBossPermanent", preBossPermanent);
-            obj.addProperty("preBossListMissing", preBossListMissing);
-            obj.addProperty("preBossPortalColor", preBossPortalColor);
-            obj.addProperty("preBossHidePortalParticles", preBossHidePortalParticles);
-            obj.addProperty("cryptReminder", cryptReminder);
-            obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
-            obj.addProperty("cryptReminderParty", cryptReminderParty);
-            obj.addProperty("scoreWarningSound", scoreWarningSound);
-            obj.addProperty("showBreakdown", showBreakdown);
-            obj.addProperty("showSecretsNeeded", showSecretsNeeded);
-            obj.addProperty("showCrypts", showCrypts);
-            obj.addProperty("showDeaths", showDeaths);
-            obj.addProperty("labelColor", labelColor);
-            obj.addProperty("subLabelColor", subLabelColor);
-            obj.addProperty("valueColor", valueColor);
-            obj.addProperty("goodColor", goodColor);
-            obj.addProperty("badColor", badColor);
-            obj.addProperty("showMimicPrince", showMimicPrince);
-            obj.addProperty("textShadow", textShadow);
-            obj.addProperty("paulMode", paulMode.name());
-            obj.addProperty("assumeSpiritPet", assumeSpiritPet);
-            obj.addProperty("title270", title270);
-            obj.addProperty("title270Text", title270Text);
-            obj.addProperty("party270", party270);
-            obj.addProperty("party270Message", party270Message);
-            obj.addProperty("title300", title300);
-            obj.addProperty("title300Text", title300Text);
-            obj.addProperty("party300", party300);
-            obj.addProperty("party300Message", party300Message);
-            obj.addProperty("chatNote", chatNote);
-            obj.addProperty("alertSound", alertSound);
-            obj.addProperty("mimicAlertEnabled", mimicAlertEnabled);
-            obj.addProperty("mimicAlertMessage", mimicAlertMessage);
-            obj.addProperty("princeAlertEnabled", princeAlertEnabled);
-            obj.addProperty("princeAlertMessage", princeAlertMessage);
-            obj.addProperty("batAlertEnabled", batAlertEnabled);
-            obj.addProperty("batAlertMessage", batAlertMessage);
-            obj.addProperty("legacyAlertsMigrated", legacyAlertsMigrated);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("preBossWarning", preBossWarning);
+        obj.addProperty("preBossMageOnly", preBossMageOnly);
+        obj.addProperty("preBossPermanent", preBossPermanent);
+        obj.addProperty("preBossListMissing", preBossListMissing);
+        obj.addProperty("preBossPortalColor", preBossPortalColor);
+        obj.addProperty("preBossHidePortalParticles", preBossHidePortalParticles);
+        obj.addProperty("cryptReminder", cryptReminder);
+        obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
+        obj.addProperty("cryptReminderParty", cryptReminderParty);
+        obj.addProperty("scoreWarningSound", scoreWarningSound);
+        obj.addProperty("showBreakdown", showBreakdown);
+        obj.addProperty("showSecretsNeeded", showSecretsNeeded);
+        obj.addProperty("showCrypts", showCrypts);
+        obj.addProperty("showDeaths", showDeaths);
+        obj.addProperty("labelColor", labelColor);
+        obj.addProperty("subLabelColor", subLabelColor);
+        obj.addProperty("valueColor", valueColor);
+        obj.addProperty("goodColor", goodColor);
+        obj.addProperty("badColor", badColor);
+        obj.addProperty("showMimicPrince", showMimicPrince);
+        obj.addProperty("textShadow", textShadow);
+        obj.addProperty("paulMode", paulMode.name());
+        obj.addProperty("assumeSpiritPet", assumeSpiritPet);
+        obj.addProperty("title270", title270);
+        obj.addProperty("title270Text", title270Text);
+        obj.addProperty("party270", party270);
+        obj.addProperty("party270Message", party270Message);
+        obj.addProperty("title300", title300);
+        obj.addProperty("title300Text", title300Text);
+        obj.addProperty("party300", party300);
+        obj.addProperty("party300Message", party300Message);
+        obj.addProperty("chatNote", chatNote);
+        obj.addProperty("alertSound", alertSound);
+        obj.addProperty("mimicAlertEnabled", mimicAlertEnabled);
+        obj.addProperty("mimicAlertMessage", mimicAlertMessage);
+        obj.addProperty("princeAlertEnabled", princeAlertEnabled);
+        obj.addProperty("princeAlertMessage", princeAlertMessage);
+        obj.addProperty("batAlertEnabled", batAlertEnabled);
+        obj.addProperty("batAlertMessage", batAlertMessage);
+        obj.addProperty("legacyAlertsMigrated", legacyAlertsMigrated);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
 

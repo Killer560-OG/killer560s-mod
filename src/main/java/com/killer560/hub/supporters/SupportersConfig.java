@@ -1,14 +1,9 @@
 package com.killer560.hub.supporters;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -44,7 +39,6 @@ public final class SupportersConfig {
     public static final float MIN_PLAYER_SIZE = 0.05f;
     public static final float MAX_PLAYER_SIZE = 2.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-supporters.json");
 
@@ -94,27 +88,23 @@ public final class SupportersConfig {
 
     public static void load() {
         SupportersConfig cfg = new SupportersConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                boolean legacy = ConfigJson.getBool(obj, "customCosmeticsEnabled", true);
-                cfg.showSupporterNames = ConfigJson.getBool(obj, "showSupporterNames", legacy);
-                cfg.showSupporterSizes = ConfigJson.getBool(obj, "showSupporterSizes", legacy);
-                cfg.shareIfSupporter = ConfigJson.getBool(obj, "shareIfSupporter", true);
-                cfg.modelWidth = clamp(ConfigJson.getFloat(obj, "modelWidth", 1.0f));
-                cfg.modelHeight = clamp(ConfigJson.getFloat(obj, "modelHeight", 1.0f));
-                cfg.modelThickness = clamp(ConfigJson.getFloat(obj, "modelThickness", 1.0f));
-                cfg.ownScale = clampSize(ConfigJson.getFloat(obj, "ownScale", 1.0f));
-                cfg.othersScale = clampSize(ConfigJson.getFloat(obj, "othersScale", 1.0f));
-                cfg.ownNameInF5 = ConfigJson.getBool(obj, "ownNameInF5", false);
-                cfg.shareTrail = ConfigJson.getBool(obj, "shareTrail", true);
-                cfg.showOthersTrails = ConfigJson.getBool(obj, "showOthersTrails", true);
-                cfg.ownMob = cleanMob(ConfigJson.getString(obj, "ownMob", ""));
-                cfg.playAsMob = ConfigJson.getBool(obj, "playAsMob", true);
-                cfg.showOthersMobs = ConfigJson.getBool(obj, "showOthersMobs", true);
-            } catch (Exception e) {
-                cfg = new SupportersConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            boolean legacy = ConfigJson.getBool(obj, "customCosmeticsEnabled", true);
+            cfg.showSupporterNames = ConfigJson.getBool(obj, "showSupporterNames", legacy);
+            cfg.showSupporterSizes = ConfigJson.getBool(obj, "showSupporterSizes", legacy);
+            cfg.shareIfSupporter = ConfigJson.getBool(obj, "shareIfSupporter", true);
+            cfg.modelWidth = clamp(ConfigJson.getFloat(obj, "modelWidth", 1.0f));
+            cfg.modelHeight = clamp(ConfigJson.getFloat(obj, "modelHeight", 1.0f));
+            cfg.modelThickness = clamp(ConfigJson.getFloat(obj, "modelThickness", 1.0f));
+            cfg.ownScale = clampSize(ConfigJson.getFloat(obj, "ownScale", 1.0f));
+            cfg.othersScale = clampSize(ConfigJson.getFloat(obj, "othersScale", 1.0f));
+            cfg.ownNameInF5 = ConfigJson.getBool(obj, "ownNameInF5", false);
+            cfg.shareTrail = ConfigJson.getBool(obj, "shareTrail", true);
+            cfg.showOthersTrails = ConfigJson.getBool(obj, "showOthersTrails", true);
+            cfg.ownMob = cleanMob(ConfigJson.getString(obj, "ownMob", ""));
+            cfg.playAsMob = ConfigJson.getBool(obj, "playAsMob", true);
+            cfg.showOthersMobs = ConfigJson.getBool(obj, "showOthersMobs", true);
         }
         instance = cfg;
         version++;
@@ -122,28 +112,24 @@ public final class SupportersConfig {
 
     public void save() {
         version++;
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("showSupporterNames", showSupporterNames);
-            obj.addProperty("showSupporterSizes", showSupporterSizes);
-            // Kept so an older jar reading this file still gets a sensible on/off.
-            obj.addProperty("customCosmeticsEnabled", showSupporterNames || showSupporterSizes);
-            obj.addProperty("shareIfSupporter", shareIfSupporter);
-            obj.addProperty("modelWidth", modelWidth);
-            obj.addProperty("modelHeight", modelHeight);
-            obj.addProperty("modelThickness", modelThickness);
-            obj.addProperty("ownScale", ownScale);
-            obj.addProperty("othersScale", othersScale);
-            obj.addProperty("ownNameInF5", ownNameInF5);
-            obj.addProperty("shareTrail", shareTrail);
-            obj.addProperty("showOthersTrails", showOthersTrails);
-            obj.addProperty("ownMob", ownMob);
-            obj.addProperty("playAsMob", playAsMob);
-            obj.addProperty("showOthersMobs", showOthersMobs);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("showSupporterNames", showSupporterNames);
+        obj.addProperty("showSupporterSizes", showSupporterSizes);
+        // Kept so an older jar reading this file still gets a sensible on/off.
+        obj.addProperty("customCosmeticsEnabled", showSupporterNames || showSupporterSizes);
+        obj.addProperty("shareIfSupporter", shareIfSupporter);
+        obj.addProperty("modelWidth", modelWidth);
+        obj.addProperty("modelHeight", modelHeight);
+        obj.addProperty("modelThickness", modelThickness);
+        obj.addProperty("ownScale", ownScale);
+        obj.addProperty("othersScale", othersScale);
+        obj.addProperty("ownNameInF5", ownNameInF5);
+        obj.addProperty("shareTrail", shareTrail);
+        obj.addProperty("showOthersTrails", showOthersTrails);
+        obj.addProperty("ownMob", ownMob);
+        obj.addProperty("playAsMob", playAsMob);
+        obj.addProperty("showOthersMobs", showOthersMobs);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Both switches at once, for callers that only know the old single toggle. */

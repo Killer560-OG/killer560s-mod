@@ -1,13 +1,9 @@
 package com.killer560.hub.windowlayout;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Window Layout settings plus the last cell this instance was placed in. Lives in the instance's own
@@ -18,7 +14,6 @@ public final class WindowLayoutConfig {
     public static final int MAX_WINDOWS = 9;
     public static final int MAX_GAP = 20;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-windowlayout.json");
 
@@ -56,53 +51,45 @@ public final class WindowLayoutConfig {
 
     public static void load() {
         WindowLayoutConfig cfg = new WindowLayoutConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.windowsPerMonitor = clamp(getInt(o, "windowsPerMonitor", 4), MIN_WINDOWS, MAX_WINDOWS);
-                cfg.monitorIndex = Math.max(-1, getInt(o, "monitorIndex", -1));
-                cfg.monitorDevice = getString(o, "monitorDevice");
-                cfg.monitorName = getString(o, "monitorName");
-                cfg.gap = clamp(getInt(o, "gap", 0), 0, MAX_GAP);
-                cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
-                cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
-                cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
-                cfg.fullMonitorBorderless = getBool(o, "fullMonitorBorderless", true);
-                cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
-                cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));
-                cfg.lastMonitorDevice = getString(o, "lastMonitorDevice");
-                cfg.lastMonitorName = getString(o, "lastMonitorName");
-                cfg.lastCount = clamp(getInt(o, "lastCount", 1), MIN_WINDOWS, MAX_WINDOWS);
-                cfg.lastCellIndex = clamp(getInt(o, "lastCellIndex", 0), 0, cfg.lastCount - 1);
-            } catch (Exception e) {
-                cfg = new WindowLayoutConfig();
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.windowsPerMonitor = clamp(getInt(o, "windowsPerMonitor", 4), MIN_WINDOWS, MAX_WINDOWS);
+            cfg.monitorIndex = Math.max(-1, getInt(o, "monitorIndex", -1));
+            cfg.monitorDevice = getString(o, "monitorDevice");
+            cfg.monitorName = getString(o, "monitorName");
+            cfg.gap = clamp(getInt(o, "gap", 0), 0, MAX_GAP);
+            cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
+            cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
+            cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
+            cfg.fullMonitorBorderless = getBool(o, "fullMonitorBorderless", true);
+            cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
+            cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));
+            cfg.lastMonitorDevice = getString(o, "lastMonitorDevice");
+            cfg.lastMonitorName = getString(o, "lastMonitorName");
+            cfg.lastCount = clamp(getInt(o, "lastCount", 1), MIN_WINDOWS, MAX_WINDOWS);
+            cfg.lastCellIndex = clamp(getInt(o, "lastCellIndex", 0), 0, cfg.lastCount - 1);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("windowsPerMonitor", windowsPerMonitor);
-            o.addProperty("monitorIndex", monitorIndex);
-            o.addProperty("monitorDevice", monitorDevice);
-            o.addProperty("monitorName", monitorName);
-            o.addProperty("gap", gap);
-            o.addProperty("respectTaskbar", respectTaskbar);
-            o.addProperty("pickerKeyCode", pickerKeyCode);
-            o.addProperty("restoreOnLaunch", restoreOnLaunch);
-            o.addProperty("fullMonitorBorderless", fullMonitorBorderless);
-            o.addProperty("hasLastPlacement", hasLastPlacement);
-            o.addProperty("lastMonitorIndex", lastMonitorIndex);
-            o.addProperty("lastMonitorDevice", lastMonitorDevice);
-            o.addProperty("lastMonitorName", lastMonitorName);
-            o.addProperty("lastCount", lastCount);
-            o.addProperty("lastCellIndex", lastCellIndex);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("windowsPerMonitor", windowsPerMonitor);
+        o.addProperty("monitorIndex", monitorIndex);
+        o.addProperty("monitorDevice", monitorDevice);
+        o.addProperty("monitorName", monitorName);
+        o.addProperty("gap", gap);
+        o.addProperty("respectTaskbar", respectTaskbar);
+        o.addProperty("pickerKeyCode", pickerKeyCode);
+        o.addProperty("restoreOnLaunch", restoreOnLaunch);
+        o.addProperty("fullMonitorBorderless", fullMonitorBorderless);
+        o.addProperty("hasLastPlacement", hasLastPlacement);
+        o.addProperty("lastMonitorIndex", lastMonitorIndex);
+        o.addProperty("lastMonitorDevice", lastMonitorDevice);
+        o.addProperty("lastMonitorName", lastMonitorName);
+        o.addProperty("lastCount", lastCount);
+        o.addProperty("lastCellIndex", lastCellIndex);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int getInt(JsonObject o, String key, int def) { return o.has(key) ? o.get(key).getAsInt() : def; }

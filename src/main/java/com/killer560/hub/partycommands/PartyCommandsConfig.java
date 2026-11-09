@@ -1,8 +1,6 @@
 package com.killer560.hub.partycommands;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -148,7 +146,6 @@ public final class PartyCommandsConfig {
     public static final int DEFAULT_REPLY_DELAY_MS = 200;
     public static final int MAX_REPLY_DELAY_MS = 1000;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-partycommands.json");
     /** The retired Chat Commands file; read by the version-1 migration, never written. */
     private static final Path LEGACY_CHAT_PATH = ModPaths.config("killer560smod-chatcommands.json");
@@ -237,21 +234,17 @@ public final class PartyCommandsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("version", VERSION);
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("replyDelayMs", replyDelayMs);
-            for (Channel ch : Channel.values()) {
-                obj.addProperty(ch.key(), channels.getOrDefault(ch, ch.defaultOn));
-            }
-            for (Command c : Command.values()) {
-                obj.addProperty(c.key(), commands.getOrDefault(c, c.defaultOn()));
-            }
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("version", VERSION);
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("replyDelayMs", replyDelayMs);
+        for (Channel ch : Channel.values()) {
+            obj.addProperty(ch.key(), channels.getOrDefault(ch, ch.defaultOn));
         }
+        for (Command c : Command.values()) {
+            obj.addProperty(c.key(), commands.getOrDefault(c, c.defaultOn()));
+        }
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated like every other feature getter - off entirely outside Skyblock/p3sim while "Skyblock Only" is on. */

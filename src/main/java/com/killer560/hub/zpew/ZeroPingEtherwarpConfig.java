@@ -1,7 +1,5 @@
 package com.killer560.hub.zpew;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -19,7 +17,6 @@ public final class ZeroPingEtherwarpConfig {
     /** Warps Per Tick (cheat build): 1 = off, up to this many etherwarps sent in one client tick per use. */
     public static final int MAX_WARPS_PER_TICK = 10;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-zpew.json");
 
     private static ZeroPingEtherwarpConfig instance;
@@ -89,25 +86,21 @@ public final class ZeroPingEtherwarpConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("timeoutMs", timeoutMs);
-            obj.addProperty("chain", chain);
-            obj.addProperty("overlayFromPrediction", overlayFromPrediction);
-            obj.addProperty("warpsPerTick", warpsPerTick);
-            obj.addProperty("aimedWarps", aimedWarps);
-            obj.addProperty("multiWarps", multiWarps);
-            obj.addProperty("dungeonsOnly", dungeonsOnly);
-            JsonObject wf = new JsonObject();
-            for (ZpewSource s : ZpewSource.values()) {
-                wf.addProperty(s.name(), worksFor.get(s));
-            }
-            obj.add("worksFor", wf);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("timeoutMs", timeoutMs);
+        obj.addProperty("chain", chain);
+        obj.addProperty("overlayFromPrediction", overlayFromPrediction);
+        obj.addProperty("warpsPerTick", warpsPerTick);
+        obj.addProperty("aimedWarps", aimedWarps);
+        obj.addProperty("multiWarps", multiWarps);
+        obj.addProperty("dungeonsOnly", dungeonsOnly);
+        JsonObject wf = new JsonObject();
+        for (ZpewSource s : ZpewSource.values()) {
+            wf.addProperty(s.name(), worksFor.get(s));
         }
+        obj.add("worksFor", wf);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled; }

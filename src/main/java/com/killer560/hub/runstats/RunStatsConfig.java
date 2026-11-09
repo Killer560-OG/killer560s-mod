@@ -1,15 +1,10 @@
 package com.killer560.hub.runstats;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -21,7 +16,6 @@ import java.nio.file.Path;
  */
 public final class RunStatsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-runstats.json");
 
@@ -50,38 +44,29 @@ public final class RunStatsConfig {
 
     public static void load() {
         RunStatsConfig cfg = new RunStatsConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.trackRooms = ConfigJson.getBool(obj, "trackRooms", true);
-                cfg.fetchSecrets = ConfigJson.getBool(obj, "fetchSecrets", false);
-                cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", true);
-                cfg.autoShowExtraStats = ConfigJson.getBool(obj, "autoShowExtraStats", false);
-                cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
-                cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.trackRooms = ConfigJson.getBool(obj, "trackRooms", true);
+            cfg.fetchSecrets = ConfigJson.getBool(obj, "fetchSecrets", false);
+            cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", true);
+            cfg.autoShowExtraStats = ConfigJson.getBool(obj, "autoShowExtraStats", false);
+            cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
+            cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("trackRooms", trackRooms);
-            obj.addProperty("fetchSecrets", fetchSecrets);
-            obj.addProperty("showDeaths", showDeaths);
-            obj.addProperty("autoShowExtraStats", autoShowExtraStats);
-            obj.addProperty("announceToParty", announceToParty);
-            obj.addProperty("delaySeconds", delaySeconds);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("trackRooms", trackRooms);
+        obj.addProperty("fetchSecrets", fetchSecrets);
+        obj.addProperty("showDeaths", showDeaths);
+        obj.addProperty("autoShowExtraStats", autoShowExtraStats);
+        obj.addProperty("announceToParty", announceToParty);
+        obj.addProperty("delaySeconds", delaySeconds);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && SkyblockGate.allows(); }

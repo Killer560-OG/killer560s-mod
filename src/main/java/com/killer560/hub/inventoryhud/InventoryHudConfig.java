@@ -2,8 +2,6 @@ package com.killer560.hub.inventoryhud;
 
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -51,7 +49,6 @@ public final class InventoryHudConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-inventoryhud.json");
 
@@ -126,26 +123,22 @@ public final class InventoryHudConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("vertical", vertical);
-            obj.addProperty("miniMode", miniMode);
-            obj.addProperty("background", background.name());
-            obj.addProperty("backgroundOpacity", backgroundOpacity);
-            obj.addProperty("itemOpacity", itemOpacity);
-            obj.addProperty("showCounts", showCounts);
-            obj.addProperty("showDurability", showDurability);
-            obj.addProperty("pickupAnimation", pickupAnimation);
-            obj.addProperty("hideWhenEmpty", hideWhenEmpty);
-            obj.addProperty("hideInScreens", hideInScreens);
-            obj.addProperty("visibility", visibility.name());
-            obj.addProperty("keyCode", keyCode);
-            obj.addProperty("toggledVisible", toggledVisible);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("vertical", vertical);
+        obj.addProperty("miniMode", miniMode);
+        obj.addProperty("background", background.name());
+        obj.addProperty("backgroundOpacity", backgroundOpacity);
+        obj.addProperty("itemOpacity", itemOpacity);
+        obj.addProperty("showCounts", showCounts);
+        obj.addProperty("showDurability", showDurability);
+        obj.addProperty("pickupAnimation", pickupAnimation);
+        obj.addProperty("hideWhenEmpty", hideWhenEmpty);
+        obj.addProperty("hideInScreens", hideInScreens);
+        obj.addProperty("visibility", visibility.name());
+        obj.addProperty("keyCode", keyCode);
+        obj.addProperty("toggledVisible", toggledVisible);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Per key and never throwing: one bad value falls back to its own default and the rest still load. */

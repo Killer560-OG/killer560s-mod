@@ -1,20 +1,14 @@
 package com.killer560.hub.architect;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Architect's First Draft settings - see {@link ArchitectDraftFeature}. Both off by default (new feature). */
 public final class ArchitectDraftConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-architectdraft.json");
 
@@ -37,27 +31,19 @@ public final class ArchitectDraftConfig {
 
     public static void load() {
         ArchitectDraftConfig cfg = new ArchitectDraftConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.clickMessage = ConfigJson.getBool(o, "clickMessage", false);
-                cfg.autoGet = ConfigJson.getBool(o, "autoGet", false);
-            } catch (Exception ignored) {
-                // unreadable file: defaults
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.clickMessage = ConfigJson.getBool(o, "clickMessage", false);
+            cfg.autoGet = ConfigJson.getBool(o, "autoGet", false);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("clickMessage", clickMessage);
-            o.addProperty("autoGet", autoGet);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("clickMessage", clickMessage);
+        o.addProperty("autoGet", autoGet);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     public boolean isClickMessage() {

@@ -1,15 +1,10 @@
 package com.killer560.hub.compactorpreview;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted "Compactor Preview" settings - see {@link CompactorPreviewFeature}. Ships disabled. Visual only. */
@@ -30,7 +25,6 @@ public final class CompactorPreviewConfig {
     /** Left Alt. */
     public static final int DEFAULT_KEY = 342;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-compactorpreview.json");
 
     private static CompactorPreviewConfig instance;
@@ -52,31 +46,23 @@ public final class CompactorPreviewConfig {
 
     public static void load() {
         CompactorPreviewConfig cfg = new CompactorPreviewConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.ON_HOVER);
-                cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", DEFAULT_KEY));
-                cfg.skyblockOnly = ConfigJson.getBool(obj, "skyblockOnly", true);
-            } catch (Exception ignored) {
-                cfg = new CompactorPreviewConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.ON_HOVER);
+            cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", DEFAULT_KEY));
+            cfg.skyblockOnly = ConfigJson.getBool(obj, "skyblockOnly", true);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("mode", mode.name());
-            obj.addProperty("keyCode", keyCode);
-            obj.addProperty("skyblockOnly", skyblockOnly);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("mode", mode.name());
+        obj.addProperty("keyCode", keyCode);
+        obj.addProperty("skyblockOnly", skyblockOnly);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabledRaw() {

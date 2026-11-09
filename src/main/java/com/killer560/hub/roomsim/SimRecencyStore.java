@@ -1,8 +1,7 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -25,7 +24,6 @@ public final class SimRecencyStore {
 
     private static final Path PATH =
             ModPaths.config("killer560smod-sim-recent.json");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private static boolean loaded;
 
@@ -51,14 +49,10 @@ public final class SimRecencyStore {
 
     /** Writes the generator's memory out. Called after each generated floor. */
     public static synchronized void save() {
-        try {
-            JsonObject o = new JsonObject();
-            for (Map.Entry<String, Double> e : SimFloorLayout.recencySnapshot().entrySet()) {
-                o.addProperty(e.getKey(), Math.round(e.getValue() * 1000.0) / 1000.0);
-            }
-            Files.createDirectories(PATH.getParent());
-            Files.writeString(PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject o = new JsonObject();
+        for (Map.Entry<String, Double> e : SimFloorLayout.recencySnapshot().entrySet()) {
+            o.addProperty(e.getKey(), Math.round(e.getValue() * 1000.0) / 1000.0);
         }
+        ConfigJson.write(PATH, o);
     }
 }

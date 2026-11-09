@@ -1,14 +1,9 @@
 package com.killer560.hub.ahflip;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -25,7 +20,6 @@ import java.nio.file.Path;
  */
 public final class AhFlipConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-ahflip.json");
 
     /** How the flipper runs. */
@@ -90,49 +84,41 @@ public final class AhFlipConfig {
 
     public static void load() {
         AhFlipConfig cfg = new AhFlipConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.priceButtonsEnabled = ConfigJson.getBool(o, "priceButtonsEnabled", cfg.priceButtonsEnabled);
-                cfg.copierUndercut = Math.max(0, Math.min(1_000_000L, ConfigJson.getLong(o, "copierUndercut", cfg.copierUndercut)));
-                cfg.copierOwnPrice = ConfigJson.getBool(o, "copierOwnPrice", cfg.copierOwnPrice);
-                cfg.flipperEnabled = ConfigJson.getBool(o, "flipperEnabled", cfg.flipperEnabled);
-                cfg.runMode = ConfigJson.getEnum(o, "runMode", RunMode.class, cfg.runMode);
-                cfg.minProfitPercent = clamp(ConfigJson.getInt(o, "minProfitPercent", cfg.minProfitPercent), 1, 1000);
-                cfg.undercutTenths = clamp(ConfigJson.getInt(o, "undercutTenths", cfg.undercutTenths), 0, 500);
-                cfg.minSellPrice = clampCoins(ConfigJson.getLong(o, "minSellPrice", cfg.minSellPrice));
-                cfg.minProfit = clampCoins(ConfigJson.getLong(o, "minProfit", cfg.minProfit));
-                cfg.maxBuyPrice = clampCoins(ConfigJson.getLong(o, "maxBuyPrice", cfg.maxBuyPrice));
-                cfg.minListings = clamp(ConfigJson.getInt(o, "minListings", cfg.minListings), 1, 1000);
-                cfg.macroMaxBuys = clamp(ConfigJson.getInt(o, "macroMaxBuys", cfg.macroMaxBuys), 1, 1000);
-                cfg.autoRelist = ConfigJson.getBool(o, "autoRelist", cfg.autoRelist);
-            } catch (Exception e) {
-                cfg = new AhFlipConfig();
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.priceButtonsEnabled = ConfigJson.getBool(o, "priceButtonsEnabled", cfg.priceButtonsEnabled);
+            cfg.copierUndercut = Math.max(0, Math.min(1_000_000L, ConfigJson.getLong(o, "copierUndercut", cfg.copierUndercut)));
+            cfg.copierOwnPrice = ConfigJson.getBool(o, "copierOwnPrice", cfg.copierOwnPrice);
+            cfg.flipperEnabled = ConfigJson.getBool(o, "flipperEnabled", cfg.flipperEnabled);
+            cfg.runMode = ConfigJson.getEnum(o, "runMode", RunMode.class, cfg.runMode);
+            cfg.minProfitPercent = clamp(ConfigJson.getInt(o, "minProfitPercent", cfg.minProfitPercent), 1, 1000);
+            cfg.undercutTenths = clamp(ConfigJson.getInt(o, "undercutTenths", cfg.undercutTenths), 0, 500);
+            cfg.minSellPrice = clampCoins(ConfigJson.getLong(o, "minSellPrice", cfg.minSellPrice));
+            cfg.minProfit = clampCoins(ConfigJson.getLong(o, "minProfit", cfg.minProfit));
+            cfg.maxBuyPrice = clampCoins(ConfigJson.getLong(o, "maxBuyPrice", cfg.maxBuyPrice));
+            cfg.minListings = clamp(ConfigJson.getInt(o, "minListings", cfg.minListings), 1, 1000);
+            cfg.macroMaxBuys = clamp(ConfigJson.getInt(o, "macroMaxBuys", cfg.macroMaxBuys), 1, 1000);
+            cfg.autoRelist = ConfigJson.getBool(o, "autoRelist", cfg.autoRelist);
         }
         instance = cfg;
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("priceButtonsEnabled", priceButtonsEnabled);
-            o.addProperty("copierUndercut", copierUndercut);
-            o.addProperty("copierOwnPrice", copierOwnPrice);
-            o.addProperty("flipperEnabled", flipperEnabled);
-            o.addProperty("runMode", runMode.name());
-            o.addProperty("minProfitPercent", minProfitPercent);
-            o.addProperty("undercutTenths", undercutTenths);
-            o.addProperty("minSellPrice", minSellPrice);
-            o.addProperty("minProfit", minProfit);
-            o.addProperty("maxBuyPrice", maxBuyPrice);
-            o.addProperty("minListings", minListings);
-            o.addProperty("macroMaxBuys", macroMaxBuys);
-            o.addProperty("autoRelist", autoRelist);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("priceButtonsEnabled", priceButtonsEnabled);
+        o.addProperty("copierUndercut", copierUndercut);
+        o.addProperty("copierOwnPrice", copierOwnPrice);
+        o.addProperty("flipperEnabled", flipperEnabled);
+        o.addProperty("runMode", runMode.name());
+        o.addProperty("minProfitPercent", minProfitPercent);
+        o.addProperty("undercutTenths", undercutTenths);
+        o.addProperty("minSellPrice", minSellPrice);
+        o.addProperty("minProfit", minProfit);
+        o.addProperty("maxBuyPrice", maxBuyPrice);
+        o.addProperty("minListings", minListings);
+        o.addProperty("macroMaxBuys", macroMaxBuys);
+        o.addProperty("autoRelist", autoRelist);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int clamp(int v, int lo, int hi) {

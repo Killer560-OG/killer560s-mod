@@ -1,7 +1,5 @@
 package com.killer560.hub.miningqol;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
@@ -23,7 +21,6 @@ import java.nio.file.Path;
  */
 public final class MiningQolConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-miningqol.json");
 
     public static final int DEFAULT_PICKOBULUS_COLOR = 0xFF55FFFF;
@@ -323,79 +320,74 @@ public final class MiningQolConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("commissionHud", commissionHud);
-            o.addProperty("commissionColorProgress", commissionColorProgress);
-            o.addProperty("commissionInterpolate", commissionInterpolate);
-            o.addProperty("commissionWaypoints", commissionWaypoints);
-            o.addProperty("commissionEmissaries", commissionEmissaries);
-            o.addProperty("commissionMobs", commissionMobs);
-            o.addProperty("hideCommissionsPowder", hideCommissionsPowder);
-            o.addProperty("commissionMobsEsp", commissionMobsEsp);
-            o.addProperty("commissionMobColor", commissionMobColor);
-            o.addProperty("commissionMobStyle", commissionMobStyle.name());
-            o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
-            o.addProperty("commissionRoute", commissionRoute);
-            o.addProperty("commissionRouteColor", commissionRouteColor);
-            o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
-            o.addProperty("commissionPigeon", commissionPigeon);
-            o.addProperty("commissionRouteMode", commissionRouteMode.name());
-            o.addProperty("pigeonDrill", pigeonDrill);
-            o.addProperty("pigeonDrillMode", pigeonDrillMode.name());
-            o.addProperty("pigeonDrillName", pigeonDrillName);
-            o.addProperty("pickobulus", pickobulus);
-            o.addProperty("pickobulusColor", pickobulusColor);
-            o.addProperty("abilityAlert", abilityAlert);
-            o.addProperty("abilityTimer", abilityTimer);
-            o.addProperty("abilitySound", abilitySound);
-            o.addProperty("wrongArmor", wrongArmor);
-            o.addProperty("wrongArmorSound", wrongArmorSound);
-            o.addProperty("junglePick", junglePick);
-            o.addProperty("junglePickSound", junglePickSound);
-            o.addProperty("chWalls", chWalls);
-            o.addProperty("chWallsHideInStructures", chWallsHideInStructures);
-            for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
-                o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
-                o.addProperty("chWall" + z.key + "Opacity", chWallOpacity[z.ordinal()]);
-                o.addProperty("chWall" + z.key + "Near", chWallNear[z.ordinal()]);
-            }
-            o.addProperty("carpet", carpet);
-            o.addProperty("carpetColor", carpetColor);
-            o.addProperty("mithrilStone", mithrilStone);
-            o.addProperty("darkStone", darkStone);
-            o.addProperty("darkStoneLevel", darkStoneLevel);
-            o.addProperty("darkStoneMithril", darkStoneMithril);
-            o.addProperty("titanium", titanium);
-            o.addProperty("titaniumMode", titaniumMode.name());
-            o.addProperty("titaniumColor", titaniumColor);
-            o.addProperty("titaniumEsp", titaniumEsp);
-            o.addProperty("titaniumExposedOnly", titaniumExposedOnly);
-            o.addProperty("raffle", raffle);
-            o.addProperty("raffleColor", raffleColor);
-            o.addProperty("raffleEsp", raffleEsp);
-            o.addProperty("resumeHeldBreak", resumeHeldBreak);
-            o.addProperty("powderGhast", powderGhast);
-            o.addProperty("powderGhastTitle", powderGhastTitle);
-            o.addProperty("powderGhastSound", powderGhastSound);
-            o.addProperty("powderGhastParty", powderGhastParty);
-            o.addProperty("powderGhastBox", powderGhastBox);
-            o.addProperty("powderGhastBoxColor", powderGhastBoxColor);
-            o.addProperty("powderGhastTracer", powderGhastTracer);
-            o.addProperty("powderGhastTracerColor", powderGhastTracerColor);
-            o.addProperty("powderGhastTimer", powderGhastTimer);
-            o.addProperty("powderGhastEsp", powderGhastEsp);
-            o.addProperty("goldenGoblin", goldenGoblin);
-            o.addProperty("goldenGoblinBox", goldenGoblinBox);
-            o.addProperty("goldenGoblinColor", goldenGoblinColor);
-            o.addProperty("diamondGoblinColor", diamondGoblinColor);
-            o.addProperty("goldenGoblinTracer", goldenGoblinTracer);
-            o.addProperty("goldenGoblinEsp", goldenGoblinEsp);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // a failed save keeps the in-memory values
+        JsonObject o = new JsonObject();
+        o.addProperty("commissionHud", commissionHud);
+        o.addProperty("commissionColorProgress", commissionColorProgress);
+        o.addProperty("commissionInterpolate", commissionInterpolate);
+        o.addProperty("commissionWaypoints", commissionWaypoints);
+        o.addProperty("commissionEmissaries", commissionEmissaries);
+        o.addProperty("commissionMobs", commissionMobs);
+        o.addProperty("hideCommissionsPowder", hideCommissionsPowder);
+        o.addProperty("commissionMobsEsp", commissionMobsEsp);
+        o.addProperty("commissionMobColor", commissionMobColor);
+        o.addProperty("commissionMobStyle", commissionMobStyle.name());
+        o.addProperty("commissionMenuHighlight", commissionMenuHighlight);
+        o.addProperty("commissionRoute", commissionRoute);
+        o.addProperty("commissionRouteColor", commissionRouteColor);
+        o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
+        o.addProperty("commissionPigeon", commissionPigeon);
+        o.addProperty("commissionRouteMode", commissionRouteMode.name());
+        o.addProperty("pigeonDrill", pigeonDrill);
+        o.addProperty("pigeonDrillMode", pigeonDrillMode.name());
+        o.addProperty("pigeonDrillName", pigeonDrillName);
+        o.addProperty("pickobulus", pickobulus);
+        o.addProperty("pickobulusColor", pickobulusColor);
+        o.addProperty("abilityAlert", abilityAlert);
+        o.addProperty("abilityTimer", abilityTimer);
+        o.addProperty("abilitySound", abilitySound);
+        o.addProperty("wrongArmor", wrongArmor);
+        o.addProperty("wrongArmorSound", wrongArmorSound);
+        o.addProperty("junglePick", junglePick);
+        o.addProperty("junglePickSound", junglePickSound);
+        o.addProperty("chWalls", chWalls);
+        o.addProperty("chWallsHideInStructures", chWallsHideInStructures);
+        for (CrystalHollowsWalls.Zone z : CrystalHollowsWalls.Zone.values()) {
+            o.addProperty("chWall" + z.key + "Color", chWallColor[z.ordinal()]);
+            o.addProperty("chWall" + z.key + "Opacity", chWallOpacity[z.ordinal()]);
+            o.addProperty("chWall" + z.key + "Near", chWallNear[z.ordinal()]);
         }
+        o.addProperty("carpet", carpet);
+        o.addProperty("carpetColor", carpetColor);
+        o.addProperty("mithrilStone", mithrilStone);
+        o.addProperty("darkStone", darkStone);
+        o.addProperty("darkStoneLevel", darkStoneLevel);
+        o.addProperty("darkStoneMithril", darkStoneMithril);
+        o.addProperty("titanium", titanium);
+        o.addProperty("titaniumMode", titaniumMode.name());
+        o.addProperty("titaniumColor", titaniumColor);
+        o.addProperty("titaniumEsp", titaniumEsp);
+        o.addProperty("titaniumExposedOnly", titaniumExposedOnly);
+        o.addProperty("raffle", raffle);
+        o.addProperty("raffleColor", raffleColor);
+        o.addProperty("raffleEsp", raffleEsp);
+        o.addProperty("resumeHeldBreak", resumeHeldBreak);
+        o.addProperty("powderGhast", powderGhast);
+        o.addProperty("powderGhastTitle", powderGhastTitle);
+        o.addProperty("powderGhastSound", powderGhastSound);
+        o.addProperty("powderGhastParty", powderGhastParty);
+        o.addProperty("powderGhastBox", powderGhastBox);
+        o.addProperty("powderGhastBoxColor", powderGhastBoxColor);
+        o.addProperty("powderGhastTracer", powderGhastTracer);
+        o.addProperty("powderGhastTracerColor", powderGhastTracerColor);
+        o.addProperty("powderGhastTimer", powderGhastTimer);
+        o.addProperty("powderGhastEsp", powderGhastEsp);
+        o.addProperty("goldenGoblin", goldenGoblin);
+        o.addProperty("goldenGoblinBox", goldenGoblinBox);
+        o.addProperty("goldenGoblinColor", goldenGoblinColor);
+        o.addProperty("diamondGoblinColor", diamondGoblinColor);
+        o.addProperty("goldenGoblinTracer", goldenGoblinTracer);
+        o.addProperty("goldenGoblinEsp", goldenGoblinEsp);
+        ConfigJson.write(CONFIG_PATH, o);
         MithrilStone.settingsChanged();
     }
 

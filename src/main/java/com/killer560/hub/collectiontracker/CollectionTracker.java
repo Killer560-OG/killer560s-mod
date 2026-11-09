@@ -1,6 +1,7 @@
 package com.killer560.hub.collectiontracker;
 
 import com.google.gson.JsonObject;
+import com.killer560.hub.hud.BasicHud;
 import com.google.gson.JsonParser;
 import com.killer560.hub.blessings.Blessing;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryMenu;
@@ -477,20 +478,12 @@ public final class CollectionTracker {
         return sb.toString();
     }
 
-    public static final class Hud implements HudElement {
+    public static final class Hud extends BasicHud {
+        public Hud() {
+            super(HUD_ID, "Collection Tracker", 10, 140);
+        }
+
         static final Hud INSTANCE = new Hud();
-
-        @Override
-        public String id() { return HUD_ID; }
-
-        @Override
-        public String displayName() { return "Collection Tracker"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 140; }
 
         @Override
         public int width() {

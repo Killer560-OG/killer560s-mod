@@ -1,14 +1,9 @@
 package com.killer560.hub.bazaar;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -18,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class BazaarOrderHelperConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-bazaarorderhelper.json");
 
     /** Outbid / undercut: yellow (killer560, 2026-11-03: "yellow if they are undercut and red if they expired"). */
@@ -53,43 +47,34 @@ public final class BazaarOrderHelperConfig {
 
     public static synchronized void load() {
         BazaarOrderHelperConfig cfg = new BazaarOrderHelperConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
-                cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
-                cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);
-                if (cfg.outbidColor == OLD_OUTBID_COLOR && !obj.has("expiredColor")) {
-                    cfg.outbidColor = DEFAULT_OUTBID_COLOR; // the old red default moves to yellow (2026-11-03)
-                }
-                cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
-                cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
-                cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
-                cfg.highlightAuctions = ConfigJson.getBool(obj, "highlightAuctions", true);
-            } catch (Exception ignored) {
-                cfg = new BazaarOrderHelperConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
+            cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
+            cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);
+            if (cfg.outbidColor == OLD_OUTBID_COLOR && !obj.has("expiredColor")) {
+                cfg.outbidColor = DEFAULT_OUTBID_COLOR; // the old red default moves to yellow (2026-11-03)
             }
+            cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
+            cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
+            cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
+            cfg.highlightAuctions = ConfigJson.getBool(obj, "highlightAuctions", true);
         }
         instance = cfg;
     }
 
     public synchronized void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("highlightOutbid", highlightOutbid);
-            obj.addProperty("highlightFilled", highlightFilled);
-            obj.addProperty("outbidColor", outbidColor);
-            obj.addProperty("filledColor", filledColor);
-            obj.addProperty("highlightExpired", highlightExpired);
-            obj.addProperty("expiredColor", expiredColor);
-            obj.addProperty("highlightAuctions", highlightAuctions);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("highlightOutbid", highlightOutbid);
+        obj.addProperty("highlightFilled", highlightFilled);
+        obj.addProperty("outbidColor", outbidColor);
+        obj.addProperty("filledColor", filledColor);
+        obj.addProperty("highlightExpired", highlightExpired);
+        obj.addProperty("expiredColor", expiredColor);
+        obj.addProperty("highlightAuctions", highlightAuctions);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** On and inside Skyblock (the Skyblock Only gate). */

@@ -1,6 +1,7 @@
 package com.killer560.hub.leapcounter;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
@@ -130,28 +131,9 @@ public final class LeapCounterFeature {
     }
 
     /** Movable/scalable in the HUD editor, same pattern as F7 Spots' CrushHud. */
-    private static final class LeapHud implements HudElement {
-
-        @Override
-        public String id() {
-            return "leap_counter";
-        }
-
-        @Override
-        public String displayName() {
-            return "Leap Counter";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            // Deliberately high up: y=60 is on screen at every GUI scale (even 4x on 1080p, where anything past
-            // ~270 is off the bottom), and no other element defaults to 60 (Real Time 40, Custom Scoreboard 80).
-            return 60;
+    private static final class LeapHud extends BasicHud {
+        LeapHud() {
+            super("leap_counter", "Leap Counter", 10, 60);
         }
 
         @Override
