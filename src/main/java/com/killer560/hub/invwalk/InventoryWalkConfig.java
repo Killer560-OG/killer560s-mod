@@ -41,6 +41,8 @@ public final class InventoryWalkConfig {
     private int lookKeyCode = com.killer560.hub.util.KeyUtil.NONE;
     /** With Stop To Click: a storage menu's pick-up stays unsent while he walks carrying it (iwbypass-1108). */
     private boolean carryInChests = false;
+    /** In a server menu the server is told no movement keys while he walks (invwalkterm-1108). */
+    private boolean hideKeysInMenus = false;
 
     private InventoryWalkConfig() {
     }
@@ -64,6 +66,7 @@ public final class InventoryWalkConfig {
             cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
             cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
+            cfg.hideKeysInMenus = ConfigJson.getBool(obj, "hideKeysInMenus", cfg.hideKeysInMenus);
         }
         instance = cfg;
     }
@@ -78,6 +81,7 @@ public final class InventoryWalkConfig {
         obj.addProperty("stopToClick", stopToClick);
         obj.addProperty("lookKeyCode", lookKeyCode);
         obj.addProperty("carryInChests", carryInChests);
+        obj.addProperty("hideKeysInMenus", hideKeysInMenus);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -143,5 +147,13 @@ public final class InventoryWalkConfig {
 
     public void setCarryInChests(boolean on) {
         this.carryInChests = on;
+    }
+
+    public boolean isHideKeysInMenus() {
+        return hideKeysInMenus;
+    }
+
+    public void setHideKeysInMenus(boolean on) {
+        this.hideKeysInMenus = on;
     }
 }

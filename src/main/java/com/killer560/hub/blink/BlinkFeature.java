@@ -510,6 +510,7 @@ public final class BlinkFeature {
     }
 
     public static void onServerPosition(Vec3 from, Vec3 to) {
+        com.killer560.hub.invwalk.InventoryWalkFeature.onServerPosition(from, to);
         if (spawnWaitTicks > 2) {
             spawnWaitTicks = 2;
         }

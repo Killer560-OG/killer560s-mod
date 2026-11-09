@@ -115,8 +115,12 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
+        y += ROW + 4;
+        w.add(onOffButton(HIDE_KEYS, cfg::isHideKeysInMenus, cfg::setHideKeysInMenus, cfg::save, null, contentX, y, contentWidth, ROW));
         return w;
     }
+
+    static final String HIDE_KEYS = "Hide Keys In Server Menus";
 
     private static Component screensText(InventoryWalkConfig cfg) {
         return Component.literal("Screens: " + cfg.getScreens().label);
