@@ -1113,7 +1113,7 @@ final class SettingTooltipsData {
         d.put("blur gui", "Also blurs the HUD and open menus.");
         d.put("dark mode", "Darkens the game by drawing a black tint over the whole screen, the HUD, the open chat and the HUD editor. Other open menus are never tinted.");
         d.put("dark mode/opacity", "How dark the tint is, from 1% (barely darker) to 80%.");
-        d.put("tint hud", "Off: only the world is darkened and the HUD stays as it is. On (default): the HUD (hotbar, chat, scoreboard and this mod's HUD elements), the open chat screen and the HUD editor are darkened too.");
+        d.put("tint hud", "Off: only the world is darkened and the HUD stays as it is. On (default): the HUD (hotbar, chat, scoreboard and this mod's HUD elements), the chat and every screen this mod draws or skins (its menus, editors, the AH and Bazaar reskins) are darkened too.");
         d.put("open layout picker", "Opens a monitor preview; click a cell to move and resize this window into it.");
         d.put("windows per monitor", "How many equal slots (1-9) the picker splits the monitor into.");
         d.put("respect taskbar", "Keeps windows inside the monitor's work area so they do not cover the taskbar.");
