@@ -1084,7 +1084,6 @@ final class SettingTooltipsData {
         d.put("hide particles", "Hides the vanilla Mage beam's firework particles in dungeons.");
         d.put("beam color", "Color of the custom Mage beam line.");
         d.put("auto dialogue", "Cheat build: clicks the first option in NPC dialogue, skipping anything that costs coins.");
-        d.put("npc filter", "Cheat build: NPC names Auto Dialogue may answer, comma-separated; blank allows any.");
         d.put("breaker aura", "Cheat build: in a boss fight only, breaks the blocks you picked with the Pick Block Key once they are in reach, while you hold a charged Dungeon Breaker.");
         d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
