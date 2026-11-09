@@ -70,6 +70,12 @@ final class SettingTooltipsData {
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
         d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
+        d.put("rare room alerts", "Shows a title and plays a sound the first time Trinity, Tomioka or Duncan shows up on the dungeon map.");
+        d.put("rare drop alerts", "Shows a title and plays a sound when an Ice Spray Wand or a Skeleton Master Chestplate drops.");
+        d.put("duplicate class alert", "Shows a title naming the players who share a dungeon class, once per class each run.");
+        d.put("party message (duplicate class)", "Also sends the duplicate class to party chat. Off by default.");
+        d.put("wither king statue box", "M7 phase 5: draws a box in each dragon's color around every statue still standing.");
+        d.put("dimensional slash alert", "M7 phase 5: shows a title while you stand in a Dimensional Slash zone (around the glowstone the Wither King places).");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "The moment the Watcher lets you pass (the last blood mob dies), lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
