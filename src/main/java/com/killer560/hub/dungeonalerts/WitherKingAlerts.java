@@ -41,6 +41,7 @@ final class WitherKingAlerts {
     private static boolean active = false;
     private static int poll = 0;
     private static long lastSlash = -100L;
+    private static int drawnFrames = 0;
 
     static {
         for (int i = 0; i < DRAGONS.length; i++) {
@@ -117,6 +118,7 @@ final class WitherKingAlerts {
         if (!active || !DungeonAlertsConfig.getInstance().witherKingStatueBox) {
             return;
         }
+        drawnFrames++;
         for (int i = 0; i < BOXES.length; i++) {
             if (!destroyed[i]) {
                 float[] c = RGBA[i];
@@ -133,6 +135,10 @@ final class WitherKingAlerts {
     }
 
     /** For the testkit: slash zones held, whether the P5 gate is open, and how many statue boxes would draw. */
+    static int drawnFrames() {
+        return drawnFrames;
+    }
+
     static int zoneCount() {
         return zones.size();
     }
