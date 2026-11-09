@@ -120,6 +120,8 @@ public final class ModPaths {
         // Auto Trap's trap routes (killer560smod-autotrap.json).
         t.put("autotrap", "dungeons/autotrap");
         t.put("blink", "dungeons/blink");
+        t.put("terminatorclicker", "dungeons/terminatorclicker");
+        t.put("ghostblock", "dungeons/ghostblock");
         t.put("invwalk", "skyblock/invwalk");
         t.put("zpew", "dungeons/zpew");
         t.put("leftclickew", "dungeons/leftclickew");

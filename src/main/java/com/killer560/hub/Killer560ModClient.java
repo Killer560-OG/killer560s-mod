@@ -455,6 +455,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.register();
         com.killer560.hub.smoothtp.SmoothTeleport.register();
         com.killer560.hub.freelook.FreelookFeature.register();
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            com.killer560.hub.terminatorclicker.TerminatorClickerFeature.register();
+            com.killer560.hub.ghostblock.GhostBlockFeature.register();
+        }
         com.killer560.hub.gui.ModuleKeybinds.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
         com.killer560.hub.partycommands.PartyCommandsFeature.register();

@@ -63,6 +63,7 @@ public final class ObjectHiderConfig {
 
     private boolean hideGroundedArrows = false;
     private boolean disableBlindness = false;
+    private boolean noGlow = false;
     private boolean hideDeathAnimations = false;
     private boolean hideDeadNametags = false;
     private boolean hideBlockBreakParticles = false;
@@ -150,6 +151,7 @@ public final class ObjectHiderConfig {
             .add("cleanEnd", false, c -> c.cleanEnd, (c, v) -> c.cleanEnd = v)
             .add("cleanEndKeepGuardians", false, c -> c.cleanEndKeepGuardians, (c, v) -> c.cleanEndKeepGuardians = v)
             .add("hideGroundedArrows", false, c -> c.hideGroundedArrows, (c, v) -> c.hideGroundedArrows = v)
+            .add("noGlow", false, c -> c.noGlow, (c, v) -> c.noGlow = v)
             .add("disableBlindness", false, c -> c.disableBlindness, (c, v) -> c.disableBlindness = v)
             .add("hideDeathAnimations", false, c -> c.hideDeathAnimations, (c, v) -> c.hideDeathAnimations = v)
             .add("hideDeadNametags", false, c -> c.hideDeadNametags, (c, v) -> c.hideDeadNametags = v)
@@ -321,6 +323,13 @@ public final class ObjectHiderConfig {
     public void setHideGroundedArrows(boolean v) { hideGroundedArrows = v; }
 
     public boolean isDisableBlindness() { return objectHiderEnabled && disableBlindness && SkyblockGate.allows(); }
+
+    /** Vanilla glow outlines are hidden (our own ESP glow is exempt, see WitherGlowMinecraftMixin). */
+    public boolean isNoGlow() { return objectHiderEnabled && noGlow; }
+
+    public boolean getNoGlowRaw() { return noGlow; }
+
+    public void setNoGlow(boolean v) { noGlow = v; }
 
     public boolean getDisableBlindnessRaw() { return disableBlindness; }
 
