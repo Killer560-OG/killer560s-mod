@@ -59,7 +59,7 @@ public final class SplitTimersFeature {
 
     static final Logger LOGGER = ModLog.get("killer560smod-splittimers");
 
-    private record SplitDef(Pattern pattern, String label) {
+    record SplitDef(Pattern pattern, String label) {
     }
 
     // Odin SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
@@ -68,17 +68,17 @@ public final class SplitTimersFeature {
             "§2Blood Open");
     /** The blood door opening: the Watcher's greeting (one per floor) or Hypixel's own door line. Starts "Watcher".
      *  Odin SplitsManager.BLOOD_OPEN_REGEX. */
-    private static final SplitDef BLOOD_OPENED = def(
+    static final SplitDef BLOOD_OPENED = def(
             "^\\[BOSS\\] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|Ah, we meet again\\.\\.\\.|Ah, we meet again\\. As I foresaw\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|You've managed to scratch and claw your way here, eh\\?|I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|Things feel a little more roomy now, eh\\?)$|^The BLOOD DOOR has been opened!$",
             "§cWatcher");
     /** The last blood mob dies and the Watcher lets the party through. Starts "Portal Entry". */
-    private static final SplitDef WATCHER_DONE = def(
+    static final SplitDef WATCHER_DONE = def(
             "^\\[BOSS\\] The Watcher: You have proven yourself\\. You may pass\\.$", "§dPortal Entry");
     /** The run's end line. Ends the last boss segment, the Boss row and the Total. */
     private static final SplitDef TOTAL = def(
             "^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$", "§eTotal");
     /** Devonian WatcherSplits: the line the blood mobs start on - only Watcher Move's clock reads it. */
-    private static final Pattern WATCHER_FIGHT = Pattern.compile(
+    static final Pattern WATCHER_FIGHT = Pattern.compile(
             "^\\[BOSS\\] The Watcher: Let's see how you can handle this\\.$");
 
     /** How many clear boundaries every floor's list starts with (Blood Open, Watcher, Portal Entry). */
@@ -206,7 +206,7 @@ public final class SplitTimersFeature {
         }
         wasInDungeon = inDungeon;
 
-        if (SplitTimersConfig.getInstance().isEnabled()) {
+        if (SplitTimersConfig.getInstance().isEnabled() || WatcherHelperConfig.getInstance().isEnabled()) {
             WatcherMoveTracker.tick();
         }
         if (SplitTimersConfig.getInstance().isCoreEntryActive()) {
