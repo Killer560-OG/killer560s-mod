@@ -418,7 +418,11 @@ final class SettingTooltipsData {
         d.put("auto clear/status hud", "One small HUD showing what Auto Clear, Auto Secret and Dungeon Autopilot are doing, hidden while nothing runs; move it in the HUD editor.");
         d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
         d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Backspace clears it). Works only in a dungeon, outside the boss.");
-        d.put("auto clear/secret blood first", "Auto Secret only: Off starts on secrets, Door Camp first opens the way to the blood door so the Watcher starts, Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
+        for (String k : new String[]{"autopilot", "auto secret"}) { // the run buttons read "Start X" / "Stop X"
+            d.put("auto clear/start " + k, d.get("auto clear/" + k));
+            d.put("auto clear/stop " + k, d.get("auto clear/" + k));
+        }
+        d.put("auto clear/secret blood first","Auto Secret only: Off starts on secrets, Door Camp first opens the way to the blood door so the Watcher starts, Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
         d.put("auto clear/room plan", "How Auto Secret fits Auto Clear in: Fastest Total clears each room on the same visit as its secrets, Secrets Then Clears does every secret room first and the uncleared rooms after.");
         d.put("auto clear/skip unneeded secrets", "Fastest Total only, off by default: once the Score Calculator says S+ needs no more secrets, the slowest rooms are only cleared and their secrets left.");
         d.put("auto clear/insta clear first","Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");
