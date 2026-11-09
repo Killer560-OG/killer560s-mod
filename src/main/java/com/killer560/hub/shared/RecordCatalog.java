@@ -224,7 +224,7 @@ public final class RecordCatalog {
 
     /** Carry Tracker (featG-1109): runs per carried player (counters, by lower-case name) and a log of the runs themselves.
      *  The legacy name never existed (a new record). */
-    public static final Kind CARRY = new Kind("killer560smod-carry-records.json", null, "carry-tracker.json",
+    public static final Kind CARRY = new Kind("killer560smod-carry-records", "records.json", "carry-tracker.json",
             Scope.ACCOUNT, new JsonMerge.Policy() {
         @Override
         public Function<JsonElement, String> arrayKey(String path) {
