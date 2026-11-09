@@ -24,7 +24,7 @@ public final class DungeonWaypointsConfig {
     }
 
     public static final int DEFAULT_COLOR = 0xFF00E5FF;
-    private static final Path PATH = ModPaths.config("killer560smod-dungeonwaypoints.json");
+    private static final Path CONFIG_PATH = ModPaths.config("killer560smod-dungeonwaypoints.json");
     private static DungeonWaypointsConfig instance;
 
     private boolean enabled = false;
@@ -47,7 +47,7 @@ public final class DungeonWaypointsConfig {
     /** Loads, then tells FeatureBits (profile apply reloads every config). */
     public static void load() {
         DungeonWaypointsConfig c = new DungeonWaypointsConfig();
-        JsonObject o = ConfigJson.read(PATH);
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
         if (o != null) {
             c.enabled = ConfigJson.getBool(o, "enabled", false);
             c.throughWalls = ConfigJson.getBool(o, "throughWalls", true);
@@ -72,7 +72,7 @@ public final class DungeonWaypointsConfig {
         o.addProperty("throughWalls", throughWalls);
         o.addProperty("color", color);
         o.add("waypoints", toJson(waypoints));
-        ConfigJson.write(PATH, o);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** One waypoint as a JSON object (the pack format), or null when {@code el} is not a valid one. */

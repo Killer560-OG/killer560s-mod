@@ -95,7 +95,7 @@ final class CardBlurbsData {
         d.put("CustomPartyFinderTab", "Dungeon, Diana, fishing parties.");
         d.put("F7SpotsTab", "Saved F7/M7 walk and aim spots.");
         d.put("LeapCounterTab", "Counts teammates leaping.");
-        d.put("MilestoneTab", "Dungeon milestone count HUD.");
+        d.put("MilestoneTab", "Milestone count HUD.");
         d.put("DungeonItemHighlighterTab", "Marks cheap gear to salvage.");
         d.put("LeapMenuTab", "Custom leap menu with heads.");
         d.put("LividSolverTab", "Outlines the real Livid.");
@@ -123,8 +123,8 @@ final class CardBlurbsData {
         d.put("RunSummaryTab", "Saves each run's splits and score.");
         d.put("ScoreCalculatorTab", "Live dungeon score HUD.");
         d.put("EtherwarpTab", "Boxes for /ew waypoints.");
-        d.put("AutoSuperboomTab", "Swaps to Superboom on a wall click.");
-        d.put("DungeonWaypointsTab", "Your own boxes and lines per room.");
+        d.put("AutoSuperboomTab", "Swaps to Superboom.");
+        d.put("DungeonWaypointsTab", "Your boxes and lines.");
         d.put("SecretSoundTab", "Sound on each secret.");
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");
@@ -145,9 +145,9 @@ final class CardBlurbsData {
         d.put("Ap3Tab", "Node chains through F7/M7 phases.");
         d.put("AutoBloodCampTab", "Blood Camp mobs.");
         d.put("AutoClearTab", "Clears mob rooms at range.");
-        d.put("AutoCloseChestTab", "Closes secret chests on a key press.");
+        d.put("AutoCloseChestTab", "Closes chests on a key.");
         d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
-        d.put("IcedMobsTab", "Boxes mobs an Ice Spray Wand froze.");
+        d.put("IcedMobsTab", "Boxes frozen mobs.");
         d.put("RoomNameTab", "HUD with the room you are in.");
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");
