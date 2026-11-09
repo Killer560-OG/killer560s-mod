@@ -1,5 +1,6 @@
 package com.killer560.hub.sounddisabler;
 
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.SkyblockGate;
@@ -16,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /**
  * Sound Disabler (killer560, 2026-11-02): decides whether a sound the game is about to play is muted. Asked by
@@ -38,6 +40,9 @@ public final class SoundDisabler {
     /** Show Sound IDs says an id at most this often. */
     private static final long SHOW_EVERY_NANOS = 2_000_000_000L;
 
+    /** The note block bass of an on-cooldown ability arrives within this of its chat line. */
+    static final long COOLDOWN_WINDOW_NANOS = 600_000_000L;
+    private static volatile long lastCooldownNanos = Long.MIN_VALUE / 2;
     private static volatile long lastShotNanos = Long.MIN_VALUE / 2;
     private static volatile double shotX;
     private static volatile double shotY;
@@ -80,6 +85,12 @@ public final class SoundDisabler {
                 }
                 if (s == MutedSound.BONZO_STAFF && !isBonzo(in, id.getPath())) {
                     bonzoCandidatesPassed++;
+                    continue;
+                }
+                if (s == MutedSound.LAST_BREATH && !holderNear(in.getX(), in.getY(), in.getZ(), SoundDisabler::isLastBreath)) {
+                    continue;
+                }
+                if (s == MutedSound.ABILITY_COOLDOWN && !cooldownSoundWindow()) {
                     continue;
                 }
                 row = s.key;
@@ -125,13 +136,45 @@ public final class SoundDisabler {
 
     /** Whether a player holding a Bonzo's Staff (or the Starred one) stands within {@link #SHOT_RADIUS} of the sound. */
     static boolean isBonzoShot(double x, double y, double z) {
+        return holderNear(x, y, z, SoundDisabler::isBonzoStaff);
+    }
+
+    /** Whether a player whose main-hand item passes {@code held} stands within {@link #SHOT_RADIUS} of the sound. */
+    private static boolean holderNear(double x, double y, double z, Predicate<ItemStack> held) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return false;
         for (AbstractClientPlayer p : mc.level.players()) {
-            if (p.distanceToSqr(x, y, z) <= SHOT_RADIUS * SHOT_RADIUS && isBonzoStaff(p.getMainHandItem())) return true;
+            if (p.distanceToSqr(x, y, z) <= SHOT_RADIUS * SHOT_RADIUS && held.test(p.getMainHandItem())) return true;
         }
         return false;
     }
+
+    /** Hypixel's {@code LAST_BREATH} / {@code STARRED_LAST_BREATH} by Skyblock id, or by name when the id is not sent. */
+    static boolean isLastBreath(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        CompoundTag tag = ItemNbt.view(stack);
+        String sbId = tag == null ? null : tag.getStringOr("id", null);
+        if (sbId != null) return sbId.equals("LAST_BREATH") || sbId.equals("STARRED_LAST_BREATH");
+        return stack.getHoverName().getString().contains("Last Breath");
+    }
+
+    /** Subscribed once at start-up: remembers when Hypixel last said an ability is on cooldown. */
+    public static void register() {
+        ChatObserver.subscribe(m -> {
+            if (SoundDisablerConfig.getInstance().isOn(MutedSound.ABILITY_COOLDOWN)
+                    && ChatObserver.strip(m).startsWith("This ability is on cooldown for ")) {
+                lastCooldownNanos = System.nanoTime();
+            }
+        });
+    }
+
+    /** A note block bass within {@link #COOLDOWN_WINDOW_NANOS} after the cooldown line is the cooldown's own sound. */
+    static boolean cooldownSoundWindow() {
+        return System.nanoTime() - lastCooldownNanos <= COOLDOWN_WINDOW_NANOS;
+    }
+
+    /** Test hook: the cooldown chat line just arrived. */
+    public static void noteCooldownForTest() { lastCooldownNanos = System.nanoTime(); }
 
     /** Hypixel's {@code BONZO_STAFF} / {@code STARRED_BONZO_STAFF} by Skyblock id, or by name when the id is not sent. */
     static boolean isBonzoStaff(ItemStack stack) {

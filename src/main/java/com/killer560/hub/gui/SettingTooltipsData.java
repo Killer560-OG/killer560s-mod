@@ -321,6 +321,8 @@ final class SettingTooltipsData {
         d.put("collection tracker/show rate", "Adds how many of each collection you gained per hour this session.");
         d.put("sound disabler", "Mutes the game sounds you pick, on your client only: the server, the anticheat and every other feature still get the sound packet. Off by default, and every sound row starts off too.");
         d.put("sound disabler/bonzo's staff", "Bonzo's Staff and the Starred one: the ghast sound of each shot and the firework blast of its balloon. Only those: a ghast sound is muted when a player holding the staff stands where it plays, and a firework blast only within 4 seconds and 48 blocks of such a shot, so real ghasts and other fireworks still play. Off by default.");
+        d.put("sound disabler/last breath", "Mutes the arrow shot sound (entity.arrow.shoot) only where a player holding Last Breath or Starred Last Breath stands, so other bows still play. Show Sound IDs names any other sound Last Breath makes for the Custom box.");
+        d.put("sound disabler/ability cooldown", "Mutes the note block bass (block.note_block.bass) for a moment after Hypixel says 'This ability is on cooldown for Ns.'. The sound has to arrive after that line to be caught. Show Sound IDs names the sound if yours differs.");
         d.put("sound disabler/explosions", "Every explosion sound (entity.generic.explode): Wither Impact, TNT, creepers and the rest. A sound has no owner, so this cannot tell one explosion from another.");
         d.put("sound disabler/bow shots", "Every bow shot (entity.arrow.shoot), yours and every other player's and mob's: the Terminator spam. Arrow hits are not muted.");
         d.put("sound disabler/endermen", "Every enderman sound (entity.enderman.*), Voidgloom Seraph and the End's endermen alike.");
@@ -547,6 +549,8 @@ final class SettingTooltipsData {
         d.put("chat hider/hide blessings", "In dungeons: hides the blessing found and picked-up lines and the stat lines under them.");
         d.put("chat hider/hide others' pickups", "In dungeons: hides other players' 'has obtained Wither Key!', Superboom, Revive Stone and other pickup lines. Yours stay.");
         d.put("chat hider/hide ability spam", "In dungeons: hides cooldown, ability-ready, 'Used ...!', orb and tether lines.");
+        d.put("chat hider/compact melody messages", "In dungeons: hides the in-progress party Melody callouts ('Melody 1/3 - 33%', 'Melody 67%') and keeps the finished one. Your Team Melody HUD still reads them.");
+        d.put("chat hider/mute melody messages", "In dungeons: hides every party Melody callout, the finished one too. Your Team Melody HUD still reads them.");
         d.put("chat hider/hide dungeon breaker spam", "In dungeons: hides the Dungeon Breaker's 'A mystical force prevents you...' and 'not enough charges' lines.");
         d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
         d.put("chat hider/hide mining reminders", "Hides the Breaking Power reminder (\"You need a tool with a Breaking Power of N to mine ...\") the unspent Tokens of the Mountain reminder, the \"SERENDIPITOUS! ...\" Crystal Serendipity line and the \"COMPACT! You found ...\" line. Mining alerts still see them.");
@@ -683,6 +687,11 @@ final class SettingTooltipsData {
         d.put("posmsg/text scale", "Size of the floating message label on this waypoint.");
         d.put("posmsg/text height", "How many blocks above the waypoint the label floats.");
         d.put("send mel coords on open", "Sends your block position to party chat when a Melody terminal opens (F7/M7 boss).");
+        d.put("milestone display", "A small HUD counting the dungeon milestones you have reached this run (red at 0 and 1, yellow at 2, green at 3), read from the milestone chat lines. Move it in Edit HUD.");
+        d.put("salvage helper", "Marks cheap dungeon gear in the Salvage Items and Trades menus so you can see what is safe to salvage or sell. Highlight only: it never clicks. Needs item prices, which it loads in the background.");
+        d.put("salvage helper/highlight in salvage menu", "Yellow marks on dungeon gear worth less than the Max Item Value (its lowest BIN) in the Salvage Items menu and your inventory beside it.");
+        d.put("salvage helper/highlight in trades menu", "Green marks on dungeon gear worth less than the Max Item Value in the Trades menu, so you know what to sell.");
+        d.put("salvage helper/max item value", "Gear whose lowest BIN is at or above this is never marked; gear with no known price is never marked either. Click to step up, right click to step back.");
         d.put("leap counter", "Counts how many teammates leap to you in F7/M7 Phase 3 and alerts when all have arrived.");
         d.put("expected leaps", "How many teammates should leap to you in each Phase 3 section.");
         d.put("s1 leaps", "Teammates expected to leap to you in section 1. 0 turns it off.");

@@ -27,6 +27,8 @@ public class DungeonTab extends FolderTab {
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
                 new LeapCounterTab(),
+                new MilestoneTab(),
+                new DungeonItemHighlighterTab(),
                 new DungeonQueueTab(),
                 // Creation Cooldown (to-do Doc 2026-11-01): SkyHanni's 30 s instance creation timer.
                 new CreationCooldownTab(),

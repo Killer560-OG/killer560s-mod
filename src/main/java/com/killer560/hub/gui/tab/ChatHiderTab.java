@@ -69,6 +69,10 @@ public class ChatHiderTab extends BaseTab {
                 "Hide Ability Spam", cfg::getHideAbilitySpamRaw, cfg::setHideAbilitySpam);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Dungeon Breaker Spam", cfg::getHideDungeonBreakerRaw, cfg::setHideDungeonBreaker);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Compact Melody Messages", cfg::getHideMelodyProgressRaw, cfg::setHideMelodyProgress);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Mute Melody Messages", cfg::getMuteMelodyRaw, cfg::setMuteMelody);
         return widgets;
     }
 

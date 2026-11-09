@@ -28,7 +28,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Clicked (Secret tab, with Secret Sound and the Secrets HUD), Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver † (with Hold To Click), Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
-**Dungeon: Map, Leap & Party** - Chunk Cache, Creation Cooldown, Custom Leap Menu, Custom Party Finder, Blood Rush Helper, Dungeon Map, Dungeon Queue, Insta Clear Warning, Leap Counter, Leap Message, Leap Order, Posmsg
+**Dungeon: Map, Leap & Party** - Chunk Cache, Creation Cooldown, Custom Leap Menu, Custom Party Finder, Blood Rush Helper, Dungeon Map, Dungeon Queue, Insta Clear Warning, Leap Counter, Leap Message, Leap Order, Milestone Display, Posmsg, Salvage Helper
 
 **Dungeon: Timers, Score & Boss** - Auto Kick, Blessings, Blood Camp, Boss Health, Breaker Charges, Chest Profit, Croesus (Chest Profit, Profit Logger, Reroll Protection, Kismet Count, Croesus Chests HUD), Custom Mage Beam, Dungeon Alerts, Dungeon Run Summary, Dungeon Score Calculator, F7 Spots (F7/M7), Goldor Frenzy Timer, Low Health Alert, M7 King Relics, M7 Wither Dragons, Mask Invincibility Timers †, Mask Keybinds, Maxor's Crystals (F7/M7 P1), Mob ESP †, P3 Nav (F7/M7) †, P3 Status (F7/M7), P4 Platform Highlight, Rag Axe, RNG Meter, Run HUDs, Score Warning, Sharp Shooter (i4) †, Split Timers (Blood Rush Splits), Starred Mob Hitboxes (Blood Mobs, Fel Skulls, Mimic), Terminal Timers, Thorn (F4/M4) †, Tick Timers, Wither Boss Highlight †
 

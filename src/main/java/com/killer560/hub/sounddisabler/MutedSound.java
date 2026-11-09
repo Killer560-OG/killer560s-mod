@@ -33,7 +33,11 @@ public enum MutedSound {
     PHANTOMS("phantoms", "Phantoms", false),
     WITHERS("withers", "Withers", false),
     RAIN_AND_THUNDER("rain_and_thunder", "Rain And Thunder", false),
-    SKYBLOCK_WEATHER("skyblock_weather", "Skyblock Weather", false);
+    SKYBLOCK_WEATHER("skyblock_weather", "Skyblock Weather", false),
+    /** Candidate test only: an arrow shot by a player holding Last Breath ({@link SoundDisabler#isLastBreath}). */
+    LAST_BREATH("last_breath", "Last Breath", false),
+    /** Candidate test only: the note block bass right after an "on cooldown" chat line ({@link SoundDisabler#cooldownSoundWindow}). */
+    ABILITY_COOLDOWN("ability_cooldown", "Ability Cooldown", false);
 
     /** The key the config file uses. */
     public final String key;
@@ -77,6 +81,8 @@ public enum MutedSound {
             case WITHERS -> p.startsWith("entity.wither.");
             case RAIN_AND_THUNDER -> p.startsWith("weather.rain") || p.startsWith("entity.lightning_bolt.");
             case SKYBLOCK_WEATHER -> p.startsWith("weather.") || p.startsWith("entity.lightning_bolt.");
+            case LAST_BREATH -> p.equals("entity.arrow.shoot");
+            case ABILITY_COOLDOWN -> p.equals("block.note_block.bass");
         };
     }
 
