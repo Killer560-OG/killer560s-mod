@@ -59,6 +59,15 @@ public final class TerminalQolConfig {
     private int terminalGuiScale = 0;
     private int melodyGuiScale = 0;
 
+    /** Terminal Sounds (Odin, featsweep-1108): a chosen sound (clicksound/ClickSounds ids) for each correct click you make and
+     *  for each terminal you finish; "default" adds nothing. Volume is a percent. */
+    private boolean terminalSounds = false;
+    private String clickSound = "tick";
+    private String completeSound = "chime";
+    private int soundVolume = 100;
+    /** Terminal Click Path (Athen's Terminal Click): your clicks drawn as dots and lines for 4 s after the terminal closes. */
+    private boolean clickPath = false;
+
     private boolean hideCompletionTitles = false;
     private boolean hideCompletionChat = false;
     /** Devonian's own {@code onlyShowOwn} (default true): your OWN "activated a terminal! (n/m)" still shows,
@@ -93,6 +102,11 @@ public final class TerminalQolConfig {
             cfg.melodyKeysEnabled = ConfigJson.getBool(obj, "melodyKeysEnabled", false);
             cfg.terminalGuiScale = clampGuiScale(ConfigJson.getInt(obj, "terminalGuiScale", 0));
             cfg.melodyGuiScale = clampGuiScale(ConfigJson.getInt(obj, "melodyGuiScale", 0));
+            cfg.terminalSounds = ConfigJson.getBool(obj, "terminalSounds", false);
+            cfg.clickSound = ConfigJson.getString(obj, "clickSound", "tick");
+            cfg.completeSound = ConfigJson.getString(obj, "completeSound", "chime");
+            cfg.soundVolume = Math.max(0, Math.min(100, ConfigJson.getInt(obj, "soundVolume", 100)));
+            cfg.clickPath = ConfigJson.getBool(obj, "clickPath", false);
             cfg.hideCompletionTitles = ConfigJson.getBool(obj, "hideCompletionTitles", false);
             cfg.hideCompletionChat = ConfigJson.getBool(obj, "hideCompletionChat", false);
             cfg.hideCompletionOnlyOthers = ConfigJson.getBool(obj, "hideCompletionOnlyOthers", true);
@@ -113,6 +127,11 @@ public final class TerminalQolConfig {
         obj.addProperty("melodyKeysEnabled", melodyKeysEnabled);
         obj.addProperty("terminalGuiScale", terminalGuiScale);
         obj.addProperty("melodyGuiScale", melodyGuiScale);
+        obj.addProperty("terminalSounds", terminalSounds);
+        obj.addProperty("clickSound", clickSound);
+        obj.addProperty("completeSound", completeSound);
+        obj.addProperty("soundVolume", soundVolume);
+        obj.addProperty("clickPath", clickPath);
         obj.addProperty("hideCompletionTitles", hideCompletionTitles);
         obj.addProperty("hideCompletionChat", hideCompletionChat);
         obj.addProperty("hideCompletionOnlyOthers", hideCompletionOnlyOthers);
@@ -181,6 +200,30 @@ public final class TerminalQolConfig {
 
     public void setMelodyGuiScale(int melodyGuiScale) { this.melodyGuiScale = clampGuiScale(melodyGuiScale); }
 
+
+    public boolean isTerminalSounds() { return terminalSounds && com.killer560.hub.util.SkyblockGate.allows(); }
+
+    public boolean isTerminalSoundsRaw() { return terminalSounds; }
+
+    public void setTerminalSounds(boolean terminalSounds) { this.terminalSounds = terminalSounds; }
+
+    public String getClickSound() { return clickSound; }
+
+    public void setClickSound(String clickSound) { this.clickSound = clickSound; }
+
+    public String getCompleteSound() { return completeSound; }
+
+    public void setCompleteSound(String completeSound) { this.completeSound = completeSound; }
+
+    public int getSoundVolume() { return soundVolume; }
+
+    public void setSoundVolume(int soundVolume) { this.soundVolume = Math.max(0, Math.min(100, soundVolume)); }
+
+    public boolean isClickPath() { return clickPath && com.killer560.hub.util.SkyblockGate.allows(); }
+
+    public boolean isClickPathRaw() { return clickPath; }
+
+    public void setClickPath(boolean clickPath) { this.clickPath = clickPath; }
 
     public boolean isHideCompletionTitles() { return hideCompletionTitles && com.killer560.hub.util.SkyblockGate.allows(); }
 

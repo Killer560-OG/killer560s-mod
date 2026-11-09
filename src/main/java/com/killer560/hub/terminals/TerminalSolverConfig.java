@@ -200,6 +200,9 @@ public final class TerminalSolverConfig {
      *  arrived and pressed; the Min/Max delays are replaced by the cursor's Speed / Reaction Time. Off: the Min/Max timing,
      *  and no cursor is ever drawn (Hide Mouse Cursor may hide the real one). Replaces the 2026-10-26 Fake Cursor toggle. */
     private boolean autoStreamSafe = false;
+    private ClickOrder autoClickOrder = ClickOrder.FIRST;
+    /** Queue Terms (Nebulune, cheat): your own clicks on right slots wait for the server's answer to the click before and go one per update. */
+    private boolean queueTerms = false;
     /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
     private int firstClickDelayMs = 300;
     private int cursorReactionMs = 130;
@@ -260,6 +263,19 @@ public final class TerminalSolverConfig {
         ALL, EDGES
     }
 
+    /** Which highlighted slot Auto Terminals clicks next (Nebulune / NoammAddons click order; Numbers keeps its fixed order,
+     *  Stream Safe its own human order). Closest and Furthest measure from the slot clicked last (the top-left corner before
+     *  the first click). */
+    public enum ClickOrder {
+        FIRST("First"), RANDOM("Random"), CLOSEST("Closest"), FURTHEST("Furthest");
+
+        public final String label;
+
+        ClickOrder(String label) { this.label = label; }
+
+        public ClickOrder next(int dir) { return values()[Math.floorMod(ordinal() + dir, values().length)]; }
+    }
+
     private TerminalSolverConfig() {
         for (OverlayColor c : OverlayColor.values()) {
             overlayColors.put(c, c.defaultArgb());
@@ -295,6 +311,7 @@ public final class TerminalSolverConfig {
             .add("autoMelodyEnabled", false, c -> c.autoMelodyEnabled, (c, v) -> c.autoMelodyEnabled = v)
             .add("hideMouseCursor", false, c -> c.hideMouseCursor, (c, v) -> c.hideMouseCursor = v)
             .add("autoStreamSafe", false, c -> c.autoStreamSafe, (c, v) -> c.autoStreamSafe = v)
+            .add("queueTerms", false, c -> c.queueTerms, (c, v) -> c.queueTerms = v)
             .add("blockInputWhileAutoClicking", true, c -> c.blockInputWhileAutoClicking, (c, v) -> c.blockInputWhileAutoClicking = v)
             .add("announceCompletionTime", true, c -> c.announceCompletionTime, (c, v) -> c.announceCompletionTime = v)
             .add("hoverTerminalsEnabled", false, c -> c.hoverTerminalsEnabled, (c, v) -> c.hoverTerminalsEnabled = v)
@@ -330,6 +347,7 @@ public final class TerminalSolverConfig {
                 lookahead = Math.max(0, lookahead - 1);
             }
             cfg.melodyLookaheadClicks = clampMelodyLookahead(lookahead);
+            cfg.autoClickOrder = ConfigJson.getEnum(obj, "autoClickOrder", ClickOrder.class, ClickOrder.FIRST);
             cfg.melodySkipMode = ConfigJson.getEnum(obj, "melodySkipMode", MelodySkipMode.class, MelodySkipMode.EDGES);
             cfg.hoverDelayMs = clampHoverDelay(ConfigJson.getInt(obj, "hoverDelayMs", 100));
             cfg.hoverJitterMs = clampHoverJitter(ConfigJson.getInt(obj, "hoverJitterMs", 0));
@@ -365,6 +383,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
             obj.addProperty("melodyLookaheadVersion", MELODY_LOOKAHEAD_FORMAT);
             obj.addProperty("melodySkipMode", melodySkipMode.name());
+            obj.addProperty("autoClickOrder", autoClickOrder.name());
             obj.addProperty("hoverDelayMs", hoverDelayMs);
             obj.addProperty("hoverJitterMs", hoverJitterMs);
             obj.addProperty("hoverMelodyEnabled", hoverMelodyEnabled);
@@ -528,6 +547,18 @@ public final class TerminalSolverConfig {
 
     /** Stream Safe: Auto Terminals clicks through the drawn human cursor (see {@link #autoStreamSafe}). */
     public boolean isAutoStreamSafe() { return autoStreamSafe; }
+
+    public ClickOrder getAutoClickOrder() { return autoClickOrder; }
+
+    public void setAutoClickOrder(ClickOrder autoClickOrder) { this.autoClickOrder = autoClickOrder; }
+
+    public boolean isQueueTerms() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && queueTerms && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isQueueTermsRaw() { return queueTerms; }
+
+    public void setQueueTerms(boolean queueTerms) { this.queueTerms = queueTerms; }
 
     public void setAutoStreamSafe(boolean autoStreamSafe) { this.autoStreamSafe = autoStreamSafe; }
 

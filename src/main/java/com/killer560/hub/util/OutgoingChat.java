@@ -134,6 +134,14 @@ public final class OutgoingChat {
         return true;
     }
 
+    /** No movement key held, not sprinting: a command sent mid-walk draws experimental Grim's ChatC (Inventory Walk gate, 2026-11-06). */
+    public static boolean standingStill() {
+        net.minecraft.client.player.LocalPlayer p = net.minecraft.client.Minecraft.getInstance().player;
+        if (p == null) return false;
+        net.minecraft.world.entity.player.Input k = p.input.keyPresses;
+        return !(k.forward() || k.backward() || k.left() || k.right() || k.sprint() || k.shift() || p.isSprinting());
+    }
+
     /** Keeps a place in line for a line that is not written yet; fill or cancel it. */
     public static Slot reserve() {
         synchronized (OutgoingChat.class) {

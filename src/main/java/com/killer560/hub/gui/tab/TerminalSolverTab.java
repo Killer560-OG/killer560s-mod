@@ -81,7 +81,8 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     @Override
     public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
             java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        return switchRows(built, "Terminal Solver", "Terminal Protection", "Terminal Drop Key", "Melody Keys", "Hide Completion Titles", "Hide Completion Chat");
+        return switchRows(built, "Terminal Solver", "Terminal Protection", "Terminal Drop Key", "Melody Keys", "Hide Completion Titles", "Hide Completion Chat",
+                "Terminal Sounds", "Terminal Click Path");
     }
 
     @Override
@@ -332,7 +333,54 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
+        // Terminal Sounds (Odin) and Terminal Click Path (Athen), legit: see terminals/TerminalExtras.
+        widgets.add(onOffButton("Terminal Sounds", cfg::isTerminalSoundsRaw, cfg::setTerminalSounds, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 20));
+        y += 24;
+        if (cfg.isTerminalSoundsRaw()) {
+            widgets.add(soundCycler("Click Sound", cfg::getClickSound, cfg::setClickSound, cfg, contentX, y, col2W, requestRebuild));
+            widgets.add(soundCycler("Complete Sound", cfg::getCompleteSound, cfg::setCompleteSound, cfg, col2bX, y, col2W, requestRebuild));
+            y += 22;
+            widgets.add(new ThemedSliderButton(contentX, y, col2W, 18, soundVolumeText(cfg), cfg.getSoundVolume() / 100.0) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(soundVolumeText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setSoundVolume((int) Math.round(this.value * 100));
+                    saveOnRelease(() -> cfg.save());
+                }
+            });
+            y += 22;
+        }
+
+        widgets.add(onOffButton("Terminal Click Path", cfg::isClickPathRaw, cfg::setClickPath, cfg::save,
+                null, contentX, y, contentWidth, 20));
+        y += 24;
+
         return y;
+    }
+
+    /** A Terminal Sounds choice (clicksound/ClickSounds ids): left click forward, right click back, and the new one plays once. */
+    private static AbstractWidget soundCycler(String label, java.util.function.Supplier<String> get,
+                                              java.util.function.Consumer<String> set, TerminalQolConfig cfg,
+                                              int x, int y, int width, Runnable requestRebuild) {
+        return SettingsButtonWidget.cycling(Component.literal(label + ": " + com.killer560.hub.clicksound.ClickSounds.label(get.get())), (btn, dir) -> {
+                    String next = com.killer560.hub.clicksound.ClickSounds.step(get.get(), dir);
+                    set.accept(next);
+                    cfg.save();
+                    var preview = com.killer560.hub.clicksound.ClickSounds.make(next, cfg.getSoundVolume() / 100f);
+                    if (preview != null) {
+                        Minecraft.getInstance().getSoundManager().play(preview);
+                    }
+                    requestRebuild.run();
+                }).bounds(x, y, width, 18).build();
+    }
+
+    private static Component soundVolumeText(TerminalQolConfig cfg) {
+        return Component.literal("Sound Volume: " + cfg.getSoundVolume() + "%");
     }
 
     private static Component thresholdText(TerminalQolConfig cfg) {

@@ -1251,6 +1251,16 @@ public final class LiveMapFeature {
         return MapPainter.mapColorType(group.mainIdx);
     }
 
+    /** Whether a room with this database name has been identified on the map this run (Rare Room Alert). */
+    public static boolean hasIdentifiedRoom(String name) {
+        for (RoomGroup g : groupsView()) {
+            if (g.entry != null && name.equals(g.entry.name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static RoomEntry currentRoomEntry() {
         int idx = currentRoomIndex();
         return idx < 0 ? null : roomEntryAt(idx);

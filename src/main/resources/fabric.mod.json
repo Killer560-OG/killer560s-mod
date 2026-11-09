@@ -62,6 +62,7 @@
     "killer560smod-slotbinds.mixins.json",
     "killer560smod-revertmasterstars.mixins.json",
     "killer560smod-inventorysearch.mixins.json",
+    "killer560smod-itemhighlight.mixins.json",
     "killer560smod-croesus.mixins.json",
     "killer560smod-itemrarity.mixins.json",
     "killer560smod-slottext.mixins.json",
@@ -117,7 +118,8 @@
     "killer560smod-perfprobe.mixins.json",
     "killer560smod-etherwarpoverlay.mixins.json",
     "killer560smod-packetguard.mixins.json",
-    "killer560smod-diorite.mixins.json"
+    "killer560smod-diorite.mixins.json",
+    "killer560smod-dungeonqol.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

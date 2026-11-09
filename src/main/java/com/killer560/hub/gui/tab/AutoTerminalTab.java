@@ -32,7 +32,7 @@ public class AutoTerminalTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Auto Terminals and Hover Terminals are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Auto Terminals", "Hover Terminals");
+        return switchRows(built, "Auto Terminals", "Hover Terminals", "Queue Terms");
     }
 
     @Override
@@ -94,6 +94,15 @@ public class AutoTerminalTab extends BaseTab {
                             requestRebuild.run();
                         }).bounds(contentX, y, contentWidth, 18).build());
                 y += 22;
+            }
+            if (!streamSafe) {
+                // Click Order (Nebulune / NoammAddons): which highlighted slot goes next. Stream Safe has its own human order.
+                widgets.add(SettingsButtonWidget.cycling(Component.literal("Click Order: " + cfg().getAutoClickOrder().label), (btn, dir) -> {
+                            cfg().setAutoClickOrder(cfg().getAutoClickOrder().next(dir));
+                            cfg().save();
+                            requestRebuild.run();
+                        }).bounds(contentX, y, 220, 20).build());
+                y += 24;
             }
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));
@@ -218,8 +227,15 @@ public class AutoTerminalTab extends BaseTab {
         y += 26;
 
         if (TerminalSolverConfig.getInstance().isHoverTerminalsEnabledRaw()) {
-            buildHoverRows(widgets, contentX, y);
+            y = buildHoverRows(widgets, contentX, y);
         }
+        y += 8;
+
+        // Queue Terms (Nebulune): your own clicks wait for the server's answer to the click before. Its own feature and switch.
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Queue Terms", true));
+        y += 16;
+        widgets.add(onOffButton("Queue Terms", () -> cfg().isQueueTermsRaw(), v -> cfg().setQueueTerms(v), () -> cfg().save(),
+                null, contentX, y, 220, 20));
         return widgets;
     }
 

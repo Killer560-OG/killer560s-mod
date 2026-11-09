@@ -60,9 +60,16 @@ public final class DungeonAlertsFeature {
                 LowHealthAlert.onWorldChange();
                 SecretClicked.onWorldChange();
                 KeySpawnAlert.onWorldChange();
+                RareRoomAlert.onWorldChange();
+                RareDropAlert.onWorldChange();
+                DuplicateClassAlert.onWorldChange();
+                WitherKingAlerts.onWorldChange();
             }
             LowHealthAlert.tick(client);
             KeySpawnAlert.tick(client);
+            RareRoomAlert.tick();
+            RareDropAlert.tick(client);
+            WitherKingAlerts.tick(client);
             SecretSound.tick(client);
         }));
         LevelRenderEvents.COLLECT_SUBMITS.register(DungeonAlertsFeature::onWorldRender);
@@ -101,6 +108,27 @@ public final class DungeonAlertsFeature {
         SpringBootsOverlay.onWorldRender(context);
         ClassColors.onWorldRender(context);
         SecretClicked.onWorldRender(context);
+        WitherKingAlerts.onWorldRender(context);
+    }
+
+    private static final java.util.Map<String, String> LAST_ALERT = new java.util.HashMap<>();
+    private static final java.util.Map<String, Integer> ALERT_COUNT = new java.util.HashMap<>();
+
+    /** A title and a sound for one of the featB-1108 alerts, remembered per key (a handful of fixed keys) for the testkit. */
+    static void alert(String key, String title, String subtitle) {
+        LAST_ALERT.put(key, title);
+        ALERT_COUNT.merge(key, 1, Integer::sum);
+        showTitle(title, subtitle, 0, 30, 5);
+        playSound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+    }
+
+    /** For the testkit: alerts shown for a key since the client started, and the last one's title. */
+    public static int alertCount(String key) {
+        return ALERT_COUNT.getOrDefault(key, 0);
+    }
+
+    public static String lastAlert(String key) {
+        return LAST_ALERT.get(key);
     }
 
     static boolean isEditorOpen() {
@@ -127,7 +155,7 @@ public final class DungeonAlertsFeature {
     }
 
     /** Vanilla title/subtitle with explicit fade/stay/fade ticks. */
-    static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+    public static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         showTitle(Component.literal(title), Component.literal(subtitle), fadeIn, stay, fadeOut);
     }
 

@@ -25,6 +25,8 @@ public final class TerminalTimersConfig {
     private boolean splits = true;
     // killer560's own "bundle the simon says one into this as well" - the Simon Says "Whole device solved" message.
     private boolean simonSaysTime = true;
+    // Devonian's end-of-P3 per-player count of terminals, devices and levers (featsweep-1108, item 2).
+    private boolean breakdown = true;
 
     private TerminalTimersConfig() {
     }
@@ -48,6 +50,7 @@ public final class TerminalTimersConfig {
             cfg.solveTimes = ConfigJson.getBool(obj, "solveTimes", true);
             cfg.splits = ConfigJson.getBool(obj, "splits", true);
             cfg.simonSaysTime = ConfigJson.getBool(obj, "simonSaysTime", true);
+            cfg.breakdown = ConfigJson.getBool(obj, "breakdown", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalTimersConfig();
@@ -60,6 +63,7 @@ public final class TerminalTimersConfig {
         obj.addProperty("solveTimes", solveTimes);
         obj.addProperty("splits", splits);
         obj.addProperty("simonSaysTime", simonSaysTime);
+        obj.addProperty("breakdown", breakdown);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -84,4 +88,10 @@ public final class TerminalTimersConfig {
     public boolean getSimonSaysTimeRaw() { return simonSaysTime; }
 
     public void setSimonSaysTime(boolean simonSaysTime) { this.simonSaysTime = simonSaysTime; }
+
+    public boolean isBreakdown() { return enabled && breakdown && com.killer560.hub.util.SkyblockGate.allows(); }
+
+    public boolean getBreakdownRaw() { return breakdown; }
+
+    public void setBreakdown(boolean breakdown) { this.breakdown = breakdown; }
 }

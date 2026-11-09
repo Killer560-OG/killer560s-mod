@@ -83,7 +83,7 @@ final class WatcherMoveTracker {
 
     static void tick() {
         if (moveMs != 0L || doorOpenMs == 0L || dialogueEndMs == 0L
-                || !SplitTimersConfig.getInstance().isWatcherMoveSplit()) {
+                || !(SplitTimersConfig.getInstance().isWatcherMoveSplit() || WatcherHelperConfig.getInstance().isEnabled())) {
             return;
         }
         long now = System.currentTimeMillis();

@@ -78,6 +78,9 @@ final class CardBlurbsData {
         d.put("ArrowAlignTab", "Shows the Arrow Align solution.");
         d.put("AutoKickTab", "Kicks joiners under your limits.");
         d.put("BlessingsTab", "Lists the blessings you hold.");
+        d.put("PuzzleHudTab", "Shows each puzzle, who and when.");
+        d.put("RepartyTab", "Disbands and re-invites your party.");
+        d.put("WatcherHelperTab", "Rates Watcher speed.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
         d.put("ClassColorsTab", "Class-colored teammates.");
@@ -92,6 +95,8 @@ final class CardBlurbsData {
         d.put("CustomPartyFinderTab", "Dungeon, Diana, fishing parties.");
         d.put("F7SpotsTab", "Saved F7/M7 walk and aim spots.");
         d.put("LeapCounterTab", "Counts teammates leaping.");
+        d.put("MilestoneTab", "Milestone count HUD.");
+        d.put("DungeonItemHighlighterTab", "Marks cheap gear to salvage.");
         d.put("LeapMenuTab", "Custom leap menu with heads.");
         d.put("LividSolverTab", "Outlines the real Livid.");
         d.put("MaskInvincibilityTab", "Mask and Phoenix timers.");
@@ -118,6 +123,8 @@ final class CardBlurbsData {
         d.put("RunSummaryTab", "Saves each run's splits and score.");
         d.put("ScoreCalculatorTab", "Live dungeon score HUD.");
         d.put("EtherwarpTab", "Boxes for /ew waypoints.");
+        d.put("AutoSuperboomTab", "Swaps to Superboom.");
+        d.put("DungeonWaypointsTab", "Your boxes and lines.");
         d.put("SecretSoundTab", "Sound on each secret.");
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");
@@ -138,7 +145,10 @@ final class CardBlurbsData {
         d.put("Ap3Tab", "Node chains through F7/M7 phases.");
         d.put("AutoBloodCampTab", "Blood Camp mobs.");
         d.put("AutoClearTab", "Clears mob rooms at range.");
-        d.put("AutoCloseChestTab", "Skips secret chest menus.");
+        d.put("AutoCloseChestTab", "Closes chests on a key.");
+        d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
+        d.put("IcedMobsTab", "Boxes frozen mobs.");
+        d.put("RoomNameTab", "HUD with the room you are in.");
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");
         d.put("DoorHelpersTab", "Opens doors on keys.");

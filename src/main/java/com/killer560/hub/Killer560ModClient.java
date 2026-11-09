@@ -262,6 +262,12 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p3status.P3StatusFeature.register();
         HudElementRegistry.register(com.killer560.hub.p3status.P3StatusFeature.HUD);
         com.killer560.hub.blessings.BlessingsFeature.register();
+        com.killer560.hub.puzzlehud.PuzzleHudFeature.register();
+        com.killer560.hub.reparty.RepartyFeature.register();
+        com.killer560.hub.splittimers.WatcherHelper.register();
+        com.killer560.hub.dungeonqol.IcedMobsFeature.register();
+        com.killer560.hub.dungeonqol.RoomNameHud.register();
+        com.killer560.hub.autoclosechest.AutoCloseChestClick.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
         if (com.killer560.hub.BuildVariant.TESTING) {
@@ -296,6 +302,8 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.mining.ghosts.GhostEspFeature.register();
         }
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
+        HudElementRegistry.register(com.killer560.hub.puzzlehud.PuzzleHudFeature.HUD);
+        HudElementRegistry.register(com.killer560.hub.dungeonqol.RoomNameHud.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
         com.killer560.hub.bosshealth.BossHealthFeature.register();
@@ -358,6 +366,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.crosshair.CustomCrosshairFeature.register();
         com.killer560.hub.ap3.Ap3Keybinds.register();
         com.killer560.hub.leapcounter.LeapCounterFeature.register();
+        com.killer560.hub.milestone.MilestoneFeature.register();
+        HudElementRegistry.register(com.killer560.hub.milestone.MilestoneFeature.HUD);
+        com.killer560.hub.sounddisabler.SoundDisabler.register();
         com.killer560.hub.armourdye.ArmourDyeFeature.register();
         com.killer560.hub.tooltipscroll.TooltipScrollFeature.register();
         com.killer560.hub.enchantcolors.EnchantColorsFeature.register();
@@ -495,6 +506,8 @@ public class Killer560ModClient implements ClientModInitializer {
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
         EtherwarpFeature.register();
+        com.killer560.hub.dungeonwaypoints.DungeonWaypointsFeature.register();
+        com.killer560.hub.autosuperboom.AutoSuperboomFeature.register();
         com.killer560.hub.trail.TrailFeature.register();
         com.killer560.hub.interop.ModConflictWarnings.register();
         com.killer560.hub.social.BestFriendsTracker.register();
@@ -517,6 +530,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autosell.AutoSellToggleKey.register();
         com.killer560.hub.terminals.FakeCursor.register();
         com.killer560.hub.terminals.HoldToClickFeature.register();
+        com.killer560.hub.terminals.TerminalExtras.register();
         com.killer560.hub.zoom.ZoomFeature.register();
         com.killer560.hub.imagepreview.ImagePreviewFeature.register();
         com.killer560.hub.gfs.LegitGfs.register();

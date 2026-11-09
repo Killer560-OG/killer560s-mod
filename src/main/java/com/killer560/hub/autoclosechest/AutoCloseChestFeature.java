@@ -32,8 +32,8 @@ import java.util.Set;
  */
 public final class AutoCloseChestFeature {
 
-    private static final Set<String> SECRET_CHEST_TITLES = Set.of("Chest", "Large Chest", "Trapped Chest");
-    private static final Set<MenuType<?>> SECRET_CHEST_MENU_TYPES = Set.of(
+    static final Set<String> SECRET_CHEST_TITLES = Set.of("Chest", "Large Chest", "Trapped Chest");
+    static final Set<MenuType<?>> SECRET_CHEST_MENU_TYPES = Set.of(
             MenuType.GENERIC_9x1, MenuType.GENERIC_9x2, MenuType.GENERIC_9x3,
             MenuType.GENERIC_9x4, MenuType.GENERIC_9x5, MenuType.GENERIC_9x6,
             MenuType.GENERIC_3x3
@@ -49,7 +49,8 @@ public final class AutoCloseChestFeature {
         // Cheat build only (killer560, 2026-10-07). The whole body sits inside the constant so javac drops
         // it from the legit jar rather than merely skipping it.
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return AutoCloseChestConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+            return AutoCloseChestConfig.getInstance().isEnabled() && AutoCloseChestConfig.getInstance().isAuto()
+                    && DungeonState.isInDungeon()
                     && SECRET_CHEST_MENU_TYPES.contains(packet.getType())
                     && SECRET_CHEST_TITLES.contains(packet.getTitle().getString().trim());
         }

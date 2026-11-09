@@ -419,6 +419,8 @@ public final class TerminalSolverFeature {
      *  different type, or (2026-09-14) a genuinely new instance of the SAME type (see {@link #refreshState}). */
     private static void beginTerminal(TerminalType type, String title, ContainerScreen screen, long now) {
         terminalOpenedAtMs = now;
+        TerminalExtras.begin();
+        QueueTermsFeature.reset();
         lastGoodBounds = null;
         // A genuinely different terminal (or the very first one) just opened - whatever was
         // highlighted before belongs to a different board entirely, so it must not carry over even
@@ -478,6 +480,7 @@ public final class TerminalSolverFeature {
 
     /** Stops tracking entirely (no covered terminal showing). */
     private static void endTracking() {
+        if (currentType != null) TerminalExtras.closed();
         reportTerminalCompletion();
         currentType = null;
         currentHighlights = Map.of();
@@ -616,6 +619,7 @@ public final class TerminalSolverFeature {
                 HoverTerminalFeature.tick(screen, type, items, currentHighlights, autoThisType);
                 // Hold To Click (2026-10-26, both builds): same gates and the same stand-down as hover.
                 HoldToClickFeature.tick(screen, type, items, currentHighlights, autoThisType);
+                QueueTermsFeature.tick(screen, type, items, currentHighlights, autoThisType);
             }
         }
     }
@@ -686,6 +690,7 @@ public final class TerminalSolverFeature {
         HoverTerminalFeature.reset();
         HoldToClickFeature.reset();
         HumanClickOrder.resetClicks();
+        lastAutoSlot = -1;
         stickySlot = -1;
     }
 
@@ -766,7 +771,7 @@ public final class TerminalSolverFeature {
             }
         }
         if (target == null) {
-            target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet());
+            target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet(), cfg.getAutoClickOrder(), lastAutoSlot);
         }
         if (target == null) {
             // Every clickable highlight is still awaiting its server confirm (for Numbers: its one
@@ -921,6 +926,13 @@ public final class TerminalSolverFeature {
      *  @return null if nothing is clickable right now (no valid highlight, or all of them excluded). */
     public static AutoClickTarget pickAutoClickTarget(TerminalType type, Map<Integer, SlotHighlight> highlights,
                                                       Set<Integer> awaitingConfirm) {
+        return pickAutoClickTarget(type, highlights, awaitingConfirm, TerminalSolverConfig.ClickOrder.FIRST, -1);
+    }
+
+    /** As above, choosing among the order-free types' clickable slots by {@code order}, measured from {@code fromSlot}
+     *  (Closest / Furthest; -1 is the top-left corner). Numbers ignores both: it has one fixed order. */
+    public static AutoClickTarget pickAutoClickTarget(TerminalType type, Map<Integer, SlotHighlight> highlights,
+                                                      Set<Integer> awaitingConfirm, TerminalSolverConfig.ClickOrder order, int fromSlot) {
         if (type == TerminalType.NUMBERS) {
             for (Map.Entry<Integer, SlotHighlight> entry : highlights.entrySet()) {
                 if (entry.getValue().primary()) {
@@ -929,15 +941,41 @@ public final class TerminalSolverFeature {
             }
             return null;
         }
-        for (Map.Entry<Integer, SlotHighlight> entry : highlights.entrySet()) {
-            if (awaitingConfirm.contains(entry.getKey())) continue;
-            if (type == TerminalType.RUBIX) {
-                boolean needsRightClick = entry.getValue().label() != null && entry.getValue().label().startsWith("-");
-                return new AutoClickTarget(entry.getKey(), needsRightClick ? 1 : 0, ContainerInput.PICKUP);
-            }
-            return new AutoClickTarget(entry.getKey(), 0, ContainerInput.CLONE);
+        int slot = chooseSlot(highlights, awaitingConfirm, order, Math.max(fromSlot, 0));
+        if (slot < 0) return null;
+        if (type == TerminalType.RUBIX) {
+            String label = highlights.get(slot).label();
+            return new AutoClickTarget(slot, label != null && label.startsWith("-") ? 1 : 0, ContainerInput.PICKUP);
         }
-        return null;
+        return new AutoClickTarget(slot, 0, ContainerInput.CLONE);
+    }
+
+    /** The slot {@code order} picks among the highlighted slots not awaiting a server answer, or -1. Grid distance (9 columns). */
+    private static int chooseSlot(Map<Integer, SlotHighlight> highlights, Set<Integer> awaitingConfirm,
+                                  TerminalSolverConfig.ClickOrder order, int from) {
+        int pick = -1;
+        int eligible = 0;
+        double bestDistance = 0;
+        for (int slot : highlights.keySet()) {
+            if (awaitingConfirm.contains(slot)) continue;
+            eligible++;
+            switch (order) {
+                case FIRST -> {
+                    return slot;
+                }
+                case RANDOM -> {
+                    if (java.util.concurrent.ThreadLocalRandom.current().nextInt(eligible) == 0) pick = slot;
+                }
+                default -> {
+                    double d = Math.hypot(slot % 9 - from % 9, slot / 9 - from / 9);
+                    if (pick < 0 || (order == TerminalSolverConfig.ClickOrder.CLOSEST ? d < bestDistance : d > bestDistance)) {
+                        pick = slot;
+                        bestDistance = d;
+                    }
+                }
+            }
+        }
+        return pick;
     }
 
     /** Sends one real click for {@code slot} the same way {@link #handleCustomGuiClick} already does for
@@ -1636,6 +1674,35 @@ public final class TerminalSolverFeature {
         return (localRow + layout.minRow()) * GRID_COLUMNS + (localCol + layout.minCol());
     }
 
+    static TerminalType currentType() { return currentType; }
+
+    static Map<Integer, SlotHighlight> highlights() { return currentHighlights; }
+
+    /** Whether any click of ours is still waiting for the server's answer (a stale one, past the retry time, does not count). */
+    static boolean hasUnansweredClick(long now) {
+        long timeout = retryTimeoutMs(TerminalSolverConfig.getInstance());
+        for (PendingClick p : pendingClicks.values()) {
+            if (now - p.sentAtMs() < timeout) return true;
+        }
+        return false;
+    }
+
+    /** Whether Auto Terminals is clicking this terminal type right now. */
+    static boolean autoClicking(TerminalType type) {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        return cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg);
+    }
+
+    /** Whether a terminal is open and tracked right now. */
+    static boolean isTracking() { return currentType != null; }
+
+    /** Whether clicking {@code slot} now is a right answer: any Melody cell, else a highlighted slot (Numbers: only the next one). */
+    static boolean isCorrectSlot(int slot) {
+        if (currentType == TerminalType.MELODY) return true;
+        SlotHighlight h = currentHighlights.get(slot);
+        return h != null && (currentType != TerminalType.NUMBERS || h.primary());
+    }
+
     /** @return how many slots of the open container are the terminal's own grid (i.e. everything before
      *  the player's own inventory rows - see {@link #terminalItems}). Public for Hover Terminals, which
      *  uses it to reject a hover that is really over the player's own inventory: {@code Slot.index} is
@@ -1705,10 +1772,13 @@ public final class TerminalSolverFeature {
     static int melodyLastLimeSlot = -1;
 
     private static long lastAutoClickAtMs;
+    /** The slot Auto Terminals clicked last in this terminal, or -1: Closest / Furthest click order measure from it. */
+    private static int lastAutoSlot = -1;
 
     /** An Auto Terminals click went out: Fake Cursor records where it was, Hide Mouse Cursor counts from now. */
     static void noteAutoClick(int slot, long now) {
         lastAutoClickAtMs = now;
+        lastAutoSlot = slot;
         FakeCursor.clicked(slot);
     }
 

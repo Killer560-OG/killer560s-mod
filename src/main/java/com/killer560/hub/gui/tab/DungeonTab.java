@@ -27,6 +27,8 @@ public class DungeonTab extends FolderTab {
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
                 new LeapCounterTab(),
+                new MilestoneTab(),
+                new DungeonItemHighlighterTab(),
                 new DungeonQueueTab(),
                 // Creation Cooldown (to-do Doc 2026-11-01): SkyHanni's 30 s instance creation timer.
                 new CreationCooldownTab(),
@@ -67,6 +69,13 @@ public class DungeonTab extends FolderTab {
                 new DungeonAlertsTab(),
                 new LowHealthAlertTab(),
                 new BlessingsTab(),
+                new PuzzleHudTab(),
+                new RepartyTab(),
+                new WatcherHelperTab(),
+                new RoomNameTab(),
+                new ItemQualityTab(),
+                new IcedMobsTab(),
+                new AutoCloseChestTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----
@@ -104,7 +113,6 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoBloodCampTab());
             tabs.add(new AutoMaskTab());
             tabs.add(new AutoDialogueTab());
-            tabs.add(new AutoCloseChestTab());
             tabs.add(new AutoSimonSaysTab());
             tabs.add(new AutoTerminalTab());
             tabs.add(new TerminalAuraTab());
@@ -123,6 +131,7 @@ public class DungeonTab extends FolderTab {
             // The Etherwarp tab (Zero Ping Etherwarp + Left Click Etherwarp): cheat-only since 2026-11-02 (killer560: "all
             // zero ping etherwarp stuff should be cheat only nothing in legit"); it was legit 2026-10-26 to 2026-11-02.
             tabs.add(new ZeroPingEtherwarpTab());
+            tabs.add(new AutoSuperboomTab());
         }
         return tabs;
     }

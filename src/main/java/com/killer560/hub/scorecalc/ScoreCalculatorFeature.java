@@ -91,7 +91,7 @@ public final class ScoreCalculatorFeature {
     // Odin "^Team Deaths: (\d+)$"; BetterMap strips "(n)" parentheses - accept both.
     private static final Pattern TAB_DEATHS = Pattern.compile("^\\s*(?:Team )?Deaths: \\(?(\\d+)\\)?\\s*$");
     private static final Pattern TAB_PUZZLE_COUNT = Pattern.compile("^\\s*Puzzles: \\((\\d+)\\)\\s*$");
-    private static final Pattern TAB_PUZZLE = Pattern.compile("^\\s*(\\w+(?: \\w+)*|\\?\\?\\?): \\[([✖✔✦])] ?(?:\\((\\w+)\\))?\\s*$");
+    public static final Pattern TAB_PUZZLE = Pattern.compile("^\\s*(\\w+(?: \\w+)*|\\?\\?\\?): \\[([✖✔✦])] ?(?:\\((\\w+)\\))?\\s*$");
 
     // ---- sidebar (NoammAddons / Skytils) ----
     private static final Pattern SIDEBAR_CLEARED = Pattern.compile("Cleared: (\\d+)%");

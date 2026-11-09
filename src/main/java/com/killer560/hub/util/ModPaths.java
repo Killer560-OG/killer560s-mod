@@ -111,6 +111,8 @@ public final class ModPaths {
         t.put("waypointroutes", "dungeons/waypointroutes");
         t.put("etherwarp", "dungeons/etherwarp");
         t.put("etherwarpoverlay", "dungeons/etherwarpoverlay");
+        t.put("dungeonwaypoints", "dungeons/dungeonwaypoints");
+        t.put("autosuperboom", "dungeons/autosuperboom");
 
         t.put("autoclear", "dungeons/autoclear");
         // Auto Secret, and its insta-clear evidence (killer560smod-autosecret/insta-clear.json).
@@ -158,8 +160,8 @@ public final class ModPaths {
         }
 
         for (String run : new String[]{"run", "splittimers", "scorecalc", "dungeoninfo", "dungeonalerts",
-                "dungeonqueue", "creationcooldown", "instaclearwarning", "bloodrush", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
-                "blessings", "croesus", "rng", "revertmasterstars", "ticktimers", "mobesp"}) {
+                "dungeonqueue", "dungeonqol", "creationcooldown", "instaclearwarning", "bloodrush", "partyfinder", "leap", "fastleap", "spiritleapoverlay", "class", "teammates",
+                "blessings", "puzzlehud", "reparty", "watcherhelper", "milestone", "itemhighlight", "croesus", "rng", "revertmasterstars", "ticktimers", "mobesp"}) {
             t.put(run, "dungeons/runs");
         }
 

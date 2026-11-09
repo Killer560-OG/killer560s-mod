@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.util.BoolFields;
 import com.killer560.hub.util.ConfigJson;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -105,6 +106,21 @@ public final class DungeonAlertsConfig {
     // Breaker Charges HUD (2026-10-25): OFF.
     private boolean breakerChargesHud = false;
 
+    // featB-1108 alerts (all OFF; the party message is its own switch, also OFF).
+    public boolean rareRoomAlert = false;
+    public boolean rareDropAlert = false;
+    public boolean duplicateClassAlert = false;
+    public boolean duplicateClassParty = false;
+    public boolean witherKingStatueBox = false;
+    public boolean dimensionalSlashAlert = false;
+    private static final BoolFields<DungeonAlertsConfig> BOOLS = new BoolFields<DungeonAlertsConfig>()
+            .add("rareRoomAlert", false, c -> c.rareRoomAlert, (c, v) -> c.rareRoomAlert = v)
+            .add("rareDropAlert", false, c -> c.rareDropAlert, (c, v) -> c.rareDropAlert = v)
+            .add("duplicateClassAlert", false, c -> c.duplicateClassAlert, (c, v) -> c.duplicateClassAlert = v)
+            .add("duplicateClassParty", false, c -> c.duplicateClassParty, (c, v) -> c.duplicateClassParty = v)
+            .add("witherKingStatueBox", false, c -> c.witherKingStatueBox, (c, v) -> c.witherKingStatueBox = v)
+            .add("dimensionalSlashAlert", false, c -> c.dimensionalSlashAlert, (c, v) -> c.dimensionalSlashAlert = v);
+
     private DungeonAlertsConfig() {
     }
 
@@ -151,6 +167,7 @@ public final class DungeonAlertsConfig {
                 cfg.muteLeverSounds = bool(o, "muteLeverSounds", cfg.muteLeverSounds);
                 cfg.keySpawnAlert = bool(o, "keySpawnAlert", cfg.keySpawnAlert);
                 cfg.breakerChargesHud = bool(o, "breakerChargesHud", cfg.breakerChargesHud);
+                BOOLS.load(cfg, o);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
                 // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
                 // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
@@ -202,6 +219,7 @@ public final class DungeonAlertsConfig {
             o.addProperty("muteLeverSounds", muteLeverSounds);
             o.addProperty("keySpawnAlert", keySpawnAlert);
             o.addProperty("breakerChargesHud", breakerChargesHud);
+            BOOLS.save(this, o);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("[DungeonAlerts] Failed to save config", e);

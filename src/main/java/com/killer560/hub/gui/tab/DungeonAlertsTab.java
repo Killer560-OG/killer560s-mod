@@ -33,7 +33,8 @@ public class DungeonAlertsTab extends BaseTab {
     /** The card is ON while either alert is, OFF only when both are. */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Shadow Assassin Alert", "Room Alerts", "Key Spawn Alert");
+        return switchRows(built, "Shadow Assassin Alert", "Room Alerts", "Key Spawn Alert", "Rare Room Alerts", "Rare Drop Alerts",
+                "Duplicate Class Alert", "Wither King Statue Box", "Dimensional Slash Alert");
     }
 
     @Override
@@ -86,6 +87,21 @@ public class DungeonAlertsTab extends BaseTab {
         // --- Key Spawn Alert (2026-10-25) --- a title when a Wither or Blood Key appears; see KeySpawnAlert.
         header(w, contentX, y, contentWidth, "Key Spawn Alert");
         master(w, contentX, y, contentWidth, "Key Spawn Alert", cfg::isKeySpawnAlert, cfg::setKeySpawnAlert, requestRebuild);
+
+        // --- featB-1108 --- Rare Room, Rare Drop, Duplicate Class (+ optional party line) and the two Wither King alerts.
+        header(w, contentX, y, contentWidth, "Rare Room Alerts");
+        master(w, contentX, y, contentWidth, "Rare Room Alerts", () -> cfg.rareRoomAlert, v -> cfg.rareRoomAlert = v, requestRebuild);
+        header(w, contentX, y, contentWidth, "Rare Drop Alerts");
+        master(w, contentX, y, contentWidth, "Rare Drop Alerts", () -> cfg.rareDropAlert, v -> cfg.rareDropAlert = v, requestRebuild);
+        header(w, contentX, y, contentWidth, "Duplicate Class Alert");
+        master(w, contentX, y, contentWidth, "Duplicate Class Alert", () -> cfg.duplicateClassAlert, v -> cfg.duplicateClassAlert = v, requestRebuild);
+        if (cfg.duplicateClassAlert) {
+            toggle(w, contentX, y[0], contentWidth, "Party Message (Duplicate Class)", () -> cfg.duplicateClassParty, v -> cfg.duplicateClassParty = v);
+            y[0] += 22;
+        }
+        header(w, contentX, y, contentWidth, "Wither King (M7)");
+        master(w, contentX, y, contentWidth, "Wither King Statue Box", () -> cfg.witherKingStatueBox, v -> cfg.witherKingStatueBox = v, requestRebuild);
+        master(w, contentX, y, contentWidth, "Dimensional Slash Alert", () -> cfg.dimensionalSlashAlert, v -> cfg.dimensionalSlashAlert = v, requestRebuild);
 
         return w;
     }

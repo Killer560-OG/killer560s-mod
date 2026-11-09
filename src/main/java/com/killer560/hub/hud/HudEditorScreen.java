@@ -1003,6 +1003,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             draggingId = null;
             resizeEdges = 0;
             guides.clear();
+            panelDirty = panel != null; // a bar dropped into the panel's column makes the panel move clear of it
             return true;
         }
         boolean took = super.mouseReleased(event);

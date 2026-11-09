@@ -116,33 +116,36 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
         y += ROW + 4;
         w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;
-        w.add(onOffButton(HIDE_KEYS, cfg::isHideKeysInMenus, cfg::setHideKeysInMenus, cfg::save, null, contentX, y, contentWidth, ROW));
+        w.add(onOffButton(STAND_STILL, cfg::isStillInMenus, cfg::setStillInMenus, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
+        if (!cfg.isStillInMenus() && !isSearchScan()) {
+            return w;
+        }
         y += ROW + 4;
-        double hideSpan = InventoryWalkConfig.HIDE_WHOLE_MENU - 1;
-        w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, hideText(cfg), (cfg.getHideKeysTicks() - 1) / hideSpan) {
+        double stillSpan = InventoryWalkConfig.STILL_WHOLE_MENU - 1;
+        w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, stillText(cfg), (cfg.getStillTicks() - 1) / stillSpan) {
             @Override
             protected void updateMessage() {
-                setMessage(hideText(cfg));
+                setMessage(stillText(cfg));
             }
 
             @Override
             protected void applyValue() {
-                cfg.setHideKeysTicks(1 + (int) Math.round(this.value * hideSpan));
+                cfg.setStillTicks(1 + (int) Math.round(this.value * stillSpan));
                 saveOnRelease(() -> cfg.save());
             }
         });
         return w;
     }
 
-    static final String HIDE_KEYS = "Hide Keys In Server Menus";
+    static final String STAND_STILL = "Stand Still In Server Menus";
 
     private static Component screensText(InventoryWalkConfig cfg) {
         return Component.literal("Screens: " + cfg.getScreens().label);
     }
 
-    private static Component hideText(InventoryWalkConfig cfg) {
-        int t = cfg.getHideKeysTicks();
-        return Component.literal("Hide Keys For: " + (t >= InventoryWalkConfig.HIDE_WHOLE_MENU ? "Whole Menu" : t + " tick(s)"));
+    private static Component stillText(InventoryWalkConfig cfg) {
+        int t = cfg.getStillTicks();
+        return Component.literal("Stand Still For: " + (t >= InventoryWalkConfig.STILL_WHOLE_MENU ? "Whole Menu" : t + " tick(s)"));
     }
 
     private static Component pauseText(InventoryWalkConfig cfg) {

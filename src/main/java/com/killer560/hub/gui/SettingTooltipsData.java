@@ -70,6 +70,12 @@ final class SettingTooltipsData {
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
         d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
+        d.put("rare room alerts", "Shows a title and plays a sound the first time Trinity, Tomioka or Duncan shows up on the dungeon map.");
+        d.put("rare drop alerts", "Shows a title and plays a sound when an Ice Spray Wand or a Skeleton Master Chestplate drops.");
+        d.put("duplicate class alert", "Shows a title naming the players who share a dungeon class, once per class each run.");
+        d.put("party message (duplicate class)", "Also sends the duplicate class to party chat. Off by default.");
+        d.put("wither king statue box", "M7 phase 5: draws a box in each dragon's color around every statue still standing.");
+        d.put("dimensional slash alert", "M7 phase 5: shows a title while you stand in a Dimensional Slash zone (around the glowstone the Wither King places).");
         d.put("key spawn alert", "Shows a title and plays a sound when a Wither Key or Blood Key appears.");
         d.put("pre-boss warning", "The moment the Watcher lets you pass (the last blood mob dies), lists what is still missing for S+ (crypts, uncleared rooms, secrets) before you take the portal.");
         d.put("crypt reminder", "Once the run clock passes the set time with fewer than 5 crypts, shows the crypt count. Outside the boss only, once a run.");
@@ -255,6 +261,8 @@ final class SettingTooltipsData {
         d.put("inventory walk/stop to click", "A click while you move waits until you stand still for a tick. In your own inventory you keep walking with an item on the cursor: it is sent when you put it down, with one still tick and a close, as a normal client would.");
         d.put("inventory walk/look key", "Hold it with a menu open and moving the mouse turns you (your normal sensitivity) instead of the cursor; let go and the mouse moves the cursor again. Not Set by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("inventory walk/carry in chests", "With Stop To Click on: in a chest, ender chest, barrel or Hypixel storage page, an item you pick up stays on your cursor and is not sent while you keep walking. When you put it down you stop for a moment and both clicks go together, so the server never sees an item carried while you move. Off by default.");
+        d.put("inventory walk/stand still in server menus", "Hypixel closes a server menu (a terminal, the SkyBlock Menu, Storage) when it hears a movement key. With this on, your keys are really let go when one opens, so you slide to a stop and it stays open. Never flags.");
+        d.put("inventory walk/stand still for", "How long after a server menu opens you stand still: Whole Menu, or 1-40 ticks and then you walk on with your real keys (Hypixel may then close it).");
         d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
         d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
@@ -321,6 +329,8 @@ final class SettingTooltipsData {
         d.put("collection tracker/show rate", "Adds how many of each collection you gained per hour this session.");
         d.put("sound disabler", "Mutes the game sounds you pick, on your client only: the server, the anticheat and every other feature still get the sound packet. Off by default, and every sound row starts off too.");
         d.put("sound disabler/bonzo's staff", "Bonzo's Staff and the Starred one: the ghast sound of each shot and the firework blast of its balloon. Only those: a ghast sound is muted when a player holding the staff stands where it plays, and a firework blast only within 4 seconds and 48 blocks of such a shot, so real ghasts and other fireworks still play. Off by default.");
+        d.put("sound disabler/last breath", "Mutes the arrow shot sound (entity.arrow.shoot) only where a player holding Last Breath or Starred Last Breath stands, so other bows still play. Show Sound IDs names any other sound Last Breath makes for the Custom box.");
+        d.put("sound disabler/ability cooldown", "Mutes the note block bass (block.note_block.bass) for a moment after Hypixel says 'This ability is on cooldown for Ns.'. The sound has to arrive after that line to be caught. Show Sound IDs names the sound if yours differs.");
         d.put("sound disabler/explosions", "Every explosion sound (entity.generic.explode): Wither Impact, TNT, creepers and the rest. A sound has no owner, so this cannot tell one explosion from another.");
         d.put("sound disabler/bow shots", "Every bow shot (entity.arrow.shoot), yours and every other player's and mob's: the Terminator spam. Arrow hits are not muted.");
         d.put("sound disabler/endermen", "Every enderman sound (entity.enderman.*), Voidgloom Seraph and the End's endermen alike.");
@@ -547,6 +557,8 @@ final class SettingTooltipsData {
         d.put("chat hider/hide blessings", "In dungeons: hides the blessing found and picked-up lines and the stat lines under them.");
         d.put("chat hider/hide others' pickups", "In dungeons: hides other players' 'has obtained Wither Key!', Superboom, Revive Stone and other pickup lines. Yours stay.");
         d.put("chat hider/hide ability spam", "In dungeons: hides cooldown, ability-ready, 'Used ...!', orb and tether lines.");
+        d.put("chat hider/compact melody messages", "In dungeons: hides the in-progress party Melody callouts ('Melody 1/3 - 33%', 'Melody 67%') and keeps the finished one. Your Team Melody HUD still reads them.");
+        d.put("chat hider/mute melody messages", "In dungeons: hides every party Melody callout, the finished one too. Your Team Melody HUD still reads them.");
         d.put("chat hider/hide dungeon breaker spam", "In dungeons: hides the Dungeon Breaker's 'A mystical force prevents you...' and 'not enough charges' lines.");
         d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
         d.put("chat hider/hide mining reminders", "Hides the Breaking Power reminder (\"You need a tool with a Breaking Power of N to mine ...\") the unspent Tokens of the Mountain reminder, the \"SERENDIPITOUS! ...\" Crystal Serendipity line and the \"COMPACT! You found ...\" line. Mining alerts still see them.");
@@ -683,6 +695,11 @@ final class SettingTooltipsData {
         d.put("posmsg/text scale", "Size of the floating message label on this waypoint.");
         d.put("posmsg/text height", "How many blocks above the waypoint the label floats.");
         d.put("send mel coords on open", "Sends your block position to party chat when a Melody terminal opens (F7/M7 boss).");
+        d.put("milestone display", "A small HUD counting the dungeon milestones you have reached this run (red at 0 and 1, yellow at 2, green at 3), read from the milestone chat lines. Move it in Edit HUD.");
+        d.put("salvage helper", "Marks cheap dungeon gear in the Salvage Items and Trades menus so you can see what is safe to salvage or sell. Highlight only: it never clicks. Needs item prices, which it loads in the background.");
+        d.put("salvage helper/highlight in salvage menu", "Yellow marks on dungeon gear worth less than the Max Item Value (its lowest BIN) in the Salvage Items menu and your inventory beside it.");
+        d.put("salvage helper/highlight in trades menu", "Green marks on dungeon gear worth less than the Max Item Value in the Trades menu, so you know what to sell.");
+        d.put("salvage helper/max item value", "Gear whose lowest BIN is at or above this is never marked; gear with no known price is never marked either. Click to step up, right click to step back.");
         d.put("leap counter", "Counts how many teammates leap to you in F7/M7 Phase 3 and alerts when all have arrived.");
         d.put("expected leaps", "How many teammates should leap to you in each Phase 3 section.");
         d.put("s1 leaps", "Teammates expected to leap to you in section 1. 0 turns it off.");
@@ -961,6 +978,7 @@ final class SettingTooltipsData {
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
         d.put("terminal solve times", "Shows how long you had each terminal open after you finish it.");
         d.put("terminal/device splits", "Adds section and phase times to every terminal, device and lever completion line in P3.");
+        d.put("terminal breakdown", "At the end of P3 (when the core opens), one chat line per player: how many terminals, devices and levers each did. Works with Terminal Timers on.");
         d.put("simon says time", "Shows how long the Simon Says device took after you solve it.");
         d.put("item rarity backgrounds", "Draws a rarity-colored square, circle or outline behind Skyblock items.");
         d.put("opacity", "How see-through this element is, from faint to fully solid.");
@@ -1983,6 +2001,13 @@ final class SettingTooltipsData {
         d.put("p3 nav/through walls", "Cheat build only. Draws terminal and device boxes through blocks.");
 
         // Hover Terminals + Run Summary
+        d.put("click order", "Which correct slot Auto Terminals clicks next: First (top left to bottom right), Random, Closest to the last click or Furthest from it. Numbers keeps its fixed order; Stream Safe uses its own human order.");
+        d.put("queue terms", "Cheat build only. A click of yours on a correct terminal slot while the click before it is still waiting for the server is held and sent when the server answers, one per update. Auto Terminals clicking takes over when it is on.");
+        d.put("terminal solver/terminal sounds", "Plays a sound for each correct click you make in a terminal and when you finish one. Needs the Terminal Solver on for the click sounds. Pick Default to play nothing for that part.");
+        d.put("terminal solver/click sound", "The sound for each correct click. Left click forward, right click back; the new one plays once.");
+        d.put("terminal solver/complete sound", "The sound when you finish a terminal (your own 'completed a terminal' line).");
+        d.put("terminal solver/sound volume", "How loud the Terminal Sounds are.");
+        d.put("terminal solver/terminal click path", "After a terminal closes, shows your clicks as numbered dots joined by lines for 4 seconds: green for a right slot, red for a wrong one. Needs the Terminal Solver on.");
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
         d.put("hover delay", "Cheat build only. The least time between two hover clicks, 0-300 ms. A correct slot under the mouse clicks at once when that long has passed since the last one.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");
@@ -2021,7 +2046,25 @@ final class SettingTooltipsData {
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
         d.put("arrow align/aura cps", "Cheat build only. Aura clicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set.");
         d.put("auto puzzles", "Cheat build only. Solves dungeon puzzle rooms for you; each puzzle's solver must also be on.");
+        d.put("auto close chest", "Closes a dungeon secret chest: with Click, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
+        d.put("auto close chest/auto close chest", "Closes a dungeon secret chest: with Click, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
+        d.put("item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
+        d.put("item quality/item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
+        d.put("iced mob boxes", "Boxes the mobs in front of you for 5 seconds after you use an Ice Spray Wand (an estimate: the server does not say which froze).");
+        d.put("iced mob boxes/iced mob boxes", "Boxes the mobs in front of you for 5 seconds after you use an Ice Spray Wand (an estimate: the server does not say which froze).");
+        d.put("iced mob boxes/box color", "Color of the boxes around iced mobs.");
+        d.put("current room name", "A movable HUD line with the name of the dungeon room you are standing in.");
+        d.put("current room name/current room name", "A movable HUD line with the name of the dungeon room you are standing in.");
         d.put("blessings", "Shows your five dungeon blessing levels on a HUD and can announce each level up.");
+        d.put("puzzle hud", "Shows the dungeon's puzzles on a HUD: done, failed or still open, who solved or failed each and how long it took.");
+        d.put("puzzle times", "Adds the time each puzzle took (or has taken so far) to its row.");
+        d.put("puzzle solvers", "Adds the name of the player who solved or failed each puzzle to its row.");
+        d.put("reparty", "Type /rp or /reparty as party leader to disband the party and invite everyone back.");
+        d.put("auto reparty", "Reparties by itself a few seconds after a dungeon run ends (party leader only).");
+        d.put("auto reparty delay", "How long after the run's end screen Auto Reparty waits. Left click for longer, right click for shorter.");
+        d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
+        d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
+        d.put("watcher breakdown", "Prints one chat line with the speak, move, kill and total time when the blood room ends.");
         d.put("blessings hud", "Draws one line per blessing you have picked up while inside a dungeon.");
         d.put("roman numerals", "Writes blessing levels as V instead of 5.");
         d.put("shown blessings", "Which blessings may appear on the HUD.");
@@ -2483,8 +2526,7 @@ final class SettingTooltipsData {
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
-            d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
-            d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
+            d.put("auto close chest/close mode", "Auto stops the secret chest opening at all (cheat build only); Click leaves it open until you press any key or mouse button.");
         }
         d.put("auto fairy souls/auto mode", "How it travels: Walk Only, Walk With Pearls, Etherwarp where it saves walking, or Fast Etherwarp the whole way (needs an etherwarp item in the hotbar).");
         d.put("tick timers/purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
