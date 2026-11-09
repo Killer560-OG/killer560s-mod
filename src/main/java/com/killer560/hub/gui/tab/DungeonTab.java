@@ -123,6 +123,7 @@ public class DungeonTab extends FolderTab {
             // The Etherwarp tab (Zero Ping Etherwarp + Left Click Etherwarp): cheat-only since 2026-11-02 (killer560: "all
             // zero ping etherwarp stuff should be cheat only nothing in legit"); it was legit 2026-10-26 to 2026-11-02.
             tabs.add(new ZeroPingEtherwarpTab());
+            tabs.add(new AutoSuperboomTab());
         }
         return tabs;
     }

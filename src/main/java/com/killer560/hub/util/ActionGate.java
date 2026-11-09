@@ -263,6 +263,9 @@ public final class ActionGate {
         /** Swap To Drill On Pigeon (killer560, 2026-11-03): the held-slot change to the best drill right after a Royal
          *  Pigeon use, before the Commissions menu opens. {@code miningqol.PigeonDrillSwap} is its only caller. */
         PIGEON_DRILL(Kind.HOTBAR),
+        /** Auto Superboom (cheat build, 2026-11-08): the swap to the Superboom as his click on a cracked wall goes out, and the
+         *  swap back a tick later. {@code autosuperboom.AutoSuperboomFeature} is its only caller. */
+        SUPERBOOM_SWAP(Kind.HOTBAR),
         /** Powder Chest Triggerbot's right click on a Crystal Hollows treasure chest (cheat build, 2026-11-04).
          *  {@code powdermining.PowderChestTriggerbot#tick} is its only caller. */
         POWDER_CHEST_TRIGGER(Kind.WORLD),

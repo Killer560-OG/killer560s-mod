@@ -26,7 +26,7 @@ import com.killer560.hub.compat.McRender;
  * whatever killer560 personally placed in the one room he's standing in - a handful at most - so a plain
  * per-box loop costs nothing worth optimizing away.
  */
-final class EtherwarpWaypointsRenderer {
+public final class EtherwarpWaypointsRenderer {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-etherwarp");
 
@@ -34,7 +34,7 @@ final class EtherwarpWaypointsRenderer {
     }
 
     /** One box to draw - built by {@link EtherwarpFeature} for the waypoints of the room you're in. */
-    record Entry(AABB box, float r, float g, float b, float a) {
+    public record Entry(AABB box, float r, float g, float b, float a) {
     }
 
     /** Called from {@link EtherwarpFeature#register()} so the pipelines exist before the renderer's first draw. */
@@ -49,7 +49,7 @@ final class EtherwarpWaypointsRenderer {
         static final RenderType FILLED = com.killer560.hub.util.EspTypes.FILLED_THRU;
     }
 
-    static void draw(LevelRenderContext context, List<Entry> entries, EtherwarpWaypointsConfig.Style style,
+    public static void draw(LevelRenderContext context, List<Entry> entries, EtherwarpWaypointsConfig.Style style,
                      boolean throughWalls) {
         if (entries.isEmpty()) {
             return;
