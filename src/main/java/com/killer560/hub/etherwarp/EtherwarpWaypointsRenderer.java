@@ -66,7 +66,7 @@ final class EtherwarpWaypointsRenderer {
                         throughWalls ? ThroughWalls.FILLED : com.killer560.hub.util.EspTypes.FILLED,
                         (pose, fillBuffer) -> {
                             for (Entry e : entries) {
-                                com.killer560.hub.util.WorldRenderUtils.filledBoxQuads(pose.pose(), fillBuffer, e.box(), e.r(), e.g(), e.b(),
+                                com.killer560.hub.util.BoxVerts.filledBox(pose.pose(), fillBuffer, e.box(), e.r(), e.g(), e.b(),
                                         e.a() * fillAlphaScale);
                             }
                         });
@@ -76,7 +76,7 @@ final class EtherwarpWaypointsRenderer {
                         throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                         (pose, lineBuffer) -> {
                             for (Entry e : entries) {
-                                lineBox(pose, lineBuffer, e.box(), e.r(), e.g(), e.b(), 1f, 2f);
+                                com.killer560.hub.util.BoxVerts.lineBox(pose, lineBuffer, e.box(), e.r(), e.g(), e.b(), 1f, 2f);
                             }
                         });
             }
@@ -89,29 +89,4 @@ final class EtherwarpWaypointsRenderer {
     }
 
     private static boolean renderFailureLogged = false;
-
-    private static final int[] EDGES = {
-            0, 1, 1, 5, 5, 4, 4, 0,
-            3, 2, 2, 6, 6, 7, 7, 3,
-            0, 3, 1, 2, 5, 6, 4, 7
-    };
-
-    private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float r, float g, float bl,
-                                float a, float width) {
-        float x0 = (float) b.minX, y0 = (float) b.minY, z0 = (float) b.minZ;
-        float x1 = (float) b.maxX, y1 = (float) b.maxY, z1 = (float) b.maxZ;
-        float[] corners = {
-                x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0,
-                x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1
-        };
-        for (int i = 0; i < EDGES.length; i += 2) {
-            int i0 = EDGES[i] * 3;
-            int i1 = EDGES[i + 1] * 3;
-            float sx = corners[i0], sy = corners[i0 + 1], sz = corners[i0 + 2];
-            float ex = corners[i1], ey = corners[i1 + 1], ez = corners[i1 + 2];
-            float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-            buffer.addVertex(pose, sx, sy, sz).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-            buffer.addVertex(pose, ex, ey, ez).setColor(r, g, bl, a).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        }
-    }
 }
