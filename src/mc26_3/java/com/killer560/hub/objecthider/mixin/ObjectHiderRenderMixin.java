@@ -23,7 +23,8 @@ public abstract class ObjectHiderRenderMixin {
     private void killer560smod$objectHider$shouldRender(Entity entity, Frustum frustum, double camX, double camY,
                                                         double camZ, float partialTick,
                                                         CallbackInfoReturnable<Boolean> cir) {
-        if (ObjectHiderFeature.shouldHideEntity(entity) || com.killer560.hub.boss.LividSolverFeature.shouldHideEntity(entity)) {
+        if (ObjectHiderFeature.shouldHideEntity(entity) || com.killer560.hub.boss.LividSolverFeature.shouldHideEntity(entity)
+                || com.killer560.hub.mobesp.GhostMobs.hidden(entity)) {
             cir.setReturnValue(false);
         }
     }

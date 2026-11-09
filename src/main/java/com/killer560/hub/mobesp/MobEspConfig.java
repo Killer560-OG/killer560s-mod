@@ -87,6 +87,9 @@ public final class MobEspConfig {
     /** killer560, 2026-11-01: "Add an option for mimic highlight as well." */
     private boolean mimic = false;
     private int mimicColor = DEFAULT_MIMIC_COLOR;
+    /** Hide Ghost Mobs (killer560, 2026-11-09): dungeon mobs the server stopped updating are not drawn, highlighted or
+     *  targeted ({@link GhostMobs}). Its own feature: works with every highlight off. */
+    private boolean hideGhostMobs = false;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
     /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." One setting for both
@@ -158,6 +161,7 @@ public final class MobEspConfig {
             cfg.felColor = ConfigJson.getInt(obj, "felColor", DEFAULT_FEL_COLOR);
             cfg.mimic = ConfigJson.getBool(obj, "mimic", false);
             cfg.mimicColor = ConfigJson.getInt(obj, "mimicColor", DEFAULT_MIMIC_COLOR);
+            cfg.hideGhostMobs = ConfigJson.getBool(obj, "hideGhostMobs", false);
 
             if (obj.has("starredColor")) {
                 cfg.starredColor = ConfigJson.getInt(obj, "starredColor", DEFAULT_STARRED_COLOR);
@@ -251,6 +255,7 @@ public final class MobEspConfig {
         obj.addProperty("felColor", felColor);
         obj.addProperty("mimic", mimic);
         obj.addProperty("mimicColor", mimicColor);
+        obj.addProperty("hideGhostMobs", hideGhostMobs);
         obj.addProperty("withers", withers);
         obj.addProperty("witherTracer", witherTracer);
         obj.addProperty("witherTracerThickness", witherTracerThickness);
@@ -295,6 +300,8 @@ public final class MobEspConfig {
     public void setMimic(boolean v) { mimic = v; }
     public int getMimicColor() { return mimicColor; }
     public void setMimicColor(int v) { mimicColor = v; }
+    public boolean isHideGhostMobs() { return hideGhostMobs; }
+    public void setHideGhostMobs(boolean v) { hideGhostMobs = v; }
 
     /** Cheat build only, same as the Cheat Utils Wither ESP it replaces - a legit jar never reports true. */
     public boolean isWithersEnabled() { return cheat() && esp && com.killer560.hub.util.SkyblockGate.allows(); }
