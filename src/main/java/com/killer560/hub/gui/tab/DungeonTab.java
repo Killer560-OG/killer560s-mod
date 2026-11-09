@@ -123,6 +123,8 @@ public class DungeonTab extends FolderTab {
             // Out of the Croesus tab, 2026-10-12 (killer560: "just like etable and auto etable").
             tabs.add(new AutoCroesusTab());
             tabs.add(new BlinkTab());
+            tabs.add(new TerminatorClickerTab());
+            tabs.add(new GhostBlockTab());
             // The Etherwarp tab (Zero Ping Etherwarp + Left Click Etherwarp): cheat-only since 2026-11-02 (killer560: "all
             // zero ping etherwarp stuff should be cheat only nothing in legit"); it was legit 2026-10-26 to 2026-11-02.
             tabs.add(new ZeroPingEtherwarpTab());

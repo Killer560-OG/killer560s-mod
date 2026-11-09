@@ -64,6 +64,8 @@ public class ObjectHiderTab extends BaseTab {
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Blindness Effect", cfg::getDisableBlindnessRaw, cfg::setDisableBlindness);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "No Glow Outlines", cfg::getNoGlowRaw, cfg::setNoGlow);
 
         header(widgets, contentX, contentWidth, y, "Dungeon Clutter");
 
