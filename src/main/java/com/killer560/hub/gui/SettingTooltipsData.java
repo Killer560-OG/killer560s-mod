@@ -2062,7 +2062,10 @@ final class SettingTooltipsData {
         d.put("reparty", "Type /rp or /reparty as party leader to disband the party and invite everyone back.");
         d.put("auto reparty", "Reparties by itself a few seconds after a dungeon run ends (party leader only).");
         d.put("auto reparty delay", "How long after the run's end screen Auto Reparty waits. Left click for longer, right click for shorter.");
-        d.put("carry tracker", "Counts every finished dungeon run that a name on your list was in, with a history of the latest runs. Counts are saved for your account and shared by every instance.");
+        d.put("carry tracker", "Counts every finished dungeon run that a client on your list was in and shows them in a HUD with done/total runs. Alerts once when a client reaches the runs you set. Counts are saved for your account and shared by every instance.");
+        d.put("carry tracker/add party", "Adds everyone in your party except you to the list, with the Default Runs target.");
+        d.put("carry tracker/default runs", "How many runs a client is carried for when you add them (1-50). Change one client with the - and + buttons.");
+        d.put("carry tracker/remove when done", "Removes a client from the list when they reach their runs target and you have been told to stop carrying them. Off by default.");
         d.put("room preview", "With chat open, hover a room on the Dungeon Map HUD to see its shape, type, secrets by kind and crypts.");
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
         d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");

@@ -6,7 +6,10 @@ import com.killer560.hub.runsummary.RunRecord;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
 import com.killer560.hub.shared.SharedWriter;
+import com.killer560.hub.dungeonalerts.DungeonAlertsFeature;
+import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +29,8 @@ public final class CarryTracker {
 
     private static JsonObject root = new JsonObject();
     private static volatile boolean loaded;
+    private static volatile boolean warming;
+    private static volatile int rev;
 
     private CarryTracker() {
     }
@@ -52,12 +57,18 @@ public final class CarryTracker {
         if (hit.isEmpty()) {
             return;
         }
+        List<String> reached = new ArrayList<>();
         update(r -> {
             JsonObject counts = obj(r, "counts");
             JsonArray log = array(r, "log");
             for (String n : hit) {
                 String key = n.toLowerCase(Locale.ROOT);
-                counts.addProperty(key, (counts.has(key) ? counts.get(key).getAsLong() : 0L) + 1);
+                long before = counts.has(key) ? counts.get(key).getAsLong() : 0L;
+                counts.addProperty(key, before + 1);
+                int target = cfg.getRuns(n);
+                if (before < target && before + 1 >= target) {
+                    reached.add(n);
+                }
                 JsonObject e = new JsonObject();
                 e.addProperty("endedAtMs", endedAtMs);
                 e.addProperty("player", n);
@@ -66,12 +77,46 @@ public final class CarryTracker {
                 e.addProperty("score", score);
                 log.add(e);
             }
-        }, null);
+        }, () -> reached.forEach(CarryTracker::alert));
     }
+
+    /** A client reached their target: a title, a sound and one chat line, then removal when Remove When Done is on. */
+    private static void alert(String name) {
+        CarryTrackerConfig cfg = CarryTrackerConfig.getInstance();
+        int n = cfg.getRuns(name);
+        String line = "Stop carrying " + name + ": " + n + "/" + n + " runs done";
+        DungeonAlertsFeature.showTitle("§aStop carrying " + name, "§7" + n + "/" + n + " runs done", 0, 40, 10);
+        DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        ModChat.send("Carry Tracker", ModChat.text(line));
+        alerts++;
+        lastAlert = line;
+        if (cfg.isRemoveWhenDone()) {
+            cfg.remove(name);
+            cfg.save();
+            reset(name);
+        }
+    }
+
+    /** Puts a name's run count back to 0 (a client added again starts fresh). */
+    public static void reset(String name) {
+        update(r -> obj(r, "counts").remove(name.toLowerCase(Locale.ROOT)), null);
+    }
+
+    /** Changes so far (the HUD rebuilds its rows when it moves). */
+    public static int rev() { return rev; }
+
+    // testkit readouts
+    private static volatile int alerts;
+    private static volatile String lastAlert = "";
+
+    static int alertsForTest() { return alerts; }
+
+    static String lastAlertForTest() { return lastAlert; }
 
     /** Loads the records once on the writer thread (a no-op afterwards), then runs {@code done} on the client thread (the tab rebuilds with the counts). */
     public static void warm(Runnable done) {
-        if (!loaded) {
+        if (!loaded && !warming) {
+            warming = true;
             update(r -> { }, done);
         }
     }
@@ -96,6 +141,7 @@ public final class CarryTracker {
             synchronized (CarryTracker.class) {
                 root = merged;
             }
+            rev++;
             if (done != null) {
                 Minecraft.getInstance().execute(done);
             }
@@ -149,6 +195,7 @@ public final class CarryTracker {
         synchronized (CarryTracker.class) {
             root = new JsonObject();
             loaded = false;
+            warming = false;
         }
         update(r -> { }, null);
         SharedWriter.drain(10000);

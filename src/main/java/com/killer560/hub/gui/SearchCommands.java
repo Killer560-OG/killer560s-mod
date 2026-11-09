@@ -66,7 +66,8 @@ public final class SearchCommands {
             Map.entry("search", "StorageSearchTab"),
             Map.entry("pv", "ProfileViewerTab"),
             Map.entry("pf", "CustomPartyFinderTab"),
-            Map.entry("partyfinder", "CustomPartyFinderTab"));
+            Map.entry("partyfinder", "CustomPartyFinderTab"),
+            Map.entry("carry", "CarryTrackerTab"));
 
     /** Class that declared a command's handler -> owner tab: command families named at run time. */
     static final Map<String, String> BY_CLASS = Map.ofEntries(
