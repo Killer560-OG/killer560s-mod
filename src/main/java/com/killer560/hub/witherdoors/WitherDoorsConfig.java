@@ -1,8 +1,6 @@
 package com.killer560.hub.witherdoors;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -23,7 +21,6 @@ import java.nio.file.Path;
  */
 public final class WitherDoorsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-witherdoors.json");
 
@@ -125,26 +122,22 @@ public final class WitherDoorsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("witherLockedColor", witherLockedColor);
-            obj.addProperty("witherReadyColor", witherReadyColor);
-            obj.addProperty("bloodLockedColor", bloodLockedColor);
-            obj.addProperty("bloodReadyColor", bloodReadyColor);
-            obj.addProperty("renderDistance", renderDistance);
-            obj.addProperty("style", style.name());
-            obj.addProperty("fillOpacity", fillOpacity);
-            obj.addProperty("customFillColor", customFillColor);
-            obj.addProperty("fillColor", fillColor);
-            obj.addProperty("showAllDoors", showAllDoors);
-            obj.addProperty("fairyDoor", fairyDoor);
-            obj.addProperty("fairyDoorColor", fairyDoorColor);
-            obj.addProperty("doorLabels", doorLabels);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("witherLockedColor", witherLockedColor);
+        obj.addProperty("witherReadyColor", witherReadyColor);
+        obj.addProperty("bloodLockedColor", bloodLockedColor);
+        obj.addProperty("bloodReadyColor", bloodReadyColor);
+        obj.addProperty("renderDistance", renderDistance);
+        obj.addProperty("style", style.name());
+        obj.addProperty("fillOpacity", fillOpacity);
+        obj.addProperty("customFillColor", customFillColor);
+        obj.addProperty("fillColor", fillColor);
+        obj.addProperty("showAllDoors", showAllDoors);
+        obj.addProperty("fairyDoor", fairyDoor);
+        obj.addProperty("fairyDoorColor", fairyDoorColor);
+        obj.addProperty("doorLabels", doorLabels);
+        ConfigJson.write(CONFIG_PATH, obj);
         WitherDoorsFeature.invalidateCache();
     }
 

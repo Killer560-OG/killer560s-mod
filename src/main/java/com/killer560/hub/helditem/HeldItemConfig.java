@@ -1,13 +1,9 @@
 package com.killer560.hub.helditem;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted "Held Item Transform" settings - resize/reposition/reorient the first-person held item, plus
@@ -32,7 +28,6 @@ public final class HeldItemConfig {
     public static final float MIN_SWING_RANGE = 0.0f;
     public static final float MAX_SWING_RANGE = 3.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-helditem.json");
 
@@ -133,21 +128,17 @@ public final class HeldItemConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("separateOffHand", separateOffHand);
-            obj.addProperty("noSwing", noSwing);
-            obj.addProperty("noEquip", noEquip);
-            obj.addProperty("noHandSway", noHandSway);
-            obj.addProperty("swingSpeed", swingSpeed);
-            obj.addProperty("swingRange", swingRange);
-            obj.add("mainHand", mainHand.toJson());
-            obj.add("offHand", offHand.toJson());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("separateOffHand", separateOffHand);
+        obj.addProperty("noSwing", noSwing);
+        obj.addProperty("noEquip", noEquip);
+        obj.addProperty("noHandSway", noHandSway);
+        obj.addProperty("swingSpeed", swingSpeed);
+        obj.addProperty("swingRange", swingRange);
+        obj.add("mainHand", mainHand.toJson());
+        obj.add("offHand", offHand.toJson());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Resets every value (both hands, toggles, swing speed) to vanilla - leaves the master toggle alone. */

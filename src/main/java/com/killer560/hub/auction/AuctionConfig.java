@@ -190,27 +190,23 @@ public final class AuctionConfig {
     }
 
     public synchronized void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("ahEnabled", ahEnabled);
-            obj.addProperty("bazaarEnabled", bazaarEnabled);
-            obj.addProperty("listingHelperEnabled", listingHelperEnabled);
-            obj.addProperty("overrideAhCommand", overrideAhCommand);
-            obj.addProperty("bazaarVanillaKeyCode", bazaarVanillaKeyCode);
-            obj.addProperty("openAhKeyCode", openAhKeyCode);
-            obj.addProperty("openBazaarKeyCode", openBazaarKeyCode);
-            obj.addProperty("lastSort", lastSort.name());
-            obj.addProperty("lastRarityFilter", lastRarityFilter);
-            obj.addProperty("lastMinPetLevel", lastMinPetLevel);
-            obj.addProperty("lastBazaarSort", lastBazaarSort.name());
-            obj.addProperty("lastListingMode", lastListingMode.name());
-            obj.addProperty("lastCategoryFilter", lastCategoryFilter);
-            obj.addProperty("lastBazaarCategoryFilter", lastBazaarCategoryFilter);
-            obj.addProperty("trackBazaarOrders", trackBazaarOrders);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("ahEnabled", ahEnabled);
+        obj.addProperty("bazaarEnabled", bazaarEnabled);
+        obj.addProperty("listingHelperEnabled", listingHelperEnabled);
+        obj.addProperty("overrideAhCommand", overrideAhCommand);
+        obj.addProperty("bazaarVanillaKeyCode", bazaarVanillaKeyCode);
+        obj.addProperty("openAhKeyCode", openAhKeyCode);
+        obj.addProperty("openBazaarKeyCode", openBazaarKeyCode);
+        obj.addProperty("lastSort", lastSort.name());
+        obj.addProperty("lastRarityFilter", lastRarityFilter);
+        obj.addProperty("lastMinPetLevel", lastMinPetLevel);
+        obj.addProperty("lastBazaarSort", lastBazaarSort.name());
+        obj.addProperty("lastListingMode", lastListingMode.name());
+        obj.addProperty("lastCategoryFilter", lastCategoryFilter);
+        obj.addProperty("lastBazaarCategoryFilter", lastBazaarCategoryFilter);
+        obj.addProperty("trackBazaarOrders", trackBazaarOrders);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public synchronized boolean isAhEnabled() {

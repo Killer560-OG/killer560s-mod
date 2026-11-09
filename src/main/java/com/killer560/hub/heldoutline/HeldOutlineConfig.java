@@ -1,13 +1,9 @@
 package com.killer560.hub.heldoutline;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -58,7 +54,6 @@ public final class HeldOutlineConfig {
     public static final float MAX_WIDTH = 10.0f;
     public static final float DEFAULT_WIDTH = 3.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-heldoutline.json");
 
     private static HeldOutlineConfig instance;
@@ -183,19 +178,15 @@ public final class HeldOutlineConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("style", style.name());
-            o.addProperty("side", side.name());
-            o.addProperty("outlineColor", outlineColor);
-            o.addProperty("fillColor", fillColor);
-            o.addProperty("width", width);
-            o.addProperty("mainHand", mainHand);
-            o.addProperty("offHand", offHand);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("style", style.name());
+        o.addProperty("side", side.name());
+        o.addProperty("outlineColor", outlineColor);
+        o.addProperty("fillColor", fillColor);
+        o.addProperty("width", width);
+        o.addProperty("mainHand", mainHand);
+        o.addProperty("offHand", offHand);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 }

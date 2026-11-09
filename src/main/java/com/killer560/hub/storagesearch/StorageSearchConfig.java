@@ -1,8 +1,7 @@
 package com.killer560.hub.storagesearch;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -67,7 +66,6 @@ public final class StorageSearchConfig {
     /** More than this many open-binds is just a config file to get lost in. */
     public static final int MAX_BINDS = 5;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-storagesearch.json");
 
@@ -200,32 +198,28 @@ public final class StorageSearchConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            JsonArray array = new JsonArray();
-            for (StorageSearchBind bind : binds) {
-                array.add(bind.serialize());
-            }
-            obj.add("binds", array);
-            obj.addProperty("searchLore", searchLore);
-            obj.addProperty("includeInventory", includeInventory);
-            obj.addProperty("openOnClick", openOnClick);
-            obj.addProperty("searchChests", searchChests);
-            obj.addProperty("chestRadius", chestRadius);
-            obj.addProperty("chestEsp", chestEsp);
-            obj.addProperty("espThroughWalls", espThroughWalls);
-            obj.addProperty("espSeconds", espSeconds);
-            obj.addProperty("searchExtras", searchExtras);
-            obj.addProperty("extrasOnV1", true);
-            obj.addProperty("focusSingleStorage", focusSingleStorage);
-            obj.addProperty("sortMode", sortMode.name());
-            obj.addProperty("sourceFilter", sourceFilter.name());
-            obj.addProperty("searchBoxOpacity", searchBoxOpacity);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        JsonArray array = new JsonArray();
+        for (StorageSearchBind bind : binds) {
+            array.add(bind.serialize());
         }
+        obj.add("binds", array);
+        obj.addProperty("searchLore", searchLore);
+        obj.addProperty("includeInventory", includeInventory);
+        obj.addProperty("openOnClick", openOnClick);
+        obj.addProperty("searchChests", searchChests);
+        obj.addProperty("chestRadius", chestRadius);
+        obj.addProperty("chestEsp", chestEsp);
+        obj.addProperty("espThroughWalls", espThroughWalls);
+        obj.addProperty("espSeconds", espSeconds);
+        obj.addProperty("searchExtras", searchExtras);
+        obj.addProperty("extrasOnV1", true);
+        obj.addProperty("focusSingleStorage", focusSingleStorage);
+        obj.addProperty("sortMode", sortMode.name());
+        obj.addProperty("sourceFilter", sourceFilter.name());
+        obj.addProperty("searchBoxOpacity", searchBoxOpacity);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The search box's background opacity, 0 to 100 percent. */

@@ -3,8 +3,6 @@ package com.killer560.hub.loadoutkeybinds;
 import com.killer560.hub.util.Keys;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -19,7 +17,6 @@ import java.nio.file.Path;
  *  feature in this mod. */
 public final class LoadoutKeybindsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-loadoutkeybinds.json");
 
@@ -112,27 +109,23 @@ public final class LoadoutKeybindsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("nextPageKey", nextPageKey);
-            obj.addProperty("previousPageKey", previousPageKey);
-            obj.addProperty("openKey", openKey);
-            obj.addProperty("highlightSelected", highlightSelected);
-            JsonArray arr = new JsonArray();
-            for (int key : slotKeys) {
-                arr.add(key);
-            }
-            obj.add("slotKeys", arr);
-            JsonArray modes = new JsonArray();
-            for (Mode mode : slotModes) {
-                modes.add(mode.name());
-            }
-            obj.add("slotModes", modes);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("nextPageKey", nextPageKey);
+        obj.addProperty("previousPageKey", previousPageKey);
+        obj.addProperty("openKey", openKey);
+        obj.addProperty("highlightSelected", highlightSelected);
+        JsonArray arr = new JsonArray();
+        for (int key : slotKeys) {
+            arr.add(key);
         }
+        obj.add("slotKeys", arr);
+        JsonArray modes = new JsonArray();
+        for (Mode mode : slotModes) {
+            modes.add(mode.name());
+        }
+        obj.add("slotModes", modes);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

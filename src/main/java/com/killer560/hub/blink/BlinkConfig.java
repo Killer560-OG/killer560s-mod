@@ -1,14 +1,10 @@
 package com.killer560.hub.blink;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -55,7 +51,6 @@ public final class BlinkConfig {
     public static final int MAX_TICKS = 20;
     public static final int DEFAULT_TICKS = MAX_TICKS;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-blink.json");
 
     private static BlinkConfig instance;
@@ -120,23 +115,19 @@ public final class BlinkConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("chargeKeyCode", chargeKeyCode);
-            obj.addProperty("chargeMode", chargeMode.name());
-            obj.addProperty("chargeTicks", chargeTicks);
-            obj.addProperty("holdKeyCode", holdKeyCode);
-            obj.addProperty("holdTicks", holdTicks);
-            obj.addProperty("showHud", showHud);
-            obj.addProperty("showServerBox", showServerBox);
-            obj.addProperty("chatMessages", chatMessages);
-            obj.addProperty("debugLog", debugLog);
-            obj.addProperty("hudStyle", hudStyle.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("chargeKeyCode", chargeKeyCode);
+        obj.addProperty("chargeMode", chargeMode.name());
+        obj.addProperty("chargeTicks", chargeTicks);
+        obj.addProperty("holdKeyCode", holdKeyCode);
+        obj.addProperty("holdTicks", holdTicks);
+        obj.addProperty("showHud", showHud);
+        obj.addProperty("showServerBox", showServerBox);
+        obj.addProperty("chatMessages", chatMessages);
+        obj.addProperty("debugLog", debugLog);
+        obj.addProperty("hudStyle", hudStyle.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clampTicks(int t) {

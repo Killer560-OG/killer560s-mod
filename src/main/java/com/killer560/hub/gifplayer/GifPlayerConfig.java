@@ -1,8 +1,6 @@
 package com.killer560.hub.gifplayer;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -19,7 +17,6 @@ import java.util.Map;
  *  gifs/audio files can be toggled independently and shown/played at the same time. */
 public final class GifPlayerConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-gifplayer.json");
 
@@ -91,18 +88,14 @@ public final class GifPlayerConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("audioEnabled", audioEnabled);
-            obj.addProperty("speedMultiplier", speedMultiplier);
-            obj.addProperty("volume", volume);
-            obj.add("gifFileEnabled", toJson(gifFileEnabled));
-            obj.add("audioFileEnabled", toJson(audioFileEnabled));
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("audioEnabled", audioEnabled);
+        obj.addProperty("speedMultiplier", speedMultiplier);
+        obj.addProperty("volume", volume);
+        obj.add("gifFileEnabled", toJson(gifFileEnabled));
+        obj.add("audioFileEnabled", toJson(audioFileEnabled));
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static JsonObject toJson(Map<String, Boolean> map) {

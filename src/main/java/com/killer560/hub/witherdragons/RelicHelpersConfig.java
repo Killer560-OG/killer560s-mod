@@ -1,21 +1,16 @@
 package com.killer560.hub.witherdragons;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Relic Triggerbot and Relic Look settings - see {@link RelicHelpersFeature}. Cheat build only; both ship OFF. */
 public final class RelicHelpersConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-relichelpers.json");
 
     public static final int MAX_COOLDOWN_MS = 1000;
@@ -65,21 +60,17 @@ public final class RelicHelpersConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("triggerEnabled", triggerEnabled);
-            root.addProperty("triggerPickup", triggerPickup);
-            root.addProperty("triggerPlace", triggerPlace);
-            root.addProperty("swapToRelic", swapToRelic);
-            root.addProperty("cooldownMs", cooldownMs);
-            root.addProperty("lookEnabled", lookEnabled);
-            root.addProperty("lookAtRelic", lookAtRelic);
-            root.addProperty("lookAtCauldron", lookAtCauldron);
-            root.addProperty("lookRange", lookRange);
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject root = new JsonObject();
+        root.addProperty("triggerEnabled", triggerEnabled);
+        root.addProperty("triggerPickup", triggerPickup);
+        root.addProperty("triggerPlace", triggerPlace);
+        root.addProperty("swapToRelic", swapToRelic);
+        root.addProperty("cooldownMs", cooldownMs);
+        root.addProperty("lookEnabled", lookEnabled);
+        root.addProperty("lookAtRelic", lookAtRelic);
+        root.addProperty("lookAtCauldron", lookAtCauldron);
+        root.addProperty("lookRange", lookRange);
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
     /** The gate the feature checks - false on the legit jar and outside Skyblock, always. */

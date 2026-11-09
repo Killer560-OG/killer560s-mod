@@ -1,7 +1,5 @@
 package com.killer560.hub.chathistory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -22,7 +20,6 @@ public final class ChatHistoryConfig {
     /** Vanilla's {@code ChatComponent.MAX_CHAT_HISTORY}. */
     public static final int VANILLA_LIMIT = 100;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-chathistory.json");
 
     private static volatile ChatHistoryConfig instance;
@@ -114,18 +111,14 @@ public final class ChatHistoryConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("length", length.name());
-            obj.addProperty("limit", customLimit);
-            // No "mode" or "unlimited" key any more: load() reads them only from a file with no "enabled" (before
-            // 2026-11-02), so a saved copy would be a key load() ignores, which hand edits and profile imports silently
-            // lost (testkit 310).
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("length", length.name());
+        obj.addProperty("limit", customLimit);
+        // No "mode" or "unlimited" key any more: load() reads them only from a file with no "enabled" (before
+        // 2026-11-02), so a saved copy would be a key load() ignores, which hand edits and profile imports silently
+        // lost (testkit 310).
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isUnlimited() {

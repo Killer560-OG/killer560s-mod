@@ -1,8 +1,6 @@
 package com.killer560.hub.doorkeys;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
  *  highlight this is built on. Ships disabled by default, same as every other new feature in this mod. */
 public final class DoorKeysConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-doorkeys.json");
 
@@ -116,25 +113,21 @@ public final class DoorKeysConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("highlightWither", highlightWither);
-            obj.addProperty("highlightBlood", highlightBlood);
-            obj.addProperty("showTracer", showTracer);
-            obj.addProperty("tracerThickness", tracerThickness);
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("rangeStyle", rangeStyle);
-            obj.addProperty("circleThickness", circleThickness);
-            obj.addProperty("circleLift", circleLift);
-            obj.addProperty("radius", radius);
-            obj.addProperty("tracerColor", tracerColor);
-            obj.addProperty("circleColor", circleColor);
-            obj.addProperty("fillColor", fillColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("highlightWither", highlightWither);
+        obj.addProperty("highlightBlood", highlightBlood);
+        obj.addProperty("showTracer", showTracer);
+        obj.addProperty("tracerThickness", tracerThickness);
+        obj.addProperty("throughWalls", throughWalls);
+        obj.addProperty("rangeStyle", rangeStyle);
+        obj.addProperty("circleThickness", circleThickness);
+        obj.addProperty("circleLift", circleLift);
+        obj.addProperty("radius", radius);
+        obj.addProperty("tracerColor", tracerColor);
+        obj.addProperty("circleColor", circleColor);
+        obj.addProperty("fillColor", fillColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

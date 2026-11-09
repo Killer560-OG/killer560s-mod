@@ -1,15 +1,11 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -92,7 +88,6 @@ public final class WitherDragonsConfig {
         public ClassOverride previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-witherdragons.json");
 
@@ -194,40 +189,36 @@ public final class WitherDragonsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("dragonTimer", dragonTimer);
-            o.addProperty("timerStyle", timerStyle.name());
-            o.addProperty("timerSymbol", timerSymbol);
-            o.addProperty("dragonBoxes", dragonBoxes);
-            o.addProperty("dragonTracer", dragonTracer);
-            o.addProperty("dragonHealth", dragonHealth);
-            o.addProperty("dragonTitle", dragonTitle);
-            o.addProperty("titleMode", titleMode.name());
-            o.addProperty("nameStyle", nameStyle.name());
-            o.addProperty("titleSound", titleSound);
-            o.addProperty("sendSpawned", sendSpawned);
-            o.addProperty("sendTime", sendTime);
-            o.addProperty("sendSpray", sendSpray);
-            o.addProperty("sendArrows", sendArrows);
-            o.addProperty("sendConfirmation", sendConfirmation);
-            o.addProperty("dragonPriority", dragonPriority);
-            o.addProperty("soloDebuff", soloDebuff.name());
-            o.addProperty("firstDragonOnly", firstDragonOnly);
-            o.addProperty("classOverride", classOverride.name());
-            o.addProperty("relicsEnabled", relicsEnabled);
-            o.addProperty("relicSpawnTimer", relicSpawnTimer);
-            o.addProperty("relicSpawnTicks", relicSpawnTicks);
-            o.addProperty("relicHighlight", relicHighlight);
-            o.addProperty("relicTracer", relicTracer);
-            o.addProperty("relicPlaceTime", relicPlaceTime);
-            o.addProperty("relicSummary", relicSummary);
-            o.addProperty("blockWrongRelic", blockWrongRelic);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("dragonTimer", dragonTimer);
+        o.addProperty("timerStyle", timerStyle.name());
+        o.addProperty("timerSymbol", timerSymbol);
+        o.addProperty("dragonBoxes", dragonBoxes);
+        o.addProperty("dragonTracer", dragonTracer);
+        o.addProperty("dragonHealth", dragonHealth);
+        o.addProperty("dragonTitle", dragonTitle);
+        o.addProperty("titleMode", titleMode.name());
+        o.addProperty("nameStyle", nameStyle.name());
+        o.addProperty("titleSound", titleSound);
+        o.addProperty("sendSpawned", sendSpawned);
+        o.addProperty("sendTime", sendTime);
+        o.addProperty("sendSpray", sendSpray);
+        o.addProperty("sendArrows", sendArrows);
+        o.addProperty("sendConfirmation", sendConfirmation);
+        o.addProperty("dragonPriority", dragonPriority);
+        o.addProperty("soloDebuff", soloDebuff.name());
+        o.addProperty("firstDragonOnly", firstDragonOnly);
+        o.addProperty("classOverride", classOverride.name());
+        o.addProperty("relicsEnabled", relicsEnabled);
+        o.addProperty("relicSpawnTimer", relicSpawnTimer);
+        o.addProperty("relicSpawnTicks", relicSpawnTicks);
+        o.addProperty("relicHighlight", relicHighlight);
+        o.addProperty("relicTracer", relicTracer);
+        o.addProperty("relicPlaceTime", relicPlaceTime);
+        o.addProperty("relicSummary", relicSummary);
+        o.addProperty("blockWrongRelic", blockWrongRelic);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
 

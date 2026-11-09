@@ -1,8 +1,6 @@
 package com.killer560.hub.terminals;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -34,7 +32,6 @@ public final class TerminalQolConfig {
     public static final int MIN_GUI_SCALE = 0;
     public static final int MAX_GUI_SCALE = 5;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-terminalqol.json");
 
@@ -106,24 +103,20 @@ public final class TerminalQolConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("protectionEnabled", protectionEnabled);
-            obj.addProperty("protectionThresholdMs", protectionThresholdMs);
-            obj.addProperty("protectionSubtractPing", protectionSubtractPing);
-            obj.addProperty("dropKeyEnabled", dropKeyEnabled);
-            obj.addProperty("dropKeyCode", dropKeyCode);
-            obj.addProperty("savedDropKeyName", savedDropKeyName);
-            obj.addProperty("melodyKeysEnabled", melodyKeysEnabled);
-            obj.addProperty("terminalGuiScale", terminalGuiScale);
-            obj.addProperty("melodyGuiScale", melodyGuiScale);
-            obj.addProperty("hideCompletionTitles", hideCompletionTitles);
-            obj.addProperty("hideCompletionChat", hideCompletionChat);
-            obj.addProperty("hideCompletionOnlyOthers", hideCompletionOnlyOthers);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("protectionEnabled", protectionEnabled);
+        obj.addProperty("protectionThresholdMs", protectionThresholdMs);
+        obj.addProperty("protectionSubtractPing", protectionSubtractPing);
+        obj.addProperty("dropKeyEnabled", dropKeyEnabled);
+        obj.addProperty("dropKeyCode", dropKeyCode);
+        obj.addProperty("savedDropKeyName", savedDropKeyName);
+        obj.addProperty("melodyKeysEnabled", melodyKeysEnabled);
+        obj.addProperty("terminalGuiScale", terminalGuiScale);
+        obj.addProperty("melodyGuiScale", melodyGuiScale);
+        obj.addProperty("hideCompletionTitles", hideCompletionTitles);
+        obj.addProperty("hideCompletionChat", hideCompletionChat);
+        obj.addProperty("hideCompletionOnlyOthers", hideCompletionOnlyOthers);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clampThreshold(int value) { return Math.max(MIN_PROTECTION_MS, Math.min(MAX_PROTECTION_MS, value)); }

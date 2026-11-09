@@ -1,8 +1,6 @@
 package com.killer560.hub.leapcounter;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -23,7 +21,6 @@ import java.nio.file.Path;
  */
 public final class LeapCounterConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-leapcounter.json");
 
     public static final int MAX_COUNT = 4;
@@ -107,26 +104,22 @@ public final class LeapCounterConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("countS1", countS1);
-            obj.addProperty("countS2", countS2);
-            obj.addProperty("countS3", countS3);
-            obj.addProperty("countS4", countS4);
-            obj.addProperty("countCore", countCore);
-            obj.addProperty("countRelic", countRelic);
-            obj.addProperty("radius", radius);
-            obj.addProperty("jumpDistance", jumpDistance);
-            obj.addProperty("alert", alert);
-            obj.addProperty("alertText", alertText == null ? "" : alertText);
-            obj.addProperty("sound", sound);
-            obj.addProperty("hud", hud);
-            obj.addProperty("hudShowAtZero", hudShowAtZero);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("countS1", countS1);
+        obj.addProperty("countS2", countS2);
+        obj.addProperty("countS3", countS3);
+        obj.addProperty("countS4", countS4);
+        obj.addProperty("countCore", countCore);
+        obj.addProperty("countRelic", countRelic);
+        obj.addProperty("radius", radius);
+        obj.addProperty("jumpDistance", jumpDistance);
+        obj.addProperty("alert", alert);
+        obj.addProperty("alertText", alertText == null ? "" : alertText);
+        obj.addProperty("sound", sound);
+        obj.addProperty("hud", hud);
+        obj.addProperty("hudShowAtZero", hudShowAtZero);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && SkyblockGate.allows(); }

@@ -1,8 +1,6 @@
 package com.killer560.hub.ticktimers;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -32,7 +30,6 @@ import java.nio.file.Path;
 public final class TickTimersConfig {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-ticktimers");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-ticktimers.json");
     private static final Path OLD_GOLDOR_FRENZY_PATH =
@@ -225,28 +222,24 @@ public final class TickTimersConfig {
     private static boolean getBool(JsonObject obj, String key, boolean def) { return ConfigJson.getBool(obj, key, def); }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("displayInTicks", displayInTicks);
-            obj.addProperty("showSymbol", showSymbol);
-            obj.addProperty("showPrefix", showPrefix);
-            obj.addProperty("necronTimer", necronTimer);
-            obj.addProperty("goldorTimer", goldorTimer);
-            obj.addProperty("goldorStartTimer", goldorStartTimer);
-            obj.addProperty("stormLine", stormLine);
-            obj.addProperty("goldorShowTotal", goldorShowTotal);
-            obj.addProperty("maxorStartTimer", maxorStartTimer);
-            obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
-            obj.addProperty("hudCenterX", hudCenterX);
-            obj.addProperty("crushPadHighlight", crushPadHighlight);
-            obj.addProperty("crushAllPads", crushAllPads);
-            obj.addProperty("crushPadColor", crushPadColor);
-            obj.addProperty("f7spotsCrushMigrated", f7spotsCrushMigrated);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("displayInTicks", displayInTicks);
+        obj.addProperty("showSymbol", showSymbol);
+        obj.addProperty("showPrefix", showPrefix);
+        obj.addProperty("necronTimer", necronTimer);
+        obj.addProperty("goldorTimer", goldorTimer);
+        obj.addProperty("goldorStartTimer", goldorStartTimer);
+        obj.addProperty("stormLine", stormLine);
+        obj.addProperty("goldorShowTotal", goldorShowTotal);
+        obj.addProperty("maxorStartTimer", maxorStartTimer);
+        obj.addProperty("goldorFrenzyMigrated", goldorFrenzyMigrated);
+        obj.addProperty("hudCenterX", hudCenterX);
+        obj.addProperty("crushPadHighlight", crushPadHighlight);
+        obj.addProperty("crushAllPads", crushAllPads);
+        obj.addProperty("crushPadColor", crushPadColor);
+        obj.addProperty("f7spotsCrushMigrated", f7spotsCrushMigrated);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

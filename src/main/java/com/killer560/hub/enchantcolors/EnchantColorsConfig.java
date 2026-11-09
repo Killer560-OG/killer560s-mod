@@ -1,8 +1,6 @@
 package com.killer560.hub.enchantcolors;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -26,7 +24,6 @@ import java.nio.file.Path;
  *  migration needed, it just reseeds the new keys with defaults. */
 public final class EnchantColorsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-enchantcolors.json");
 
@@ -119,27 +116,23 @@ public final class EnchantColorsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("onlyKnownEnchants", onlyKnownEnchants);
-            obj.addProperty("unknownColor", unknownColor);
-            obj.addProperty("poorColor", poorColor);
-            obj.addProperty("goodColor", goodColor);
-            obj.addProperty("greatColor", greatColor);
-            obj.addProperty("perfectColor", perfectColor);
-            obj.addProperty("perfectChroma", perfectChroma);
-            obj.addProperty("chromaSpeed", chromaSpeed);
-            obj.addProperty("chromaSize", chromaSize);
-            obj.addProperty("perfectBold", perfectBold);
-            obj.addProperty("ultimateEnabled", ultimateEnabled);
-            obj.addProperty("ultimateColor", ultimateColor);
-            obj.addProperty("ultimateBold", ultimateBold);
-            obj.addProperty("trueMaxDetection", trueMaxDetection);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("onlyKnownEnchants", onlyKnownEnchants);
+        obj.addProperty("unknownColor", unknownColor);
+        obj.addProperty("poorColor", poorColor);
+        obj.addProperty("goodColor", goodColor);
+        obj.addProperty("greatColor", greatColor);
+        obj.addProperty("perfectColor", perfectColor);
+        obj.addProperty("perfectChroma", perfectChroma);
+        obj.addProperty("chromaSpeed", chromaSpeed);
+        obj.addProperty("chromaSize", chromaSize);
+        obj.addProperty("perfectBold", perfectBold);
+        obj.addProperty("ultimateEnabled", ultimateEnabled);
+        obj.addProperty("ultimateColor", ultimateColor);
+        obj.addProperty("ultimateBold", ultimateBold);
+        obj.addProperty("trueMaxDetection", trueMaxDetection);
+        ConfigJson.write(CONFIG_PATH, obj);
         // Every rendered tooltip is cached by lore identity, so an edit has to invalidate it or the new
         // color wouldn't show until you hovered something else (SkyHanni hits the same problem and solves
         // it with a "configChanged" dirty flag on every color option).

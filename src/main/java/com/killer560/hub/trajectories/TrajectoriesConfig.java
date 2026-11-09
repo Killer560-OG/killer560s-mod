@@ -1,8 +1,6 @@
 package com.killer560.hub.trajectories;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -16,7 +14,6 @@ import java.nio.file.Path;
  *  new feature in this mod. */
 public final class TrajectoriesConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-trajectories.json");
 
@@ -60,17 +57,13 @@ public final class TrajectoriesConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showBows", showBows);
-            obj.addProperty("showPearls", showPearls);
-            obj.addProperty("showShortbows", showShortbows);
-            obj.addProperty("range", range);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showBows", showBows);
+        obj.addProperty("showPearls", showPearls);
+        obj.addProperty("showShortbows", showShortbows);
+        obj.addProperty("range", range);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

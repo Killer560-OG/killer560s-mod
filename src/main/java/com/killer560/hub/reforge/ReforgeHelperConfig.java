@@ -1,7 +1,5 @@
 package com.killer560.hub.reforge;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -26,7 +24,6 @@ public final class ReforgeHelperConfig {
     /** At most this many wanted reforges are read from the setting. */
     static final int MAX_WANTED = 24;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-reforge-helper.json");
 
     private static ReforgeHelperConfig instance;
@@ -69,16 +66,12 @@ public final class ReforgeHelperConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("wanted", wanted);
-            obj.addProperty("blockWanted", blockWanted);
-            obj.addProperty("color", color);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("wanted", wanted);
+        obj.addProperty("blockWanted", blockWanted);
+        obj.addProperty("color", color);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** A reforge name or NBT modifier as one key: "Lumberjack's" -> "lumberjacks", "Double-Bit" -> "double_bit". */

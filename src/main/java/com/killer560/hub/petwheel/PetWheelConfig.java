@@ -1,8 +1,7 @@
 package com.killer560.hub.petwheel;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -58,7 +57,6 @@ public final class PetWheelConfig {
     public static final int MAX_ICON_SCALE_PCT = 400;
     public static final int DEFAULT_ICON_SCALE_PCT = 100;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-petwheel.json");
 
@@ -173,33 +171,29 @@ public final class PetWheelConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("enabled", enabled);
-            root.addProperty("scalePercent", scalePercent);
-            root.addProperty("iconScalePercent", iconScalePercent);
-            root.addProperty("mode", mode.name());
-            root.addProperty("keyCode", keyCode);
-            root.addProperty("hideLevel", hideLevel);
-            root.addProperty("hideName", hideName);
-            root.addProperty("hideMenuWhileSummoning", hideMenuWhileSummoning);
-            root.addProperty("prevPageKeyCode", prevPageKeyCode);
-            root.addProperty("nextPageKeyCode", nextPageKeyCode);
-            root.add("wheelPets", petListToJson(wheelPets)); // the current page, for a jar from before pages
-            JsonArray pageArr = new JsonArray();
-            for (WheelPage p : pages) {
-                JsonObject po = new JsonObject();
-                po.addProperty("name", p.name);
-                po.add("pets", petListToJson(p.pets));
-                pageArr.add(po);
-            }
-            root.add("pages", pageArr);
-            root.addProperty("pageIndex", pageIndex);
-            root.add("knownPets", petListToJson(new ArrayList<>(knownPets.values())));
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject root = new JsonObject();
+        root.addProperty("enabled", enabled);
+        root.addProperty("scalePercent", scalePercent);
+        root.addProperty("iconScalePercent", iconScalePercent);
+        root.addProperty("mode", mode.name());
+        root.addProperty("keyCode", keyCode);
+        root.addProperty("hideLevel", hideLevel);
+        root.addProperty("hideName", hideName);
+        root.addProperty("hideMenuWhileSummoning", hideMenuWhileSummoning);
+        root.addProperty("prevPageKeyCode", prevPageKeyCode);
+        root.addProperty("nextPageKeyCode", nextPageKeyCode);
+        root.add("wheelPets", petListToJson(wheelPets)); // the current page, for a jar from before pages
+        JsonArray pageArr = new JsonArray();
+        for (WheelPage p : pages) {
+            JsonObject po = new JsonObject();
+            po.addProperty("name", p.name);
+            po.add("pets", petListToJson(p.pets));
+            pageArr.add(po);
         }
+        root.add("pages", pageArr);
+        root.addProperty("pageIndex", pageIndex);
+        root.add("knownPets", petListToJson(new ArrayList<>(knownPets.values())));
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
 

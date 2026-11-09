@@ -1,8 +1,6 @@
 package com.killer560.hub.secretwaypoints;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -22,7 +20,6 @@ public final class SecretWaypointsConfig {
      *  vanilla hitbox of the thing you are actually looking for (chest shape / dropped item / bat). */
     public enum BoxSize { FULL_BLOCK, HITBOX }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-secretwaypoints.json");
 
@@ -145,31 +142,27 @@ public final class SecretWaypointsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("style", style.name());
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("boxSize", boxSize.name());
-            obj.addProperty("showNames", showNames);
-            obj.addProperty("noammDefaultsV1", true);
-            obj.addProperty("colorPassV2", true);
-            obj.addProperty("chestColor", chestColor);
-            obj.addProperty("itemColor", itemColor);
-            obj.addProperty("witherColor", witherColor);
-            obj.addProperty("batColor", batColor);
-            obj.addProperty("redstoneKeyColor", redstoneKeyColor);
-            obj.addProperty("leverColor", leverColor);
-            obj.addProperty("showCrypts", showCrypts);
-            obj.addProperty("showPrinces", showPrinces);
-            obj.addProperty("cryptColor", cryptColor);
-            obj.addProperty("princeColor", princeColor);
-            obj.addProperty("hideCryptsAfterFive", hideCryptsAfterFive);
-            obj.addProperty("hidePrincesAfterOne", hidePrincesAfterOne);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("style", style.name());
+        obj.addProperty("throughWalls", throughWalls);
+        obj.addProperty("boxSize", boxSize.name());
+        obj.addProperty("showNames", showNames);
+        obj.addProperty("noammDefaultsV1", true);
+        obj.addProperty("colorPassV2", true);
+        obj.addProperty("chestColor", chestColor);
+        obj.addProperty("itemColor", itemColor);
+        obj.addProperty("witherColor", witherColor);
+        obj.addProperty("batColor", batColor);
+        obj.addProperty("redstoneKeyColor", redstoneKeyColor);
+        obj.addProperty("leverColor", leverColor);
+        obj.addProperty("showCrypts", showCrypts);
+        obj.addProperty("showPrinces", showPrinces);
+        obj.addProperty("cryptColor", cryptColor);
+        obj.addProperty("princeColor", princeColor);
+        obj.addProperty("hideCryptsAfterFive", hideCryptsAfterFive);
+        obj.addProperty("hidePrincesAfterOne", hidePrincesAfterOne);
+        ConfigJson.write(CONFIG_PATH, obj);
         // Everything on this page feeds the cached waypoint snapshot; rebuild it on the next tick.
         SecretWaypointsFeature.invalidateCache();
     }

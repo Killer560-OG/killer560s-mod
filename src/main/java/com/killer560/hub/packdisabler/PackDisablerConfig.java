@@ -1,7 +1,5 @@
 package com.killer560.hub.packdisabler;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -14,7 +12,6 @@ import java.nio.file.Path;
 /** Persisted Pack Disabler toggle. Default OFF: it changes how every SkyBlock item looks, so he turns it on. */
 public final class PackDisablerConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-packdisabler.json");
 
     private static volatile PackDisablerConfig instance;
@@ -54,14 +51,10 @@ public final class PackDisablerConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("paperMenuButtons", paperMenuButtons);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("paperMenuButtons", paperMenuButtons);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The saved toggle. Whether it is actually in force is {@link PackDisabler#isActive()}. */

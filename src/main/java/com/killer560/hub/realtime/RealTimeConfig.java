@@ -1,13 +1,9 @@
 package com.killer560.hub.realtime;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Real Time clock settings - see {@link RealTimeFeature}. Ships disabled by default. */
@@ -19,7 +15,6 @@ public final class RealTimeConfig {
         SYSTEM, CUSTOM
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-realtime.json");
 
@@ -73,22 +68,18 @@ public final class RealTimeConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("use24Hour", use24Hour);
-            obj.addProperty("showSeconds", showSeconds);
-            obj.addProperty("zoneMode", zoneMode.name());
-            obj.addProperty("customZone", customZone);
-            obj.addProperty("regionFilter", regionFilter);
-            obj.addProperty("showZoneAbbreviation", showZoneAbbreviation);
-            obj.addProperty("showLabel", showLabel);
-            obj.addProperty("textShadow", textShadow);
-            obj.addProperty("textColor", textColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("use24Hour", use24Hour);
+        obj.addProperty("showSeconds", showSeconds);
+        obj.addProperty("zoneMode", zoneMode.name());
+        obj.addProperty("customZone", customZone);
+        obj.addProperty("regionFilter", regionFilter);
+        obj.addProperty("showZoneAbbreviation", showZoneAbbreviation);
+        obj.addProperty("showLabel", showLabel);
+        obj.addProperty("textShadow", textShadow);
+        obj.addProperty("textColor", textColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

@@ -1,8 +1,6 @@
 package com.killer560.hub.bugreport;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -18,7 +16,6 @@ import java.nio.file.Path;
  *  log (e.g. "the GUI button is in the wrong place") shouldn't be forced to hand over a log every time. */
 public final class BugReportConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-bugreport.json");
 
@@ -53,13 +50,9 @@ public final class BugReportConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("includeLog", includeLog);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("includeLog", includeLog);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isIncludeLog() {

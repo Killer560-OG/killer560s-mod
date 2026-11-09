@@ -1,8 +1,6 @@
 package com.killer560.hub.window;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -17,7 +15,6 @@ import java.nio.file.Path;
  *  getters for them, so this mod keeps its own copy). */
 public final class WindowModeConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-window.json");
 
@@ -67,18 +64,14 @@ public final class WindowModeConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("borderlessFullscreenEnabled", borderlessFullscreenEnabled);
-            obj.addProperty("hasSavedWindowedBounds", hasSavedWindowedBounds);
-            obj.addProperty("savedWindowedX", savedWindowedX);
-            obj.addProperty("savedWindowedY", savedWindowedY);
-            obj.addProperty("savedWindowedWidth", savedWindowedWidth);
-            obj.addProperty("savedWindowedHeight", savedWindowedHeight);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("borderlessFullscreenEnabled", borderlessFullscreenEnabled);
+        obj.addProperty("hasSavedWindowedBounds", hasSavedWindowedBounds);
+        obj.addProperty("savedWindowedX", savedWindowedX);
+        obj.addProperty("savedWindowedY", savedWindowedY);
+        obj.addProperty("savedWindowedWidth", savedWindowedWidth);
+        obj.addProperty("savedWindowedHeight", savedWindowedHeight);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isBorderlessFullscreenEnabled() { return borderlessFullscreenEnabled; }

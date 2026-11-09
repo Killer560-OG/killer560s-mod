@@ -1,14 +1,10 @@
 package com.killer560.hub.bloodrush;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class BloodRushConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-bloodrush.json");
 
     public static final int MAX_KILLERS = 4;
@@ -103,30 +98,26 @@ public final class BloodRushConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("killers", killers);
-            o.addProperty("role", role);
-            o.addProperty("showOthers", showOthers);
-            o.addProperty("learnSpots", learnSpots);
-            o.addProperty("showLearned", showLearned);
-            o.addProperty("allRooms", allRooms);
-            o.addProperty("mineColor", mineColor);
-            o.addProperty("othersColor", othersColor);
-            o.addProperty("learnedColor", learnedColor);
-            o.addProperty("fillOpacity", fillOpacity);
-            o.addProperty("filled", filled);
-            o.addProperty("outlineWidth", outlineWidth);
-            o.addProperty("throughWalls", throughWalls);
-            o.addProperty("wholePath", wholePath);
-            o.addProperty("hideSecrets", hideSecrets);
-            o.addProperty("doorKills", doorKills.name());
-            o.addProperty("dropBottom", dropBottom);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("killers", killers);
+        o.addProperty("role", role);
+        o.addProperty("showOthers", showOthers);
+        o.addProperty("learnSpots", learnSpots);
+        o.addProperty("showLearned", showLearned);
+        o.addProperty("allRooms", allRooms);
+        o.addProperty("mineColor", mineColor);
+        o.addProperty("othersColor", othersColor);
+        o.addProperty("learnedColor", learnedColor);
+        o.addProperty("fillOpacity", fillOpacity);
+        o.addProperty("filled", filled);
+        o.addProperty("outlineWidth", outlineWidth);
+        o.addProperty("throughWalls", throughWalls);
+        o.addProperty("wholePath", wholePath);
+        o.addProperty("hideSecrets", hideSecrets);
+        o.addProperty("doorKills", doorKills.name());
+        o.addProperty("dropBottom", dropBottom);
+        ConfigJson.write(CONFIG_PATH, o);
         BloodRushHelperFeature.invalidate();
     }
 

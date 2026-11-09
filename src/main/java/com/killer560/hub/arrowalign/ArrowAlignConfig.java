@@ -1,8 +1,6 @@
 package com.killer560.hub.arrowalign;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -47,7 +45,6 @@ public final class ArrowAlignConfig {
     /** 16 cps: the middle of the old 15-17 cps (59-67 ms) delay band it replaces. */
     public static final int DEFAULT_AURA_CPS = 16;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-arrowalign.json");
 
@@ -151,31 +148,27 @@ public final class ArrowAlignConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("solverEnabled", solverEnabled);
-            obj.addProperty("highlightFrames", highlightFrames);
-            obj.addProperty("highlightColor", highlightColor);
-            obj.addProperty("numberScale", numberScale);
-            obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
-            obj.addProperty("crouchOverride", crouchOverride);
-            obj.addProperty("solveTimeEnabled", solveTimeEnabled);
-            obj.addProperty("triggerBotEnabled", triggerBotEnabled);
-            obj.addProperty("triggerBotCpsMin", triggerBotCpsMin);
-            obj.addProperty("triggerBotCpsMax", triggerBotCpsMax);
-            obj.addProperty("triggerBotDisableWhileCrouching", triggerBotDisableWhileCrouching);
-            obj.addProperty("auraDisableWhileCrouching", auraDisableWhileCrouching);
-            obj.addProperty("auraLeaveLastArrow", auraLeaveLastArrow);
-            obj.addProperty("leaveLastArrowDisableWhileCrouching", leaveLastArrowDisableWhileCrouching);
-            obj.addProperty("auraClicksPerTick", auraClicksPerTick);
-            obj.addProperty("auraSameTickTurn", auraSameTickTurn);
-            obj.addProperty("auraEnabled", auraEnabled);
-            obj.addProperty("auraCps", auraCps);
-            obj.addProperty("auraRange", auraRange);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("solverEnabled", solverEnabled);
+        obj.addProperty("highlightFrames", highlightFrames);
+        obj.addProperty("highlightColor", highlightColor);
+        obj.addProperty("numberScale", numberScale);
+        obj.addProperty("preventMisclicksEnabled", preventMisclicksEnabled);
+        obj.addProperty("crouchOverride", crouchOverride);
+        obj.addProperty("solveTimeEnabled", solveTimeEnabled);
+        obj.addProperty("triggerBotEnabled", triggerBotEnabled);
+        obj.addProperty("triggerBotCpsMin", triggerBotCpsMin);
+        obj.addProperty("triggerBotCpsMax", triggerBotCpsMax);
+        obj.addProperty("triggerBotDisableWhileCrouching", triggerBotDisableWhileCrouching);
+        obj.addProperty("auraDisableWhileCrouching", auraDisableWhileCrouching);
+        obj.addProperty("auraLeaveLastArrow", auraLeaveLastArrow);
+        obj.addProperty("leaveLastArrowDisableWhileCrouching", leaveLastArrowDisableWhileCrouching);
+        obj.addProperty("auraClicksPerTick", auraClicksPerTick);
+        obj.addProperty("auraSameTickTurn", auraSameTickTurn);
+        obj.addProperty("auraEnabled", auraEnabled);
+        obj.addProperty("auraCps", auraCps);
+        obj.addProperty("auraRange", auraRange);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     // ---- Solver (legit) ----

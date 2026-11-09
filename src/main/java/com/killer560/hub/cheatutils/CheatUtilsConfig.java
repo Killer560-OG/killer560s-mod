@@ -1,8 +1,6 @@
 package com.killer560.hub.cheatutils;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -22,7 +20,6 @@ import java.util.Random;
  */
 public final class CheatUtilsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-cheatutils.json");
     private static final Random RANDOM = new Random();
@@ -209,52 +206,48 @@ public final class CheatUtilsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
+        JsonObject o = new JsonObject();
 
-            o.addProperty("secretAuraEnabled", secretAuraEnabled);
-            o.addProperty("auraChests", auraChests);
-            o.addProperty("auraLevers", auraLevers);
-            o.addProperty("auraEssence", auraEssence);
-            o.addProperty("auraRedstoneKey", auraRedstoneKey);
-            o.addProperty("auraPlaceRedstoneKey", auraPlaceRedstoneKey);
-            o.addProperty("auraBossLevers", auraBossLevers);
-            o.addProperty("auraRange", auraRange);
-            o.addProperty("auraSkullRange", auraSkullRange);
-            o.addProperty("auraCooldownMs", auraCooldownMs);
-            o.addProperty("auraSwing", auraSwing);
-            o.addProperty("auraPauseWhileSneaking", auraPauseWhileSneaking);
-            o.addProperty("auraPauseHolding", auraPauseHolding);
+        o.addProperty("secretAuraEnabled", secretAuraEnabled);
+        o.addProperty("auraChests", auraChests);
+        o.addProperty("auraLevers", auraLevers);
+        o.addProperty("auraEssence", auraEssence);
+        o.addProperty("auraRedstoneKey", auraRedstoneKey);
+        o.addProperty("auraPlaceRedstoneKey", auraPlaceRedstoneKey);
+        o.addProperty("auraBossLevers", auraBossLevers);
+        o.addProperty("auraRange", auraRange);
+        o.addProperty("auraSkullRange", auraSkullRange);
+        o.addProperty("auraCooldownMs", auraCooldownMs);
+        o.addProperty("auraSwing", auraSwing);
+        o.addProperty("auraPauseWhileSneaking", auraPauseWhileSneaking);
+        o.addProperty("auraPauseHolding", auraPauseHolding);
 
-            o.addProperty("autoGfsEnabled", autoGfsEnabled);
-            o.addProperty("gfsPearls", gfsPearls);
-            o.addProperty("gfsLeaps", gfsLeaps);
-            o.addProperty("gfsSuperbooms", gfsSuperbooms);
-            o.addProperty("gfsJerries", gfsJerries);
-            o.addProperty("gfsThresholdPercent", gfsThresholdPercent);
-            o.addProperty("gfsIntervalSec", gfsIntervalSec);
-            o.addProperty("gfsSkipIfNone", gfsSkipIfNone);
-            o.addProperty("gfsDungeonKuudraOnly", gfsDungeonKuudraOnly);
+        o.addProperty("autoGfsEnabled", autoGfsEnabled);
+        o.addProperty("gfsPearls", gfsPearls);
+        o.addProperty("gfsLeaps", gfsLeaps);
+        o.addProperty("gfsSuperbooms", gfsSuperbooms);
+        o.addProperty("gfsJerries", gfsJerries);
+        o.addProperty("gfsThresholdPercent", gfsThresholdPercent);
+        o.addProperty("gfsIntervalSec", gfsIntervalSec);
+        o.addProperty("gfsSkipIfNone", gfsSkipIfNone);
+        o.addProperty("gfsDungeonKuudraOnly", gfsDungeonKuudraOnly);
 
-            o.addProperty("autoUltEnabled", autoUltEnabled);
-            o.addProperty("ultMaxorEnraged", ultMaxorEnraged);
-            o.addProperty("ultGoldorFactory", ultGoldorFactory);
-            o.addProperty("ultClassOverride", ultClassOverride);
-            o.addProperty("wishOnClear", wishOnClear);
-            o.addProperty("ultClasses", String.join(",", ultClasses.stream().map(Enum::name).toList()));
+        o.addProperty("autoUltEnabled", autoUltEnabled);
+        o.addProperty("ultMaxorEnraged", ultMaxorEnraged);
+        o.addProperty("ultGoldorFactory", ultGoldorFactory);
+        o.addProperty("ultClassOverride", ultClassOverride);
+        o.addProperty("wishOnClear", wishOnClear);
+        o.addProperty("ultClasses", String.join(",", ultClasses.stream().map(Enum::name).toList()));
 
-            o.addProperty("chocolateEnabled", chocolateEnabled);
-            o.addProperty("cfClickCookie", cfClickCookie);
-            o.addProperty("cfAutoUpgrade", cfAutoUpgrade);
-            o.addProperty("cfClaimStrays", cfClaimStrays);
-            o.addProperty("cfAutoTimeTower", cfAutoTimeTower);
-            o.addProperty("cfMinDelayMs", cfMinDelayMs);
-            o.addProperty("cfMaxDelayMs", cfMaxDelayMs);
-            o.addProperty("cfUpgradeDelayMs", cfUpgradeDelayMs);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        o.addProperty("chocolateEnabled", chocolateEnabled);
+        o.addProperty("cfClickCookie", cfClickCookie);
+        o.addProperty("cfAutoUpgrade", cfAutoUpgrade);
+        o.addProperty("cfClaimStrays", cfClaimStrays);
+        o.addProperty("cfAutoTimeTower", cfAutoTimeTower);
+        o.addProperty("cfMinDelayMs", cfMinDelayMs);
+        o.addProperty("cfMaxDelayMs", cfMaxDelayMs);
+        o.addProperty("cfUpgradeDelayMs", cfUpgradeDelayMs);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static boolean bool(JsonObject o, String key, boolean def) {

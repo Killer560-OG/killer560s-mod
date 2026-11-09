@@ -1,8 +1,6 @@
 package com.killer560.hub.doorhelpers;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -38,7 +36,6 @@ public final class DoorHelpersConfig {
     public static final int RETRY_MIN_MS = 100;
     public static final int RETRY_MAX_MS = 2000;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-doorhelpers.json");
 
@@ -88,18 +85,14 @@ public final class DoorHelpersConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("autoDoorEnabled", autoDoorEnabled);
-            obj.addProperty("autoDoorMode", autoDoorMode.name());
-            obj.addProperty("autoDoorRange", autoDoorRange);
-            obj.addProperty("autoDoorRetryDelayMs", autoDoorRetryDelayMs);
-            obj.addProperty("autoDoorTriggerDelayMs", autoDoorTriggerDelayMs);
-            obj.addProperty("autoDoorSwing", autoDoorSwing);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("autoDoorEnabled", autoDoorEnabled);
+        obj.addProperty("autoDoorMode", autoDoorMode.name());
+        obj.addProperty("autoDoorRange", autoDoorRange);
+        obj.addProperty("autoDoorRetryDelayMs", autoDoorRetryDelayMs);
+        obj.addProperty("autoDoorTriggerDelayMs", autoDoorTriggerDelayMs);
+        obj.addProperty("autoDoorSwing", autoDoorSwing);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isAutoDoorEnabled() {

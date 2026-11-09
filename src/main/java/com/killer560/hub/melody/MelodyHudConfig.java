@@ -1,8 +1,6 @@
 package com.killer560.hub.melody;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.partydata.PartyDataConfig;
@@ -27,7 +25,6 @@ import java.nio.file.Path;
  */
 public final class MelodyHudConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-teammelody.json");
 
@@ -70,14 +67,10 @@ public final class MelodyHudConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("hudEnabled", hudEnabled);
-            obj.addProperty("shareProgress", shareProgress);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("hudEnabled", hudEnabled);
+        obj.addProperty("shareProgress", shareProgress);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isHudEnabled() { return hudEnabled && com.killer560.hub.util.SkyblockGate.allows(); }

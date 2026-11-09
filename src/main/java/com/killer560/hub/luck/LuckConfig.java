@@ -1,7 +1,5 @@
 package com.killer560.hub.luck;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -17,7 +15,6 @@ import java.nio.file.Path;
  */
 public final class LuckConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-luck.json");
 
     /** Which Dungeon Reward Chest chance the screen uses: the wiki's "No Bonuses" or "S+ Max Bonuses" average. */
@@ -98,20 +95,16 @@ public final class LuckConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("announce", announce);
-            o.addProperty("inventoryDrops", inventoryDrops);
-            o.addProperty("chestOdds", chestOdds.name());
-            o.addProperty("magicFindMode", magicFindMode.name());
-            o.addProperty("manualMagicFind", manualMagicFind);
-            o.addProperty("shareMyLuck", shareMyLuck);
-            o.addProperty("mobKills", mobKills.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("announce", announce);
+        o.addProperty("inventoryDrops", inventoryDrops);
+        o.addProperty("chestOdds", chestOdds.name());
+        o.addProperty("magicFindMode", magicFindMode.name());
+        o.addProperty("manualMagicFind", manualMagicFind);
+        o.addProperty("shareMyLuck", shareMyLuck);
+        o.addProperty("mobKills", mobKills.name());
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int clampMf(int v) {

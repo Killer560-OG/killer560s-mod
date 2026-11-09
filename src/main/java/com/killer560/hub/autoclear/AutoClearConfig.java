@@ -1,14 +1,10 @@
 package com.killer560.hub.autoclear;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -18,7 +14,6 @@ import java.nio.file.Path;
  */
 public final class AutoClearConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autoclear.json");
 
     /** Which rooms a toggle-started clear works through. */
@@ -123,22 +118,18 @@ public final class AutoClearConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("mode", mode.name());
-            o.addProperty("weapon", weapon.name());
-            o.addProperty("keybind", keybind);
-            o.addProperty("hyperionHops", hyperionHops);
-            o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
-            o.addProperty("pickUpKeys", pickUpKeys);
-            o.addProperty("walkWhenFaster", walkWhenFaster);
-            o.addProperty("predictiveBats", predictiveBats);
-            o.addProperty("oneTap", oneTap.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("mode", mode.name());
+        o.addProperty("weapon", weapon.name());
+        o.addProperty("keybind", keybind);
+        o.addProperty("hyperionHops", hyperionHops);
+        o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
+        o.addProperty("pickUpKeys", pickUpKeys);
+        o.addProperty("walkWhenFaster", walkWhenFaster);
+        o.addProperty("predictiveBats", predictiveBats);
+        o.addProperty("oneTap", oneTap.name());
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The feature switch the tab shows. The legit jar can never report true, even from a copied cheat config. */

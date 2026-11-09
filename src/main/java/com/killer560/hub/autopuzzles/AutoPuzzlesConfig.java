@@ -1,8 +1,6 @@
 package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -19,7 +17,6 @@ import java.nio.file.Path;
  */
 public final class AutoPuzzlesConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autopuzzles.json");
 
@@ -150,37 +147,33 @@ public final class AutoPuzzlesConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("autoPuzzlesMasterEnabled", autoPuzzlesMasterEnabled);
-            obj.addProperty("autoQuizEnabled", autoQuizEnabled);
-            obj.addProperty("quizDelayMs", quizDelayMs);
-            obj.addProperty("autoWeirdosEnabled", autoWeirdosEnabled);
-            obj.addProperty("weirdosDelayMs", weirdosDelayMs);
-            obj.addProperty("weirdosDelayMigrated", true);
-            obj.addProperty("weirdosTalkToNpcs", weirdosTalkToNpcs);
-            obj.addProperty("autoBlazeEnabled", autoBlazeEnabled);
-            obj.addProperty("autoBeamsEnabled", autoBeamsEnabled);
-            obj.addProperty("autoIcePathEnabled", autoIcePathEnabled);
-            obj.addProperty("autoBeamsMode", autoBeamsMode.name());
-            obj.addProperty("shootCooldownMs", shootCooldownMs);
-            obj.addProperty("etherwarpReposition", etherwarpReposition);
-            obj.addProperty("autoBoulderEnabled", autoBoulderEnabled);
-            obj.addProperty("boulderDelayMs", boulderDelayMs);
-            obj.addProperty("autoWaterEnabled", autoWaterEnabled);
-            obj.addProperty("autoTicTacToeEnabled", autoTicTacToeEnabled);
-            obj.addProperty("autoTeleportMazeEnabled", autoTeleportMazeEnabled);
-            obj.addProperty("autoIceFillEnabled", autoIceFillEnabled);
-            obj.addProperty("iceFillDelayTicks", iceFillDelayTicks);
-            obj.addProperty("iceFillAdaptive", iceFillAdaptive);
-            obj.addProperty("autoBlazeSecretEnabled", autoBlazeSecretEnabled);
-            obj.addProperty("ticTacToeAuraChestEnabled", ticTacToeAuraChestEnabled);
-            obj.addProperty("autoPuzzlePathingEnabled", autoPuzzlePathingEnabled);
-            obj.addProperty("ticTacToeWalkOutEnabled", ticTacToeWalkOutEnabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("autoPuzzlesMasterEnabled", autoPuzzlesMasterEnabled);
+        obj.addProperty("autoQuizEnabled", autoQuizEnabled);
+        obj.addProperty("quizDelayMs", quizDelayMs);
+        obj.addProperty("autoWeirdosEnabled", autoWeirdosEnabled);
+        obj.addProperty("weirdosDelayMs", weirdosDelayMs);
+        obj.addProperty("weirdosDelayMigrated", true);
+        obj.addProperty("weirdosTalkToNpcs", weirdosTalkToNpcs);
+        obj.addProperty("autoBlazeEnabled", autoBlazeEnabled);
+        obj.addProperty("autoBeamsEnabled", autoBeamsEnabled);
+        obj.addProperty("autoIcePathEnabled", autoIcePathEnabled);
+        obj.addProperty("autoBeamsMode", autoBeamsMode.name());
+        obj.addProperty("shootCooldownMs", shootCooldownMs);
+        obj.addProperty("etherwarpReposition", etherwarpReposition);
+        obj.addProperty("autoBoulderEnabled", autoBoulderEnabled);
+        obj.addProperty("boulderDelayMs", boulderDelayMs);
+        obj.addProperty("autoWaterEnabled", autoWaterEnabled);
+        obj.addProperty("autoTicTacToeEnabled", autoTicTacToeEnabled);
+        obj.addProperty("autoTeleportMazeEnabled", autoTeleportMazeEnabled);
+        obj.addProperty("autoIceFillEnabled", autoIceFillEnabled);
+        obj.addProperty("iceFillDelayTicks", iceFillDelayTicks);
+        obj.addProperty("iceFillAdaptive", iceFillAdaptive);
+        obj.addProperty("autoBlazeSecretEnabled", autoBlazeSecretEnabled);
+        obj.addProperty("ticTacToeAuraChestEnabled", ticTacToeAuraChestEnabled);
+        obj.addProperty("autoPuzzlePathingEnabled", autoPuzzlePathingEnabled);
+        obj.addProperty("ticTacToeWalkOutEnabled", ticTacToeWalkOutEnabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clampDelay(int ms) {

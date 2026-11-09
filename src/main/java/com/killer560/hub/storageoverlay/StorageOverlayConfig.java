@@ -1,8 +1,6 @@
 package com.killer560.hub.storageoverlay;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.gui.PanelTheme;
@@ -19,7 +17,6 @@ import java.util.Map;
  *  {@link com.killer560.hub.hud.HudConfig}/HUD editor like every other HUD element. */
 public final class StorageOverlayConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-storageoverlay.json");
 
@@ -93,23 +90,19 @@ public final class StorageOverlayConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("theme", theme.name());
-            // For a jar from before the themes: it reads only darkMode, and Light is the one it can show as light.
-            obj.addProperty("darkMode", theme != PanelTheme.LIGHT);
-            obj.addProperty("scale", scale);
-            obj.addProperty("columns", columns);
-            JsonObject names = new JsonObject();
-            for (Map.Entry<String, String> entry : customNames.entrySet()) {
-                names.addProperty(entry.getKey(), entry.getValue());
-            }
-            obj.add("customNames", names);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("theme", theme.name());
+        // For a jar from before the themes: it reads only darkMode, and Light is the one it can show as light.
+        obj.addProperty("darkMode", theme != PanelTheme.LIGHT);
+        obj.addProperty("scale", scale);
+        obj.addProperty("columns", columns);
+        JsonObject names = new JsonObject();
+        for (Map.Entry<String, String> entry : customNames.entrySet()) {
+            names.addProperty(entry.getKey(), entry.getValue());
         }
+        obj.add("customNames", names);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

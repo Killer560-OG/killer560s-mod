@@ -1,7 +1,5 @@
 package com.killer560.hub.chocolatefactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
  *  The master switch ships off, like every new feature; its parts default on so turning it on shows everything. */
 public final class ChocolateFactoryConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-chocolatefactory.json");
 
     private static ChocolateFactoryConfig instance;
@@ -94,28 +91,24 @@ public final class ChocolateFactoryConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("highlightBestUpgrade", highlightBestUpgrade);
-            o.addProperty("highlightStrays", highlightStrays);
-            o.addProperty("strayAlert", strayAlert);
-            o.addProperty("timeTowerReminder", timeTowerReminder);
-            o.addProperty("infoLine", infoLine);
-            o.addProperty("eggHud", eggHud);
-            o.addProperty("eggTracker", eggTracker);
-            o.addProperty("eggDupeValues", eggDupeValues);
-            o.addProperty("eggExtraInfo", eggExtraInfo);
-            o.addProperty("hideOutsideHunt", hideOutsideHunt);
-            o.addProperty("hideWhileBusy", hideWhileBusy);
-            o.addProperty("eggLocatorLine", eggLocatorLine);
-            o.addProperty("eggEsp", eggEsp);
-            o.addProperty("eggEspHideFound", eggEspHideFound);
-            o.addProperty("lastCps", lastCps);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("highlightBestUpgrade", highlightBestUpgrade);
+        o.addProperty("highlightStrays", highlightStrays);
+        o.addProperty("strayAlert", strayAlert);
+        o.addProperty("timeTowerReminder", timeTowerReminder);
+        o.addProperty("infoLine", infoLine);
+        o.addProperty("eggHud", eggHud);
+        o.addProperty("eggTracker", eggTracker);
+        o.addProperty("eggDupeValues", eggDupeValues);
+        o.addProperty("eggExtraInfo", eggExtraInfo);
+        o.addProperty("hideOutsideHunt", hideOutsideHunt);
+        o.addProperty("hideWhileBusy", hideWhileBusy);
+        o.addProperty("eggLocatorLine", eggLocatorLine);
+        o.addProperty("eggEsp", eggEsp);
+        o.addProperty("eggEspHideFound", eggEspHideFound);
+        o.addProperty("lastCps", lastCps);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** Raw switch (the tab's toggle); {@link #active()} also applies the Skyblock Only gate. */

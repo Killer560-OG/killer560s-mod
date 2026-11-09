@@ -1,8 +1,6 @@
 package com.killer560.hub.autodebuff;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
  *  lost on restart. Off by default, like every automation feature. */
 public final class AutoDebuffConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autodebuff.json");
 
@@ -94,22 +91,18 @@ public final class AutoDebuffConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("onMage", onMage);
-            o.addProperty("onHealer", onHealer);
-            o.addProperty("onTank", onTank);
-            o.addProperty("meleeAfter", meleeAfter);
-            o.addProperty("stopLastBreathTicks", stopLastBreathTicks);
-            o.addProperty("jumpLeadTicks", jumpLeadTicks);
-            o.addProperty("pingCompensation", pingCompensation);
-            o.addProperty("manualOffsetTicks", manualOffsetTicks);
-            o.addProperty("autoPathing", autoPathing);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("onMage", onMage);
+        o.addProperty("onHealer", onHealer);
+        o.addProperty("onTank", onTank);
+        o.addProperty("meleeAfter", meleeAfter);
+        o.addProperty("stopLastBreathTicks", stopLastBreathTicks);
+        o.addProperty("jumpLeadTicks", jumpLeadTicks);
+        o.addProperty("pingCompensation", pingCompensation);
+        o.addProperty("manualOffsetTicks", manualOffsetTicks);
+        o.addProperty("autoPathing", autoPathing);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     public boolean isEnabled() { return enabled; }

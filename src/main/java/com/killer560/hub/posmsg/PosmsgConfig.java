@@ -1,8 +1,6 @@
 package com.killer560.hub.posmsg;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -34,7 +32,6 @@ import java.util.Set;
  *  older config is read - nothing else in the file changes, so downgrading isn't destructive either. */
 public final class PosmsgConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-posmsg.json");
 
@@ -270,39 +267,35 @@ public final class PosmsgConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject root = new JsonObject();
-            root.addProperty("enabled", enabled);
-            root.addProperty("recoreRadiusMigrated", recoreRadiusMigrated);
-            // Still written for builds that latch on it; this build seeds by name instead (see
-            // seedMissingPresets) so the flag is no longer read.
-            root.addProperty("presetsSeeded", true);
-            JsonArray array = new JsonArray();
-            for (PosmsgEntry e : entries) {
-                JsonObject obj = new JsonObject();
-                obj.addProperty("id", e.id);
-                obj.addProperty("name", e.name);
-                obj.addProperty("message", e.message == null ? "" : e.message);
-                obj.addProperty("enabled", e.enabled);
-                obj.addProperty("x", e.x);
-                obj.addProperty("y", e.y);
-                obj.addProperty("z", e.z);
-                obj.addProperty("radius", e.radius);
-                obj.addProperty("configured", e.configured);
-                obj.addProperty("showRadius", e.showRadius);
-                obj.addProperty("thickness", e.thickness);
-                obj.addProperty("colorHex", e.colorHex);
-                obj.addProperty("onceOnlyPerRun", e.onceOnlyPerRun);
-                obj.addProperty("builtin", e.builtin);
-                obj.addProperty("textScale", e.textScale);
-                obj.addProperty("textHeightOffset", e.textHeightOffset);
-                array.add(obj);
-            }
-            root.add("entries", array);
-            Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject root = new JsonObject();
+        root.addProperty("enabled", enabled);
+        root.addProperty("recoreRadiusMigrated", recoreRadiusMigrated);
+        // Still written for builds that latch on it; this build seeds by name instead (see
+        // seedMissingPresets) so the flag is no longer read.
+        root.addProperty("presetsSeeded", true);
+        JsonArray array = new JsonArray();
+        for (PosmsgEntry e : entries) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("id", e.id);
+            obj.addProperty("name", e.name);
+            obj.addProperty("message", e.message == null ? "" : e.message);
+            obj.addProperty("enabled", e.enabled);
+            obj.addProperty("x", e.x);
+            obj.addProperty("y", e.y);
+            obj.addProperty("z", e.z);
+            obj.addProperty("radius", e.radius);
+            obj.addProperty("configured", e.configured);
+            obj.addProperty("showRadius", e.showRadius);
+            obj.addProperty("thickness", e.thickness);
+            obj.addProperty("colorHex", e.colorHex);
+            obj.addProperty("onceOnlyPerRun", e.onceOnlyPerRun);
+            obj.addProperty("builtin", e.builtin);
+            obj.addProperty("textScale", e.textScale);
+            obj.addProperty("textHeightOffset", e.textHeightOffset);
+            array.add(obj);
         }
+        root.add("entries", array);
+        ConfigJson.write(CONFIG_PATH, root);
     }
 
     /** Master switch AND the Skyblock gate - what the feature/renderer check. The GUI's button text

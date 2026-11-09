@@ -1,13 +1,9 @@
 package com.killer560.hub.leveraura;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Lever Aura settings - see {@link LeverAuraFeature}. Cheat build only; ships disabled. Every getter that
@@ -25,7 +21,6 @@ import java.nio.file.Path;
  *  without them. What is left here is S2's section levers and their range, CPS, swing and chat. */
 public final class LeverAuraConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-leveraura.json");
 
@@ -101,18 +96,14 @@ public final class LeverAuraConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("sectionLevers", sectionLevers);
-            o.addProperty("sectionLeversEarly", sectionLeversEarly);
-            o.addProperty("range", range);
-            o.addProperty("cps", cps);
-            o.addProperty("swingHand", swingHand);
-            o.addProperty("chatFeedback", chatFeedback);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("sectionLevers", sectionLevers);
+        o.addProperty("sectionLeversEarly", sectionLeversEarly);
+        o.addProperty("range", range);
+        o.addProperty("cps", cps);
+        o.addProperty("swingHand", swingHand);
+        o.addProperty("chatFeedback", chatFeedback);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never report true here, even from a copied cheat-build config file. */

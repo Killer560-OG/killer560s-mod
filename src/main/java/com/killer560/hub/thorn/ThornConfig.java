@@ -1,8 +1,6 @@
 package com.killer560.hub.thorn;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -28,7 +26,6 @@ import java.util.Locale;
  */
 public final class ThornConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-thorn.json");
 
     public enum Style {
@@ -180,45 +177,41 @@ public final class ThornConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("bearHud", bearHud);
-            obj.addProperty("showOverkill", showOverkill);
-            obj.addProperty("overkillChat", overkillChat);
-            obj.addProperty("overkillToParty", overkillToParty);
-            obj.addProperty("bearEsp", bearEsp);
-            obj.addProperty("thornEsp", thornEsp);
-            obj.addProperty("thornColor", thornColor);
-            obj.addProperty("mobEsp", mobEsp);
-            obj.addProperty("bowEsp", bowEsp);
-            obj.addProperty("bearColor", bearColor);
-            obj.addProperty("mobColor", mobColor);
-            obj.addProperty("bowColor", bowColor);
-            obj.addProperty("style", style.name());
-            obj.addProperty("lineWidth", lineWidth);
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("allMobsThroughWalls", allMobsThroughWalls);
-            obj.addProperty("batsThroughWalls", batsThroughWalls);
-            obj.addProperty("stunSpots", stunSpots);
-            obj.addProperty("stunSpotLabels", stunSpotLabels);
-            obj.addProperty("triggerbot", triggerbot);
-            obj.addProperty("triggerbotAimed", triggerbotAimed);
-            obj.addProperty("stunSpotColor", stunSpotColor);
-            JsonArray spots = new JsonArray();
-            for (StunSpot s : stunSpotList) {
-                JsonObject o = new JsonObject();
-                o.addProperty("x", s.x());
-                o.addProperty("y", s.y());
-                o.addProperty("z", s.z());
-                o.addProperty("label", s.label() == null ? "" : s.label());
-                o.addProperty("floor", s.floor() == null ? "ANY" : s.floor());
-                spots.add(o);
-            }
-            obj.add("stunSpotList", spots);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("bearHud", bearHud);
+        obj.addProperty("showOverkill", showOverkill);
+        obj.addProperty("overkillChat", overkillChat);
+        obj.addProperty("overkillToParty", overkillToParty);
+        obj.addProperty("bearEsp", bearEsp);
+        obj.addProperty("thornEsp", thornEsp);
+        obj.addProperty("thornColor", thornColor);
+        obj.addProperty("mobEsp", mobEsp);
+        obj.addProperty("bowEsp", bowEsp);
+        obj.addProperty("bearColor", bearColor);
+        obj.addProperty("mobColor", mobColor);
+        obj.addProperty("bowColor", bowColor);
+        obj.addProperty("style", style.name());
+        obj.addProperty("lineWidth", lineWidth);
+        obj.addProperty("throughWalls", throughWalls);
+        obj.addProperty("allMobsThroughWalls", allMobsThroughWalls);
+        obj.addProperty("batsThroughWalls", batsThroughWalls);
+        obj.addProperty("stunSpots", stunSpots);
+        obj.addProperty("stunSpotLabels", stunSpotLabels);
+        obj.addProperty("triggerbot", triggerbot);
+        obj.addProperty("triggerbotAimed", triggerbotAimed);
+        obj.addProperty("stunSpotColor", stunSpotColor);
+        JsonArray spots = new JsonArray();
+        for (StunSpot s : stunSpotList) {
+            JsonObject o = new JsonObject();
+            o.addProperty("x", s.x());
+            o.addProperty("y", s.y());
+            o.addProperty("z", s.z());
+            o.addProperty("label", s.label() == null ? "" : s.label());
+            o.addProperty("floor", s.floor() == null ? "ANY" : s.floor());
+            spots.add(o);
         }
+        obj.add("stunSpotList", spots);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static boolean cheat() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED; }

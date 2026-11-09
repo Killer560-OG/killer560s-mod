@@ -1,13 +1,9 @@
 package com.killer560.hub.imagepreview;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class ImagePreviewConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-imagepreview.json");
 
     public static final int MIN_SIZE = 64;
@@ -60,17 +55,13 @@ public final class ImagePreviewConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("maxPreviewSize", maxPreviewSize);
-            obj.addProperty("anyHost", anyHost);
-            obj.addProperty("playGifs", playGifs);
-            obj.addProperty("cacheSizeMb", cacheSizeMb);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("maxPreviewSize", maxPreviewSize);
+        obj.addProperty("anyHost", anyHost);
+        obj.addProperty("playGifs", playGifs);
+        obj.addProperty("cacheSizeMb", cacheSizeMb);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clamp(int v, int lo, int hi) {

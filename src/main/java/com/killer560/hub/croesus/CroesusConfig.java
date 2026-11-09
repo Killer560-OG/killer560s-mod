@@ -1,8 +1,6 @@
 package com.killer560.hub.croesus;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -59,7 +57,6 @@ public final class CroesusConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-croesus.json");
 
@@ -252,45 +249,41 @@ public final class CroesusConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("chestProfitEnabled", chestProfitEnabled);
-            obj.addProperty("includeEssence", includeEssence);
-            obj.addProperty("highlightFreeChest", highlightFreeChest);
-            obj.addProperty("highlightKeyChest", highlightKeyChest);
-            obj.addProperty("chestFreeColor", chestFreeColor);
-            obj.addProperty("chestKeyColor", chestKeyColor);
-            obj.addProperty("highlightRuns", highlightRuns);
-            obj.addProperty("runUnclaimedColor", runUnclaimedColor);
-            obj.addProperty("runClaimedColor", runClaimedColor);
-            obj.addProperty("runKeyColor", runKeyColor);
-            obj.addProperty("runUnknownColor", runUnknownColor);
-            obj.addProperty("showRunLegend", showRunLegend);
-            obj.addProperty("runOpenedColor", runOpenedColor);
-            obj.addProperty("hideOpenedRuns", hideOpenedRuns);
-            obj.addProperty("priceMode", priceMode.name());
-            obj.addProperty("loggerEnabled", loggerEnabled);
-            obj.addProperty("loggerChatSummary", loggerChatSummary);
-            obj.addProperty("autoCroesusEnabled", autoCroesusEnabled);
-            obj.addProperty("autoMinProfitK", autoMinProfitK);
-            obj.addProperty("autoMinDelayMs", autoMinDelayMs);
-            obj.addProperty("autoMaxDelayMs", autoMaxDelayMs);
-            obj.addProperty("autoUseChestKeys", autoUseChestKeys);
-            obj.addProperty("autoKeyMinProfitK", autoKeyMinProfitK);
-            obj.addProperty("chestKeyMode", chestKeyMode.name());
-            obj.addProperty("chestKeyModeDefaulted", chestKeyModeDefaulted);
-            obj.addProperty("autoUseKismets", autoUseKismets);
-            obj.addProperty("autoRerollBelowK", autoRerollBelowK);
-            obj.addProperty("rerollFloors", String.join(",", rerollFloors));
-            obj.addProperty("rerollProtection", rerollProtection);
-            obj.addProperty("rerollProtectAboveK", rerollProtectAboveK);
-            obj.addProperty("kismetCount", kismetCount);
-            obj.addProperty("chestCountHud", chestCountHud);
-            obj.addProperty("chestWarnAt", chestWarnAt);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("chestProfitEnabled", chestProfitEnabled);
+        obj.addProperty("includeEssence", includeEssence);
+        obj.addProperty("highlightFreeChest", highlightFreeChest);
+        obj.addProperty("highlightKeyChest", highlightKeyChest);
+        obj.addProperty("chestFreeColor", chestFreeColor);
+        obj.addProperty("chestKeyColor", chestKeyColor);
+        obj.addProperty("highlightRuns", highlightRuns);
+        obj.addProperty("runUnclaimedColor", runUnclaimedColor);
+        obj.addProperty("runClaimedColor", runClaimedColor);
+        obj.addProperty("runKeyColor", runKeyColor);
+        obj.addProperty("runUnknownColor", runUnknownColor);
+        obj.addProperty("showRunLegend", showRunLegend);
+        obj.addProperty("runOpenedColor", runOpenedColor);
+        obj.addProperty("hideOpenedRuns", hideOpenedRuns);
+        obj.addProperty("priceMode", priceMode.name());
+        obj.addProperty("loggerEnabled", loggerEnabled);
+        obj.addProperty("loggerChatSummary", loggerChatSummary);
+        obj.addProperty("autoCroesusEnabled", autoCroesusEnabled);
+        obj.addProperty("autoMinProfitK", autoMinProfitK);
+        obj.addProperty("autoMinDelayMs", autoMinDelayMs);
+        obj.addProperty("autoMaxDelayMs", autoMaxDelayMs);
+        obj.addProperty("autoUseChestKeys", autoUseChestKeys);
+        obj.addProperty("autoKeyMinProfitK", autoKeyMinProfitK);
+        obj.addProperty("chestKeyMode", chestKeyMode.name());
+        obj.addProperty("chestKeyModeDefaulted", chestKeyModeDefaulted);
+        obj.addProperty("autoUseKismets", autoUseKismets);
+        obj.addProperty("autoRerollBelowK", autoRerollBelowK);
+        obj.addProperty("rerollFloors", String.join(",", rerollFloors));
+        obj.addProperty("rerollProtection", rerollProtection);
+        obj.addProperty("rerollProtectAboveK", rerollProtectAboveK);
+        obj.addProperty("kismetCount", kismetCount);
+        obj.addProperty("chestCountHud", chestCountHud);
+        obj.addProperty("chestWarnAt", chestWarnAt);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** A Chest Key Min Profit in k, clamped to 0..{@link #MAX_KEY_MIN_PROFIT_K} and snapped to the 20k step. */

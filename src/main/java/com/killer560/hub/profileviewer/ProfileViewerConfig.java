@@ -1,8 +1,6 @@
 package com.killer560.hub.profileviewer;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -74,7 +72,6 @@ public final class ProfileViewerConfig {
     /** killer560 asked for "the last 5-10 people"; 10 is the top of that range. */
     public static final int MAX_RECENT_VIEWS = 10;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-profileviewer.json");
 
@@ -144,29 +141,25 @@ public final class ProfileViewerConfig {
     }
 
     public synchronized void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("apiKey", apiKey);
-            obj.addProperty("source", source.name());
-            obj.addProperty("openKeyCode", openKeyCode);
-            obj.addProperty("rememberLastPage", rememberLastPage);
-            obj.addProperty("lastPage", lastPage);
-            obj.addProperty("showSkin", showSkin);
-            obj.addProperty("nonCosmeticNetworth", nonCosmeticNetworth);
-            obj.addProperty("style", style.name());
-            JsonArray recent = new JsonArray();
-            for (RecentView v : recentViews) {
-                JsonObject o = new JsonObject();
-                o.addProperty("uuid", v.uuid().toString());
-                o.addProperty("name", v.name());
-                o.addProperty("viewedAt", v.viewedAt());
-                recent.add(o);
-            }
-            obj.add("recentViews", recent);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("apiKey", apiKey);
+        obj.addProperty("source", source.name());
+        obj.addProperty("openKeyCode", openKeyCode);
+        obj.addProperty("rememberLastPage", rememberLastPage);
+        obj.addProperty("lastPage", lastPage);
+        obj.addProperty("showSkin", showSkin);
+        obj.addProperty("nonCosmeticNetworth", nonCosmeticNetworth);
+        obj.addProperty("style", style.name());
+        JsonArray recent = new JsonArray();
+        for (RecentView v : recentViews) {
+            JsonObject o = new JsonObject();
+            o.addProperty("uuid", v.uuid().toString());
+            o.addProperty("name", v.name());
+            o.addProperty("viewedAt", v.viewedAt());
+            recent.add(o);
         }
+        obj.add("recentViews", recent);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Dashed or dashless hex only - kept local (rather than calling into {@code ProfileViewerApi}) so

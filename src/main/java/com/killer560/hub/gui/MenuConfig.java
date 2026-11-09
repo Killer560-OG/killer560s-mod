@@ -1,7 +1,6 @@
 package com.killer560.hub.gui;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -27,7 +26,6 @@ import java.util.Set;
  */
 public final class MenuConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-menu.json");
 
     private static MenuConfig instance;
@@ -206,33 +204,29 @@ public final class MenuConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            JsonArray arr = new JsonArray();
-            for (String id : favourites) {
-                arr.add(id);
-            }
-            obj.add("favourites", arr);
-            obj.addProperty("theme", theme.name());
-            obj.addProperty("animations", animations.name());
-            obj.addProperty("animationSpeed", animationSpeed.name());
-            obj.addProperty("customBase", customBase.name());
-            obj.add("custom", writeColours(custom));
-            JsonArray saved = new JsonArray();
-            for (SavedTheme t : savedThemes) {
-                JsonObject o = new JsonObject();
-                o.addProperty("id", t.id);
-                o.addProperty("name", t.name);
-                o.addProperty("base", t.base.name());
-                o.add("colours", writeColours(t.colours));
-                saved.add(o);
-            }
-            obj.add("savedThemes", saved);
-            obj.addProperty("activeSaved", activeSaved);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        JsonArray arr = new JsonArray();
+        for (String id : favourites) {
+            arr.add(id);
         }
+        obj.add("favourites", arr);
+        obj.addProperty("theme", theme.name());
+        obj.addProperty("animations", animations.name());
+        obj.addProperty("animationSpeed", animationSpeed.name());
+        obj.addProperty("customBase", customBase.name());
+        obj.add("custom", writeColours(custom));
+        JsonArray saved = new JsonArray();
+        for (SavedTheme t : savedThemes) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", t.id);
+            o.addProperty("name", t.name);
+            o.addProperty("base", t.base.name());
+            o.add("colours", writeColours(t.colours));
+            saved.add(o);
+        }
+        obj.add("savedThemes", saved);
+        obj.addProperty("activeSaved", activeSaved);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public static Path path() {

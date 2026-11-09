@@ -1,8 +1,6 @@
 package com.killer560.hub.etherwarp;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -42,7 +40,6 @@ public final class EtherwarpWaypointsConfig {
     /** killer560, 2026-09-27: "Make them purple." */
     public static final int DEFAULT_COLOR = 0xFFAA00FF;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-etherwarp.json");
 
@@ -165,18 +162,14 @@ public final class EtherwarpWaypointsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("highlightBlocks", highlightBlocks);
-            obj.addProperty("style", style.name());
-            obj.addProperty("color", color);
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("highlightDistance", highlightDistance);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("highlightBlocks", highlightBlocks);
+        obj.addProperty("style", style.name());
+        obj.addProperty("color", color);
+        obj.addProperty("throughWalls", throughWalls);
+        obj.addProperty("highlightDistance", highlightDistance);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

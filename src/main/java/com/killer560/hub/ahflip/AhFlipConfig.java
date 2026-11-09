@@ -1,13 +1,9 @@
 package com.killer560.hub.ahflip;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -24,7 +20,6 @@ import java.nio.file.Path;
  */
 public final class AhFlipConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-ahflip.json");
 
     /** How the flipper runs. */
@@ -109,25 +104,21 @@ public final class AhFlipConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("priceButtonsEnabled", priceButtonsEnabled);
-            o.addProperty("copierUndercut", copierUndercut);
-            o.addProperty("copierOwnPrice", copierOwnPrice);
-            o.addProperty("flipperEnabled", flipperEnabled);
-            o.addProperty("runMode", runMode.name());
-            o.addProperty("minProfitPercent", minProfitPercent);
-            o.addProperty("undercutTenths", undercutTenths);
-            o.addProperty("minSellPrice", minSellPrice);
-            o.addProperty("minProfit", minProfit);
-            o.addProperty("maxBuyPrice", maxBuyPrice);
-            o.addProperty("minListings", minListings);
-            o.addProperty("macroMaxBuys", macroMaxBuys);
-            o.addProperty("autoRelist", autoRelist);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("priceButtonsEnabled", priceButtonsEnabled);
+        o.addProperty("copierUndercut", copierUndercut);
+        o.addProperty("copierOwnPrice", copierOwnPrice);
+        o.addProperty("flipperEnabled", flipperEnabled);
+        o.addProperty("runMode", runMode.name());
+        o.addProperty("minProfitPercent", minProfitPercent);
+        o.addProperty("undercutTenths", undercutTenths);
+        o.addProperty("minSellPrice", minSellPrice);
+        o.addProperty("minProfit", minProfit);
+        o.addProperty("maxBuyPrice", maxBuyPrice);
+        o.addProperty("minListings", minListings);
+        o.addProperty("macroMaxBuys", macroMaxBuys);
+        o.addProperty("autoRelist", autoRelist);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int clamp(int v, int lo, int hi) {

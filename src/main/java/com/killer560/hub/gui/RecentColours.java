@@ -1,7 +1,6 @@
 package com.killer560.hub.gui;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -23,7 +22,6 @@ public final class RecentColours {
 
     public static final int MAX = 8;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-colours.json");
 
     private static RecentColours instance;
@@ -62,17 +60,13 @@ public final class RecentColours {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            JsonArray arr = new JsonArray();
-            for (int c : recent) {
-                arr.add(ColourHex.format(c));
-            }
-            obj.add("recent", arr);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        JsonArray arr = new JsonArray();
+        for (int c : recent) {
+            arr.add(ColourHex.format(c));
         }
+        obj.add("recent", arr);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Newest first, at most {@link #MAX}. */

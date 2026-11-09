@@ -1,14 +1,10 @@
 package com.killer560.hub.p3status;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class P3StatusConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-p3status.json");
 
     private static volatile P3StatusConfig instance;
@@ -58,19 +53,15 @@ public final class P3StatusConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showHud", showHud);
-            obj.addProperty("rewriteTitles", rewriteTitles);
-            obj.addProperty("deviceDoneTitle", deviceDoneTitle);
-            obj.addProperty("sectionCompleteTitle", sectionCompleteTitle);
-            obj.addProperty("hideLaserSubtitle", hideLaserSubtitle);
-            obj.addProperty("titleSound", titleSound);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showHud", showHud);
+        obj.addProperty("rewriteTitles", rewriteTitles);
+        obj.addProperty("deviceDoneTitle", deviceDoneTitle);
+        obj.addProperty("sectionCompleteTitle", sectionCompleteTitle);
+        obj.addProperty("hideLaserSubtitle", hideLaserSubtitle);
+        obj.addProperty("titleSound", titleSound);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private boolean on(boolean part) { return enabled && part && SkyblockGate.allows(); }

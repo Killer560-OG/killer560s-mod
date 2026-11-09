@@ -1,13 +1,9 @@
 package com.killer560.hub.position;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -23,7 +19,6 @@ public final class PositionConfig {
     public static final int MAX_DECIMAL_PLACES = 8;
     public static final int DEFAULT_DECIMAL_PLACES = 5;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-position.json");
 
@@ -60,17 +55,13 @@ public final class PositionConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("decimalPlaces", decimalPlaces);
-            obj.addProperty("showFacing", showFacing);
-            obj.addProperty("showBlock", showBlock);
-            obj.addProperty("showVelocity", showVelocity);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("decimalPlaces", decimalPlaces);
+        obj.addProperty("showFacing", showFacing);
+        obj.addProperty("showBlock", showBlock);
+        obj.addProperty("showVelocity", showVelocity);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clampDecimalPlaces(int v) { return Math.max(MIN_DECIMAL_PLACES, Math.min(MAX_DECIMAL_PLACES, v)); }

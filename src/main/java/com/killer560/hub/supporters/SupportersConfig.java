@@ -1,13 +1,9 @@
 package com.killer560.hub.supporters;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -43,7 +39,6 @@ public final class SupportersConfig {
     public static final float MIN_PLAYER_SIZE = 0.05f;
     public static final float MAX_PLAYER_SIZE = 2.0f;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-supporters.json");
 
@@ -117,28 +112,24 @@ public final class SupportersConfig {
 
     public void save() {
         version++;
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("showSupporterNames", showSupporterNames);
-            obj.addProperty("showSupporterSizes", showSupporterSizes);
-            // Kept so an older jar reading this file still gets a sensible on/off.
-            obj.addProperty("customCosmeticsEnabled", showSupporterNames || showSupporterSizes);
-            obj.addProperty("shareIfSupporter", shareIfSupporter);
-            obj.addProperty("modelWidth", modelWidth);
-            obj.addProperty("modelHeight", modelHeight);
-            obj.addProperty("modelThickness", modelThickness);
-            obj.addProperty("ownScale", ownScale);
-            obj.addProperty("othersScale", othersScale);
-            obj.addProperty("ownNameInF5", ownNameInF5);
-            obj.addProperty("shareTrail", shareTrail);
-            obj.addProperty("showOthersTrails", showOthersTrails);
-            obj.addProperty("ownMob", ownMob);
-            obj.addProperty("playAsMob", playAsMob);
-            obj.addProperty("showOthersMobs", showOthersMobs);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("showSupporterNames", showSupporterNames);
+        obj.addProperty("showSupporterSizes", showSupporterSizes);
+        // Kept so an older jar reading this file still gets a sensible on/off.
+        obj.addProperty("customCosmeticsEnabled", showSupporterNames || showSupporterSizes);
+        obj.addProperty("shareIfSupporter", shareIfSupporter);
+        obj.addProperty("modelWidth", modelWidth);
+        obj.addProperty("modelHeight", modelHeight);
+        obj.addProperty("modelThickness", modelThickness);
+        obj.addProperty("ownScale", ownScale);
+        obj.addProperty("othersScale", othersScale);
+        obj.addProperty("ownNameInF5", ownNameInF5);
+        obj.addProperty("shareTrail", shareTrail);
+        obj.addProperty("showOthersTrails", showOthersTrails);
+        obj.addProperty("ownMob", ownMob);
+        obj.addProperty("playAsMob", playAsMob);
+        obj.addProperty("showOthersMobs", showOthersMobs);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Both switches at once, for callers that only know the old single toggle. */

@@ -1,13 +1,9 @@
 package com.killer560.hub.smoothtp;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -24,7 +20,6 @@ public final class SmoothTeleportConfig {
     public static final int MAX_DURATION_MS = 500;
     public static final int DEFAULT_DURATION_MS = 100;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-smoothteleport.json");
 
     private static SmoothTeleportConfig instance;
@@ -61,18 +56,14 @@ public final class SmoothTeleportConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("durationMs", durationMs);
-            obj.addProperty("etherwarp", etherwarp);
-            obj.addProperty("instantTransmission", instantTransmission);
-            obj.addProperty("witherImpact", witherImpact);
-            obj.addProperty("otherTeleports", otherTeleports);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("durationMs", durationMs);
+        obj.addProperty("etherwarp", etherwarp);
+        obj.addProperty("instantTransmission", instantTransmission);
+        obj.addProperty("witherImpact", witherImpact);
+        obj.addProperty("otherTeleports", otherTeleports);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The master switch as the game should obey it (Skyblock Only applies). */

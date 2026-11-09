@@ -1,13 +1,9 @@
 package com.killer560.hub.autokick;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumMap;
 
@@ -130,7 +126,6 @@ public final class AutoKickConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autokick.json");
 
@@ -182,20 +177,16 @@ public final class AutoKickConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("timeMode", timeMode.name());
-            obj.addProperty("floorSource", floorSource.name());
-            obj.addProperty("queueFloor", queueFloor.name());
-            for (Floor f : Floor.values()) {
-                obj.addProperty(f.key(), getTargetSeconds(f));
-                obj.addProperty(f.judgeKey(), isFloorEnabled(f));
-            }
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("timeMode", timeMode.name());
+        obj.addProperty("floorSource", floorSource.name());
+        obj.addProperty("queueFloor", queueFloor.name());
+        for (Floor f : Floor.values()) {
+            obj.addProperty(f.key(), getTargetSeconds(f));
+            obj.addProperty(f.judgeKey(), isFloorEnabled(f));
         }
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Gated like every other feature getter - off outside Skyblock while "Skyblock Only" is on. */

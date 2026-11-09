@@ -1,7 +1,5 @@
 package com.killer560.hub.menuthemes;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -27,7 +25,6 @@ import java.util.Map;
  */
 public final class ThemeExtrasConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-menu-themeextras.json");
 
     /** The theme's own bundled loop (Custom has none, so it plays nothing). */
@@ -102,23 +99,19 @@ public final class ThemeExtrasConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("musicOn", musicOn);
-            obj.addProperty("musicVolume", musicVolume);
-            JsonObject all = new JsonObject();
-            for (Map.Entry<MenuTheme, Entry> e : themes.entrySet()) {
-                JsonObject o = new JsonObject();
-                o.addProperty("music", e.getValue().music);
-                o.addProperty("font", e.getValue().font);
-                o.addProperty("background", e.getValue().background);
-                all.add(e.getKey().name(), o);
-            }
-            obj.add("themes", all);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("musicOn", musicOn);
+        obj.addProperty("musicVolume", musicVolume);
+        JsonObject all = new JsonObject();
+        for (Map.Entry<MenuTheme, Entry> e : themes.entrySet()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("music", e.getValue().music);
+            o.addProperty("font", e.getValue().font);
+            o.addProperty("background", e.getValue().background);
+            all.add(e.getKey().name(), o);
         }
+        obj.add("themes", all);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public static Path path() { return CONFIG_PATH; }

@@ -1,14 +1,10 @@
 package com.killer560.hub.autosecret;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class AutoSecretConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-autosecret.json");
 
     public static final int MIN_PUZZLE_WAIT_S = 0;
@@ -218,30 +213,26 @@ public final class AutoSecretConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("toggleKey", toggleKey);
-            o.addProperty("instaClear", instaClear);
-            o.addProperty("iceFillFirst", iceFillFirst);
-            o.addProperty("quizFirst", quizFirst);
-            o.addProperty("autoClearRooms", autoClearRooms);
-            o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
-            o.addProperty("routeStallSeconds", routeStallSeconds);
-            o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("autopilotKey", autopilotKey);
-            o.addProperty("runMode", runMode.name());
-            o.addProperty("bloodFirst", bloodFirst);
-            o.addProperty("secretBloodFirst", secretBloodFirst.name());
-            o.addProperty("secretOrder", secretOrder.name());
-            o.addProperty("roomPlan", roomPlan.name());
-            o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
-            o.addProperty("doPuzzles", doPuzzles);
-            o.addProperty("statusHud", statusHud);
-            o.addProperty("keyBaseRange", keyBaseRange);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("toggleKey", toggleKey);
+        o.addProperty("instaClear", instaClear);
+        o.addProperty("iceFillFirst", iceFillFirst);
+        o.addProperty("quizFirst", quizFirst);
+        o.addProperty("autoClearRooms", autoClearRooms);
+        o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
+        o.addProperty("routeStallSeconds", routeStallSeconds);
+        o.addProperty("chatFeedback", chatFeedback);
+        o.addProperty("autopilotKey", autopilotKey);
+        o.addProperty("runMode", runMode.name());
+        o.addProperty("bloodFirst", bloodFirst);
+        o.addProperty("secretBloodFirst", secretBloodFirst.name());
+        o.addProperty("secretOrder", secretOrder.name());
+        o.addProperty("roomPlan", roomPlan.name());
+        o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
+        o.addProperty("doPuzzles", doPuzzles);
+        o.addProperty("statusHud", statusHud);
+        o.addProperty("keyBaseRange", keyBaseRange);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never run it, even from a copied cheat-build config. */

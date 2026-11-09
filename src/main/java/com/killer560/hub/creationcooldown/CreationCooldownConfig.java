@@ -1,13 +1,9 @@
 package com.killer560.hub.creationcooldown;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class CreationCooldownConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-creationcooldown.json");
 
     private static CreationCooldownConfig instance;
@@ -52,17 +47,13 @@ public final class CreationCooldownConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showOnAllIslands", showOnAllIslands);
-            obj.addProperty("onlyInGreenRoom", onlyInGreenRoom);
-            obj.addProperty("chatWhenOver", chatWhenOver);
-            obj.addProperty("blockCreation", blockCreation);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showOnAllIslands", showOnAllIslands);
+        obj.addProperty("onlyInGreenRoom", onlyInGreenRoom);
+        obj.addProperty("chatWhenOver", chatWhenOver);
+        obj.addProperty("blockCreation", blockCreation);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** The HUD switch, behind the Skyblock gate. */

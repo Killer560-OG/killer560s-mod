@@ -2,12 +2,8 @@ package com.killer560.hub.windowlayout;
 
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.ConfigJson;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Window Layout settings plus the last cell this instance was placed in. Lives in the instance's own
@@ -18,7 +14,6 @@ public final class WindowLayoutConfig {
     public static final int MAX_WINDOWS = 9;
     public static final int MAX_GAP = 20;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-windowlayout.json");
 
@@ -78,27 +73,23 @@ public final class WindowLayoutConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("windowsPerMonitor", windowsPerMonitor);
-            o.addProperty("monitorIndex", monitorIndex);
-            o.addProperty("monitorDevice", monitorDevice);
-            o.addProperty("monitorName", monitorName);
-            o.addProperty("gap", gap);
-            o.addProperty("respectTaskbar", respectTaskbar);
-            o.addProperty("pickerKeyCode", pickerKeyCode);
-            o.addProperty("restoreOnLaunch", restoreOnLaunch);
-            o.addProperty("fullMonitorBorderless", fullMonitorBorderless);
-            o.addProperty("hasLastPlacement", hasLastPlacement);
-            o.addProperty("lastMonitorIndex", lastMonitorIndex);
-            o.addProperty("lastMonitorDevice", lastMonitorDevice);
-            o.addProperty("lastMonitorName", lastMonitorName);
-            o.addProperty("lastCount", lastCount);
-            o.addProperty("lastCellIndex", lastCellIndex);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("windowsPerMonitor", windowsPerMonitor);
+        o.addProperty("monitorIndex", monitorIndex);
+        o.addProperty("monitorDevice", monitorDevice);
+        o.addProperty("monitorName", monitorName);
+        o.addProperty("gap", gap);
+        o.addProperty("respectTaskbar", respectTaskbar);
+        o.addProperty("pickerKeyCode", pickerKeyCode);
+        o.addProperty("restoreOnLaunch", restoreOnLaunch);
+        o.addProperty("fullMonitorBorderless", fullMonitorBorderless);
+        o.addProperty("hasLastPlacement", hasLastPlacement);
+        o.addProperty("lastMonitorIndex", lastMonitorIndex);
+        o.addProperty("lastMonitorDevice", lastMonitorDevice);
+        o.addProperty("lastMonitorName", lastMonitorName);
+        o.addProperty("lastCount", lastCount);
+        o.addProperty("lastCellIndex", lastCellIndex);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static int getInt(JsonObject o, String key, int def) { return o.has(key) ? o.get(key).getAsInt() : def; }

@@ -2,8 +2,6 @@ package com.killer560.hub.experiments;
 
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -60,7 +58,6 @@ public final class ExperimentsConfig {
     /** Every delay slider in the Auto E-Table section moves in steps of this many ms. */
     public static final int DELAY_STEP_MS = 50;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-experiments.json");
 
@@ -263,36 +260,32 @@ public final class ExperimentsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("configVersion", CURRENT_CONFIG_VERSION);
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("superpairsEnabled", superpairsEnabled);
-            obj.addProperty("superpairsHudEnabled", superpairsHudEnabled);
-            obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
-            obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
-            obj.addProperty("skipGuardianPets", skipGuardianPets);
-            obj.addProperty("skipMetaphysicalSerums", skipMetaphysicalSerums);
-            obj.addProperty("superpairsExploreFirst", superpairsExploreFirst);
-            obj.addProperty("superpairsSkipValueCoins", superpairsSkipValueCoins);
-            obj.addProperty("superpairsT7First", superpairsT7First);
-            obj.addProperty("delayMs", delayMs);
-            obj.addProperty("autonomousMode", autonomousMode);
-            obj.addProperty("firstClickDelayMs", firstClickDelayMs);
-            obj.addProperty("stopStrategy", stopStrategy.name());
-            obj.addProperty("blockInputEnabled", blockInputEnabled);
-            obj.addProperty("autoRenewCount", autoRenewCount);
-            obj.addProperty("titanicMaxPriceCoins", titanicMaxPriceCoins);
-            obj.addProperty("randomDelayMaxMs", randomDelayMaxMs);
-            obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
-            obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
-            obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
-            obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
-            obj.addProperty("superpairsAdaptiveTimeout", superpairsAdaptiveTimeout);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("configVersion", CURRENT_CONFIG_VERSION);
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("superpairsEnabled", superpairsEnabled);
+        obj.addProperty("superpairsHudEnabled", superpairsHudEnabled);
+        obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
+        obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
+        obj.addProperty("skipGuardianPets", skipGuardianPets);
+        obj.addProperty("skipMetaphysicalSerums", skipMetaphysicalSerums);
+        obj.addProperty("superpairsExploreFirst", superpairsExploreFirst);
+        obj.addProperty("superpairsSkipValueCoins", superpairsSkipValueCoins);
+        obj.addProperty("superpairsT7First", superpairsT7First);
+        obj.addProperty("delayMs", delayMs);
+        obj.addProperty("autonomousMode", autonomousMode);
+        obj.addProperty("firstClickDelayMs", firstClickDelayMs);
+        obj.addProperty("stopStrategy", stopStrategy.name());
+        obj.addProperty("blockInputEnabled", blockInputEnabled);
+        obj.addProperty("autoRenewCount", autoRenewCount);
+        obj.addProperty("titanicMaxPriceCoins", titanicMaxPriceCoins);
+        obj.addProperty("randomDelayMaxMs", randomDelayMaxMs);
+        obj.addProperty("autoSwapGuardianPet", autoSwapGuardianPet);
+        obj.addProperty("clickProtectionEnabled", clickProtectionEnabled);
+        obj.addProperty("notifyMaxClicksReached", notifyMaxClicksReached);
+        obj.addProperty("profitTrackerEnabled", profitTrackerEnabled);
+        obj.addProperty("superpairsAdaptiveTimeout", superpairsAdaptiveTimeout);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** @return whether the SOLVER (highlights, observation, click protection) is on. Since 2026-09-30 this

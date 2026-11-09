@@ -1,13 +1,9 @@
 package com.killer560.hub.dungeonqueue;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Auto Requeue settings ({@link DungeonQueueFeature}) - the same three options as Odin's
@@ -15,7 +11,6 @@ import java.nio.file.Path;
  *  Finder Overlay half of the Dungeon Queue tab lives in {@code partyfinder.PartyFinderOverlayConfig}. */
 public final class DungeonQueueConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-dungeonqueue.json");
 
@@ -52,16 +47,12 @@ public final class DungeonQueueConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("delaySeconds", delaySeconds);
-            obj.addProperty("disableOnLeave", disableOnLeave);
-            obj.addProperty("pvLinkOnJoin", pvLinkOnJoin);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("delaySeconds", delaySeconds);
+        obj.addProperty("disableOnLeave", disableOnLeave);
+        obj.addProperty("pvLinkOnJoin", pvLinkOnJoin);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

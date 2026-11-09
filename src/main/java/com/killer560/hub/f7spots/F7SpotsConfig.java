@@ -1,8 +1,6 @@
 package com.killer560.hub.f7spots;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -50,7 +48,6 @@ import java.util.Locale;
  */
 public final class F7SpotsConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-f7spots.json");
 
     public static final int DEFAULT_WALK_COLOR = 0xFFFFA040;
@@ -181,57 +178,53 @@ public final class F7SpotsConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("walkWaypoints", walkWaypoints);
-            obj.addProperty("walkLabels", walkLabels);
-            obj.addProperty("walkDistance", walkDistance);
-            obj.addProperty("walkCurrentPhaseOnly", walkCurrentPhaseOnly);
-            obj.addProperty("walkBeamHeight", walkBeamHeight);
-            obj.addProperty("walkColor", walkColor);
+        JsonObject obj = new JsonObject();
+        obj.addProperty("walkWaypoints", walkWaypoints);
+        obj.addProperty("walkLabels", walkLabels);
+        obj.addProperty("walkDistance", walkDistance);
+        obj.addProperty("walkCurrentPhaseOnly", walkCurrentPhaseOnly);
+        obj.addProperty("walkBeamHeight", walkBeamHeight);
+        obj.addProperty("walkColor", walkColor);
 
-            obj.addProperty("aimSpots", aimSpots);
-            obj.addProperty("aimLabels", aimLabels);
-            obj.addProperty("aimDistance", aimDistance);
-            obj.addProperty("aimAllClasses", aimAllClasses);
-            obj.addProperty("aimAllSituations", aimAllSituations);
-            obj.addProperty("aimArrowStack", aimArrowStack);
-            obj.addProperty("aimDevonianLb", aimDevonianLb);
-            obj.addProperty("aimSize", aimSize);
-            obj.addProperty("aimColor", aimColor);
+        obj.addProperty("aimSpots", aimSpots);
+        obj.addProperty("aimLabels", aimLabels);
+        obj.addProperty("aimDistance", aimDistance);
+        obj.addProperty("aimAllClasses", aimAllClasses);
+        obj.addProperty("aimAllSituations", aimAllSituations);
+        obj.addProperty("aimArrowStack", aimArrowStack);
+        obj.addProperty("aimDevonianLb", aimDevonianLb);
+        obj.addProperty("aimSize", aimSize);
+        obj.addProperty("aimColor", aimColor);
 
-            JsonArray walk = new JsonArray();
-            for (WalkWaypoint w : walkWaypointList) {
-                JsonObject o = new JsonObject();
-                o.addProperty("x", w.x());
-                o.addProperty("y", w.y());
-                o.addProperty("z", w.z());
-                o.addProperty("label", w.label() == null ? "" : w.label());
-                o.addProperty("phase", w.phaseOrAny());
-                o.addProperty("floor", w.floorOrBoth());
-                o.addProperty("color", w.color());
-                walk.add(o);
-            }
-            obj.add("walkWaypointList", walk);
-
-            JsonArray aim = new JsonArray();
-            for (AimSpot s : aimSpotList) {
-                JsonObject o = new JsonObject();
-                o.addProperty("x", s.x());
-                o.addProperty("y", s.y());
-                o.addProperty("z", s.z());
-                o.addProperty("label", s.label() == null ? "" : s.label());
-                o.addProperty("situation", s.situation() == null ? AimSituation.ANY.name() : s.situation().name());
-                o.addProperty("class", s.classOrAny());
-                o.addProperty("color", s.color());
-                aim.add(o);
-            }
-            obj.add("aimSpotList", aim);
-
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonArray walk = new JsonArray();
+        for (WalkWaypoint w : walkWaypointList) {
+            JsonObject o = new JsonObject();
+            o.addProperty("x", w.x());
+            o.addProperty("y", w.y());
+            o.addProperty("z", w.z());
+            o.addProperty("label", w.label() == null ? "" : w.label());
+            o.addProperty("phase", w.phaseOrAny());
+            o.addProperty("floor", w.floorOrBoth());
+            o.addProperty("color", w.color());
+            walk.add(o);
         }
+        obj.add("walkWaypointList", walk);
+
+        JsonArray aim = new JsonArray();
+        for (AimSpot s : aimSpotList) {
+            JsonObject o = new JsonObject();
+            o.addProperty("x", s.x());
+            o.addProperty("y", s.y());
+            o.addProperty("z", s.z());
+            o.addProperty("label", s.label() == null ? "" : s.label());
+            o.addProperty("situation", s.situation() == null ? AimSituation.ANY.name() : s.situation().name());
+            o.addProperty("class", s.classOrAny());
+            o.addProperty("color", s.color());
+            aim.add(o);
+        }
+        obj.add("aimSpotList", aim);
+
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     // ---- walk-to waypoints ----

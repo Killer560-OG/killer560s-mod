@@ -1,8 +1,6 @@
 package com.killer560.hub.autoclosechest;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
  *  this mod. Cheat build only since 2026-10-07: see {@link #isEnabled()}. */
 public final class AutoCloseChestConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autoclosechest.json");
 
@@ -50,13 +47,9 @@ public final class AutoCloseChestConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Cheat build only (killer560, 2026-10-07: "auto close chest should be in a cheat only version"). The

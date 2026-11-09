@@ -1,13 +1,9 @@
 package com.killer560.hub.spotify;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -17,7 +13,6 @@ import java.nio.file.Path;
  */
 public final class SongShareConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-spotify-songtag.json");
 
     private static volatile SongShareConfig instance;
@@ -103,22 +98,18 @@ public final class SongShareConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("shareSong", shareSong);
-            obj.addProperty("showOthers", showOthers);
-            obj.addProperty("lyricsOverHead", lyricsOverHead);
-            obj.addProperty("highlightWordInF5", highlightWordInF5);
-            obj.addProperty("shareWhat", shareWhat.name());
-            obj.addProperty("shareWord", shareWord);
-            obj.addProperty("songInF5", songInF5);
-            obj.addProperty("customF5Colors", customF5Colors);
-            obj.addProperty("f5TextColor", f5TextColor);
-            obj.addProperty("f5HighlightColor", f5HighlightColor);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("shareSong", shareSong);
+        obj.addProperty("showOthers", showOthers);
+        obj.addProperty("lyricsOverHead", lyricsOverHead);
+        obj.addProperty("highlightWordInF5", highlightWordInF5);
+        obj.addProperty("shareWhat", shareWhat.name());
+        obj.addProperty("shareWord", shareWord);
+        obj.addProperty("songInF5", songInF5);
+        obj.addProperty("customF5Colors", customF5Colors);
+        obj.addProperty("f5TextColor", f5TextColor);
+        obj.addProperty("f5HighlightColor", f5HighlightColor);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isShareSong() { return shareSong; }

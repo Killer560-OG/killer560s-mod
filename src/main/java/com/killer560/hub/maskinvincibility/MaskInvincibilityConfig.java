@@ -1,8 +1,6 @@
 package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
  *  by default. */
 public final class MaskInvincibilityConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-maskinvincibility.json");
 
@@ -171,39 +168,35 @@ public final class MaskInvincibilityConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("announceToParty", announceToParty);
-            obj.addProperty("procTitle", procTitle);
-            obj.addProperty("showSpirit", showSpirit);
-            obj.addProperty("showBonzo", showBonzo);
-            obj.addProperty("showPhoenix", showPhoenix);
-            obj.addProperty("autoSwapSpirit", autoSwapSpirit);
-            obj.addProperty("autoSwapBonzo", autoSwapBonzo);
-            obj.addProperty("autoSwapPhoenix", autoSwapPhoenix);
-            obj.addProperty("showItemIcons", showItemIcons);
-            obj.addProperty("hideMaskNames", hideMaskNames);
-            obj.addProperty("onlyInDungeons", onlyInDungeons);
-            obj.addProperty("bossOnly", bossOnly);
-            obj.addProperty("autoSwapEnabled", autoSwapEnabled);
-            obj.addProperty("autoMaskMode", getAutoMaskMode().name());
-            obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
-            obj.addProperty("autoMaskSwapKey", swapKey);
-            obj.addProperty("autoMaskDungeonsOnly", autoMaskDungeonsOnly);
-            obj.addProperty("maskKeyEnabled", maskKeyEnabled);
-            obj.addProperty("maskKey", maskKey);
-            obj.addProperty("maskKeyBonzoFirst", maskKeyBonzoFirst);
-            obj.addProperty("maskKeyDungeonsOnly", maskKeyDungeonsOnly);
-            obj.addProperty("maskKeyBossOnly", maskKeyBossOnly);
-            obj.addProperty("autoMaskBossOnly", autoMaskBossOnly);
-            obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
-            obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
-            obj.addProperty("phoenixRoute", phoenixRoute.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("announceToParty", announceToParty);
+        obj.addProperty("procTitle", procTitle);
+        obj.addProperty("showSpirit", showSpirit);
+        obj.addProperty("showBonzo", showBonzo);
+        obj.addProperty("showPhoenix", showPhoenix);
+        obj.addProperty("autoSwapSpirit", autoSwapSpirit);
+        obj.addProperty("autoSwapBonzo", autoSwapBonzo);
+        obj.addProperty("autoSwapPhoenix", autoSwapPhoenix);
+        obj.addProperty("showItemIcons", showItemIcons);
+        obj.addProperty("hideMaskNames", hideMaskNames);
+        obj.addProperty("onlyInDungeons", onlyInDungeons);
+        obj.addProperty("bossOnly", bossOnly);
+        obj.addProperty("autoSwapEnabled", autoSwapEnabled);
+        obj.addProperty("autoMaskMode", getAutoMaskMode().name());
+        obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
+        obj.addProperty("autoMaskSwapKey", swapKey);
+        obj.addProperty("autoMaskDungeonsOnly", autoMaskDungeonsOnly);
+        obj.addProperty("maskKeyEnabled", maskKeyEnabled);
+        obj.addProperty("maskKey", maskKey);
+        obj.addProperty("maskKeyBonzoFirst", maskKeyBonzoFirst);
+        obj.addProperty("maskKeyDungeonsOnly", maskKeyDungeonsOnly);
+        obj.addProperty("maskKeyBossOnly", maskKeyBossOnly);
+        obj.addProperty("autoMaskBossOnly", autoMaskBossOnly);
+        obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
+        obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
+        obj.addProperty("phoenixRoute", phoenixRoute.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }

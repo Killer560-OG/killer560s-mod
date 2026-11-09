@@ -1,8 +1,6 @@
 package com.killer560.hub.motionblur;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -19,7 +17,6 @@ public final class MotionBlurConfig {
     public static final int MAX_STRENGTH = 100;
     public static final int DEFAULT_STRENGTH = 50;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-motionblur.json");
 
@@ -56,15 +53,11 @@ public final class MotionBlurConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("strength", strength);
-            obj.addProperty("blurGui", blurGui);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("strength", strength);
+        obj.addProperty("blurGui", blurGui);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     private static int clampStrength(int v) { return Math.max(MIN_STRENGTH, Math.min(MAX_STRENGTH, v)); }

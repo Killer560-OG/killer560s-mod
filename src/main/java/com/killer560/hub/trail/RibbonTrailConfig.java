@@ -1,13 +1,10 @@
 package com.killer560.hub.trail;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -50,7 +47,6 @@ public final class RibbonTrailConfig {
         public String label() { return label; }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-ribbontrail.json");
 
     private static RibbonTrailConfig instance;
@@ -188,22 +184,18 @@ public final class RibbonTrailConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("showInFirstPerson", showInFirstPerson);
-            obj.addProperty("ribbonHeight", ribbonHeight);
-            obj.addProperty("ribbonSeconds", ribbonSeconds);
-            obj.addProperty("opacityPercent", opacityPercent);
-            obj.addProperty("colorMode", colorMode.name());
-            obj.addProperty("colorCount", colorCount);
-            obj.addProperty("headColor", headColor);
-            obj.addProperty("midColor", midColor);
-            obj.addProperty("tailColor", tailColor);
-            obj.addProperty("teleportMode", teleportMode.name());
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("showInFirstPerson", showInFirstPerson);
+        obj.addProperty("ribbonHeight", ribbonHeight);
+        obj.addProperty("ribbonSeconds", ribbonSeconds);
+        obj.addProperty("opacityPercent", opacityPercent);
+        obj.addProperty("colorMode", colorMode.name());
+        obj.addProperty("colorCount", colorCount);
+        obj.addProperty("headColor", headColor);
+        obj.addProperty("midColor", midColor);
+        obj.addProperty("tailColor", tailColor);
+        obj.addProperty("teleportMode", teleportMode.name());
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 }

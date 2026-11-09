@@ -1,7 +1,5 @@
 package com.killer560.hub.zoom;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -20,7 +18,6 @@ public final class ZoomConfig {
     /** GLFW's C key, OptiFine's default zoom key. */
     private static final int DEFAULT_KEY = 67;
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-zoom.json");
 
     private static ZoomConfig instance;
@@ -67,18 +64,14 @@ public final class ZoomConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("keyCode", keyCode);
-            obj.addProperty("zoomLevel", zoomLevel);
-            obj.addProperty("scrollWhileZoomed", scrollWhileZoomed);
-            obj.addProperty("smooth", smooth);
-            obj.addProperty("scrollStep", scrollStep);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("keyCode", keyCode);
+        obj.addProperty("zoomLevel", zoomLevel);
+        obj.addProperty("scrollWhileZoomed", scrollWhileZoomed);
+        obj.addProperty("smooth", smooth);
+        obj.addProperty("scrollStep", scrollStep);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() { return enabled; }

@@ -1,7 +1,5 @@
 package com.killer560.hub.armorhud;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -29,7 +27,6 @@ public final class ArmorHudConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-armorhud.json");
 
     private static ArmorHudConfig instance;
@@ -76,18 +73,13 @@ public final class ArmorHudConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("showEquipment", showEquipment);
-            o.addProperty("layout", layout.name());
-            o.addProperty("showDurability", showDurability);
-            o.addProperty("background", background);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-            // a failed save keeps the in-memory settings
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("showEquipment", showEquipment);
+        o.addProperty("layout", layout.name());
+        o.addProperty("showDurability", showDurability);
+        o.addProperty("background", background);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The switch with the Skyblock Only gate applied. */

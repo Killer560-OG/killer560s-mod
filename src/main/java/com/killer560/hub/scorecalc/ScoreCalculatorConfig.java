@@ -1,8 +1,6 @@
 package com.killer560.hub.scorecalc;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -23,7 +21,6 @@ import java.nio.file.Path;
  *  configured there. */
 public final class ScoreCalculatorConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-scorecalc.json");
     private static final Path LEGACY_DUNGEON_INFO_CONFIG_PATH =
@@ -229,53 +226,49 @@ public final class ScoreCalculatorConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("preBossWarning", preBossWarning);
-            obj.addProperty("preBossMageOnly", preBossMageOnly);
-            obj.addProperty("preBossPermanent", preBossPermanent);
-            obj.addProperty("preBossListMissing", preBossListMissing);
-            obj.addProperty("preBossPortalColor", preBossPortalColor);
-            obj.addProperty("preBossHidePortalParticles", preBossHidePortalParticles);
-            obj.addProperty("cryptReminder", cryptReminder);
-            obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
-            obj.addProperty("cryptReminderParty", cryptReminderParty);
-            obj.addProperty("scoreWarningSound", scoreWarningSound);
-            obj.addProperty("showBreakdown", showBreakdown);
-            obj.addProperty("showSecretsNeeded", showSecretsNeeded);
-            obj.addProperty("showCrypts", showCrypts);
-            obj.addProperty("showDeaths", showDeaths);
-            obj.addProperty("labelColor", labelColor);
-            obj.addProperty("subLabelColor", subLabelColor);
-            obj.addProperty("valueColor", valueColor);
-            obj.addProperty("goodColor", goodColor);
-            obj.addProperty("badColor", badColor);
-            obj.addProperty("showMimicPrince", showMimicPrince);
-            obj.addProperty("textShadow", textShadow);
-            obj.addProperty("paulMode", paulMode.name());
-            obj.addProperty("assumeSpiritPet", assumeSpiritPet);
-            obj.addProperty("title270", title270);
-            obj.addProperty("title270Text", title270Text);
-            obj.addProperty("party270", party270);
-            obj.addProperty("party270Message", party270Message);
-            obj.addProperty("title300", title300);
-            obj.addProperty("title300Text", title300Text);
-            obj.addProperty("party300", party300);
-            obj.addProperty("party300Message", party300Message);
-            obj.addProperty("chatNote", chatNote);
-            obj.addProperty("alertSound", alertSound);
-            obj.addProperty("mimicAlertEnabled", mimicAlertEnabled);
-            obj.addProperty("mimicAlertMessage", mimicAlertMessage);
-            obj.addProperty("princeAlertEnabled", princeAlertEnabled);
-            obj.addProperty("princeAlertMessage", princeAlertMessage);
-            obj.addProperty("batAlertEnabled", batAlertEnabled);
-            obj.addProperty("batAlertMessage", batAlertMessage);
-            obj.addProperty("legacyAlertsMigrated", legacyAlertsMigrated);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("preBossWarning", preBossWarning);
+        obj.addProperty("preBossMageOnly", preBossMageOnly);
+        obj.addProperty("preBossPermanent", preBossPermanent);
+        obj.addProperty("preBossListMissing", preBossListMissing);
+        obj.addProperty("preBossPortalColor", preBossPortalColor);
+        obj.addProperty("preBossHidePortalParticles", preBossHidePortalParticles);
+        obj.addProperty("cryptReminder", cryptReminder);
+        obj.addProperty("cryptReminderSeconds", cryptReminderSeconds);
+        obj.addProperty("cryptReminderParty", cryptReminderParty);
+        obj.addProperty("scoreWarningSound", scoreWarningSound);
+        obj.addProperty("showBreakdown", showBreakdown);
+        obj.addProperty("showSecretsNeeded", showSecretsNeeded);
+        obj.addProperty("showCrypts", showCrypts);
+        obj.addProperty("showDeaths", showDeaths);
+        obj.addProperty("labelColor", labelColor);
+        obj.addProperty("subLabelColor", subLabelColor);
+        obj.addProperty("valueColor", valueColor);
+        obj.addProperty("goodColor", goodColor);
+        obj.addProperty("badColor", badColor);
+        obj.addProperty("showMimicPrince", showMimicPrince);
+        obj.addProperty("textShadow", textShadow);
+        obj.addProperty("paulMode", paulMode.name());
+        obj.addProperty("assumeSpiritPet", assumeSpiritPet);
+        obj.addProperty("title270", title270);
+        obj.addProperty("title270Text", title270Text);
+        obj.addProperty("party270", party270);
+        obj.addProperty("party270Message", party270Message);
+        obj.addProperty("title300", title300);
+        obj.addProperty("title300Text", title300Text);
+        obj.addProperty("party300", party300);
+        obj.addProperty("party300Message", party300Message);
+        obj.addProperty("chatNote", chatNote);
+        obj.addProperty("alertSound", alertSound);
+        obj.addProperty("mimicAlertEnabled", mimicAlertEnabled);
+        obj.addProperty("mimicAlertMessage", mimicAlertMessage);
+        obj.addProperty("princeAlertEnabled", princeAlertEnabled);
+        obj.addProperty("princeAlertMessage", princeAlertMessage);
+        obj.addProperty("batAlertEnabled", batAlertEnabled);
+        obj.addProperty("batAlertMessage", batAlertMessage);
+        obj.addProperty("legacyAlertsMigrated", legacyAlertsMigrated);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
 

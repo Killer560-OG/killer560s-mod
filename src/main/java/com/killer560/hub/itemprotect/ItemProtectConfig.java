@@ -1,8 +1,6 @@
 package com.killer560.hub.itemprotect;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -38,7 +36,6 @@ import java.util.Set;
  */
 public final class ItemProtectConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-itemprotect.json");
 
@@ -227,48 +224,44 @@ public final class ItemProtectConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
 
-            obj.addProperty("protectItemEnabled", protectItemEnabled);
-            obj.addProperty("protectKey", protectKey);
-            obj.addProperty("useItemIdFallback", useItemIdFallback);
-            obj.addProperty("protectedColor", protectedColor);
-            obj.addProperty("showStar", showStar);
-            obj.addProperty("lockInPlace", lockInPlace);
-            JsonArray keys = new JsonArray();
-            for (String key : protectedKeys) {
-                keys.add(key);
-            }
-            obj.add("protectedKeys", keys);
-            JsonArray names = new JsonArray();
-            for (String name : protectedNames) {
-                names.add(name);
-            }
-            obj.add("protectedNames", names);
-
-            obj.addProperty("protectStarredEnabled", protectStarredEnabled);
-
-            obj.addProperty("preventHotbarDropEnabled", preventHotbarDropEnabled);
-            obj.addProperty("blockEveryHotbarDrop", blockEveryHotbarDrop);
-            obj.addProperty("confirmToForce", confirmToForce);
-            obj.addProperty("forceDrops", forceDrops);
-
-            obj.addProperty("blockSound", blockSound);
-
-            if (!pendingSlotMigration.isEmpty()) {
-                JsonArray pending = new JsonArray();
-                for (Integer idx : pendingSlotMigration) {
-                    pending.add(idx);
-                }
-                obj.add("pendingSlotMigration", pending);
-            }
-
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        obj.addProperty("protectItemEnabled", protectItemEnabled);
+        obj.addProperty("protectKey", protectKey);
+        obj.addProperty("useItemIdFallback", useItemIdFallback);
+        obj.addProperty("protectedColor", protectedColor);
+        obj.addProperty("showStar", showStar);
+        obj.addProperty("lockInPlace", lockInPlace);
+        JsonArray keys = new JsonArray();
+        for (String key : protectedKeys) {
+            keys.add(key);
         }
+        obj.add("protectedKeys", keys);
+        JsonArray names = new JsonArray();
+        for (String name : protectedNames) {
+            names.add(name);
+        }
+        obj.add("protectedNames", names);
+
+        obj.addProperty("protectStarredEnabled", protectStarredEnabled);
+
+        obj.addProperty("preventHotbarDropEnabled", preventHotbarDropEnabled);
+        obj.addProperty("blockEveryHotbarDrop", blockEveryHotbarDrop);
+        obj.addProperty("confirmToForce", confirmToForce);
+        obj.addProperty("forceDrops", forceDrops);
+
+        obj.addProperty("blockSound", blockSound);
+
+        if (!pendingSlotMigration.isEmpty()) {
+            JsonArray pending = new JsonArray();
+            for (Integer idx : pendingSlotMigration) {
+                pending.add(idx);
+            }
+            obj.add("pendingSlotMigration", pending);
+        }
+
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Master toggle, gated by "Skyblock Only" like every other feature's own enabled getter. */

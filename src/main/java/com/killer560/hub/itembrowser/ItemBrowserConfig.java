@@ -1,8 +1,6 @@
 package com.killer560.hub.itembrowser;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -66,7 +64,6 @@ public final class ItemBrowserConfig {
         }
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-itembrowser.json");
 
@@ -134,20 +131,16 @@ public final class ItemBrowserConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("columns", columns);
-            obj.addProperty("scale", scale);
-            obj.addProperty("horizontal", horizontal);
-            obj.addProperty("align", align.name());
-            obj.addProperty("sortMode", sortMode.name());
-            obj.addProperty("showItemValue", showItemValue);
-            obj.addProperty("inventoryOnly", inventoryOnly);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject obj = new JsonObject();
+        obj.addProperty("enabled", enabled);
+        obj.addProperty("columns", columns);
+        obj.addProperty("scale", scale);
+        obj.addProperty("horizontal", horizontal);
+        obj.addProperty("align", align.name());
+        obj.addProperty("sortMode", sortMode.name());
+        obj.addProperty("showItemValue", showItemValue);
+        obj.addProperty("inventoryOnly", inventoryOnly);
+        ConfigJson.write(CONFIG_PATH, obj);
     }
 
     public boolean isEnabled() {

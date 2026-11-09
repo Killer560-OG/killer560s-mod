@@ -1,15 +1,11 @@
 package com.killer560.hub.lightsdevice;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -29,7 +25,6 @@ import java.nio.file.Path;
  */
 public final class LightsDeviceConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-lightsdevice.json");
 
     public static final double MIN_RANGE = 2.1;
@@ -109,23 +104,19 @@ public final class LightsDeviceConfig {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("auraEnabled", auraEnabled);
-            o.addProperty("preFlick", preFlick);
-            o.addProperty("finish", finish);
-            o.addProperty("range", range);
-            o.addProperty("cps", cps);
-            o.addProperty("auraSwingHand", auraSwingHand);
-            o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("triggerEnabled", triggerEnabled);
-            o.addProperty("triggerDelayMs", triggerDelayMs);
-            o.addProperty("triggerCooldownMs", triggerCooldownMs);
-            o.addProperty("triggerSwingHand", triggerSwingHand);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+        JsonObject o = new JsonObject();
+        o.addProperty("auraEnabled", auraEnabled);
+        o.addProperty("preFlick", preFlick);
+        o.addProperty("finish", finish);
+        o.addProperty("range", range);
+        o.addProperty("cps", cps);
+        o.addProperty("auraSwingHand", auraSwingHand);
+        o.addProperty("chatFeedback", chatFeedback);
+        o.addProperty("triggerEnabled", triggerEnabled);
+        o.addProperty("triggerDelayMs", triggerDelayMs);
+        o.addProperty("triggerCooldownMs", triggerCooldownMs);
+        o.addProperty("triggerSwingHand", triggerSwingHand);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     private static boolean allowed() {

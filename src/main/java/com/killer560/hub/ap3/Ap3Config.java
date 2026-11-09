@@ -1,8 +1,6 @@
 package com.killer560.hub.ap3;
 
 import com.killer560.hub.util.ModPaths;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.dungeonclass.DungeonClass;
@@ -32,7 +30,6 @@ import java.util.Map;
  */
 public final class Ap3Config {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-ap3-settings.json");
 
@@ -432,66 +429,62 @@ public final class Ap3Config {
     }
 
     public void save() {
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("chatFeedback", chatFeedback);
-            o.addProperty("messageDetail", messageDetail.name());
-            o.addProperty("strafe45", strafe45);
-            o.addProperty("alignTimerDev", alignTimerDev);
-            o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
-            o.addProperty("chainsFile", chainsFile);
-            o.addProperty("colorsSectionOpen", colorsSectionOpen);
-            o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
-            o.addProperty("stopwatchHud", stopwatchHud);
-            o.addProperty("stopwatchToParty", stopwatchToParty);
-            o.addProperty("showChainLines", showChainLines);
-            o.addProperty("showNodes", showNodes);
-            o.addProperty("uniformColor", uniformColor);
-            o.addProperty("uniformColorArgb", uniformColorArgb);
-            o.addProperty("activeColorArgb", activeColorArgb);
-            JsonObject colors = new JsonObject();
-            for (Ap3Node.Type t : Ap3Node.Type.values()) {
-                colors.addProperty(t.name(), nodeColors.get(t));
-            }
-            o.add("nodeColors", colors);
-            o.addProperty("thickness", thickness);
-            o.addProperty("height", height);
-            o.addProperty("showLabels", showLabels);
-            o.addProperty("showNodeNumbers", showNodeNumbers);
-            o.addProperty("showNodeType", showNodeType);
-            o.addProperty("showNodeDetails", showNodeDetails);
-            o.addProperty("labelUseNodeColor", labelUseNodeColor);
-            o.addProperty("labelColorArgb", labelColorArgb);
-            o.addProperty("labelScale", labelScale);
-            o.addProperty("labelHeightOffset", labelHeightOffset);
-            o.addProperty("alignToleranceV3", alignTolerance);
-            o.addProperty("alignMethodV2", alignMethod.name());
-            o.addProperty("alignFreezeView", alignFreezeView);
-            o.addProperty("rewindTicks", rewindTicks);
-            o.addProperty("freezeStateEnabled", freezeStateEnabled);
-            o.addProperty("defaultNodeSize", defaultNodeSize);
-            o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
-            o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
-            o.addProperty("routeAllowJumps", routeAllowJumps);
-            o.addProperty("routeBeam", routeBeam);
-            o.addProperty("routeBudgetMs", routeBudgetMs);
-            o.addProperty("routeScanPad", routeScanPad);
-            o.addProperty("alignSprintFromKey", alignSprintFromKey);
-            o.addProperty("routeExactTolerance", routeExactTolerance);
-            o.addProperty("routeTermWaitTicks", routeTermWaitTicks);
-            o.addProperty("routeTimeoutTicks", routeTimeoutTicks);
-            o.addProperty("showPlannedPath", showPlannedPath);
-            o.addProperty("leapDetectRadius", leapDetectRadius);
-            JsonObject keys = new JsonObject();
-            for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
-                keys.addProperty(e.getKey(), e.getValue());
-            }
-            o.add("keybinds", keys);
-            Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        JsonObject o = new JsonObject();
+        o.addProperty("enabled", enabled);
+        o.addProperty("chatFeedback", chatFeedback);
+        o.addProperty("messageDetail", messageDetail.name());
+        o.addProperty("strafe45", strafe45);
+        o.addProperty("alignTimerDev", alignTimerDev);
+        o.addProperty("editClassFilter", editClassFilter == null ? "" : editClassFilter.name());
+        o.addProperty("chainsFile", chainsFile);
+        o.addProperty("colorsSectionOpen", colorsSectionOpen);
+        o.addProperty("keybindsSectionOpen", keybindsSectionOpen);
+        o.addProperty("stopwatchHud", stopwatchHud);
+        o.addProperty("stopwatchToParty", stopwatchToParty);
+        o.addProperty("showChainLines", showChainLines);
+        o.addProperty("showNodes", showNodes);
+        o.addProperty("uniformColor", uniformColor);
+        o.addProperty("uniformColorArgb", uniformColorArgb);
+        o.addProperty("activeColorArgb", activeColorArgb);
+        JsonObject colors = new JsonObject();
+        for (Ap3Node.Type t : Ap3Node.Type.values()) {
+            colors.addProperty(t.name(), nodeColors.get(t));
         }
+        o.add("nodeColors", colors);
+        o.addProperty("thickness", thickness);
+        o.addProperty("height", height);
+        o.addProperty("showLabels", showLabels);
+        o.addProperty("showNodeNumbers", showNodeNumbers);
+        o.addProperty("showNodeType", showNodeType);
+        o.addProperty("showNodeDetails", showNodeDetails);
+        o.addProperty("labelUseNodeColor", labelUseNodeColor);
+        o.addProperty("labelColorArgb", labelColorArgb);
+        o.addProperty("labelScale", labelScale);
+        o.addProperty("labelHeightOffset", labelHeightOffset);
+        o.addProperty("alignToleranceV3", alignTolerance);
+        o.addProperty("alignMethodV2", alignMethod.name());
+        o.addProperty("alignFreezeView", alignFreezeView);
+        o.addProperty("rewindTicks", rewindTicks);
+        o.addProperty("freezeStateEnabled", freezeStateEnabled);
+        o.addProperty("defaultNodeSize", defaultNodeSize);
+        o.addProperty("alignTimeoutTicks", alignTimeoutTicks);
+        o.addProperty("moveTimeoutTicks", moveTimeoutTicks);
+        o.addProperty("routeAllowJumps", routeAllowJumps);
+        o.addProperty("routeBeam", routeBeam);
+        o.addProperty("routeBudgetMs", routeBudgetMs);
+        o.addProperty("routeScanPad", routeScanPad);
+        o.addProperty("alignSprintFromKey", alignSprintFromKey);
+        o.addProperty("routeExactTolerance", routeExactTolerance);
+        o.addProperty("routeTermWaitTicks", routeTermWaitTicks);
+        o.addProperty("routeTimeoutTicks", routeTimeoutTicks);
+        o.addProperty("showPlannedPath", showPlannedPath);
+        o.addProperty("leapDetectRadius", leapDetectRadius);
+        JsonObject keys = new JsonObject();
+        for (Map.Entry<String, Integer> e : keybinds.entrySet()) {
+            keys.addProperty(e.getKey(), e.getValue());
+        }
+        o.add("keybinds", keys);
+        ConfigJson.write(CONFIG_PATH, o);
     }
 
     /** The legit jar can never report true here, even from a copied cheat-build config file. Force Dungeon
