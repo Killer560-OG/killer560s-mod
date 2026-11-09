@@ -59,18 +59,24 @@ public final class DarkModeFeature {
                 }));
     }
 
-    /** Registered at CLIENT_STARTED so this screen listener runs after every mod's own (the fill lands on top of them). */
+    /** Registered at CLIENT_STARTED so this screen listener runs after every mod's own (the fill lands on top of them).
+     *  Which screens count is decided each frame, because a container's reskin is known only once its title is. */
     private static void tintScreen(net.minecraft.client.gui.screens.Screen screen) {
-        if (!(screen instanceof net.minecraft.client.gui.screens.ChatScreen) && !(screen instanceof com.killer560.hub.hud.HudEditorScreen)) {
-            return;
-        }
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterExtract(screen).register((s, graphics, mx, my, delta) -> {
             DarkModeConfig cfg = DarkModeConfig.getInstance();
-            if (cfg.isEnabled() && cfg.isTintHud()) {
+            if (cfg.isEnabled() && cfg.isTintHud() && skinned(s)) {
                 fill(graphics, cfg.getOpacity());
                 screenFills++;
             }
         });
+    }
+
+    /** A screen the mod draws or skins: its own screens (menus, editors), the chat, and the AH / Bazaar reskins; any other
+     *  vanilla screen stays as it is. */
+    private static boolean skinned(net.minecraft.client.gui.screens.Screen s) {
+        return s instanceof net.minecraft.client.gui.screens.ChatScreen
+                || s.getClass().getName().startsWith("com.killer560.hub.")
+                || com.killer560.hub.auction.ah.AhReskin.isHiding(s) || com.killer560.hub.bazaar.BazaarReskin.isHiding(s);
     }
 
     /** Black at {@code opacity} % over the whole GUI area. */
