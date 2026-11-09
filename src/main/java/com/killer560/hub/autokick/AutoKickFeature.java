@@ -117,11 +117,11 @@ public final class AutoKickFeature {
         Matcher m = PF_JOINED.matcher(plain);
         boolean found = m.matches();
         if (YOU_JOINED.matcher(plain).matches() || (found && self != null && self.equalsIgnoreCase(m.group(1)))) {
-            // Someone else's party (pvkick-1109): the floor my own queue left behind (F7) is not this party's floor,
-            // and this party's floor is not in any chat line, so no floor is known until I queue again.
-            QueuedFloorDetector.reset();
+            // Someone else's party (pvkick-1109): its floor is the Party Finder listing I clicked, else unknown. My own
+            // queue's floor (F7) or last run is never this party's.
+            boolean known = QueuedFloorDetector.joinedParty();
             lastRunFloor = null;
-            if (AutoKickConfig.getInstance().isEnabled()) {
+            if (AutoKickConfig.getInstance().isEnabled() && !known) {
                 ModChat.log("Auto Kick", ModChat.text("Joined another party, floor unknown - nobody is judged until you queue."));
             }
             return;
