@@ -212,7 +212,7 @@ public final class SpringBootsOverlay {
             var font = Minecraft.getInstance().font;
             String label = "Height: ";
             HudSeen.markDrawn(id());
-            graphics.text(font, label, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
+            graphics.text(font, label, x + 1, y + 1, ThemeAccent.onDark(ThemeAccent.accent(0xFF000000 | ModChat.ORANGE)), true);
             graphics.text(font, colored(example ? 33.0f : blockAmount), x + 1 + font.width(label), y + 1, 0xFFFFFFFF, true);
         }
     };

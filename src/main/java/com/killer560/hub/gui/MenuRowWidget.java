@@ -60,7 +60,7 @@ public final class MenuRowWidget extends AbstractWidget {
                     textX, textY, cheatColor, false);
             return;
         }
-        int textColor = selected ? ThemeAccent.accent(ACCENT) : (isHovered ? TEXT_HOVER : TEXT_DIM);
+        int textColor = selected ? (boxed ? ThemeAccent.onDark(ThemeAccent.accent(ACCENT)) : ThemeAccent.accent(ACCENT)) : (isHovered ? TEXT_HOVER : TEXT_DIM);
         graphics.text(Minecraft.getInstance().font, label, textX, textY, textColor, false);
     }
 

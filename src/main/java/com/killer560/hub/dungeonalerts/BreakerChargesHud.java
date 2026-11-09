@@ -105,7 +105,7 @@ public final class BreakerChargesHud {
             }
             var font = client.font;
             HudSeen.markDrawn(id());
-            graphics.text(font, LABEL, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
+            graphics.text(font, LABEL, x + 1, y + 1, ThemeAccent.onDark(ThemeAccent.accent(0xFF000000 | ModChat.ORANGE)), true);
             graphics.text(font, value, x + 1 + font.width(LABEL), y + 1, 0xFFFFFFFF, true);
         }
     };

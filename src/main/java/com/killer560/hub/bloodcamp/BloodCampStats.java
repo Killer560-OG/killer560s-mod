@@ -370,7 +370,7 @@ public final class BloodCampStats {
                 int colon = line.indexOf(':');
                 String label = line.substring(0, colon + 1);
                 String value = line.substring(colon + 1);
-                graphics.text(client.font, label, x, lineY, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
+                graphics.text(client.font, label, x, lineY, ThemeAccent.onDark(ThemeAccent.accent(0xFF000000 | ModChat.ORANGE)), true);
                 graphics.text(client.font, value, x + com.killer560.hub.compat.McRender.textWidth(client.font, label), lineY,
                         0xFFFFFFFF, true);
                 lineY += LINE_H;

@@ -12,6 +12,12 @@ package com.killer560.hub.gui;
  */
 public final class ThemeAccent {
 
+    public static final double MIN_RATIO = 4.5;
+    public static final int DARK_BG = 0xFF202020;
+    private static int lastIn;
+    private static int lastOut;
+    private static int lastVersion = -1;
+
     private ThemeAccent() {
     }
 
@@ -37,6 +43,43 @@ public final class ThemeAccent {
     public static int fill(int amber) {
         OverlayPalette p = themed();
         return p == null ? amber : keepAlpha(amber, p.selected());
+    }
+
+    /** Text drawn over the game world or chat (always dark). A light menu theme's accent is a dark color made for a light panel
+     *  (Light's blue is 3.9:1 on black, its hover 2.6:1), so it is lifted toward white until it reaches {@link #MIN_RATIO}
+     *  against {@link #DARK_BG}; on Amber and every dark theme the color comes back unchanged. */
+    public static int onDark(int argb) {
+        OverlayPalette p = themed();
+        if (p == null || !p.light()) {
+            return argb;
+        }
+        if (argb == lastIn && MenuConfig.version() == lastVersion) {
+            return lastOut;
+        }
+        int c = argb;
+        for (int i = 0; i < 20 && contrast(c, DARK_BG) < MIN_RATIO; i++) {
+            c = MenuStyle.mix(c, 0xFFFFFFFF, 0.1f);
+        }
+        lastIn = argb;
+        lastOut = c;
+        lastVersion = MenuConfig.version();
+        return c;
+    }
+
+    /** WCAG contrast ratio of two opaque colors (1..21). */
+    public static double contrast(int a, int b) {
+        double la = luminance(a);
+        double lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    private static double luminance(int c) {
+        return 0.2126 * lin((c >> 16) & 0xFF) + 0.7152 * lin((c >> 8) & 0xFF) + 0.0722 * lin(c & 0xFF);
+    }
+
+    private static double lin(int v) {
+        double s = v / 255.0;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
     }
 
     /** Null on Amber (draw the literal), else the menu's palette. */

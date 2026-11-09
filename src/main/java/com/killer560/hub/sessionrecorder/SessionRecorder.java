@@ -150,7 +150,7 @@ public final class SessionRecorder {
         Font font = Minecraft.getInstance().font;
         String label = recording ? "● Recording" : "Recording cut at 20 MB";
         int x = graphics.guiWidth() - font.width(label) - 4;
-        graphics.text(font, label, x, 4, 0xFF000000 | (recording ? ThemeAccent.accent(ModChat.ORANGE) : ModChat.BAD), true);
+        graphics.text(font, label, x, 4, 0xFF000000 | (recording ? ThemeAccent.onDark(ThemeAccent.accent(ModChat.ORANGE)) : ModChat.BAD), true);
     }
 
     private static String modVersion() {
