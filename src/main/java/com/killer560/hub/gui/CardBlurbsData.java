@@ -121,6 +121,8 @@ final class CardBlurbsData {
         d.put("RunSummaryTab", "Saves each run's splits and score.");
         d.put("ScoreCalculatorTab", "Live dungeon score HUD.");
         d.put("EtherwarpTab", "Boxes for /ew waypoints.");
+        d.put("AutoSuperboomTab", "Swaps to Superboom on a wall click.");
+        d.put("DungeonWaypointsTab", "Your own boxes and lines per room.");
         d.put("SecretSoundTab", "Sound on each secret.");
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");

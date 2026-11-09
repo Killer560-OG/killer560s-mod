@@ -41,6 +41,16 @@ public abstract class BaseTab {
         }).bounds(x, y, w, h).build();
     }
 
+    /** A row showing {@code name} with its color swatch; a click opens the color picker, which hands the pick to {@code setter}. */
+    protected static SettingsButtonWidget swatchRow(int x, int y, int width, String name, int current, int defaultColor,
+            java.util.function.IntConsumer setter) {
+        return SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label(name, current), btn -> {
+            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                    com.killer560.hub.compat.McCompat.screen(client), name, current, defaultColor, setter));
+        }).bounds(x, y, width, 18).build();
+    }
+
     /** The first row of a tab: its ON/OFF switch (20 high, rebuilds the tab). True when the rest of the tab is hidden: the switch is OFF and this is not a menu search scan. */
     protected static boolean masterClosed(List<AbstractWidget> widgets, String label, BooleanSupplier get, Consumer<Boolean> set,
             Runnable save, Runnable rebuild, int x, int y, int w) {

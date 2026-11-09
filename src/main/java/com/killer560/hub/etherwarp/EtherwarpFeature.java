@@ -71,10 +71,14 @@ public final class EtherwarpFeature {
      *  saved relative position into a real block, or a real block back into a relative one). Null the
      *  moment either half isn't known yet - not in a dungeon, in boss, or this room hasn't been identified
      *  and rotated yet - same gate {@code SecretWaypointsFeature} applies before it will draw anything. */
-    private record RoomContext(RoomEntry room, int clayX, int clayZ, int rotation) {
+    public record RoomContext(RoomEntry room, int clayX, int clayZ, int rotation) {
+        /** The clay position and rotation as {@code PuzzleCoords} takes them. */
+        public int[] frame() {
+            return new int[]{clayX, clayZ, rotation};
+        }
     }
 
-    private static RoomContext currentRoomContext() {
+    public static RoomContext currentRoomContext() {
         RoomEntry room = LiveMapFeature.currentRoomEntry();
         int[] clayRot = LiveMapFeature.currentRoomClayAndRotation();
         if (room == null || room.name == null || clayRot == null) {

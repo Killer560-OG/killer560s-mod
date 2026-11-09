@@ -111,6 +111,8 @@ public final class ModPaths {
         t.put("waypointroutes", "dungeons/waypointroutes");
         t.put("etherwarp", "dungeons/etherwarp");
         t.put("etherwarpoverlay", "dungeons/etherwarpoverlay");
+        t.put("dungeonwaypoints", "dungeons/dungeonwaypoints");
+        t.put("autosuperboom", "dungeons/autosuperboom");
 
         t.put("autoclear", "dungeons/autoclear");
         // Auto Secret, and its insta-clear evidence (killer560smod-autosecret/insta-clear.json).

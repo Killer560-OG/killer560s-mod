@@ -499,6 +499,8 @@ public class Killer560ModClient implements ClientModInitializer {
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
         EtherwarpFeature.register();
+        com.killer560.hub.dungeonwaypoints.DungeonWaypointsFeature.register();
+        com.killer560.hub.autosuperboom.AutoSuperboomFeature.register();
         com.killer560.hub.trail.TrailFeature.register();
         com.killer560.hub.interop.ModConflictWarnings.register();
         com.killer560.hub.social.BestFriendsTracker.register();
