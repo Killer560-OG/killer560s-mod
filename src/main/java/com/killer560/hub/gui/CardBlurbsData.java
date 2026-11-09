@@ -197,6 +197,7 @@ final class CardBlurbsData {
         d.put("ChatHiderTab", "Stacks repeats and hides chat.");
         d.put("ChatHistoryTab", "Keeps all of your chat.");
         d.put("CommandKeybindsTab", "Chat keys and shortcuts.");
+        d.put("CommandPrefixesTab", "Short names and a . prefix.");
         d.put("ClickTranslateTab", "Click chat to translate.");
         d.put("ImagePreviewTab", "Shows pictures from chat links.");
         d.put("CopyChatTab", "Shift or Ctrl click copies chat.");

@@ -356,6 +356,7 @@ public final class ModPaths {
         t.put("relay", "system/relay");
         t.put("commandkeybinds", "system/commands");
         t.put("commandshortcuts", "system/commands");
+        t.put("commandprefix", "system/commands");
         // Streamer Mode, a Home tab (killer560smod-streamer.json), and the testing build's Mark-tested list
         // (killer560smod-tested-<variant>.json). Both were in other/ until 2026-10-26.
         t.put("streamer", "system/streamer");
