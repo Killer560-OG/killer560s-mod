@@ -173,7 +173,7 @@ public final class RunStatsFeature {
     private static MutableComponent name(PlayerRunStats row) {
         DungeonClass cls = row.dungeonClass();
         // DungeonClass.color() is 0xAARRGGBB; TextColor wants plain RGB.
-        int color = cls == null ? ThemeAccent.light(ModChat.LIGHT_ORANGE) : cls.color() & 0x00FFFFFF;
+        int color = cls == null ? ThemeAccent.onDark(ThemeAccent.light(ModChat.LIGHT_ORANGE)) : cls.color() & 0x00FFFFFF;
         MutableComponent out = ModChat.colored(row.name(), color);
         if (cls != null) {
             out.append(ModChat.dim(" (" + cls.displayName() + ")"));

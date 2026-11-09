@@ -63,7 +63,7 @@ public final class AutoRoutesProgressHud {
         double left = plan.secondsLeft(System.currentTimeMillis());
         out.add(new Line(plan.source().label() + " " + plan.percent() + "%  (" + plan.done() + "/" + plan.total() + ")"
                 + (Double.isNaN(left) || plan.rooms().isEmpty() ? "" : "  ~" + RunPlan.clock(left) + " left"),
-                ThemeAccent.light(ModChat.LIGHT_ORANGE)));
+                ThemeAccent.onDark(ThemeAccent.light(ModChat.LIGHT_ORANGE))));
         List<String> rooms = plan.rooms();
         for (int i = 0; i < rooms.size() && i <= upcoming; i++) {
             String name = rooms.get(i);

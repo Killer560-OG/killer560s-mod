@@ -107,7 +107,7 @@ public final class TerminalTimersFeature {
         // plain text as before, so every regex on the stripped line still matches. Any click/hover event the
         // original line carried (e.g. Click Translate / Copy Chat's wrap) is carried over.
         MutableComponent rewritten = Component.empty()
-                .append(ModChat.colored(name, ThemeAccent.accent(ModChat.ORANGE)))
+                .append(ModChat.colored(name, ThemeAccent.onDark(ThemeAccent.accent(ModChat.ORANGE))))
                 .append(ModChat.good(" " + verb + " a " + type + "! "))
                 .append(ModChat.dim("("))
                 .append(ModChat.value(String.valueOf(current)))
