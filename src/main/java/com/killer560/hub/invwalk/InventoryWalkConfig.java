@@ -3,7 +3,6 @@ package com.killer560.hub.invwalk;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -60,20 +59,16 @@ public final class InventoryWalkConfig {
 
     public static void load() {
         InventoryWalkConfig cfg = new InventoryWalkConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.screens = ConfigJson.getEnum(obj, "screens", Screens.class, cfg.screens);
-                cfg.jump = ConfigJson.getBool(obj, "jump", cfg.jump);
-                cfg.sprint = ConfigJson.getBool(obj, "sprint", cfg.sprint);
-                cfg.setPauseAfterClickTicks(ConfigJson.getInt(obj, "pauseAfterClickTicks", cfg.pauseAfterClickTicks));
-                cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
-                cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
-                cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
-            } catch (Exception e) {
-                cfg = new InventoryWalkConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.screens = ConfigJson.getEnum(obj, "screens", Screens.class, cfg.screens);
+            cfg.jump = ConfigJson.getBool(obj, "jump", cfg.jump);
+            cfg.sprint = ConfigJson.getBool(obj, "sprint", cfg.sprint);
+            cfg.setPauseAfterClickTicks(ConfigJson.getInt(obj, "pauseAfterClickTicks", cfg.pauseAfterClickTicks));
+            cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
+            cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
+            cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
         }
         instance = cfg;
     }

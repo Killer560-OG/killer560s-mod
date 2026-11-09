@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
@@ -160,40 +159,36 @@ public final class WitherDragonsConfig {
 
     private static void load0() {
         WitherDragonsConfig cfg = new WitherDragonsConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", false);
-                cfg.dragonTimer = ConfigJson.getBool(o, "dragonTimer", true);
-                cfg.timerStyle = ConfigJson.getEnum(o, "timerStyle", TimerStyle.class, TimerStyle.MILLISECONDS);
-                cfg.timerSymbol = ConfigJson.getBool(o, "timerSymbol", true);
-                cfg.dragonBoxes = ConfigJson.getBool(o, "dragonBoxes", true);
-                cfg.dragonTracer = ConfigJson.getBool(o, "dragonTracer", true);
-                cfg.dragonHealth = ConfigJson.getBool(o, "dragonHealth", true);
-                cfg.dragonTitle = ConfigJson.getBool(o, "dragonTitle", true);
-                cfg.titleMode = ConfigJson.getEnum(o, "titleMode", TitleMode.class, TitleMode.PRIORITY);
-                cfg.nameStyle = ConfigJson.getEnum(o, "nameStyle", NameStyle.class, NameStyle.COLOUR);
-                cfg.titleSound = ConfigJson.getBool(o, "titleSound", true);
-                cfg.sendSpawned = ConfigJson.getBool(o, "sendSpawned", true);
-                cfg.sendTime = ConfigJson.getBool(o, "sendTime", true);
-                cfg.sendSpray = ConfigJson.getBool(o, "sendSpray", true);
-                cfg.sendArrows = ConfigJson.getBool(o, "sendArrows", true);
-                cfg.sendConfirmation = ConfigJson.getBool(o, "sendConfirmation", true);
-                cfg.dragonPriority = ConfigJson.getBool(o, "dragonPriority", true);
-                cfg.soloDebuff = ConfigJson.getEnum(o, "soloDebuff", SoloDebuff.class, SoloDebuff.TANK);
-                cfg.firstDragonOnly = ConfigJson.getBool(o, "firstDragonOnly", true);
-                cfg.classOverride = ConfigJson.getEnum(o, "classOverride", ClassOverride.class, ClassOverride.AUTO);
-                cfg.relicsEnabled = ConfigJson.getBool(o, "relicsEnabled", false);
-                cfg.relicSpawnTimer = ConfigJson.getBool(o, "relicSpawnTimer", true);
-                cfg.relicSpawnTicks = Math.max(0, Math.min(100, ConfigJson.getInt(o, "relicSpawnTicks", 38)));
-                cfg.relicHighlight = ConfigJson.getBool(o, "relicHighlight", true);
-                cfg.relicTracer = ConfigJson.getBool(o, "relicTracer", false);
-                cfg.relicPlaceTime = ConfigJson.getBool(o, "relicPlaceTime", true);
-                cfg.relicSummary = ConfigJson.getBool(o, "relicSummary", true);
-                cfg.blockWrongRelic = ConfigJson.getBool(o, "blockWrongRelic", false);
-            } catch (Exception ignored) {
-                // unreadable file - defaults (ConfigJson already covers per-key malformed values)
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.enabled = ConfigJson.getBool(o, "enabled", false);
+            cfg.dragonTimer = ConfigJson.getBool(o, "dragonTimer", true);
+            cfg.timerStyle = ConfigJson.getEnum(o, "timerStyle", TimerStyle.class, TimerStyle.MILLISECONDS);
+            cfg.timerSymbol = ConfigJson.getBool(o, "timerSymbol", true);
+            cfg.dragonBoxes = ConfigJson.getBool(o, "dragonBoxes", true);
+            cfg.dragonTracer = ConfigJson.getBool(o, "dragonTracer", true);
+            cfg.dragonHealth = ConfigJson.getBool(o, "dragonHealth", true);
+            cfg.dragonTitle = ConfigJson.getBool(o, "dragonTitle", true);
+            cfg.titleMode = ConfigJson.getEnum(o, "titleMode", TitleMode.class, TitleMode.PRIORITY);
+            cfg.nameStyle = ConfigJson.getEnum(o, "nameStyle", NameStyle.class, NameStyle.COLOUR);
+            cfg.titleSound = ConfigJson.getBool(o, "titleSound", true);
+            cfg.sendSpawned = ConfigJson.getBool(o, "sendSpawned", true);
+            cfg.sendTime = ConfigJson.getBool(o, "sendTime", true);
+            cfg.sendSpray = ConfigJson.getBool(o, "sendSpray", true);
+            cfg.sendArrows = ConfigJson.getBool(o, "sendArrows", true);
+            cfg.sendConfirmation = ConfigJson.getBool(o, "sendConfirmation", true);
+            cfg.dragonPriority = ConfigJson.getBool(o, "dragonPriority", true);
+            cfg.soloDebuff = ConfigJson.getEnum(o, "soloDebuff", SoloDebuff.class, SoloDebuff.TANK);
+            cfg.firstDragonOnly = ConfigJson.getBool(o, "firstDragonOnly", true);
+            cfg.classOverride = ConfigJson.getEnum(o, "classOverride", ClassOverride.class, ClassOverride.AUTO);
+            cfg.relicsEnabled = ConfigJson.getBool(o, "relicsEnabled", false);
+            cfg.relicSpawnTimer = ConfigJson.getBool(o, "relicSpawnTimer", true);
+            cfg.relicSpawnTicks = Math.max(0, Math.min(100, ConfigJson.getInt(o, "relicSpawnTicks", 38)));
+            cfg.relicHighlight = ConfigJson.getBool(o, "relicHighlight", true);
+            cfg.relicTracer = ConfigJson.getBool(o, "relicTracer", false);
+            cfg.relicPlaceTime = ConfigJson.getBool(o, "relicPlaceTime", true);
+            cfg.relicSummary = ConfigJson.getBool(o, "relicSummary", true);
+            cfg.blockWrongRelic = ConfigJson.getBool(o, "blockWrongRelic", false);
         }
         instance = cfg;
     }

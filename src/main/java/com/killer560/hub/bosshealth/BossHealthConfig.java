@@ -3,7 +3,6 @@ package com.killer560.hub.bosshealth;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
@@ -40,16 +39,12 @@ public final class BossHealthConfig {
 
     public static void load() {
         BossHealthConfig cfg = new BossHealthConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.showMax = ConfigJson.getBool(obj, "showMax", true);
-                cfg.showPercent = ConfigJson.getBool(obj, "showPercent", false);
-                cfg.showMinions = ConfigJson.getBool(obj, "showMinions", true);
-            } catch (Exception ignored) {
-                // a broken file loads as the defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showMax = ConfigJson.getBool(obj, "showMax", true);
+            cfg.showPercent = ConfigJson.getBool(obj, "showPercent", false);
+            cfg.showMinions = ConfigJson.getBool(obj, "showMinions", true);
         }
         instance = cfg;
         com.killer560.hub.util.FeatureBits.changed();

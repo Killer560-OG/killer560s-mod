@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -41,16 +40,12 @@ public final class ChunkCacheConfig {
 
     public static void load() {
         ChunkCacheConfig cfg = new ChunkCacheConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                // One-time switch-on: files written before the default changed saved the old OFF default, so they
-                // come up ON once (marked by defaultOnV1); after that his own choice is kept.
-                cfg.enabled = obj.has("defaultOnV1") ? ConfigJson.getBool(obj, "enabled", true) : true;
-                cfg.setMaxChunks(ConfigJson.getInt(obj, "maxChunks", DEFAULT_CHUNKS));
-            } catch (Exception ignored) {
-                // per-key readers above never throw; only an unreadable/non-object file lands here
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            // One-time switch-on: files written before the default changed saved the old OFF default, so they
+            // come up ON once (marked by defaultOnV1); after that his own choice is kept.
+            cfg.enabled = obj.has("defaultOnV1") ? ConfigJson.getBool(obj, "enabled", true) : true;
+            cfg.setMaxChunks(ConfigJson.getInt(obj, "maxChunks", DEFAULT_CHUNKS));
         }
         instance = cfg;
     }

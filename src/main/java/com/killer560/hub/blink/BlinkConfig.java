@@ -3,7 +3,6 @@ package com.killer560.hub.blink;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
@@ -88,38 +87,34 @@ public final class BlinkConfig {
 
     public static void load() {
         BlinkConfig cfg = new BlinkConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                if (obj.has("chargeKeyCode") || obj.has("holdKeyCode")) {
-                    cfg.chargeKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "chargeKeyCode", cfg.chargeKeyCode));
-                    cfg.holdKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "holdKeyCode", cfg.holdKeyCode));
-                    cfg.chargeMode = ConfigJson.getEnum(obj, "chargeMode", Mode.class, cfg.chargeMode);
-                    cfg.setChargeTicks(ConfigJson.getInt(obj, "chargeTicks", cfg.chargeTicks));
-                    cfg.setHoldTicks(ConfigJson.getInt(obj, "holdTicks", cfg.holdTicks));
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            if (obj.has("chargeKeyCode") || obj.has("holdKeyCode")) {
+                cfg.chargeKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "chargeKeyCode", cfg.chargeKeyCode));
+                cfg.holdKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "holdKeyCode", cfg.holdKeyCode));
+                cfg.chargeMode = ConfigJson.getEnum(obj, "chargeMode", Mode.class, cfg.chargeMode);
+                cfg.setChargeTicks(ConfigJson.getInt(obj, "chargeTicks", cfg.chargeTicks));
+                cfg.setHoldTicks(ConfigJson.getInt(obj, "holdTicks", cfg.holdTicks));
+            } else {
+                // The one-key file from before the rework: its key goes to the section its Style was.
+                int key = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", KeyUtil.NONE));
+                boolean charge = "CHARGE".equals(ConfigJson.getString(obj, "style", "HOLD_PACKETS"));
+                int ticks = ConfigJson.getInt(obj, "maxTicks", DEFAULT_TICKS);
+                if (charge) {
+                    cfg.chargeKeyCode = key;
+                    cfg.chargeMode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.chargeMode);
                 } else {
-                    // The one-key file from before the rework: its key goes to the section its Style was.
-                    int key = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", KeyUtil.NONE));
-                    boolean charge = "CHARGE".equals(ConfigJson.getString(obj, "style", "HOLD_PACKETS"));
-                    int ticks = ConfigJson.getInt(obj, "maxTicks", DEFAULT_TICKS);
-                    if (charge) {
-                        cfg.chargeKeyCode = key;
-                        cfg.chargeMode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.chargeMode);
-                    } else {
-                        cfg.holdKeyCode = key;
-                    }
-                    cfg.setChargeTicks(ticks);
-                    cfg.setHoldTicks(ticks);
+                    cfg.holdKeyCode = key;
                 }
-                cfg.showHud = ConfigJson.getBool(obj, "showHud", cfg.showHud);
-                cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
-                cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
-                cfg.debugLog = ConfigJson.getBool(obj, "debugLog", cfg.debugLog);
-                cfg.hudStyle = ConfigJson.getEnum(obj, "hudStyle", HudStyle.class, cfg.hudStyle);
-            } catch (Exception e) {
-                cfg = new BlinkConfig();
+                cfg.setChargeTicks(ticks);
+                cfg.setHoldTicks(ticks);
             }
+            cfg.showHud = ConfigJson.getBool(obj, "showHud", cfg.showHud);
+            cfg.showServerBox = ConfigJson.getBool(obj, "showServerBox", cfg.showServerBox);
+            cfg.chatMessages = ConfigJson.getBool(obj, "chatMessages", cfg.chatMessages);
+            cfg.debugLog = ConfigJson.getBool(obj, "debugLog", cfg.debugLog);
+            cfg.hudStyle = ConfigJson.getEnum(obj, "hudStyle", HudStyle.class, cfg.hudStyle);
         }
         instance = cfg;
     }

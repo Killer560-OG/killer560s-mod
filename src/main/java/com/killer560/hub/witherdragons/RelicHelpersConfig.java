@@ -3,7 +3,6 @@ package com.killer560.hub.witherdragons;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
@@ -49,21 +48,17 @@ public final class RelicHelpersConfig {
 
     public static void load() {
         RelicHelpersConfig cfg = new RelicHelpersConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject root = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.triggerEnabled = ConfigJson.getBool(root, "triggerEnabled", false);
-                cfg.triggerPickup = ConfigJson.getBool(root, "triggerPickup", true);
-                cfg.triggerPlace = ConfigJson.getBool(root, "triggerPlace", true);
-                cfg.swapToRelic = ConfigJson.getBool(root, "swapToRelic", true);
-                cfg.cooldownMs = ConfigJson.getInt(root, "cooldownMs", 200);
-                cfg.lookEnabled = ConfigJson.getBool(root, "lookEnabled", false);
-                cfg.lookAtRelic = ConfigJson.getBool(root, "lookAtRelic", true);
-                cfg.lookAtCauldron = ConfigJson.getBool(root, "lookAtCauldron", true);
-                cfg.lookRange = ConfigJson.getInt(root, "lookRange", 8);
-            } catch (Exception ignored) {
-                // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
-            }
+        JsonObject root = ConfigJson.read(CONFIG_PATH);
+        if (root != null) {
+            cfg.triggerEnabled = ConfigJson.getBool(root, "triggerEnabled", false);
+            cfg.triggerPickup = ConfigJson.getBool(root, "triggerPickup", true);
+            cfg.triggerPlace = ConfigJson.getBool(root, "triggerPlace", true);
+            cfg.swapToRelic = ConfigJson.getBool(root, "swapToRelic", true);
+            cfg.cooldownMs = ConfigJson.getInt(root, "cooldownMs", 200);
+            cfg.lookEnabled = ConfigJson.getBool(root, "lookEnabled", false);
+            cfg.lookAtRelic = ConfigJson.getBool(root, "lookAtRelic", true);
+            cfg.lookAtCauldron = ConfigJson.getBool(root, "lookAtCauldron", true);
+            cfg.lookRange = ConfigJson.getInt(root, "lookRange", 8);
         }
         instance = cfg;
         com.killer560.hub.util.FeatureBits.changed();

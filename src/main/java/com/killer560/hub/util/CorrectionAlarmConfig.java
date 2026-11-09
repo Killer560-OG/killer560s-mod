@@ -1,10 +1,7 @@
 package com.killer560.hub.util;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -39,15 +36,10 @@ public final class CorrectionAlarmConfig {
 
     public static void load() {
         CorrectionAlarmConfig cfg = new CorrectionAlarmConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
-                cfg.setVolume(ConfigJson.getFloat(obj, "volume", 1.0f));
-            } catch (Exception ignored) {
-                cfg = new CorrectionAlarmConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.setVolume(ConfigJson.getFloat(obj, "volume", 1.0f));
         }
         instance = cfg;
     }

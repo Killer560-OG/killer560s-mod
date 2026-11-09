@@ -3,7 +3,6 @@ package com.killer560.hub.gyrooverlay;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -52,16 +51,12 @@ public final class GyroOverlayConfig {
 
     public static void load() {
         GyroOverlayConfig cfg = new GyroOverlayConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.CIRCLE_OUTLINE);
-                cfg.color = ConfigJson.getInt(obj, "color", DEFAULT_COLOR);
-                cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 3.0f));
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.CIRCLE_OUTLINE);
+            cfg.color = ConfigJson.getInt(obj, "color", DEFAULT_COLOR);
+            cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 3.0f));
         }
         instance = cfg;
         com.killer560.hub.util.FeatureBits.changed();

@@ -3,7 +3,6 @@ package com.killer560.hub.splittimers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -55,15 +54,11 @@ public final class BloodRushSplitsConfig {
 
     public static void load() {
         BloodRushSplitsConfig cfg = new BloodRushSplitsConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.COMPACT);
-                cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", false);
-            } catch (Exception e) {
-                cfg = new BloodRushSplitsConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.COMPACT);
+            cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", false);
         }
         instance = cfg;
     }

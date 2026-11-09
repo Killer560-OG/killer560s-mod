@@ -3,7 +3,6 @@ package com.killer560.hub.bazaar;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -46,15 +45,10 @@ public final class BazaarConfig {
 
     public static synchronized void load() {
         BazaarConfig cfg = new BazaarConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.followUpClick = ConfigJson.getBool(obj, "followUpClick", true);
-                cfg.hideHuds = ConfigJson.getBool(obj, "hideHuds", true);
-            } catch (Exception ignored) {
-                cfg = new BazaarConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.followUpClick = ConfigJson.getBool(obj, "followUpClick", true);
+            cfg.hideHuds = ConfigJson.getBool(obj, "hideHuds", true);
         }
         instance = cfg;
     }

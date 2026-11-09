@@ -3,7 +3,6 @@ package com.killer560.hub.smoothtp;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -49,19 +48,14 @@ public final class SmoothTeleportConfig {
 
     public static void load() {
         SmoothTeleportConfig cfg = new SmoothTeleportConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setDurationMs(ConfigJson.getInt(obj, "durationMs", cfg.durationMs));
-                cfg.etherwarp = ConfigJson.getBool(obj, "etherwarp", cfg.etherwarp);
-                cfg.instantTransmission = ConfigJson.getBool(obj, "instantTransmission", cfg.instantTransmission);
-                cfg.witherImpact = ConfigJson.getBool(obj, "witherImpact", cfg.witherImpact);
-                cfg.otherTeleports = ConfigJson.getBool(obj, "otherTeleports", cfg.otherTeleports);
-            } catch (Exception e) {
-                cfg = new SmoothTeleportConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setDurationMs(ConfigJson.getInt(obj, "durationMs", cfg.durationMs));
+            cfg.etherwarp = ConfigJson.getBool(obj, "etherwarp", cfg.etherwarp);
+            cfg.instantTransmission = ConfigJson.getBool(obj, "instantTransmission", cfg.instantTransmission);
+            cfg.witherImpact = ConfigJson.getBool(obj, "witherImpact", cfg.witherImpact);
+            cfg.otherTeleports = ConfigJson.getBool(obj, "otherTeleports", cfg.otherTeleports);
         }
         instance = cfg;
     }

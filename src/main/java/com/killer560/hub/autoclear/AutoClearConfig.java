@@ -3,7 +3,6 @@ package com.killer560.hub.autoclear;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
@@ -105,24 +104,20 @@ public final class AutoClearConfig {
 
     public static void load() {
         AutoClearConfig cfg = new AutoClearConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                cfg.mode = ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode);
-                cfg.weapon = ConfigJson.getEnum(o, "weapon", Weapon.class, cfg.weapon);
-                cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
-                cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
-                cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
-                cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
-                cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
-                cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
-                cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
-                // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
-                // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
-            } catch (Exception e) {
-                // unreadable file (not just a bad key) - keep defaults
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
+            cfg.mode = ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode);
+            cfg.weapon = ConfigJson.getEnum(o, "weapon", Weapon.class, cfg.weapon);
+            cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
+            cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
+            cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
+            cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
+            cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
+            cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
+            cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
+            // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
+            // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
         }
         instance = cfg;
     }

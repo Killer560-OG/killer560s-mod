@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 
@@ -50,20 +49,15 @@ public final class RunStatsConfig {
 
     public static void load() {
         RunStatsConfig cfg = new RunStatsConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.trackRooms = ConfigJson.getBool(obj, "trackRooms", true);
-                cfg.fetchSecrets = ConfigJson.getBool(obj, "fetchSecrets", false);
-                cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", true);
-                cfg.autoShowExtraStats = ConfigJson.getBool(obj, "autoShowExtraStats", false);
-                cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
-                cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.trackRooms = ConfigJson.getBool(obj, "trackRooms", true);
+            cfg.fetchSecrets = ConfigJson.getBool(obj, "fetchSecrets", false);
+            cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", true);
+            cfg.autoShowExtraStats = ConfigJson.getBool(obj, "autoShowExtraStats", false);
+            cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
+            cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
         }
         instance = cfg;
     }

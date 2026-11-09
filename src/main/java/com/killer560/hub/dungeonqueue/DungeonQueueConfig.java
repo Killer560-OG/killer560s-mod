@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -42,16 +41,12 @@ public final class DungeonQueueConfig {
 
     public static void load() {
         DungeonQueueConfig cfg = new DungeonQueueConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
-                cfg.disableOnLeave = ConfigJson.getBool(obj, "disableOnLeave", true);
-                cfg.pvLinkOnJoin = ConfigJson.getBool(obj, "pvLinkOnJoin", false);
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.setDelaySeconds(ConfigJson.getInt(obj, "delaySeconds", DEFAULT_DELAY_SECONDS));
+            cfg.disableOnLeave = ConfigJson.getBool(obj, "disableOnLeave", true);
+            cfg.pvLinkOnJoin = ConfigJson.getBool(obj, "pvLinkOnJoin", false);
         }
         instance = cfg;
     }

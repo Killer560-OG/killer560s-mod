@@ -1,10 +1,10 @@
 package com.killer560.hub.windowlayout;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.ConfigJson;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -56,27 +56,23 @@ public final class WindowLayoutConfig {
 
     public static void load() {
         WindowLayoutConfig cfg = new WindowLayoutConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.windowsPerMonitor = clamp(getInt(o, "windowsPerMonitor", 4), MIN_WINDOWS, MAX_WINDOWS);
-                cfg.monitorIndex = Math.max(-1, getInt(o, "monitorIndex", -1));
-                cfg.monitorDevice = getString(o, "monitorDevice");
-                cfg.monitorName = getString(o, "monitorName");
-                cfg.gap = clamp(getInt(o, "gap", 0), 0, MAX_GAP);
-                cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
-                cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
-                cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
-                cfg.fullMonitorBorderless = getBool(o, "fullMonitorBorderless", true);
-                cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
-                cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));
-                cfg.lastMonitorDevice = getString(o, "lastMonitorDevice");
-                cfg.lastMonitorName = getString(o, "lastMonitorName");
-                cfg.lastCount = clamp(getInt(o, "lastCount", 1), MIN_WINDOWS, MAX_WINDOWS);
-                cfg.lastCellIndex = clamp(getInt(o, "lastCellIndex", 0), 0, cfg.lastCount - 1);
-            } catch (Exception e) {
-                cfg = new WindowLayoutConfig();
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.windowsPerMonitor = clamp(getInt(o, "windowsPerMonitor", 4), MIN_WINDOWS, MAX_WINDOWS);
+            cfg.monitorIndex = Math.max(-1, getInt(o, "monitorIndex", -1));
+            cfg.monitorDevice = getString(o, "monitorDevice");
+            cfg.monitorName = getString(o, "monitorName");
+            cfg.gap = clamp(getInt(o, "gap", 0), 0, MAX_GAP);
+            cfg.respectTaskbar = getBool(o, "respectTaskbar", true);
+            cfg.pickerKeyCode = com.killer560.hub.util.KeyUtil.sanitize(getInt(o, "pickerKeyCode", -1));
+            cfg.restoreOnLaunch = getBool(o, "restoreOnLaunch", false);
+            cfg.fullMonitorBorderless = getBool(o, "fullMonitorBorderless", true);
+            cfg.hasLastPlacement = getBool(o, "hasLastPlacement", false);
+            cfg.lastMonitorIndex = Math.max(0, getInt(o, "lastMonitorIndex", 0));
+            cfg.lastMonitorDevice = getString(o, "lastMonitorDevice");
+            cfg.lastMonitorName = getString(o, "lastMonitorName");
+            cfg.lastCount = clamp(getInt(o, "lastCount", 1), MIN_WINDOWS, MAX_WINDOWS);
+            cfg.lastCellIndex = clamp(getInt(o, "lastCellIndex", 0), 0, cfg.lastCount - 1);
         }
         instance = cfg;
     }

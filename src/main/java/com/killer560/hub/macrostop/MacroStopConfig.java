@@ -3,7 +3,6 @@ package com.killer560.hub.macrostop;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
@@ -44,15 +43,10 @@ public final class MacroStopConfig {
 
     public static void load() {
         MacroStopConfig cfg = new MacroStopConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.emergencyCancelKeyCode = KeyUtil.sanitizeBind(
-                        ConfigJson.getInt(obj, "emergencyCancelKeyCode", KeyUtil.NONE));
-            } catch (Exception ignored) {
-                cfg = new MacroStopConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.emergencyCancelKeyCode = KeyUtil.sanitizeBind(
+                    ConfigJson.getInt(obj, "emergencyCancelKeyCode", KeyUtil.NONE));
         }
         instance = cfg;
     }

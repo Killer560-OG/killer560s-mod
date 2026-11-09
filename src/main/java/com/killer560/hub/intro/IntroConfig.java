@@ -3,7 +3,6 @@ package com.killer560.hub.intro;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -42,14 +41,9 @@ public final class IntroConfig {
 
     public static void load() {
         IntroConfig cfg = new IntroConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.done = ConfigJson.getBool(obj, "seen", false);
-            } catch (Exception e) {
-                cfg = new IntroConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.done = ConfigJson.getBool(obj, "seen", false);
         }
         instance = cfg;
     }

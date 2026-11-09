@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -44,18 +43,14 @@ public final class SecretTriggerbotConfig {
 
     public static void load() {
         SecretTriggerbotConfig cfg = new SecretTriggerbotConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setDelayMs(ConfigJson.getInt(obj, "delayMs", cfg.delayMs));
-                cfg.setCooldownMs(ConfigJson.getInt(obj, "cooldownMs", cfg.cooldownMs));
-                cfg.swapEnabled = ConfigJson.getBool(obj, "swapEnabled", cfg.swapEnabled);
-                cfg.setSwapSlot(ConfigJson.getInt(obj, "swapSlot", cfg.swapSlot));
-                cfg.swapBack = ConfigJson.getBool(obj, "swapBack", cfg.swapBack);
-            } catch (Exception e) {
-                cfg = new SecretTriggerbotConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setDelayMs(ConfigJson.getInt(obj, "delayMs", cfg.delayMs));
+            cfg.setCooldownMs(ConfigJson.getInt(obj, "cooldownMs", cfg.cooldownMs));
+            cfg.swapEnabled = ConfigJson.getBool(obj, "swapEnabled", cfg.swapEnabled);
+            cfg.setSwapSlot(ConfigJson.getInt(obj, "swapSlot", cfg.swapSlot));
+            cfg.swapBack = ConfigJson.getBool(obj, "swapBack", cfg.swapBack);
         }
         instance = cfg;
     }

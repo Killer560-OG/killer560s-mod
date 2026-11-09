@@ -3,7 +3,6 @@ package com.killer560.hub.bloodrush;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
@@ -78,30 +77,26 @@ public final class BloodRushConfig {
 
     public static void load() {
         BloodRushConfig c = new BloodRushConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                c.enabled = ConfigJson.getBool(o, "enabled", false);
-                c.setKillers(ConfigJson.getInt(o, "killers", 1));
-                c.setRole(ConfigJson.getInt(o, "role", 1));
-                c.showOthers = ConfigJson.getBool(o, "showOthers", true);
-                c.learnSpots = ConfigJson.getBool(o, "learnSpots", false);
-                c.showLearned = ConfigJson.getBool(o, "showLearned", true);
-                c.allRooms = ConfigJson.getBool(o, "allRooms", false);
-                c.mineColor = ConfigJson.getInt(o, "mineColor", DEFAULT_MINE_COLOR);
-                c.othersColor = ConfigJson.getInt(o, "othersColor", DEFAULT_OTHERS_COLOR);
-                c.learnedColor = ConfigJson.getInt(o, "learnedColor", DEFAULT_LEARNED_COLOR);
-                c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", DEFAULT_FILL));
-                c.filled = ConfigJson.getBool(o, "filled", true);
-                c.setOutlineWidth(ConfigJson.getInt(o, "outlineWidth", DEFAULT_OUTLINE));
-                c.throughWalls = ConfigJson.getBool(o, "throughWalls", false);
-                c.wholePath = ConfigJson.getBool(o, "wholePath", false);
-                c.hideSecrets = ConfigJson.getBool(o, "hideSecrets", false);
-                c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
-                c.dropBottom = ConfigJson.getBool(o, "dropBottom", false);
-            } catch (Exception ignored) {
-                // unreadable file - defaults
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            c.enabled = ConfigJson.getBool(o, "enabled", false);
+            c.setKillers(ConfigJson.getInt(o, "killers", 1));
+            c.setRole(ConfigJson.getInt(o, "role", 1));
+            c.showOthers = ConfigJson.getBool(o, "showOthers", true);
+            c.learnSpots = ConfigJson.getBool(o, "learnSpots", false);
+            c.showLearned = ConfigJson.getBool(o, "showLearned", true);
+            c.allRooms = ConfigJson.getBool(o, "allRooms", false);
+            c.mineColor = ConfigJson.getInt(o, "mineColor", DEFAULT_MINE_COLOR);
+            c.othersColor = ConfigJson.getInt(o, "othersColor", DEFAULT_OTHERS_COLOR);
+            c.learnedColor = ConfigJson.getInt(o, "learnedColor", DEFAULT_LEARNED_COLOR);
+            c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", DEFAULT_FILL));
+            c.filled = ConfigJson.getBool(o, "filled", true);
+            c.setOutlineWidth(ConfigJson.getInt(o, "outlineWidth", DEFAULT_OUTLINE));
+            c.throughWalls = ConfigJson.getBool(o, "throughWalls", false);
+            c.wholePath = ConfigJson.getBool(o, "wholePath", false);
+            c.hideSecrets = ConfigJson.getBool(o, "hideSecrets", false);
+            c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
+            c.dropBottom = ConfigJson.getBool(o, "dropBottom", false);
         }
         instance = c;
         BloodRushHelperFeature.invalidate();

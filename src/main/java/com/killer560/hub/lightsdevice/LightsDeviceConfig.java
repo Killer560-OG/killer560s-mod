@@ -3,7 +3,6 @@ package com.killer560.hub.lightsdevice;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
@@ -72,24 +71,19 @@ public final class LightsDeviceConfig {
 
     public static void load() {
         LightsDeviceConfig cfg = new LightsDeviceConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.auraEnabled = ConfigJson.getBool(o, "auraEnabled", cfg.auraEnabled);
-                cfg.preFlick = ConfigJson.getBool(o, "preFlick", cfg.preFlick);
-                cfg.finish = ConfigJson.getBool(o, "finish", cfg.finish);
-                cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-                cfg.setCps(ConfigJson.getInt(o, "cps", cfg.cps));
-                cfg.auraSwingHand = ConfigJson.getBool(o, "auraSwingHand", cfg.auraSwingHand);
-                cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
-                cfg.triggerEnabled = ConfigJson.getBool(o, "triggerEnabled", cfg.triggerEnabled);
-                cfg.setTriggerDelayMs(ConfigJson.getInt(o, "triggerDelayMs", cfg.triggerDelayMs));
-                cfg.setTriggerCooldownMs(ConfigJson.getInt(o, "triggerCooldownMs", cfg.triggerCooldownMs));
-                cfg.triggerSwingHand = ConfigJson.getBool(o, "triggerSwingHand", cfg.triggerSwingHand);
-            } catch (Exception e) {
-                // unreadable file (not just a bad key) - keep defaults
-                cfg = new LightsDeviceConfig();
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.auraEnabled = ConfigJson.getBool(o, "auraEnabled", cfg.auraEnabled);
+            cfg.preFlick = ConfigJson.getBool(o, "preFlick", cfg.preFlick);
+            cfg.finish = ConfigJson.getBool(o, "finish", cfg.finish);
+            cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
+            cfg.setCps(ConfigJson.getInt(o, "cps", cfg.cps));
+            cfg.auraSwingHand = ConfigJson.getBool(o, "auraSwingHand", cfg.auraSwingHand);
+            cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+            cfg.triggerEnabled = ConfigJson.getBool(o, "triggerEnabled", cfg.triggerEnabled);
+            cfg.setTriggerDelayMs(ConfigJson.getInt(o, "triggerDelayMs", cfg.triggerDelayMs));
+            cfg.setTriggerCooldownMs(ConfigJson.getInt(o, "triggerCooldownMs", cfg.triggerCooldownMs));
+            cfg.triggerSwingHand = ConfigJson.getBool(o, "triggerSwingHand", cfg.triggerSwingHand);
         }
         instance = cfg;
     }

@@ -3,7 +3,6 @@ package com.killer560.hub.bazaar;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -53,24 +52,19 @@ public final class BazaarOrderHelperConfig {
 
     public static synchronized void load() {
         BazaarOrderHelperConfig cfg = new BazaarOrderHelperConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
-                cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
-                cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);
-                if (cfg.outbidColor == OLD_OUTBID_COLOR && !obj.has("expiredColor")) {
-                    cfg.outbidColor = DEFAULT_OUTBID_COLOR; // the old red default moves to yellow (2026-11-03)
-                }
-                cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
-                cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
-                cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
-                cfg.highlightAuctions = ConfigJson.getBool(obj, "highlightAuctions", true);
-            } catch (Exception ignored) {
-                cfg = new BazaarOrderHelperConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.highlightOutbid = ConfigJson.getBool(obj, "highlightOutbid", true);
+            cfg.highlightFilled = ConfigJson.getBool(obj, "highlightFilled", true);
+            cfg.outbidColor = ConfigJson.getInt(obj, "outbidColor", DEFAULT_OUTBID_COLOR);
+            if (cfg.outbidColor == OLD_OUTBID_COLOR && !obj.has("expiredColor")) {
+                cfg.outbidColor = DEFAULT_OUTBID_COLOR; // the old red default moves to yellow (2026-11-03)
             }
+            cfg.filledColor = ConfigJson.getInt(obj, "filledColor", DEFAULT_FILLED_COLOR);
+            cfg.highlightExpired = ConfigJson.getBool(obj, "highlightExpired", true);
+            cfg.expiredColor = ConfigJson.getInt(obj, "expiredColor", DEFAULT_EXPIRED_COLOR);
+            cfg.highlightAuctions = ConfigJson.getBool(obj, "highlightAuctions", true);
         }
         instance = cfg;
     }

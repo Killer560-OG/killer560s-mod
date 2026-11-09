@@ -3,7 +3,6 @@ package com.killer560.hub.spotify;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -87,22 +86,18 @@ public final class SongShareConfig {
 
     public static synchronized void load() {
         SongShareConfig cfg = new SongShareConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
-                cfg.showOthers = ConfigJson.getBool(obj, "showOthers", true);
-                cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
-                cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
-                cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
-                cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
-                cfg.songInF5 = ConfigJson.getBool(obj, "songInF5", false);
-                cfg.customF5Colors = ConfigJson.getBool(obj, "customF5Colors", false);
-                cfg.f5TextColor = ConfigJson.getInt(obj, "f5TextColor", DEFAULT_F5_TEXT) | 0xFF000000;
-                cfg.f5HighlightColor = ConfigJson.getInt(obj, "f5HighlightColor", DEFAULT_F5_HIGHLIGHT) | 0xFF000000;
-            } catch (Exception ignored) {
-                // a broken file loads as the defaults
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.shareSong = ConfigJson.getBool(obj, "shareSong", false);
+            cfg.showOthers = ConfigJson.getBool(obj, "showOthers", true);
+            cfg.lyricsOverHead = ConfigJson.getBool(obj, "lyricsOverHead", false);
+            cfg.highlightWordInF5 = ConfigJson.getBool(obj, "highlightWordInF5", true);
+            cfg.shareWhat = ConfigJson.getEnum(obj, "shareWhat", ShareWhat.class, ShareWhat.SONG);
+            cfg.shareWord = ConfigJson.getBool(obj, "shareWord", true);
+            cfg.songInF5 = ConfigJson.getBool(obj, "songInF5", false);
+            cfg.customF5Colors = ConfigJson.getBool(obj, "customF5Colors", false);
+            cfg.f5TextColor = ConfigJson.getInt(obj, "f5TextColor", DEFAULT_F5_TEXT) | 0xFF000000;
+            cfg.f5HighlightColor = ConfigJson.getInt(obj, "f5HighlightColor", DEFAULT_F5_HIGHLIGHT) | 0xFF000000;
         }
         instance = cfg;
     }

@@ -130,36 +130,32 @@ public final class AuctionConfig {
     public static synchronized void load() {
         AuctionConfig cfg = new AuctionConfig();
         boolean migrated = false;
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                // The fallback must be the FIELD's default, not false. These default to true (killer560,
-                // 2026-09-27: "turn auction house and bazaar settings on by default") but load resolved a
-                // missing or malformed key to false - so a config written before those keys existed, or one
-                // with a typo'd key, silently turned both off and looked like the feature was broken.
-                cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", false);
-                cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", false);
-                cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
-                cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
-                // One switch since 2026-10-11: a reskin that was on keeps the whole feature on.
-                if (obj.has("reskinRealBazaar")) {
-                    cfg.bazaarEnabled |= ConfigJson.getBool(obj, "reskinRealBazaar", false);
-                    migrated = true;
-                }
-                cfg.bazaarVanillaKeyCode = ConfigJson.getInt(obj, "bazaarVanillaKeyCode", 342);
-                cfg.openAhKeyCode = ConfigJson.getInt(obj, "openAhKeyCode", -1);
-                cfg.openBazaarKeyCode = ConfigJson.getInt(obj, "openBazaarKeyCode", -1);
-                cfg.lastSort = ConfigJson.getEnum(obj, "lastSort", SortMode.class, SortMode.PRICE_LOW);
-                cfg.lastRarityFilter = ConfigJson.getString(obj, "lastRarityFilter", "");
-                cfg.lastMinPetLevel = ConfigJson.getInt(obj, "lastMinPetLevel", 0);
-                cfg.lastBazaarSort = ConfigJson.getEnum(obj, "lastBazaarSort", BazaarSortMode.class, BazaarSortMode.VOLUME_HIGH);
-                cfg.lastListingMode = ConfigJson.getEnum(obj, "lastListingMode", ListingMode.class, ListingMode.BIN);
-                cfg.lastCategoryFilter = ConfigJson.getString(obj, "lastCategoryFilter", "");
-                cfg.lastBazaarCategoryFilter = ConfigJson.getString(obj, "lastBazaarCategoryFilter", "");
-                cfg.trackBazaarOrders = ConfigJson.getBool(obj, "trackBazaarOrders", true);
-            } catch (Exception ignored) {
-                // Keep defaults for this session on a malformed file - never throw out of a config load.
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            // The fallback must be the FIELD's default, not false. These default to true (killer560,
+            // 2026-09-27: "turn auction house and bazaar settings on by default") but load resolved a
+            // missing or malformed key to false - so a config written before those keys existed, or one
+            // with a typo'd key, silently turned both off and looked like the feature was broken.
+            cfg.ahEnabled = ConfigJson.getBool(obj, "ahEnabled", false);
+            cfg.bazaarEnabled = ConfigJson.getBool(obj, "bazaarEnabled", false);
+            cfg.listingHelperEnabled = ConfigJson.getBool(obj, "listingHelperEnabled", false);
+            cfg.overrideAhCommand = ConfigJson.getBool(obj, "overrideAhCommand", false);
+            // One switch since 2026-10-11: a reskin that was on keeps the whole feature on.
+            if (obj.has("reskinRealBazaar")) {
+                cfg.bazaarEnabled |= ConfigJson.getBool(obj, "reskinRealBazaar", false);
+                migrated = true;
             }
+            cfg.bazaarVanillaKeyCode = ConfigJson.getInt(obj, "bazaarVanillaKeyCode", 342);
+            cfg.openAhKeyCode = ConfigJson.getInt(obj, "openAhKeyCode", -1);
+            cfg.openBazaarKeyCode = ConfigJson.getInt(obj, "openBazaarKeyCode", -1);
+            cfg.lastSort = ConfigJson.getEnum(obj, "lastSort", SortMode.class, SortMode.PRICE_LOW);
+            cfg.lastRarityFilter = ConfigJson.getString(obj, "lastRarityFilter", "");
+            cfg.lastMinPetLevel = ConfigJson.getInt(obj, "lastMinPetLevel", 0);
+            cfg.lastBazaarSort = ConfigJson.getEnum(obj, "lastBazaarSort", BazaarSortMode.class, BazaarSortMode.VOLUME_HIGH);
+            cfg.lastListingMode = ConfigJson.getEnum(obj, "lastListingMode", ListingMode.class, ListingMode.BIN);
+            cfg.lastCategoryFilter = ConfigJson.getString(obj, "lastCategoryFilter", "");
+            cfg.lastBazaarCategoryFilter = ConfigJson.getString(obj, "lastBazaarCategoryFilter", "");
+            cfg.trackBazaarOrders = ConfigJson.getBool(obj, "trackBazaarOrders", true);
         }
         if (migrateAhReskin(cfg)) {
             migrated = true;

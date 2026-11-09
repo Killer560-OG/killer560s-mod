@@ -3,7 +3,6 @@ package com.killer560.hub.heldoutline;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -159,31 +158,26 @@ public final class HeldOutlineConfig {
 
     public static void load() {
         HeldOutlineConfig cfg = new HeldOutlineConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                String s = ConfigJson.getString(o, "style", cfg.style.name());
-                for (Style st : Style.values()) {
-                    if (st.name().equalsIgnoreCase(s)) {
-                        cfg.style = st;
-                    }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
+            String s = ConfigJson.getString(o, "style", cfg.style.name());
+            for (Style st : Style.values()) {
+                if (st.name().equalsIgnoreCase(s)) {
+                    cfg.style = st;
                 }
-                String sd = ConfigJson.getString(o, "side", cfg.side.name());
-                for (Side v : Side.values()) {
-                    if (v.name().equalsIgnoreCase(sd)) {
-                        cfg.side = v;
-                    }
-                }
-                cfg.outlineColor = ConfigJson.getInt(o, "outlineColor", cfg.outlineColor);
-                cfg.fillColor = ConfigJson.getInt(o, "fillColor", cfg.fillColor);
-                cfg.width = clampWidth(ConfigJson.getFloat(o, "width", cfg.width));
-                cfg.mainHand = ConfigJson.getBool(o, "mainHand", cfg.mainHand);
-                cfg.offHand = ConfigJson.getBool(o, "offHand", cfg.offHand);
-            } catch (Exception e) {
-                cfg = new HeldOutlineConfig();
             }
+            String sd = ConfigJson.getString(o, "side", cfg.side.name());
+            for (Side v : Side.values()) {
+                if (v.name().equalsIgnoreCase(sd)) {
+                    cfg.side = v;
+                }
+            }
+            cfg.outlineColor = ConfigJson.getInt(o, "outlineColor", cfg.outlineColor);
+            cfg.fillColor = ConfigJson.getInt(o, "fillColor", cfg.fillColor);
+            cfg.width = clampWidth(ConfigJson.getFloat(o, "width", cfg.width));
+            cfg.mainHand = ConfigJson.getBool(o, "mainHand", cfg.mainHand);
+            cfg.offHand = ConfigJson.getBool(o, "offHand", cfg.offHand);
         }
         instance = cfg;
     }

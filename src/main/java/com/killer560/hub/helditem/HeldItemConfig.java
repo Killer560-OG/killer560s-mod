@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -111,26 +110,22 @@ public final class HeldItemConfig {
 
     public static void load() {
         HeldItemConfig cfg = new HeldItemConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.separateOffHand = ConfigJson.getBool(obj, "separateOffHand", cfg.separateOffHand);
-                cfg.noSwing = ConfigJson.getBool(obj, "noSwing", cfg.noSwing);
-                cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
-                cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
-                cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
-                cfg.swingRange = clamp(getFloat(obj, "swingRange", 1.0f), MIN_SWING_RANGE, MAX_SWING_RANGE);
-                JsonObject main = ConfigJson.getObject(obj, "mainHand");
-                if (main != null) {
-                    cfg.mainHand.fromJson(main);
-                }
-                JsonObject off = ConfigJson.getObject(obj, "offHand");
-                if (off != null) {
-                    cfg.offHand.fromJson(off);
-                }
-            } catch (Exception e) {
-                cfg = new HeldItemConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.separateOffHand = ConfigJson.getBool(obj, "separateOffHand", cfg.separateOffHand);
+            cfg.noSwing = ConfigJson.getBool(obj, "noSwing", cfg.noSwing);
+            cfg.noEquip = ConfigJson.getBool(obj, "noEquip", cfg.noEquip);
+            cfg.noHandSway = ConfigJson.getBool(obj, "noHandSway", cfg.noHandSway);
+            cfg.swingSpeed = clamp(getFloat(obj, "swingSpeed", 1.0f), MIN_SWING_SPEED, MAX_SWING_SPEED);
+            cfg.swingRange = clamp(getFloat(obj, "swingRange", 1.0f), MIN_SWING_RANGE, MAX_SWING_RANGE);
+            JsonObject main = ConfigJson.getObject(obj, "mainHand");
+            if (main != null) {
+                cfg.mainHand.fromJson(main);
+            }
+            JsonObject off = ConfigJson.getObject(obj, "offHand");
+            if (off != null) {
+                cfg.offHand.fromJson(off);
             }
         }
         instance = cfg;

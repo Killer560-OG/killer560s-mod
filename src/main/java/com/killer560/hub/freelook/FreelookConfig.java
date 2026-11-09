@@ -3,7 +3,6 @@ package com.killer560.hub.freelook;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModPaths;
@@ -51,15 +50,11 @@ public final class FreelookConfig {
 
     public static void load() {
         FreelookConfig cfg = new FreelookConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.mode);
-                cfg.panKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "panKeyCode", cfg.panKeyCode));
-            } catch (Exception e) {
-                cfg = new FreelookConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.mode);
+            cfg.panKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "panKeyCode", cfg.panKeyCode));
         }
         instance = cfg;
     }

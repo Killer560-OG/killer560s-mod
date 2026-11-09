@@ -3,7 +3,6 @@ package com.killer560.hub.trail;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
@@ -166,15 +165,10 @@ public final class RibbonTrailConfig {
         // An old Trail file (one with a Style) is split before this file is read.
         TrailConfig.getInstance();
         RibbonTrailConfig cfg = new RibbonTrailConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.read(obj, "ribbonHeight");
-            } catch (Exception e) {
-                cfg = new RibbonTrailConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.read(obj, "ribbonHeight");
         }
         instance = cfg;
     }

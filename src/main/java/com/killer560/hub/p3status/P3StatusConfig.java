@@ -3,7 +3,6 @@ package com.killer560.hub.p3status;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
@@ -45,19 +44,15 @@ public final class P3StatusConfig {
 
     public static synchronized void load() {
         P3StatusConfig cfg = new P3StatusConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.showHud = ConfigJson.getBool(obj, "showHud", true);
-                cfg.rewriteTitles = ConfigJson.getBool(obj, "rewriteTitles", true);
-                cfg.deviceDoneTitle = ConfigJson.getBool(obj, "deviceDoneTitle", true);
-                cfg.sectionCompleteTitle = ConfigJson.getBool(obj, "sectionCompleteTitle", true);
-                cfg.hideLaserSubtitle = ConfigJson.getBool(obj, "hideLaserSubtitle", true);
-                cfg.titleSound = ConfigJson.getBool(obj, "titleSound", true);
-            } catch (Exception e) {
-                cfg = new P3StatusConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.showHud = ConfigJson.getBool(obj, "showHud", true);
+            cfg.rewriteTitles = ConfigJson.getBool(obj, "rewriteTitles", true);
+            cfg.deviceDoneTitle = ConfigJson.getBool(obj, "deviceDoneTitle", true);
+            cfg.sectionCompleteTitle = ConfigJson.getBool(obj, "sectionCompleteTitle", true);
+            cfg.hideLaserSubtitle = ConfigJson.getBool(obj, "hideLaserSubtitle", true);
+            cfg.titleSound = ConfigJson.getBool(obj, "titleSound", true);
         }
         instance = cfg;
     }

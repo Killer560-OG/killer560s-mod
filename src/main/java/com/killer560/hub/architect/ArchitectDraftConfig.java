@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -37,14 +36,10 @@ public final class ArchitectDraftConfig {
 
     public static void load() {
         ArchitectDraftConfig cfg = new ArchitectDraftConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.clickMessage = ConfigJson.getBool(o, "clickMessage", false);
-                cfg.autoGet = ConfigJson.getBool(o, "autoGet", false);
-            } catch (Exception ignored) {
-                // unreadable file: defaults
-            }
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            cfg.clickMessage = ConfigJson.getBool(o, "clickMessage", false);
+            cfg.autoGet = ConfigJson.getBool(o, "autoGet", false);
         }
         instance = cfg;
     }

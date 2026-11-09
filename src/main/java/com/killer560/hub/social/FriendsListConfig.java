@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -105,24 +104,20 @@ public final class FriendsListConfig {
 
     public static void load() {
         FriendsListConfig cfg = new FriendsListConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.everSynced = ConfigJson.getBool(obj, "everSynced", false);
-                cfg.lastSyncedAtMs = ConfigJson.getLong(obj, "lastSyncedAtMs", 0L);
-                cfg.lastSyncTruncated = ConfigJson.getBool(obj, "lastSyncTruncated", false);
-                JsonArray array = ConfigJson.getArray(obj, "friends");
-                if (array != null) {
-                    for (JsonElement element : array) {
-                        Friend f = fromJson(element);
-                        if (f != null) {
-                            cfg.friends.put(f.name.toLowerCase(Locale.US), f);
-                        }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.everSynced = ConfigJson.getBool(obj, "everSynced", false);
+            cfg.lastSyncedAtMs = ConfigJson.getLong(obj, "lastSyncedAtMs", 0L);
+            cfg.lastSyncTruncated = ConfigJson.getBool(obj, "lastSyncTruncated", false);
+            JsonArray array = ConfigJson.getArray(obj, "friends");
+            if (array != null) {
+                for (JsonElement element : array) {
+                    Friend f = fromJson(element);
+                    if (f != null) {
+                        cfg.friends.put(f.name.toLowerCase(Locale.US), f);
                     }
                 }
-            } catch (Exception e) {
-                // Malformed file - start with the toggle off and an empty list rather than throwing.
             }
         }
         instance = cfg;

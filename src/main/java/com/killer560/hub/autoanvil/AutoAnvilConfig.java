@@ -3,7 +3,6 @@ package com.killer560.hub.autoanvil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
@@ -44,17 +43,13 @@ public final class AutoAnvilConfig {
 
     public static void load() {
         AutoAnvilConfig cfg = new AutoAnvilConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setMinDelayMs(ConfigJson.getInt(obj, "minDelayMs", cfg.minDelayMs));
-                cfg.setMaxDelayMs(ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs));
-                cfg.cascade = ConfigJson.getBool(obj, "cascade", cfg.cascade);
-                cfg.closeWhenDone = ConfigJson.getBool(obj, "closeWhenDone", cfg.closeWhenDone);
-            } catch (Exception e) {
-                cfg = new AutoAnvilConfig();
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setMinDelayMs(ConfigJson.getInt(obj, "minDelayMs", cfg.minDelayMs));
+            cfg.setMaxDelayMs(ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs));
+            cfg.cascade = ConfigJson.getBool(obj, "cascade", cfg.cascade);
+            cfg.closeWhenDone = ConfigJson.getBool(obj, "closeWhenDone", cfg.closeWhenDone);
         }
         instance = cfg;
     }

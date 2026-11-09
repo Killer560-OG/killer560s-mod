@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -64,39 +63,35 @@ public final class LeverAuraConfig {
         LeverAuraConfig cfg = new LeverAuraConfig();
         boolean migrateEnabled = false;
         boolean migrateLights = false;
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                // A file from before the merge into Secret Aura: its switch becomes In Boss (never turns it off).
-                migrateEnabled = o.has("enabled");
-                if (migrateEnabled && ConfigJson.getBool(o, "enabled", false)) {
-                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(true);
-                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().save();
-                }
-                cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
-                cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
-                cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-                if (o.has("cps")) {
-                    cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
-                } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
-                    // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
-                    int min = ConfigJson.getInt(o, "minDelayMs", 150);
-                    int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
-                    cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
-                }
-                cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
-                cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
-                // A file from before the Lights Device was its own feature: its Lights options, and the In Boss switch
-                // they ran under (already migrated above when the file is older still), move there once.
-                migrateLights = o.has("lightsPreFlick") || o.has("lightsFinish");
-                if (migrateLights) {
-                    com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
-                            ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
-                            com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
-                            cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
-                }
-            } catch (Exception e) {
-                // unreadable file (not just a bad key) - keep defaults
+        JsonObject o = ConfigJson.read(CONFIG_PATH);
+        if (o != null) {
+            // A file from before the merge into Secret Aura: its switch becomes In Boss (never turns it off).
+            migrateEnabled = o.has("enabled");
+            if (migrateEnabled && ConfigJson.getBool(o, "enabled", false)) {
+                com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(true);
+                com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().save();
+            }
+            cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
+            cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
+            cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
+            if (o.has("cps")) {
+                cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
+            } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
+                // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
+                int min = ConfigJson.getInt(o, "minDelayMs", 150);
+                int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
+                cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
+            }
+            cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
+            cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+            // A file from before the Lights Device was its own feature: its Lights options, and the In Boss switch
+            // they ran under (already migrated above when the file is older still), move there once.
+            migrateLights = o.has("lightsPreFlick") || o.has("lightsFinish");
+            if (migrateLights) {
+                com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
+                        ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
+                        com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
+                        cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
             }
         }
         instance = cfg;

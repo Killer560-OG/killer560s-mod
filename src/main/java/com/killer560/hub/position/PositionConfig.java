@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
 import java.nio.charset.StandardCharsets;
@@ -48,19 +47,14 @@ public final class PositionConfig {
 
     public static void load() {
         PositionConfig cfg = new PositionConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.decimalPlaces = clampDecimalPlaces(
-                        ConfigJson.getInt(obj, "decimalPlaces", cfg.decimalPlaces));
-                cfg.showFacing = ConfigJson.getBool(obj, "showFacing", cfg.showFacing);
-                cfg.showBlock = ConfigJson.getBool(obj, "showBlock", cfg.showBlock);
-                cfg.showVelocity = ConfigJson.getBool(obj, "showVelocity", cfg.showVelocity);
-            } catch (Exception ignored) {
-                // Unparseable file: keep defaults for everything.
-            }
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.decimalPlaces = clampDecimalPlaces(
+                    ConfigJson.getInt(obj, "decimalPlaces", cfg.decimalPlaces));
+            cfg.showFacing = ConfigJson.getBool(obj, "showFacing", cfg.showFacing);
+            cfg.showBlock = ConfigJson.getBool(obj, "showBlock", cfg.showBlock);
+            cfg.showVelocity = ConfigJson.getBool(obj, "showVelocity", cfg.showVelocity);
         }
         instance = cfg;
     }

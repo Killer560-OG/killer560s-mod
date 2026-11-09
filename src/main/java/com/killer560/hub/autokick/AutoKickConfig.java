@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.SkyblockGate;
 import java.nio.charset.StandardCharsets;
@@ -163,24 +162,20 @@ public final class AutoKickConfig {
 
     public static void load() {
         AutoKickConfig cfg = new AutoKickConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.timeMode = ConfigJson.getEnum(obj, "timeMode", TimeMode.class, TimeMode.S_PLUS);
-                Floor fixed = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
-                cfg.queueFloor = fixed == null ? Floor.F7 : fixed;
-                // A file from before Floor Source: a chosen Queue Floor meant Fixed, "" (Last Run) becomes Detect,
-                // which itself falls back to the last run until something is queued.
-                cfg.floorSource = obj.has("floorSource")
-                        ? ConfigJson.getEnum(obj, "floorSource", FloorSource.class, FloorSource.DETECT)
-                        : fixed != null ? FloorSource.FIXED : FloorSource.DETECT;
-                for (Floor f : Floor.values()) {
-                    cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
-                    cfg.setFloorEnabled(f, ConfigJson.getBool(obj, f.judgeKey(), true));
-                }
-            } catch (Exception ignored) {
-                // Unreadable file: keep the defaults above (off, every floor at the top of its range).
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.timeMode = ConfigJson.getEnum(obj, "timeMode", TimeMode.class, TimeMode.S_PLUS);
+            Floor fixed = Floor.fromRaw(ConfigJson.getString(obj, "queueFloor", ""));
+            cfg.queueFloor = fixed == null ? Floor.F7 : fixed;
+            // A file from before Floor Source: a chosen Queue Floor meant Fixed, "" (Last Run) becomes Detect,
+            // which itself falls back to the last run until something is queued.
+            cfg.floorSource = obj.has("floorSource")
+                    ? ConfigJson.getEnum(obj, "floorSource", FloorSource.class, FloorSource.DETECT)
+                    : fixed != null ? FloorSource.FIXED : FloorSource.DETECT;
+            for (Floor f : Floor.values()) {
+                cfg.setTargetSeconds(f, ConfigJson.getInt(obj, f.key(), 0));
+                cfg.setFloorEnabled(f, ConfigJson.getBool(obj, f.judgeKey(), true));
             }
         }
         instance = cfg;
