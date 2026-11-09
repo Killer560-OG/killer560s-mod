@@ -3,7 +3,6 @@ package com.killer560.hub.mainmenu.mixin;
 import com.killer560.hub.mainmenu.MainMenuTheme;
 import com.killer560.hub.mainmenu.MainMenuThemeConfig;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.modlist.ModListConfig;
 import com.killer560.hub.modlist.ModsScreen;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -66,8 +65,7 @@ public abstract class PauseMenuIconRowMixin {
         killer560smod$pendingMods = null;
         LayoutElement out = hide ? element : original.call(helper, element, span, settings);
         try {
-            if (ModListConfig.getInstance().isPauseButton() && (!FabricLoader.getInstance().isModLoaded("modmenu")
-                    || hide && holdsModMenu(element))) {
+            if (!FabricLoader.getInstance().isModLoaded("modmenu") || hide && holdsModMenu(element)) {
                 Screen self = (Screen) (Object) this;
                 Optional<? extends Holder<Dialog>> extra = getCustomAdditions();
                 boolean links = extra.isPresent() && extra.get().is(Dialogs.SERVER_LINKS);

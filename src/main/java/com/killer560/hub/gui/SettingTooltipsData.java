@@ -1417,8 +1417,6 @@ final class SettingTooltipsData {
         d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("hide pause menu icons", "Removes the row of small icon buttons (Report Bugs, Give Feedback, Friends, Player Reporting) from the pause menu and closes the gap. Turn it off to get them back.");
         d.put("mods screen", "Lists every mod you have loaded, like Mod Menu: icon, name, version, authors, description and links, with a search box and Configure for mods that have a settings screen.");
-        d.put("main menu mods button", "Shows a Mods button under Mod Settings on the Themed Main Menu. It opens the Mods screen.");
-        d.put("pause menu mods button", "Shows a Mods button on the pause (Escape) menu. It opens the Mods screen. With Mod Menu installed, its own Mods button is used instead.");
         d.put("open mods screen", "Opens the Mods screen: every mod you have loaded, searchable, with Configure and links.");
         d.put("themed main menu", "Draws the title screen in the mod's themes (animated background, framed button column). Off: Minecraft's own title screen. The style and scene rows in Menu Theme show only while it is on and keep their values.");
         d.put("auto join skyblock", "Runs /skyblock each time you join Hypixel, unless you send a command first.");
