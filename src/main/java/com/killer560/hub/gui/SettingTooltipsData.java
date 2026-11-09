@@ -812,6 +812,7 @@ final class SettingTooltipsData {
         d.put("blood mobs", "Highlights the Watcher's blood mobs (red by default) for as long as they live, even if they walk out of the Blood Room.");
         d.put("fel skulls", "Highlights dormant Fel skulls lying by starred mobs (pink by default); once a room's starred mobs and those Fels are dead, its other Fel skulls until the room is cleared.");
         d.put("mimic", "Highlights the Mimic (purple by default) and, before it comes out, the trapped chest it hides in.");
+        d.put("hide ghost mobs", "Hides dungeon mobs the server stopped sending for 10 seconds (one a far teammate killed): not drawn, highlighted or targeted. Back the moment the server updates it.");
         d.put("wither bosses", "Cheat build: highlights the F7/M7 wither bosses through walls.");
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");
