@@ -412,10 +412,12 @@ public final class InventoryWalkFeature {
         }
         // He must really be standing still, not just have no keys down: Hypixel limboed him for a click sent while he was
         // still sliding from a sprint after a one-tick "no keys" input (his log, 2026-10-27 16:39:06 and 16:40:02). The
-        // position the server saw last tick must equal this one, and his velocity must be gone.
+        // position the server saw last tick must equal this one, and his velocity must be gone. Flying (a dungeon ghost) he
+        // is never on the ground: hovering still counts (his 26.3 log 2026-11-08 21:19:27-32, a ghost's leap clicks were
+        // held 40 ticks at 0.00 blocks/s and dropped).
         Vec3 v = player.getDeltaMovement();
         if (Math.hypot(v.x, v.z) > STILL_SPEED || Math.hypot(player.getX() - player.xo, player.getZ() - player.zo) > STILL_SPEED
-                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !player.onGround()) {
+                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !(player.onGround() || player.getAbilities().flying)) {
             return false;
         }
         return true;
