@@ -155,7 +155,8 @@ public final class SimItems {
                 (level, player, pos, state, entity) -> {
                     // Fabric fires BEFORE only on the SERVER, with the ServerPlayer: the old `player != client.player`
                     // test was always true, so this never refused anything (coopsim-1109). Every survival player on
-                    // the sim's server is refused now, host and co-op guest alike; creative still breaks (building).
+                    // the sim's server is refused now, host and co-op guest alike; creative passes this gate, but
+                    // onServerAttack already refuses every START on the sim's server (testkit 1109-coop-rules).
                     if (!(player instanceof ServerPlayer sp) || !SimAbilities.simServer(sp) || sp.isCreative()) return true;
                     com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] vanilla break refused for {} at {}",
                             sp.getGameProfile().name(), pos.toShortString());

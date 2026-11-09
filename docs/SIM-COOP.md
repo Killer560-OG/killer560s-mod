@@ -73,7 +73,7 @@ unchanged, so every sim ability stays host-only on the client.
 - Terminals: a second player opening a terminal someone else has open gets `This Terminal is being used by someone
   else!` and nothing opens. Hypixel's real rule was not found in any capture or doc; this line is ours, not a captured one.
 
-## Two-client test assertions (to write once the testkit harness is ready)
+## Two-client test assertions (testkit staging-coopsim: CoopSimTests 1109-coop-two / -rules / -p3 / -portal / -fakeguest, hx 1109-coop-hypixel-refused)
 
 Test counters: `SimGuest.acceptedForTest/refusedForTest/guestForTest()` ({arrives, clicks}), `SimCoop.acksForTest`,
 `SimCoop.holdsForTest()` ({started, answered, put-backs}), `SimTerminator.salvationArmedForTest(uuid)` and
@@ -82,20 +82,23 @@ Test counters: `SimGuest.acceptedForTest/refusedForTest/guestForTest()` ({arrive
 1. Handshake: guest accepted 1 hello, host acks +1, `[SimCoop] <guest> joined with` logged; `SimState.isGuest` true on
    the guest only; guest `canAct` stays false.
 2. Privacy: on the testkit's GrimAC server (labeled mc.hypixel.net) the guest registers no `killer560smod:sim_*` channel.
-3. Tab: both clients' tab shows `Party (2)` with host first.
+3. Tab: both clients' tab shows `Party (2)` and both names (the guest's tab is the host server's sim tab rows;
+   `SimCoop.partyNames` is the host's own list, the guest's stays just itself).
 4. Boss flags: guest's `DungeonState.isSimBoss` follows the host's phase; drops on leave.
-5. Maxor crystals per UUID: each player's carried count and slot 8 restored on Maxor down.
+5. Maxor crystals per UUID: a guest walking into a tower crystal carries it (carried count, slot 8, the pickup line
+   names it), the host carries none.
 6. Device credit: guest presses SS / flips Lights lever / Arrow Align / Target: `lastBy` is the guest.
 7. Terminal in use: second opener gets the line and no screen.
 8. Leave rule: the fight continues while one player is inside the boss box; ends 40 ticks after both left.
 9. Portal: the guest stepping into the Blood portal starts P1.
-10. Vanilla break refused for the guest in survival (log line), allowed in creative.
+10. Vanilla break refused for the guest, survival AND creative, like the host: `SimItems.onServerAttack` answers every
+   START on the sim's server (the BEFORE guard is the second gate and is never reached by a START).
 11. Guest Terminator: arrows owned by the guest, from its eye; guest Spirit Sceptre: blast damage source is the guest.
 12. Guest far-teleport hold: after a boss phase teleport the guest's `guestForTest()[0]` rises, `holdsForTest()` started
     and answered rise by one each, the guest never ends below the landing (y within 0.2 when released) and its client
     never wrote its position (no setPos: assert by the put-backs count, server-side only).
-13. Sceptre picture for all: a host blast reports `lastBlastViewersForTest() == 2`, and the guest's client sees an
-    EXPLOSION particle at the blast (particle packet received).
+13. Sceptre picture for all: a blast with both players within 32 blocks (vanilla's particle range) reports
+    `lastBlastViewersForTest() == 2`.
 14. Guest Salvation: 3 distinct mobs hit by the guest's arrows arm only the guest (`salvationArmedForTest(guest)` true,
     host false); a guest left click fires it (`salvationsForTest` +1, `guestForTest()[1]` +1) and the beam's damage
     source is the guest; the host's own Salvation is unchanged.
