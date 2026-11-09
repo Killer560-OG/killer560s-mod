@@ -154,6 +154,58 @@ public abstract class BlinkPacketListenerMixin {
         }
     }
 
+    /** An entity move near him waits for its ping's answer while Charge holds them (BlinkCharge.holdEntityMove). */
+    @Inject(method = "handleMoveEntity", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER),
+            cancellable = true)
+    private void killer560smod$blinkMove(net.minecraft.network.protocol.game.ClientboundMoveEntityPacket packet,
+            CallbackInfo ci) {
+        if (!com.killer560.hub.blink.BlinkCharge.isActive()) {
+            return;
+        }
+        ClientPacketListener self = (ClientPacketListener) (Object) this;
+        var level = Minecraft.getInstance().level;
+        var e = packet == null || level == null ? null : packet.getEntity(level);
+        if (e != null) {
+            killer560smod$blink$hold(e.getId(), e, () -> self.handleMoveEntity(packet), ci);
+        }
+    }
+
+    @Inject(method = "handleTeleportEntity", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
+            shift = At.Shift.AFTER), cancellable = true)
+    private void killer560smod$blinkTp(net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket packet,
+            CallbackInfo ci) {
+        if (packet == null || !com.killer560.hub.blink.BlinkCharge.isActive()) {
+            return;
+        }
+        ClientPacketListener self = (ClientPacketListener) (Object) this;
+        killer560smod$blink$hold(packet.id(), null, () -> self.handleTeleportEntity(packet), ci);
+    }
+
+    @Inject(method = "handleEntityPositionSync", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
+            shift = At.Shift.AFTER), cancellable = true)
+    private void killer560smod$blinkSync(net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket packet,
+            CallbackInfo ci) {
+        if (packet == null || !com.killer560.hub.blink.BlinkCharge.isActive()) {
+            return;
+        }
+        ClientPacketListener self = (ClientPacketListener) (Object) this;
+        killer560smod$blink$hold(packet.id(), null, () -> self.handleEntityPositionSync(packet), ci);
+    }
+
+    @Unique
+    private static void killer560smod$blink$hold(int id, net.minecraft.world.entity.Entity e, Runnable apply,
+            CallbackInfo ci) {
+        try {
+            var level = Minecraft.getInstance().level;
+            if (com.killer560.hub.blink.BlinkCharge.holdEntityMove(id, e != null || level == null ? e : level.getEntity(id),
+                    apply)) {
+                ci.cancel();
+            }
+        } catch (Throwable t) {
+            killer560smod$blink$threw(t);
+        }
+    }
+
     /** Within 3 blocks of his box, and its collision changes from what the client has there now. */
     @Unique
     private static boolean killer560smod$blink$bumps(net.minecraft.core.BlockPos pos,

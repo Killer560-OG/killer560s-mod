@@ -915,6 +915,7 @@ public final class BlinkCharge {
         Answer mark;
         int pingsSeen;
         boolean ready;
+        boolean entity;
 
         HeldBlock(Runnable apply, long atMs) {
             this.apply = apply;
@@ -939,7 +940,35 @@ public final class BlinkCharge {
             // handleBlockChange: sendTransaction() unless one went in the last 2 ms, then addRealTimeTask(lastTransactionSent)
             // - javap 2.3.74): the newest ping the client has answered or holds when the block packet arrives.
             h.mark = answers.peekLast();
+            h.ready = h.mark == null; // nothing held before it: it waits only behind the queue (an entity's later move)
             heldBlocks.addLast(h);
+        }
+    }
+
+    /** Entities whose moves are held (each later move waits behind them, in order); emptied with the queue. Under LOCK. */
+    private static final java.util.Set<Integer> heldEntities = new java.util.HashSet<>();
+    /** Moves of entities this near him are held: his hits and the shot's reach (12 blocks) around him. */
+    private static final double HELD_ENTITY_RANGE_SQ = 20.0 * 20.0;
+
+    /**
+     * An entity move the mixin may hold like a block change (blinkone-1106): GrimAC checks his hit against where the pings
+     * he has answered put the entity, and Charge holds those answers a second, so a stand moved under his crosshair drew
+     * Hitboxes on every hit (1105-blink-oneshot-same-attack r8). He now sees it where GrimAC has it. Render thread.
+     */
+    public static boolean holdEntityMove(int id, net.minecraft.world.entity.Entity e, Runnable apply) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (applyingDeferred || player == null || id == player.getId()) {
+            return false;
+        }
+        synchronized (LOCK) {
+            if (!heldEntities.contains(id) && !(deferBlocks() && e != null
+                    && e.distanceToSqr(player) < HELD_ENTITY_RANGE_SQ)) {
+                return false;
+            }
+            heldEntities.add(id);
+            deferBlockUpdate(apply);
+            heldBlocks.peekLast().entity = true;
+            return true;
         }
     }
 
@@ -980,6 +1009,7 @@ public final class BlinkCharge {
      */
     public static void pumpDeferredBlocks() {
         java.util.List<Runnable> run = new java.util.ArrayList<>();
+        int blocks = 0;
         synchronized (LOCK) {
             if (heldBlocks.isEmpty()) {
                 return;
@@ -996,6 +1026,10 @@ public final class BlinkCharge {
                 }
                 heldBlocks.pollFirst();
                 run.add(h.apply);
+                blocks += h.entity ? 0 : 1;
+            }
+            if (heldBlocks.isEmpty()) {
+                heldEntities.clear();
             }
         }
         if (run.isEmpty()) {
@@ -1013,8 +1047,10 @@ public final class BlinkCharge {
         } finally {
             applyingDeferred = false;
         }
-        heldBlocksApplied += run.size();
-        BlinkLog.event("charge: %d held block change(s) applied with their ping's answer", run.size());
+        if (blocks > 0) {
+            heldBlocksApplied += blocks;
+            BlinkLog.event("charge: %d held block change(s) applied with their ping's answer", blocks);
+        }
     }
 
     /** Sends the held actions, in order, before a move goes. Under LOCK. */
@@ -1301,19 +1337,20 @@ public final class BlinkCharge {
                 releaseAnswersLocked(); // cannot happen (its answer waits at most the delay) - never hold past it
             }
         }
-        if (deferredWhy != null && (covered() || System.currentTimeMillis() - deferredAtMs > SHOT_WAIT_MAX_MS)) {
+        if (deferredWhy != null && ((covered() && !clickGoesFirst(client, deferredWhy))
+                || System.currentTimeMillis() - deferredAtMs > SHOT_WAIT_MAX_MS)) {
             String why = deferredWhy;
             int c = deferredCount;
             long waited = System.currentTimeMillis() - deferredAtMs;
             boolean ok = covered();
             deferredWhy = null;
             if (ok) {
-                BlinkLog.event("charge: the shot (%s) waited %d ms for the bank to be covered - firing", why, waited);
+                BlinkLog.event("charge: the shot (%s) waited %d ms for the bank to be covered or his click - firing", why, waited);
                 if (why.startsWith("released by")) {
                     requestFrom = client.player == null ? null : client.player.position();
                     requestTicks = 0;
                 }
-                shoot(client, client.player, why, c);
+                fireNow(client, client.player, why, c);
             } else {
                 // Moving ticks can never cover it (each one spends the real time it takes), and fired uncovered the shot is
                 // set back with TimerLimit: not fired, the bank kept for his next release (campaign-blink-1027).
@@ -1479,7 +1516,8 @@ public final class BlinkCharge {
      * route can split one bank across several releases (AP3's Blink Release nodes, killer560 2026-10-26).
      */
     private static void shoot(Minecraft client, LocalPlayer player, String why, int count) {
-        if (!why.endsWith(", continued") && deferredWhy == null && !covered()) {
+        boolean click = clickGoesFirst(client, why);
+        if (!why.endsWith(", continued") && deferredWhy == null && (!covered() || click)) {
             // The kept bank is not covered by GrimAC's lag allowance yet: a teleport's confirm is still held behind its
             // ping's answer, or the ticks sent since then are not backed again. Fired now the shot is set back (the
             // owner's leap then release, 1027-ap3-blink-leap-now/-10, TimerLimit). killer560 2026-10-27: fire the kept
@@ -1488,11 +1526,29 @@ public final class BlinkCharge {
             deferredWhy = why;
             deferredCount = count;
             deferredAtMs = System.currentTimeMillis();
-            BlinkLog.event("charge: shot (%s) waits for the bank to be covered (%s; bank %d)", why,
-                    !tpSegs.isEmpty() ? "a teleport's confirm is held behind its ping's answer" : BlinkFeature.isHolding()
-                            ? "a Blink hold is running" : unbacked + " tick(s) not backed again yet", banked);
+            BlinkLog.event("charge: shot (%s) waits for %s (bank %d)", why, click && covered()
+                    ? "his attack click queued for this tick, which goes first" : "the bank to be covered (" + (!tpSegs.isEmpty()
+                    ? "a teleport's confirm is held behind its ping's answer" : BlinkFeature.isHolding()
+                    ? "a Blink hold is running" : unbacked + " tick(s) not backed again yet") + ")", banked);
             return;
         }
+        fireNow(client, player, why, count);
+    }
+
+    /** The longest a key shot waits for his queued left clicks (he may click every tick). */
+    private static final long CLICK_WAIT_MAX_MS = 250L;
+
+    /**
+     * His own left click is queued for this tick's handleKeybinds, which runs after the shot: fired first, the shot carries
+     * him past what he clicked on and his attack never goes out (1105-blink-oneshot-same-attack: "his ticks 0"). A key shot
+     * waits for it (his click alone that tick, the shot the next), at most {@link #CLICK_WAIT_MAX_MS}.
+     */
+    private static boolean clickGoesFirst(Minecraft client, String why) {
+        return why.startsWith("key") && com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)
+                && (deferredWhy == null || System.currentTimeMillis() - deferredAtMs < CLICK_WAIT_MAX_MS);
+    }
+
+    private static void fireNow(Minecraft client, LocalPlayer player, String why, int count) {
         int n;
         synchronized (LOCK) {
             n = count < 0 ? banked : Math.min(count, banked);
