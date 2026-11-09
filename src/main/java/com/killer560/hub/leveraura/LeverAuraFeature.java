@@ -9,7 +9,6 @@ import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Blocks;
@@ -317,12 +316,5 @@ public final class LeverAuraFeature {
     public static boolean owns(BlockPos pos) {
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
         return cfg.isSectionLevers() && S2_SECTION_LEVERS.contains(pos);
-    }
-
-    /** For the tab's status line. */
-    public static Component statusText() {
-        int section = P3SectionTracker.section();
-        String s = section >= 5 ? "Core open" : section > 2 ? "Past S2" : section == 2 ? "S2 open" : "S2 not open";
-        return Component.literal("§7Tracked: §f" + s);
     }
 }

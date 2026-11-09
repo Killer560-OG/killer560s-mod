@@ -4,11 +4,8 @@ import com.killer560.hub.cheatutils.CheatUtilsConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.leveraura.LeverAuraConfig;
-import com.killer560.hub.leveraura.LeverAuraFeature;
 import com.killer560.hub.secrettrigger.SecretTriggerbotConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -117,9 +114,6 @@ public class SecretAuraTab extends BaseTab {
         toggle(w, contentX, y, "Boss Lever Swing Hand", lever::isSwingHand, lever::setSwingHand, null, saveLever);
         toggle(w, contentX, y, "Boss Lever Chat Feedback", lever::isChatFeedback, lever::setChatFeedback, null, saveLever);
 
-        y[0] += 4;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12, LeverAuraFeature.statusText(), Minecraft.getInstance().font));
-        y[0] += 16;
         return w;
     }
 
