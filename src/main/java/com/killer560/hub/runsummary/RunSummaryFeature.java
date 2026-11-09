@@ -561,6 +561,7 @@ public final class RunSummaryFeature {
                 buildPartyRows(Minecraft.getInstance()),
                 mapSnapshot);
         RunHistoryStore.BestFlags flags = RunHistoryStore.add(record);
+        com.killer560.hub.carrytracker.CarryTracker.onRun(record);
         announce(RunHistoryStore.latest(), flags);
         resetRun();
     }

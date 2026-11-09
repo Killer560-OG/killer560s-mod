@@ -638,6 +638,8 @@ public final class ProfileManager {
                 com.killer560.hub.reparty.RepartyConfig::load,
                 com.killer560.hub.splittimers.WatcherHelperConfig::load,
                 com.killer560.hub.dungeonqol.DungeonQolConfig::load,
+                com.killer560.hub.carrytracker.CarryTrackerConfig::load,
+                com.killer560.hub.livemap.RoomPreviewConfig::load,
                 com.killer560.hub.runsummary.RunSummaryConfig::load,
                 com.killer560.hub.runstats.RunStatsConfig::load,
                 com.killer560.hub.teammates.TeammatesConfig::load,

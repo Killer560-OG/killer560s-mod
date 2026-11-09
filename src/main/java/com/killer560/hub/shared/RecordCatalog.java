@@ -222,8 +222,35 @@ public final class RecordCatalog {
         }
     });
 
+    /** Carry Tracker (featG-1109): runs per carried player (counters, by lower-case name) and a log of the runs themselves.
+     *  The legacy name never existed (a new record). */
+    public static final Kind CARRY = new Kind("killer560smod-carry-records", "records.json", "carry-tracker.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("log") ? JsonMerge.fields("endedAtMs", "player") : null;
+        }
+
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            return JsonMerge.matches(path, "counts.*") ? JsonMerge.NumberMode.COUNTER : JsonMerge.NumberMode.STATE;
+        }
+
+        @Override
+        public void finish(JsonObject merged) {
+            JsonArray log = sortBy(merged, "log", "endedAtMs", false);
+            if (log != null && log.size() > 300) {
+                JsonArray kept = new JsonArray();
+                for (int i = log.size() - 300; i < log.size(); i++) {
+                    kept.add(log.get(i));
+                }
+                merged.add("log", kept);
+            }
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {
