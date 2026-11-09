@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class BaseTab {
@@ -316,5 +317,30 @@ public abstract class BaseTab {
             }
         }
         return false;
+    }
+    /** A slider over {@code min}..{@code max} that snaps to {@code step}, labeled "label: value unit" (cycler replacement,
+     *  2026-11-09). {@code decimals} 0 shows whole numbers. Saves on release. */
+    protected static ThemedSliderButton valueSlider(int x, int y, int w, String label, String unit, double min, double max,
+                                                    double step, int decimals, java.util.function.DoubleSupplier get,
+                                                    DoubleConsumer set, Runnable save) {
+        int n = Math.max(1, (int) Math.round((max - min) / step));
+        Function<Double, String> text = v -> label + ": " + String.format(Locale.US, "%." + decimals + "f", v) + unit;
+        return new ThemedSliderButton(x, y, w, 18, Component.literal(text.apply(get.getAsDouble())),
+                Math.max(0.0, Math.min(1.0, (get.getAsDouble() - min) / (max - min)))) {
+            private double at() {
+                return Math.min(max, min + Math.round(this.value * n) * (max - min) / n);
+            }
+
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal(text.apply(at())));
+            }
+
+            @Override
+            protected void applyValue() {
+                set.accept(at());
+                saveOnRelease(save);
+            }
+        }.steps(n);
     }
 }

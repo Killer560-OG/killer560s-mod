@@ -93,7 +93,7 @@ public class AutoBloodCampTab extends BaseTab {
         widgets.add(onOffButton("Mage Only", cfg::isMageOnly, cfg::setMageOnly, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 20;
-        widgets.add(onOffButton("Work Just Outside Blood Room", cfg::isOutsideRoom, cfg::setOutsideRoom, cfg::save,
+        widgets.add(onOffButton("Work Just Outside Blood Room", cfg::isWorkOutside, cfg::setWorkOutside, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 20;
 

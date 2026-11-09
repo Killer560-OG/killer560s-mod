@@ -481,6 +481,7 @@ public final class TerminalSolverFeature {
     /** Stops tracking entirely (no covered terminal showing). */
     private static void endTracking() {
         if (currentType != null) TerminalExtras.closed();
+        endAutoClicks();
         reportTerminalCompletion();
         currentType = null;
         currentHighlights = Map.of();
@@ -504,7 +505,7 @@ public final class TerminalSolverFeature {
     public static void refreshState() {
         ensureCloseWatcherRegistered();
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        if (!cfg.isEnabled() || !(McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen)) {
+        if (!cfg.isMachineryOn() || !(McCompat.screen(Minecraft.getInstance()) instanceof ContainerScreen screen)) {
             endTracking();
             return;
         }
@@ -1365,7 +1366,8 @@ public final class TerminalSolverFeature {
     /** @return whether Custom GUI mode should currently be showing (feature + that toggle both on,
      *  and a covered terminal is actually open right now). */
     public static boolean isCustomGuiActive() {
-        return currentType != null && TerminalSolverConfig.getInstance().isCustomGuiEnabled();
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        return currentType != null && cfg.isEnabled() && cfg.isCustomGuiEnabled();
     }
 
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
@@ -1375,7 +1377,7 @@ public final class TerminalSolverFeature {
         if (!isCustomGuiActive()) {
             // Melody has nothing to show outside Custom GUI mode - no solving logic means no
             // vanilla-overlay outlines to draw either.
-            if (currentType != TerminalType.MELODY && !currentHighlights.isEmpty()) {
+            if (currentType != TerminalType.MELODY && !currentHighlights.isEmpty() && TerminalSolverConfig.getInstance().isEnabled()) {
                 renderVanillaHighlights(graphics, screen);
             }
             return;
@@ -1784,6 +1786,9 @@ public final class TerminalSolverFeature {
 
     /** @return whether Auto Terminals clicked within the last 3 s (Hide Mouse Cursor's window). */
     static boolean autoClickedRecently(long now) { return lastAutoClickAtMs > 0 && now - lastAutoClickAtMs <= 3000L; }
+
+    /** A terminal ended (solved, closed, tracking dropped): the pointer Hide Mouse Cursor hid comes back now, not 3 s after the last click. */
+    static void endAutoClicks() { lastAutoClickAtMs = 0L; }
 
     /** Where {@code slotIndex} of the open terminal is DRAWN right now, in GUI units: {@code out[0]}/{@code out[1]} the
      *  center, {@code out[2]} the drawn cell width. The Custom GUI panel when it is showing (the same layout its render

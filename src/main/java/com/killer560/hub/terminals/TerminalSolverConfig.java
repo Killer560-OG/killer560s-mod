@@ -603,11 +603,16 @@ public final class TerminalSolverConfig {
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} exactly like
      *  {@link #isAutoTerminalsEnabled()}, and for the same reason - hovering a slot into clicking itself
      *  is a real macro, so the legit build can never run it even from a config.json copied over from a
-     *  cheat install. Also needs the Terminal Solver itself to be on: Hover Terminals has no solving
-     *  logic of its own and only ever clicks slots that feature has already highlighted. */
+     *  cheat install. It runs on its own switch (killer560, 2026-11-09): the solving it clicks from runs while it is on
+     *  ({@link #isMachineryOn}), the Terminal Solver's own drawing stays under the solver's switch. */
     public boolean isHoverTerminalsEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && hoverTerminalsEnabled
-                && isEnabled() && com.killer560.hub.util.SkyblockGate.allows();
+                && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    /** The terminal tracking and solving runs when the Terminal Solver, Auto Terminals, Hover Terminals or Queue Terms is on. */
+    public boolean isMachineryOn() {
+        return isEnabled() || isAutoTerminalsEnabled() || isHoverTerminalsEnabled() || isQueueTerms();
     }
 
     /** The raw toggle, ignoring every gate above - for the settings GUI's own button text, which must

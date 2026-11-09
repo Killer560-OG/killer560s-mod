@@ -4,9 +4,7 @@ import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.simonsays.SimonSaysConfig;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -17,7 +15,7 @@ import java.util.List;
  *  stuff from Simon Says into its own red Simon Says portion." Only added to {@link DungeonTab} on the cheat
  *  build, so {@link FolderTab} draws its header red ({@link #isCheatOnly()}); the legit build has no such
  *  section, and every getter it drives is already false there. Same fields, same JSON keys as before the
- *  move. The rows still need Simon Says itself switched on, as they always did. */
+ *  move. Its features run on their own switch, whatever Simon Says itself is set to (2026-11-09). */
 public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private boolean capturingRestartKey = false;
@@ -50,12 +48,6 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 24;
         if (!cfg.isAutoSimonSaysEnabled() && !isSearchScan()) {
-            return widgets;
-        }
-        if (!cfg.isEnabled()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("\u00a77Turn on Simon Says in its own section to use these."),
-                    Minecraft.getInstance().font));
             return widgets;
         }
 

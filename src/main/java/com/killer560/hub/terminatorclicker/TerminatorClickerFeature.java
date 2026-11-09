@@ -13,8 +13,8 @@ import net.minecraft.world.phys.HitResult;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Terminator Auto Clicker (cheat build, featH-1109, from the Odin sweep): while a Terminator is in the main hand and the
- * use key is held, a left click is sent at the set clicks per second, each interval jittered by up to 30 ms. A left click
+ * Shortbow Auto Clicker (cheat build, featH-1109, from the Odin sweep; every shortbow since 2026-11-09, the Terminator included): while a shortbow is in the main hand and the
+ * use key is held, a left click is sent at a clicks per second picked between the set min and max each click, each interval jittered by up to 30 ms. A left click
  * is what Hypixel's left-click weapons fire on, and what a vanilla miss sends: the arm swing alone (the same "ranged
  * swing" Goldor Triggerbot sends), so nothing is attacked or dug. Where vanilla's left click would start digging (a block
  * under the crosshair) nothing is sent.
@@ -44,7 +44,7 @@ public final class TerminatorClickerFeature {
         LocalPlayer player = client.player;
         if (player == null || !TerminatorClickerConfig.getInstance().isEnabled() || !client.options.keyUse.isDown()
                 || McCompat.screen(client) != null || player.isDeadOrDying() || !SkyblockGate.allows()
-                || !Shortbows.isTerminator(player.getMainHandItem())) {
+                || !Shortbows.isShortbow(player.getMainHandItem())) {
             dueTick = 0;
             return;
         }
@@ -55,7 +55,8 @@ public final class TerminatorClickerFeature {
         }
         McCompat.swingAttack(player);
         clicks++;
-        double cps = TerminatorClickerConfig.getInstance().getCps();
+        TerminatorClickerConfig cfg = TerminatorClickerConfig.getInstance();
+        double cps = ThreadLocalRandom.current().nextInt(cfg.getCpsMin(), cfg.getCpsMax() + 1);
         double ms = 1000.0 / cps + ThreadLocalRandom.current().nextDouble(-30, 30);
         dueTick = Math.max(dueTick, now - 1) + Math.max(50.0, ms) / 50.0;
     }

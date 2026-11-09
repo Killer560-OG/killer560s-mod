@@ -2541,7 +2541,7 @@ final class SettingTooltipsData {
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
-            d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also act while you stand up to 6 blocks outside the Blood Room (at its door), not only inside. Reach and line of sight still apply.");
+            d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also work while you stand up to 6 blocks outside the Blood Room's walls (reach and line of sight still apply). Off: only inside the room.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest/close mode", "Auto stops the secret chest opening at all (cheat build only); Click leaves it open until you press any key or mouse button.");
@@ -2623,7 +2623,7 @@ final class SettingTooltipsData {
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1 to 4.7 blocks from your eyes. Default 4.7.");
         d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
-        d.put("secret aura/boss lever cps", "Cheat build only. Boss lever flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("secret aura/boss lever cooldown", "Cheat build only. The wait in ms between boss lever flicks, 50-1000 (50 is one a game tick). An unflicked lever in range goes as soon as the wait since the last flick is over; nothing is sent while none is waiting. Each wait varies a little.");
         d.put("stat bars", "Draws your own bars and text; the vanilla bars you pick under Hide are hidden while it is on.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).
         d.put("health and mana bars/stat bars", "Reads health, mana, defense and vitality from Hypixel's action bar; needed by every bar and text below.");
@@ -2715,6 +2715,7 @@ final class SettingTooltipsData {
         d.put("mask invincibility/boss only", "Hides the HUD until the boss fight starts.");
         d.put("mask invincibility/announce to party", "Sends a /pc message to your party when a mask or Phoenix pops.");
         d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
+        d.merge("auto superboom", "Also swaps for P3 gates (during P3), crypt and prince tombs.", (a, b) -> a + " " + b);
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
         d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys do nothing, and a freeze in progress resumes.");
         d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");

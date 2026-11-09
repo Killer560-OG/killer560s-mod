@@ -27,11 +27,12 @@ public final class LeverAuraConfig {
     public static final double MIN_RANGE = 2.1;
     // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.
     public static final double MAX_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
-    /** CPS slider ends (killer560, 2026-10-12: the Arrow Align Aura's "Aura CPS", for Lever Aura too). 20 is one a tick. */
-    public static final int MIN_CPS = 1;
-    public static final int MAX_CPS = 20;
-    /** 4 CPS: the old default delay band, 150-300 ms, by the migration's own rule (round(1000 / 225)). */
-    public static final int DEFAULT_CPS = 4;
+    /** Lever cooldown slider ends in ms (killer560, 2026-11-09, replacing the Lever CPS): 50 is one flick a tick (the old 20 CPS). */
+    public static final int MIN_COOLDOWN_MS = 50;
+    public static final int MAX_COOLDOWN_MS = 1000;
+    /** 250 ms: the old default of 4 CPS. */
+    public static final int DEFAULT_COOLDOWN_MS = 250;
+    private static final int DEFAULT_CPS = 4;
 
     private static LeverAuraConfig instance;
 
@@ -40,7 +41,7 @@ public final class LeverAuraConfig {
     /** ...and also before S2 is open. */
     private boolean sectionLeversEarly = false;
     private double range = MAX_RANGE;
-    private int cps = DEFAULT_CPS;
+    private int cooldownMs = DEFAULT_COOLDOWN_MS;
     private boolean swingHand = true;
     private boolean chatFeedback = true;
 
@@ -69,13 +70,15 @@ public final class LeverAuraConfig {
             cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
             cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
             cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-            if (o.has("cps")) {
-                cfg.setCps(ConfigJson.getInt(o, "cps", DEFAULT_CPS));
+            if (o.has("cooldownMs")) {
+                cfg.setCooldownMs(ConfigJson.getInt(o, "cooldownMs", DEFAULT_COOLDOWN_MS));
+            } else if (o.has("cps")) { // the Lever CPS of before 2026-11-09: cooldown = 1000 / cps
+                cfg.setCooldownMs((int) Math.round(1000.0 / Math.max(1, ConfigJson.getInt(o, "cps", DEFAULT_CPS))));
             } else if (o.has("minDelayMs") || o.has("maxDelayMs")) {
                 // A config or profile from before the CPS slider: the old random delay band's middle, as clicks a second.
                 int min = ConfigJson.getInt(o, "minDelayMs", 150);
                 int max = Math.max(min, ConfigJson.getInt(o, "maxDelayMs", 300));
-                cfg.setCps(cpsFromDelayMs((min + max) / 2.0));
+                cfg.setCooldownMs((min + max) / 2);
             }
             cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
             cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
@@ -86,7 +89,7 @@ public final class LeverAuraConfig {
                 com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
                         ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
                         com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
-                        cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
+                        cfg.range, (int) Math.round(1000.0 / cfg.cooldownMs), cfg.swingHand, cfg.chatFeedback);
             }
         }
         instance = cfg;
@@ -100,7 +103,7 @@ public final class LeverAuraConfig {
         o.addProperty("sectionLevers", sectionLevers);
         o.addProperty("sectionLeversEarly", sectionLeversEarly);
         o.addProperty("range", range);
-        o.addProperty("cps", cps);
+        o.addProperty("cooldownMs", cooldownMs);
         o.addProperty("swingHand", swingHand);
         o.addProperty("chatFeedback", chatFeedback);
         ConfigJson.write(CONFIG_PATH, o);
@@ -126,14 +129,9 @@ public final class LeverAuraConfig {
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v * 10.0) / 10.0)); }
 
-    /** Flicks per second, 1-20 (20 is one a tick, the most the mod-wide gate allows anyway). */
-    public int getCps() { return cps; }
-    public void setCps(int v) { cps = Math.max(MIN_CPS, Math.min(MAX_CPS, v)); }
-
-    /** The old delay setting as CPS: round(1000 / delay), clamped to 1-20 (a 0 ms delay is 20). */
-    static int cpsFromDelayMs(double delayMs) {
-        return delayMs <= 0 ? MAX_CPS : (int) Math.max(MIN_CPS, Math.min(MAX_CPS, Math.round(1000.0 / delayMs)));
-    }
+    /** Cooldown between flicks in ms, 50-1000 (50 is one a tick, the most the mod-wide gate allows anyway). */
+    public int getCooldownMs() { return cooldownMs; }
+    public void setCooldownMs(int v) { cooldownMs = Math.max(MIN_COOLDOWN_MS, Math.min(MAX_COOLDOWN_MS, v)); }
 
     public boolean isSwingHand() { return swingHand; }
     public void setSwingHand(boolean v) { swingHand = v; }

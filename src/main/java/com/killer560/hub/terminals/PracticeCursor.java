@@ -28,6 +28,9 @@ public final class PracticeCursor {
 
     public static boolean showing() { return FakeCursor.active(); }
 
+    /** The practice board is solved: the real pointer is back at once. */
+    public static void end() { TerminalSolverFeature.endAutoClicks(); }
+
     public static void aim(FakeCursor.SlotLocator locator, int slot) { FakeCursor.aim(locator, slot); }
 
     /** Melody's row button: straight there, as on a real board. */
