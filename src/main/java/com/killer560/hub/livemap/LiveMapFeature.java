@@ -1251,6 +1251,17 @@ public final class LiveMapFeature {
         return MapPainter.mapColorType(group.mainIdx);
     }
 
+    /** Names of the puzzle rooms identified on the map this run (Puzzle HUD under Funny Map). */
+    public static List<String> identifiedPuzzleNames() {
+        List<String> out = new ArrayList<>();
+        for (RoomGroup g : groupsView()) {
+            if (g.entry != null && "PUZZLE".equalsIgnoreCase(g.entry.type) && !out.contains(g.entry.name)) {
+                out.add(g.entry.name);
+            }
+        }
+        return out;
+    }
+
     /** Whether a room with this database name has been identified on the map this run (Rare Room Alert). */
     public static boolean hasIdentifiedRoom(String name) {
         for (RoomGroup g : groupsView()) {

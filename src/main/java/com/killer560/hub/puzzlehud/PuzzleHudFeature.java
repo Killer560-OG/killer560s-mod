@@ -49,7 +49,8 @@ public final class PuzzleHudFeature {
     private static final class Puzzle {
         final String name;
         char state = OPEN;
-        final long start;
+        /** 0 until the tab list names the puzzle (someone opened it); a Funny Map puzzle waits at 0:00 meanwhile. */
+        long start;
         long end;
         String who;
 
@@ -113,7 +114,28 @@ public final class PuzzleHudFeature {
                 lines.add(plain);
             }
         }
-        poll(lines, System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && com.killer560.hub.livemap.LiveMapConfig.getInstance().isFunnyMap()) {
+            seedFromMap(com.killer560.hub.livemap.LiveMapFeature.identifiedPuzzleNames(), now);
+        }
+        poll(lines, now);
+    }
+
+    /** Funny Map has identified the dungeon's puzzle rooms: list each at once, its clock waiting at 0:00 until the tab
+     *  list names it (killer560, 2026-11-09). Public so the testkit can feed the names. */
+    public static synchronized void seedFromMap(List<String> names, long now) {
+        boolean added = false;
+        for (String name : names) {
+            String key = name.trim().toLowerCase(Locale.ROOT);
+            if (!PUZZLES.containsKey(key) && PUZZLES.size() < MAX_PUZZLES) {
+                PUZZLES.put(key, new Puzzle(name.trim(), 0L));
+                added = true;
+            }
+        }
+        if (added) {
+            rebuild(now);
+        }
     }
 
     private static synchronized void clear() {
@@ -147,6 +169,9 @@ public final class PuzzleHudFeature {
             }
             if (p == null) {
                 continue;
+            }
+            if (p.start == 0L) {
+                p.start = now; // a puzzle the map listed first: its clock starts when the tab list names it
             }
             char s = m.group(2).charAt(0);
             if (p.state != s) {
@@ -212,7 +237,7 @@ public final class PuzzleHudFeature {
                 sb.append(" §7").append(p.who);
             }
             if (cfg.isShowTimes()) {
-                sb.append(" §f").append(time((p.end > 0L ? p.end : now) - p.start));
+                sb.append(" §f").append(time(p.start == 0L ? 0L : (p.end > 0L ? p.end : now) - p.start));
             }
             rows.add(sb.toString());
         }
