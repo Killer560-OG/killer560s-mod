@@ -295,11 +295,11 @@ public final class FastLeapSection {
         widgets.add(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
             page = Page.FRONT;
             requestRebuild.run();
-        }).bounds(x, y, BACK_W, ROW).build());
+        }).bounds(x, y + 1, BACK_W, ROW - 2).build());
         boolean inUse = (which == Page.CLASS) == cfg.isUseClassTargets();
         String title = which == Page.CLASS ? "Set Class Targets" : "Universal Targets";
-        widgets.add(new StringWidget(x + BACK_W + 8, y + (ROW - 8) / 2, Math.max(1, w - BACK_W - 8), 10,
-                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(not in use)")),
+        widgets.add(new StringWidget(x + BACK_W + 8, y + 5, Math.max(1, w - BACK_W - 8), 10,
+                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(off: your leaps use the other page)")),
                 Minecraft.getInstance().font));
         y += ROW + GAP + 2;
         return y;
@@ -411,14 +411,14 @@ public final class FastLeapSection {
     }
 
     private static int doorNote(List<AbstractWidget> widgets, int x, int y, int w) {
-        widgets.add(rowLabel(x, y, w, "§7Door Opener: whoever opened the door"));
+        widgets.add(leapSwitch(x, y, w, LeapGroup.DOOR, FastLeapConfig.getInstance()));
         return y + ROW + GAP;
     }
 
     /** A boss phase's gray caption line over its rows. */
     private static int caption(List<AbstractWidget> widgets, int x, int y, int w, String text) {
-        widgets.add(titleLabel(x, y + 2, w, "§8» §7" + text));
-        return y + GROUP_TITLE_H + 2;
+        widgets.add(sectionHeader(x, y + 4, w, text));
+        return y + SECTION_HEADER_H + 2;
     }
 
     /** The row label of a target: the leap's name, or "S1".."S4" for P3's sections. */
