@@ -145,7 +145,7 @@ public final class CroesusConfig {
     private int autoRerollBelowK = 1_000;
     /** The floors Auto Croesus may spend a Kismet on (killer560, 2026-11-01: "I should be able to select which floors I
      *  want it to reroll on"); every floor by default, as before. "F1".."F7", "M1".."M7". */
-    private final java.util.Set<String> rerollFloors = new java.util.LinkedHashSet<>(ALL_FLOORS);
+    private final java.util.Set<String> rerollFloors = new java.util.LinkedHashSet<>(java.util.List.of("F7", "M7"));
     public static final java.util.List<String> ALL_FLOORS = java.util.List.of(
             "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7");
     /** Reroll Protection (NoammAddons ChestProfit.kt "Reroll Value"): his click on a reward chest's Kismet "Reroll Chest"

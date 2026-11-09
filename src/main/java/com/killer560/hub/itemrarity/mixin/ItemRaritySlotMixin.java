@@ -33,7 +33,10 @@ public abstract class ItemRaritySlotMixin {
     )
     private void killer560smod$drawRarityBackground(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         try {
-            ItemRarityFeature.drawBackground(graphics, slot.getItem(), slot.x, slot.y, false);
+            if (!com.killer560.hub.itemhighlight.DungeonItemHighlighter.hidesBackground(
+                    (net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) (Object) this, slot.getItem())) {
+                ItemRarityFeature.drawBackground(graphics, slot.getItem(), slot.x, slot.y, false);
+            }
         } catch (Throwable ignored) {
             // Visual-only; never let a parsing edge case break inventory rendering.
         }

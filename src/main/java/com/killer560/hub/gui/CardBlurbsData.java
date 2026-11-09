@@ -125,8 +125,7 @@ final class CardBlurbsData {
         d.put("RunSummaryTab", "Saves each run's splits and score.");
         d.put("ScoreCalculatorTab", "Score HUD and alerts.");
         d.put("EtherwarpTab", "Boxes for /ew waypoints.");
-        d.put("AutoSuperboomTab", "Swaps to Superboom.");
-        d.put("DungeonWaypointsTab", "Your boxes and lines.");
+        d.put("AutoSuperboomTab", "Booms cracked walls.");
         d.put("SecretSoundTab", "Sound on each secret.");
         d.put("SecretWaypointsTab", "Boxes on room secrets.");
         d.put("DungeonInfoTab", "Secrets found in this room.");
@@ -161,6 +160,7 @@ final class CardBlurbsData {
         d.put("AutoTerminalTab", "Clicks terminals for you.");
         d.put("AutoTrapTab", "Plays your trap-room routes.");
         d.put("AutoUltTab", "Uses your Ultimate on boss lines.");
+        d.put("NoRotateTab", "Leaps keep your look.");
         d.put("BreakerAuraTab", "Breaks picked boss blocks.");
         d.put("DungeonBreakerTab", "Instant Breaker blocks.");
         d.put("FastLeapTab", "Leaps without the menu.");
@@ -173,7 +173,6 @@ final class CardBlurbsData {
         d.put("LeftClickSecretsTab", "Left click opens a secret.");
         d.put("LeverAuraTab", "Flicks the P3 Lights levers.");
         d.put("SecretAuraTab", "Clicks nearby secrets for you.");
-        d.put("SecretTriggerbotTab", "Clicks secrets on aim.");
         d.put("TerminalAuraTab", "Opens terminals in range.");
         d.put("TerminalTriggerbotTab", "Opens the aimed terminal.");
         d.put("RelicHelpersTab", "M7 relic click and look.");
@@ -258,7 +257,6 @@ final class CardBlurbsData {
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("TerminatorClickerTab", "Auto-clicks while use is held.");
-        d.put("GhostBlockTab", "Hold a key to air the block you aim at.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
         d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
         d.put("SmoothTeleportTab", "Glides the camera.");

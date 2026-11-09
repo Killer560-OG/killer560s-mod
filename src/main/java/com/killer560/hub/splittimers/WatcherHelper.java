@@ -18,6 +18,7 @@ public final class WatcherHelper {
 
     private static long doorMs;
     private static long speakMs;
+    private static int partySent;
 
     private WatcherHelper() {
     }
@@ -67,9 +68,17 @@ public final class WatcherHelper {
                         + ", Total " + sec(total);
                 ModChat.send("Watcher Helper", ModChat.text(line));
             }
+            if (doorMs != 0L && speakMs != 0L && cfg.isSendToParty() && !com.killer560.hub.leapmenu.LeapMenuFeature.currentPartyMembers().isEmpty()) {
+                partySent += com.killer560.hub.util.OutgoingChat.command("pc Watcher spoke in " + sec(speakMs) + " (" + grade(speakMs).substring(2) + ")") ? 1 : 0;
+            }
             doorMs = 0L;
             speakMs = 0L;
         }
+    }
+
+    /** How many party lines went out (for the testkit). */
+    public static synchronized int partySentForTest() {
+        return partySent;
     }
 
     /** The last speak time in ms (0 until the Watcher has spoken), for the testkit. */

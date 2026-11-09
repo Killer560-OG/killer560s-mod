@@ -29,6 +29,9 @@ public final class ItemQualityFeature {
         if (tag == null || !tag.contains("baseStatBoostPercentage")) {
             return lines;
         }
+        if (!lines.isEmpty() && lines.get(lines.size() - 1).getString().startsWith("Item Quality: ")) {
+            return lines; // a container hover can reach both tooltip funnels
+        }
         int quality = tag.getIntOr("baseStatBoostPercentage", 0);
         int floor = tag.getIntOr("item_tier", -1);
         List<Component> out = new ArrayList<>(lines);

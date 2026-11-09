@@ -4,10 +4,8 @@ import com.killer560.hub.cheatutils.CheatUtilsConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.leveraura.LeverAuraConfig;
-import com.killer560.hub.leveraura.LeverAuraFeature;
-import net.minecraft.client.Minecraft;
+import com.killer560.hub.secrettrigger.SecretTriggerbotConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,10 +39,10 @@ public class SecretAuraTab extends BaseTab {
         return true;
     }
 
-    /** The card is ON while Secret Aura or In Boss is, OFF only when both are (they are separate features). */
+    /** The card is ON while Secret Aura, In Boss or Secret Triggerbot is, OFF only when all are (separate features). */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Secret Aura", "In Boss");
+        return switchRows(built, "Secret Aura", "In Boss", "Secret Triggerbot");
     }
 
     @Override
@@ -79,6 +77,10 @@ public class SecretAuraTab extends BaseTab {
             y[0] += 24;
         }
 
+        // Secret Triggerbot: its own card until killer560, 2026-11-09 ("merge secret aura and secret triggerbot into one red
+        // secrets thing"). Same config; its toggle key keeps the old card id (ModuleKeybinds.SECRET_TRIGGERBOT_ID).
+        triggerbot(w, contentX, y, contentWidth, half, requestRebuild);
+
         // Levers. In Rooms is Secret Aura's own (so it shows only while Secret Aura is on). In Boss is the old Lever Aura
         // switch and, as that did, works with Secret Aura off: with Secret Aura on it also lets the aura click the other F7
         // P3 levers (the old "F7 Boss Levers" row).
@@ -112,10 +114,32 @@ public class SecretAuraTab extends BaseTab {
         toggle(w, contentX, y, "Boss Lever Swing Hand", lever::isSwingHand, lever::setSwingHand, null, saveLever);
         toggle(w, contentX, y, "Boss Lever Chat Feedback", lever::isChatFeedback, lever::setChatFeedback, null, saveLever);
 
-        y[0] += 4;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12, LeverAuraFeature.statusText(), Minecraft.getInstance().font));
-        y[0] += 16;
         return w;
+    }
+
+    private static void triggerbot(List<AbstractWidget> w, int x, int[] y, int width, int half, Runnable rebuild) {
+        SecretTriggerbotConfig t = SecretTriggerbotConfig.getInstance();
+        header(w, x, y, width, "Secret Triggerbot (dungeons)");
+        toggle(w, x, y, "Secret Triggerbot", t::isEnabled, t::setEnabled, rebuild, t::save);
+        if (!t.isEnabled()) {
+            return;
+        }
+        slider(w, x, y[0], half, () -> "Delay: " + t.getDelayMs() + "ms",
+                norm(t.getDelayMs(), 0, SecretTriggerbotConfig.MAX_DELAY_MS),
+                v -> t.setDelayMs(denorm(v, 0, SecretTriggerbotConfig.MAX_DELAY_MS)), t::save);
+        slider(w, x + half + 8, y[0], half, () -> "Cooldown: " + t.getCooldownMs() + "ms",
+                norm(t.getCooldownMs(), 0, SecretTriggerbotConfig.MAX_COOLDOWN_MS),
+                v -> t.setCooldownMs(denorm(v, 0, SecretTriggerbotConfig.MAX_COOLDOWN_MS)), t::save);
+        y[0] += 24;
+        toggle(w, x, y, "Swap To Slot", t::isSwapEnabled, t::setSwapEnabled, rebuild, t::save);
+        if (t.isSwapEnabled()) {
+            slider(w, x, y[0], half, () -> "Swap Slot: " + t.getSwapSlot(), (t.getSwapSlot() - 1) / 8.0,
+                    v -> t.setSwapSlot(1 + (int) Math.round(v * 8)), t::save);
+            w.add(onOffButton("Swap Back", t::isSwapBack, t::setSwapBack, t::save, null, x + half + 8, y[0], half, 20));
+            y[0] += 24;
+        }
+        w.add(com.killer560.hub.gui.ModuleKeybinds.row(com.killer560.hub.gui.ModuleKeybinds.SECRET_TRIGGERBOT_ID, x, y[0], width));
+        y[0] += 24;
     }
 
     private static double norm(int value, int min, int max) {

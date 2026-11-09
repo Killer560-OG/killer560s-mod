@@ -811,8 +811,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             // NEU: 100 x 20 dropdowns 3 px under the panel, 106 apart (GuiProfileViewer.java:331-357).
             bh = 20;
             px = panelX; py = panelY + panelH + 3; pw = 100;
-            sx = panelX + 106; sy = py; sw = 100;
-            rx = panelX + 212; ry = py; rw = 100;
+            sx = 5; sy = 5; sw = this.font.width(styleLabel) + 10; // the Style button is top left in every style (killer560, 2026-11-09)
+            rx = panelX + 106; ry = py; rw = 100;
         } else if (iconTabs) {
             // SkyBlockPV: the profile dropdown under the panel's left corner (:505), its icon buttons at the screen's
             // top left, 20 tall (:198-237).
@@ -830,11 +830,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             if (profileLabel != null) right -= pw + 4;
             px = right; py = ry;
             sw = this.font.width(styleLabel) + 10;
-            if (right - sw - 4 < nameX + 8 + this.font.width(displayName == null ? "" : displayName)) {
-                styleLabel = "Style";
-                sw = this.font.width(styleLabel) + 10;
-            }
-            sx = right - sw - 4; sy = ry;
+            sx = 5; sy = 5;
         }
         button(g, rx, ry, rw, bh, refresh, mx, my, false, () -> load(true));
         if (result != null && state == State.READY && inside(mx, my, rx, ry, rw, bh) && !dropdownOpen) {

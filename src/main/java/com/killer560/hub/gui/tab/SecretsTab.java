@@ -35,8 +35,7 @@ public class SecretsTab extends FolderTab {
                 // Secret Sound, Secret Clicked and the Secrets HUD share one tab (killer560, 2026-11-01)
                 new SecretTab(),
                 new SecretWaypointsTab(),
-                new EtherwarpTab(),
-                new DungeonWaypointsTab()
+                new EtherwarpTab()
         ));
         // The cheat sections (Secret Aura, Lever Aura, Secret Triggerbot, Full Block) moved to their own red
         // "Secrets" folder right after this one - CheatSecretsTab (2026-09-21).

@@ -421,7 +421,11 @@ final class SettingTooltipsData {
         d.put("auto clear/status hud", "One small HUD showing what Auto Clear, Auto Secret and Dungeon Autopilot are doing, hidden while nothing runs; move it in the HUD editor.");
         d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
         d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Backspace clears it). Works only in a dungeon, outside the boss.");
-        d.put("auto clear/secret blood first", "Auto Secret only: Off starts on secrets, Door Camp first opens the way to the blood door so the Watcher starts, Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
+        for (String k : new String[]{"autopilot", "auto secret"}) { // the run buttons read "Start X" / "Stop X"
+            d.put("auto clear/start " + k, d.get("auto clear/" + k));
+            d.put("auto clear/stop " + k, d.get("auto clear/" + k));
+        }
+        d.put("auto clear/secret blood first","Auto Secret only: Off starts on secrets, Door Camp first opens the way to the blood door so the Watcher starts, Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
         d.put("auto clear/room plan", "How Auto Secret fits Auto Clear in: Fastest Total clears each room on the same visit as its secrets, Secrets Then Clears does every secret room first and the uncleared rooms after.");
         d.put("auto clear/skip unneeded secrets", "Fastest Total only, off by default: once the Score Calculator says S+ needs no more secrets, the slowest rooms are only cleared and their secrets left.");
         d.put("auto clear/insta clear first","Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");
@@ -656,7 +660,7 @@ final class SettingTooltipsData {
         d.put("default order", "Where each teammate goes by class until you move them by hand: Odin, A-Z Class, Z-A Class or Hypixel's own order.");
         d.put("open custom leap order editor", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");
-        d.put("target mode", "How leaps pick their target: Per Leap (the target on the Targets page in use) or Posmsg (whoever announced the spot in party chat, with that target as backup). Applies to both Targets pages (cheat build only).");
+        d.put("fast/auto leap/mode", "This leap's Target Mode, how it picks its target: Per Leap (the target on the Targets page in use) or Posmsg (whoever announced the spot in party chat, with that target as backup). Applies to both Targets pages (cheat build only).");
         d.put("block inputs", "Blocks keyboard and mouse input while a fast or auto leap runs.");
         d.put("fast mode", "Holds movement and blocks inputs only while the leap menu is open, not the whole leap.");
         d.put("swap back", "Switches back to the hotbar slot you held before the automatic action.");
@@ -864,6 +868,7 @@ final class SettingTooltipsData {
         d.put("add use item node key", "Adds a node that uses your held item (same as /ar add use).");
         d.put("add walk node key", "Adds a walk node where you stand; it sprints the way you were facing (same as /ar add walk).");
         d.put("add superboom node key", "Adds a superboom node (same as /ar add boom).");
+        d.put("auto superboom", "Left click a cracked stone brick wall in a dungeon with anything in hand: swaps to your Superboom TNT for the click, then back. Not for wither or blood doors.");
         d.put("add path node key", "Adds a path node (same as /ar add path); the first of each pair etherwarps to the second.");
         d.put("clear room route key", "Deletes this room's whole route (same as /ar clear).");
         d.put("list nodes key", "Prints this room's nodes in chat (same as /ar list).");
@@ -1087,7 +1092,6 @@ final class SettingTooltipsData {
         d.put("hide particles", "Hides the vanilla Mage beam's firework particles in dungeons.");
         d.put("beam color", "Color of the custom Mage beam line.");
         d.put("auto dialogue", "Cheat build: clicks the first option in NPC dialogue, skipping anything that costs coins.");
-        d.put("npc filter", "Cheat build: NPC names Auto Dialogue may answer, comma-separated; blank allows any.");
         d.put("breaker aura", "Cheat build: in a boss fight only, breaks the blocks you picked with the Pick Block Key once they are in reach, while you hold a charged Dungeon Breaker.");
         d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
@@ -1115,9 +1119,9 @@ final class SettingTooltipsData {
         d.put("freelook/pan key", "Key or mouse button to hold to pan the camera around you with the mouse. Works in any view; from first person it shows the normal third-person view while held. Esc while binding clears it.");
         d.put("strength", "How much of the previous frame is kept (0-100%); higher means longer trails.");
         d.put("blur gui", "Also blurs the HUD and open menus.");
-        d.put("dark mode", "Darkens the game by drawing a black tint over the whole screen. Open menus are never tinted.");
+        d.put("dark mode", "Darkens the game by drawing a black tint over the whole screen, the HUD, the open chat and the HUD editor. Other open menus are never tinted.");
         d.put("dark mode/opacity", "How dark the tint is, from 1% (barely darker) to 80%.");
-        d.put("tint hud", "Off: only the world is darkened and the HUD stays as it is. On: the HUD (hotbar, chat, scoreboard and this mod's HUD elements) is darkened too.");
+        d.put("tint hud", "Off: only the world is darkened and the HUD stays as it is. On (default): the HUD (hotbar, chat, scoreboard and this mod's HUD elements), the chat and every screen this mod draws or skins (its menus, editors, the AH and Bazaar reskins) are darkened too.");
         d.put("open layout picker", "Opens a monitor preview; click a cell to move and resize this window into it.");
         d.put("windows per monitor", "How many equal slots (1-9) the picker splits the monitor into.");
         d.put("respect taskbar", "Keeps windows inside the monitor's work area so they do not cover the taskbar.");
@@ -1428,8 +1432,6 @@ final class SettingTooltipsData {
         d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("hide pause menu icons", "Removes the row of small icon buttons (Report Bugs, Give Feedback, Friends, Player Reporting) from the pause menu and closes the gap. Turn it off to get them back.");
         d.put("mods screen", "Lists every mod you have loaded, like Mod Menu: icon, name, version, authors, description and links, with a search box and Configure for mods that have a settings screen.");
-        d.put("main menu mods button", "Shows a Mods button under Mod Settings on the Themed Main Menu. It opens the Mods screen.");
-        d.put("pause menu mods button", "Shows a Mods button on the pause (Escape) menu. It opens the Mods screen. With Mod Menu installed, its own Mods button is used instead.");
         d.put("open mods screen", "Opens the Mods screen: every mod you have loaded, searchable, with Configure and links.");
         d.put("themed main menu", "Draws the title screen in the mod's themes (animated background, framed button column). Off: Minecraft's own title screen. The style and scene rows in Menu Theme show only while it is on and keep their values.");
         d.put("auto join skyblock", "Runs /skyblock each time you join Hypixel, unless you send a command first.");
@@ -2079,6 +2081,7 @@ final class SettingTooltipsData {
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
         d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
         d.put("watcher breakdown", "Prints one chat line with the speak, move, kill and total time when the blood room ends.");
+        d.put("send to party chat", "Once per run, when the Watcher is done, sends the speak time to party chat with /pc (only while others are in your dungeon party).");
         d.put("blessings hud", "Draws one line per blessing you have picked up while inside a dungeon.");
         d.put("roman numerals", "Writes blessing levels as V instead of 5.");
         d.put("shown blessings", "Which blessings may appear on the HUD.");
@@ -2197,7 +2200,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
         d.put("leap timeout", "How long a leap waits for the menu, then for the target's head, before giving up, 0.5-5 s (cheat build only).");
         d.put("fast/auto leap/block inputs", "Blocks your keyboard and mouse while a fast or auto leap is clicking (cheat build only).");
-        d.put("fast/auto leap/leap takes target's look", "When a leap lands within about a second of an earlier teleport, Hypixel leaves your look where it was instead of giving you the look of the player you leaped to. This turns you to that player's look, as Hypixel does for every other leap. Only your own leaps (Hypixel's \"You have teleported to\" line); every other teleport is left alone, and you are never moved (cheat build only).");
+        d.put("no rotate", "Leaping takes your target's look direction, as Hypixel does for other leaps. Only your own leaps.");
         d.put("fast/auto leap/fast mode", "Blocks input only between the leap menu opening and the click (cheat build only).");
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");
@@ -2326,17 +2329,17 @@ final class SettingTooltipsData {
         d.put("score calculator/formula", "Adds Paul's EZPZ perk and the Spirit pet to the score estimate.");
         d.put("score calculator/alert sound", "Plays a ding when the 270 or 300 score title appears.");
         d.put("screenshot copy", "Copies each F2 screenshot to your clipboard (Windows only).");
-        d.put("secret triggerbot/delay", "Cheat build: how long (0-500 ms) you must aim at a secret before it is clicked.");
-        d.put("secret triggerbot/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
-        d.put("secret triggerbot/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");
-        d.put("secret triggerbot/swap slot", "Cheat build: hotbar slot (1-9) to switch to before clicking a secret.");
+        d.put("secret aura/delay", "Cheat build: how long (0-500 ms) you must aim at a secret before it is clicked.");
+        d.put("secret aura/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
+        d.put("secret aura/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");
+        d.put("secret aura/swap slot", "Cheat build: hotbar slot (1-9) to switch to before clicking a secret.");
         d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at a random rate between the Min and Max CPS you set and never twice on one chest in one tick.");
         d.put("powder chest triggerbot/min cps", "Cheat build only. Lowest chest clicks per second, 1-20. Each click picks a new random rate between Min and Max; Min never goes above Max.");
         d.put("powder chest triggerbot/max cps", "Cheat build only. Highest chest clicks per second, 1-20 (20 is one a game tick); never more than one click on a chest in one tick. Max never goes below Min.");
         d.put("powder chest triggerbot/swap back when mining", "Cheat build only. After the triggerbot swapped you to the drill, the first time you start mining another block it switches back to the slot you held before (not if that slot no longer holds the same item).");
         d.put("powder chest triggerbot/don't swap while mining", "Cheat build only. On: no swap to the gemstone drill while your attack button is held. Off: it swaps whenever you aim at a chest.");
         d.put("powder chest triggerbot/swap to best gemstone drill", "Cheat build: first switches to the hotbar drill with the highest Gemstone Powder bonus (Jasper Drill X +20%), or any drill.");
-        d.put("secret triggerbot/swap back", "Cheat build: switches back to your previous hotbar slot after the click.");
+        d.put("secret aura/swap back", "Cheat build: switches back to your previous hotbar slot after the click.");
         d.put("secret waypoints/style", "FILL is a solid box, OUTLINE is just the wireframe, FILL_OUTLINE is both.");
         d.put("full block/levers", "Cheat build: makes levers easier to click by enlarging their hitbox.");
         d.put("full block/buttons", "Cheat build: makes buttons easier to click by enlarging their hitbox.");
@@ -2538,6 +2541,7 @@ final class SettingTooltipsData {
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
+            d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also act while you stand up to 6 blocks outside the Blood Room (at its door), not only inside. Reach and line of sight still apply.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest/close mode", "Auto stops the secret chest opening at all (cheat build only); Click leaves it open until you press any key or mouse button.");

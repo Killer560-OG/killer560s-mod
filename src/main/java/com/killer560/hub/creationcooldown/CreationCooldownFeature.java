@@ -78,6 +78,19 @@ public final class CreationCooldownFeature {
                     }
                     com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, HUD);
                 });
+        // Over every other screen too (killer560, 2026-11-09: "show in any gui"): the HUD layer sits under a screen, so a
+        // screen that hides gameplay HUDs gets the timer from its own afterExtract (chat, terminals and the HUD editor
+        // are drawn by the layer or the editor already).
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (!HudVisibility.menuOpen() || screen instanceof HudEditorScreen) {
+                return;
+            }
+            net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> {
+                if (HUD.isEnabledInSettings() && !McCompat.hudHidden(Minecraft.getInstance())) {
+                    com.killer560.hub.hud.HudElementRegistry.drawAt(g, HUD);
+                }
+            });
+        });
     }
 
     static void onChat(String plain) {

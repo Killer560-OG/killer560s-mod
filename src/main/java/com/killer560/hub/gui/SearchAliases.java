@@ -30,6 +30,9 @@ public final class SearchAliases {
             // orderhelper-1109: renamed from Bazaar Order Helper.
             Map.entry("bazaar order helper", "order helper"),
             Map.entry("bz order helper", "order helper"),
+            Map.entry("secret triggerbot", "secret aura"),
+            Map.entry("leap look", "no rotate"),
+            Map.entry("leap takes target", "no rotate"),
             Map.entry("jungle pickaxe", "wrong armor alert"),
             // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".
             Map.entry("mod menu", "mods screen"),

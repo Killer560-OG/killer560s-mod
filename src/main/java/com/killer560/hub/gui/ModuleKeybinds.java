@@ -57,6 +57,9 @@ public final class ModuleKeybinds {
     /** The id and row label of Thorn Triggerbot's own toggle key, in the Thorn tab's cheat section. */
     public static final String THORN_TRIGGERBOT_ID = "ThornTriggerbotTab";
     public static final String THORN_TRIGGERBOT_LABEL = "Triggerbot Toggle Keybind";
+    /** Secret Triggerbot, merged into the Secret Aura card (killer560, 2026-11-09); its old card id keeps old binds. */
+    public static final String SECRET_TRIGGERBOT_ID = "SecretTriggerbotTab";
+    public static final String SECRET_TRIGGERBOT_LABEL = "Triggerbot Toggle Keybind";
     /** Structure Scanner, folded into the Crystal Hollows Map tab (killer560, 2026-11-05); its old card id keeps old binds. */
     public static final String STRUCTURE_SCANNER_ID = "StructureScannerTab";
     public static final String STRUCTURE_SCANNER_LABEL = "Scanner Toggle Keybind";
@@ -68,6 +71,10 @@ public final class ModuleKeybinds {
                     () -> com.killer560.hub.thorn.ThornConfig.getInstance().isTriggerbotRaw(),
                     v -> com.killer560.hub.thorn.ThornConfig.getInstance().setTriggerbot(v),
                     () -> com.killer560.hub.thorn.ThornConfig.getInstance().save()));
+            EXTRAS.put(SECRET_TRIGGERBOT_ID, new Extra("Secret Triggerbot", SECRET_TRIGGERBOT_LABEL,
+                    () -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().isEnabled(),
+                    v -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().setEnabled(v),
+                    () -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().save()));
             EXTRAS.put(STRUCTURE_SCANNER_ID, new Extra("Structure Scanner", STRUCTURE_SCANNER_LABEL,
                     () -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().isEnabled(),
                     v -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().setEnabled(v),

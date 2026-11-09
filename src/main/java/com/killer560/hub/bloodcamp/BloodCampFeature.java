@@ -2122,8 +2122,18 @@ public final class BloodCampFeature {
         }
         Vec3 p = client.player.position();
         Vec3 w = watcher.position();
-        return roomTile(p.x) == roomTile(w.x) && roomTile(p.z) == roomTile(w.z) && Math.abs(p.y - w.y) < 40.0;
+        if (roomTile(p.x) == roomTile(w.x) && roomTile(p.z) == roomTile(w.z) && Math.abs(p.y - w.y) < 40.0) {
+            return true;
+        }
+        // Work Just Outside Blood Room (killer560, 2026-11-09): within OUTSIDE_MARGIN blocks of the room's walls.
+        double cx = com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(w.x);
+        double cz = com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(w.z);
+        return BloodCampConfig.getInstance().isOutsideRoom() && Math.abs(p.y - w.y) < 40.0
+                && Math.abs(p.x - cx) <= 16.0 + OUTSIDE_MARGIN && Math.abs(p.z - cz) <= 16.0 + OUTSIDE_MARGIN;
     }
+
+    /** Blocks past the Blood Room's walls where the Trigger Bot and the Aura still act with Work Just Outside Blood Room on. */
+    static final double OUTSIDE_MARGIN = 6.0;
 
     /** The room tile index along one axis (rounded to the nearest room center, -185 + 32n). */
     static long roomTile(double coord) {

@@ -457,7 +457,6 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.freelook.FreelookFeature.register();
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             com.killer560.hub.terminatorclicker.TerminatorClickerFeature.register();
-            com.killer560.hub.ghostblock.GhostBlockFeature.register();
         }
         com.killer560.hub.gui.ModuleKeybinds.register();
         com.killer560.hub.slotbinds.SlotBindsFeature.register();
@@ -510,7 +509,6 @@ public class Killer560ModClient implements ClientModInitializer {
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
         EtherwarpFeature.register();
-        com.killer560.hub.dungeonwaypoints.DungeonWaypointsFeature.register();
         com.killer560.hub.autosuperboom.AutoSuperboomFeature.register();
         com.killer560.hub.trail.TrailFeature.register();
         com.killer560.hub.interop.ModConflictWarnings.register();
