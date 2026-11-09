@@ -620,6 +620,8 @@ public final class ProfileManager {
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reload,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
+                com.killer560.hub.milestone.MilestoneConfig::load,
+                com.killer560.hub.itemhighlight.DungeonItemHighlightConfig::load,
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,
                 com.killer560.hub.tooltipscroll.TooltipScrollConfig::load,
                 com.killer560.hub.enchantcolors.EnchantColorsConfig::load,

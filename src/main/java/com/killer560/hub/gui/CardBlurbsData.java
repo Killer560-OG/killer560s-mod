@@ -95,6 +95,8 @@ final class CardBlurbsData {
         d.put("CustomPartyFinderTab", "Dungeon, Diana, fishing parties.");
         d.put("F7SpotsTab", "Saved F7/M7 walk and aim spots.");
         d.put("LeapCounterTab", "Counts teammates leaping.");
+        d.put("MilestoneTab", "Dungeon milestone count HUD.");
+        d.put("DungeonItemHighlighterTab", "Marks cheap gear to salvage.");
         d.put("LeapMenuTab", "Custom leap menu with heads.");
         d.put("LividSolverTab", "Outlines the real Livid.");
         d.put("MaskInvincibilityTab", "Mask and Phoenix timers.");

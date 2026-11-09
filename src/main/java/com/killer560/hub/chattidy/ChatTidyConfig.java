@@ -53,6 +53,8 @@ public final class ChatTidyConfig {
     private boolean hideOthersPickups = false;
     private boolean hideAbilitySpam = false;
     private boolean hideDungeonBreaker = false;
+    private boolean hideMelodyProgress = false;
+    private boolean muteMelody = false;
 
     private ChatTidyConfig() {
     }
@@ -97,6 +99,8 @@ public final class ChatTidyConfig {
                 cfg.hideOthersPickups = ConfigJson.getBool(obj, "hideOthersPickups", false);
                 cfg.hideAbilitySpam = ConfigJson.getBool(obj, "hideAbilitySpam", false);
                 cfg.hideDungeonBreaker = ConfigJson.getBool(obj, "hideDungeonBreaker", false);
+                cfg.hideMelodyProgress = ConfigJson.getBool(obj, "hideMelodyProgress", false);
+                cfg.muteMelody = ConfigJson.getBool(obj, "muteMelody", false);
             }
         }
         if (migrate) {
@@ -158,6 +162,8 @@ public final class ChatTidyConfig {
         obj.addProperty("hideOthersPickups", hideOthersPickups);
         obj.addProperty("hideAbilitySpam", hideAbilitySpam);
         obj.addProperty("hideDungeonBreaker", hideDungeonBreaker);
+        obj.addProperty("hideMelodyProgress", hideMelodyProgress);
+        obj.addProperty("muteMelody", muteMelody);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -267,6 +273,14 @@ public final class ChatTidyConfig {
 
     public boolean isHideDungeonBreaker() {
         return on(hideDungeonBreaker);
+    }
+
+    public boolean isHideMelodyProgress() {
+        return on(hideMelodyProgress);
+    }
+
+    public boolean isMuteMelody() {
+        return on(muteMelody);
     }
 
     // ---- raw (what the settings menu shows) -----------------------------------------------------------------
@@ -397,5 +411,21 @@ public final class ChatTidyConfig {
 
     public void setHideDungeonBreaker(boolean v) {
         hideDungeonBreaker = v;
+    }
+
+    public boolean getHideMelodyProgressRaw() {
+        return hideMelodyProgress;
+    }
+
+    public void setHideMelodyProgress(boolean v) {
+        hideMelodyProgress = v;
+    }
+
+    public boolean getMuteMelodyRaw() {
+        return muteMelody;
+    }
+
+    public void setMuteMelody(boolean v) {
+        muteMelody = v;
     }
 }

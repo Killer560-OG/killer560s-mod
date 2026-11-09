@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public final class DungeonChatHider {
 
     public enum Family {
-        BOSS, MORT, BLESSINGS, PICKUPS, ABILITY, BREAKER
+        BOSS, MORT, BLESSINGS, PICKUPS, ABILITY, BREAKER, MELODY_PROGRESS, MELODY_DONE
     }
 
     private static final String NAME = "[A-Za-z0-9_]{1,16}";
@@ -64,6 +64,13 @@ public final class DungeonChatHider {
     static final Pattern BREAKER = Pattern.compile("^(?:A mystical force prevents you (?:from digging that block|digging in this "
             + "room|digging there)|You don't have enough charges to break this block right now)!$");
 
+    /**
+     * A party Melody callout ("Party > [MVP+] Eve: Melody 1/3 - 33%", "Melody 67%", "mel 2/4"): the shapes the Melody
+     * tracker reads and this mod sends. Group 1 is the done count, 2 the rows, 3 a bare percent. Sender anchored.
+     */
+    static final Pattern MELODY = Pattern.compile("^Party > (?:\\[[^\\]]{1,20}\\] )?" + NAME
+            + ": (?i:melody|mel) (?:(\\d)/(\\d)(?: - \\d{1,3}%)?|(\\d{1,3})%)$");
+
     private static final int MAX_LINE = 300;
 
     private static final Map<Family, Long> HIDDEN = new EnumMap<>(Family.class);
@@ -84,6 +91,14 @@ public final class DungeonChatHider {
             if (plain.startsWith("[NPC] Mort: ")) {
                 return MORT.matcher(plain).matches() ? Family.MORT : null;
             }
+        }
+        if (first == 'P' && plain.startsWith("Party > ")) {
+            Matcher m = MELODY.matcher(plain);
+            if (!m.matches()) {
+                return null;
+            }
+            boolean done = m.group(3) != null ? "100".equals(m.group(3)) : m.group(1).equals(m.group(2));
+            return done ? Family.MELODY_DONE : Family.MELODY_PROGRESS;
         }
         if (BREAKER.matcher(plain).matches()) {
             return Family.BREAKER;
@@ -121,13 +136,15 @@ public final class DungeonChatHider {
             case PICKUPS -> cfg.isHideOthersPickups();
             case ABILITY -> cfg.isHideAbilitySpam();
             case BREAKER -> cfg.isHideDungeonBreaker();
+            case MELODY_PROGRESS -> cfg.isHideMelodyProgress() || cfg.isMuteMelody();
+            case MELODY_DONE -> cfg.isMuteMelody();
         };
     }
 
     /** Any family switched on (so a line is only matched when something could hide it). */
     public static boolean anyOn(ChatTidyConfig cfg) {
         return cfg.isHideBossDialogue() || cfg.isHideMort() || cfg.isHideBlessings() || cfg.isHideOthersPickups()
-                || cfg.isHideAbilitySpam() || cfg.isHideDungeonBreaker();
+                || cfg.isHideAbilitySpam() || cfg.isHideDungeonBreaker() || cfg.isHideMelodyProgress() || cfg.isMuteMelody();
     }
 
     static void counted(Family f) {
