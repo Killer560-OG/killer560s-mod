@@ -2063,7 +2063,6 @@ final class SettingTooltipsData {
         d.put("auto reparty", "Reparties by itself a few seconds after a dungeon run ends (party leader only).");
         d.put("auto reparty delay", "How long after the run's end screen Auto Reparty waits. Left click for longer, right click for shorter.");
         d.put("carry tracker", "Counts every finished dungeon run that a name on your list was in, with a history of the latest runs. Counts are saved for your account and shared by every instance.");
-        d.put("room preview", "With chat open, hover a room on the Dungeon Map HUD to see its shape, type, secrets by kind and crypts.");
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
         d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
         d.put("watcher breakdown", "Prints one chat line with the speak, move, kill and total time when the blood room ends.");

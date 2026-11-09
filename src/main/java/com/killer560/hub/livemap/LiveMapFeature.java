@@ -1769,9 +1769,6 @@ public final class LiveMapFeature {
                         .add(cfg.getIconScale());
                 MARKER_SEGMENT.draw(graphics, mk, PAINT_MARKERS);
                 namesShown = names;
-                if (!InteractiveMapFeature.isPeeking()) {
-                    RoomPreview.draw(graphics, this, ox, oy, ppu);
-                }
             } finally {
                 paintGraphics = null;
                 paintCfg = null;

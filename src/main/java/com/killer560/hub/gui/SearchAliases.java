@@ -24,8 +24,6 @@ public final class SearchAliases {
             Map.entry("carry", "carry tracker"),
             Map.entry("carries", "carry tracker"),
             Map.entry("carry counter", "carry tracker"),
-            Map.entry("map hover", "room preview"),
-            Map.entry("room info", "room preview"),
             Map.entry("watcher speed", "watcher helper"),
             Map.entry("jungle pickaxe", "wrong armor alert"),
             // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".

@@ -77,7 +77,6 @@ public class DungeonTab extends FolderTab {
                 new IcedMobsTab(),
                 new AutoCloseChestTab(),
                 new CarryTrackerTab(),
-                new RoomPreviewTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----

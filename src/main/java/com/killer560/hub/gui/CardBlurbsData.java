@@ -82,7 +82,6 @@ final class CardBlurbsData {
         d.put("RepartyTab", "Disbands and re-invites your party.");
         d.put("WatcherHelperTab", "Rates Watcher speed.");
         d.put("CarryTrackerTab", "Counts runs per carried player.");
-        d.put("RoomPreviewTab", "Hover a map room for its contents.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
         d.put("ClassColorsTab", "Class-colored teammates.");
