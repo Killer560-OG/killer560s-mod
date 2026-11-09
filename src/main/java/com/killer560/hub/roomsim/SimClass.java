@@ -40,7 +40,8 @@ public final class SimClass {
     private static final double BEAM_RADIUS = 0.6;
 
     /** Far above any sim mob's health, so nothing survives a hit it visibly took. */
-    private static final float BEAM_DAMAGE = 10_000f;
+    /** Lethal to any sim mob like a Terminator arrow's 10,000, but distinguishable: a boss dragon takes a beam as 1/5 of its health. */
+    public static final float BEAM_DAMAGE = 10_001f;
 
     /** Hypixel's 100 Attack Speed baseline, shared with every other sim weapon - killer560 asked that "all
      *  items assume 100 attack speed equivalent", so the number lives in one place. */
