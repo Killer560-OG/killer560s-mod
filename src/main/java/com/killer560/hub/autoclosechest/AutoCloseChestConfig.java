@@ -9,8 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Auto Close Chest setting - ships disabled by default, same as every other new feature in
- *  this mod. Cheat build only since 2026-10-07: see {@link #isEnabled()}. */
+/** Persisted Auto Close Chest settings - ships disabled by default; Auto is cheat build only. */
 public final class AutoCloseChestConfig {
 
     private static final Path CONFIG_PATH =
@@ -19,10 +18,8 @@ public final class AutoCloseChestConfig {
     private static AutoCloseChestConfig instance;
 
     private boolean enabled = false;
-    private Mode mode = Mode.AUTO;
-
-    /** Auto closes the chest before it opens (cheat build only); Click leaves it open until any key or mouse press. */
-    public enum Mode { AUTO, CLICK }
+    private boolean anyKey = true;
+    private boolean auto = false;
 
     private AutoCloseChestConfig() {
     }
@@ -44,7 +41,10 @@ public final class AutoCloseChestConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             AutoCloseChestConfig cfg = new AutoCloseChestConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.AUTO);
+            // Files from before 2026-11-09 carry "mode": AUTO or CLICK; both keep Close On Any Key, AUTO is the cheat Auto.
+            boolean oldAuto = obj.has("mode") && "AUTO".equals(obj.get("mode").getAsString());
+            cfg.anyKey = ConfigJson.getBool(obj, "anyKey", true);
+            cfg.auto = ConfigJson.getBool(obj, "auto", oldAuto && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoCloseChestConfig();
@@ -54,26 +54,35 @@ public final class AutoCloseChestConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
-        obj.addProperty("mode", mode.name());
+        obj.addProperty("anyKey", anyKey);
+        obj.addProperty("auto", auto);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
-    /** The feature is on and Skyblock allows it. Auto mode is cheat build only (killer560, 2026-10-07: "auto close chest
-     *  should be in a cheat only version"): {@link #isAuto()} folds to false in a legit jar, where only Click exists. */
+    /** The feature is on and Skyblock allows it. */
     public boolean isEnabled() {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
+    /** Cheat Auto: closes the chest before it opens. Folds to false in a legit jar (killer560, 2026-10-07). */
     public boolean isAuto() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && mode == Mode.AUTO;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auto;
     }
 
-    public Mode getMode() {
-        return mode;
+    public boolean isAutoRaw() {
+        return auto;
     }
 
-    public void setMode(Mode mode) {
-        this.mode = mode;
+    public void setAuto(boolean auto) {
+        this.auto = auto;
+    }
+
+    public boolean isAnyKey() {
+        return anyKey;
+    }
+
+    public void setAnyKey(boolean anyKey) {
+        this.anyKey = anyKey;
     }
 
     /** The saved value, ungated - for the tab's label, so the button never shows OFF just because the

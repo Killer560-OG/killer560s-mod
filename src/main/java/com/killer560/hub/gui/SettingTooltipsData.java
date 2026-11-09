@@ -2061,8 +2061,9 @@ final class SettingTooltipsData {
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
         d.put("arrow align/aura cps", "Cheat build only. Aura clicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set.");
         d.put("auto puzzles", "Cheat build only. Solves dungeon puzzle rooms for you; each puzzle's solver must also be on.");
-        d.put("auto close chest", "Closes a dungeon secret chest: with Click, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
-        d.put("auto close chest/auto close chest", "Closes a dungeon secret chest: with Click, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
+        d.put("auto close chest", "Closes a dungeon secret chest: with Close On Any Key, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
+        d.put("auto close chest/auto close chest", "Closes a dungeon secret chest: with Close On Any Key, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
+        d.put("auto close chest/close on any key", "While a dungeon secret chest is open, any key or mouse press closes it (the press is eaten, so it takes no item). On by default.");
         d.put("item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
         d.put("item quality/item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
         d.put("iced mob boxes", "Boxes the mobs in front of you for 5 seconds after you use an Ice Spray Wand (an estimate: the server does not say which froze).");
@@ -2549,7 +2550,7 @@ final class SettingTooltipsData {
             d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also work while you stand up to 6 blocks outside the Blood Room's walls (reach and line of sight still apply). Off: only inside the room.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
-            d.put("auto close chest/close mode", "Auto stops the secret chest opening at all (cheat build only); Click leaves it open until you press any key or mouse button.");
+            d.put("auto close chest/auto", "Cheat build only. Stops the secret chest opening at all: it is closed before it is shown.");
         }
         d.put("auto fairy souls/auto mode", "How it travels: Walk Only, Walk With Pearls, Etherwarp where it saves walking, or Fast Etherwarp the whole way (needs an etherwarp item in the hotbar).");
         d.put("tick timers/purple pad highlight", "Outlines Storm's purple crush pad while you're in P2.");
