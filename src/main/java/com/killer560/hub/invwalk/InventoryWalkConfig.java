@@ -41,6 +41,11 @@ public final class InventoryWalkConfig {
     private int lookKeyCode = com.killer560.hub.util.KeyUtil.NONE;
     /** With Stop To Click: a storage menu's pick-up stays unsent while he walks carrying it (iwbypass-1108). */
     private boolean carryInChests = false;
+    /** In a server menu his movement keys are really let go (honest: GrimAC predicts from them), so Hypixel keeps it open (invwalkclean-1109). */
+    private boolean stillInMenus = false;
+    /** How many ticks after a server menu opens he stands still; {@link #STILL_WHOLE_MENU} = as long as it is open. */
+    private int stillTicks = STILL_WHOLE_MENU;
+    public static final int STILL_WHOLE_MENU = 41;
 
     private InventoryWalkConfig() {
     }
@@ -64,6 +69,8 @@ public final class InventoryWalkConfig {
             cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
             cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
+            cfg.stillInMenus = ConfigJson.getBool(obj, "stillInMenus", cfg.stillInMenus);
+            cfg.setStillTicks(ConfigJson.getInt(obj, "stillTicks", cfg.stillTicks));
         }
         instance = cfg;
     }
@@ -78,6 +85,8 @@ public final class InventoryWalkConfig {
         obj.addProperty("stopToClick", stopToClick);
         obj.addProperty("lookKeyCode", lookKeyCode);
         obj.addProperty("carryInChests", carryInChests);
+        obj.addProperty("stillInMenus", stillInMenus);
+        obj.addProperty("stillTicks", stillTicks);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -143,5 +152,21 @@ public final class InventoryWalkConfig {
 
     public void setCarryInChests(boolean on) {
         this.carryInChests = on;
+    }
+
+    public boolean isStillInMenus() {
+        return stillInMenus;
+    }
+
+    public void setStillInMenus(boolean on) {
+        this.stillInMenus = on;
+    }
+
+    public int getStillTicks() {
+        return stillTicks;
+    }
+
+    public void setStillTicks(int ticks) {
+        this.stillTicks = Math.max(1, Math.min(STILL_WHOLE_MENU, ticks));
     }
 }

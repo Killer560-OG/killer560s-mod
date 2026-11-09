@@ -72,6 +72,17 @@ public final class InventoryWalkFeature {
     private static final ArrayDeque<Packet<?>> heldClicks = new ArrayDeque<>();
     private static boolean sendingHeld;
     private static int heldClickTicks;
+    /**
+     * Stand Still In Server Menus: ticks the current server menu (container id != 0) has been open, and whether his keys are
+     * let go this tick. Hypixel closes a server menu on an input packet with movement keys (his 26.3 log 2026-11-08 21:24),
+     * and GrimAC predicts from the same keys, so the only flag-free way is to really let them go: vanilla then sends an
+     * honest keyless input and his momentum decays as the server predicts (invwalkclean-1109; hiding keys while walking was
+     * Simulation every tick).
+     */
+    private static int menuTicks;
+    private static int lastMenuId;
+    private static boolean standingStill;
+    private static long standStillTicks;
     private static long clicksHeld;
     private static long closesHeld;
     private static long gaveUp;
@@ -182,9 +193,16 @@ public final class InventoryWalkFeature {
             LOGGER.info("[InvWalk] on in {} (title \"{}\") at {}", activeScreen, screen.getTitle().getString(), fmt(activeStart));
         }
         activeTicks++;
+        int menuId = cfg.isStillInMenus() && screen instanceof AbstractContainerScreen<?> s ? s.getMenu().containerId : 0;
+        menuTicks = menuId == 0 ? 0 : menuId == lastMenuId ? menuTicks + 1 : 1;
+        lastMenuId = menuId;
+        standingStill = menuId != 0 && (cfg.getStillTicks() >= InventoryWalkConfig.STILL_WHOLE_MENU || menuTicks <= cfg.getStillTicks());
+        if (standingStill) {
+            standStillTicks++;
+        }
 
         List<String> held = new ArrayList<>();
-        boolean paused = pauseLeft > 0 || !heldClicks.isEmpty();
+        boolean paused = standingStill || pauseLeft > 0 || !heldClicks.isEmpty();
         if (pauseLeft > 0) {
             pauseLeft--;
         }
@@ -195,7 +213,7 @@ public final class InventoryWalkFeature {
         apply(client, client.options.keyJump, !paused && cfg.isJump(), held);
         apply(client, client.options.keySprint, !paused && cfg.isSprint(), held);
 
-        String keys = String.join(",", held) + (paused ? " (paused)" : "");
+        String keys = String.join(",", held) + (standingStill ? " (standing still in a server menu)" : paused ? " (paused)" : "");
         if (!keys.equals(lastKeys)) {
             LOGGER.info("[InvWalk] keys [{}] at {} in {}", keys, fmt(player.position()), screen.getClass().getSimpleName());
             lastKeys = keys;
@@ -263,6 +281,9 @@ public final class InventoryWalkFeature {
         // Otherwise a click or close still held keeps waiting for its still tick (the tick handles it with no screen).
         active = false;
         pauseLeft = 0;
+        menuTicks = 0;
+        lastMenuId = 0;
+        standingStill = false;
         LocalPlayer player = client.player;
         Vec3 end = player == null ? null : player.position();
         double moved = end == null || activeStart == null ? 0 : Math.hypot(end.x - activeStart.x, end.z - activeStart.z);
@@ -652,6 +673,16 @@ public final class InventoryWalkFeature {
     /** Cursor moves the Look Key turned into a turn (testkit). */
     public static long looks() {
         return looks;
+    }
+
+    /** Stand Still In Server Menus let his keys go this tick (testkit). */
+    public static boolean isStandingStill() {
+        return standingStill;
+    }
+
+    /** Ticks Stand Still In Server Menus has let his keys go (testkit: it acted). */
+    public static long standStillTicks() {
+        return standStillTicks;
     }
 
     public static boolean isActive() {
