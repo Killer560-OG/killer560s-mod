@@ -24,6 +24,7 @@ public final class QueueTermsFeature {
     private static final int[] queue = new int[MAX_QUEUE];
     private static int size;
     /** Clicks held and clicks sent from the queue since the game started (testkit). */
+    private static boolean swallowRelease;
     static int held;
     static int sent;
 
@@ -52,7 +53,15 @@ public final class QueueTermsFeature {
             queue[size++] = slot;
             held++;
         }
+        swallowRelease = true;
         return true;
+    }
+
+    /** True once after a press this class swallowed: vanilla sends the click on RELEASE, so the release is swallowed too. */
+    public static boolean consumeRelease() {
+        boolean r = swallowRelease;
+        swallowRelease = false;
+        return r;
     }
 
     private static boolean contains(int slot) {

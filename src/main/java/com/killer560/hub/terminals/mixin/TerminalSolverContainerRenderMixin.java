@@ -62,7 +62,7 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockTerminalCustomGuiRelease(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (TerminalSolverFeature.isCustomGuiActive()) {
+        if (com.killer560.hub.terminals.QueueTermsFeature.consumeRelease() || TerminalSolverFeature.isCustomGuiActive()) {
             cir.setReturnValue(true);
         }
     }
