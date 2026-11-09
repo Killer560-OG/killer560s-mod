@@ -58,8 +58,6 @@ public final class LeverAuraFeature {
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
     private static final Set<Long> clickedS2 = new HashSet<>();
-    private static final Map<Long, Long> inRangeSince = new HashMap<>();
-    private static final Map<Long, Long> requiredDwell = new HashMap<>();
     /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
     private static double nextClickDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
@@ -123,10 +121,8 @@ public final class LeverAuraFeature {
         }
         int section = P3SectionTracker.section();
         if (section != lastSection) {
-            LOGGER.info("[LeverAura] section {} -> {}: dwell timers cleared", lastSection, section);
+            LOGGER.info("[LeverAura] section {} -> {}", lastSection, section);
             lastSection = section;
-            inRangeSince.clear();
-            requiredDwell.clear();
         }
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
         String gate = null;
@@ -180,14 +176,8 @@ public final class LeverAuraFeature {
                 }
                 long key = pos.asLong();
                 inRangeNow.add(key);
-                if (!dwellPassed(cfg, key, now) || (s2Open ? clickedS2 : clickedEarly).contains(key)
-                        || !hasNotActivatedStand(client, pos)) {
-                    // Read back what dwellPassed just stored (no second call: it rolls the dwell on first sight).
-                    Long since = inRangeSince.get(key);
-                    Long need = requiredDwell.get(key);
-                    if (since != null && need != null && now - since < need) {
-                        logLever(pos, "dwell", "in range, waiting the dwell (" + need + " ms)", d);
-                    } else if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
+                if ((s2Open ? clickedS2 : clickedEarly).contains(key) || !hasNotActivatedStand(client, pos)) {
+                    if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
                         logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
                     } else {
                         logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
@@ -203,8 +193,6 @@ public final class LeverAuraFeature {
             }
         }
 
-        inRangeSince.keySet().retainAll(inRangeNow);
-        requiredDwell.keySet().retainAll(inRangeNow);
 
         long tick = ActionGate.currentTick();
         if (target == null) {
@@ -212,7 +200,7 @@ public final class LeverAuraFeature {
             return;
         }
         if (tick < nextClickDueTick) {
-            logHeld("cps", "CPS gap: next flick due at tick " + String.format(java.util.Locale.ROOT, "%.2f", nextClickDueTick)
+            logHeld("cooldown", "Lever cooldown: next flick due at tick " + String.format(java.util.Locale.ROOT, "%.2f", nextClickDueTick)
                     + " (now " + tick + ") lever " + target.toShortString());
             return;
         }
@@ -234,10 +222,10 @@ public final class LeverAuraFeature {
         // turned flick added its turn tick to the gap and 10 CPS measured about 8.
         long base = turnStartTick >= 0 ? turnStartTick : tick;
         turnStartTick = -1L;
-        // CPS: each gap is 1000 / CPS ms with +-10% jitter (never a metronome), scheduled from the previous click's due
-        // tick, not this one, so the average is the CPS set even when the gap is a fraction of a tick. One flick a tick
-        // at most, so 20 is the ceiling; a flick the gate held back carries at most a tick of backlog.
-        nextClickDueTick = Math.max(nextClickDueTick, base - 1) + gapMs(cfg) / 50.0;
+        // Cooldown (2026-11-09): an unflicked lever goes the moment the cooldown since the last flick has passed (nothing
+        // pending = nothing sent, no fixed rate); each cooldown is the set ms +-10% (never a metronome). One flick a tick
+        // at most, so 50 ms is the shortest.
+        nextClickDueTick = base + gapMs(cfg) / 50.0;
     }
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
@@ -277,16 +265,9 @@ public final class LeverAuraFeature {
         return true;
     }
 
-    /** A lever must have been in range for one CPS gap (rolled when it came into range) before its first click. */
-    private static boolean dwellPassed(LeverAuraConfig cfg, long key, long now) {
-        long since = inRangeSince.computeIfAbsent(key, k -> now);
-        long need = requiredDwell.computeIfAbsent(key, k -> Math.round(gapMs(cfg)));
-        return now - since >= need;
-    }
-
-    /** One gap between flicks: 1000 / CPS ms, +-10%. */
+    /** One cooldown between flicks: the set ms, +-10%. */
     private static double gapMs(LeverAuraConfig cfg) {
-        return 1000.0 / cfg.getCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
+        return cfg.getCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
     /** QUOI isBossBlock / SecretAuraFeature#isBossLeverClickable: a "Not Activated" armor stand just above. */
@@ -304,8 +285,6 @@ public final class LeverAuraFeature {
         lastHeldKey = null;
         clickedEarly.clear();
         clickedS2.clear();
-        inRangeSince.clear();
-        requiredDwell.clear();
         nextClickDueTick = 0.0;
         turnStartTick = -1L;
         lastSection = P3SectionTracker.section();

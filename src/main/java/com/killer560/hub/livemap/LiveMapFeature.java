@@ -1209,6 +1209,16 @@ public final class LiveMapFeature {
         return roomTypeOfIndex(currentRoomIndex());
     }
 
+    /** The centre (y 75) of the room tile the map knows as the Blood Room, or null: Blood Camp's anchor before it ever saw the Watcher. */
+    public static Vec3 bloodRoomCenter() {
+        for (RoomGroup g : groupsView()) {
+            if ("BLOOD".equals(roomTypeOfIndex(g.mainIdx))) {
+                return new Vec3(START_X + 16.0 * (g.mainIdx % GRID), 75.0, START_Z + 16.0 * (g.mainIdx / GRID));
+            }
+        }
+        return null;
+    }
+
     /** {@link #currentRoomType} for the room over world (x, z) instead of the player's: null in boss, outside the grid
      *  or when the map does not know. The Dungeon Breaker's fairy guard asks it about the block, not the player. */
     public static String roomTypeAt(double x, double z) {

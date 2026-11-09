@@ -7,7 +7,7 @@ import com.killer560.hub.util.ModPaths;
 
 import java.nio.file.Path;
 
-/** Terminator Auto Clicker settings (cheat build only, off by default). See {@link TerminatorClickerFeature}. */
+/** Shortbow Auto Clicker settings (cheat build only, off by default). See {@link TerminatorClickerFeature}. */
 public final class TerminatorClickerConfig {
 
     public static final int MIN_CPS = 3;
@@ -19,7 +19,8 @@ public final class TerminatorClickerConfig {
     private static TerminatorClickerConfig instance;
 
     private boolean enabled = false;
-    private int cps = 8;
+    private int cpsMin = 8;
+    private int cpsMax = 8;
 
     private TerminatorClickerConfig() {
     }
@@ -36,7 +37,8 @@ public final class TerminatorClickerConfig {
         JsonObject obj = ConfigJson.read(CONFIG_PATH);
         if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-            cfg.setCps(ConfigJson.getInt(obj, "cps", cfg.cps));
+            int old = ConfigJson.getInt(obj, "cps", cfg.cpsMin); // the single value of before 2026-11-09 becomes min = max
+            cfg.setCpsRange(ConfigJson.getInt(obj, "cpsMin", old), ConfigJson.getInt(obj, "cpsMax", old));
         }
         instance = cfg;
     }
@@ -44,7 +46,8 @@ public final class TerminatorClickerConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
-        obj.addProperty("cps", cps);
+        obj.addProperty("cpsMin", cpsMin);
+        obj.addProperty("cpsMax", cpsMax);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -52,7 +55,14 @@ public final class TerminatorClickerConfig {
 
     public void setEnabled(boolean v) { enabled = v; }
 
-    public int getCps() { return cps; }
+    public int getCpsMin() { return cpsMin; }
 
-    public void setCps(int v) { cps = Math.max(MIN_CPS, Math.min(MAX_CPS, v)); }
+    public int getCpsMax() { return cpsMax; }
+
+    public void setCpsRange(int a, int b) {
+        int lo = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.min(a, b)));
+        int hi = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.max(a, b)));
+        cpsMin = lo;
+        cpsMax = hi;
+    }
 }

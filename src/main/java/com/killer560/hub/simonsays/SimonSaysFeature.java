@@ -656,7 +656,7 @@ public final class SimonSaysFeature {
         // Gated on the stored Simon Says switch: with it off, tick() only gives back a turned body and clears state, and the
         // gate still lets the first switched-off tick through for exactly that (FeatureGuard.start with a bit).
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimonSaysFeature",
-                com.killer560.hub.util.FeatureBits.register("Simon Says tick", () -> SimonSaysConfig.getInstance().isEnabledRaw()),
+                com.killer560.hub.util.FeatureBits.register("Simon Says tick", () -> SimonSaysConfig.getInstance().isMachineryRaw()),
                 client -> tick()));
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!DungeonState.isF7OrM7()) return;
@@ -847,7 +847,7 @@ public final class SimonSaysFeature {
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         TURN.tick(client.player); // first, always: a body turned for a click is given back the tick after
-        boolean active = cfg.isEnabled() && client.player != null && client.level != null && isDeviceInRange(client);
+        boolean active = cfg.isMachineryOn() && client.player != null && client.level != null && isDeviceInRange(client);
 
         tickAnnounceKeybind(client, cfg);
 
@@ -2370,7 +2370,7 @@ public final class SimonSaysFeature {
     private static void tickRotateFrame() {
         Minecraft client = Minecraft.getInstance();
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
-        if (client.player == null || !cfg.isEnabled() || !rotateActive(cfg) || !isWithinAutoAnchor(client)) {
+        if (client.player == null || !cfg.isMachineryOn() || !rotateActive(cfg) || !isWithinAutoAnchor(client)) {
             // The anchor check is here too, not just on the click paths: killer560 asked that "looking
             // toward the middle" also stop outside 2 blocks, and this frame loop is what moves the camera.
             rotateLastFrameAtNanos = 0L;

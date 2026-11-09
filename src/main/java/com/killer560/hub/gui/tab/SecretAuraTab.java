@@ -105,9 +105,9 @@ public class SecretAuraTab extends BaseTab {
                 v -> lever.setRange(LeverAuraConfig.MIN_RANGE + v * (LeverAuraConfig.MAX_RANGE - LeverAuraConfig.MIN_RANGE)),
                 saveLever);
         y[0] += 24;
-        slider(w, contentX, y[0], BTN_W, () -> "Boss Lever CPS: " + lever.getCps(),
-                norm(lever.getCps(), LeverAuraConfig.MIN_CPS, LeverAuraConfig.MAX_CPS),
-                v -> lever.setCps(denorm(v, LeverAuraConfig.MIN_CPS, LeverAuraConfig.MAX_CPS)), saveLever);
+        slider(w, contentX, y[0], BTN_W, () -> "Boss Lever Cooldown: " + lever.getCooldownMs() + " ms",
+                norm(lever.getCooldownMs(), LeverAuraConfig.MIN_COOLDOWN_MS, LeverAuraConfig.MAX_COOLDOWN_MS),
+                v -> lever.setCooldownMs(denorm(v, LeverAuraConfig.MIN_COOLDOWN_MS, LeverAuraConfig.MAX_COOLDOWN_MS)), saveLever);
         y[0] += 24;
         toggle(w, contentX, y, "Boss Lever Swing Hand", lever::isSwingHand, lever::setSwingHand, null, saveLever);
         toggle(w, contentX, y, "Boss Lever Chat Feedback", lever::isChatFeedback, lever::setChatFeedback, null, saveLever);
