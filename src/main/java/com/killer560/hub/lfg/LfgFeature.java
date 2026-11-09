@@ -67,11 +67,13 @@ public final class LfgFeature {
 
     /** Hypixel's party invite, one line of its framed message. The rank tag has no space and the name group no space or
      *  colon, so no player chat line ("[VIP] Bob: ...", "Party > ...") can match it. */
-    static final Pattern INVITE = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has invited you to join their party!$");
+    public static final Pattern INVITE = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has invited you to join their party!$");
     private static final String RANKED = "(?:\\[[A-Z+]{1,12}\\] )?[A-Za-z0-9_]{1,16}";
+    /** Hypixel's "X has disbanded the party!" (group 1: the name, rank tag dropped). */
+    public static final Pattern DISBANDED = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has disbanded the party!$");
     /** The party ended for us (Odin's PartyUtils leave/disband lines, names bounded). */
     static final List<Pattern> PARTY_ENDED = List.of(
-            Pattern.compile("^" + RANKED + " has disbanded the party!$"),
+            DISBANDED,
             Pattern.compile("^You have been kicked from the party by " + RANKED + "$"),
             Pattern.compile("^The party was disbanded because all invites expired and the party was empty\\.$"),
             Pattern.compile("^The party was disbanded because the party leader disconnected\\.$"),

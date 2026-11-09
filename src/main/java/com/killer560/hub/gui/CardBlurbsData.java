@@ -79,7 +79,7 @@ final class CardBlurbsData {
         d.put("AutoKickTab", "Kicks joiners under your limits.");
         d.put("BlessingsTab", "Lists the blessings you hold.");
         d.put("PuzzleHudTab", "Shows each puzzle, who and when.");
-        d.put("RepartyTab", "Disbands and re-invites your party.");
+        d.put("RepartyTab", "Re-invites your party.");
         d.put("WatcherHelperTab", "Rates Watcher speed.");
         d.put("CarryTrackerTab", "Counts runs per carried player.");
         d.put("RoomPreviewTab", "Hover a map room for its contents.");
