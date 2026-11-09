@@ -31,6 +31,9 @@ public final class TestingMenu {
     /** Leaf tab name -> the top-level category it lives in normally, for tooltip lookups made from Untested. */
     private static final Map<String, String> CATEGORY = new HashMap<>();
 
+    /** Categories kept whole in the testing build. */
+    private static final java.util.Set<String> NEVER_UNTESTED = java.util.Set.of("Mining");
+
     private TestingMenu() {
     }
 
@@ -50,7 +53,10 @@ public final class TestingMenu {
                 continue;
             }
             record(top, top.name);
-            if (top instanceof FolderTab folder) {
+            if (NEVER_UNTESTED.contains(top.name)) {
+                // killer560, 2026-11-08: mining cards never go to Untested or Bugged.
+                out.add(top);
+            } else if (top instanceof FolderTab folder) {
                 if (prune(folder, untested, bugged)) {
                     out.add(top);
                 }

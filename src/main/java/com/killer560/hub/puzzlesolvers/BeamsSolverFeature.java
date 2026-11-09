@@ -67,6 +67,9 @@ public final class BeamsSolverFeature {
     private static Vec3 creeperFeet;
     /** Whether this visit already opened with the creeper's pair: only the FIRST set gets it. */
     private static boolean openingUsed;
+    /** Scans that found no creeper yet; after {@link #CREEPER_WAIT_SCANS} the nearest pair opens for good. */
+    private static int creeperMisses;
+    private static final int CREEPER_WAIT_SCANS = 40;
     /** Most blocks sideways each lantern of the opening pair may sit from the creeper (feet and about straight above). */
     private static final double OPENING_REACH = 3.5;
 
@@ -139,6 +142,7 @@ public final class BeamsSolverFeature {
             shownOrder.clear();
             creeperFeet = null;
             openingUsed = false;
+            creeperMisses = 0;
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
             if (!"none".equals(LOG.roomKey)) {
@@ -192,12 +196,13 @@ public final class BeamsSolverFeature {
         }
         activePairs = colored;
         // Look the creeper up only while the first pick is still to make (an entity query, not every tick forever).
-        if (!openingUsed && shownOrder.isEmpty() && BeamsSolverConfig.getInstance().getShowMode() != BeamsSolverConfig.ShowMode.ALL
+        if (!openingUsed && BeamsSolverConfig.getInstance().getShowMode() != BeamsSolverConfig.ShowMode.ALL
                 && !colored.isEmpty()) {
             BlockPos c = colored.get(0).a();
             var creepers = level.getEntitiesOfClass(net.minecraft.world.entity.monster.Creeper.class,
                     new AABB(c).inflate(24));
             creeperFeet = creepers.isEmpty() ? null : creepers.get(0).position();
+            if (creeperFeet == null && ++creeperMisses >= CREEPER_WAIT_SCANS) openingUsed = true;
         }
         logScan(found);
     }
@@ -234,7 +239,12 @@ public final class BeamsSolverFeature {
                 lit.add(p);
             }
         }
-        if (!openingUsed && shownOrder.isEmpty() && !lit.isEmpty()) {
+        if (!openingUsed) {
+            // Until the creeper is found (or given up on) nothing is locked in: a pick made before it loaded would
+            // keep the nearest pair first for good (the 2026-11-08 "not the one below it every time" case).
+            shownOrder.clear();
+        }
+        if (!openingUsed && !lit.isEmpty()) {
             ActivePair opening = openingPair(lit, creeperFeet);
             if (opening != null) {
                 shownOrder.add(opening.candidate());

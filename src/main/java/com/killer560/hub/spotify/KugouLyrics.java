@@ -41,6 +41,8 @@ import java.util.zip.Inflater;
 public final class KugouLyrics {
 
     private static final String SEARCH_URL = ModNet.url("kugou", "http://lyrics.kugou.com/search");
+    /** Kugou's song search: finds songs its lyrics keyword search misses (most lesser-known songs since about 2026-11-05). */
+    private static final String SONG_URL = ModNet.url("kugou", "http://mobilecdn.kugou.com/api/v3/search/song");
     private static final String DOWNLOAD_URL = ModNet.url("kugou", "http://lyrics.kugou.com/download");
     /** The KRC key every KRC reader uses. */
     private static final byte[] KEY = {64, 71, 97, 119, 94, 50, 116, 71, 81, 54, 49, 45, (byte) 206, (byte) 210, 110, 105};
@@ -73,11 +75,14 @@ public final class KugouLyrics {
             String url = SEARCH_URL + "?ver=1&man=yes&client=pc&keyword=" + enc(keyword) + "&duration="
                     + Math.round(spotifySeconds * 1000) + "&hash=";
             String body = get(url);
-            if (body == null) {
+            Hit hit = body == null ? null : pick(body, artist, title, spotifySeconds);
+            if (hit == null) {
+                hit = byHash(artist, title, spotifySeconds);
+            }
+            if (hit == null && body == null) {
                 lastResult = "search failed";
                 return null;
             }
-            Hit hit = pick(body, artist, title, spotifySeconds);
             if (hit == null) {
                 lastResult = "no version within " + LyricsEngine.SAME_VERSION_SECONDS + " s";
                 return null;
@@ -134,6 +139,41 @@ public final class KugouLyrics {
             }
         }
         return best;
+    }
+
+    /**
+     * The keyword search finds only Kugou's better-known songs; its song search finds the rest, and a lyrics search by the
+     * song's hash then lists its lyrics. Up to three songs with the same title, artist and length (within 2 s plus Kugou's
+     * whole-second rounding) are asked, and their lyrics still pass {@link #pick}.
+     */
+    private static Hit byHash(String artist, String title, double spotifySeconds) {
+        String body = get(SONG_URL + "?format=json&page=1&pagesize=10&keyword="
+                + enc((artist == null ? "" : artist + " ") + title));
+        if (body == null) return null;
+        JsonElement root = JsonParser.parseString(body);
+        if (!root.isJsonObject() || !root.getAsJsonObject().has("data")) return null;
+        JsonElement data = root.getAsJsonObject().get("data");
+        if (!data.isJsonObject() || !data.getAsJsonObject().has("info")) return null;
+        String want = LyricsEngine.titleKey(title);
+        int asked = 0;
+        for (JsonElement el : data.getAsJsonObject().getAsJsonArray("info")) {
+            if (asked >= 3) break;
+            if (!el.isJsonObject()) continue;
+            JsonObject s = el.getAsJsonObject();
+            double secs = s.has("duration") ? s.get("duration").getAsDouble() : 0;
+            String hash = str(s, "hash");
+            if (hash.isEmpty() || !LyricsEngine.titleKey(str(s, "songname")).equals(want)
+                    || !LyricsEngine.artistListHas(str(s, "singername"), artist)
+                    || (spotifySeconds > 0 && Math.abs(secs - spotifySeconds) > LyricsEngine.SAME_VERSION_SECONDS + 1)) {
+                continue;
+            }
+            asked++;
+            String lyr = get(SEARCH_URL + "?ver=1&man=yes&client=pc&hash=" + enc(hash) + "&duration="
+                    + Math.round(spotifySeconds * 1000));
+            Hit hit = lyr == null ? null : pick(lyr, artist, title, spotifySeconds);
+            if (hit != null) return hit;
+        }
+        return null;
     }
 
     /** The KRC text inside a download's base64 {@code content}, or null. */

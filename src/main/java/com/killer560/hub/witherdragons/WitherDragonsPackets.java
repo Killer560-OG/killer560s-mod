@@ -34,7 +34,6 @@ public final class WitherDragonsPackets {
     public static void onSound(ClientboundSoundPacket packet) { guard("sound", WitherDragonsFeature::onSound, packet); }
 
     public static void onTabList(ClientboundTabListPacket packet) {
-        guard("tablist", WitherDragonsPackets::p5TabFooter, packet);
         guard("tablist/blessings", WitherDragonsPackets::blessingsTabFooter, packet);
     }
 
@@ -61,13 +60,6 @@ public final class WitherDragonsPackets {
             ServerTickClock.onPing(id);
         } catch (RuntimeException e) {
             WitherDragonsFeature.LOGGER.error("[WitherDragons] {} handler threw", "ping", e);
-        }
-    }
-
-    private static void p5TabFooter(ClientboundTabListPacket packet) {
-        // Only dragon priority reads the blessings P5State parses; skip the footer string and two regex scans otherwise.
-        if (WitherDragonsFeature.trackingActive()) {
-            P5State.onTabFooter(packet.footer());
         }
     }
 

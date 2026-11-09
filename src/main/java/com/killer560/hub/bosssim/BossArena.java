@@ -27,7 +27,7 @@ import java.util.zip.GZIPInputStream;
  *
  * <p>Two sources, best first:
  * <ol>
- * <li><b>A capture of the real room</b> ({@code config/killer560/dungeons/sim/killer560smod-sim-bossarena.bin}), written by
+ * <li><b>A capture of the real room</b> ({@code <shared store>/sim-boss/killer560smod-sim-bossarena.bin}), written by
  * a dev capture on Hypixel in an F7/M7 boss. Block for block, so every route and landing matches.</li>
  * <li><b>The built-in plan</b> ({@link #plan}): floors, walls, the P3 ring and core, gates, the terminal, lever and device
  * spots, the P4 and P5 floors, built from the coordinates this mod already reads Hypixel's boss by (the terminal, lever
@@ -87,13 +87,28 @@ public final class BossArena {
 
     /** The P1 capture (the fight's start), the file every capture before bossfloor-1104 went to. */
     public static Path capturePath() {
-        return ModPaths.config("killer560smod-sim-bossarena.bin");
+        return capturePath("P1");
     }
 
-    /** The capture taken in {@code phase} ("P1".."P5"): P1's is {@link #capturePath()}, the others carry their phase. */
+    /**
+     * The capture taken in {@code phase} ("P1".."P5"). Captures are his and not in the jar, so they live in the shared
+     * store's {@code sim-boss/} folder for every instance on the PC (bosssim1108: a fresh instance had only the built-in
+     * plan, the capture sat in the one instance it was taken in). An instance's own file under the config folder is moved
+     * in the first time it is looked for.
+     */
     public static Path capturePath(String phase) {
-        return "P1".equals(phase) ? capturePath()
-                : ModPaths.config("killer560smod-sim-bossarena-" + phase.toLowerCase(java.util.Locale.ROOT) + ".bin");
+        String name = "P1".equals(phase) ? "killer560smod-sim-bossarena.bin"
+                : "killer560smod-sim-bossarena-" + phase.toLowerCase(java.util.Locale.ROOT) + ".bin";
+        Path dst = com.killer560.hub.shared.SharedFolders.folder("sim-boss", null).resolve(name);
+        Path old = ModPaths.config(name);
+        if (Files.isRegularFile(old) && !Files.exists(dst)) {
+            try {
+                Files.move(old, dst);
+            } catch (IOException e) {
+                LOGGER.warn("[BossSim] could not move {} into the shared store", old, e);
+            }
+        }
+        return dst;
     }
 
     static boolean building() {

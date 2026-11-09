@@ -76,6 +76,17 @@ public final class InventoryWalkFeature {
     private static long closesHeld;
     private static long gaveUp;
     /**
+     * Own inventory (container 0), the vanilla shape (invwalk-1105, from invwalk-legit-1027): Hypixel limbos "Bad client
+     * inventory move." when he moves while the server has his inventory open - after a container-0 click and before its
+     * close, worst with an item on the server's cursor (his 26.3 log, 2026-11-05 23:14:34 and 23:15:54). So a pick-up waits
+     * HERE, not sent, while he keeps walking with the item on his cursor; the click that empties the cursor completes the
+     * run, which then goes to {@link #heldClicks}: one keyless tick, the clicks, a close of container 0, his keys back -
+     * what a vanilla client sends when he opens his inventory mid-run, moves an item and closes it. With Carry In Chests
+     * (iwbypass-1108) a storage menu's pick-up waits here too; its put-down then takes the plain full stop (no close).
+     */
+    private static final ArrayDeque<Packet<?>> carrying = new ArrayDeque<>();
+    private static long inventoryCloses;
+    /**
      * Ticks to wait for him to come to a full stop. Past this the held packets are DROPPED, never sent while he moves
      * (a click sent while sliding put him in Hypixel's limbo, 2026-10-27). A dropped click only desyncs the menu until the
      * server's next resync; a limbo is a flag.
@@ -110,6 +121,12 @@ public final class InventoryWalkFeature {
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         LocalPlayer player = client.player;
         Screen screen = McCompat.screen(client);
+        if (player != null && !carrying.isEmpty() && player.containerMenu.getCarried().isEmpty()) {
+            // The server reset his cursor (a resync, a new or closed menu) while the pick-up was still unsent: it never had
+            // these clicks, and the client now shows its truth, so they are dropped, never replayed onto another state.
+            LOGGER.info("[InvWalk] {} carried click(s) dropped: the server reset the cursor before the put-down", carrying.size());
+            carrying.clear();
+        }
         if (player == null || client.getConnection() == null) {
             serverInput = null;
             serverSprinting = null;
@@ -117,10 +134,21 @@ public final class InventoryWalkFeature {
                 LOGGER.info("[InvWalk] {} held packet(s) dropped: no connection", heldClicks.size());
                 heldClicks.clear();
             }
+            carrying.clear();
         } else if (!heldClicks.isEmpty()) {
             // Before the screen check: a close is held after its screen has gone, and still needs its still tick.
             heldClickTicks++;
-            if (readyToSend(player)) {
+            boolean inv = inventoryBatch(player);
+            if (inv && keylessTickLeft(player)) {
+                // The keyless tick has left: the clicks and a close of container 0 go now, between ticks, and his keys come
+                // back this tick, as vanilla's KeyMapping.setAll does when a screen closes (MouseHandler.grabMouse).
+                if (!(heldClicks.peekLast() instanceof ServerboundContainerClosePacket)) {
+                    heldClicks.addLast(new ServerboundContainerClosePacket(0));
+                    inventoryCloses++;
+                }
+                flushClicks(client, "one keyless tick left (own inventory, then its close)");
+                pauseLeft = 0;
+            } else if (!inv && readyToSend(player)) {
                 flushClicks(client, "he is standing still");
                 pauseLeft = Math.max(pauseLeft, AFTER_CLICK_STILL_TICKS);
             } else if (heldClickTicks > GIVE_UP_TICKS) {
@@ -223,6 +251,12 @@ public final class InventoryWalkFeature {
     }
 
     private static void deactivate(Minecraft client, String why) {
+        // The screen went with an item still on the cursor and no close seen: the waiting clicks take the held path.
+        if (heldClicks.isEmpty()) {
+            heldClickTicks = 0;
+        }
+        heldClicks.addAll(carrying);
+        carrying.clear();
         if (!InventoryWalkConfig.getInstance().isEnabled() || !InventoryWalkConfig.getInstance().isStopToClick()) {
             flushClicks(client, "Inventory Walk off: " + why);
         }
@@ -273,7 +307,47 @@ public final class InventoryWalkFeature {
             clicksTotal++;
         }
         Minecraft mc0 = Minecraft.getInstance();
-        if (holdsMenuPackets(mc0) && (!heldClicks.isEmpty() || !readyToSend(mc0.player))) {
+        boolean holds = holdsMenuPackets(mc0);
+        ServerboundContainerClickPacket asClick = isClick ? (ServerboundContainerClickPacket) packet : null;
+        boolean ownInventoryClick = holds && isClick && ownInventory(mc0.player, asClick);
+        boolean carryable = (ownInventoryClick || holds && isClick && storageClick(mc0, asClick))
+                && (carrying.isEmpty() || ((ServerboundContainerClickPacket) carrying.peekFirst()).containerId() == asClick.containerId());
+        if (carryable && (!carrying.isEmpty() || !mc0.player.containerMenu.getCarried().isEmpty())) {
+            // A pick-up (or a click while one is carried): it waits, and he keeps walking, until the put-down.
+            carrying.addLast(packet);
+            if (mc0.player.containerMenu.getCarried().isEmpty()) {
+                if (heldClicks.isEmpty()) {
+                    heldClickTicks = 0;
+                }
+                heldClicks.addAll(carrying);
+                clicksHeld += carrying.size();
+                LOGGER.info("[InvWalk] {} own-inventory click(s) complete (cursor empty): one keyless tick, then the clicks"
+                        + " and a close of container 0", carrying.size());
+                carrying.clear();
+            } else {
+                LOGGER.info("[InvWalk] {} waits for the put-down ({} waiting), he keeps walking", describe(packet),
+                        carrying.size());
+            }
+            return true;
+        }
+        if (!carrying.isEmpty()) {
+            // Anything else while an item is carried (a close, a button, a click that cannot wait - a put-down into the
+            // craft grid, a storage page's top row): the waiting clicks go first, in order, then this packet. Before
+            // iwbypass-1108 only a close did, and a put-down into the craft grid reached the server AHEAD of its pick-up.
+            if (heldClicks.isEmpty()) {
+                heldClickTicks = 0;
+            }
+            clicksHeld += carrying.size();
+            heldClicks.addAll(carrying);
+            carrying.clear();
+            if (!holds) {
+                flushClicks(mc0, "the carried clicks go first");
+                return false;
+            }
+        }
+        // An own-inventory click is held even when he stands still: it goes with a close of container 0, or the server has
+        // his inventory open when he walks off later (23:15:48-52 in his 2026-11-05 log: clicks standing still, then walking).
+        if (holds && (!heldClicks.isEmpty() || !readyToSend(mc0.player) || ownInventoryClick)) {
             heldClicks.addLast(packet);
             if (isClose) {
                 closesHeld++;
@@ -333,7 +407,7 @@ public final class InventoryWalkFeature {
      * sprinting, and the server has that input too - or a Blink hold has it queued, and they join the hold behind it.
      */
     private static boolean readyToSend(LocalPlayer player) {
-        if (moving(player.getLastSentInput()) || player.isSprinting()) {
+        if (!keylessTickLeft(player)) {
             return false;
         }
         // He must really be standing still, not just have no keys down: Hypixel limboed him for a click sent while he was
@@ -344,7 +418,89 @@ public final class InventoryWalkFeature {
                 || Math.abs(player.getY() - player.yo) > STILL_SPEED || !player.onGround()) {
             return false;
         }
-        return serverStill() || com.killer560.hub.blink.BlinkFeature.isHolding();
+        return true;
+    }
+
+    /**
+     * A click in his own inventory with his inventory screen up (container 0) that takes the vanilla shape: the 2x2 crafting
+     * grid is empty (a close would hand its items back) and it is not the SkyBlock Menu star, which the server answers by
+     * opening a menu (a close behind it would shut that menu).
+     */
+    private static boolean ownInventory(LocalPlayer player, ServerboundContainerClickPacket click) {
+        if (player == null || click.containerId() != 0 || player.containerMenu != player.inventoryMenu || !craftGridEmpty(player)) {
+            return false;
+        }
+        var slots = player.inventoryMenu.slots;
+        int slot = click.slotNum();
+        return !isMenuStar(player.inventoryMenu.getCarried())
+                && !(slot >= 0 && slot < slots.size() && isMenuStar(slots.get(slot).getItem()));
+    }
+
+    /**
+     * Carry In Chests (iwbypass-1108): a click in a server storage menu that may wait, unsent, while he walks with the item
+     * on his cursor - a chest, large chest, ender chest or barrel, or a Hypixel Ender Chest page / backpack (not its top
+     * row, which is Hypixel's buttons). Every other server menu is buttons: a held click there would never press them.
+     */
+    private static boolean storageClick(Minecraft mc, ServerboundContainerClickPacket click) {
+        LocalPlayer player = mc.player;
+        if (!InventoryWalkConfig.getInstance().isCarryInChests() || player.containerMenu == player.inventoryMenu
+                || click.containerId() != player.containerMenu.containerId
+                || !(player.containerMenu instanceof net.minecraft.world.inventory.ChestMenu)
+                || !(McCompat.screen(mc) instanceof AbstractContainerScreen<?> screen)) {
+            return false;
+        }
+        String title = screen.getTitle().getString();
+        boolean hypixelPage = com.killer560.hub.storageoverlay.StorageOverlayFeature.isStoragePageTitle(title);
+        if (!hypixelPage && !VANILLA_STORAGE.contains(title)) {
+            return false;
+        }
+        var slots = player.containerMenu.slots;
+        int slot = click.slotNum();
+        if (slot == -999) {
+            return true;
+        }
+        return slot >= (hypixelPage ? 9 : 0) && slot < slots.size() && !isMenuStar(player.containerMenu.getCarried())
+                && !isMenuStar(slots.get(slot).getItem());
+    }
+
+    private static final Set<String> VANILLA_STORAGE = Set.of("Chest", "Large Chest", "Ender Chest", "Barrel");
+
+    private static boolean isMenuStar(net.minecraft.world.item.ItemStack stack) {
+        return !stack.isEmpty() && "SKYBLOCK_MENU".equals(com.killer560.hub.autoroutes.ItemIdentity.skyblockId(stack));
+    }
+
+    /** Every held packet is a container-0 click (or its close) and his inventory is still the open menu. */
+    private static boolean inventoryBatch(LocalPlayer player) {
+        if (player.containerMenu != player.inventoryMenu || !craftGridEmpty(player)) {
+            return false;
+        }
+        for (Packet<?> p : heldClicks) {
+            if (!(p instanceof ServerboundContainerClickPacket c && c.containerId() == 0)
+                    && !(p instanceof ServerboundContainerClosePacket cl && cl.getContainerId() == 0)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean craftGridEmpty(LocalPlayer player) {
+        var slots = player.inventoryMenu.slots;
+        for (int i = 1; i <= 4 && i < slots.size(); i++) {
+            if (!slots.get(i).getItem().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The tick packets that left last had no movement key, jump or sneak and no sprint (what a vanilla client sends the
+     * tick its inventory opens: setScreen calls KeyMapping.releaseAll before the player's tick) and the server has them, or
+     * a Blink hold has them queued. His momentum is not waited out: vanilla keeps it too.
+     */
+    private static boolean keylessTickLeft(LocalPlayer player) {
+        return !moving(player.getLastSentInput()) && !player.isSprinting()
+                && (serverStill() || com.killer560.hub.blink.BlinkFeature.isHolding());
     }
 
     private static boolean serverStill() {
@@ -443,6 +599,14 @@ public final class InventoryWalkFeature {
         return closesHeld;
     }
 
+    public static long inventoryCloses() {
+        return inventoryCloses;
+    }
+
+    public static int carryingNow() {
+        return carrying.size();
+    }
+
     public static long gaveUp() {
         return gaveUp;
     }
@@ -457,6 +621,32 @@ public final class InventoryWalkFeature {
 
     private static String fmt(Vec3 v) {
         return String.format(Locale.ROOT, "(%.2f, %.2f, %.2f)", v.x, v.y, v.z);
+    }
+
+    private static long looks;
+
+    /**
+     * Look Key: held, in a screen Inventory Walk is on in this tick, no text box focused, the window active. Asked once per
+     * cursor move by InventoryWalkLookMixin, so the key poll costs nothing while the mouse is still.
+     */
+    public static boolean lookKeyHeld(Minecraft mc) {
+        int code = InventoryWalkConfig.getInstance().getLookKeyCode();
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !active || code == com.killer560.hub.util.KeyUtil.NONE
+                || mc.player == null || !mc.isWindowActive()) {
+            return false;
+        }
+        Screen screen = McCompat.screen(mc);
+        return screen != null && !(screen.getFocused() instanceof EditBox)
+                && com.killer560.hub.util.KeyUtil.isBindDown(mc.getWindow(), code);
+    }
+
+    public static void noteLook() {
+        looks++;
+    }
+
+    /** Cursor moves the Look Key turned into a turn (testkit). */
+    public static long looks() {
+        return looks;
     }
 
     public static boolean isActive() {

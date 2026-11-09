@@ -154,7 +154,8 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
         return y + ROW + 4;
     }
 
-    private static Component keyText(String label, int code, boolean capturing) {
+    /** A key row's text: "Label: Not Set", the key's name, or the capture prompt. Also InventoryWalkTab's Look Key. */
+    static Component keyText(String label, int code, boolean capturing) {
         if (capturing) {
             return Component.literal(label + ": §ePress any key...");
         }

@@ -211,8 +211,10 @@ public final class FriendsListSync {
         if (friend.matches()) {
             String name = friend.group(1);
             boolean offline = friend.group(2).toLowerCase(Locale.US).contains("offline");
-            ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US),
-                    new ParsedFriend(name, !offline, activityOf(friend.group(2))));
+            ParsedFriend pf = new ParsedFriend(name, !offline, activityOf(friend.group(2)));
+            if (ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US), pf) == null) {
+                FriendsListConfig.getInstance().noteScanned(name, pf.onlineHint(), pf.activity());
+            }
             lastReadLineAtMs = System.currentTimeMillis();
             return true;
         }

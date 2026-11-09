@@ -86,6 +86,7 @@ final class SettingTooltipsData {
         d.put("livid solver/announce color", "Sends the real Livid's color to party chat once per answer (at most twice a run).");
         d.put("low health alert", "Shows a title and plays a sound when a teammate's health turns red on the dungeon sidebar.");
         d.put("low health alert/only while healer", "Alerts only while you are playing Healer.");
+        d.put("low health alert/alert at yellow health", "Also alerts one tier earlier, when a teammate's health turns yellow (\"getting low\", higher sound), not only red.");
         d.put("low health alert/alert sound", "Plays a sound with the low health title.");
         part1(d);
         part2(d);
@@ -251,6 +252,9 @@ final class SettingTooltipsData {
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
         d.put("blink/charge ticks", "The most ticks Charge banks, so how far a shot goes; also what an AP3 Blink Charge node with no number banks. Past 20, Hypixel sets it back.");
+        d.put("inventory walk/stop to click", "A click while you move waits until you stand still for a tick. In your own inventory you keep walking with an item on the cursor: it is sent when you put it down, with one still tick and a close, as a normal client would.");
+        d.put("inventory walk/look key", "Hold it with a menu open and moving the mouse turns you (your normal sensitivity) instead of the cursor; let go and the mouse moves the cursor again. Not Set by default. Click, then press a key or mouse button; Escape clears it.");
+        d.put("inventory walk/carry in chests", "With Stop To Click on: in a chest, ender chest, barrel or Hypixel storage page, an item you pick up stays on your cursor and is not sent while you keep walking. When you put it down you stop for a moment and both clicks go together, so the server never sees an item carried while you move. Off by default.");
         d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
         d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
@@ -630,6 +634,7 @@ final class SettingTooltipsData {
         d.put("corner hit message", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
+        d.put("show leap order reset", "Shows the \"Leap Order reset\" title and chat line when a party change resets your pins and picks. Off hides both.");
         d.put("use class colors", "Colors each leap menu box by that teammate's class; off draws every box in orange.");
         d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");
         d.put("show map during clear", "On: during the clear the leap menu is the dungeon map with each teammate's face; boxes again in the boss. Off: the four teammate boxes everywhere. Keys 1-4 work in both.");
@@ -1487,7 +1492,7 @@ final class SettingTooltipsData {
         d.put("min height", "Minimum height of the scoreboard box.");
 
         // M7 Wither Dragons / King Relics / P5 splits
-        d.put("wither dragons", "Tracks the five M7 Phase 5 dragons with spawn timers, health and which one your class should take.");
+        d.put("wither dragons", "Tracks the five M7 Phase 5 dragons with spawn timers, health and which one to take (the first to spawn).");
         d.put("spawn timers", "Shows each dragon's spawn countdown above its spawn point and on the HUD.");
         d.put("timer style", "How the dragon countdown reads: Milliseconds, Seconds or Ticks.");
         d.put("timer symbol", "Adds the unit (ms, s or t) after the dragon countdown.");
@@ -1503,12 +1508,9 @@ final class SettingTooltipsData {
         d.put("send ice sprayed", "Sends you a chat message with how many ticks after spawning a dragon was hit by Ice Spray.");
         d.put("send arrows hit", "Adds how many of your arrows hit your priority dragon to its death message.");
         d.put("send dragon counts", "Sends you a chat message naming each dragon as it counts as killed.");
-        d.put("dragon priority", "Tells you which dragon your class should go to, based on your Power blessing.");
-        d.put("paul buff", "Turn on while Paul is mayor with his blessing perk, so your Power counts as 1.25x.");
-        d.put("normal power", "Power needed before the team splits by class, 0-32.");
-        d.put("easy power", "Lower power needed to split when Purple is one of the two spawning dragons, 0-32.");
-        d.put("purple solo debuff", "Which class debuffs Purple alone, Tank or Healer.");
-        d.put("solo debuff on all splits", "Uses the solo-debuff rule on every split, not only when Purple is spawning.");
+        d.put("dragon priority", "Your priority dragon is always the one that spawns first. With this on, the Solo Priority class takes the one that spawns second instead.");
+        d.put("first dragon only", "Sends the Solo Priority class to the second dragon only for the first two dragons; after them it goes with the team.");
+        d.put("solo priority", "Which class takes the second of two spawning dragons, Tank or Healer.");
         d.put("your class", "Auto reads your class from the tab list; pick one manually if it can't be read.");
         d.put("king relics", "Helpers for the M7 Phase 5 relics: spawn countdown, cauldron highlight and placement times.");
         d.put("relic spawn timer", "Shows the countdown until the relics spawn on the HUD.");
@@ -2805,8 +2807,6 @@ final class SettingTooltipsData {
         d.put("dungeon queue/party finder style", "How party member lines look in Party Finder tooltips.");
         d.put("dungeon queue/save style", "Saves the Party Finder style under the name typed to its left.");
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
-        d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
-        d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
         d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. The potion effects panel beside the inventory is Hide Potion Effects, a card of its own.");
         d.put("hide potion effects", "Hides the potion effects panel vanilla draws beside your inventory (Absorption, Haste, Strength...). On by default, with or without the Inventory Theme.");
         d.put("hide effect icons (hud)", "Also hides the effect icons vanilla draws in the top right of the screen while you play. Off by default.");

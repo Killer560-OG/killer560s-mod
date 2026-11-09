@@ -28,7 +28,9 @@ public final class WitherEspFeature {
     /** Noamm's real-boss filter: a visible WitherBoss that isn't one of the 800-invulnerable-tick display withers. */
     public static boolean isRealWither(Entity entity) {
         return entity instanceof WitherBoss wither && !wither.isRemoved() && !wither.isInvisible()
-                && wither.getInvulnerableTicks() != 800;
+                && wither.getInvulnerableTicks() != 800
+                // A dying wither (hp 0 or its death animation running) drops out at once (killer560, 2026-11-08).
+                && !wither.isDeadOrDying() && wither.deathTime == 0;
     }
 
     /** F7/M7 boss room, P1-P4 (not the Wither King phase). */

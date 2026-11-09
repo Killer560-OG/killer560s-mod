@@ -52,9 +52,9 @@ public final class ProfileViewerConfig {
     public enum Style {
         DEFAULT("Default", null),
         NEU("NEU Classic", new int[]{0xFFFFAA00, 0xFF2B2B2B, 0xFF373737, 0xFFFFFFFF, 0xFF55FF55}),
-        SBPV_LIGHT("SkyBlockPV Light", new int[]{0xFF8B3FD9, 0xFFC0C0C0, 0xFFD0D1D4, 0xFF1E1E1F, 0xFF3C8527}),
-        SBPV_DARK("SkyBlockPV Dark", new int[]{0xFFB26BFF, 0xFF303030, 0xFF3A3A3A, 0xFFE0E0E0, 0xFF3C8527}),
-        SBPV_CLEAR("SkyBlockPV Transparent", new int[]{0xFFB98CFF, 0xFF262626, 0xFF2E2E2E, 0xFFFFFFFF, 0xFF55AA55});
+        SBPV_LIGHT("SkyBlockPV Light", new int[]{0xFF8B3FD9, 0xFFC0C0C0, 0xFFD0D1D4, 0xFF555555, 0xFF3C8527}),
+        SBPV_DARK("SkyBlockPV Dark", new int[]{0xFFB26BFF, 0xFF303030, 0xFF3A3A3A, 0xFFB5B5B5, 0xFF3C8527}),
+        SBPV_CLEAR("SkyBlockPV Transparent", new int[]{0xFFB98CFF, 0xFF262626, 0xFF2E2E2E, 0xFFB5B5B5, 0xFF55AA55});
 
         public final String label;
         /** Shared and read every frame: never modify. */

@@ -473,6 +473,11 @@ public final class StorageOverlayFeature {
     /** @return the composite cache key for this screen title if it's a real Ender Chest page or
      *  Backpack, otherwise null. Public so the mixin (a different package) can use the same check
      *  for both "should I draw?" and "should a click here even be considered for opening a page?". */
+    /** A Hypixel Ender Chest page or backpack title (Inventory Walk's Carry In Chests asks per click). */
+    public static boolean isStoragePageTitle(String title) {
+        return ENDER_CHEST_TITLE.matcher(title).matches() || BACKPACK_TITLE.matcher(title).matches();
+    }
+
     public static String storageKeyForTitle(String title) {
         Matcher chest = ENDER_CHEST_TITLE.matcher(title);
         if (chest.matches()) return storageKey("enderchest_" + chest.group(1));

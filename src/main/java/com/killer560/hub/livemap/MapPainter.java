@@ -565,7 +565,7 @@ public final class MapPainter {
      * 0xFFFFAA00) are the two outlines it was always drawn with, one on the edge and one just outside.
      */
     static void witherDoorOutline(Outliner out, int x0, int y0, int x1, int y1, LiveMapConfig cfg) {
-        int color = cfg.getWitherDoorOutlineColor();
+        int color = cfg.drawnWitherDoorOutlineColor();
         for (int ring = cfg.getWitherDoorOutlineThickness() - 1; ring >= 0; ring--) {
             out.outline(x0 - ring, y0 - ring, x1 - x0 + 2 * ring, y1 - y0 + 2 * ring, color);
         }
@@ -1515,6 +1515,30 @@ public final class MapPainter {
                     roomColor(group, LiveMapConfig.getInstance())));
         }
         return LABEL_CACHE;
+    }
+
+    /** A predicted room's certain tiles plus the painted tiles of the map's own room around each of them (an unidentified
+     *  room, or one of the same name), so its text centers on the whole room; the certain tiles alone when the join
+     *  would exceed the room's shape. */
+    static int[] knownTiles(int[] certain, String name) {
+        com.killer560.hub.roomdatabase.RoomEntry entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(name);
+        java.util.Set<Integer> set = new java.util.TreeSet<>();
+        for (int t : certain) {
+            set.add(t);
+            int gid = LiveMapFeature.groupIdAt(t);
+            LiveMapFeature.RoomGroup g = gid >= 0 ? LiveMapFeature.groupsView().get(gid) : null;
+            if (g != null && (g.entry == null || g.entry.name == null || g.entry.name.equals(name))) {
+                for (int u : g.tiles) {
+                    if (cellRevealed(u)) {
+                        set.add(u);
+                    }
+                }
+            }
+        }
+        if (entry != null && set.size() > com.killer560.hub.roomdatabase.RoomDatabase.shapeTileCount(entry.shape)) {
+            return certain;
+        }
+        return set.stream().mapToInt(Integer::intValue).toArray();
     }
 
     /** {@link #labelBox} over the room's tiles the map actually paints (all of them when it paints none), so the text

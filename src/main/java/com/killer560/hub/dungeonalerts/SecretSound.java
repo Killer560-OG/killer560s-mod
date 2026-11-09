@@ -108,15 +108,16 @@ public final class SecretSound {
      *  it, and with neither it plays after {@link #CHEST_CONFIRM_MS} (a round trip on any sane ping). */
     static final long CHEST_CONFIRM_MS = 500L;
     private static final String LOCKED_LINE = "That chest is locked!";
-    private static long pendingChestSinceMs = -1L;
+    /** One entry per chest click awaiting its proof (a second click inside the wait used to overwrite the first: one sound for two). */
+    private static final java.util.ArrayDeque<Long> pendingChests = new java.util.ArrayDeque<>();
     private static int chestSoundsPlayed = 0;
     private static int lockedChestSoundsDropped = 0;
 
     static void register() {
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
-            if (pendingChestSinceMs >= 0
+            if (!pendingChests.isEmpty()
                     && LOCKED_LINE.equals(com.killer560.hub.util.ChatObserver.strip(message).trim())) {
-                pendingChestSinceMs = -1L;
+                pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
                 lockedChestSoundsDropped++;
             }
         });
@@ -126,6 +127,13 @@ public final class SecretSound {
             }
             return InteractionResult.PASS;
         });
+    }
+
+    /** A block click as it LEAVES the client (RightClickSendMixin): counts the clicks UseBlockCallback never saw because a
+     *  listener ahead of ours answered non-PASS (killer560, 2026-11-08: "the secret sounds still dont play every time i click
+     *  a chest"). The same click seen by both is one: {@link #onInteract} drops a repeat of the position within 50 ms. */
+    public static void onUseSent(BlockPos pos) {
+        onInteract(pos);
     }
 
     private static void onInteract(BlockPos pos) {
@@ -225,7 +233,8 @@ public final class SecretSound {
         }
         if (type == SecretType.CHEST) {
             lastChestMs = now;
-            pendingChestSinceMs = now; // played by tick() once the chest is known not to be locked
+            if (pendingChests.size() >= 16) pendingChests.pollFirst();
+            pendingChests.addLast(now); // played by tick() once the chest is known not to be locked
             return;
         }
         play();
@@ -233,13 +242,14 @@ public final class SecretSound {
 
     /** Plays a held chest sound once the chest's menu is up or {@link #CHEST_CONFIRM_MS} passed with no locked line. */
     static void tick(Minecraft client) {
-        if (pendingChestSinceMs < 0) {
+        if (pendingChests.isEmpty()) {
             return;
         }
         boolean opened = com.killer560.hub.compat.McCompat.screen(client)
                 instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
-        if (opened || System.currentTimeMillis() - pendingChestSinceMs >= CHEST_CONFIRM_MS) {
-            pendingChestSinceMs = -1L;
+        long now = System.currentTimeMillis();
+        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst() >= CHEST_CONFIRM_MS)) {
+            pendingChests.pollFirst();
             chestSoundsPlayed++;
             play();
         }

@@ -48,10 +48,14 @@ public final class MageBeamFeature {
         private float quadsWidth;
 
         Beam(Vec3 point, long tick) {
+            this(point, tick, System.currentTimeMillis());
+        }
+
+        Beam(Vec3 point, long tick, long ms) {
             points.add(point);
             createdTick = tick;
             updateTick = tick;
-            createdMs = System.currentTimeMillis();
+            createdMs = ms;
         }
 
         Vec3 min() {
@@ -126,8 +130,34 @@ public final class MageBeamFeature {
             last.points.add(point);
             last.updateTick = tick;
         } else {
-            BEAMS.add(new Beam(point, tick));
+            // Rays of one shot arrive a tick or so apart: they share the first ray's clock so they fade out together.
+            Beam b = new Beam(point, tick);
+            if (last != null && tick - last.createdTick <= 2) {
+                b = new Beam(point, last.createdTick, last.createdMs);
+                b.updateTick = tick;
+            }
+            BEAMS.add(b);
         }
+    }
+
+    /** Testkit: feeds one beam point as the particle packet would. */
+    public static void pointForTest(double x, double y, double z) {
+        onPoint(new Vec3(x, y, z));
+    }
+
+    /** Testkit: advances the beam tick by hand. */
+    public static void tickForTest() {
+        tick++;
+    }
+
+    /** Testkit: each beam's start time, in order. */
+    public static long[] startTimesForTest() {
+        return BEAMS.stream().mapToLong(b -> b.createdMs).toArray();
+    }
+
+    /** Testkit: forgets every beam. */
+    public static void clearForTest() {
+        BEAMS.clear();
     }
 
     static void onWorldRender(LevelRenderContext context) {

@@ -161,6 +161,7 @@ public final class MiningQolConfig {
     // Crystal Hollows Walls: one color (RGB), opacity (percent) and near-only distance (blocks, 0 = always) per zone
     private boolean chWalls = false;
     private boolean chWallsHideInStructures = false;
+    private static final int[] OLD_WALL_DEFAULTS = {0x55FF55, 0x00D0D0, 0xFFAA00, 0xAA55FF};
     private final int[] chWallColor = CrystalHollowsWalls.defaultColors();
     private final int[] chWallOpacity = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_OPACITY);
     private final int[] chWallNear = CrystalHollowsWalls.defaultFill(CrystalHollowsWalls.DEFAULT_NEAR);
@@ -260,6 +261,9 @@ public final class MiningQolConfig {
                     cfg.chWallColor[i] = intOr(o, "chWall" + z.key + "Color", cfg.chWallColor[i]) & 0xFFFFFF;
                     if (z == CrystalHollowsWalls.Zone.NUCLEUS && cfg.chWallColor[i] == 0xFF55FF) {
                         cfg.chWallColor[i] = z.defaultColor; // the old pink default moves to white (2026-11-04)
+                    }
+                    if (i < 4 && cfg.chWallColor[i] == OLD_WALL_DEFAULTS[i]) {
+                        cfg.chWallColor[i] = z.defaultColor; // the old defaults moved to the map's zone colors (2026-11-06)
                     }
                     cfg.chWallOpacity[i] = Math.max(CrystalHollowsWalls.MIN_OPACITY, Math.min(100,
                             intOr(o, "chWall" + z.key + "Opacity", cfg.chWallOpacity[i])));

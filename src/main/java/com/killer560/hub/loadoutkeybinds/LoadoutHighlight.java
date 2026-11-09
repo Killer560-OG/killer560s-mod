@@ -182,6 +182,11 @@ public final class LoadoutHighlight {
         return lastEquipped;
     }
 
+    /** Which loadout Hypixel last said he equipped: "#N", the name of a renamed one, or "" before any line. */
+    public static String equippedKey() {
+        return lastEquipped > 0 ? "#" + lastEquipped : lastName != null ? lastName : "";
+    }
+
     public static void setLastEquippedForTest(int n) {
         setEquipped(n, null);
     }

@@ -164,10 +164,43 @@ public final class PredictedRoomsPainter {
         }
         // On the room's own tiles, not the center of its bounding box: an L's box center is its empty corner (killer560,
         // 2026-10-19 23:15:17, "Chambers 0/5" half outside the room). MapPainter.labelBox is the one rule for both.
-        float[] box = MapPainter.labelBox(p.certainTiles());
+        float[] box = labelBox(p);
         String[] lines = predictionLines(p, cfg.getRoomLabels());
         MapPainter.drawFittedLines(graphics, font, lines, ox + box[0] * ppu, oy + box[1] * ppu, box[2] * ppu, box[3] * ppu,
                 MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu, PREDICTED_NAME_COLOR, true);
+    }
+
+    private static final java.util.Map<RoomPredictor.Prediction, float[]> BOXES = new java.util.IdentityHashMap<>();
+    private static int boxesVersion = -1;
+
+    /**
+     * Where a prediction's text goes: the center of the room's whole known shape, not of the certain tiles alone
+     * (killer560, 2026-11-06, "look at cathedral. that text should become recentered": Cathedral's 2x2 was labeled on its
+     * left column while the map already showed all four tiles as one room). The tiles of the map's own room around a
+     * certain tile join in, unless the room would then exceed the predicted room's shape. Cached per prediction until
+     * the map's grouping changes; a changed prediction is a new object.
+     */
+    static float[] labelBox(RoomPredictor.Prediction p) {
+        int version = LiveMapFeature.mapVersion();
+        if (version != boxesVersion || BOXES.size() > 32) {
+            BOXES.clear();
+            boxesVersion = version;
+        }
+        float[] box = BOXES.get(p);
+        if (box == null) {
+            box = MapPainter.labelBox(MapPainter.knownTiles(p.certainTiles(), p.name()));
+            BOXES.put(p, box);
+        }
+        return box;
+    }
+
+    /** Test hooks (testkit 1106-maplabel-*): a prediction of {@code name} certain on these tiles, and where its text goes. */
+    public static Object testPrediction(String name, int[] certain) {
+        return new RoomPredictor.Prediction(certain[0], name, "NORMAL", certain, new int[0], true, 1, 0);
+    }
+
+    public static float[] testLabelBox(Object prediction) {
+        return labelBox((RoomPredictor.Prediction) prediction);
     }
 
     /**

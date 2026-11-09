@@ -43,10 +43,10 @@ public final class CrystalHollowsWalls {
     public static final double T = 0.1;
 
     public enum Zone {
-        JUNGLE("Jungle", "Jungle", 0x55FF55),
-        MITHRIL("Mithril Deposits", "Mithril", 0x00D0D0),
-        GOBLIN("Goblin Holdout", "Goblin", 0xFFAA00),
-        PRECURSOR("Precursor Remnants", "Precursor", 0xAA55FF),
+        JUNGLE("Jungle", "Jungle", 0xC050FF),
+        MITHRIL("Mithril Deposits", "Mithril", 0x40D040),
+        GOBLIN("Goblin Holdout", "Goblin", 0xE0A020),
+        PRECURSOR("Precursor Remnants", "Precursor", 0x4070FF),
         MAGMA("Magma Fields", "Magma", 0xFF4422),
         NUCLEUS("Crystal Nucleus", "Nucleus", 0xFFFFFF);
 
