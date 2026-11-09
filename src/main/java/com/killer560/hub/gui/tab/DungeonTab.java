@@ -70,6 +70,8 @@ public class DungeonTab extends FolderTab {
                 new PuzzleHudTab(),
                 new RepartyTab(),
                 new WatcherHelperTab(),
+                new CarryTrackerTab(),
+                new RoomPreviewTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----
