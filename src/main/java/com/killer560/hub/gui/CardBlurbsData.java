@@ -226,7 +226,7 @@ final class CardBlurbsData {
         d.put("TooltipScrollTab", "Scroll long tooltips.");
         d.put("PriceTooltipTab", "Prices on item tooltips.");
         d.put("SlotBindsTab", "Link slots to swap on shift-click.");
-        d.put("StorageSearchTab", "Searches storages and chests.");
+        d.put("StorageSearchTab", "Searches storages.");
         d.put("AutoAnvilTab", "Combines enchant books at the anvil.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
