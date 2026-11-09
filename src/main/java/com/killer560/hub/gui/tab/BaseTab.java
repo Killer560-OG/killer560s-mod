@@ -134,6 +134,12 @@ public abstract class BaseTab {
         return false;
     }
 
+    /** True for a tab whose side-by-side rows must stay on one line in a narrow drawer (its own widths fit), so
+     *  {@code ModScreen.stackRows} leaves them. */
+    public boolean keepsRows() {
+        return false;
+    }
+
     /**
      * The menu card's switch (Option A menu, 2026-10-12): which of the widgets this tab just built is its master on/off,
      * or null for a tab with none (the card then has no switch). The default takes the tab's first control, in reading
