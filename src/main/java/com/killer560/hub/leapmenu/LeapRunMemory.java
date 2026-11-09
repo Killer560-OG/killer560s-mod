@@ -479,7 +479,7 @@ public final class LeapRunMemory {
         Minecraft client = Minecraft.getInstance();
         Runnable show = () -> {
             McCompat.setTimes(client, 5, 60, 15);
-            McCompat.setTitle(client, ModChat.colored("Leap Order reset", ThemeAccent.accent(ModChat.ORANGE)));
+            McCompat.setTitle(client, ModChat.colored("Leap Order reset", ThemeAccent.onDark(ThemeAccent.accent(ModChat.ORANGE))));
             McCompat.setSubtitle(client, ModChat.text("Update it with /leaporder"));
             ModChat.send("Leap Order", ModChat.text(RESET_NOTICE));
         };

@@ -392,7 +392,7 @@ public final class BloodCampMoveTimer {
                 }
                 if (ticks > 0) {
                     text = countdownText(ticks);
-                    color = ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE);
+                    color = ThemeAccent.onDark(ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE));
                 } else {
                     text = "KILL";
                     color = 0xFFFF5555;

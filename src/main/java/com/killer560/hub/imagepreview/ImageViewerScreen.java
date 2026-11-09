@@ -64,7 +64,7 @@ public final class ImageViewerScreen extends Screen {
             g.text(this.font, size, (this.width - this.font.width(size)) / 2, y + h + 4, 0xFFAAAAAA, true);
         }
         if (!counter.isEmpty()) {
-            g.text(this.font, counter, (this.width - this.font.width(counter)) / 2, this.height - 14, ThemeAccent.accent(0xFFFF8C1A), true);
+            g.text(this.font, counter, (this.width - this.font.width(counter)) / 2, this.height - 14, ThemeAccent.onDark(ThemeAccent.accent(0xFFFF8C1A)), true);
         }
         String link = entry.link.length() > 90 ? entry.link.substring(0, 87) + "..." : entry.link;
         g.text(this.font, link, (this.width - this.font.width(link)) / 2, 6, 0xFFAAAAAA, true);

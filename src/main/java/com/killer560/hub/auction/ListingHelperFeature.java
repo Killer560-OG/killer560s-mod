@@ -281,7 +281,7 @@ public final class ListingHelperFeature {
         graphics.outline(x, y, panelW, panelH, ThemeAccent.dim(PANEL_BORDER));
         int ty = y + 4;
         for (int i = 0; i < lines.size(); i++) {
-            graphics.text(font, lines.get(i), x + 4, ty, i == 0 ? ThemeAccent.accent(0xFFCC6600) : 0xFFE0D8CC, true);
+            graphics.text(font, lines.get(i), x + 4, ty, i == 0 ? ThemeAccent.onDark(ThemeAccent.accent(0xFFCC6600)) : 0xFFE0D8CC, true);
             ty += 10;
         }
         if (best != null) {

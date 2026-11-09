@@ -474,7 +474,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     private static Component row(String label, String value) {
         return Component.literal(label + ": ").withColor(DIM & 0xFFFFFF)
-                .append(Component.literal(value).withColor(ThemeAccent.light(LIGHT_ORANGE) & 0xFFFFFF));
+                .append(Component.literal(value).withColor(ThemeAccent.onDark(ThemeAccent.light(LIGHT_ORANGE)) & 0xFFFFFF));
     }
 
     private static String stateName(int state) {

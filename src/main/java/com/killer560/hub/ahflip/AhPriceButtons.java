@@ -333,7 +333,7 @@ public final class AhPriceButtons {
         com.killer560.hub.containercover.ContainerCover.coverRect(screen, "ahflip.pricebuttons", x, y, x + panelW, y + panelH);
         g.fill(x, y, x + panelW, y + panelH, PANEL_BG);
         g.outline(x, y, panelW, panelH, ThemeAccent.dim(PANEL_BORDER));
-        g.text(font, "AH Price Buttons", x + 4, y + 4, ThemeAccent.accent(0xFFCC6600), true);
+        g.text(font, "AH Price Buttons", x + 4, y + 4, ThemeAccent.onDark(ThemeAccent.accent(0xFFCC6600)), true);
         int by = y + 15;
         int bx = x + 4;
         List<Component> tip = null;

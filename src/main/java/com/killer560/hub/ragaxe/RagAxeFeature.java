@@ -237,8 +237,8 @@ public final class RagAxeFeature {
 
         private void line(GuiGraphicsExtractor graphics, int x, int y, String label, String value) {
             Font font = Minecraft.getInstance().font;
-            graphics.text(font, label, x + 1, y + 1, ThemeAccent.accent(0xFF000000 | ModChat.ORANGE), true);
-            graphics.text(font, value, x + 1 + font.width(label), y + 1, ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE), true);
+            graphics.text(font, label, x + 1, y + 1, ThemeAccent.onDark(ThemeAccent.accent(0xFF000000 | ModChat.ORANGE)), true);
+            graphics.text(font, value, x + 1 + font.width(label), y + 1, ThemeAccent.onDark(ThemeAccent.light(0xFF000000 | ModChat.LIGHT_ORANGE)), true);
         }
     };
 

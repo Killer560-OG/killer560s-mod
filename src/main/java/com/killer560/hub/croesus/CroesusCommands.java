@@ -57,7 +57,7 @@ public final class CroesusCommands {
             ModChat.send(FEATURE, ModChat.text(heading + ": "), ModChat.dim("nothing claimed yet."));
             return 1;
         }
-        ModChat.send(FEATURE, ModChat.colored(heading, ThemeAccent.accent(ModChat.ORANGE)),
+        ModChat.send(FEATURE, ModChat.colored(heading, ThemeAccent.onDark(ThemeAccent.accent(ModChat.ORANGE))),
                 ModChat.dim("  (" + CroesusProfitLog.entryCount() + " claims logged)"));
         for (Map.Entry<String, CroesusProfitLog.Totals> e : totals.entrySet()) {
             CroesusProfitLog.Totals t = e.getValue();

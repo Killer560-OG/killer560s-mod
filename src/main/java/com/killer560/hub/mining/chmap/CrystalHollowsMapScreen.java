@@ -159,7 +159,7 @@ public class CrystalHollowsMapScreen extends Screen {
 
         String zone = IslandDetector.scoreboardArea();
         String header = "Crystal Hollows Map" + (zone.isEmpty() ? "" : " - " + zone);
-        graphics.text(font, header, p[0], p[1] - 12, ThemeAccent.light(LIGHT_ORANGE), true);
+        graphics.text(font, header, p[0], p[1] - 12, ThemeAccent.onDark(ThemeAccent.light(LIGHT_ORANGE)), true);
         if (!inCrystalHollows) {
             graphics.text(font, "Not currently in Crystal Hollows - showing last known layout", p[0], p[3] + 4, DIM, false);
         }

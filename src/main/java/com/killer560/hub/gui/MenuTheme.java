@@ -11,7 +11,7 @@ public enum MenuTheme {
 
     AMBER("Amber", 0xFFFF8A1F, 0xFF1C1712, 0xFF251E17, 0xFFE9E2D8, 0xFFFF8A1F),
     DARK("Dark", 0xFFC9CED8, 0xFF18181B, 0xFF242428, 0xFFE6E6EA, 0xFF8A9BB0),
-    LIGHT("Light", 0xFF2F6DB0, 0xFFE4E1DC, 0xFFF8F6F3, 0xFF25221F, 0xFF2F6DB0),
+    LIGHT("Light", 0xFF2A63A3, 0xFFE4E1DC, 0xFFF8F6F3, 0xFF25221F, 0xFF2F6DB0),
     /** Teal on navy, the Custom set from the menu-a screenshots (killer560, 2026-10-13: "make that blue one also a
      *  custom preset"). */
     OCEAN("Ocean", 0xFF2EC4B6, 0xFF101820, 0xFF1B2733, 0xFFE8F1F2, 0xFF2EC4B6),

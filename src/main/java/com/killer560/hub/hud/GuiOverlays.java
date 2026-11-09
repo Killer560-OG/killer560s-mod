@@ -92,7 +92,7 @@ public final class GuiOverlays {
         try {
             graphics.pose().scale(f, f);
             for (int i = 0; i < lines.size(); i++) {
-                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, ThemeAccent.accent(THEME_ORANGE));
+                graphics.centeredText(font, lines.get(i), centerX, startY + i * font.lineHeight, ThemeAccent.onDark(ThemeAccent.accent(THEME_ORANGE)));
             }
         } finally {
             graphics.pose().popMatrix();

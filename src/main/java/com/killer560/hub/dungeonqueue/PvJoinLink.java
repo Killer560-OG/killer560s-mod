@@ -81,7 +81,7 @@ public final class PvJoinLink {
             return;
         }
         // One component carries the click and hover, so the whole line opens the viewer; the children inherit it.
-        int accent = com.killer560.hub.gui.ThemeAccent.light(0xFFAA00) & 0xFFFFFF;
+        int accent = com.killer560.hub.gui.ThemeAccent.onDark(com.killer560.hub.gui.ThemeAccent.light(0xFFAA00)) & 0xFFFFFF;
         MutableComponent line = Component.literal(">> [PV] ").withStyle(s -> s.withColor(accent).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/pv " + name))
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to open " + name + "'s profile"))))

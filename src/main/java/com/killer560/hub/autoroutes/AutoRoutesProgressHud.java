@@ -63,7 +63,7 @@ public final class AutoRoutesProgressHud {
         double left = plan.secondsLeft(System.currentTimeMillis());
         out.add(new Line(plan.source().label() + " " + plan.percent() + "%  (" + plan.done() + "/" + plan.total() + ")"
                 + (Double.isNaN(left) || plan.rooms().isEmpty() ? "" : "  ~" + RunPlan.clock(left) + " left"),
-                ThemeAccent.light(ModChat.LIGHT_ORANGE)));
+                ThemeAccent.onDark(ThemeAccent.light(ModChat.LIGHT_ORANGE))));
         List<String> rooms = plan.rooms();
         for (int i = 0; i < rooms.size() && i <= upcoming; i++) {
             String name = rooms.get(i);
@@ -90,7 +90,7 @@ public final class AutoRoutesProgressHud {
         int total = progress == null ? 0 : progress[1];
         String text = "Auto Routes: " + room + " " + percent(done, total) + "%"
                 + (total > 0 ? "  (" + done + "/" + total + " nodes)" : "");
-        return List.of(new Line(text, ThemeAccent.light(ModChat.LIGHT_ORANGE)));
+        return List.of(new Line(text, ThemeAccent.onDark(ThemeAccent.light(ModChat.LIGHT_ORANGE))));
     }
 
     /** The room whose route the one-line shape shows: the one playing, else the one he stands in. Null when neither has a route. */
