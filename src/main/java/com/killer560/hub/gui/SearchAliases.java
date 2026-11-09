@@ -27,6 +27,7 @@ public final class SearchAliases {
             Map.entry("map hover", "room preview"),
             Map.entry("room info", "room preview"),
             Map.entry("watcher speed", "watcher helper"),
+            Map.entry("secret triggerbot", "secret aura"),
             Map.entry("jungle pickaxe", "wrong armor alert"),
             // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".
             Map.entry("mod menu", "mods screen"),

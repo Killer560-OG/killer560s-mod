@@ -172,7 +172,6 @@ final class CardBlurbsData {
         d.put("LeftClickSecretsTab", "Left click opens a secret.");
         d.put("LeverAuraTab", "Flicks the P3 Lights levers.");
         d.put("SecretAuraTab", "Clicks nearby secrets for you.");
-        d.put("SecretTriggerbotTab", "Clicks secrets on aim.");
         d.put("TerminalAuraTab", "Opens terminals in range.");
         d.put("TerminalTriggerbotTab", "Opens the aimed terminal.");
         d.put("RelicHelpersTab", "M7 relic click and look.");
