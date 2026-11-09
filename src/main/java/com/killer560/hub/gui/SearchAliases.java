@@ -27,8 +27,6 @@ public final class SearchAliases {
             Map.entry("carry", "carry tracker"),
             Map.entry("carries", "carry tracker"),
             Map.entry("carry counter", "carry tracker"),
-            Map.entry("map hover", "room preview"),
-            Map.entry("room info", "room preview"),
             Map.entry("watcher speed", "watcher helper"),
             // orderhelper-1109: renamed from Bazaar Order Helper.
             Map.entry("bazaar order helper", "order helper"),
