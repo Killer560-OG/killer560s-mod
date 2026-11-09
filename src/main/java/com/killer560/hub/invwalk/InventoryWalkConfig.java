@@ -43,6 +43,9 @@ public final class InventoryWalkConfig {
     private boolean carryInChests = false;
     /** In a server menu the server is told no movement keys while he walks (invwalkterm-1108). */
     private boolean hideKeysInMenus = false;
+    /** How many ticks after a server menu opens the keys stay hidden; {@link #HIDE_WHOLE_MENU} = as long as it is open. */
+    private int hideKeysTicks = HIDE_WHOLE_MENU;
+    public static final int HIDE_WHOLE_MENU = 41;
 
     private InventoryWalkConfig() {
     }
@@ -67,6 +70,7 @@ public final class InventoryWalkConfig {
             cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
             cfg.hideKeysInMenus = ConfigJson.getBool(obj, "hideKeysInMenus", cfg.hideKeysInMenus);
+            cfg.setHideKeysTicks(ConfigJson.getInt(obj, "hideKeysTicks", cfg.hideKeysTicks));
         }
         instance = cfg;
     }
@@ -82,6 +86,7 @@ public final class InventoryWalkConfig {
         obj.addProperty("lookKeyCode", lookKeyCode);
         obj.addProperty("carryInChests", carryInChests);
         obj.addProperty("hideKeysInMenus", hideKeysInMenus);
+        obj.addProperty("hideKeysTicks", hideKeysTicks);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -155,5 +160,13 @@ public final class InventoryWalkConfig {
 
     public void setHideKeysInMenus(boolean on) {
         this.hideKeysInMenus = on;
+    }
+
+    public int getHideKeysTicks() {
+        return hideKeysTicks;
+    }
+
+    public void setHideKeysTicks(int ticks) {
+        this.hideKeysTicks = Math.max(1, Math.min(HIDE_WHOLE_MENU, ticks));
     }
 }

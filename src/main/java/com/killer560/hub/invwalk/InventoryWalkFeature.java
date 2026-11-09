@@ -16,6 +16,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
 import net.minecraft.client.gui.screens.inventory.BookEditScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
@@ -80,6 +81,14 @@ public final class InventoryWalkFeature {
     private static boolean masking;
     /** Ticks since masking last ended (a setback in this window is reported as Hide Keys' correction). */
     private static int unmaskedTicks = Integer.MAX_VALUE;
+    /**
+     * The input Hide Keys still owes the server, sent just before this tick's client_tick_end unless vanilla sent one of its
+     * own first: two input packets in one client tick are GrimAC's experimental BadPacketsZ (testkit 1108-iw-termwalk).
+     */
+    private static Input owedInput;
+    /** Ticks the current server menu has been open with Hide Keys on (its Hide Keys For limit counts these). */
+    private static int menuTicks;
+    private static int lastMenuId;
     private static int heldClickTicks;
     private static long clicksHeld;
     private static long closesHeld;
@@ -196,7 +205,11 @@ public final class InventoryWalkFeature {
             LOGGER.info("[InvWalk] on in {} (title \"{}\") at {}", activeScreen, screen.getTitle().getString(), fmt(activeStart));
         }
         activeTicks++;
-        boolean mask = screen instanceof AbstractContainerScreen<?> s && s.getMenu().containerId != 0 && cfg.isHideKeysInMenus();
+        int menuId = screen instanceof AbstractContainerScreen<?> s ? s.getMenu().containerId : 0;
+        boolean serverMenu = menuId != 0 && cfg.isHideKeysInMenus();
+        menuTicks = !serverMenu ? 0 : menuId == lastMenuId ? menuTicks + 1 : 1;
+        lastMenuId = menuId;
+        boolean mask = serverMenu && (cfg.getHideKeysTicks() >= InventoryWalkConfig.HIDE_WHOLE_MENU || menuTicks <= cfg.getHideKeysTicks());
         if (mask && player.isSprinting()) {
             // MultiActionsC flags a click while the server has him sprinting, and a hidden sprint flag would not hide the
             // speed: no sprint in a hidden-keys menu (vanilla sends the stop itself).
@@ -284,6 +297,7 @@ public final class InventoryWalkFeature {
         // Otherwise a click or close still held keeps waiting for its still tick (the tick handles it with no screen).
         active = false;
         pauseLeft = 0;
+        menuTicks = 0;
         setMasking(client, false);
         LocalPlayer player = client.player;
         Vec3 end = player == null ? null : player.position();
@@ -307,6 +321,13 @@ public final class InventoryWalkFeature {
      * packet, a sprint, or a sneak - every click made while walking drew it (testkit 1025-invwalk-inventory, 2026-10-25).
      */
     public static boolean onPacketSent(Packet<?> packet) {
+        if (packet instanceof ServerboundPlayerInputPacket) {
+            owedInput = null;
+        } else if (owedInput != null && packet instanceof ServerboundClientTickEndPacket) {
+            Input owed = owedInput;
+            owedInput = null;
+            sendRaw(new ServerboundPlayerInputPacket(owed));
+        }
         if (sendingHeld) {
             return false;
         }
@@ -599,8 +620,8 @@ public final class InventoryWalkFeature {
     }
 
     /**
-     * Turns the hidden keys on or off. On: the server gets a keyless input now (vanilla sends one only when his keys change).
-     * Off: his real input goes, so the server is never left with keys he is not holding.
+     * Turns the hidden keys on or off. On: the server gets a keyless input this tick (vanilla sends one only when his keys change).
+     * Off: his real input goes, so the server is never left with keys he is not holding. Either is owed (see owedInput).
      */
     private static void setMasking(Minecraft client, boolean on) {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || masking == on) {
@@ -611,7 +632,7 @@ public final class InventoryWalkFeature {
         LocalPlayer player = client.player;
         if (player != null && client.getConnection() != null) {
             Input real = player.getLastSentInput();
-            sendRaw(new ServerboundPlayerInputPacket(on ? hidden(real) : real));
+            owedInput = on ? hidden(real) : real;
             LOGGER.info("[InvWalk] keys {} the server: his input {}", on ? "hidden from" : "shown to", inputText(real));
         }
     }

@@ -117,6 +117,20 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
         w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
         y += ROW + 4;
         w.add(onOffButton(HIDE_KEYS, cfg::isHideKeysInMenus, cfg::setHideKeysInMenus, cfg::save, null, contentX, y, contentWidth, ROW));
+        y += ROW + 4;
+        double hideSpan = InventoryWalkConfig.HIDE_WHOLE_MENU - 1;
+        w.add(new ThemedSliderButton(contentX, y, contentWidth, ROW, hideText(cfg), (cfg.getHideKeysTicks() - 1) / hideSpan) {
+            @Override
+            protected void updateMessage() {
+                setMessage(hideText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setHideKeysTicks(1 + (int) Math.round(this.value * hideSpan));
+                saveOnRelease(() -> cfg.save());
+            }
+        });
         return w;
     }
 
@@ -124,6 +138,11 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
 
     private static Component screensText(InventoryWalkConfig cfg) {
         return Component.literal("Screens: " + cfg.getScreens().label);
+    }
+
+    private static Component hideText(InventoryWalkConfig cfg) {
+        int t = cfg.getHideKeysTicks();
+        return Component.literal("Hide Keys For: " + (t >= InventoryWalkConfig.HIDE_WHOLE_MENU ? "Whole Menu" : t + " tick(s)"));
     }
 
     private static Component pauseText(InventoryWalkConfig cfg) {
