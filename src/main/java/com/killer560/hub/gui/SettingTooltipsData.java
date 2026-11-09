@@ -653,7 +653,7 @@ final class SettingTooltipsData {
         d.put("default order", "Where each teammate goes by class until you move them by hand: Odin, A-Z Class, Z-A Class or Hypixel's own order.");
         d.put("open custom leap order editor", "Opens the Leap Order editor to set which teammate goes in each of the 4 spots.");
         d.put("fast leap", "Left-clicking a Spirit Leap or Infinileap leaps straight to your target (cheat build only).");
-        d.put("target mode", "How leaps pick their target: Per Leap (the target on the Targets page in use) or Posmsg (whoever announced the spot in party chat, with that target as backup). Applies to both Targets pages (cheat build only).");
+        d.put("fast/auto leap/mode", "This leap's Target Mode, how it picks its target: Per Leap (the target on the Targets page in use) or Posmsg (whoever announced the spot in party chat, with that target as backup). Applies to both Targets pages (cheat build only).");
         d.put("block inputs", "Blocks keyboard and mouse input while a fast or auto leap runs.");
         d.put("fast mode", "Holds movement and blocks inputs only while the leap menu is open, not the whole leap.");
         d.put("swap back", "Switches back to the hotbar slot you held before the automatic action.");
