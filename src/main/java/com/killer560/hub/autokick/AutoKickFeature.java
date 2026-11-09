@@ -58,6 +58,10 @@ public final class AutoKickFeature {
     /** How long a joiner's lookup may take before Auto Kick gives up on him (and kicks nobody). */
     private static final long LOOKUP_TIMEOUT_MS = 15_000L;
 
+    /** "You have joined Name's party!" - I joined another player's party, never my own queue. */
+    static final java.util.regex.Pattern YOU_JOINED = java.util.regex.Pattern.compile(
+            "^You have joined (?:\\[[A-Za-z+]{1,12}] )?[A-Za-z0-9_]{1,16}'s? party!$");
+
     private record Pending(String name, Floor floor, long requestedAtMs) {
     }
 
@@ -108,20 +112,25 @@ public final class AutoKickFeature {
 
     /** One chat line (color codes already stripped). */
     public static void onLine(String plain) {
-        AutoKickConfig cfg = AutoKickConfig.getInstance();
-        if (!cfg.isEnabled() || DungeonState.isInDungeon()) {
+        Minecraft client = Minecraft.getInstance();
+        String self = client.player == null ? null : client.player.getGameProfile().name();
+        Matcher m = PF_JOINED.matcher(plain);
+        boolean found = m.matches();
+        if (YOU_JOINED.matcher(plain).matches() || (found && self != null && self.equalsIgnoreCase(m.group(1)))) {
+            // Someone else's party (pvkick-1109): its floor is the Party Finder listing I clicked, else unknown. My own
+            // queue's floor (F7) or last run is never this party's.
+            boolean known = QueuedFloorDetector.joinedParty();
+            lastRunFloor = null;
+            if (AutoKickConfig.getInstance().isEnabled() && !known) {
+                ModChat.log("Auto Kick", ModChat.text("Joined another party, floor unknown - nobody is judged until you queue."));
+            }
             return;
         }
-        Matcher m = PF_JOINED.matcher(plain);
-        if (!m.matches()) {
+        AutoKickConfig cfg = AutoKickConfig.getInstance();
+        if (!cfg.isEnabled() || DungeonState.isInDungeon() || !found) {
             return;
         }
         String name = m.group(1);
-        Minecraft client = Minecraft.getInstance();
-        String self = client.player == null ? null : client.player.getGameProfile().name();
-        if (self != null && self.equalsIgnoreCase(name)) {
-            return; // you joined someone else's group
-        }
         Floor floor = queueFloor();
         if (floor == null) {
             ModChat.send("Auto Kick", ModChat.value(name), ModChat.text(" joined, but no floor is known (nothing queued"

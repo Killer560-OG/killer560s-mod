@@ -78,9 +78,45 @@ public final class QueuedFloorDetector {
         return builderPick == null ? null : builderPick.describe();
     }
 
+    /** How long a clicked Party Finder listing stays the one I am joining. */
+    private static final long CLICK_WINDOW_MS = 10_000L;
+    private static Pick clickedPick = null;
+    private static long clickedAtMs = 0L;
+
+    /** From {@code autokick/mixin/PfJoinClickMixin}: his click on a Party Finder listing remembers that listing's floor. */
+    public static void onSlotClick(AbstractContainerScreen<?> screen, Slot slot) {
+        if (slot == null || !PartyFinderParser.PARTY_FINDER_TITLE.equals(ChatObserver.stripCodes(screen.getTitle().getString()).trim())) {
+            return;
+        }
+        PartyFinderParser.Party party = PartyFinderParser.parse(slot.index, slot.getItem(), null);
+        if (party != null && party.floor() >= 0) {
+            clickedPick = new Pick(party.masterMode(), party.floor());
+            clickedAtMs = System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * I joined someone else's party ("You have joined X's party!" or my own Party Finder join line). The floor is the
+     * listing I just clicked in Party Finder; with no click (a /p join, an invite) it is unknown and my own queue's
+     * floor is dropped, so nobody is judged on a stale one.
+     */
+    static boolean joinedParty() {
+        Pick pick = clickedPick;
+        boolean fresh = pick != null && System.currentTimeMillis() - clickedAtMs <= CLICK_WINDOW_MS;
+        clickedPick = null;
+        builderPick = null;
+        detected = fresh;
+        detectedFloor = fresh ? pick.toFloor() : null;
+        if (fresh) {
+            LOGGER.info("[AutoKick] Joined a party listed as {} (Party Finder click)", pick.describe());
+        }
+        return fresh;
+    }
+
     /** Test/reset hook: forget everything detected. */
     public static void reset() {
         builderPick = null;
+        clickedPick = null;
         detected = false;
         detectedFloor = null;
     }

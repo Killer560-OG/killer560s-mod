@@ -64,6 +64,7 @@
     "killer560smod-inventorysearch.mixins.json",
     "killer560smod-itemhighlight.mixins.json",
     "killer560smod-croesus.mixins.json",
+    "killer560smod-autokick.mixins.json",
     "killer560smod-itemrarity.mixins.json",
     "killer560smod-slottext.mixins.json",
     "killer560smod-compactorpreview.mixins.json",
