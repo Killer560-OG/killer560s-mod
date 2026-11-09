@@ -28,7 +28,7 @@ public final class BossSpots {
             new Spot("hee2", 60.5, 132.0, 139.0, 0f, 2, true),                              // Posmsg "EE2 (High - Lever Device)"
             new Spot("ee3", 2.5, 109.0, 105.5, -90f, 3, true),                              // Posmsg "EE3 (Low)"
             new Spot("outcore", 54.5, 115.0, 50.5, 0f, 4, true),                            // Posmsg "Outcore"
-            new Spot("storm", 73.5, BossArena.P2_FLOOR + 1, 53.5, 0f, 0, false),            // centre of Storm's route (73, 53)
+            new Spot("storm", 73.5, Double.NaN, 53.5, 0f, 0, false),                        // centre of Storm's route (73, 53), ground scan
             new Spot("maxor", 73.5, BossArena.P1_FLOOR + 1, 14.5, 0f, 0, false),            // BossFight.P1_SPAWN
             new Spot("p5", 54.5, BossArena.P5_FLOOR + 1, 76.5, 180f, 0, false),             // BossFight.P5_SPAWN, Posmsg "P5"
             new Spot("necron", 54.5, 65.0, 76.5, 180f, 0, false));                          // Posmsg "Necron's Platform"
@@ -57,9 +57,11 @@ public final class BossSpots {
     public static Landing landing(ServerLevel level, String name) {
         Spot s = SPOTS.stream().filter(p -> p.name().equals(name)).findFirst().orElseThrow();
         boolean planOnly = s.needsCapture() && !"capture".equals(BossArena.source());
+        if (Double.isNaN(s.y()) && s.section() == 0) {   // the arena's ground at (x, z): the capture's floor sits a few blocks off the plan's
+            return new Landing(new Vec3(s.x(), BossArena.standY(level, s.x(), s.z(), BossArena.P2_FLOOR - 10, BossArena.P2_FLOOR + 10), s.z()), s.yaw());
+        }
         if (planOnly || Double.isNaN(s.y())) {
-            Vec3 at = BossFight.sectionSpawn(level, Math.max(1, s.section()));
-            return new Landing(at, 0f);
+            return new Landing(BossFight.sectionSpawn(level, s.section()), 0f);
         }
         return new Landing(new Vec3(s.x(), s.y(), s.z()), s.yaw());
     }
