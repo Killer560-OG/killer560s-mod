@@ -240,7 +240,8 @@ public final class WitherDragonsFeature {
      * Today's rule in both references (Odin {@code spawnOrder.first()}; NoammAddons e00d160a/c57e51b6, 2026-10-06, which
      * dropped the power/class split): the priority is the dragon that spawned or spawns FIRST. With Dragon Priority on, the
      * Solo Priority class takes the LAST one instead, and with First Dragon Only only while fewer than two have spawned.
-     * Titles and tells him whenever the priority moves to a spawning dragon.
+     * Titles and tells him whenever the priority moves to a spawning dragon, and whenever a second dragon starts spawning
+     * (the pair's bursts are separate packets: the first alone has no list, so the unchanged pick still needs its line).
      */
     private static void choosePriority() {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
@@ -258,7 +259,7 @@ public final class WitherDragonsFeature {
         boolean last = live.size() > 1 && cfg.isDragonPriority() && (!cfg.isFirstDragonOnly() || spawned < 2)
                 && P5State.selfClass() == solo;
         WitherDragon pick = live.get(last ? live.size() - 1 : 0);
-        if (pick == priorityDragon) return;
+        if (pick == priorityDragon && live.size() < 2) return;
         priorityDragon = pick;
         if (!messagesOn() || pick.state != WitherDragon.State.SPAWNING) return;
         String list = joinColored(live);
