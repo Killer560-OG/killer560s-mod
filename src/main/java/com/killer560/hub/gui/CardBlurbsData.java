@@ -256,7 +256,6 @@ final class CardBlurbsData {
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("BlinkTab", "Charge ticks standing still, then shoot ahead.");
         d.put("TerminatorClickerTab", "Auto-clicks any shortbow.");
-        d.put("GhostBlockTab", "Hold a key to air the block you aim at.");
         d.put("InventoryWalkTab", "Keep walking while a menu is open.");
         d.put("ZeroPingEtherwarpTab", "Instant etherwarp view.");
         d.put("SmoothTeleportTab", "Glides the camera.");
