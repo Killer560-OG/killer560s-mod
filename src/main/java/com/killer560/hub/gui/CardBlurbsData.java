@@ -80,7 +80,7 @@ final class CardBlurbsData {
         d.put("BlessingsTab", "Lists the blessings you hold.");
         d.put("PuzzleHudTab", "Shows each puzzle, who and when.");
         d.put("RepartyTab", "Disbands and re-invites your party.");
-        d.put("WatcherHelperTab", "Grades how fast the Watcher spoke.");
+        d.put("WatcherHelperTab", "Rates Watcher speed.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
         d.put("ClassColorsTab", "Class-colored teammates.");
