@@ -1,6 +1,7 @@
 package com.killer560.hub.quiver;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -135,18 +136,10 @@ public final class QuiverDisplayFeature {
         return null;
     }
 
-    public static final class QuiverHudElement implements HudElement {
-        @Override
-        public String id() { return "quiver_display"; }
-
-        @Override
-        public String displayName() { return "Quiver Display"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 420; }
+    public static final class QuiverHudElement extends BasicHud {
+        public QuiverHudElement() {
+            super("quiver_display", "Quiver Display", 10, 420);
+        }
 
         @Override
         public int width() {

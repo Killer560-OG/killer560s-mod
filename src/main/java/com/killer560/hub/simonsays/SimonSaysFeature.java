@@ -1,6 +1,7 @@
 package com.killer560.hub.simonsays;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -3270,21 +3271,10 @@ public final class SimonSaysFeature {
         long lastUpdateMs;
     }
 
-    public static final class PartyProgressHudElement implements HudElement {
-        @Override
-        public String id() { return "simonsays_party_progress"; }
-
-        @Override
-        public String displayName() { return "Simon Says Party Progress"; }
-
-        @Override
-        public int defaultX() {
-            // Second column (x=200): the old 10/260 sat exactly on Dungeon Info (Secrets/Time).
-            return 200;
+    public static final class PartyProgressHudElement extends BasicHud {
+        public PartyProgressHudElement() {
+            super("simonsays_party_progress", "Simon Says Party Progress", 200, 300);
         }
-
-        @Override
-        public int defaultY() { return 300; }
 
         @Override
         public int width() {

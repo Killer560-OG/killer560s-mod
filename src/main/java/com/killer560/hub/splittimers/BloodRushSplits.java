@@ -1,6 +1,7 @@
 package com.killer560.hub.splittimers;
 
 import com.killer560.hub.doorkeys.DungeonKeys;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -462,20 +463,12 @@ public final class BloodRushSplits {
     public static void resetForTest() { reset(); }
 
 
-    public static final class Hud implements HudElement {
+    public static final class Hud extends BasicHud {
+        public Hud() {
+            super("blood_rush_splits", "Blood Rush Splits", 180, 240);
+        }
+
         private static final int ROW_HEIGHT = 9;
-
-        @Override
-        public String id() { return "blood_rush_splits"; }
-
-        @Override
-        public String displayName() { return "Blood Rush Splits"; }
-
-        @Override
-        public int defaultX() { return 180; }
-
-        @Override
-        public int defaultY() { return 240; }
 
         private static boolean editor() {
             return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance())

@@ -1,6 +1,7 @@
 package com.killer560.hub.lagdisplay;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -196,7 +197,10 @@ public final class LagDisplayFeature {
         return com.killer560.hub.util.PingTracker.bestMs();
     }
 
-    public static final class LagHudElement implements HudElement {
+    public static final class LagHudElement extends BasicHud {
+        public LagHudElement() {
+            super(HUD_ID, "Performance HUD", 200, 40);
+        }
 
         // The five colors are the user's (LagDisplayConfig, Performance HUD > Colors); lines() reads them once per
         // rebuild into these, and a change of any of them rebuilds the cached lines.
@@ -205,27 +209,6 @@ public final class LagDisplayFeature {
         private static int COLOR_BAD = LagDisplayConfig.DEFAULT_BAD;
         private static int COLOR_AWFUL = LagDisplayConfig.DEFAULT_AWFUL;
         private static int COLOR_PLAIN = LagDisplayConfig.DEFAULT_TEXT;
-
-        @Override
-        public String id() {
-            return HUD_ID;
-        }
-
-        @Override
-        public String displayName() {
-            return "Performance HUD";
-        }
-
-        @Override
-        public int defaultX() {
-            // Second column (x=200) on the Real Time row: the old 10/220 sat exactly on Etherwarp Waypoints.
-            return 200;
-        }
-
-        @Override
-        public int defaultY() {
-            return 40;
-        }
 
         @Override
         public int width() {

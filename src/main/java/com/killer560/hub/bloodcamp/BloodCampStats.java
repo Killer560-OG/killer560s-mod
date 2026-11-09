@@ -1,6 +1,7 @@
 package com.killer560.hub.bloodcamp;
 
 import com.killer560.hub.gui.ThemeAccent;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -316,27 +317,7 @@ public final class BloodCampStats {
     private static final int W = 130;
     private static final int LINE_H = 10;
 
-    static final HudElement HUD = new HudElement() {
-        @Override
-        public String id() {
-            return "blood_camp_stats";
-        }
-
-        @Override
-        public String displayName() {
-            return "Blood Camp Stats";
-        }
-
-        @Override
-        public int defaultX() {
-            return 4;
-        }
-
-        @Override
-        public int defaultY() {
-            return 120;
-        }
-
+    static final HudElement HUD = new BasicHud("blood_camp_stats", "Blood Camp Stats", 4, 120) {
         @Override
         public int width() {
             return W;

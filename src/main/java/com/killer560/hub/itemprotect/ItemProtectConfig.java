@@ -127,7 +127,7 @@ public final class ItemProtectConfig {
     }
 
     /** The plain on/off settings: key, default, and how to read and write the field. */
-    private static final BoolFields<doc> BOOLS = new BoolFields<doc>()
+    private static final BoolFields<ItemProtectConfig> BOOLS = new BoolFields<ItemProtectConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("protectItemEnabled", false, c -> c.protectItemEnabled, (c, v) -> c.protectItemEnabled = v)
             .add("useItemIdFallback", false, c -> c.useItemIdFallback, (c, v) -> c.useItemIdFallback = v)

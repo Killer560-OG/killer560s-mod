@@ -1,6 +1,7 @@
 package com.killer560.hub.livemap;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.chunkcache.ChunkCacheManager;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -1465,25 +1466,9 @@ public final class LiveMapFeature {
         return group.entry == null || r < 0 ? null : new int[]{clayXGrid[r], clayZGrid[r], rotationGrid[r]};
     }
 
-    public static final class LiveMapHudElement implements HudElement {
-        @Override
-        public String id() {
-            return "live_map";
-        }
-
-        @Override
-        public String displayName() {
-            return "Dungeon Map";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 500;
+    public static final class LiveMapHudElement extends BasicHud {
+        public LiveMapHudElement() {
+            super("live_map", "Dungeon Map", 10, 500);
         }
 
         /**

@@ -1,6 +1,7 @@
 package com.killer560.hub.ap3;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;
@@ -968,27 +969,7 @@ public final class Ap3Feature {
     static final long STOPWATCH_HUD_TIMEOUT_MS = 10_000L;
 
     /** The STOPWATCH node's optional HUD - the running time while one is going, the last time for 10 s after. */
-    public static final HudElement STOPWATCH_HUD = new HudElement() {
-        @Override
-        public String id() {
-            return "ap3_stopwatch";
-        }
-
-        @Override
-        public String displayName() {
-            return "AP3 Stopwatch";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 140;
-        }
-
+    public static final HudElement STOPWATCH_HUD = new BasicHud("ap3_stopwatch", "AP3 Stopwatch", 10, 140) {
         @Override
         public int width() {
             // The drawn line, one unit in (it was a fixed 90, short of "Stopwatch: 12.345s").

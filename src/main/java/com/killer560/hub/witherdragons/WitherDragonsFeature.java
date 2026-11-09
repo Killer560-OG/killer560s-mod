@@ -1,6 +1,7 @@
 package com.killer560.hub.witherdragons;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.util.PerTickServerClock;
 import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.FeatureGuard;
@@ -535,22 +536,10 @@ public final class WitherDragonsFeature {
 
     /** Dragon spawn timers list (Odin "Dragon Timer HUD", extended to every spawning dragon; the priority one
      *  is marked with "»"). */
-    public static final class DragonTimersHudElement implements HudElement {
-        @Override
-        public String id() { return "wither_dragon_timers"; }
-
-        @Override
-        public String displayName() { return "Wither Dragon Timers"; }
-
-        @Override
-        public int defaultX() {
-            // Second column (x=200) on King Relic Timer's row (10/240) - both are P5 timers. The old 10/280 ran
-            // into Dungeon Info's third line (260 + 2 x 12).
-            return 200;
+    public static final class DragonTimersHudElement extends BasicHud {
+        public DragonTimersHudElement() {
+            super("wither_dragon_timers", "Wither Dragon Timers", 200, 240);
         }
-
-        @Override
-        public int defaultY() { return 240; }
 
         @Override
         public int width() {

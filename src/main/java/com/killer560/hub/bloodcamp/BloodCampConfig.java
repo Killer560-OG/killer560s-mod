@@ -123,7 +123,7 @@ public final class BloodCampConfig {
     }
 
     /** The plain on/off settings: key, default, and how to read and write the field. */
-    private static final BoolFields<doc> BOOLS = new BoolFields<doc>()
+    private static final BoolFields<BloodCampConfig> BOOLS = new BoolFields<BloodCampConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("showOverlay", true, c -> c.showOverlay, (c, v) -> c.showOverlay = v)
             .add("triggerBotEnabled", false, c -> c.triggerBotEnabled, (c, v) -> c.triggerBotEnabled = v)

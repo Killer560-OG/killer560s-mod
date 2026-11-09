@@ -1,6 +1,7 @@
 package com.killer560.hub.maskinvincibility;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
@@ -292,18 +293,10 @@ public final class MaskInvincibilityFeature {
         };
     }
 
-    public static final class MaskInvincibilityHudElement implements HudElement {
-        @Override
-        public String id() { return "mask_invincibility"; }
-
-        @Override
-        public String displayName() { return "Mask Invincibility Timers"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 440; }
+    public static final class MaskInvincibilityHudElement extends BasicHud {
+        public MaskInvincibilityHudElement() {
+            super("mask_invincibility", "Mask Invincibility Timers", 10, 440);
+        }
 
         /**
          * The box is the rows as drawn (2026-10-07, killer560: the editor box was "wider/taller than its 3 rows"):

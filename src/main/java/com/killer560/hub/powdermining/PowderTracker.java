@@ -1,6 +1,7 @@
 package com.killer560.hub.powdermining;
 
 import com.killer560.hub.hud.HudElement;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import net.minecraft.client.Minecraft;
@@ -190,19 +191,10 @@ public final class PowderTracker {
     public static long activeMs() { return activeMs; }
 
     /** The movable tracker. */
-    public static final class Hud implements HudElement {
-
-        @Override
-        public String id() { return HUD_ID; }
-
-        @Override
-        public String displayName() { return "Powder Tracker"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 100; }
+    public static final class Hud extends BasicHud {
+        public Hud() {
+            super(HUD_ID, "Powder Tracker", 10, 100);
+        }
 
         @Override
         public int width() {

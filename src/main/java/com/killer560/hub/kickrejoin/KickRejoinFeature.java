@@ -1,6 +1,7 @@
 package com.killer560.hub.kickrejoin;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -377,28 +378,8 @@ public final class KickRejoinFeature {
         }
     }
 
-    public static final HudElement HUD = new HudElement() {
+    public static final HudElement HUD = new BasicHud("kick_rejoin_timer", "Kick Rejoin Timer", 10, 175) {
         private static final String EXAMPLE = "Kicked from SkyBlock 12s ago - rejoin in 48s";
-
-        @Override
-        public String id() {
-            return "kick_rejoin_timer";
-        }
-
-        @Override
-        public String displayName() {
-            return "Kick Rejoin Timer";
-        }
-
-        @Override
-        public int defaultX() {
-            return 10;
-        }
-
-        @Override
-        public int defaultY() {
-            return 175;
-        }
 
         @Override
         public int width() {

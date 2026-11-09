@@ -1,6 +1,7 @@
 package com.killer560.hub.puzzlesolvers;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.BasicHud;
 import com.google.gson.reflect.TypeToken;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
@@ -374,25 +375,17 @@ public final class QuizSolverFeature {
 
     /** Quiz Timer (killer560, 2026-11-01: "a toggleable hud to show how long till you need to come back to answer"; the
      *  times are QuizState's, NoammAddons' 220/100 server ticks). */
-    public static final class TimerHudElement implements com.killer560.hub.hud.HudElement {
+    public static final class TimerHudElement extends BasicHud {
+        public TimerHudElement() {
+            super("quiz_timer", "Quiz Timer", 10, 180);
+        }
+
         private static final String PREVIEW = "\u00a7eQuiz 2/3: \u00a7f3.4s";
 
         private static String shown() {
             String t = timerText();
             return t == null && com.killer560.hub.hud.HudVisibility.editorOpen() ? PREVIEW : t;
         }
-
-        @Override
-        public String id() { return "quiz_timer"; }
-
-        @Override
-        public String displayName() { return "Quiz Timer"; }
-
-        @Override
-        public int defaultX() { return 10; }
-
-        @Override
-        public int defaultY() { return 180; }
 
         @Override
         public int width() {
