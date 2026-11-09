@@ -40,6 +40,13 @@ public final class Shortbows {
         return id != null && (id.equals("TERMINATOR") || id.endsWith("SHORTBOW"));
     }
 
+    /** Id-only test (no lore scan, safe per arm render): the Terminator (its id has no "SHORTBOW") and every id ending in
+     *  SHORTBOW (Juju). The Object Hider's No Shortbow Swing missed the Terminator with a contains("SHORTBOW") test. */
+    public static boolean isShortbowId(ItemStack stack) {
+        String id = stack == null || stack.isEmpty() ? null : AutoPuzzleUtil.skyblockId(stack);
+        return id != null && (id.equals("TERMINATOR") || id.endsWith("SHORTBOW"));
+    }
+
     public static boolean isTerminator(ItemStack stack) { return "TERMINATOR".equals(AutoPuzzleUtil.skyblockId(stack)); }
 
     /** Arrows one shot of {@code stack} fires (1 for anything that is not a multi-arrow bow). */
