@@ -522,7 +522,6 @@ public final class ProfileManager {
                 // reason com.killer560.hub.routes.RouteStore::load is in this list for Waypoint Routes.
                 com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
                 com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
-                com.killer560.hub.dungeonwaypoints.DungeonWaypointsConfig::load,
                 com.killer560.hub.autosuperboom.AutoSuperboomConfig::load,
                 com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
                 com.killer560.hub.freelook.FreelookConfig::load,
@@ -733,7 +732,6 @@ public final class ProfileManager {
             "killer560smod-waypointroutes-routes.json",
             "killer560smod-autoroutes.json",
             "killer560smod-etherwarp-waypoints.json",
-            "killer560smod-dungeonwaypoints.json",
             "killer560smod-leapmenu.json",
             "killer560smod-classoverrides.json",
             "killer560smod-autotrap.json",

@@ -85,7 +85,8 @@ public final class ModPaths {
             "killer560smod-lavalab", "killer560smod-lavalab.json",             // AP3 lava lab, removed c81ff762
             "killer560smod-sim-roompicker.txt",                                // sim room picker, replaced by filters
             "killer560smod-sim-runs",                                          // sim runs, now the run history
-            "killer560smod-spotify-setup-guide.txt"                            // generated guide, no longer written
+            "killer560smod-spotify-setup-guide.txt",                           // generated guide, no longer written
+            "killer560smod-dungeonwaypoints.json"                              // Dungeon Waypoints, removed 2026-11-09 (secret waypoints cover it)
     );
 
     /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */
@@ -111,7 +112,6 @@ public final class ModPaths {
         t.put("waypointroutes", "dungeons/waypointroutes");
         t.put("etherwarp", "dungeons/etherwarp");
         t.put("etherwarpoverlay", "dungeons/etherwarpoverlay");
-        t.put("dungeonwaypoints", "dungeons/dungeonwaypoints");
         t.put("autosuperboom", "dungeons/autosuperboom");
 
         t.put("autoclear", "dungeons/autoclear");

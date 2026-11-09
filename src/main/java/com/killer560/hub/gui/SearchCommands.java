@@ -30,7 +30,6 @@ public final class SearchCommands {
             Map.entry("cringe", "CringeTab"),
             Map.entry("chmap", "CrystalHollowsMapTab"),
             Map.entry("ew", "EtherwarpTab"),
-            Map.entry("dwp", "DungeonWaypointsTab"),
             Map.entry("language", "TranslateTab"),
             Map.entry("translate", "TranslateTab"),
             Map.entry("leaporder", "LeapMenuTab"),
