@@ -104,6 +104,12 @@ public final class BreakerAuraFeature {
     private static final double PRE_SWAP_REACH_MARGIN = 1.5;
     private static int lastLoreCharges = -1;
     private static int spentSinceLore = 0;
+    /** Burst digs past the first of their tick that the server refused. Experimental GrimAC's MultiBreak cancels every
+     *  one (MultiBreak.java:49), so a refused burst only re-digs; from 2 on, Burst goes one a tick for
+     *  {@link #ONE_A_TICK_TICKS} (a charge the lore miscounted is refused the same way, so it is not for good). */
+    private static int refusedExtras = 0;
+    private static long refusedAt = 0L;
+    private static final long ONE_A_TICK_TICKS = 100L;
     private static String lastSkipReason = null;
     private static boolean wasActive = false;
 
@@ -219,8 +225,12 @@ public final class BreakerAuraFeature {
             } else if (zeroPing && !st.isAir()) {
                 LOGGER.info("[BreakerAura] outcome: pos={} PUT BACK as {} {} tick(s) after the zero-ping START - the"
                         + " server refused the break", pos.toShortString(), st.getBlock().getName().getString(), age);
+                refused(e.getValue());
                 it.remove();
             } else if (age >= SENT_WATCH_TICKS) {
+                if (!zeroPing && !st.isAir()) {
+                    refused(e.getValue());
+                }
                 LOGGER.info("[BreakerAura] outcome: pos={} after {} tick(s): {}", pos.toShortString(), age,
                         zeroPing ? "still air (zero-ping prediction held, the server agreed)"
                                 : "STILL " + st.getBlock().getName().getString() + " - the server never broke it");
@@ -243,11 +253,22 @@ public final class BreakerAuraFeature {
     private BreakerAuraFeature() {
     }
 
+    private static void refused(long[] watch) {
+        if (watch.length > 2 && watch[2] == 1L) {
+            refusedAt = com.killer560.hub.util.SessionRecorderSink.tick();
+            if (++refusedExtras == 2) {
+                LOGGER.info("[BreakerAura] Burst: the server refuses a second dig in one tick (experimental GrimAC"
+                        + " MultiBreak); one a tick for {} ticks", ONE_A_TICK_TICKS);
+            }
+        }
+    }
+
     private static void resetState() {
         RECENT.clear();
         RECENT_SEQ.clear();
         lastSkipReason = null;
         spentSinceLore = 0;
+        refusedExtras = 0;
         lastLoreCharges = -1;
         swappedFromSlot = -1;
         swapArmedTicks = 0;
@@ -613,6 +634,9 @@ public final class BreakerAuraFeature {
 
     static void onClientTick(Minecraft client) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        if (!PENDING.isEmpty()) {
+            expirePending(client);
+        }
         // Picking comes first: he chooses the wall with the aura off, then turns it on.
         if (!cfg.isBreakerAuraRespectEditMode() || !isRouteEditModeActive()) {
             tickSelectKey(client);
@@ -876,7 +900,10 @@ public final class BreakerAuraFeature {
         // Burst Multi Break (owner exception, 2026-11-02): everything in reach this tick, charges the only limit - the
         // pre-d2da5856 Multi Break. GrimAC's experimental MultiBreak flags it; the setting's label says so.
         boolean burst = cfg.isBreakerAuraBurstMultiBreak();
-        int allowed = burst ? available : 1;
+        if (refusedExtras > 0 && com.killer560.hub.util.SessionRecorderSink.tick() - refusedAt > ONE_A_TICK_TICKS) {
+            refusedExtras = 0;
+        }
+        int allowed = burst && refusedExtras < 2 ? available : 1;
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -942,7 +969,7 @@ public final class BreakerAuraFeature {
             BlockPos ready = null;
             List<BlockPos> onLook = new ArrayList<>();
             for (BlockPos p : order) {
-                if (BreakerAim.digReady(player, p)) {
+                if (BreakerAim.digReady(player, p, burst)) {
                     if (ready == null) {
                         ready = p;
                     }
@@ -953,9 +980,9 @@ public final class BreakerAuraFeature {
                 }
             }
             if (ready == null) {
-                String how = null;
-                BlockPos aimed = null;
-                for (BlockPos p : order) {
+                String how = burst ? BreakerAim.aimForMost(client, player, order) : null;
+                BlockPos aimed = how == null ? null : order.get(0);
+                for (BlockPos p : burst ? List.<BlockPos>of() : order) {
                     how = BreakerAim.aimFor(client, player, p);
                     if (how != null) {
                         aimed = p;
@@ -971,6 +998,7 @@ public final class BreakerAuraFeature {
             }
             order = burst ? onLook : List.of(ready);
         }
+        List<BlockPos> dugThisTick = new ArrayList<>();
         for (BlockPos pos : order) {
             if (sent >= allowed) {
                 break;
@@ -1026,7 +1054,7 @@ public final class BreakerAuraFeature {
                 // .001-.7 in the owner's p3sim log (16:54:51, 16:55:05). Blink's shot pauses at the wall instead
                 // (BlinkCharge.addShotPause below) and goes on once the server's update is in and answered.
                 predict = false;
-                PENDING.put(pos.immutable(), System.currentTimeMillis());
+                pend(pos.immutable());
             }
             breakBlock(invoker, level, pos, hit.getDirection(), predict);
             LOGGER.info("[BreakerAura] START_DESTROY_BLOCK sent: pos={} block={} face={} seq={} boxDist={} reach={}"
@@ -1038,9 +1066,10 @@ public final class BreakerAuraFeature {
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (SENT_WATCH.size() < 256) {
                 SENT_WATCH.put(pos.immutable(), new long[]{com.killer560.hub.util.SessionRecorderSink.tick(),
-                        lastSentPredicted ? 1L : 0L});
+                        lastSentPredicted ? 1L : 0L, dugThisTick.isEmpty() ? 0L : 1L});
             }
             RECENT.put(pos, now);
+            dugThisTick.add(pos);
             RECENT_SEQ.put(pos.immutable(), lastSentSeq);
             spentSinceLore++;
             sent++;
@@ -1058,7 +1087,20 @@ public final class BreakerAuraFeature {
         // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
         // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn.
         BlockPos dugNow = order.get(0);
-        if (inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p))) {
+        if (burst) {
+            // Aim at what is LEFT: the old loop below could aim at a pick dug this very tick and waste the next one.
+            List<BlockPos> left = new ArrayList<>();
+            for (BlockPos p : inReach) {
+                if (!dugThisTick.contains(p)) {
+                    left.add(p);
+                }
+            }
+            if (left.stream().anyMatch(p -> BreakerAim.digReady(player, p, true))) {
+                BreakerAim.keep();
+            } else {
+                BreakerAim.aimForMost(client, player, left);
+            }
+        } else if (inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p, false))) {
             BreakerAim.keep();
         } else {
             for (BlockPos p : inReach) {
@@ -1135,6 +1177,46 @@ public final class BreakerAuraFeature {
     private static final java.util.Map<BlockPos, Long> PENDING = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long PENDING_MAX_MS = 3000L;
 
+    /**
+     * The chunk mesher (any thread) draws a {@link #PENDING} wall as air (burstmax-1108, killer560 2026-11-08 in the boss
+     * sim: "it looks like i break them it plays a sound but they stick around awhile"). Blink Charge holds the server's
+     * block change until its ping's answer goes, about a second, so GrimAC and the client agree on the wall's collision;
+     * the sound is not held, so the block stood a second after its break sound (his 11-08 log: "gone 22 tick(s) after the
+     * START" on every dig under Charge). Only its look changes: the world keeps the block until the held change applies.
+     */
+    public static boolean drawnAsAir(int x, int y, int z) {
+        return !PENDING.isEmpty() && PENDING.containsKey(new BlockPos(x, y, z));
+    }
+
+    private static void pend(BlockPos pos) {
+        PENDING.put(pos, System.currentTimeMillis());
+        remesh(pos);
+    }
+
+    private static void unpend(BlockPos pos) {
+        if (PENDING.remove(pos) != null) {
+            remesh(pos);
+        }
+    }
+
+    /** Every tick while walls are pending, aura on or off: a refused or timed-out wall is drawn again, a new world drops all. */
+    private static void expirePending(Minecraft client) {
+        long now = System.currentTimeMillis();
+        for (java.util.Map.Entry<BlockPos, Long> e : PENDING.entrySet()) {
+            BlockPos pos = e.getKey();
+            if (client.level == null || now - e.getValue() > PENDING_MAX_MS || client.level.getBlockState(pos).isAir()) {
+                unpend(pos);
+            }
+        }
+    }
+
+    private static void remesh(BlockPos pos) {
+        ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level != null) {
+            level.setSectionDirtyWithNeighbors(pos.getX() >> 4, pos.getY() >> 4, pos.getZ() >> 4);
+        }
+    }
+
     static {
         com.killer560.hub.blink.BlinkCharge.addShotPause(BreakerAuraFeature::pendingWallAhead);
     }
@@ -1153,6 +1235,7 @@ public final class BreakerAuraFeature {
             BlockPos pos = e.getKey();
             if (now - e.getValue() > PENDING_MAX_MS || mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()) {
                 it.remove();
+                remesh(pos);
                 continue;
             }
             if (found == null && near.intersects(new AABB(pos))) {
@@ -1213,7 +1296,7 @@ public final class BreakerAuraFeature {
             Long dugAt = PENDING.get(pos);
             if (dugAt != null) {
                 if (System.currentTimeMillis() - dugAt > PENDING_MAX_MS || level.getBlockState(pos).isAir()) {
-                    PENDING.remove(pos);
+                    unpend(pos);
                 } else {
                     continue;
                 }

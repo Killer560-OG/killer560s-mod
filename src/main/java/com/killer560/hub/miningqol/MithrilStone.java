@@ -55,6 +55,10 @@ public final class MithrilStone {
      * to draw it as is.
      */
     public static BlockState replace(BlockState state, int x, int y, int z) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && com.killer560.hub.dungeonextras.BreakerAuraFeature.drawnAsAir(x, y, z)) {
+            return Blocks.AIR.defaultBlockState();
+        }
         BlockState red = MiningHighlights.carpetReplace(state, x, y, z);
         if (red != null) return red;
         if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) return null;
