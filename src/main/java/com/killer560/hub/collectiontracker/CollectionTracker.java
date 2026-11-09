@@ -99,6 +99,8 @@ public final class CollectionTracker {
         long amount = -1;
         long gained;
         long since = System.currentTimeMillis();
+        /** When the count last went up (ms); 0 = not this session. Memory only. */
+        long lastGain;
         long invGain, invGainAt, invLoss, invLossAt;
     }
 
@@ -207,6 +209,7 @@ public final class CollectionTracker {
             t.amount = Math.max(0, t.amount + n);
         }
         t.gained += n;
+        if (n > 0) t.lastGain = System.currentTimeMillis();
         version++;
     }
 
@@ -218,6 +221,7 @@ public final class CollectionTracker {
             t.amount = amount;
         } else if (amount > t.amount) {
             t.gained += amount - t.amount;
+            t.lastGain = System.currentTimeMillis();
             t.amount = amount;
         } else {
             return;
@@ -420,16 +424,21 @@ public final class CollectionTracker {
     private static int linesWidth;
     private static int builtVersion = -1;
     private static long builtAt;
+    private static boolean recentView;
 
     /** The HUD lines, rebuilt only when a count or the picks changed, or once a second while the rate shows. */
     public static List<String> lines() {
         long now = System.currentTimeMillis();
-        boolean rate = CollectionTrackerConfig.getInstance().isShowRate();
-        if (builtVersion == version && (!rate || now - builtAt < 1000)) {
+        CollectionTrackerConfig cfg = CollectionTrackerConfig.getInstance();
+        boolean rate = cfg.isShowRate();
+        boolean recent = cfg.isOnlyRecent() && !HudVisibility.editorOpen();
+        if (builtVersion == version && recentView == recent && (!(rate || recent) || now - builtAt < 1000)) {
             return lines;
         }
         builtVersion = version;
+        recentView = recent;
         builtAt = now;
+        long cutoff = now - cfg.getRecentSeconds() * 1000L;
         Catalog cat = catalog();
         List<String> out = new ArrayList<>(TRACKS.size() + 1);
         out.add("§6§lCollections");
@@ -437,8 +446,12 @@ public final class CollectionTracker {
             out.add("§7Pick collections in the menu");
         }
         for (Map.Entry<String, Track> e : TRACKS.entrySet()) {
+            if (recent && e.getValue().lastGain < cutoff) continue;
             CollectionItem it = cat == null ? null : cat.byId().get(e.getKey());
             out.add(line(it == null ? e.getKey() : it.name(), it == null ? new long[0] : it.tiers(), e.getValue(), rate, now));
+        }
+        if (recent && out.size() == 1 && !TRACKS.isEmpty()) {
+            out.add("§7Nothing gained recently");
         }
         lines = Collections.unmodifiableList(out);
         var font = Minecraft.getInstance().font;
