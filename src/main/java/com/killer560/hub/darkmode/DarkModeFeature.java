@@ -15,7 +15,9 @@ import net.minecraft.resources.Identifier;
  * is added after every mod's own {@code addLast} layers (this mod's HUD elements included) and darkens them too.
  * <p>
  * Open screens are drawn after the whole HUD pass, so menus, containers and this mod's settings menu are never tinted,
- * as in NoammAddons. With an in-game screen open Fabric defers the layers after SUBTITLES into the screen's background
+ * as in NoammAddons. Two screens that are really HUD are tinted by their own last draw (killer560, 2026-11-09: "the dark
+ * mode didnt apply to the mod hud ... also when i open chat"): the chat screen (chat lines, input, Chat Tabs, and the HUD
+ * elements Fabric draws under a screen) and the HUD editor, with Tint HUD on. With an in-game screen open Fabric defers the layers after SUBTITLES into the screen's background
  * (after its dim, before its panel), so the Tint HUD fill still lands under the screen itself.
  */
 public final class DarkModeFeature {
@@ -23,6 +25,9 @@ public final class DarkModeFeature {
     /** Frames each layer filled, for the testkit (2950-2953). */
     public static int worldFills;
     public static int hudFills;
+
+    /** Frames a screen was tinted, for the testkit. */
+    public static int screenFills;
 
     private static boolean registered;
 
@@ -42,6 +47,8 @@ public final class DarkModeFeature {
                         worldFills++;
                     }
                 });
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT
+                .register((c, screen, w, h) -> tintScreen(screen)));
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "dark_mode_hud"), (graphics, deltaTracker) -> {
                     DarkModeConfig cfg = DarkModeConfig.getInstance();
@@ -50,6 +57,20 @@ public final class DarkModeFeature {
                         hudFills++;
                     }
                 }));
+    }
+
+    /** Registered at CLIENT_STARTED so this screen listener runs after every mod's own (the fill lands on top of them). */
+    private static void tintScreen(net.minecraft.client.gui.screens.Screen screen) {
+        if (!(screen instanceof net.minecraft.client.gui.screens.ChatScreen) && !(screen instanceof com.killer560.hub.hud.HudEditorScreen)) {
+            return;
+        }
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.afterExtract(screen).register((s, graphics, mx, my, delta) -> {
+            DarkModeConfig cfg = DarkModeConfig.getInstance();
+            if (cfg.isEnabled() && cfg.isTintHud()) {
+                fill(graphics, cfg.getOpacity());
+                screenFills++;
+            }
+        });
     }
 
     /** Black at {@code opacity} % over the whole GUI area. */
