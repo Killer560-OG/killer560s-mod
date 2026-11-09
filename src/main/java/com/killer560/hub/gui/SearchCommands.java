@@ -27,6 +27,8 @@ public final class SearchCommands {
     /** Command name -> owner tab (simple class name). Commands declared in Killer560ModClient, and the main ones, so the
      *  search finds them from the title screen too. */
     static final Map<String, String> BY_COMMAND = Map.ofEntries(
+            Map.entry("k5", "CommandPrefixesTab"),
+            Map.entry("k560", "CommandPrefixesTab"),
             Map.entry("cringe", "CringeTab"),
             Map.entry("chmap", "CrystalHollowsMapTab"),
             Map.entry("ew", "EtherwarpTab"),

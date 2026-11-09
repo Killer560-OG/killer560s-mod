@@ -1285,6 +1285,13 @@ final class SettingTooltipsData {
         d.put("chat history", "Keeps more chat scrollable than vanilla. Off: vanilla's last 100 messages. On: the Length set below.");
         d.put("chat history/length", "Limited: the number set below (200-10000). Unlimited: the whole session, using more memory the longer you play.");
         d.put("history limit", "How many chat messages Limited keeps, from 200 to 10000 in steps of 200.");
+        d.put("/killer560", "Opens the mod menu: /killer560 and its subcommands. On by default; the other names below do the same.");
+        d.put("/k", "Also opens the mod menu and every /killer560 subcommand as /k. Off by default; skipped if another mod already owns /k.");
+        d.put("/k5", "Also opens the mod menu and every /killer560 subcommand as /k5. Off by default; skipped if another mod already owns /k5.");
+        d.put("/k560", "Also opens the mod menu and every /killer560 subcommand as /k560. Off by default; skipped if another mod already owns /k560.");
+        d.put("alternate prefix", "Lets a chat line that starts with the chosen character run a client command, like .pv Bob for /pv Bob. A first word that is not a mod command goes out as normal chat. Nothing is sent to the server.");
+        d.put("character", "The character that stands in for the slash: cycle . , ! - # here, or type any one character below.");
+        d.put("custom character", "Any one character that is not a space or a slash. Press Set or Enter to save it.");
         d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("loadout keybinds/highlight selected loadout", "A green background on the loadout you have on in the Loadout menu.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");

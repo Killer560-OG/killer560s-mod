@@ -41,7 +41,8 @@ public class ChatTab extends FolderTab {
                 new PartyCommandsTab(),
                 // Chat Keybinds is also Command Shortcuts since 2026-10-08 (killer560: "Chat keybinds and command
                 // shortcuts should be combined into just chat keybinds.").
-                new CommandKeybindsTab()
+                new CommandKeybindsTab(),
+                new CommandPrefixesTab()
         ));
     }
 }

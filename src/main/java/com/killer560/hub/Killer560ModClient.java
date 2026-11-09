@@ -613,9 +613,10 @@ public class Killer560ModClient implements ClientModInitializer {
             dispatcher.register(ClientCommands.literal("leaporder")
                     .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
         });
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("killer560")
+        com.killer560.hub.commandprefix.CommandPrefixFeature.register(name ->
+                ClientCommands.literal(name)
                         .executes(context -> {
+                            com.killer560.hub.commandprefix.CommandPrefixFeature.requireOn(name);
                             Minecraft client = Minecraft.getInstance();
                             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
                             // Deferred via client.execute: ChatScreen sets the screen to null right after the
@@ -630,15 +631,15 @@ public class Killer560ModClient implements ClientModInitializer {
                         // "/killer560 bugreport" - one zip with the log, the configs and the build details,
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
-                        .then(ClientCommands.literal("bugreport")
+                        .then(ClientCommands.literal("bugreport").requires(src -> com.killer560.hub.commandprefix.CommandPrefixFeature.on(name))
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
                         // directly rather than going through the mod menu's Dungeon folder.
                         // "/killer560 class", "ew", "mapdump", "profile" and "sim" were removed (killer560, 2026-11-01):
                         // /leaporder opens the same editor, /ew keeps the waypoints, the Profiles tab has every profile
                         // action, and the testkit flips DungeonState.toggleSimOverride directly.
-                        .then(ClientCommands.literal("leaporder")
-                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))));
+                        .then(ClientCommands.literal("leaporder").requires(src -> com.killer560.hub.commandprefix.CommandPrefixFeature.on(name))
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand())));
                         // "/killer560 ah" and "/killer560 bz" were removed with /killer560ah and /killer560bz (killer560,
                         // 2026-11-01: "they are not needed"): the browsers open from their keys and Open buttons.
 

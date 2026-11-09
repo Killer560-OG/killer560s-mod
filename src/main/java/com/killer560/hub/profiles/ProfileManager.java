@@ -490,6 +490,7 @@ public final class ProfileManager {
                 com.killer560.hub.chocolatefactory.ChocolateFactoryConfig::load,
                 com.killer560.hub.clicktranslate.ClickTranslateConfig::load,
                 com.killer560.hub.commandkeybinds.CommandKeybindsConfig::load,
+                com.killer560.hub.commandprefix.CommandPrefixConfig::load,
                 com.killer560.hub.copychat.CopyChatConfig::load,
                 com.killer560.hub.peekchat.PeekChatConfig::load,
                 com.killer560.hub.chattidy.ChatTidyConfig::load,

@@ -49,6 +49,7 @@ public final class MenuSearch {
             {"dump", "deposit", "stash", "unload"},
             {"mob", "monster", "enemy", "entity"},
             {"waypoint", "marker", "beacon", "pin"},
+            {"prefix", "alias", "command name", "shortcut name"},
             {"hud", "overlay", "display"},
             {"keybind", "key", "hotkey", "bind", "shortcut", "keybinding"},
             {"sound", "audio", "mute", "noise", "volume", "sfx"},
