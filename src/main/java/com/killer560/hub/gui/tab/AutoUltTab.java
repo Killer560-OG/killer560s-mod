@@ -42,8 +42,6 @@ public class AutoUltTab extends BaseTab {
             return w;
         }
 
-        toggle(w, contentX, y, "On Maxor Enraged", cfg::isUltMaxorEnraged, cfg::setUltMaxorEnraged, null);
-        toggle(w, contentX, y, "On Goldor Factory Destroyed", cfg::isUltGoldorFactory, cfg::setUltGoldorFactory, null);
         w.add(SettingsButtonWidget.cycling(classText(cfg), (btn, dir) -> {
             cfg.cycleUltClassOverride(dir);
             cfg.save();
@@ -51,14 +49,19 @@ public class AutoUltTab extends BaseTab {
         }).bounds(contentX, y[0], BTN_W, 20).build());
         y[0] += 28;
 
+        w.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y[0], BTN_W, "Ult When", true));
+        y[0] += 16;
+        toggle(w, contentX, y, "Wish On Clear", cfg::isWishOnClear, cfg::setWishOnClear, null);
+        toggle(w, contentX, y, "On Maxor Enraged", cfg::isUltMaxorEnraged, cfg::setUltMaxorEnraged, null);
+        toggle(w, contentX, y, "On Goldor Factory Destroyed", cfg::isUltGoldorFactory, cfg::setUltGoldorFactory, null);
+        y[0] += 4;
+
         // Which of your classes it ults for (killer560, 2026-11-01). "Class" above only says how your class is found.
         w.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y[0], BTN_W, "Ult For", true));
         y[0] += 16;
         for (com.killer560.hub.dungeonclass.DungeonClass c : com.killer560.hub.dungeonclass.DungeonClass.values()) {
             toggle(w, contentX, y, c.displayName(), () -> cfg.isUltClass(c), v -> cfg.setUltClass(c, v), null);
         }
-        y[0] += 4;
-        toggle(w, contentX, y, "Wish On Clear", cfg::isWishOnClear, cfg::setWishOnClear, null);
 
         return w;
     }
