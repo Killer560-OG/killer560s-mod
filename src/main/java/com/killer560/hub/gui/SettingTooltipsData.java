@@ -2078,7 +2078,10 @@ final class SettingTooltipsData {
         d.put("invite delay", "Seconds between disbanding the party and inviting everyone back, 0 to 10 in half seconds.");
         d.put("auto rejoin", "Accepts the invite when another player disbands the party and invites you back within the Rejoin Window.");
         d.put("rejoin window", "How many seconds after the disband an invite from a former member is accepted.");
-        d.put("carry tracker", "Counts every finished dungeon run that a name on your list was in, with a history of the latest runs. Counts are saved for your account and shared by every instance.");
+        d.put("carry tracker", "Counts every finished dungeon run that a client on your list was in and shows them in a HUD with done/total runs. Alerts once when a client reaches the runs you set. Counts are saved for your account and shared by every instance.");
+        d.put("carry tracker/add party", "Adds everyone in your party except you to the list, with the Default Runs target.");
+        d.put("carry tracker/default runs", "How many runs a client is carried for when you add them (1-50). Change one client with the - and + buttons.");
+        d.put("carry tracker/remove when done", "Removes a client from the list when they reach their runs target and you have been told to stop carrying them. Off by default.");
         d.put("room preview", "With chat open, hover a room on the Dungeon Map HUD to see its shape, type, secrets by kind and crypts.");
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
         d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
