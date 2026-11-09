@@ -376,6 +376,9 @@ public final class BossDevices {
      */
     private static final java.util.UUID[] lastBy = new java.util.UUID[5];
 
+    /** Testkit: who last worked device {@code section} (1-4), or null. */
+    public static java.util.UUID lastByForTest(int section) { return lastBy[section]; }
+
     static void noteActor(int section, ServerPlayer sp) {
         if (sp != null && section >= 1 && section <= 4) {
             lastBy[section] = sp.getUUID();
