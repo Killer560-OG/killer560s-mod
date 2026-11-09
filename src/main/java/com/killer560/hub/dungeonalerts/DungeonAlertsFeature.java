@@ -70,6 +70,7 @@ public final class DungeonAlertsFeature {
             RareRoomAlert.tick();
             RareDropAlert.tick(client);
             WitherKingAlerts.tick(client);
+            SecretSound.tick(client);
         }));
         LevelRenderEvents.COLLECT_SUBMITS.register(DungeonAlertsFeature::onWorldRender);
 

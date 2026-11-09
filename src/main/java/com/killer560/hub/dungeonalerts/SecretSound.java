@@ -103,10 +103,36 @@ public final class SecretSound {
     private SecretSound() {
     }
 
-    private static int chestSoundsPlayed = 0;
+    /** A chest's sound waits for proof it was not locked (killer560, 2026-11-01: "Make sure the secret sound doesnt play
+     *  on a locked chest"): the chest's menu opening plays it at once, Hypixel's whole "That chest is locked!" line drops
+     *  it, and with neither it plays after {@link #CHEST_CONFIRM_MS} (a round trip on any sane ping). */
+    static final long CHEST_CONFIRM_MS = 500L;
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretsound");
 
+    /** The wait for the locked line: twice the connection's round trip plus 50 ms, between 150 ms and {@link #CHEST_CONFIRM_MS}
+     *  (killer560, 2026-11-09: "extremely delayed, 1-2 seconds" - the fixed 500 ms plus a slow menu; a locked chest still
+     *  stays silent, 2026-11-01). */
+    private static long confirmMs(Minecraft client) {
+        var conn = client.getConnection();
+        var info = conn == null || client.player == null ? null : conn.getPlayerInfo(client.player.getUUID());
+        long rtt = info == null ? 100 : info.getLatency();
+        return Math.max(150L, Math.min(CHEST_CONFIRM_MS, rtt * 2 + 50));
+    }
+    private static final String LOCKED_LINE = "That chest is locked!";
+    /** One entry per chest click awaiting its proof (a second click inside the wait used to overwrite the first: one sound for two). */
+    private static final java.util.ArrayDeque<Long> pendingChests = new java.util.ArrayDeque<>();
+    private static int chestSoundsPlayed = 0;
+    private static int lockedChestSoundsDropped = 0;
+
     static void register() {
+        com.killer560.hub.util.ChatObserver.subscribe(message -> {
+            if (!pendingChests.isEmpty()
+                    && LOCKED_LINE.equals(com.killer560.hub.util.ChatObserver.strip(message).trim())) {
+                long waited = System.currentTimeMillis() - pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
+                LOGGER.info("[SecretSound] locked chest, no sound ({} ms after the click)", waited);
+                lockedChestSoundsDropped++;
+            }
+        });
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (level.isClientSide() && player == Minecraft.getInstance().player && hitResult != null) {
                 onInteract(hitResult.getBlockPos());
@@ -222,17 +248,34 @@ public final class SecretSound {
             return;
         }
         if (type == SecretType.CHEST) {
-            // On the click itself (killer560, 2026-11-09: "extremely delayed, 1-2 seconds"): it used to wait for the
-            // chest's menu to open or 500 ms, which on a laggy server was seconds. A locked chest sounds too.
             lastChestMs = now;
-            chestSoundsPlayed++;
+            if (pendingChests.size() >= 16) pendingChests.pollFirst();
+            pendingChests.addLast(now); // played by tick() once the chest is known not to be locked
+            return;
         }
         play();
     }
 
-    /** For the testkit: chest sounds played. */
-    public static int chestSoundsPlayed() {
-        return chestSoundsPlayed;
+    /** Plays a held chest sound once the chest's menu is up or {@link #CHEST_CONFIRM_MS} passed with no locked line. */
+    static void tick(Minecraft client) {
+        if (pendingChests.isEmpty()) {
+            return;
+        }
+        boolean opened = com.killer560.hub.compat.McCompat.screen(client)
+                instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
+        long now = System.currentTimeMillis();
+        long wait = confirmMs(client);
+        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst() >= wait)) {
+            long waited = now - pendingChests.pollFirst();
+            LOGGER.info("[SecretSound] chest sound after {} ms ({}, window {} ms)", waited, opened ? "menu opened" : "no locked line", wait);
+            chestSoundsPlayed++;
+            play();
+        }
+    }
+
+    /** For the testkit: {chest sounds played, chest sounds dropped because the chest was locked}. */
+    public static int[] chestSoundCounts() {
+        return new int[]{chestSoundsPlayed, lockedChestSoundsDropped};
     }
 
     /** Noamm's "Play Sound" action - the configured sound 5 times at once. Also used by the tab's test button. */
