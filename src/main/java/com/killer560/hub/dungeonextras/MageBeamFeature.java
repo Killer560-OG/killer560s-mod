@@ -46,6 +46,21 @@ public final class MageBeamFeature {
         private int quadsPoints = -1;
         private int quadsShape;
         private float quadsWidth;
+        // This frame's draw state, filled by onWorldRender and read by the geometry callback later in the same frame
+        // (both versions draw submitted geometry after the event), so a frame allocates nothing.
+        final int[] cols = new int[ROTATING_PIECES + 1];
+        final double[] spans = new double[4];
+        int spanCount;
+        int pieces;
+        double camX, camY, camZ;
+        final McRender.Geometry draw = (pose, buffer) -> {
+            SINK.matrix = pose.pose();
+            SINK.buffer = buffer;
+            SINK.camX = camX;
+            SINK.camY = camY;
+            SINK.camZ = camZ;
+            emitBody(quads, min(), max(), camX, camY, camZ, spans, spanCount, cols, pieces, SINK);
+        };
 
         Beam(Vec3 point, long tick) {
             this(point, tick, System.currentTimeMillis());
@@ -165,7 +180,11 @@ public final class MageBeamFeature {
         if (!cfg.isMageBeamEnabled() || BEAMS.isEmpty()) {
             return;
         }
-        float[] rgba = WorldRenderUtils.argbToFloats(cfg.getMageBeamColor());
+        Vec3 cam = McRender.cameraPos(context);
+        if (cam == null) {
+            return;
+        }
+        float baseAlpha = ((cfg.getMageBeamColor() >>> 24) & 0xFF) / 255f;
         long durationMs = cfg.getMageBeamDurationTicks() * 50L;
         long now = System.currentTimeMillis();
         int shape = cfg.getMageBeamShape();
@@ -174,11 +193,7 @@ public final class MageBeamFeature {
             if (beam.points.size() < MIN_POINTS) {
                 continue;
             }
-            float alpha = rgba[3];
-            if (cfg.isMageBeamFade()) {
-                float progress = Math.min(1f, Math.max(0f, (now - beam.createdMs) / (float) durationMs));
-                alpha *= 1f - progress;
-            }
+            float alpha = alphaAt(baseAlpha, now - beam.createdMs, durationMs, cfg.isMageBeamFade());
             if (alpha <= 0.01f) {
                 continue;
             }
@@ -189,8 +204,10 @@ public final class MageBeamFeature {
             // 2026-10-18: "should not rotate as I run around it" - the body used to be one quad turned to face the
             // camera, so it swung round with every step. It is now fixed to the beam (see beamQuads).
             int mode = cfg.getMageBeamColorMode();
-            renderBeamBody(context, beam.quads(shape, widthBlocks), cfg.getMageBeamColor(), cfg.getMageBeamColor2(),
-                    mode, alpha, now);
+            beam.quads(shape, widthBlocks);
+            if (prepareBody(beam, cam, widthBlocks, cfg.getMageBeamColor(), cfg.getMageBeamColor2(), mode, alpha, now)) {
+                McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, beam.draw);
+            }
             // The core line only where the body is too thin to see (killer560, 2026-11-01: with Flat and a wide beam "the
             // very middle is still a bit darker than the rest ... for all variants"): the 2 px core was drawn over the
             // body in the same translucent color, so wherever both showed, the middle doubled up. Now it is drawn only
@@ -232,17 +249,28 @@ public final class MageBeamFeature {
 
     /** RGB (0..1) at {@code s} (0 = the beam's start, 1 = its end) for the color mode, at time {@code nowMs}. */
     static float[] colorAt(int c1, int c2, int mode, float s, long nowMs) {
-        int argb;
+        int argb = rgbAt(c1, c2, mode, s, nowMs);
+        return new float[]{((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f};
+    }
+
+    private static int rgbAt(int c1, int c2, int mode, float s, long nowMs) {
         if (mode == DungeonExtrasConfig.BEAM_COLOR_FADE) {
-            argb = lerpColor(c1, c2, s);
-        } else if (mode == DungeonExtrasConfig.BEAM_COLOR_ROTATING) {
+            return lerpColor(c1, c2, s);
+        }
+        if (mode == DungeonExtrasConfig.BEAM_COLOR_ROTATING) {
             // One full rainbow along the beam, turning once every two seconds.
             float hue = (float) (((nowMs % 2000L) / 2000.0 + s) % 1.0);
-            argb = java.awt.Color.HSBtoRGB(hue, 0.85f, 1f);
-        } else {
-            argb = c1;
+            return java.awt.Color.HSBtoRGB(hue, 0.85f, 1f) & 0xFFFFFF;
         }
-        return new float[]{((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f};
+        return c1 & 0xFFFFFF;
+    }
+
+    /** The beam's alpha {@code elapsedMs} into its life: one value for the whole beam, falling linearly to 0 with Fade. */
+    public static float alphaAt(float base, long elapsedMs, long durationMs, boolean fade) {
+        if (!fade) {
+            return base;
+        }
+        return base * (1f - Math.min(1f, Math.max(0f, elapsedMs / (float) Math.max(1L, durationMs))));
     }
 
     private static int lerpColor(int a, int b, float t) {
@@ -294,51 +322,204 @@ public final class MageBeamFeature {
      *  (a fade between the two ends is exactly what the vertex colors blend). */
     private static final int ROTATING_PIECES = 24;
 
-    /** Draws {@link #beamQuads} with both windings, so face culling cannot hide a side. Each quad's corners 0 and 3 are
-     *  at the beam's start and 1 and 2 at its end, so the color can run from start to end. */
-    private static void renderBeamBody(LevelRenderContext context, List<Vec3[]> quads, int c1, int c2, int mode,
-                                       float a, long now) {
-        if (quads.isEmpty()) {
-            return;
+    /**
+     * No part of the body is drawn within this many blocks (plus the body's own half diagonal) of the camera
+     * (magebeamfade-1109). His own shot starts at his eye, so the body's near end sat inside the near plane and each
+     * face became one huge flat triangle from the crosshair to the screen's corner (the "orange wedge" he saw fading).
+     */
+    static final double NEAR_CLEAR = 1.0;
+
+    /** One body vertex, in world coordinates, with its packed ARGB. */
+    interface Sink {
+        void vertex(double x, double y, double z, int argb);
+    }
+
+    /** The render thread's sink: JOML into a scratch vector and one packed color put, no allocation per vertex. */
+    private static final class RenderSink implements Sink {
+        final org.joml.Vector3f pos = new org.joml.Vector3f();
+        org.joml.Matrix4f matrix;
+        VertexConsumer buffer;
+        double camX, camY, camZ;
+
+        @Override
+        public void vertex(double x, double y, double z, int argb) {
+            matrix.transformPosition((float) x, (float) y, (float) z, pos);
+            buffer.addVertex(pos.x, pos.y, pos.z).setColor(argb);
+            double dx = x - camX, dy = y - camY, dz = z - camZ;
+            nearestSq = Math.min(nearestSq, dx * dx + dy * dy + dz * dz);
+            int a = argb >>> 24;
+            alphaLo = Math.min(alphaLo, a);
+            alphaHi = Math.max(alphaHi, a);
+            vertices++;
         }
+    }
+
+    private static final RenderSink SINK = new RenderSink();
+    // Testkit evidence from the real draws since the last frameStatsForTest(): nearest vertex, alpha range, count.
+    private static double nearestSq = Double.MAX_VALUE;
+    private static int alphaLo = 255, alphaHi = 0, vertices;
+
+    /** Testkit: {nearest drawn vertex to the camera in blocks, lowest alpha 0-255, highest alpha, vertex count} since
+     *  the last call, then resets. */
+    public static double[] frameStatsForTest() {
+        double[] out = {Math.sqrt(nearestSq), alphaLo, alphaHi, vertices};
+        nearestSq = Double.MAX_VALUE;
+        alphaLo = 255;
+        alphaHi = 0;
+        vertices = 0;
+        return out;
+    }
+
+    /** Fills the beam's per-frame draw state; false when nothing of it is left to draw. */
+    private static boolean prepareBody(Beam beam, Vec3 cam, float widthBlocks, int c1, int c2, int mode, float a, long now) {
+        if (beam.quads.isEmpty()) {
+            return false;
+        }
+        beam.camX = cam.x;
+        beam.camY = cam.y;
+        beam.camZ = cam.z;
+        beam.spanCount = clearSpans(beam.min(), beam.max(), cam, widthBlocks, beam.spans);
+        beam.pieces = fillColors(c1, c2, mode, a, now, beam.cols);
+        return beam.spanCount > 0;
+    }
+
+    /**
+     * Writes the parts of the beam (as 0..1 fractions from start to end, in pairs) that lie farther than
+     * {@link #NEAR_CLEAR} plus the body's half diagonal from the camera: none, one or two spans (two when the beam
+     * passes by the camera). Returns how many numbers it wrote.
+     */
+    static int clearSpans(Vec3 s, Vec3 e, Vec3 cam, float widthBlocks, double[] out) {
+        double r = NEAR_CLEAR + Math.max(0.01f, widthBlocks) * 0.5 * Math.sqrt(2.0);
+        double dx = e.x - s.x, dy = e.y - s.y, dz = e.z - s.z;
+        double fx = s.x - cam.x, fy = s.y - cam.y, fz = s.z - cam.z;
+        double qa = dx * dx + dy * dy + dz * dz;
+        double qb = 2 * (dx * fx + dy * fy + dz * fz);
+        double disc = qb * qb - 4 * qa * (fx * fx + fy * fy + fz * fz - r * r);
+        if (qa < 1.0E-9 || disc <= 0) {
+            out[0] = 0;
+            out[1] = 1;
+            return 2;
+        }
+        double root = Math.sqrt(disc);
+        double t1 = (-qb - root) / (2 * qa);
+        double t2 = (-qb + root) / (2 * qa);
+        int n = 0;
+        if (t1 > 0) {
+            out[n++] = 0;
+            out[n++] = Math.min(1, t1);
+        }
+        if (t2 < 1) {
+            out[n++] = Math.max(0, t2);
+            out[n++] = 1;
+        }
+        return n;
+    }
+
+    /**
+     * Packed ARGB at each piece boundary, all at one alpha. The faces used to be drawn twice (both windings, but the
+     * fill type does not cull), which doubled every face's coverage; one draw at {@code 1 - (1 - a)^2} looks the same.
+     */
+    private static int fillColors(int c1, int c2, int mode, float a, long now, int[] out) {
         int pieces = mode == DungeonExtrasConfig.BEAM_COLOR_ROTATING ? ROTATING_PIECES : 1;
-        float[][] colors = new float[pieces + 1][];
+        int alpha = Math.round((1f - (1f - a) * (1f - a)) * 255f) << 24;
         for (int k = 0; k <= pieces; k++) {
-            colors[k] = colorAt(c1, c2, mode, k / (float) pieces, now);
+            out[k] = alpha | rgbAt(c1, c2, mode, k / (float) pieces, now);
         }
-        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
-            org.joml.Matrix4f matrix = pose.pose();
+        return pieces;
+    }
+
+    /**
+     * Writes the body: only the faces that face the camera (a convex body's front faces never overlap on screen, so the
+     * beam has one even alpha everywhere and its fade dims it evenly), each cut to the clear spans and, for Rotating,
+     * into pieces, plus the end caps that face the camera (a cut end left open showed as a notch). Each quad's corners
+     * 0 and 3 are at the beam's start and 1 and 2 at its end.
+     */
+    static void emitBody(List<Vec3[]> quads, Vec3 start, Vec3 end, double cx, double cy, double cz, double[] spans,
+                         int spanCount, int[] cols, int pieces, Sink out) {
+        // From inside the body's cross-section (a beam fired from his own eye) no side faces him: only a cap does.
+        boolean anyFront = false;
+        boolean solid = false;
+        for (Vec3[] q : quads) {
+            anyFront |= facesCamera(q, start, cx, cy, cz);
+            solid |= Math.abs((q[0].x + q[3].x) * 0.5 - start.x) + Math.abs((q[0].y + q[3].y) * 0.5 - start.y)
+                    + Math.abs((q[0].z + q[3].z) * 0.5 - start.z) > 1.0E-9;
+        }
+        double dx = end.x - start.x, dy = end.y - start.y, dz = end.z - start.z;
+        for (int i = 0; solid && i < spanCount; i++) {
+            double s = spans[i];
+            double ax = start.x + dx * s, ay = start.y + dy * s, az = start.z + dz * s;
+            double toward = dx * (ax - cx) + dy * (ay - cy) + dz * (az - cz);
+            // A span's start cap faces back along the axis, its end cap forward.
+            if (i % 2 == 0 ? toward <= 0 : toward >= 0) {
+                continue;
+            }
+            int k = Math.min(pieces - 1, (int) (s * pieces));
+            int c = mix(cols[k], cols[k + 1], s * pieces - k);
             for (Vec3[] q : quads) {
+                out.vertex(ax, ay, az, c);
+                corner(out, q[0], q[1], s, c);
+                corner(out, q[3], q[2], s, c);
+                corner(out, q[3], q[2], s, c);
+            }
+        }
+        for (Vec3[] q : quads) {
+            if (!anyFront || !facesCamera(q, start, cx, cy, cz)) {
+                continue;
+            }
+            for (int i = 0; i + 1 < spanCount; i += 2) {
                 for (int k = 0; k < pieces; k++) {
-                    double s0 = k / (double) pieces;
-                    double s1 = (k + 1) / (double) pieces;
-                    Vec3 p0 = lerp(q[0], q[1], s0);
-                    Vec3 p1 = lerp(q[0], q[1], s1);
-                    Vec3 p2 = lerp(q[3], q[2], s1);
-                    Vec3 p3 = lerp(q[3], q[2], s0);
-                    float[] ca = colors[k];
-                    float[] cb = colors[k + 1];
-                    quad(buffer, matrix, p0, p1, p2, p3, ca, cb, cb, ca, a);
-                    quad(buffer, matrix, p3, p2, p1, p0, ca, cb, cb, ca, a);
+                    double s0 = Math.max(spans[i], k / (double) pieces);
+                    double s1 = Math.min(spans[i + 1], (k + 1) / (double) pieces);
+                    if (s1 <= s0) {
+                        continue;
+                    }
+                    int ca = mix(cols[k], cols[k + 1], s0 * pieces - k);
+                    int cb = mix(cols[k], cols[k + 1], s1 * pieces - k);
+                    corner(out, q[0], q[1], s0, ca);
+                    corner(out, q[0], q[1], s1, cb);
+                    corner(out, q[3], q[2], s1, cb);
+                    corner(out, q[3], q[2], s0, ca);
                 }
             }
-        });
+        }
     }
 
-    private static Vec3 lerp(Vec3 from, Vec3 to, double t) {
-        return t <= 0 ? from : t >= 1 ? to : from.add(to.subtract(from).scale(t));
+    /** Outward normal (the start edge's middle less the axis start; zero for Flat, always drawn) toward the camera. */
+    private static boolean facesCamera(Vec3[] q, Vec3 start, double cx, double cy, double cz) {
+        double nx = (q[0].x + q[3].x) * 0.5 - start.x;
+        double ny = (q[0].y + q[3].y) * 0.5 - start.y;
+        double nz = (q[0].z + q[3].z) * 0.5 - start.z;
+        return nx * (q[0].x - cx) + ny * (q[0].y - cy) + nz * (q[0].z - cz) <= 1.0E-9;
     }
 
-    private static void quad(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3,
-                             float[] c0, float[] c1, float[] c2, float[] c3, float a) {
-        vertex(buffer, matrix, p0, c0[0], c0[1], c0[2], a);
-        vertex(buffer, matrix, p1, c1[0], c1[1], c1[2], a);
-        vertex(buffer, matrix, p2, c2[0], c2[1], c2[2], a);
-        vertex(buffer, matrix, p3, c3[0], c3[1], c3[2], a);
+    private static void corner(Sink out, Vec3 a, Vec3 b, double t, int argb) {
+        out.vertex(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, argb);
     }
 
-    private static void vertex(VertexConsumer buffer, org.joml.Matrix4f matrix, Vec3 p,
-                               float r, float g, float b, float a) {
-        buffer.addVertex(matrix, (float) p.x, (float) p.y, (float) p.z).setColor(r, g, b, a);
+    private static int mix(int a, int b, double t) {
+        int r = 0;
+        for (int sh = 0; sh < 32; sh += 8) {
+            int ca = (a >>> sh) & 0xFF;
+            r |= ((int) Math.round(ca + (((b >>> sh) & 0xFF) - ca) * t) & 0xFF) << sh;
+        }
+        return r;
+    }
+
+    /** Testkit: every body vertex a frame would draw for a beam from {@code start} to {@code end} seen from {@code cam},
+     *  as x, y, z, alpha (0-255) in a row, through the same code as the real draw. */
+    public static double[] bodyForTest(Vec3 cam, Vec3 start, Vec3 end, int shape, float widthBlocks, int argb, float alpha) {
+        double[] spans = new double[4];
+        int n = clearSpans(start, end, cam, widthBlocks, spans);
+        int[] cols = new int[ROTATING_PIECES + 1];
+        int pieces = fillColors(argb, argb, DungeonExtrasConfig.BEAM_COLOR_SOLID, alpha, 0L, cols);
+        List<Double> got = new ArrayList<>();
+        emitBody(beamQuads(start, end, shape, widthBlocks), start, end, cam.x, cam.y, cam.z, spans, n, cols, pieces,
+                (x, y, z, c) -> {
+                    got.add(x);
+                    got.add(y);
+                    got.add(z);
+                    got.add((double) (c >>> 24));
+                });
+        return got.stream().mapToDouble(Double::doubleValue).toArray();
     }
 }

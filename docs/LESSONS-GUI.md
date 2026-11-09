@@ -377,6 +377,15 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   is the given width minus 10 and `getWidth()` reports that line. A box sized for a vanilla bordered box loses 2 px: the
   Profile Viewer's name box went 96 -> 94 px and no longer held a 16-character name until its sidebar widened to 120
   (testkit 693, 2026-10-26).
+- A world shape that starts at the camera draws as a screen-wide wedge (magebeamfade-1109, killer560: "the mage beam is
+  fading out weirdly"): his own Mage Beam starts at his eye, so the body's near end sat inside the near plane and each face
+  projected as one huge triangle from the crosshair over the bottom-right of the screen; drawing both windings on the
+  cull-off, depth-writing FILLED type also doubled coverage and let sort order decide which face showed, so the fade
+  looked patchy. Now each frame clips the body to the parts of its axis more than 1 block + half its diagonal from the
+  camera (`MageBeamFeature.clearSpans`, a ray-sphere test), draws only camera-facing faces plus the end caps that face
+  the camera (a cut end left open showed as an arrow notch; from inside the cross-section only the cap) once at 1-(1-a)^2 (the old
+  double-layer look), from per-beam reused arrays and a cached Geometry lambda. Testkit 1109-ui-magebeam-own-shot (geometry
+  hook, real-draw stats, pixel coverage of the frame).
 
 ## First-person hands and the GPU API on 26.3
 
