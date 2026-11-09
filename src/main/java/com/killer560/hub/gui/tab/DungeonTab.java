@@ -67,6 +67,9 @@ public class DungeonTab extends FolderTab {
                 new DungeonAlertsTab(),
                 new LowHealthAlertTab(),
                 new BlessingsTab(),
+                new PuzzleHudTab(),
+                new RepartyTab(),
+                new WatcherHelperTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----

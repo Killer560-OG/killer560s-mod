@@ -2022,6 +2022,15 @@ final class SettingTooltipsData {
         d.put("arrow align/aura cps", "Cheat build only. Aura clicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set.");
         d.put("auto puzzles", "Cheat build only. Solves dungeon puzzle rooms for you; each puzzle's solver must also be on.");
         d.put("blessings", "Shows your five dungeon blessing levels on a HUD and can announce each level up.");
+        d.put("puzzle hud", "Shows the dungeon's puzzles on a HUD: done, failed or still open, who solved or failed each and how long it took.");
+        d.put("puzzle times", "Adds the time each puzzle took (or has taken so far) to its row.");
+        d.put("puzzle solvers", "Adds the name of the player who solved or failed each puzzle to its row.");
+        d.put("reparty", "Type /rp or /reparty as party leader to disband the party and invite everyone back.");
+        d.put("auto reparty", "Reparties by itself a few seconds after a dungeon run ends (party leader only).");
+        d.put("auto reparty delay", "How long after the run's end screen Auto Reparty waits. Left click for longer, right click for shorter.");
+        d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
+        d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
+        d.put("watcher breakdown", "Prints one chat line with the speak, move, kill and total time when the blood room ends.");
         d.put("blessings hud", "Draws one line per blessing you have picked up while inside a dungeon.");
         d.put("roman numerals", "Writes blessing levels as V instead of 5.");
         d.put("shown blessings", "Which blessings may appear on the HUD.");

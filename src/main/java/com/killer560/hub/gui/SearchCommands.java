@@ -38,6 +38,8 @@ public final class SearchCommands {
             Map.entry("invsort", "InventorySorterTab"),
             Map.entry("autosell", "AutoSellTab"),
             Map.entry("autokick", "AutoKickTab"),
+            Map.entry("rp", "RepartyTab"),
+            Map.entry("reparty", "RepartyTab"),
             Map.entry("ap3", "Ap3Tab"),
             Map.entry("ar", "AutoRoutesTab"),
             Map.entry("autoroutes", "AutoRoutesTab"),

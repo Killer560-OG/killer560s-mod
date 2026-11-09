@@ -127,7 +127,7 @@ public final class DungeonAlertsFeature {
     }
 
     /** Vanilla title/subtitle with explicit fade/stay/fade ticks. */
-    static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+    public static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         showTitle(Component.literal(title), Component.literal(subtitle), fadeIn, stay, fadeOut);
     }
 
