@@ -17,9 +17,9 @@ import java.util.List;
 
 /**
  * Misc's Sound Effects (killer560, 2026-10-18; in Home until 2026-10-20, when he asked for game sounds to be out of the
- * mod settings - none of its five sounds belongs to one feature, so the tab moved whole): one row per game sound the mod can replace - an arrow hitting, every left
- * click that hits a mob or a block, a mob dying, a block breaking. Each row is a switch and the sound it plays instead
- * (Default, a preset, or an imported file, the same list as the click). Off by default. See {@link SoundEffect}.
+ * mod settings - none of its five sounds belongs to one feature, so the tab moved whole): one row per game sound the mod can replace (hits, arrows, pickups, doors, explosions, ...). Each row is the
+ * sound's name with its switch and the sound it plays instead on ONE line (Default, a preset, or an imported file, the
+ * same list as the click); {@link #keepsRows} stops the narrow drawer stacking them. Off by default. See {@link SoundEffect}.
  */
 public class SoundEffectsTab extends BaseTab {
 
@@ -28,6 +28,11 @@ public class SoundEffectsTab extends BaseTab {
 
     public SoundEffectsTab() {
         super("Sound Effects");
+    }
+
+    @Override
+    public boolean keepsRows() {
+        return true;
     }
 
     @Override
@@ -46,7 +51,7 @@ public class SoundEffectsTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         int gap = 8;
-        int half = (contentWidth - gap) / 2;
+        int half = (contentWidth - gap) * 11 / 20;
         int rightW = Math.max(1, contentWidth - half - gap);
         var font = Minecraft.getInstance().font;
         int y = contentY;
@@ -100,6 +105,6 @@ public class SoundEffectsTab extends BaseTab {
     }
 
     private static Component choiceText(SoundEffect effect) {
-        return Component.literal("Sound: §6" + ClickSounds.label(SoundEffectConfig.getInstance().getChoice(effect)));
+        return Component.literal("§6" + ClickSounds.label(SoundEffectConfig.getInstance().getChoice(effect)));
     }
 }

@@ -11,6 +11,10 @@ final class SettingTooltipsData {
     }
 
     static void register(Map<String, String> d) {
+        for (com.killer560.hub.clicksound.SoundEffect e : com.killer560.hub.clicksound.SoundEffect.values()) {
+            d.put("sound effects/" + e.label.toLowerCase(java.util.Locale.ROOT), "Plays the sound you pick instead of the game's for "
+                    + e.covers + ". Off by default; Default keeps the game's sound. Click the sound to step forward, right-click back.");
+        }
         d.put("replay intro", "Shows the first-launch tour again: how to open the mod, picking a theme, Auto Update and the menus.");
         // Every module's last row (ModuleKeybinds, killer560 2026-11-01).
         d.put("toggle keybind", "A key that turns this feature on and off in game, as its switch does. None by default. Click, then press a key or mouse button; Escape cancels, Backspace clears it.");

@@ -13,7 +13,24 @@ public enum SoundEffect {
     ATTACK_HIT("attack_hit", "Attack Hit", "every left click that hits a mob (Minecraft's attack sound)"),
     BLOCK_HIT("block_hit", "Block Hit", "every left click on a block (the hit sound while you mine it)"),
     MOB_DEATH("mob_death", "Mob Death", "a mob dying (not a player)"),
-    BLOCK_BREAK("block_break", "Block Break", "a block breaking");
+    BLOCK_BREAK("block_break", "Block Break", "a block breaking"),
+    ARROW_SHOOT("arrow_shoot", "Arrow Shot", "an arrow leaving a bow or crossbow"),
+    XP_ORB("xp_orb", "XP Orb", "picking up an experience orb"),
+    ITEM_PICKUP("item_pickup", "Item Pickup", "picking up an item"),
+    LEVEL_UP("level_up", "Level Up", "the level-up chime"),
+    ANVIL("anvil", "Anvil", "using or landing an anvil"),
+    ENCHANT_TABLE("enchant_table", "Enchant Table", "the enchanting table's enchant sound"),
+    CHEST("chest", "Chest", "a chest or ender chest opening or closing"),
+    DOOR("door", "Door", "a door or trapdoor opening or closing"),
+    EXPLOSION("explosion", "Explosion", "an explosion"),
+    TELEPORT("teleport", "Teleport", "an ender pearl throw or an Enderman teleporting"),
+    NOTE_BLOCK("note_block", "Note Block", "any note block sound"),
+    VILLAGER("villager", "Villager", "a villager or NPC talking, trading or saying no"),
+    WITHER("wither", "Wither", "a Wither spawning, shooting or getting hurt"),
+    EAT_DRINK("eat_drink", "Eat And Drink", "eating food or drinking"),
+    SPLASH_POTION("splash_potion", "Splash Potion", "a splash potion being thrown or breaking"),
+    TOTEM("totem", "Totem", "a totem of undying popping"),
+    FISHING("fishing", "Fishing", "a fishing bobber splashing or a rod reeling in");
 
     /** The key the config file uses. */
     public final String key;
@@ -40,6 +57,23 @@ public enum SoundEffect {
             case BLOCK_HIT -> p.startsWith("block.") && p.endsWith(".hit");
             case MOB_DEATH -> p.startsWith("entity.") && p.endsWith(".death") && !p.startsWith("entity.player.");
             case BLOCK_BREAK -> p.startsWith("block.") && p.endsWith(".break");
+            case ARROW_SHOOT -> p.equals("entity.arrow.shoot") || p.equals("item.crossbow.shoot");
+            case XP_ORB -> p.equals("entity.experience_orb.pickup");
+            case ITEM_PICKUP -> p.equals("entity.item.pickup");
+            case LEVEL_UP -> p.equals("entity.player.levelup");
+            case ANVIL -> p.startsWith("block.anvil.");
+            case ENCHANT_TABLE -> p.equals("block.enchantment_table.use");
+            case CHEST -> p.startsWith("block.chest.") || p.startsWith("block.ender_chest.");
+            case DOOR -> p.startsWith("block.") && p.contains("door.") && (p.endsWith(".open") || p.endsWith(".close"));
+            case EXPLOSION -> p.equals("entity.generic.explode");
+            case TELEPORT -> p.equals("entity.ender_pearl.throw") || p.equals("entity.enderman.teleport");
+            case NOTE_BLOCK -> p.startsWith("block.note_block.");
+            case VILLAGER -> p.startsWith("entity.villager.");
+            case WITHER -> p.startsWith("entity.wither.");
+            case EAT_DRINK -> p.equals("entity.generic.eat") || p.equals("entity.generic.drink");
+            case SPLASH_POTION -> p.startsWith("entity.splash_potion.");
+            case TOTEM -> p.equals("item.totem.use");
+            case FISHING -> p.startsWith("entity.fishing_bobber.");
         };
     }
 
