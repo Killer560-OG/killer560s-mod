@@ -517,6 +517,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autosell.AutoSellToggleKey.register();
         com.killer560.hub.terminals.FakeCursor.register();
         com.killer560.hub.terminals.HoldToClickFeature.register();
+        com.killer560.hub.terminals.TerminalExtras.register();
         com.killer560.hub.zoom.ZoomFeature.register();
         com.killer560.hub.imagepreview.ImagePreviewFeature.register();
         com.killer560.hub.gfs.LegitGfs.register();

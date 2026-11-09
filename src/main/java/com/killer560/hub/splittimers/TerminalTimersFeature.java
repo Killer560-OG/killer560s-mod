@@ -59,6 +59,10 @@ public final class TerminalTimersFeature {
     private static String lastRewrittenPlain = null;
     private static long lastRewrittenAtMs = 0L;
 
+    // --- breakdown (Devonian): per player {terminals, devices, levers} since Goldor's opening line, posted when the core opens ---
+    private static final java.util.Map<String, int[]> breakdown = new java.util.LinkedHashMap<>();
+    private static final int BREAKDOWN_MAX_PLAYERS = 16;
+
     // --- solve times: pair the GUI close with the player's own completion line, in either order ---
     private static String pendingSolveName = null;
     private static double pendingSolveSeconds = 0;
@@ -74,6 +78,7 @@ public final class TerminalTimersFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalTimersFeature", client -> {
             if (client.level != lastLevel) {
                 lastLevel = client.level;
+                breakdown.clear();
                 resetSection(true); // Odin: LevelEvent.Load
             }
         }));
@@ -141,34 +146,78 @@ public final class TerminalTimersFeature {
         Minecraft client = Minecraft.getInstance();
         Matcher m = plain.contains("d a ") ? COMPLETE_REGEX.matcher(plain) : null; // "activated a"/"completed a"
         if (m != null && m.find()) {
+            if (TerminalTimersConfig.getInstance().isBreakdown()) {
+                tally(m.group(1), m.group(3));
+            }
             if (m.group(3).equals("terminal") && client.player != null
                     && m.group(1).equals(client.player.getGameProfile().name())) {
                 ownTerminalLineAtMs = System.currentTimeMillis();
+                com.killer560.hub.terminals.TerminalExtras.onOwnTerminalDone();
                 tryPostSolve();
             }
             return;
         }
-        if (!TerminalTimersConfig.getInstance().isSplits()) return;
-        if (plain.equals(GATE_DESTROYED)) {
+        TerminalTimersConfig cfg = TerminalTimersConfig.getInstance();
+        boolean splits = cfg.isSplits();
+        if (plain.equals(GOLDOR_START)) {
+            breakdown.clear();
+            if (splits) resetSection(true);
+        } else if (plain.equals(GATE_DESTROYED)) {
+            if (!splits) return;
             if (completedCurrent == completedTotal) {
                 resetSection(false);
             } else {
                 gateBlown = true;
             }
-        } else if (plain.equals(GOLDOR_START)) {
-            resetSection(true);
         } else if (plain.equals(CORE_OPENING)) {
-            resetSection(false);
-            MutableComponent times = ModChat.text("Times: ");
-            for (int i = 0; i < sectionTimes.size(); i++) {
-                if (i > 0) {
-                    times.append(ModChat.dim(" | "));
+            if (splits) {
+                resetSection(false);
+                MutableComponent times = ModChat.text("Times: ");
+                for (int i = 0; i < sectionTimes.size(); i++) {
+                    if (i > 0) {
+                        times.append(ModChat.dim(" | "));
+                    }
+                    times.append(ModChat.value(fmt(sectionTimes.get(i)) + "s"));
                 }
-                times.append(ModChat.value(fmt(sectionTimes.get(i)) + "s"));
+                ModChat.send("Terminal Timers", times, ModChat.dim(", "), ModChat.text("Total: "),
+                        ModChat.value(fmt(seconds(phaseTimerMs)) + "s"));
             }
-            ModChat.send("Terminal Timers", times, ModChat.dim(", "), ModChat.text("Total: "),
-                    ModChat.value(fmt(seconds(phaseTimerMs)) + "s"));
+            if (cfg.isBreakdown()) postBreakdown();
         }
+    }
+
+    /** Counts one objective line for {@code name}: slot 0 terminals, 1 devices, 2 levers. Bounded: a run has at most five players. */
+    private static void tally(String name, String kind) {
+        int[] counts = breakdown.get(name);
+        if (counts == null) {
+            if (breakdown.size() >= BREAKDOWN_MAX_PLAYERS) return;
+            counts = new int[3];
+            breakdown.put(name, counts);
+        }
+        counts[kind.equals("terminal") ? 0 : kind.equals("device") ? 1 : 2]++;
+    }
+
+    /** One chat line per player, most objectives first, then the tally starts over for the next run. */
+    private static void postBreakdown() {
+        if (breakdown.isEmpty()) return;
+        List<java.util.Map.Entry<String, int[]>> rows = new ArrayList<>(breakdown.entrySet());
+        rows.sort((a, b) -> Integer.compare(b.getValue()[0] + b.getValue()[1] + b.getValue()[2],
+                a.getValue()[0] + a.getValue()[1] + a.getValue()[2]));
+        for (var row : rows) {
+            int[] c = row.getValue();
+            ModChat.send("Terminal Breakdown", ModChat.colored(row.getKey(), ThemeAccent.onDark(ThemeAccent.accent(ModChat.ORANGE))),
+                    ModChat.text(": "), ModChat.value(String.valueOf(c[0])), ModChat.text(" terminals, "),
+                    ModChat.value(String.valueOf(c[1])), ModChat.text(" devices, "),
+                    ModChat.value(String.valueOf(c[2])), ModChat.text(" levers"));
+        }
+        breakdown.clear();
+    }
+
+    /** What {@link #postBreakdown} would say, per player as name, terminals, devices, levers (testkit). */
+    static List<String> breakdownForTest() {
+        List<String> out = new ArrayList<>();
+        breakdown.forEach((k, c) -> out.add(k + " " + c[0] + " " + c[1] + " " + c[2]));
+        return out;
     }
 
     private static void resetSection(boolean full) {
