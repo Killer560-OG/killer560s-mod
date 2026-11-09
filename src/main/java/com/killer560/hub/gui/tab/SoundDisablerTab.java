@@ -25,7 +25,7 @@ public class SoundDisablerTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "Mute Bonzo's Staff and more.";
+        return "Mutes various sounds.";
     }
 
     @Override

@@ -36,7 +36,7 @@ final class CardBlurbsData {
         d.put("DoublePowderAlertTab", "Title when 2x Powder starts.");
         d.put("ChestLootCompactTab", "One line per chest's loot.");
         // staging-mining-3 cards (2026-11-04).
-        d.put("CrystalHollowsMapTab", "Map of the Hollows.");
+        d.put("CrystalHollowsMapTab", "Hollows map and structures.");
         d.put("CrystalTrackerTab", "Your crystals on a HUD.");
         d.put("WishingCompassTab", "Where a Wishing Compass points.");
         d.put("MetalDetectorTab", "Finds Mines of Divan treasure.");
@@ -85,7 +85,7 @@ final class CardBlurbsData {
         d.put("RoomPreviewTab", "Hover a map room for its contents.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
-        d.put("ClassColorsTab", "Class-colored teammates.");
+        d.put("ClassColorsTab", "Class colors on names.");
         d.put("ClassOverridesTab", "Set teammates' classes.");
         d.put("CroesusTab", "Croesus chest profit and logging.");
         d.put("CustomMageBeamTab", "One clean Mage beam.");
@@ -123,7 +123,7 @@ final class CardBlurbsData {
         d.put("RngMeterTab", "Coins per meter point.");
         d.put("RunStatsTab", "Run summary in chat.");
         d.put("RunSummaryTab", "Saves each run's splits and score.");
-        d.put("ScoreCalculatorTab", "Live dungeon score HUD.");
+        d.put("ScoreCalculatorTab", "Score HUD and alerts.");
         d.put("EtherwarpTab", "Boxes for /ew waypoints.");
         d.put("AutoSuperboomTab", "Swaps to Superboom.");
         d.put("DungeonWaypointsTab", "Your boxes and lines.");
@@ -136,16 +136,16 @@ final class CardBlurbsData {
         d.put("SplitTimersTab", "A HUD timing each run part.");
         d.put("TeamMelodyTab", "Teammates' Melody progress.");
         d.put("TeammatesTab", "Class-colored party boxes.");
-        d.put("TerminalSolverTab", "Shows slots to click.");
+        d.put("TerminalSolverTab", "Solves and eases terminals.");
         d.put("TerminalTimersTab", "Terminal times in chat.");
         d.put("TermismTab", "Practice terminals anywhere.");
         d.put("TerracottaTimerTab", "Terracotta respawn timer.");
         d.put("ThornTab", "F4/M4 Thorn bear and stun spots.");
         d.put("TickTimersTab", "Boss phase countdown HUD.");
-        d.put("WitherDoorsTab", "Highlights the closest wither door.");
+        d.put("WitherDoorsTab", "Marks wither and blood doors.");
         d.put("WitherDragonsTab", "Dragon timers and boxes.");
         d.put("Ap3Tab", "Node chains through F7/M7 phases.");
-        d.put("AutoBloodCampTab", "Blood Camp mobs.");
+        d.put("AutoBloodCampTab", "Auto attacks for Blood Camp.");
         d.put("AutoClearTab", "Clears mob rooms at range.");
         d.put("AutoCloseChestTab", "Closes chests on a key.");
         d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
@@ -154,8 +154,8 @@ final class CardBlurbsData {
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");
         d.put("DoorHelpersTab", "Opens doors on keys.");
-        d.put("AutoMaskTab", "Swaps masks and Phoenix on a key or on a proc.");
-        d.put("AutoPuzzlesTab", "Master switch for the auto puzzles.");
+        d.put("AutoMaskTab", "Swaps masks and Phoenix.");
+        d.put("AutoPuzzlesTab", "Solves dungeon puzzles for you.");
         d.put("AutoRoutesTab", "Records and replays room routes.");
         d.put("AutoSimonSaysTab", "Simon Says automation.");
         d.put("AutoTerminalTab", "Clicks terminals for you.");
@@ -185,7 +185,7 @@ final class CardBlurbsData {
         d.put("GifPlayerTab", "Looping GIFs as HUD overlays.");
         d.put("HealthAndManaBarsTab", "Health and mana bars.");
         d.put("HidePlayersTab", "Hides other players by rule.");
-        d.put("ObjectHiderTab", "Hides fire and other clutter.");
+        d.put("ObjectHiderTab", "Hides various clutter.");
         d.put("LagDisplayTab", "TPS, ping, FPS and stutter HUD.");
         d.put("QuiverDisplayTab", "Arrows left, as a HUD.");
         d.put("RealTimeTab", "A HUD clock of real time.");
@@ -227,7 +227,7 @@ final class CardBlurbsData {
         d.put("TooltipScrollTab", "Scroll long tooltips.");
         d.put("PriceTooltipTab", "Prices on item tooltips.");
         d.put("SlotBindsTab", "Link slots to swap on shift-click.");
-        d.put("StorageSearchTab", "/search across storages.");
+        d.put("StorageSearchTab", "Searches storages.");
         d.put("AutoAnvilTab", "Combines enchant books at the anvil.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
@@ -241,7 +241,7 @@ final class CardBlurbsData {
         d.put("CustomItemsTab", "Client-side item recolors.");
         d.put("HeldOutlineTab", "Outlines your held item.");
         d.put("NickhiderTab", "Fake names for other players.");
-        d.put("CosmeticsTab", "Name, size and held look.");
+        d.put("CosmeticsTab", "Name, size, trail and mob looks.");
         d.put("RibbonTrailTab", "A smooth band trailing behind you.");
         d.put("TrailTab", "Squares drawn behind you.");
         d.put("AbilityKeybindsTab", "Class ability keys.");
