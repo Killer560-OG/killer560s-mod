@@ -60,6 +60,12 @@ public final class RepartyFeature {
         });
     }
 
+    /** Drops a running job and a scheduled auto run; the testkit calls it between cases (a second /rp while one runs is ignored). */
+    public static synchronized void reset() {
+        phase = Phase.IDLE;
+        autoAtMs = 0L;
+    }
+
     /** Starts a reparty; public so the testkit can drive it. */
     public static synchronized void start(boolean auto) {
         if (!RepartyConfig.getInstance().isEnabled()) {
