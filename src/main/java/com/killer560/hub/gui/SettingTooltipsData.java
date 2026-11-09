@@ -961,6 +961,7 @@ final class SettingTooltipsData {
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
         d.put("terminal solve times", "Shows how long you had each terminal open after you finish it.");
         d.put("terminal/device splits", "Adds section and phase times to every terminal, device and lever completion line in P3.");
+        d.put("terminal breakdown", "At the end of P3 (when the core opens), one chat line per player: how many terminals, devices and levers each did. Works with Terminal Timers on.");
         d.put("simon says time", "Shows how long the Simon Says device took after you solve it.");
         d.put("item rarity backgrounds", "Draws a rarity-colored square, circle or outline behind Skyblock items.");
         d.put("opacity", "How see-through this element is, from faint to fully solid.");
@@ -1983,6 +1984,13 @@ final class SettingTooltipsData {
         d.put("p3 nav/through walls", "Cheat build only. Draws terminal and device boxes through blocks.");
 
         // Hover Terminals + Run Summary
+        d.put("click order", "Which correct slot Auto Terminals clicks next: First (top left to bottom right), Random, Closest to the last click or Furthest from it. Numbers keeps its fixed order; Stream Safe uses its own human order.");
+        d.put("queue terms", "Cheat build only. A click of yours on a correct terminal slot while the click before it is still waiting for the server is held and sent when the server answers, one per update. Auto Terminals clicking takes over when it is on.");
+        d.put("terminal solver/terminal sounds", "Plays a sound for each correct click you make in a terminal and when you finish one. Needs the Terminal Solver on for the click sounds. Pick Default to play nothing for that part.");
+        d.put("terminal solver/click sound", "The sound for each correct click. Left click forward, right click back; the new one plays once.");
+        d.put("terminal solver/complete sound", "The sound when you finish a terminal (your own 'completed a terminal' line).");
+        d.put("terminal solver/sound volume", "How loud the Terminal Sounds are.");
+        d.put("terminal solver/terminal click path", "After a terminal closes, shows your clicks as numbered dots joined by lines for 4 seconds: green for a right slot, red for a wrong one. Needs the Terminal Solver on.");
         d.put("hover terminals", "Cheat build only. Resting the mouse on a correct terminal slot clicks it for you.");
         d.put("hover delay", "Cheat build only. The least time between two hover clicks, 0-300 ms. A correct slot under the mouse clicks at once when that long has passed since the last one.");
         d.put("hover jitter", "Cheat build only. Adds a random extra delay to each hover click.");

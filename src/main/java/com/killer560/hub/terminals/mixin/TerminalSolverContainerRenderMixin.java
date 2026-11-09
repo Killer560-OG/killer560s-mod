@@ -33,6 +33,11 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void killer560smod$clickTerminalCustomGui(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
+        com.killer560.hub.terminals.TerminalExtras.noteClick(self, event.x(), event.y());
+        if (com.killer560.hub.terminals.QueueTermsFeature.intercept(self)) {
+            cir.setReturnValue(true);
+            return;
+        }
         // A mouse-button terminal drop key first (TerminalQolInputMixin asks the same; whichever HEAD handler runs first
         // takes it), so a side button bound as the drop key clicks Rubix as a left click instead of being swallowed as
         // the wrong direction.
@@ -57,7 +62,7 @@ public abstract class TerminalSolverContainerRenderMixin extends Screen {
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void killer560smod$blockTerminalCustomGuiRelease(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (TerminalSolverFeature.isCustomGuiActive()) {
+        if (com.killer560.hub.terminals.QueueTermsFeature.consumeRelease() || TerminalSolverFeature.isCustomGuiActive()) {
             cir.setReturnValue(true);
         }
     }

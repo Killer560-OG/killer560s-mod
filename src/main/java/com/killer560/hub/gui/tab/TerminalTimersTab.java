@@ -36,6 +36,10 @@ public class TerminalTimersTab extends BaseTab {
 
         widgets.add(onOffButton("Simon Says Time", cfg::getSimonSaysTimeRaw, cfg::setSimonSaysTime, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Terminal Breakdown", cfg::getBreakdownRaw, cfg::setBreakdown, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }
