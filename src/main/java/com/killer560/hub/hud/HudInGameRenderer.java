@@ -135,9 +135,9 @@ public final class HudInGameRenderer {
 
     /** The server-tick countdown elements that stay on top of the Spirit Leap menu (killer560, 2026-11-06: "in a leap menu
      *  i should still be able to see everything tick timer related"): Tick Timers (Goldor, Storm, Necron), Mask
-     *  Invincibility, Livid invulnerability, King Relics and Maxor crystals, and Split Timers' readout. */
+     *  Invincibility, Livid invulnerability, King Relics and Maxor crystals, and Split Timers' readout, plus the Performance HUD (TPS, ping, FPS; leaphud-1108). */
     private static final Set<String> OVER_LEAP_IDS = Set.of("tick_timers", "mask_invincibility", "livid_invuln_timer",
-            "king_relic_timer", "maxor_crystals", "split_timers");
+            "king_relic_timer", "maxor_crystals", "split_timers", "lag_display");
     private static List<HudElement> overLeapList = List.of();
     private static int overLeapVersion = -1;
 
