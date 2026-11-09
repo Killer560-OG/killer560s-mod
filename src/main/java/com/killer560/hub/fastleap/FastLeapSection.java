@@ -255,7 +255,7 @@ public final class FastLeapSection {
         boolean inUse = (which == Page.CLASS) == cfg.isUseClassTargets();
         String title = which == Page.CLASS ? "Set Class Targets" : "Universal Targets";
         widgets.add(new StringWidget(x + BACK_W + 8, y + 5, Math.max(1, w - BACK_W - 8), 10,
-                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(off: your leaps use the other page)")),
+                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(off: other page)")),
                 Minecraft.getInstance().font));
         y += ROW + GAP + 2;
         return y;

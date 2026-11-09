@@ -436,7 +436,9 @@ public final class FastLeapConfig {
             TargetSettings s = e.getValue();
             if (!s.byClass && !s.name.isBlank()) {
                 DungeonClass c = com.killer560.hub.leapmenu.PartyTracker.classOf(s.name);
-                s.clazz = c;
+                if (c != null) {
+                    s.clazz = c; // else the class saved beside the name (its backup) stays
+                }
                 changed++;
             }
             s.byClass = true;
