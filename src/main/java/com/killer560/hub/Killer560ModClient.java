@@ -262,6 +262,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.p3status.P3StatusFeature.register();
         HudElementRegistry.register(com.killer560.hub.p3status.P3StatusFeature.HUD);
         com.killer560.hub.blessings.BlessingsFeature.register();
+        com.killer560.hub.dungeonqol.IcedMobsFeature.register();
+        com.killer560.hub.dungeonqol.RoomNameHud.register();
+        com.killer560.hub.autoclosechest.AutoCloseChestClick.register();
         com.killer560.hub.runsummary.RunSummaryFeature.register();
         com.killer560.hub.runsummary.RunLogCommands.register();
         if (com.killer560.hub.BuildVariant.TESTING) {
@@ -296,6 +299,7 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.mining.ghosts.GhostEspFeature.register();
         }
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
+        HudElementRegistry.register(com.killer560.hub.dungeonqol.RoomNameHud.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
         HudElementRegistry.register(com.killer560.hub.maxor.MaxorCrystalsFeature.HUD);
         com.killer560.hub.bosshealth.BossHealthFeature.register();

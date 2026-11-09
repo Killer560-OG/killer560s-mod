@@ -51,7 +51,9 @@ public final class HudInGameRenderer {
             // The Crystal Hollows Map HUD (chhud-1104).
             "mining_ch_map",
             // Collection Tracker (colltrack-1104).
-            "collection_tracker");
+            "collection_tracker",
+            // Current Room Name (featE-1108).
+            "room_name");
 
     private HudInGameRenderer() {
     }

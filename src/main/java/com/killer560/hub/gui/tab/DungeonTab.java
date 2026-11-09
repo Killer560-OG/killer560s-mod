@@ -67,6 +67,10 @@ public class DungeonTab extends FolderTab {
                 new DungeonAlertsTab(),
                 new LowHealthAlertTab(),
                 new BlessingsTab(),
+                new RoomNameTab(),
+                new ItemQualityTab(),
+                new IcedMobsTab(),
+                new AutoCloseChestTab(),
                 new CroesusTab(),
                 new RngMeterTab(),
                 // ---- bosses, floor order ----
@@ -104,7 +108,6 @@ public class DungeonTab extends FolderTab {
             tabs.add(new AutoBloodCampTab());
             tabs.add(new AutoMaskTab());
             tabs.add(new AutoDialogueTab());
-            tabs.add(new AutoCloseChestTab());
             tabs.add(new AutoSimonSaysTab());
             tabs.add(new AutoTerminalTab());
             tabs.add(new TerminalAuraTab());

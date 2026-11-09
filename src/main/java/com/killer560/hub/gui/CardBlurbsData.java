@@ -138,7 +138,10 @@ final class CardBlurbsData {
         d.put("Ap3Tab", "Node chains through F7/M7 phases.");
         d.put("AutoBloodCampTab", "Blood Camp mobs.");
         d.put("AutoClearTab", "Clears mob rooms at range.");
-        d.put("AutoCloseChestTab", "Skips secret chest menus.");
+        d.put("AutoCloseChestTab", "Closes secret chests on a key press.");
+        d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
+        d.put("IcedMobsTab", "Boxes mobs an Ice Spray Wand froze.");
+        d.put("RoomNameTab", "HUD with the room you are in.");
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");
         d.put("DoorHelpersTab", "Opens doors on keys.");
