@@ -15,6 +15,9 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            // killer560 (2026-11-10): "the get sent to lobby thing" should come up for lobby / lobbied.
+            Map.entry("lobby", "kick rejoin timer"),
+            Map.entry("lobbied", "kick rejoin timer"),
             // cheatbugs-1109: renamed from Terminator Auto Clicker.
             Map.entry("terminator clicker", "shortbow auto clicker"),
             Map.entry("terminator auto", "shortbow auto clicker"),
