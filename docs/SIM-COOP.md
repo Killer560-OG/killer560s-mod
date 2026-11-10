@@ -1,4 +1,4 @@
-# Co-op dungeon sim (phase 1)
+# Co-op dungeon sim (phases 1 and 2)
 
 Branch `staging-coopsim` (post-2.0 staging: never shipped before 2.0). A second player joins the host's sim world over
 LAN (vanilla "Open to LAN"). The host's integrated server stays the only thing that writes the world; a guest's client
@@ -6,7 +6,7 @@ only reads and predicts.
 
 ## Protocol
 
-Three Fabric play payloads, `killer560smod:` namespace, defined in `roomsim/SimCoop` (protocol `SimCoop.PROTOCOL` = 1;
+Three Fabric play payloads, `killer560smod:` namespace, defined in `roomsim/SimCoop` (protocol `SimCoop.PROTOCOL` = 2 since phase 2;
 bump it on any field change, a guest refuses any other number).
 
 - `sim_hello` (S2C) and `sim_state` (S2C), one record `SimCoop.Info`: protocol, mod version, MC version, mode
@@ -23,7 +23,8 @@ server and 2+ players): greets each non-host player whose client registered the 
 once, then sends `sim_state` when mode/floor/master/phase/section changed. The host is `server.isSingleplayerOwner`.
 It also keeps the party (host first) that `SimTabList` shows as `Party (n)`; with one player the tab is unchanged.
 
-Nonce: phase 1 has no ticket (0); the LAN join is the ticket. `SimGuest.ticketMatches` is the hook for phase 2's lobby.
+Nonce: a plain LAN or address join has no ticket (0). A join through the Join page carries the room's key as the hello's
+nonce and the relay ticket's nonce in the ack (`SimGuest.Pending`, `ticketMatches`; see Multiplayer below).
 
 ## Guest side and gates
 
@@ -103,7 +104,49 @@ Test counters: `SimGuest.acceptedForTest/refusedForTest/guestForTest()` ({arrive
     host false); a guest left click fires it (`salvationsForTest` +1, `guestForTest()[1]` +1) and the beam's damage
     source is the guest; the host's own Salvation is unchanged.
 
+## Multiplayer (phase 2: Create, Join, Session, requests)
+
+The sim menu's **Multiplayer** entry (`SimMenuNav`, its own separator above Back, set apart from the builders) opens
+`SimMultiplayerScreen`: tabs Create and Join, and a Session page while hosting or joined (a guest reaches it from the pause
+menu's "Sim Session", `SimPauseEntry`).
+
+- **Create** (`SimHost.create`): Room Name (relay cap 32), Password (optional), Max Players 2-5. Starts the F7 boss sim,
+  publishes the integrated server on a free port (LAN, authentication off as vanilla's Open to LAN), asks the router
+  (`SimUpnp`), and lists the room (`SimRooms.create`, relay `/simrooms/*`, metadata only: name, lock, players, max, mode,
+  versions and the public endpoint when UPnP opened one). The room is refreshed every 600 server ticks and at once when a
+  guest comes or goes (the relay's capacity is players + live tickets); the refresh answer carries new tickets. Close or
+  leaving sends a relay delete and removes the port mapping. With guests in, Close Room and the pause menu's quit ask
+  first ("N player(s) will be disconnected.").
+- **UPnP** (`SimUpnp`): SSDP M-SEARCH, the WANIPConnection/WANPPPConnection control URL, AddPortMapping (TCP, lease 0 = until removed; Close and leaving delete it),
+  GetExternalIPAddress. Every failure says why and what is left: "Your router did not open the port (<reason>): friends on
+  your network can still join; others need port forwarding of TCP port N." In a client gametest UPnP is OFF unless
+  `-Dkiller560.simcoop.ssdp=host:port` names a gateway (the testkit's `FakeGateway`), so no test ever asks the real router.
+- **Join**: the relay list for this MC version (fetched on opening Join, on Refresh, and at most every 30 s while open),
+  rows "[Locked] name  -  owner  p/max  mode  vX". A locked room asks for its password. `SimRooms.join` gets a ticket
+  (nonce, 120 s) and the owner's endpoint; 403 "Wrong password.", 409 "That room is full.", 404 "That room is gone.", no
+  endpoint "That room is LAN only: pick it in the LAN list", another `protocol` refused before asking. Also join by address
+  (host:port) and the LAN list (vanilla `LanServerDetection`). A ticket's address is trusted like a private one by
+  `SimGuest.eligible` (the receivers register for that connection only).
+- **Admission** (`SimHost.serverTick` / `acked`): in a locked or listed room a guest must name a live ticket for its uuid in
+  its `sim_hello_ack` within `ADMIT_TICKS` (240 server ticks), else it is kicked "Join through the Multiplayer menu.". A
+  ticket unknown to the host forces a refresh first. A guest over Max is refused "This room is full." at once. The owner's
+  Session page lists guests with Kick ("The owner kicked you.").
+- **Ended**: a guest dropped by the owner sees `SimSessionEndedScreen`, "Session ended: the owner left" / "...kicked you" /
+  "...closed the room", with Back to Sim Menu.
+- **Requests** (`SimRequests`, C2S `sim_request(kind, arg)`): Teleport (to the owner or a room), Speed (100-500), Fly,
+  Apply My Loadout, Item. The host's server runs each for the SENDER only and answers "[Sim] ..." in its chat; each kind
+  sits behind a saved owner switch (`SimCoopConfig`, `killer560smod-sim-coop.json`, on by default, in `ProfileManager`),
+  refused "The owner does not let guests <verb>.". The owner's own requests are refused. Nothing here writes a position on
+  the guest's client: a teleport is the server's (`SimArrival.teleport`, held as in phase 1).
+
+Testkit (staging-coopsim, `CoopMultiplayerTests`, relay stub `coop/SimRoomsStub`, `coop/FakeGateway`): 1109-mp-menu (entry
+placement, Join list, password, full, protocol, Refresh), 1109-mp-upnp (off, silent, refused, mapped, unmapped), 1109-mp-host
+(publish, mapping, listing with the public endpoint, ticketless kick, ticket admit, Max refusal, every request for the sender
+only, a switched-off kind refused and saved, Kick, the two warnings, Close deletes listing and mapping), 1109-mp-two (two
+clients through `run-coop.sh -s 1109-mp-two`: Join page, wrong then right password, admitted and kept, Session page via the
+pause menu, speed honored then refused, Kick -> ended screen -> Back, rejoin, owner leaves -> "Session ended: the owner left").
+
 ## Not done (phase 2+)
 
-The lobby ticket (nonce). After a floor rebuild only the host is moved from the holding area to the landing
+After a floor rebuild only the host is moved from the holding area to the landing
 (`SimBuilder` teleports `uuid` alone); guests stay on the holding barrier until moved.

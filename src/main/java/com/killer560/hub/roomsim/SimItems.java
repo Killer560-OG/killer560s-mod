@@ -280,6 +280,25 @@ public final class SimItems {
         return false;
     }
 
+    /** The ids {@link #giveTo} hands out, in the give list's order (a co-op guest's Session page offers them). */
+    public static java.util.List<String> giveIds() {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (GiveItem item : GiveItem.values()) ids.add(item.skyblockId);
+        return ids;
+    }
+
+    /** Server thread: gives {@code sp} one item of the give list (a co-op guest's request); false for any other id. */
+    static boolean giveTo(ServerPlayer sp, String skyblockId) {
+        for (GiveItem item : GiveItem.values()) {
+            if (item.skyblockId.equalsIgnoreCase(skyblockId)) {
+                ItemStack stack = build(item);
+                if (!sp.getInventory().add(stack)) com.killer560.hub.compat.McEntities.serverDrop(sp, stack);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Builds the stack on the client thread (cheap, no world access needed) and hands it to the SERVER's
      * player on the server thread - same reasoning as {@link SimAbilities#teleport}: only a change made to

@@ -37,6 +37,21 @@ public final class SimGuest {
     /** Landings the host announced and Terminator clicks sent, for tests. */
     private static volatile int arrivesSeen, clicksSent;
 
+    /**
+     * The relay ticket of the room the Join page joined (phase 2): its nonce goes in the ack, its room key must be the
+     * hello's nonce, and its address (the host's public one, or null for LAN only) is trusted like a private address.
+     */
+    record Pending(String roomId, String nonce, long expiresMs, String address, long roomKey) {
+    }
+
+    private static volatile Pending pending;
+    /** The host's bye, and whether this client left by its own Leave; read when the connection drops. */
+    private static volatile String byeReason;
+    private static volatile boolean ownLeave;
+    /** Why the last session ended, until its screen is up; client ticks waited for the disconnect screen. */
+    private static String endedReason;
+    private static int endedWait;
+
     private SimGuest() {
     }
 
@@ -46,6 +61,7 @@ public final class SimGuest {
             ClientPlayNetworking.registerReceiver(SimCoop.HELLO, (info, ctx) -> receive(info));
             ClientPlayNetworking.registerReceiver(SimCoop.STATE, (info, ctx) -> receive(info));
             ClientPlayNetworking.registerReceiver(SimCoop.ARRIVE, (a, ctx) -> arrive(a));
+            ClientPlayNetworking.registerReceiver(SimCoop.BYE, (b, ctx) -> byeReason = b.reason());
         });
         // DISCONNECT is on the netty thread and a task queued from it can be dropped (code-lessons): a flag the
         // render thread drains.
@@ -53,6 +69,7 @@ public final class SimGuest {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (PENDING_DROP.getAndSet(false)) drop();
             if (current != null || pendingArrive >= 0) guestTick(client);
+            if (endedReason != null) showEnded(client);
         });
     }
 
@@ -125,7 +142,7 @@ public final class SimGuest {
             if (ClientPlayNetworking.canSend(SimCoop.ACK)) {
                 ClientPlayNetworking.send(new SimCoop.Ack(SimCoop.PROTOCOL, modVersion(), mc(),
                         com.killer560.hub.autoupdate.BuildInfo.shortCommit(),
-                        com.killer560.hub.autoupdate.BuildInfo.variant()));
+                        com.killer560.hub.autoupdate.BuildInfo.variant(), pending == null ? "" : pending.nonce()));
             }
         }
         boolean boss = !info.phase().equals("IDLE") && !info.phase().equals("DONE");
@@ -136,10 +153,50 @@ public final class SimGuest {
         }
     }
 
+    /** Join page: the next connection is to the room this ticket is for. */
+    static void expect(Pending ticket) {
+        pending = ticket;
+        byeReason = null;
+        ownLeave = false;
+    }
+
+    /** Leave on the Session page: back to the sim menu, no Session Ended screen. */
+    public static void leave(Minecraft client) {
+        ownLeave = true;
+        if (client.level != null) client.level.disconnect(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);
+        client.disconnect(SimMenuNav.open(new net.minecraft.client.gui.screens.TitleScreen()), false);
+    }
+
+    /** Puts the Session Ended screen over vanilla's disconnect screen once it is up (at most 5 s later). */
+    private static void showEnded(Minecraft client) {
+        if (client.level != null) {
+            if (++endedWait > 200) endedReason = null; // already in another world
+            return;
+        }
+        var screen = com.killer560.hub.compat.McCompat.screen(client);
+        if (screen instanceof net.minecraft.client.gui.screens.DisconnectedScreen
+                || screen instanceof net.minecraft.client.gui.screens.TitleScreen
+                || screen instanceof net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen
+                || ++endedWait > 100) {
+            com.killer560.hub.compat.McCompat.setScreen(client, new SimSessionEndedScreen(endedReason));
+            endedReason = null;
+        }
+    }
+
+    /** Why the last guest session ended ("the owner left"), or null while none ended; for tests. */
+    public static String endedForTest() { return SimSessionEndedScreen.lastReason(); }
+
     private static void drop() {
         pendingArrive = -1;
         wasAttacking = false;
+        pending = null;
         if (current == null) return;
+        if (!ownLeave) {
+            endedReason = byeReason != null ? byeReason : "the connection to the owner was lost";
+            endedWait = 0;
+        }
+        byeReason = null;
+        ownLeave = false;
         current = null;
         com.killer560.hub.secrets.DungeonState.simBossEnds();
         // The host's own sim sets this too, but a client cannot be host and guest at once: the guest's own
@@ -159,6 +216,8 @@ public final class SimGuest {
         if (data == null || data.ip == null) return false;
         String ip = data.ip.toLowerCase(Locale.ROOT);
         if (ip.contains("hypixel.net") || ip.contains("p3sim.net")) return false;
+        Pending p = pending;
+        if (p != null && p.address() != null && p.address().equalsIgnoreCase(data.ip)) return true;
         SocketAddress remote = conn.getConnection().getRemoteAddress();
         return remote instanceof InetSocketAddress isa && privateAddress(isa.getAddress());
     }
@@ -170,11 +229,14 @@ public final class SimGuest {
     }
 
     /**
-     * The join ticket. Phase 1: a LAN join is the ticket (the address was already checked private), so any nonce
-     * passes once {@link ServerData#isLan} or the private address holds. Phase 2's lobby checks its ticket here.
+     * The join ticket. A join through the Join page must reach the room it asked for: the hello's nonce is that room's
+     * key. A plain LAN or address join has no ticket and takes any host (the address was checked private); a locked or
+     * listed host then kicks it, which is the host's rule, not the guest's.
      */
     static boolean ticketMatches(long nonce, Minecraft client) {
-        return client.getCurrentServer() != null;
+        if (client.getCurrentServer() == null) return false;
+        Pending p = pending;
+        return p == null || nonce == p.roomKey();
     }
 
     static String modVersion() {

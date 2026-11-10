@@ -96,9 +96,9 @@ public final class SimSurvival {
         // Flight has to be re-asserted: the server resets abilities on respawn, on dimension change and
         // whenever it feels like syncing them, so setting the flag once does not keep it.
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (!flying || !SimState.isActive()) return;
+            if (!flying && GUEST_FLY.isEmpty() || !SimState.isActive()) return;
             for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-                if (!sp.getAbilities().mayfly) {
+                if ((flying || GUEST_FLY.contains(sp.getUUID())) && !sp.getAbilities().mayfly) {
                     sp.getAbilities().mayfly = true;
                     sp.onUpdateAbilities();
                 }
@@ -117,6 +117,16 @@ public final class SimSurvival {
     }
 
     private static boolean flying;
+    /** Co-op guests who asked for flight for themselves (server thread); cleared with the sim. */
+    private static final java.util.Set<java.util.UUID> GUEST_FLY = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Server thread: flight on or off for one player only (a co-op guest's request). */
+    static void setFlight(ServerPlayer sp, boolean on) {
+        if (on) GUEST_FLY.add(sp.getUUID()); else GUEST_FLY.remove(sp.getUUID());
+        sp.getAbilities().mayfly = on || flying;
+        if (!sp.getAbilities().mayfly) sp.getAbilities().flying = false;
+        sp.onUpdateAbilities();
+    }
 
     private static void toggle() {
         Minecraft client = Minecraft.getInstance();
@@ -140,6 +150,7 @@ public final class SimSurvival {
     /** Turns flight back off and forgets the room, for leaving the sim. */
     public static void reset() {
         flying = false;
+        GUEST_FLY.clear();
         homePoint = null;
     }
 }

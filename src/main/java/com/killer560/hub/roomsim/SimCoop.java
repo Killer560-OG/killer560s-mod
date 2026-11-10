@@ -32,7 +32,7 @@ public final class SimCoop {
 
     static final Logger LOGGER = ModLog.get("killer560smod-simcoop");
     /** Bumped on any change to a payload's fields; a guest refuses any other number. */
-    public static final int PROTOCOL = 1;
+    public static final int PROTOCOL = 2;
     private static final int STR = 64;
     /** How often, in server ticks, the host greets new players and checks the state for a change. */
     private static final int EVERY = 10;
@@ -65,8 +65,11 @@ public final class SimCoop {
         }
     }
 
-    /** The guest's answer: its build, so the host's log says who joined with what. */
-    public record Ack(int proto, String modVersion, String mc, String commit, String variant)
+    /**
+     * The guest's answer: its build, so the host's log says who joined with what, and the relay ticket it joined with
+     * (hex, blank for a plain LAN or address join), which {@link SimHost} checks in a locked or listed room.
+     */
+    public record Ack(int proto, String modVersion, String mc, String commit, String variant, String ticket)
             implements CustomPacketPayload {
         public Type<Ack> type() { return ACK; }
 
@@ -76,11 +79,17 @@ public final class SimCoop {
             b.writeUtf(mc, STR);
             b.writeUtf(commit, STR);
             b.writeUtf(variant, STR);
+            b.writeUtf(ticket, STR);
         }
 
         static Ack read(FriendlyByteBuf b) {
-            return new Ack(b.readVarInt(), b.readUtf(STR), b.readUtf(STR), b.readUtf(STR), b.readUtf(STR));
+            return new Ack(b.readVarInt(), b.readUtf(STR), b.readUtf(STR), b.readUtf(STR), b.readUtf(STR), b.readUtf(STR));
         }
+    }
+
+    /** Host -> guest, just before the host's server drops it: why ("the owner left"), for its Session Ended screen. */
+    public record Bye(String reason) implements CustomPacketPayload {
+        public Type<Bye> type() { return BYE; }
     }
 
     /**
@@ -118,6 +127,7 @@ public final class SimCoop {
     public static final CustomPacketPayload.Type<Arrive> ARRIVE = type("sim_arrive");
     public static final CustomPacketPayload.Type<Arrived> ARRIVED = type("sim_arrived");
     public static final CustomPacketPayload.Type<Click> CLICK = type("sim_click");
+    public static final CustomPacketPayload.Type<Bye> BYE = type("sim_bye");
 
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> type(String path) {
         return new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("killer560smod", path));
@@ -175,9 +185,13 @@ public final class SimCoop {
         PayloadTypeRegistry.serverboundPlay().register(ACK, CustomPacketPayload.codec(Ack::write, Ack::read));
         ServerPlayNetworking.registerGlobalReceiver(ACK, (ack, ctx) -> {
             acks++;
-            LOGGER.info("[SimCoop] {} joined with protocol {} mod {} MC {} {} {}", ctx.player().getGameProfile().name(),
-                    ack.proto(), ack.modVersion(), ack.mc(), ack.variant(), ack.commit());
+            LOGGER.info("[SimCoop] {} joined with protocol {} mod {} MC {} {} {}{}", ctx.player().getGameProfile().name(),
+                    ack.proto(), ack.modVersion(), ack.mc(), ack.variant(), ack.commit(),
+                    ack.ticket().isEmpty() ? "" : " (ticket)");
+            SimHost.acked(ctx.player(), ack.ticket());
         });
+        PayloadTypeRegistry.clientboundPlay().register(BYE,
+                CustomPacketPayload.codec((m, b) -> b.writeUtf(m.reason(), STR), b -> new Bye(b.readUtf(STR))));
         PayloadTypeRegistry.clientboundPlay().register(ARRIVE, CustomPacketPayload.codec(Arrive::write, Arrive::read));
         PayloadTypeRegistry.serverboundPlay().register(ARRIVED,
                 CustomPacketPayload.codec((a, b) -> b.writeVarInt(a.seq()), b -> new Arrived(b.readVarInt())));
@@ -186,6 +200,13 @@ public final class SimCoop {
         ServerPlayNetworking.registerGlobalReceiver(CLICK, (c, ctx) -> SimTerminator.guestLeftClick(ctx.player()));
         ServerTickEvents.END_SERVER_TICK.register(SimCoop::serverTick);
         SimGuest.register();
+        SimRequests.register();
+        SimHost.register();
+    }
+
+    /** Server thread: tells a modded guest why it is about to be dropped. */
+    static void bye(ServerPlayer sp, String reason) {
+        if (sp.connection != null && ServerPlayNetworking.canSend(sp, BYE.id())) ServerPlayNetworking.send(sp, new Bye(reason));
     }
 
     /** Whether this server player is the one whose game is hosting (the singleplayer owner). */
@@ -270,6 +291,7 @@ public final class SimCoop {
         if (ticks % EVERY != 0) return;
         Minecraft client = Minecraft.getInstance();
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        if (client.getSingleplayerServer() == server) SimHost.serverTick(players, ticks);
         if (!SimState.isActive() || client.getSingleplayerServer() != server || players.size() < 2) {
             if (!greeted.isEmpty() || !party.names().isEmpty()) {
                 greeted.clear();
@@ -306,19 +328,23 @@ public final class SimCoop {
         if (!key.equals(party.key())) party = new Party(List.copyOf(names), key);
     }
 
+    /** What is playing, for the room list and the Session page: "boss F7", "floor F5", "room". */
+    static String modeLabel() {
+        String mode = mode();
+        String floor = SimState.floorLabel();
+        return mode.equals("room") || floor == null || floor.isEmpty() ? mode : mode + " " + floor;
+    }
+
+    private static String mode() {
+        return com.killer560.hub.bosssim.BossFight.running() ? "boss" : SimState.isGeneratedFloor() ? "floor" : "room";
+    }
+
     private static Info info(MinecraftServer server, boolean hello) {
         var fight = com.killer560.hub.bosssim.BossFight.phase();
-        boolean boss = com.killer560.hub.bosssim.BossFight.running();
-        String mode = boss ? "boss" : SimState.isGeneratedFloor() ? "floor" : "room";
+        String mode = mode();
         var owner = server.getSingleplayerProfile();
         return new Info(hello, PROTOCOL, SimGuest.modVersion(), SimGuest.mc(),
                 mode, SimState.floorLabel(), com.killer560.hub.bosssim.BossFight.master(), fight.name(),
-                com.killer560.hub.bosssim.BossFight.section(), owner == null ? "" : owner.name(), lanNonce());
+                com.killer560.hub.bosssim.BossFight.section(), owner == null ? "" : owner.name(), SimHost.roomKey());
     }
-
-    /**
-     * The join ticket. Phase 1 has none: a LAN join (the guest checks the address is private) is the ticket, so this
-     * is 0. Phase 2's lobby puts its ticket here and {@link SimGuest#ticketMatches} checks it.
-     */
-    private static long lanNonce() { return 0L; }
 }

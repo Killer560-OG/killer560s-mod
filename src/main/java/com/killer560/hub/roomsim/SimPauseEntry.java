@@ -56,7 +56,16 @@ public final class SimPauseEntry {
     public static void register() { ScreenEvents.AFTER_INIT.register(SimPauseEntry::onScreenInit); }
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
-        if (!(screen instanceof PauseScreen) || !SimState.canAct(client)) return;
+        if (!(screen instanceof PauseScreen)) return;
+        if (SimGuest.isGuest(client)) {
+            // A co-op guest has no builders: its way into the sim menu is the Session page (coopsim phase 2).
+            Screens.getWidgets(screen).add(Button.builder(Component.literal(SESSION_LABEL),
+                            btn -> McCompat.setScreen(client, new SimMultiplayerScreen(screen)))
+                    .bounds(screen.width / 2 - WIDTH / 2, belowVanillaColumn(screen, null), WIDTH, 20).build());
+            return;
+        }
+        if (!SimState.canAct(client)) return;
+        if (SimHost.hosting()) guardQuit(client, screen);
         // DIRECTLY UNDER THE LAST VANILLA BUTTON, at vanilla's own width and spacing.
         //
         // killer560 (2026-10-04): it "sits alone at the very bottom of the Game Menu screen, far below the
@@ -130,6 +139,36 @@ public final class SimPauseEntry {
     }
 
     static final String NEXT_LABEL = "Next room (All Rooms)";
+
+    static final String SESSION_LABEL = "Sim Session";
+
+    /**
+     * While guests are in his room, Save and Quit asks first ("N players will be disconnected"): leaving the world is
+     * the one path that drops them (the sim menu builds in place while he is in the sim).
+     */
+    private static void guardQuit(Minecraft client, Screen screen) {
+        Component label = net.minecraft.network.chat.CommonComponents.disconnectButtonLabel(true);
+        var widgets = Screens.getWidgets(screen);
+        for (int i = 0; i < widgets.size(); i++) {
+            if (!(widgets.get(i) instanceof Button quit) || !label.equals(quit.getMessage())) continue;
+            Button guarded = Button.builder(quit.getMessage(), btn -> {
+                int n = SimHost.guests().size();
+                if (n == 0) {
+                    quit.onPress(new net.minecraft.client.input.KeyEvent(
+                            com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                    return;
+                }
+                McCompat.setScreen(client, new net.minecraft.client.gui.screens.ConfirmScreen(ok -> {
+                    McCompat.setScreen(client, screen);
+                    if (ok) quit.onPress(new net.minecraft.client.input.KeyEvent(
+                            com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+                }, Component.literal("Leave the sim?"), Component.literal(SimMultiplayerScreen.disconnectWarning(n))));
+            }).bounds(quit.getX(), quit.getY(), quit.getWidth(), quit.getHeight()).build();
+            widgets.remove(i);
+            widgets.add(guarded);
+            return;
+        }
+    }
 
     private static WeakReference<AbstractWidget> nextButton = new WeakReference<>(null);
 
