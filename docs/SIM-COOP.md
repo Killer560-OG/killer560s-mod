@@ -1,4 +1,4 @@
-# Co-op dungeon sim (phases 1, 2, 3 and 5)
+# Co-op dungeon sim (phases 1, 2, 3 and 5, party chat)
 
 Branch `staging-coopsim` (post-2.0 staging: never shipped before 2.0). A second player joins the host's sim world over
 LAN (vanilla "Open to LAN"). The host's integrated server stays the only thing that writes the world; a guest's client
@@ -224,9 +224,11 @@ picture changed or a guest has not had it. Painted every 10 client ticks while g
 started (Hypixel hands the map over at the start). Its calibration assumes the F5-F7 corner; E-F4 floors read 6x6
 as well in the sim, but a guest whose floor reads E-F4 would use NoammAddons' corner for that floor.
 
-Not done: the tab's class text stays "Mage" for every row (no class pick in co-op yet); a guest's own Ice Path arrows work,
-but the fish respawn check uses the host's position; Blaze, Ice Path and Water Board have no guest test yet
-(only Tic Tac Toe, doors, essences, room clears and deaths do).
+Class text: the sim has one class (Mage, `SimClass`), so every tab row reading "Mage L" is right for a guest too; there is no per-player
+pick to read (1109-coopfloor-fake asserts the guest's row). The Ice Path fish is put back when ANY real player is within 24 blocks of its
+cell, read on the server (`SimCoop.playerNear`), not the host's position (1109-coopfloor-ice: host 60 blocks away, guest on the cell, fish
+removed, a new one appears). Blaze and Water Board have no guest test (their puzzle code answers any player; only Tic Tac Toe, doors,
+essences, room clears, deaths and the Ice Path respawn do).
 
 Tests: testkit `CoopFloorTests` 1109-coopfloor-fake (fake guest on a real F7: map sent and calibratable, a room cleared
 by its visit, its essence credited to it, its wither key opens a door, its death counted for it, its Tic Tac Toe move
@@ -239,3 +241,14 @@ Test lessons (coopsim-p5): a fake guest (testkit GuestPlayer) never acknowledges
 awaitingPositionFromClient; a real client acks at once. Sim doors are carved only in loaded chunks and a floor may have no
 shut wither door near the party, so the door check makes one (SimDoors.makeWitherDoor) on the door nearest the host.
 Two runs in one testkit checkout at once kill each other (the client exits -1): run them one after another.
+
+## Party chat (coopsim final pass)
+
+`roomsim/SimPartyChat` hooks `ClientSendMessageEvents.ALLOW_COMMAND` for `/pc`, `/pchat`, `/party chat` and `/p chat` while the sim's state is held
+(host: `SimState.canAct`; guest: `SimState.isGuest`), and swallows the command. With one player it shows "You are not in a party right now.".
+With a session, the host's line is handled on his server (`SimPartyChat.say`); a guest's goes up as the C2S payload `sim_pc` (`SimCoop.PartyMsg`,
+text capped at 256, registered with the other payloads, so a guest's `/pc` is never sent to the host's server as a command and nothing writes a
+position). The host's server broadcasts `Party > Name: message` (blue, dark gray, aqua name, white text; no rank, the sim has none) to every real
+player through `SimCoop.broadcast`. Nothing is registered on Hypixel: a guest's receivers exist only on a private non-Hypixel address, and the hook
+acts only while the sim's state is held. PROTOCOL stays 2 (a new payload, no changed field). Test: 1109-coopfloor-two (`/pc` both ways in party format,
+`SimPartyChat.sentForTest`, no "Unknown or incomplete"); simlights' 1109-boss-lights keeps the alone line.
