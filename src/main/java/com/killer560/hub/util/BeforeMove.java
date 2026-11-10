@@ -32,6 +32,7 @@ public final class BeforeMove {
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(HEAD, Event.DEFAULT_PHASE);
         ClientTickEvents.START_CLIENT_TICK.register(HEAD, client -> {
+            HandDigAim.tick(client);
             if (!QUEUE.isEmpty()) {
                 sentLate += QUEUE.size();
                 flush();
@@ -65,6 +66,12 @@ public final class BeforeMove {
 
     private static boolean holdFlush;
     private static boolean flushOwed;
+
+    /** {@link HandDigAim}: hold the flush of his dig's packets until this tick's movement packet carries their look. */
+    static void holdUntilMove(boolean on) {
+        holdFlush = on;
+        flushOwed |= on;
+    }
     private static int heldFlushes;
 
     /** For {@code Ap3SendTogetherMixin}: hold this send's flush (only BeforeMove's own sends, render thread). */

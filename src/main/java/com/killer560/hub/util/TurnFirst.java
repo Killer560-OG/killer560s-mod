@@ -48,7 +48,23 @@ public final class TurnFirst {
     private static final java.util.List<java.util.function.BooleanSupplier> BODY_OWNERS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
 
-    public static void registerBodyOwner(java.util.function.BooleanSupplier owner) { BODY_OWNERS.add(owner); }
+    /** Owners that let his own dig turn the body (util/HandDigAim); asked only when he digs, true = yielded. */
+    private static final java.util.List<java.util.function.BooleanSupplier> HAND_YIELDS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void registerBodyOwner(java.util.function.BooleanSupplier owner, java.util.function.BooleanSupplier yieldsToHand) {
+        BODY_OWNERS.add(owner);
+        HAND_YIELDS.add(() -> !owner.getAsBoolean() || yieldsToHand.getAsBoolean());
+    }
+
+    /** Whether an owner that does not yield to his dig holds the body now. */
+    static boolean bodyOwnedAgainstHand() {
+        if (!bodyOwned()) return false;
+        for (java.util.function.BooleanSupplier y : HAND_YIELDS) {
+            if (!y.getAsBoolean()) return true;
+        }
+        return false;
+    }
 
     /**
      * The yaws the body may be turned to right now without changing where he is being walked, or null for any yaw
@@ -308,7 +324,7 @@ public final class TurnFirst {
 
     /** The first allowed yaw with a pitch (searched out from {@code pitch0} in quarter degrees) whose ray from {@code eye}
      *  meets the target within {@code reach}; null when none does. */
-    private static float[] walkKeyedLook(float[] yaws, Vec3 eye, float pitch0, java.util.function.BiPredicate<Vec3, Vec3> ray,
+    static float[] walkKeyedLook(float[] yaws, Vec3 eye, float pitch0, java.util.function.BiPredicate<Vec3, Vec3> ray,
                                          double reach, int pitchSteps) {
         for (float yaw : yaws) {
             for (int i = 0; i <= pitchSteps; i++) {
