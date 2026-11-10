@@ -75,7 +75,8 @@ public final class HypixelLocation {
      *  selected and enabled and the last answer is stale enough to be worth refreshing; never sends
      *  otherwise (Party mode never touches this at all). */
     public static void tick(Minecraft client, boolean lobbyModeNeeded) {
-        if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)) return;
+        if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)
+                || com.killer560.hub.roomsim.SimState.isGuest(client)) return; // a co-op guest is on the host's private server, no Hypixel to ask
         // Not in a local world. getConnection() is NOT null in singleplayer - the integrated server is reached
         // over a connection like any other - so that check alone let this type "/locraw" into the dungeon sim
         // and into an Ashfall practice room, where the answer is Minecraft's own "Unknown or incomplete
