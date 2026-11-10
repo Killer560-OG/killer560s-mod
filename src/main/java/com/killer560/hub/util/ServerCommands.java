@@ -57,31 +57,15 @@ public final class ServerCommands {
 
     /**
      * The dungeon sim has no chat channels (its integrated server has no /pc and would answer "Unknown or incomplete
-     * command"). A mod-sent channel command is answered here as Hypixel would: party chat shows its "Party >" line,
+     * command"). A mod-sent channel command is answered here as Hypixel would: party chat goes to SimPartyChat (host and guest),
      * the other channels stay silent. Never true on a real server.
      */
     private static boolean simChat(LocalPlayer player, String command) {
         Minecraft client = Minecraft.getInstance();
-        if (!com.killer560.hub.roomsim.SimState.canAct(client)) return false;
+        if (!com.killer560.hub.roomsim.SimState.canAct(client) && !com.killer560.hub.roomsim.SimState.isGuest(client)) return false;
+        if (com.killer560.hub.roomsim.SimPartyChat.handle(command)) return true;
         String c = command.strip();
         int sp = c.indexOf(' ');
-        String word = (sp < 0 ? c : c.substring(0, sp)).toLowerCase(java.util.Locale.ROOT);
-        String text = sp < 0 ? "" : c.substring(sp + 1).strip();
-        if (word.equals("p") || word.equals("party")) {
-            if (!text.regionMatches(true, 0, "chat ", 0, 5)) return false;
-            word = "pc";
-            text = text.substring(5).strip();
-        }
-        if (!OutgoingChat.CHAT_COMMANDS.contains(word)) return false;
-        if ((word.equals("pc") || word.equals("pchat")) && !text.isEmpty()) {
-            net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("Party")
-                    .withStyle(net.minecraft.ChatFormatting.BLUE)
-                    .append(net.minecraft.network.chat.Component.literal(" > ").withStyle(net.minecraft.ChatFormatting.DARK_GRAY))
-                    .append(net.minecraft.network.chat.Component.literal(player.getGameProfile().name())
-                            .withStyle(net.minecraft.ChatFormatting.GRAY))
-                    .append(net.minecraft.network.chat.Component.literal(": " + text).withStyle(net.minecraft.ChatFormatting.WHITE));
-            player.sendSystemMessage(line);
-        }
-        return true;
+        return OutgoingChat.CHAT_COMMANDS.contains((sp < 0 ? c : c.substring(0, sp)).toLowerCase(java.util.Locale.ROOT));
     }
 }

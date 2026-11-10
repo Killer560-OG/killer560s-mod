@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 /**
  * Party chat in the sim (killer560, 2026-11-09: a position message sent {@code /pc at ee2} and the integrated server
  * printed "Unknown or incomplete command"). {@code /pc}, {@code /pchat}, {@code /party chat} and {@code /p chat} are
- * swallowed. Alone, "You are not in a party right now." (red) is shown, as Hypixel does for a player in no party. In a
+ * swallowed. Alone, the local "Party > Name: text" line shows (a bare /pc: "You are not in a party right now.", red). In a
  * co-op session the host's server sends "Party > Name: msg" to every real player: the host's line is handled here, a
  * guest's goes up as {@link SimCoop.PartyMsg} (never as a command to the host's server, no position write). The hook
  * acts only while the sim's state is held, which Hypixel never sets.
@@ -36,11 +36,20 @@ public final class SimPartyChat {
 
     /** False (not sent) for a party chat command in the sim; the command comes without its slash. */
     static boolean allow(String command) {
+        return !handle(command);
+    }
+
+    /**
+     * The ONE party chat path, for a typed command (ALLOW_COMMAND) and a mod-sent one ({@code ServerCommands}): true
+     * when the command was a party chat in the sim and is answered here (co-op: everyone sees it; alone: the local
+     * "Party > Name: text" line), false for anything else.
+     */
+    public static boolean handle(String command) {
         Matcher m = PARTY_CHAT.matcher(command.strip());
         Minecraft client = Minecraft.getInstance();
         boolean host = SimState.canAct(client);
         if (!m.matches() || !host && !SimState.isGuest(client)) {
-            return true;
+            return false;
         }
         String text = m.group(1) == null ? "" : m.group(1).strip();
         MinecraftServer server = client.getSingleplayerServer();
@@ -54,21 +63,26 @@ public final class SimPartyChat {
         } else if (!host && !text.isEmpty() && ClientPlayNetworking.canSend(SimCoop.PARTY_MSG)) {
             ClientPlayNetworking.send(new SimCoop.PartyMsg(text));
             sentForTest++;
+        } else if (host && !text.isEmpty() && client.player != null) {
+            client.player.sendSystemMessage(line(client.player.getGameProfile().name(), text));
         } else {
             ModChat.sendBare(ModChat.colored("You are not in a party right now.", 0xFF5555));
         }
-        return false;
+        return true;
     }
 
     /** Server thread: one party chat line to every real player. */
     static void say(ServerPlayer from, String text) {
         MinecraftServer server = from.level().getServer();
         if (server == null || text.isBlank()) return;
-        Component line = Component.literal("Party ").withStyle(ChatFormatting.BLUE)
+        SimCoop.broadcast(server, line(from.getGameProfile().name(), text));
+    }
+
+    private static Component line(String name, String text) {
+        return Component.literal("Party ").withStyle(ChatFormatting.BLUE)
                 .append(Component.literal("> ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal(from.getGameProfile().name()).withStyle(ChatFormatting.AQUA))
+                .append(Component.literal(name).withStyle(ChatFormatting.AQUA))
                 .append(Component.literal(": " + text).withStyle(ChatFormatting.WHITE));
-        SimCoop.broadcast(server, line);
     }
 
     /** Guest /pc lines sent up, for tests. */

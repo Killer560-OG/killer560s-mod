@@ -245,10 +245,12 @@ Two runs in one testkit checkout at once kill each other (the client exits -1): 
 ## Party chat (coopsim final pass)
 
 `roomsim/SimPartyChat` hooks `ClientSendMessageEvents.ALLOW_COMMAND` for `/pc`, `/pchat`, `/party chat` and `/p chat` while the sim's state is held
-(host: `SimState.canAct`; guest: `SimState.isGuest`), and swallows the command. With one player it shows "You are not in a party right now.".
+(host: `SimState.canAct`; guest: `SimState.isGuest`), and swallows the command. There is ONE path, `SimPartyChat.handle(command)` (simpc-1110): the ALLOW_COMMAND hook calls it for a typed command and
+`util/ServerCommands.toServer` for a mod-sent one (which also swallows the other channel commands silently, no "Unknown command"). With one player a
+/pc with text shows the local "Party > Name: text" line and a bare /pc "You are not in a party right now.".
 With a session, the host's line is handled on his server (`SimPartyChat.say`); a guest's goes up as the C2S payload `sim_pc` (`SimCoop.PartyMsg`,
 text capped at 256, registered with the other payloads, so a guest's `/pc` is never sent to the host's server as a command and nothing writes a
 position). The host's server broadcasts `Party > Name: message` (blue, dark gray, aqua name, white text; no rank, the sim has none) to every real
 player through `SimCoop.broadcast`. Nothing is registered on Hypixel: a guest's receivers exist only on a private non-Hypixel address, and the hook
 acts only while the sim's state is held. PROTOCOL stays 2 (a new payload, no changed field). Test: 1109-coopfloor-two (`/pc` both ways in party format,
-`SimPartyChat.sentForTest`, no "Unknown or incomplete"); simlights' 1109-boss-lights keeps the alone line.
+`SimPartyChat.sentForTest`, no "Unknown or incomplete"); simlights' 1109-boss-lights keeps the alone line; 1110-sim-partychat covers the mod-sent solo path.
