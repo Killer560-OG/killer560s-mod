@@ -110,6 +110,15 @@ public final class SimSecrets {
             if (!PLACED_WITHER.remove(at)) return net.minecraft.world.InteractionResult.PASS;
             level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
             SimScore.secretFound(at);
+            SimScore.creditSecret(sp.getUUID());
+            if (!SimCoop.isHost(sp)) {
+                // A co-op guest's own pickup line goes to him (coopsim-p5); the host's waypoint still marks it.
+                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Wither essence collected")
+                        .withStyle(net.minecraft.ChatFormatting.GREEN));
+                net.minecraft.client.Minecraft.getInstance().execute(() ->
+                        com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at));
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
             net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
             client.execute(() -> {
                 // Secret Waypoints marks a click on the waypoint's exact block itself; a buried essence is placed

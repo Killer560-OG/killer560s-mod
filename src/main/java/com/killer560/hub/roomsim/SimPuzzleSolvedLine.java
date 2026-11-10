@@ -51,15 +51,28 @@ public final class SimPuzzleSolvedLine {
             }
             if (!said.add(room)) continue;
             UUID who = client.player.getUUID();
-            String name = client.player.getGameProfile().name();
+            String name = solverName(room, client.player.getGameProfile().name());
             String line = "PUZZLE SOLVED! " + name + " " + ("Tic Tac Toe".equals(room) ? "tied Tic Tac Toe"
                     : "completed " + room) + "! Good job!";
             server.execute(() -> {
+                if (!com.killer560.hub.roomsim.SimCoop.guestSpots().isEmpty()) {
+                    // Co-op (coopsim-p5): the whole party reads it, as on Hypixel.
+                    com.killer560.hub.roomsim.SimCoop.broadcast(server, Component.literal(line));
+                    return;
+                }
                 ServerPlayer sp = server.getPlayerList().getPlayer(who);
                 if (sp != null) {
                     sp.sendSystemMessage(Component.literal(line));
                 }
             });
         }
+    }
+    /** Who solved {@code room}: him if he is in it, else a co-op guest standing in it (coopsim-p5), else him. */
+    private static String solverName(String room, String self) {
+        if (room.equals(SimState.currentRoomName())) return self;
+        for (SimCoop.Spot g : SimCoop.guestSpots()) {
+            if (room.equals(SimState.roomNameAt((int) Math.floor(g.x()), (int) Math.floor(g.z())))) return g.name();
+        }
+        return self;
     }
 }

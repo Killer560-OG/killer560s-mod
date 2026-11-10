@@ -384,11 +384,15 @@ public final class SimRoomLevers {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event fires on both sides in singleplayer, and without the check a
             // single click would be handled twice - the same guard SimDoors uses.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            boolean guest = SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player)) {
+                return InteractionResult.PASS;
+            }
             List<BlockPos> blocks = ARMED.remove(hit.getBlockPos());
             if (blocks == null) return InteractionResult.PASS;
             String room = ROOM_OF.remove(hit.getBlockPos());
-            open(client, blocks, room);
+            // A co-op guest's lever (coopsim-p5) opens the same gate, on his client thread like his own.
+            if (guest) client.execute(() -> open(client, blocks, room)); else open(client, blocks, room);
             // PASS, so vanilla still flips the lever: the click, the sound and the animation are what make it
             // read as a real lever rather than a trigger pad.
             return InteractionResult.PASS;

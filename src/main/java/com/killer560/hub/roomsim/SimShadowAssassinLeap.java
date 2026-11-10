@@ -39,11 +39,12 @@ public final class SimShadowAssassinLeap {
     public static boolean leap(Minecraft client, int ticks) {
         if (!SimState.canAct(client) || ticks <= 0) return false;
         MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) return false;
+        if (server == null || client.player == null) return false;
+        java.util.UUID self = client.player.getUUID();
         server.execute(() -> {
             ServerLevel level = server.overworld();
-            ServerPlayer player = server.getPlayerList().getPlayers().isEmpty() ? null
-                    : server.getPlayerList().getPlayers().get(0);
+            // Him by id, not the first in the list: a co-op guest can be first (coopsim-p5).
+            ServerPlayer player = server.getPlayerList().getPlayer(self);
             if (player == null) return;
             double yaw = Math.toRadians(player.getYRot());
             // Two blocks behind him: his look along the ground is (-sin yaw, cos yaw).

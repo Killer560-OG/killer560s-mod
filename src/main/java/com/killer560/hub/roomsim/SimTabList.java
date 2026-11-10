@@ -114,6 +114,11 @@ public final class SimTabList {
         if (room != null && !room.isBlank()) {
             VISITED.add(room);
         }
+        for (SimCoop.Spot g : SimCoop.guestSpots()) {
+            // A room a co-op guest has been in counts as visited for the party (coopsim-p5).
+            String at = SimState.roomNameAt((int) Math.floor(g.x()), (int) Math.floor(g.z()));
+            if (at != null && !at.isBlank()) VISITED.add(at);
+        }
         List<String> lines = composeIfChanged(client);
         boolean header = headerTicks-- <= 0;
         if (header) {

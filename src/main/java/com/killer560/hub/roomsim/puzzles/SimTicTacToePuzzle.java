@@ -132,12 +132,22 @@ public final class SimTicTacToePuzzle {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // try to play twice - the same double-fire guard SimDoors uses for its own UseBlockCallback.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            boolean guest = com.killer560.hub.roomsim.SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player)) {
+                return InteractionResult.PASS;
+            }
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
             if (index == null || !built || complete || board[index] != EMPTY || pendingReply != null) {
                 return InteractionResult.PASS; // not his turn while the computer's reply is pending
             }
-            onPlayerClick(client, index);
+            if (guest) {
+                // A co-op guest's move (coopsim-p5), played on his client thread like his own; checked again there.
+                client.execute(() -> {
+                    if (built && !complete && board[index] == EMPTY && pendingReply == null) onPlayerClick(client, index);
+                });
+            } else {
+                onPlayerClick(client, index);
+            }
             // PASS for the room's own button, so vanilla still presses it - the depress and the click are what
             // make a cell feel played, and SUCCESS threw both away. A standalone arena's cell is concrete with
             // no interaction of its own, so consuming that one costs nothing and stops a stray right-click

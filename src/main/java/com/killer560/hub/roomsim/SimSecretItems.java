@@ -432,6 +432,7 @@ public final class SimSecretItems {
             if (entity == null || entity.isRemoved()) {
                 LIVE.remove(id);
                 SimScore.secretFound(entry.getValue());
+                SimScore.creditNearest(level, entry.getValue());
                 purgeOwed = true;
             } else {
                 pin(entity, entry.getValue());

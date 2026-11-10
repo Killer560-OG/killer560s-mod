@@ -190,9 +190,13 @@ public final class SimMobs {
         // Client side: the snapshot the server task above publishes is read here, against the map's rooms.
         if (++roomClearTicks >= 10) {
             roomClearTicks = 0;
-            markEnteredRoomCleared(client);
+            // Co-op guests clear and count the rooms they walk into too (coopsim-p5); none in single player.
+            List<SimCoop.Spot> guests = SimCoop.guestSpots();
+            if (client.player != null) markEnteredRoomCleared(client.player.getX(), client.player.getZ());
+            for (SimCoop.Spot g : guests) markEnteredRoomCleared(g.x(), g.z());
             markClearedRooms();
-            countOtherRooms(client);
+            if (client.player != null) countOtherRooms(client.player.getX(), client.player.getZ());
+            for (SimCoop.Spot g : guests) countOtherRooms(g.x(), g.z());
         }
     }
 
@@ -202,10 +206,10 @@ public final class SimMobs {
      * counted once, and - with clear-on-entry off, as live mobs have it - the Entrance and a Fairy room once he has been
      * in them, which clear-on-entry would have counted. Client thread, with the room checks.
      */
-    private static void countOtherRooms(Minecraft client) {
-        if (!SimRun.hasStarted() || client.player == null) return;
+    private static void countOtherRooms(double px, double pz) {
+        if (!SimRun.hasStarted()) return;
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
-        int here = layout.roomAtWorld(client.player.getX(), client.player.getZ());
+        int here = layout.roomAtWorld(px, pz);
         for (int i = 0; i < layout.roomCount(); i++) {
             String name = layout.name(i);
             com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(i);
@@ -226,10 +230,8 @@ public final class SimMobs {
      * Cleared alert) the moment he is inside it, without killing anything - as if its last starred mob died on entry.
      * Puzzle rooms still clear by their puzzle and Blood by its own logic. Client thread, like {@link #markClearedRooms}.
      */
-    private static void markEnteredRoomCleared(Minecraft client) {
-        if (!clearRoomsOnEntry || client.player == null) return;
-        double x = client.player.getX();
-        double z = client.player.getZ();
+    private static void markEnteredRoomCleared(double x, double z) {
+        if (!clearRoomsOnEntry) return;
         // roomAtWorld clamps to the grid's edge, so a position outside the 6x6 grid (the boss room) must not count.
         int min = com.killer560.hub.livemap.LiveMapFeature.START_X - 16;
         int max = com.killer560.hub.livemap.LiveMapFeature.START_X + 6 * 32 - 16;
