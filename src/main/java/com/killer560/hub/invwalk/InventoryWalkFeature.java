@@ -319,7 +319,13 @@ public final class InventoryWalkFeature {
         if (!heldClicks.isEmpty() && (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
                 || packet instanceof ServerboundInteractPacket)) {
             // A use can open a new menu: a close still held must not reach the server after it (it would close that one).
+            // While he still moves the held clicks cannot go (MultiActionsC, and GrimAC drops them: testkit 1108-iw-termwalk
+            // "same tick USE", invlook-1110), so the use waits behind them and the still tick sends all in order.
             Minecraft mc = Minecraft.getInstance();
+            if (mc.isSameThread() && mc.player != null && !readyToSend(mc.player)) {
+                heldClicks.addLast(packet);
+                return true;
+            }
             if (mc.isSameThread()) {
                 flushClicks(mc, "a use is going out");
             }
