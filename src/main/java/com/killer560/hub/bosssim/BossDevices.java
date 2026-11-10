@@ -31,8 +31,8 @@ import java.util.Random;
  * correct press. The start button toggles: a press while it runs resets it, but a round already queued still shows (the
  * skip). A wrong press stops it (back to round 0; the buttons go 3 ticks later) and a round 2 show of a new pattern follows.</li>
  * <li><b>Lights</b> (S2): twenty levers at z 142 (x 58-62, y 133-136), a redstone lamp behind each at z 143. A lamp is lit
- * while its own lever or one of its four neighbours is on; every lamp lit is the device. The six of Hypixel's known
- * solution start partly off. A pull is answered here ({@link #pullLight}) with no redstone updates, so vanilla never
+ * while its own lever or one of its four neighbours is on; every lamp lit is the device. The device starts with the four corners
+ * and the middle two on (killer560, 2026-11-09); the first pull of any lever completes it. A pull is answered here ({@link #pullLight}) with no redstone updates, so vanilla never
  * lights or dims a lamp by its own rule.</li>
  * <li><b>Arrows</b> (S3): a 5x5 wall of item frames at x -2, y 120-124, z 75-79, each arrow turned at random off one of
  * Hypixel's layouts (the mod's own Arrow Align table); every frame on its layout's rotation is the device. The frames
@@ -71,6 +71,7 @@ public final class BossDevices {
             new BlockPos(60, 134, 142), new BlockPos(62, 133, 142), new BlockPos(58, 133, 142));
     private static boolean lightsDone;
     private static int lightsCreditAt = -1;
+    private static boolean lightsPulled;
 
     private static final int ARROW_X = -2, ARROW_Y = 120, ARROW_Z = 75;
     private static final ItemFrame[] frames = new ItemFrame[25];
@@ -155,17 +156,16 @@ public final class BossDevices {
         java.util.Arrays.fill(ssLit, false);
         java.util.Arrays.fill(ssUp, false);
         java.util.Arrays.fill(ssWasPowered, false);
-        // Lights: two to four of the solution's six start off, the rest on; every other lever off.
+        // Lights (killer560, 2026-11-09): the four corners and the middle two start on, every other lever off; the first
+        // pull of any lever completes the device.
         lightsDone = fromSection > 2;
         lightsCreditAt = -1;
+        lightsPulled = false;
         for (BlockPos p : lightLevers()) {
             BossBlocks.set(level, p, lever(false));
         }
-        List<BlockPos> sol = new ArrayList<>(LIGHTS);
-        Collections.shuffle(sol, RNG);
-        int off = lightsDone ? 0 : 2 + RNG.nextInt(3);
-        for (int i = 0; i < sol.size(); i++) {
-            BossBlocks.set(level, sol.get(i), lever(i >= off));
+        for (BlockPos p : LIGHTS) {
+            BossBlocks.set(level, p, lever(true));
         }
         lamps(level);
         // The frames hung at the fight's start keep their layout into P3 (and any turns made since).
@@ -184,7 +184,7 @@ public final class BossDevices {
         lit = null;
         targetGrid = -1;
         plateUntil = -1;
-        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ssState(), lightsDone ? "done" : off + " off",
+        LOGGER.info("[BossSim] devices up (SS {}, Lights {}, Arrows {}, Target {})", ssState(), lightsDone ? "done" : "corners+middle on",
                 arrowsDone ? "done" : "layout", targetDone ? "done" : "armed");
     }
 
@@ -293,11 +293,9 @@ public final class BossDevices {
         tick++;
         tickSimonSays(level);
         if (!lightsDone) {
-            boolean all = lamps(level);
-            if (all && lightsCreditAt < 0) {
+            lamps(level);
+            if (lightsPulled && lightsCreditAt < 0) {
                 lightsCreditAt = tick + 2;
-            } else if (!all) {
-                lightsCreditAt = -1;
             }
             if (lightsCreditAt >= 0 && tick >= lightsCreditAt && BossFight.section() <= 2) {
                 lightsDone = true;
@@ -346,6 +344,7 @@ public final class BossDevices {
             return false;
         }
         boolean on = !s.getValue(BlockStateProperties.POWERED);
+        lightsPulled = true;
         level.setBlock(p, s.setValue(BlockStateProperties.POWERED, on), BossBlocks.FLAGS);
         level.playSound(null, p, net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.BLOCKS, 0.3f,
                 on ? 0.6f : 0.5f);
