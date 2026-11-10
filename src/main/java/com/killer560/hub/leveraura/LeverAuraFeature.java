@@ -151,6 +151,7 @@ public final class LeverAuraFeature {
         boolean s2Open = section == 2;
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
+        double approachSq = (cfg.getRange() - 0.05) * (cfg.getRange() - 0.05);
         // An AP3 walk can carry him through a lever's reach in 2 ticks or fewer (HEE2-EE3 v3 missed the high lever that
         // way), so a lever in reach from next tick's eye (this tick's step, the fall counting in the air) has the body
         // turned now and is flicked in its first tick in reach.
@@ -173,7 +174,9 @@ public final class LeverAuraFeature {
                 // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
                 boolean next = d > rangeSq;
-                if (next && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) > rangeSq) {
+                // 0.05 short of the range: the push of next tick's keys is not in eyeNext, and a lever predicted in reach by a
+                // hair stayed out, so the turn aimed from an eye a tick early missed (leverap3-1109, low lever 4.50 vs 4.505).
+                if (next && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) > approachSq) {
                     logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
                     continue;
                 }
@@ -202,6 +205,9 @@ public final class LeverAuraFeature {
         long tick = ActionGate.currentTick();
         if (target == null) {
             turnStartTick = -1L;
+            // The lever it turned for left reach unflicked: give the body back next tick, not after TurnFirst's whole wait
+            // (an air walk held turned 8 ticks lost its line and fell off the HEE2-EE3 v3 landing, leverap3-1109).
+            TURN.drop();
             return;
         }
         if (tick < nextClickDueTick) {

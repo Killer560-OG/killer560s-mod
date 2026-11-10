@@ -208,6 +208,9 @@ public final class TurnFirst {
 
     public boolean isTurned() { return turned; }
 
+    /** The turned-for action will not go out (its target left reach): the next {@link #tick} gives the body back. */
+    public void drop() { pending = false; }
+
     /**
      * A block: true when its outline is on the reported look within {@code reach} - act now. Otherwise turns the body to
      * {@code aimPoint} (a point on the block, e.g. {@link BlockHits#surface}'s) and returns false: ask again next tick.
