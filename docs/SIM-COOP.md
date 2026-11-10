@@ -200,3 +200,9 @@ by its visit, its essence credited to it, its wither key opens a door, its death
 played, a rebuild lands it beside the host) and 1109-coopfloor-two (`run-coop.sh -s 1109-coopfloor-two`: a rebuild lands
 the real guest with the host, its tab shows the party and a moving clock, its own map scanner calibrates from the map
 item, it steps into Blood's portal and both reach the boss).
+
+Test lessons (coopsim-p5): a fake guest (testkit GuestPlayer) never acknowledges a teleport, so after any server teleport
+(a sim death puts him back in the room) vanilla drops every use packet he sends until GuestPlayer.moveTo clears
+awaitingPositionFromClient; a real client acks at once. Sim doors are carved only in loaded chunks and a floor may have no
+shut wither door near the party, so the door check makes one (SimDoors.makeWitherDoor) on the door nearest the host.
+Two runs in one testkit checkout at once kill each other (the client exits -1): run them one after another.
