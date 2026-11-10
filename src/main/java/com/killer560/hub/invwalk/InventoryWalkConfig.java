@@ -23,6 +23,20 @@ public final class InventoryWalkConfig {
         }
     }
 
+    /** How the Look Key works (invlook-1110). */
+    public enum LookMode {
+        /** Look while the key is held. */
+        HOLD("Hold"),
+        /** One press starts looking, the next stops; closing the menu stops it too. */
+        TOGGLE("Toggle");
+
+        public final String label;
+
+        LookMode(String label) {
+            this.label = label;
+        }
+    }
+
     public static final int MAX_PAUSE_TICKS = 20;
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-invwalk.json");
@@ -41,8 +55,7 @@ public final class InventoryWalkConfig {
     private int lookKeyCode = com.killer560.hub.util.KeyUtil.NONE;
     /** With Stop To Click: a storage menu's pick-up stays unsent while he walks carrying it (iwbypass-1108). */
     private boolean carryInChests = false;
-    /** In a server menu his movement keys are really let go (honest: GrimAC predicts from them), so Hypixel keeps it open (invwalkclean-1109). */
-    private boolean stillInMenus = false;
+    private LookMode lookMode = LookMode.HOLD;
 
     private InventoryWalkConfig() {
     }
@@ -66,7 +79,7 @@ public final class InventoryWalkConfig {
             cfg.stopToClick = ConfigJson.getBool(obj, "stopToClick", cfg.stopToClick);
             cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
-            cfg.stillInMenus = ConfigJson.getBool(obj, "stillInMenus", cfg.stillInMenus);
+            cfg.lookMode = ConfigJson.getEnum(obj, "lookMode", LookMode.class, cfg.lookMode);
         }
         instance = cfg;
     }
@@ -81,7 +94,7 @@ public final class InventoryWalkConfig {
         obj.addProperty("stopToClick", stopToClick);
         obj.addProperty("lookKeyCode", lookKeyCode);
         obj.addProperty("carryInChests", carryInChests);
-        obj.addProperty("stillInMenus", stillInMenus);
+        obj.addProperty("lookMode", lookMode.name());
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -149,12 +162,12 @@ public final class InventoryWalkConfig {
         this.carryInChests = on;
     }
 
-    public boolean isStillInMenus() {
-        return stillInMenus;
+    public LookMode getLookMode() {
+        return lookMode;
     }
 
-    public void setStillInMenus(boolean on) {
-        this.stillInMenus = on;
+    public void setLookMode(LookMode mode) {
+        this.lookMode = mode == null ? LookMode.HOLD : mode;
     }
 
 }

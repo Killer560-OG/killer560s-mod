@@ -114,13 +114,12 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(Component.literal("Look Key: §ePress any key..."));
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
-        w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
+        w.add(SettingsButtonWidget.cycleEnum(() -> Component.literal("Look Key Mode: " + cfg.getLookMode().label), cfg::getLookMode,
+                cfg::setLookMode, cfg::save).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
-        w.add(onOffButton(STAND_STILL, cfg::isStillInMenus, cfg::setStillInMenus, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
+        w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
         return w;
     }
-
-    static final String STAND_STILL = "Stand Still In Server Menus";
 
     private static Component screensText(InventoryWalkConfig cfg) {
         return Component.literal("Screens: " + cfg.getScreens().label);
