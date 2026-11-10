@@ -834,8 +834,10 @@ public final class SimItems {
         // killer560 (2026-10-01): "make it so in puzzle rooms I cannot use dungeon breaker" and "make it so i
         // cant dungeon breaker secrets". The first is also the real item's own rule: the wiki says the
         // Dungeonbreaker cannot be used in puzzle rooms, on doors, or to pass through a wall into another room.
-        if (inPuzzleRoom(sp, target)
-                || SimAbilities.isTeleportMaze(SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ()))) {
+        // Not in the boss sim: its arena has no rooms, and a floor index left from an earlier floor named a puzzle cell
+        // near the arena, so every boss pick was refused (balatefix-1109, 1108-boss-breaker "only 0 picks broke").
+        if (!com.killer560.hub.bosssim.BossFight.running() && (inPuzzleRoom(sp, target)
+                || SimAbilities.isTeleportMaze(SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ())))) {
             failOnServer("the Dungeonbreaker does not work in puzzle rooms");
             return false;
         }

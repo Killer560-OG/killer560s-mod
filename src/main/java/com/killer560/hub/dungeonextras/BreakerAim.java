@@ -237,17 +237,29 @@ public final class BreakerAim {
                     !urgent ? "not in his way yet" : "free look barred (sprint-jump take-off or AP3 drives)");
             return null;
         }
-        // Standing, or a pick in his way no walk-keeping look strikes: the look at each target's center, the one striking most.
+        // Standing, or a pick in his way no walk-keeping look strikes: a look near each target's center, the one striking
+        // most; while he walks, of those the yaw nearest a whole 45-degree step off his own, so his keys turned back by whole
+        // steps bend his walk the least on that one tick.
         Vec3 eye = feet.add(0, eyeH, 0);
+        float bestErr = 99f;
         for (BlockPos t : targets) {
             Vec3 to = Vec3.atCenterOf(t).subtract(eye);
             float wantPitch = (float) Mth.clamp(Math.toDegrees(-Math.atan2(to.y, Math.hypot(to.x, to.z))), -90, 90);
             float runYaw = player.getYRot() + Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-to.x, to.z)) - player.getYRot());
-            int n = struck(feet, feet, eyeH, runYaw, wantPitch, targets, anyEye);
-            if (n > best) {
-                best = n;
-                bestYaw = runYaw;
-                bestPitch = wantPitch;
+            for (int d = 0; d <= (yaws == null ? 0 : 60); d++) {
+                float y = runYaw + (d % 2 == 0 ? d / 2 : -(d + 1) / 2);
+                float off = Mth.wrapDegrees(y - yaw);
+                float err = yaws == null ? 0f : Math.abs(off - 45f * Math.round(off / 45f));
+                if (err >= bestErr && best == targets.size()) {
+                    continue;
+                }
+                int n = struck(feet, feet, eyeH, y, wantPitch, targets, anyEye);
+                if (n > best || (n == best && n > 0 && err < bestErr)) {
+                    best = n;
+                    bestErr = err;
+                    bestYaw = y;
+                    bestPitch = wantPitch;
+                }
             }
         }
         if (best == 0) {
