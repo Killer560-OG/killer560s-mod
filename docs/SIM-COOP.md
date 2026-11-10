@@ -1,4 +1,4 @@
-# Co-op dungeon sim (phases 1 and 2)
+# Co-op dungeon sim (phases 1, 2 and 5)
 
 Branch `staging-coopsim` (post-2.0 staging: never shipped before 2.0). A second player joins the host's sim world over
 LAN (vanilla "Open to LAN"). The host's integrated server stays the only thing that writes the world; a guest's client
@@ -146,7 +146,57 @@ only, a switched-off kind refused and saved, Kick, the two warnings, Close delet
 clients through `run-coop.sh -s 1109-mp-two`: Join page, wrong then right password, admitted and kept, Session page via the
 pause menu, speed honored then refused, Kick -> ended screen -> Back, rejoin, owner leaves -> "Session ended: the owner left").
 
-## Not done (phase 2+)
+## Phase 5: the whole sim in co-op (coopsim-p5)
 
-After a floor rebuild only the host is moved from the holding area to the landing
-(`SimBuilder` teleports `uuid` alone); guests stay on the holding barrier until moved.
+The OWNER picks what is played (floor, boss stage, Load a Room, Route Practice); every builder landing moves the party:
+`SimBuilder.snapPlayerTo(..., party=true)` teleports the host and then every other player to the same spot through
+`SimArrival.teleport` (guests are held until their chunks load). Personal teleports (/goto, guest requests) pass
+party=false. Route Practice (`SimRoomCycle`) follows the owner's route: only he steps /next and /back, each room's
+landing moves everyone.
+
+Click rules that ran only on the host's client (`level.isClientSide() && player == client.player`) take a guest's use
+packet on the server side of the same event: `SimCoop.isGuestUse(player, level)` (server side, a non-host real player,
+sim active on this integrated server) and then the rule body runs on the host's client thread through
+`client.execute(...)`, so it sees the same state the host's own click does. The host's path is unchanged. Done for
+doors and keys (`SimDoors`, the guest's own held key is used, the WITHER door line names the opener and goes to the
+party), room levers, Creeper Beams (right click, and a guest's left click arrives in `SimItems.onServerAttack` and is
+judged from the guest's eye), Tic Tac Toe, Water Board levers, the Quiz chests (and a guest walking in alone is asked;
+the lines are broadcast while guests are present). Ice Fill follows whoever stands on its tiles; the bound Teleport
+Maze keeps a landing lock per player (`LOCKS`) and moves the player who stepped on the pad. Boulder, the bound Quiz
+room and Weirdos were already server-side for any player.
+
+`SimCoop.guestSpots()` (the non-host players' positions, refreshed every server tick, empty in single player) feeds the
+per-room rules that read the host's position: entering a room clears it (`SimMobs.markEnteredRoomCleared`), Entrance and
+Fairy count once visited (`countOtherRooms`), the tab's visited rooms (`SimTabList.VISITED`), the PUZZLE SOLVED line's
+solver name (the player standing in the room) - broadcast to the party in co-op.
+
+Score is the party's (Hypixel's score is): `SimScore` counts secrets and deaths for the team and, per player,
+`secretsBy(uuid)` / `deathsBy(uuid)` (cleared with the run). A wither essence is credited to its clicker, a picked-up
+item secret to the nearest player. Deaths now count at all (`SimSurvival`, only after the run started): before phase 5
+`SimScore.died` was never called, so Skill never lost its 2 points per death, single player included.
+
+The score, clock and party reach a guest through what Hypixel uses: the sim tab (party rows, Time, Secrets Found, Team
+Deaths, Crypts, puzzles) and the sidebar are server-sent, and the run's chat lines (Mort, "Starting in", Blood, Watcher)
+were already broadcast. No extra payload, so PROTOCOL stays 2.
+
+Mobs: sim mobs are NoAi combat dummies (killer560's spec); nothing targets anyone, host included, and a guest's hit
+hurts and kills them like the host's (vanilla `hurtServer`), so kills, room clears and Fel's wake work for everyone.
+
+The dungeon map: a guest's client is not in the sim, so its map features read a Hypixel map item in hotbar slot 9.
+`SimCoopMap` paints one from the host's stand-in (`HeldMap`, `SimRoomState`) in Hypixel's format (16 px rooms, 20 px
+pitch, corner 5,5; room colors 30/18/66/74/82/62/63, unopened 85 with a 119 center, checks 34/30, failed 18, doors
+119/18/30/63/85 as 4x4 in the gap, separators fill it) and sends it to the guests only: map id 1234560, a
+`filled_map` put in slot 9 if that slot is empty (never over his own item), one `ClientboundMapItemDataPacket` when the
+picture changed or a guest has not had it. Painted every 10 client ticks while guests are present and the run has
+started (Hypixel hands the map over at the start). Its calibration assumes the F5-F7 corner; E-F4 floors read 6x6
+as well in the sim, but a guest whose floor reads E-F4 would use NoammAddons' corner for that floor.
+
+Not done: the tab's class text stays "Mage" for every row (no class pick in co-op yet); a guest's own Ice Path arrows work,
+but the fish respawn check uses the host's position; Blaze, Ice Path and Water Board have no guest test yet
+(only Tic Tac Toe, doors, essences, room clears and deaths do).
+
+Tests: testkit `CoopFloorTests` 1109-coopfloor-fake (fake guest on a real F7: map sent and calibratable, a room cleared
+by its visit, its essence credited to it, its wither key opens a door, its death counted for it, its Tic Tac Toe move
+played, a rebuild lands it beside the host) and 1109-coopfloor-two (`run-coop.sh -s 1109-coopfloor-two`: a rebuild lands
+the real guest with the host, its tab shows the party and a moving clock, its own map scanner calibrates from the map
+item, it steps into Blood's portal and both reach the boss).

@@ -98,7 +98,7 @@ public final class SimCoopMap {
     }
 
     /** The whole map in Hypixel's colors, from the host's stand-in answers. Client thread. */
-    static byte[] paint() {
+    public static byte[] paint() {
         byte[] c = new byte[SIZE * SIZE];
         DungeonLayout layout = DungeonLayout.current();
         for (int gz = 0; gz < GRID; gz++) {

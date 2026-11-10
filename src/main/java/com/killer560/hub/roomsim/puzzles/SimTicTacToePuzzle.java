@@ -306,6 +306,21 @@ public final class SimTicTacToePuzzle {
      *  finishes, and false again after a loss resets the board. */
     public static boolean isComplete() { return complete; }
 
+    /** Test hook: the block of an empty cell, or null. */
+    public static BlockPos emptyCellForTest() {
+        for (Map.Entry<BlockPos, Integer> e : CELL_INDEX.entrySet()) {
+            if (board[e.getValue()] == EMPTY) return e.getKey();
+        }
+        return null;
+    }
+
+    /** Test hook: cells the player has marked. */
+    public static int playerMarksForTest() {
+        int n = 0;
+        for (char c : board) n += c == PLAYER ? 1 : 0;
+        return n;
+    }
+
     /** Clears the board (blocks and bookkeeping) if a session is still open, and always clears the in-memory
      *  state. Safe to call with no board built, and safe to call after the sim session has already ended. */
     /**

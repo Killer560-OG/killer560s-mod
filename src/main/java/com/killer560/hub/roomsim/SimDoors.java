@@ -567,6 +567,15 @@ public final class SimDoors {
     /** Doors still registered and shut, for the sim's sidebar. */
     public static int doorsRemaining() { return DOORS.size(); }
 
+    /** Test hook: one block of every shut door of {@code type} (a DungeonLayout DOOR_*), in build order. */
+    public static List<BlockPos> doorBlocksForTest(int type) {
+        List<BlockPos> out = new ArrayList<>();
+        for (Door d : DOORS) {
+            if (d.type() == type && !d.blocks().isEmpty() && !PENDING.containsKey(d)) out.add(d.blocks().get(0));
+        }
+        return out;
+    }
+
     /** Wither keys in his inventory, counted the same way the real key tracker would. */
     public static int keysHeld() {
         Minecraft client = Minecraft.getInstance();
