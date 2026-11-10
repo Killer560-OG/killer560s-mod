@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"package": "com.killer560.hub.darkmode.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"DarkModeGuiMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

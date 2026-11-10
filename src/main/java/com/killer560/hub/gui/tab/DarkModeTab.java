@@ -43,11 +43,6 @@ public class DarkModeTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
-        y += 22;
-
-        widgets.add(onOffButton("Tint HUD", cfg::isTintHud, cfg::setTintHud, cfg::save,
-                null, contentX, y, contentWidth, 18));
-
         return widgets;
     }
 
