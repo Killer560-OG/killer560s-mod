@@ -170,6 +170,10 @@ public final class ClearExecutor {
 
     /** Hops in flight the server has not answered yet before the queue waits for it. */
     private static final int MAX_LEAD = 6;
+    /** ... while a chain goes out in one burst (Charged Chain, Blink The Chain): Blink's 21 at most. */
+    private static final int BURST_LEAD = 21;
+    /** Blink The Chain: the hold this path started before its second hop, released once its last hop went. */
+    private static boolean blinkChainOwned;
     /** Ticks without progress before a path is given up on (and planned again). */
     private static final int STALL_TICKS = 20;
     /** Ticks he may stand off the path's first spot before it is planned again from where he is. */
@@ -1642,8 +1646,18 @@ public final class ClearExecutor {
             lastLevel = client.level;
             reset();
         }
+        if (blinkChainOwned && (nodes == null || nodes.isEmpty()) && pendingInteract == null) {
+            blinkChainOwned = false;
+            com.killer560.hub.blink.BlinkFeature.end("Interactive Map chain sent");
+        }
         if (client.player == null) {
             return;
+        }
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && (nodes != null && !nodes.isEmpty() || issued.size() > confirmed)) {
+            // A path's warps are going out or in flight: no landing's confirm waits a second behind Blink Charge's
+            // answers (his 26.3 log 2026-11-10 08:39, 12 map warps in two ~1030 ms holds).
+            com.killer560.hub.blink.BlinkCharge.noteChain("Interactive Map");
         }
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         // killer560: "the entire portion of interactive map is the teleport pathing" - there is no separate
@@ -1675,7 +1689,7 @@ public final class ClearExecutor {
         if (!canNext()) {
             return;
         }
-        if (issued.size() - confirmed >= MAX_LEAD) {
+        if (issued.size() - confirmed >= (blinkChainOwned ? BURST_LEAD : MAX_LEAD)) {
             waitReason = "the server did not answer " + (issued.size() - confirmed) + " warp(s)";
             return;
         }
@@ -1685,6 +1699,13 @@ public final class ClearExecutor {
         if (position == null) {
             Vec3 p = client.player.position();
             position = new double[]{p.x, p.y, p.z};
+        }
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !issued.isEmpty() && !hasSwappedThisTick
+                && com.killer560.hub.util.RightClick.itemUsesSent() == itemUsesAtTickStart) {
+            chainInOneTick(client);
+            if (!canNext() || issued.size() - confirmed >= (blinkChainOwned ? BURST_LEAD : MAX_LEAD)) {
+                return;
+            }
         }
         handleQueue(position, nodes);
         // Never early while a block click may still be waiting on the server for its second half (util/RightClick): the
@@ -1697,6 +1718,66 @@ public final class ClearExecutor {
             // pace between hops unchanged. Not on a tick that swapped the item (held-item first, the use a tick later).
             doInteract(client);
         }
+    }
+
+    /**
+     * Auto Routes' Charged Chain and Blink The Chain for a map path (mapchain-1110, killer560 2026-11-10: "it doesnt feel
+     * like it does all of the warps in one tick"), from the path's second hop on, before this tick sends any use. With
+     * Blink charging and its bank covered, every hop left goes now, one banked tick each (each its own whole tick on the
+     * wire: the use, his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends. With Charge
+     * off, a Blink hold starts here and is let go once the last hop went (onTickStart), so the server gets them together.
+     */
+    private static void chainInOneTick(Minecraft client) {
+        com.killer560.hub.autoroutes.AutoRoutesConfig ar = com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance();
+        if (nodes == null || nodes.isEmpty()) {
+            return;
+        }
+        if (!com.killer560.hub.blink.BlinkCharge.isActive()) {
+            if (ar.isBlinkChain() && !blinkChainOwned && !com.killer560.hub.blink.BlinkFeature.isHolding()) {
+                com.killer560.hub.blink.BlinkFeature.begin("Interactive Map chain");
+                blinkChainOwned = com.killer560.hub.blink.BlinkFeature.isHolding();
+            }
+            return;
+        }
+        if (!ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+            return;
+        }
+        int fired = 0;
+        int bank0 = com.killer560.hub.blink.BlinkCharge.banked();
+        while (nodes != null && !nodes.isEmpty() && issued.size() - confirmed < BURST_LEAD) {
+            int uses = com.killer560.hub.util.RightClick.itemUsesSent();
+            if (!com.killer560.hub.blink.BlinkCharge.spendTick(() -> spentHop(client))) {
+                break;
+            }
+            if (com.killer560.hub.util.RightClick.itemUsesSent() == uses) {
+                break; // the hop is waiting on something else (a click, mana, the item): the rest of the bank stays
+            }
+            fired++;
+        }
+        if (fired > 0) {
+            chargedChainWarps += fired;
+            LOGGER.info("[Path] Charged Chain: {} warp(s) sent in one tick from Blink's bank ({} -> {} banked), {} left",
+                    fired, bank0, com.killer560.hub.blink.BlinkCharge.banked(), nodes == null ? 0 : nodes.size());
+        }
+    }
+
+    /** One banked tick's hop (inside {@code BlinkCharge.spendTick}): a whole tick for the server, so its own use. */
+    private static void spentHop(Minecraft client) {
+        itemUsesAtTickStart = com.killer560.hub.util.RightClick.itemUsesSent();
+        globalDelay = 0; // Ticks Between Etherwarps: a banked tick is a tick for the server
+        if (canNext() && nodes != null) {
+            handleQueue(position, nodes);
+            if (pendingInteract != null) {
+                doInteract(client);
+            }
+        }
+    }
+
+    /** Warps Charged Chain sent from Blink's bank (testkit). */
+    private static long chargedChainWarps;
+
+    public static long chargedChainWarps() {
+        return chargedChainWarps;
     }
 
     /** QUOI's server-tick handler, on client ticks: after the position packet, wait ~8 ticks, then complete. */

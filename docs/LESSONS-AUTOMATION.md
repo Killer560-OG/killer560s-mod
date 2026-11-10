@@ -716,6 +716,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
   The in-flight cap must sit inside Blink's 22 ticks or a blinked chain stalls until Blink's own limit releases it.
+- A chain under Blink Charge waited about 1 s per warp (mapchain-1110, his 26.3 log: 14 teleport holds of 1027-1088 ms,
+  #15's confirm held while #16-#21 were predicted and queued behind it). A confirm may go only right behind the answer to
+  the ping sent with its teleport; when the oldest held answer no longer covered the bank, Charge held the confirm and
+  everything after it ~1 s (`tpSegs`), and in a chain the second teleport always finds only young answers. While a chain
+  runs (`BlinkCharge.noteChain`, called each tick by RouteExecutor and ClearExecutor) the answers up to that ping and the
+  confirm go at once, a running hold is released, and the bank is backed again on the next still ticks (`rebackBank`).
+  The "never shows my blink running out" half: Charged Chain lived only in Auto Routes; the Interactive Map's
+  ClearExecutor sent one hop a tick (MAX_LEAD 6). It now spends banked ticks (`spendTick` per hop, lead up to 21, only
+  while `shotCovered()`) and honors Blink The Chain. Testkit 62-argrim-1110-mapchain-charged/-nobank/-same-*,
+  62-argrim-1110-archain-nohold (wire: uses in one 50 ms window, bank drop, no holds, default and experimental Grim).
 - The testkit's PacketTrace hooks `Connection.send` as Blink does, so with Blink holding it counts a held packet when
   made and again on release; judge blinked runs by the mod's log and the server's counters.
 - Grim's lag anchor (Timer/TimerLimit `lastMovementPlayerClock`, javap 2.3.74) is the send time of the last ping the
