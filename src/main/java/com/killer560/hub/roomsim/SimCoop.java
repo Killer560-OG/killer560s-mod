@@ -121,6 +121,12 @@ public final class SimCoop {
         public Type<Click> type() { return CLICK; }
     }
 
+    /** Guest -> host: a /pc line; the host's server sends it to the party in Hypixel's party chat format. */
+    public record PartyMsg(String text) implements CustomPacketPayload {
+        public Type<PartyMsg> type() { return PARTY_MSG; }
+    }
+
+    public static final CustomPacketPayload.Type<PartyMsg> PARTY_MSG = type("sim_pc");
     public static final CustomPacketPayload.Type<Info> HELLO = type("sim_hello");
     public static final CustomPacketPayload.Type<Info> STATE = type("sim_state");
     public static final CustomPacketPayload.Type<Ack> ACK = type("sim_hello_ack");
@@ -198,6 +204,9 @@ public final class SimCoop {
         PayloadTypeRegistry.serverboundPlay().register(CLICK, StreamCodec.unit(new Click()));
         ServerPlayNetworking.registerGlobalReceiver(ARRIVED, (a, ctx) -> arrived(ctx.player(), a.seq()));
         ServerPlayNetworking.registerGlobalReceiver(CLICK, (c, ctx) -> SimTerminator.guestLeftClick(ctx.player()));
+        PayloadTypeRegistry.serverboundPlay().register(PARTY_MSG, CustomPacketPayload.codec(
+                (m, b) -> b.writeUtf(m.text(), 256), b -> new PartyMsg(b.readUtf(256))));
+        ServerPlayNetworking.registerGlobalReceiver(PARTY_MSG, (m, ctx) -> SimPartyChat.say(ctx.player(), m.text()));
         ServerTickEvents.END_SERVER_TICK.register(SimCoop::serverTick);
         SimGuest.register();
         SimRequests.register();
@@ -378,6 +387,14 @@ public final class SimCoop {
         for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
             if (!SimMiniboss.isPlaced(sp)) sp.sendSystemMessage(line);
         }
+    }
+
+    /** Server thread: whether any real player (host or guest, not a sim miniboss) is within {@code range} of the point. */
+    public static boolean playerNear(ServerLevel level, double x, double y, double z, double range) {
+        for (ServerPlayer sp : level.players()) {
+            if (!SimMiniboss.isPlaced(sp) && sp.distanceToSqr(x, y, z) <= range * range) return true;
+        }
+        return false;
     }
 
     private static void updateParty(List<ServerPlayer> players) {

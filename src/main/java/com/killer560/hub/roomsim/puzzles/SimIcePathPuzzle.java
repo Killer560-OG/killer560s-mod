@@ -754,21 +754,18 @@ public final class SimIcePathPuzzle {
         if (!SimState.canAct(client) || board == null || complete || client.player == null) return;
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) return;
-        final double px = client.player.getX();
-        final double py = client.player.getY();
-        final double pz = client.player.getZ();
-        server.execute(() -> step(server, px, py, pz));
+        server.execute(() -> step(server));
     }
 
     /** One tick of the slide, or a look for an arrow while at rest. Server thread only. */
-    private static void step(MinecraftServer server, double px, double py, double pz) {
+    private static void step(MinecraftServer server) {
         ServerLevel level = server.overworld();
         if (board == null || complete) return;
         UUID id = fishId;
         Entity entity = id == null ? null : level.getEntity(id);
         if (!(entity instanceof Silverfish fish) || !fish.isAlive()) {
             // NOT cleared: a null here usually means "not loaded where he is", not "gone" - see startCell.
-            respawnIfNear(level, px, py, pz);
+            respawnIfNear(level);
             return;
         }
         if (strayCheck) {
@@ -812,15 +809,14 @@ public final class SimIcePathPuzzle {
      * mean missing. Any stray sim silverfish on the board is cleared first, so a fish that was merely out of
      * range and is found again later can never end up beside a second one.
      */
-    private static void respawnIfNear(ServerLevel level, double px, double py, double pz) {
+    private static void respawnIfNear(ServerLevel level) {
         int[] at = cell != null ? cell : startCell;
         if (at == null) return;
         BlockPos ice = iceOf(at[0], at[1]);
         if (ice == null) return;
-        double dx = ice.getX() + 0.5 - px;
-        double dy = ice.getY() + 1 - py;
-        double dz = ice.getZ() + 0.5 - pz;
-        if (dx * dx + dy * dy + dz * dz > RESPAWN_RANGE * RESPAWN_RANGE) return;
+        // Any real player counts (co-op: the nearest one, host or guest), read on the server.
+        if (!com.killer560.hub.roomsim.SimCoop.playerNear(level, ice.getX() + 0.5, ice.getY() + 1, ice.getZ() + 0.5,
+                RESPAWN_RANGE)) return;
         if (respawnCooldown > 0) {
             respawnCooldown--;
             return;
@@ -849,8 +845,8 @@ public final class SimIcePathPuzzle {
             // shows, and clearStrays then removes any that were added before it.
             respawnCooldown = RESPAWN_SETTLE_TICKS;
             strayCheck = true;
-            LOGGER.info("Sim ice path: the silverfish was missing with the player {} blocks away - put back on "
-                    + "cell ({},{})", (int) Math.sqrt(dx * dx + dy * dy + dz * dz), at[0], at[1]);
+            LOGGER.info("Sim ice path: the silverfish was missing with a player within {} blocks - put back on "
+                    + "cell ({},{})", (int) RESPAWN_RANGE, at[0], at[1]);
         }
     }
 
