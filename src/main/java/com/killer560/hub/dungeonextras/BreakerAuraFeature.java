@@ -288,7 +288,7 @@ public final class BreakerAuraFeature {
     // tick the aura was live and had something it wanted to break, and says where each one went, once every five
     // seconds and only while it is actually working.
     private static long censusFrom;
-    private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach, cObsidian;
+    private static int cTicks, cSent, cGate, cAim, cWindow, cNoFace, cCooldown, cSwapWait, cOutOfReach, cObsidian;
 
     /** How far ahead of him a block is, along the way he is moving (negative = behind). */
     private static double ahead(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
@@ -308,11 +308,45 @@ public final class BreakerAuraFeature {
         return Math.abs(dx * dirZ - dz * dirX) <= 0.9; // sideways distance from the line he is walking
     }
 
+    /** Ticks in a row a pick in reach waited for a look (reset by any aim or dig); at {@link #URGENT_AFTER_TICKS} the
+     *  aim may leave his walk (BreakerAim.aim). */
+    private static int aimWaits;
+    private static long aimWaitTick;
+    private static final int URGENT_AFTER_TICKS = 10;
+
+    private static boolean urgent(List<BlockPos> order, Vec3 feet, double dirX, double dirZ) {
+        if (aimWaits >= URGENT_AFTER_TICKS && com.killer560.hub.util.SessionRecorderSink.tick() - aimWaitTick <= 1) {
+            return true;
+        }
+        for (BlockPos p : order) {
+            if (inHisWay(p, feet, dirX, dirZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A pick his body will run into: ahead within his width along the way he moves, at his body's height; or any pick
+     *  while his keys push him and he gets nowhere (pressed against it). */
+    private static boolean inHisWay(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
+        if (pos.getY() + 1 <= feet.y || pos.getY() >= feet.y + 1.8) {
+            return false;
+        }
+        if (Double.isNaN(dirX)) {
+            return true;
+        }
+        double dx = pos.getX() + 0.5 - feet.x;
+        double dz = pos.getZ() + 0.5 - feet.z;
+        return dx * dirX + dz * dirZ > 0 && Math.abs(dx * dirZ - dz * dirX) < 0.8;
+    }
+
     private static void census(String bucket) {
         cTicks++;
         switch (bucket) {
             case "sent" -> cSent++;
             case "gate" -> cGate++;
+            case "aim" -> cAim++;
+            case "window" -> cWindow++;
             case "face" -> cNoFace++;
             case "cooldown" -> cCooldown++;
             case "swap" -> cSwapWait++;
@@ -328,15 +362,16 @@ public final class BreakerAuraFeature {
             return;
         }
         double secs = (now - censusFrom) / 1000.0;
-        if (cSent > 0 || cGate > 0 || cObsidian > 0) {
+        if (cSent > 0 || cGate > 0 || cAim > 0 || cWindow > 0 || cObsidian > 0) {
             LOGGER.info("[DungeonExtras] Breaker Aura {} tick(s) over {}s: {} sent ({} a second, ceiling 20)"
-                            + " | {} gate gave the tick away | {} no face | {} cooldown | {} waiting on the swap"
+                            + " | {} gate gave the tick away | {} aiming or waiting on a look | {} another dig had the"
+                            + " server tick | {} no face | {} cooldown | {} waiting on the swap"
                             + " | {} holding an obsidian dig | {} nothing in reach",
                     cTicks, String.format("%.1f", secs), cSent, String.format("%.1f", cSent / secs),
-                    cGate, cNoFace, cCooldown, cSwapWait, cObsidian, cOutOfReach);
+                    cGate, cAim, cWindow, cNoFace, cCooldown, cSwapWait, cObsidian, cOutOfReach);
         }
         censusFrom = now;
-        cTicks = cSent = cGate = cNoFace = cCooldown = cSwapWait = cOutOfReach = cObsidian = 0;
+        cTicks = cSent = cGate = cAim = cWindow = cNoFace = cCooldown = cSwapWait = cOutOfReach = cObsidian = 0;
     }
 
     private static void skip(String reason) {
@@ -946,7 +981,7 @@ public final class BreakerAuraFeature {
             com.killer560.hub.util.DigWindow.mayDigOrHold(order.get(0));
             logRated("window", "[BreakerAura] held: a dig already went this server tick (GrimAC MultiBreak), {} target(s)"
                     + " in reach, first {}", order.size(), order.get(0).toShortString());
-            census("gate"); // another dig owns this server tick
+            census("window"); // another dig owns this server tick
             return;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
@@ -963,6 +998,9 @@ public final class BreakerAuraFeature {
         // is dug - first in the order above that is - and the look for the next one is set in the same tick (BreakerAim).
         // With none struck, this tick aims (pitch only, or a yaw turn while he is not walking) and digs nothing.
         List<BlockPos> inReach = order;
+        // balatefix-1109: a pick he will walk into (or one he presses against, or one waiting 10 ticks) is struck with a
+        // look off his walk when no walk-keeping look reaches it - live 2026-11-09 he ran into the S2 wall while it waited.
+        boolean urgent = urgent(order, feet, dirX, dirZ);
         // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach on the look the server has
         // this tick - aimed too (killer560, 2026-11-02: only its MultiBreak is accepted, never RotationBreak).
         if (!order.isEmpty()) {
@@ -980,23 +1018,28 @@ public final class BreakerAuraFeature {
                 }
             }
             if (ready == null) {
-                String how = burst ? BreakerAim.aimForMost(client, player, order) : null;
+                String how = burst ? BreakerAim.aimForMost(client, player, order, urgent) : null;
                 BlockPos aimed = how == null ? null : order.get(0);
                 for (BlockPos p : burst ? List.<BlockPos>of() : order) {
-                    how = BreakerAim.aimFor(client, player, p);
+                    how = BreakerAim.aimFor(client, player, p, urgent);
                     if (how != null) {
                         aimed = p;
                         break;
                     }
                 }
+                long tickNow = com.killer560.hub.util.SessionRecorderSink.tick();
+                aimWaits = aimed == null ? (tickNow - aimWaitTick <= 1 ? aimWaits + 1 : 1) : 0;
+                aimWaitTick = tickNow;
                 logRated("aim", "[BreakerAura] aim: no pick on the look the server has - {} ({} target(s) in reach)",
-                        aimed == null ? "none can be aimed without steering his walk, waiting"
+                        aimed == null ? "no look that keeps his walk strikes one, waiting " + aimWaits + " tick(s): "
+                                + BreakerAim.lastWait()
                                 : "aimed " + how + " at " + aimed.toShortString() + ", dug next tick", order.size());
-                skip(aimed == null ? "picks need a yaw turn while you walk" : "aiming at the next pick");
-                census("gate");
+                skip(aimed == null ? "no look that keeps your walk strikes a pick" : "aiming at the next pick");
+                census("aim");
                 return;
             }
             order = burst ? onLook : List.of(ready);
+            aimWaits = 0;
         }
         List<BlockPos> dugThisTick = new ArrayList<>();
         for (BlockPos pos : order) {
@@ -1098,13 +1141,13 @@ public final class BreakerAuraFeature {
             if (left.stream().anyMatch(p -> BreakerAim.digReady(player, p, true))) {
                 BreakerAim.keep();
             } else {
-                BreakerAim.aimForMost(client, player, left);
+                BreakerAim.aimForMost(client, player, left, urgent);
             }
         } else if (inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p, false))) {
             BreakerAim.keep();
         } else {
             for (BlockPos p : inReach) {
-                if (!p.equals(dugNow) && BreakerAim.aimFor(client, player, p) != null) {
+                if (!p.equals(dugNow) && BreakerAim.aimFor(client, player, p, urgent) != null) {
                     break;
                 }
             }

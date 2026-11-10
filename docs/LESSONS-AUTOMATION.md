@@ -164,10 +164,35 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   the look changes only where it cannot move him: pitch freely (horizontal movement uses yaw alone; not in water, lava,
   gliding or riding), the body's yaw kept on his view's yaw every tick so his mouse still steers; yaw only while no
   movement key is down and he is not sprinting, snapped back to his view the tick a key goes down, before travel. Picks
-  needing a yaw turn while he walks wait (`dungeonextras/BreakerAim`). Scenario 50: 118 blocks cleared, 0 flags (old: 127
+  needing a yaw turn while he walks wait (`dungeonextras/BreakerAim`; since balate-1109 they turn in 45-degree steps with
+  his keys turned to match, see the next entry). Scenario 50: 118 blocks cleared, 0 flags (old: 127
   cleared, 200 digs, 87 flags). Also: a vanilla-instant break must be predicted at once (as vanilla's startDestroyBlock and
   Grim's handleDigging do) - kept standing until the server's update, he walked into a block Grim had as air, Simulation
   x17-19 in 51 once the aura dug one a tick right in front of him.
+- **Breaker Aura was late while he walked, and snapped his camera on S1 (balate-1109).** Picks off his look waited
+  for him to stop (above: no yaw turn while a key is down), so on S1 a wall was reached 3-5 ticks late and a pick he
+  walked past never broke; the census called those waits "gate gave the tick away" (now "aiming or waiting on a look").
+  Fix: movement is his eight-way keys turned by the body yaw, so the body may turn k x 45 degrees off his view when the
+  keys are turned k steps back at the end of `KeyboardInput.tick` (`mixin/BreakerAuraInputMixin`): the push is the same
+  to the bit. Only combinations that keep W when his keys have it (sprint starts and stops on `hasForwardImpulse`,
+  moveVector.y > 0), none on a sprint jump's take-off tick (the boost goes along the yaw), none while AP3 drives (its
+  held walk gives its own allowed yaws, `TurnFirst.yawConstraint`), and never while AP3 owns the body
+  (`TurnFirst.bodyOwned`). The camera snap: under AP3's own view freeze the body yaw is not the camera, and the aura held
+  ViewFreeze with the BODY's yaw while AP3's mouse hook moved only AP3's view, so the camera fell onto the stale hold
+  when AP3 let go. Hold the VIEW (`getViewYRot/XRot`), and AP3's mouse hook turns ViewFreeze's view too. Testkit
+  1109-breaker-walkpast-* measure reach -> first dig per pick on the wire and the camera's per-tick step.
+  But walk-keeping yaws alone stall on a pick his body clips (balatefix-1109, killer560 2026-11-09: "i still run into
+  breaker blocks"): his AP3 run walked at yaw 72 and the picks at 54/55,*,141 sat ~7 degrees off it, so 72 and 72+-45
+  missed, the aura waited, and the digs went on the contact tick (160 ticks of waiting with a manual walk). Now a pick
+  that is URGENT (in his way: overlapping his body height and under 0.8 sideways ahead, or he is not moving, or it waited
+  10 ticks) gets one look off his walk: a yaw within 30 degrees of the pick's center, the one nearest a whole 45-degree
+  step off his walk, his keys turned those steps back (walk bent by the remainder for that one tick; 0.83 blocks drift at
+  speed 0.6 with the center look, 0.12 with the nearest-step yaw). Never on a sprint-jump take-off or while AP3 drives
+  with no held-walk yaws. A wait logs the pick, his feet, the view yaw and the yaws tried. Testkit
+  1109-breaker-walkpast-into (speed 0.6 into two picks: 0 ticks against a block, off-walk looks > 0, drift <= 0.25).
+- The sim's Dungeonbreaker refused every pick in the boss arena ("does not work in puzzle rooms", 1108-boss-breaker "only
+  0 picks broke") when an earlier case's floor index named a puzzle cell nearest the arena: `SimItems.dungeonBreak` skips
+  the room checks while `BossFight.running()` (balatefix-1109).
 - **A vanilla client removes a block it instabreaks the moment it sends the dig, and GrimAC assumes it did**: on an instant
   START_DESTROY_BLOCK (`BlockBreakSpeed.getBlockDamage >= 1`) it sets the block to air in its own world at once
   (`CheckManagerListener.handleDigging`, 2.3.74). Breaker Aura with Zero Ping off kept standing on a picked floor block
