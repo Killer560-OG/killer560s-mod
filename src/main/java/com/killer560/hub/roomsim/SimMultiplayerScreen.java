@@ -8,6 +8,7 @@ import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ConfirmScreen;
@@ -138,15 +139,47 @@ public final class SimMultiplayerScreen extends Screen {
         y += ROW;
         passwordBox = box(x + lw, y, w - lw, 64, "Password (optional)", passwordBox == null ? "" : passwordBox.getValue());
         y += ROW;
-        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Max Players: " + maxPlayers), (b, dir) -> {
-            maxPlayers = 2 + SettingsButtonWidget.step(maxPlayers - 2, dir, 4);
-            b.setMessage(Component.literal("Max Players: " + maxPlayers));
-        }).bounds(x, y, w, 20).build());
+        addRenderableWidget(new ThemedSliderButton(x, y, w, 20, Component.literal("Max Players: " + maxPlayers),
+                (maxPlayers - 2) / 3.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(Component.literal("Max Players: " + (2 + (int) Math.round(this.value * 3.0))));
+            }
+
+            @Override
+            protected void applyValue() {
+                maxPlayers = 2 + (int) Math.round(this.value * 3.0);
+            }
+        }.steps(3));
+        y += ROW;
+        addStartAt(x, y, w, false);
         y += ROW + 4;
         SettingsButtonWidget create = addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Create Room"),
                 b -> create()).bounds(x, y, w, 20).build());
         nameBox.pressOnEnter(create);
         passwordBox.pressOnEnter(create);
+    }
+
+    /** The start portion, from the single-player sim's own list; in a running room a click moves everyone there. */
+    private void addStartAt(int x, int y, int w, boolean live) {
+        var starts = com.killer560.hub.bosssim.BossFight.Start.values();
+        Component[] label = new Component[1];
+        label[0] = startLabel(live);
+        int btnW = live ? w - 54 : w;
+        addRenderableWidget(SettingsButtonWidget.cycling(startLabel(live), (b, dir) -> {
+            var cur = SimCoopConfig.get().startAt();
+            SimCoopConfig.get().setStartAt(starts[SettingsButtonWidget.step(cur.ordinal(), dir, starts.length)]);
+            b.setMessage(startLabel(live));
+        }).bounds(x, y, btnW, live ? 18 : 20).build());
+        if (live) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Move"),
+                    b -> SimHost.moveTo(this.minecraft, SimCoopConfig.get().startAt())).bounds(x + w - 50, y, 50, 18).build());
+        }
+    }
+
+    private static Component startLabel(boolean live) {
+        return Component.literal((live ? "Move everyone to: " : "Start at: ")
+                + com.killer560.hub.bosssim.BossStartScreen.label(SimCoopConfig.get().startAt()));
     }
 
     private void create() {
@@ -344,6 +377,8 @@ public final class SimMultiplayerScreen extends Screen {
             y += 20;
         }
         y += 4;
+        addStartAt(x, y, w, true);
+        y += ROW;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite Players"), b -> {
             view = View.INVITE;
             message = "";

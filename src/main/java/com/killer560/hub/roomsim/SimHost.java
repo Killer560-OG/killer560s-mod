@@ -71,12 +71,38 @@ public final class SimHost {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             if (!active || !(server instanceof IntegratedServer)) return;
             if (server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
+            else landJoiner(server, handler.player);
         });
         // As the owner's own connection drops, while the guests' still carry the bye (by SERVER_STOPPING the
         // connection listener has already closed them: the guest read "Disconnected").
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             if (active && SimCoop.isHost(handler.player)) byeAll(server, "the owner left");
         });
+    }
+
+    /**
+     * A joiner starts on the host's spot (a clear one, held for its chunks), not on the world spawn, which is the bedrock
+     * roof above the sim. While a build runs everyone is at the holding area and is placed when it ends. Server thread.
+     */
+    private static void landJoiner(MinecraftServer server, ServerPlayer sp) {
+        if (SimCoop.isHost(sp) || !SimState.isActive() || SimWorld.isBuilding()
+                || com.killer560.hub.bosssim.BossSim.isBuilding()) return;
+        for (ServerPlayer h : server.getPlayerList().getPlayers()) {
+            if (SimCoop.isHost(h) && h.level() instanceof net.minecraft.server.level.ServerLevel level) {
+                SimArrival.place(sp, level, h.getX(), h.getY(), h.getZ(), h.getYRot(), 0f);
+                return;
+            }
+        }
+    }
+
+    /** Moves everyone to {@code at} (the host's world rebuilds that part); host only. Client thread. */
+    public static void moveTo(Minecraft mc, com.killer560.hub.bosssim.BossFight.Start at) {
+        SimCoopConfig.get().setStartAt(at);
+        if (!active) return;
+        var fight = com.killer560.hub.bosssim.BossFight.running();
+        boolean master = at == com.killer560.hub.bosssim.BossFight.Start.P5
+                || fight && com.killer560.hub.bosssim.BossFight.master();
+        com.killer560.hub.bosssim.BossSim.start(mc, at, master);
     }
 
     public static boolean hosting() { return active; }
@@ -134,7 +160,7 @@ public final class SimHost {
         pendingOpen = true;
         openTicks = 0;
         status = "Opening the sim world...";
-        com.killer560.hub.bosssim.BossSim.start(mc, com.killer560.hub.bosssim.BossFight.Start.P1, false);
+        com.killer560.hub.bosssim.BossSim.start(mc, SimCoopConfig.get().startAt(), false);
         return null;
     }
 

@@ -140,6 +140,21 @@ public final class BossStartScreen extends Screen {
         return Component.literal("Spawn Withers: " + (spawnWithers() ? "§aON" : "§cOFF"));
     }
 
+    /** A start's name as this screen shows it (the co-op screen reuses it). */
+    public static String label(BossFight.Start s) {
+        return switch (s) {
+            case P1 -> "P1 Maxor";
+            case P2 -> "P2 Storm";
+            case S1 -> "P3 Section 1";
+            case S2 -> "P3 Section 2";
+            case S3 -> "P3 Section 3";
+            case S4 -> "P3 Section 4";
+            case CORE -> "P3 Core";
+            case P4 -> "P4 Necron";
+            case P5 -> "P5 Dragons";
+        };
+    }
+
     private static String modeLabel() {
         return "Mode: " + (master ? "Master Mode" : "Floor 7");
     }
