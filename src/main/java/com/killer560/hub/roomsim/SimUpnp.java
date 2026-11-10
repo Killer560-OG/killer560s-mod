@@ -130,7 +130,9 @@ public final class SimUpnp {
             return new Result(false, null, noPort(port, "it would not say its public address"));
         }
         InetAddress a = InetAddress.getByName(external.trim());
-        if (SimGuest.privateAddress(a) || carrierNat(a)) {
+        // Loopback is taken only from a gateway named by the testkit's SSDP property (its FakeGateway, same PC).
+        boolean testLoop = a.isLoopbackAddress() && System.getProperty(SSDP_PROPERTY) != null;
+        if ((SimGuest.privateAddress(a) && !testLoop) || carrierNat(a)) {
             return new Result(false, external.trim(), noPort(port, "your router is itself behind another network, "
                     + external.trim()));
         }
