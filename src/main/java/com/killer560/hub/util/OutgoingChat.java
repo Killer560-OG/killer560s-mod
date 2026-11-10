@@ -45,7 +45,7 @@ public final class OutgoingChat {
     public static final String RATE_LIMIT_LINE = "Woah slow down, you're doing that too fast!";
 
     /** Command words that are chat lines to Hypixel (counted against the gap when he types them himself). */
-    private static final Set<String> CHAT_COMMANDS = Set.of("pc", "ac", "gc", "oc", "cc", "msg", "w", "r", "tell",
+    static final Set<String> CHAT_COMMANDS = Set.of("pc", "ac", "gc", "oc", "cc", "msg", "w", "r", "tell",
             "whisper", "pchat", "achat", "gchat", "ochat", "cchat", "shout");
 
     /** One line, or a reserved place for one. */
