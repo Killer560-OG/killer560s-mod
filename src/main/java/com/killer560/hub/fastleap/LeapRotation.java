@@ -162,7 +162,7 @@ public final class LeapRotation {
             LocalPlayer p = Minecraft.getInstance().player;
             if (p != null && (leapLineName != null || relTeleportMs != 0L)) {
                 ItemStack held = p.getItemInHand(McPackets.useItemHand(use));
-                if (held.is(Items.ENDER_PEARL) || AutoPuzzleUtil.isAotv(held)) {
+                if (held.isEmpty() || held.is(Items.ENDER_PEARL) || AutoPuzzleUtil.isAotv(held)) { // a lone pearl is already consumed client-side when its use is sent (held is then empty)
                     // 0.27.3: a pearl / AOTE teleport also keeps the look (relative 0/0), so it is not the leap's (fastleap-guard-0273)
                     clear();
                 }
