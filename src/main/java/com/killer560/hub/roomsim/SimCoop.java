@@ -203,6 +203,7 @@ public final class SimCoop {
         SimRequests.register();
         SimHost.register();
         SimReach.register();
+        SimCoopMap.register();
     }
 
     /**
@@ -305,9 +306,10 @@ public final class SimCoop {
     private static void serverTick(MinecraftServer server) {
         ++ticks;
         if (!HOLDS.isEmpty()) tickHolds(server);
-        if (ticks % EVERY != 0) return;
         Minecraft client = Minecraft.getInstance();
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        updateSpots(players, SimState.isActive() && client.getSingleplayerServer() == server);
+        if (ticks % EVERY != 0) return;
         if (client.getSingleplayerServer() == server) SimHost.serverTick(players, ticks);
         if (!SimState.isActive() || client.getSingleplayerServer() != server || players.size() < 2) {
             if (!greeted.isEmpty() || !party.names().isEmpty()) {
@@ -333,6 +335,49 @@ public final class SimCoop {
             }
         }
         greeted.retainAll(present);
+    }
+
+    /** A co-op guest where the server last had it, for the host client's rules that read where players stand. */
+    public record Spot(UUID uuid, String name, double x, double y, double z) {
+    }
+
+    private static volatile List<Spot> spots = List.of();
+
+    /**
+     * Every co-op guest (not him, no miniboss) as the server had it on its last tick; empty in single player, so a rule
+     * that loops over it costs nothing there. Read on the client thread by rules written round {@code client.player}
+     * (rooms entered, the tab's visited puzzles, pads): each also runs for these.
+     */
+    public static List<Spot> guestSpots() { return spots; }
+
+    private static void updateSpots(List<ServerPlayer> players, boolean on) {
+        if (!on || players.size() < 2) {
+            if (!spots.isEmpty()) spots = List.of();
+            return;
+        }
+        List<Spot> out = new ArrayList<>(players.size() - 1);
+        for (ServerPlayer sp : players) {
+            if (!isHost(sp)) out.add(new Spot(sp.getUUID(), sp.getGameProfile().name(), sp.getX(), sp.getY(), sp.getZ()));
+        }
+        spots = out;
+    }
+
+    /**
+     * A use / click event that is a co-op GUEST's packet on this client's sim server (server thread, a ServerPlayer that
+     * is not him and not a miniboss). The sim's click rules were written for his client's own event (level client side,
+     * {@code player == client.player}); each also takes this one, and acts for that guest. Read-only: the host's server
+     * still does every write.
+     */
+    public static boolean isGuestUse(net.minecraft.world.entity.player.Player player, net.minecraft.world.level.Level level) {
+        return !level.isClientSide() && player instanceof ServerPlayer sp && !isHost(sp) && !SimMiniboss.isPlaced(sp)
+                && SimState.isActive() && Minecraft.getInstance().getSingleplayerServer() == level.getServer();
+    }
+
+    /** Server thread: a line to every real player, as Hypixel's server sends a team line. */
+    public static void broadcast(MinecraftServer server, net.minecraft.network.chat.Component line) {
+        for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
+            if (!SimMiniboss.isPlaced(sp)) sp.sendSystemMessage(line);
+        }
     }
 
     private static void updateParty(List<ServerPlayer> players) {

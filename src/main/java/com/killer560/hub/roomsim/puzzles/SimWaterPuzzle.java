@@ -395,12 +395,14 @@ public final class SimWaterPuzzle {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without the check a real click would be
             // evaluated twice, same double-fire guard SimDoors uses for its own UseBlockCallback registration.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player || !isArmed()) {
+            boolean guest = com.killer560.hub.roomsim.SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player) || !isArmed()) {
                 return InteractionResult.PASS;
             }
             LeverBlock lever = BLOCK_INDEX.get(hitResult.getBlockPos());
             if (lever == null) return InteractionResult.PASS;
-            onLeverClicked(client, lever);
+            // A co-op guest's lever (coopsim-p5) runs on his client thread, as his own click does.
+            if (guest) client.execute(() -> onLeverClicked(client, lever)); else onLeverClicked(client, lever);
             // PASS, not SUCCESS: vanilla's own lever toggle (sound, redstone, animation) is what makes this
             // read as a real lever - we only observe the click, never fake or consume it.
             return InteractionResult.PASS;

@@ -132,12 +132,22 @@ public final class SimTicTacToePuzzle {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // try to play twice - the same double-fire guard SimDoors uses for its own UseBlockCallback.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            boolean guest = com.killer560.hub.roomsim.SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player)) {
+                return InteractionResult.PASS;
+            }
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
             if (index == null || !built || complete || board[index] != EMPTY || pendingReply != null) {
                 return InteractionResult.PASS; // not his turn while the computer's reply is pending
             }
-            onPlayerClick(client, index);
+            if (guest) {
+                // A co-op guest's move (coopsim-p5), played on his client thread like his own; checked again there.
+                client.execute(() -> {
+                    if (built && !complete && board[index] == EMPTY && pendingReply == null) onPlayerClick(client, index);
+                });
+            } else {
+                onPlayerClick(client, index);
+            }
             // PASS for the room's own button, so vanilla still presses it - the depress and the click are what
             // make a cell feel played, and SUCCESS threw both away. A standalone arena's cell is concrete with
             // no interaction of its own, so consuming that one costs nothing and stops a stray right-click
@@ -295,6 +305,21 @@ public final class SimTicTacToePuzzle {
     /** Whether the last game finished without the computer winning (a draw or an O win). False before any game
      *  finishes, and false again after a loss resets the board. */
     public static boolean isComplete() { return complete; }
+
+    /** Test hook: the block of an empty cell, or null. */
+    public static BlockPos emptyCellForTest() {
+        for (Map.Entry<BlockPos, Integer> e : CELL_INDEX.entrySet()) {
+            if (board[e.getValue()] == EMPTY) return e.getKey();
+        }
+        return null;
+    }
+
+    /** Test hook: cells the player has marked. */
+    public static int playerMarksForTest() {
+        int n = 0;
+        for (char c : board) n += c == PLAYER ? 1 : 0;
+        return n;
+    }
 
     /** Clears the board (blocks and bookkeeping) if a session is still open, and always clears the in-memory
      *  state. Safe to call with no board built, and safe to call after the sim session has already ended. */

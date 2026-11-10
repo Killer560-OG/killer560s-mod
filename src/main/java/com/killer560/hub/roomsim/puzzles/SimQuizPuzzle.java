@@ -170,10 +170,15 @@ public final class SimQuizPuzzle {
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // resolve twice - the same double-fire guard SimDoors uses for its own UseBlockCallback. Returning
             // a non-PASS result here also stops the vanilla chest screen from opening, which is the point.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            boolean guest = com.killer560.hub.roomsim.SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player)) {
+                return InteractionResult.PASS;
+            }
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
             if (index == null || !built || complete) return InteractionResult.PASS;
-            onChestClick(client, index);
+            String who = player.getGameProfile().name();
+            // A co-op guest's chest (coopsim-p5) is judged on his client thread, as his own click is.
+            if (guest) client.execute(() -> onChestClick(client, index, who)); else onChestClick(client, index, who);
             // A BUTTON GETS TO BE A BUTTON. SUCCESS cancels the interaction, which is exactly right for a chest
             // (it stops the empty chest screen opening) and wrong for the Quiz room's pillar buttons: it threw
             // away vanilla's own press, so the button never depressed, never clicked, and the only sign anything
@@ -633,12 +638,19 @@ public final class SimQuizPuzzle {
         if (announced || pendingQuestion == null || !SimState.canAct(client)) return;
         BlockPos[] positions = chestPos;
         if (positions == null || positions.length == 0 || positions[0] == null) return;
-        if (client.player.blockPosition().distSqr(positions[0]) > ANNOUNCE_RANGE_SQR) {
-            settledTicks = 0;
+        boolean hostNear = client.player.blockPosition().distSqr(positions[0]) <= ANNOUNCE_RANGE_SQR;
+        // A co-op guest walking in alone is asked too (coopsim-p5): the lines are broadcast, and his own client's
+        // solver reads them; the host's map gate below is only for the host's solvers.
+        boolean guestNear = false;
+        for (com.killer560.hub.roomsim.SimCoop.Spot g : com.killer560.hub.roomsim.SimCoop.guestSpots()) {
+            guestNear |= positions[0].distToCenterSqr(g.x(), g.y(), g.z()) <= ANNOUNCE_RANGE_SQR;
+        }
+        if (!hostNear && !(guestNear && ++settledTicks >= ROOM_SETTLE_TICKS)) {
+            if (!guestNear) settledTicks = 0;
             unmappedTicks = 0;
             return;
         }
-        String room = boundRoom;
+        String room = hostNear ? boundRoom : null;
         if (room != null) {
             com.killer560.hub.roomdatabase.RoomEntry current =
                     com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
@@ -708,7 +720,11 @@ public final class SimQuizPuzzle {
     /** A line with no mod prefix at all, so an anchored solver pattern matches it. It still goes through
      *  ChatObserver, which is what every solver in this mod subscribes to. */
     private static void raw(Minecraft client, String line) {
-        if (client.player != null) {
+        MinecraftServer server = client.getSingleplayerServer();
+        if (server != null && !com.killer560.hub.roomsim.SimCoop.guestSpots().isEmpty()) {
+            // Co-op (coopsim-p5): every player hears it, from the server, as Hypixel sends it. Alone: his own copy, unchanged.
+            server.execute(() -> com.killer560.hub.roomsim.SimCoop.broadcast(server, Component.literal(line)));
+        } else if (client.player != null) {
             client.player.sendSystemMessage(Component.literal(line));
         }
     }
@@ -933,7 +949,8 @@ public final class SimQuizPuzzle {
         correctIndex = -1;
     }
 
-    private static void onChestClick(Minecraft client, int index) {
+    private static void onChestClick(Minecraft client, int index, String who) {
+        if (complete || !SimState.canAct(client)) return;
         MinecraftServer server = client.getSingleplayerServer();
         if (weirdosRoom && WEIRDOS_SPOKEN.size() < 3) {
             // Hypixel refuses a chest until all three weirdos have spoken: the chest's weirdo says this, nothing opens and
@@ -956,11 +973,10 @@ public final class SimQuizPuzzle {
                 server.execute(() -> server.overworld().setBlockAndUpdate(pos, Blocks.EMERALD_BLOCK.defaultBlockState()));
             }
             ModChat.send("Sim", ModChat.good("Correct!"));
-            if (!weirdosRoom && client.player != null) {
+            if (!weirdosRoom) {
                 // Oruo's own line for the last answer, as Hypixel sends it the moment the answer counts (the sim asks one
                 // question, so it is the final one); Auto Quiz ends its run on it (2026-10-16: done the tick it is done).
-                raw(client, "[STATUE] Oruo the Omniscient: " + client.player.getGameProfile().name()
-                        + " answered the final question correctly!");
+                raw(client, "[STATUE] Oruo the Omniscient: " + who + " answered the final question correctly!");
             }
         } else {
             // Wrong chest: fail like the real puzzle, not a silent pass - reset so the next attempt is a new

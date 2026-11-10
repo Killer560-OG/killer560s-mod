@@ -89,7 +89,14 @@ public final class SimSurvival {
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim: {} died at {} ({}, {} damage) - back to {}",
                     player.getName().getString(), player.blockPosition().toShortString(), source.getMsgId(), amount,
                     home == null ? "nowhere" : home.toShortString());
-            ModChat.send("Sim", ModChat.dim("back to the middle of the room"));
+            // A death in a started run counts for the team and for him (Skill's -2), co-op guests too (coopsim-p5).
+            if (SimRun.hasStarted()) SimScore.died(player.getUUID());
+            if (SimCoop.isHost(player)) {
+                ModChat.send("Sim", ModChat.dim("back to the middle of the room"));
+            } else {
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("back to the middle of the room")
+                        .withStyle(net.minecraft.ChatFormatting.GRAY));
+            }
             return false;
         });
 

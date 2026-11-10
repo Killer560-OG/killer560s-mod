@@ -100,8 +100,16 @@ public final class SimCreeperPuzzle {
         if (registered) return;
         registered = true;
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
-            if (!level.isClientSide() || hitResult == null) return InteractionResult.PASS;
+            if (hitResult == null) return InteractionResult.PASS;
             Minecraft client = Minecraft.getInstance();
+            if (com.killer560.hub.roomsim.SimCoop.isGuestUse(player, level)) {
+                // A co-op guest's right click on a lantern (coopsim-p5), answered on his client thread like his own.
+                BlockPos at = hitResult.getBlockPos().immutable();
+                if (!isLantern(at)) return InteractionResult.PASS;
+                client.execute(() -> tryConnectAt(at));
+                return InteractionResult.SUCCESS;
+            }
+            if (!level.isClientSide()) return InteractionResult.PASS;
             if (!SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
             if (!tryConnectAt(hitResult.getBlockPos())) return InteractionResult.PASS;
             return InteractionResult.SUCCESS;
@@ -168,10 +176,19 @@ public final class SimCreeperPuzzle {
      */
     public static boolean struckAt(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
+        return client.player != null && struckAt(pos, client.player.getEyePosition());
+    }
+
+    /** One of this puzzle's lanterns (a co-op guest's hit is checked on the server before it is handed over). */
+    public static boolean isLantern(BlockPos pos) { return lanternToPairIndex.containsKey(pos); }
+
+    /** As {@link #struckAt(BlockPos)}, from {@code eye}: his, or a co-op guest's (coopsim-p5). Client thread. */
+    public static boolean struckAt(BlockPos pos, net.minecraft.world.phys.Vec3 eye) {
+        Minecraft client = Minecraft.getInstance();
         if (!SimState.canAct(client) || pos == null) return false;
         Integer idx = lanternToPairIndex.get(pos);
-        if (idx != null && client.player != null && client.level != null) {
-            double d = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos));
+        if (idx != null && client.level != null) {
+            double d = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos));
             if (d > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH) {
                 LOGGER.info("Sim creeper beams: a hit on lantern {} from {} blocks (eye to box) is out of reach - refused",
                         pos, String.format(java.util.Locale.ROOT, "%.2f", d));

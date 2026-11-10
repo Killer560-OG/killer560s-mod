@@ -461,6 +461,13 @@ public final class SimItems {
                                                                         BlockPos pos,
                                                                         net.minecraft.core.Direction face) {
         if (!SimAbilities.simServer(sp)) return net.minecraft.world.InteractionResult.PASS;
+        if (SimCoop.isGuestUse(sp, sp.level()) && com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.isLantern(pos)) {
+            // A co-op guest's hit on a Creeper Beams lantern (coopsim-p5): his own goes in on his client's half of this
+            // event; the guest's arrives here as its START and is judged from its own eye, on his client thread.
+            net.minecraft.world.phys.Vec3 eye = sp.getEyePosition();
+            Minecraft.getInstance().execute(() -> com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.struckAt(pos, eye));
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        }
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemInHand(hand));
         if ("DUNGEONBREAKER".equals(id)) {
             // ONE charge per block per press, which is what the real item costs.
