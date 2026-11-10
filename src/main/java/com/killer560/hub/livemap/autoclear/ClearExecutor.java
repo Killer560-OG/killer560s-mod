@@ -1700,7 +1700,7 @@ public final class ClearExecutor {
             Vec3 p = client.player.position();
             position = new double[]{p.x, p.y, p.z};
         }
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !issued.isEmpty() && !hasSwappedThisTick
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !hasSwappedThisTick
                 && com.killer560.hub.util.RightClick.itemUsesSent() == itemUsesAtTickStart) {
             chainInOneTick(client);
             if (!canNext() || issued.size() - confirmed >= (blinkChainOwned ? BURST_LEAD : MAX_LEAD)) {
@@ -1722,7 +1722,8 @@ public final class ClearExecutor {
 
     /**
      * Auto Routes' Charged Chain and Blink The Chain for a map path (mapchain-1110, killer560 2026-11-10: "it doesnt feel
-     * like it does all of the warps in one tick"), from the path's second hop on, before this tick sends any use. With
+     * like it does all of the warps in one tick"), from the path's first hop, before this tick sends any use (by its
+     * second hop the first confirm has backed the bank again, so it could never spend it). With
      * Blink charging and its bank covered, every hop left goes now, one banked tick each (each its own whole tick on the
      * wire: the use, his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends. With Charge
      * off, a Blink hold starts here and is let go once the last hop went (onTickStart), so the server gets them together.
