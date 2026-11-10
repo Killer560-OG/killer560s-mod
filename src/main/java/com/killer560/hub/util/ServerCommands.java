@@ -50,7 +50,33 @@ public final class ServerCommands {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || player.connection == null) return false;
+        if (simChat(player, command)) return true;
         player.connection.send(new ServerboundChatCommandPacket(command));
+        return true;
+    }
+
+    /**
+     * The dungeon sim has no chat channels (its integrated server has no /pc and would answer "Unknown or incomplete
+     * command"). A mod-sent channel command is answered here as Hypixel would: party chat shows its "Party >" line,
+     * the other channels stay silent. Never true on a real server.
+     */
+    private static boolean simChat(LocalPlayer player, String command) {
+        Minecraft client = Minecraft.getInstance();
+        if (!com.killer560.hub.roomsim.SimState.canAct(client)) return false;
+        String c = command.strip();
+        int sp = c.indexOf(' ');
+        String word = (sp < 0 ? c : c.substring(0, sp)).toLowerCase(java.util.Locale.ROOT);
+        String text = sp < 0 ? "" : c.substring(sp + 1).strip();
+        if (word.equals("p") || word.equals("party")) {
+            if (!text.regionMatches(true, 0, "chat ", 0, 5)) return false;
+            word = "pc";
+            text = text.substring(5).strip();
+        }
+        if (!OutgoingChat.CHAT_COMMANDS.contains(word)) return false;
+        if ((word.equals("pc") || word.equals("pchat")) && !text.isEmpty()) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§9Party §8> §7" + player.getGameProfile().name() + "§f: " + text));
+        }
         return true;
     }
 }
