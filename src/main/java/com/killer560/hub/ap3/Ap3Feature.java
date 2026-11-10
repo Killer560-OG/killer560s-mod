@@ -109,10 +109,11 @@ public final class Ap3Feature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Feature.tick", Ap3Feature::tick));
         // An align or an aimed Boom / Use / Block owns the body's rotation: the auras' turn-first (Lights Device, Lever
         // Aura, Secret Aura...) waits for it instead of turning him under it (ap3-backwards-1026).
-        com.killer560.hub.util.TurnFirst.registerBodyOwner(Ap3Executor::ownsBodyRotation);
+        com.killer560.hub.util.TurnFirst.registerBodyOwner(Ap3Executor::ownsBodyRotation, Ap3Executor::yieldBodyToHand);
         // During a held walk an aura may turn him for a click only to a yaw the walk can keep its path at
         // (ap3-levers-1027): see Ap3Executor.walkKeyedYaws.
         com.killer560.hub.util.TurnFirst.registerYawConstraint(Ap3Executor::walkKeyedYaws);
+        com.killer560.hub.util.TurnFirst.registerOffWalk(Ap3Executor::offWalkYaw); // leverap3-1109: a lever beside the run
         // A USE node's packets go out at the START of the tick after its box was entered - the first thing on the
         // wire after the movement packet that put him there (Ap3Executor.tickStart). Registered after ActionGate's
         // own START observer (Killer560ModClient registers that first), so the tick it asks for is this one.

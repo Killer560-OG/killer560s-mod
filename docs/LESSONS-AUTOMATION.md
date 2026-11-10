@@ -158,6 +158,28 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   hidden on arrival, the close sent at an early END phase (after the tick's sneaking input, before the route acts). Old jar
   MultiActionsD 5/5 per version, fixed 5/5 clean; a close sent at START does not reproduce it, since Inventory Walk then
   makes that tick's input its still tick.
+- **His own dig while AP3 holds the camera (ap3digrot-1109).** An AP3 walk freezes his view (Ap3ViewYaw/PitchMixin) and walks
+  the body at another yaw, so his crosshair picks a block the look on the wire never strikes: experimental RotationBreak
+  post-flying, then pre-flying on every later dig (17 a run in 1109-boss-ee3route-same-dig). One miss is enough: Grim's
+  RotationBreak sets its buffer to 1 on a post-flying miss and takes 0.1 off per striking dig, and while the buffer is above 0
+  every dig is judged at ARRIVAL with only the heard look ("pre-flying"), so a probe that turned only the digs it could
+  turn without bending the walk still drew 14 flags after its first unturned one. EVERY dig must strike. `util/HandDigAim`
+  (HEAD of startAttack / a sending continueAttack, cheat build, only while view != body) turns the body to a look that
+  strikes his block and holds the dig's flush to this tick's movement packet (`BeforeMove.holdUntilMove`). The look is a
+  walk-keyed yaw first (`TurnFirst.walkKeyedLook`; AP3 re-picks its keys for a foreign turn), else the striking yaw whose
+  keys bend the walk least (`leastBend`): turning to his VIEW yaw walked him off the EE3 route (second lever clicked
+  mid-fall from y 120, then RotationPlace). AP3's held walk is open loop (`holdDir`), so even a small bend grows: Ap3Executor
+  shadows the bend with vanilla's own physics (per tick: velocity += push change, position += velocity, velocity *= friction;
+  ground push `getSpeed()` and friction 0.6*0.91, air push 0.026 sprinting / 0.02 and friction 0.91, a sprint-jump boost 0.2
+  along the facing) and steers it back out on the next free ticks by turning the body up to 30 degrees with the keys
+  unchanged (`steerOutDigBend`; never on a dig tick, a jump tick, a TurnFirst/body-owned turn or his use tick). A first try
+  in units of a ground push ignored friction and overshot in the air (z drift 0.09 -> 0.36, the route fell). A jump tick no
+  longer re-faces the walk over a dig turn. The next START gives the body back unless something wrote it. His digs while an
+  aimed Boom / Use / Block held the body (`TurnFirst.bodyOwned`) were first left unturned and drew 7 flags (the wire: the
+  boom's aim 20.50/49.52 missed his block); an owner now says whether it yields to his dig
+  (`registerBodyOwner(owner, yieldsToHand)`): AP3 yields an aimed node (an act armed for this tick's movement packet waits a
+  tick; START aims again from the body HandDigAim gives back), never an align or a tick whose act already went out. While he
+  holds dig every tick a Boom cannot go out (it is a dig too, MultiBreak) and AP3 stops after SWAP_TIMEOUT, as before.
 - **Breaker Aura aims without steering his walk (ba-rotation-1102).** It dug picks it never looked at: GrimAC RotationBreak
   (experimental) 87 lines in scenario 50 and 73 of 200 digs canceled. Now only a pick the HEARD look strikes is dug
   (util/DigAim; Grim also tries (lastYaw, lastPitch), so the next pick's aim can ride the same tick's movement packet), and
@@ -224,6 +246,15 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
   click sent at the START right after an END turn preceded every packet facing the stand, and after an earlier flag GrimAC
   let none through (testkit 416). Digs are not judged this way (54: behind and through a wall, 0 lines).
+- **Lever Aura never flipped an S2 lever beside an AP3 run (leverap3-1109).** Three causes, all in the HEE2 -> EE3 sim:
+  (1) under a held walk TurnFirst allowed only the walk-keyed yaws, and a lever 2-4 blocks to the side meets none, so it
+  deferred every tick (fix: `TurnFirst.offWalk()`, docs/AP3.md); (2) TurnFirst aimed from the eye after this tick's move
+  with the HORIZONTAL motion only, so in a fall (about a block a tick) the look missed by the drop, the click never went and
+  the body was turned again every tick; the prediction now adds `v.y` off the ground; (3) a turn out on a jump tick sent the
+  sprint-jump boost along the lever's yaw and threw him into the lava; AP3 faces the walk on every jump tick now. Testkit
+  1109-boss-ee3route (sim, levers t31-33 and t49-51, EE3 at t201-202 three of three) and 1109-boss-ee3route-grim /
+  -same-use / -same-swap / -same-dig (hx, Grim default and experimental clean; use and swap share GrimAC ticks with the
+  lever click on the wire, a queued dig holds it to another tick).
 - **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
   checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
   Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact

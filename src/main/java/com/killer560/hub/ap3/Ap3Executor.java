@@ -376,6 +376,7 @@ public final class Ap3Executor {
         alignPredValid = false;
         lookHeld = false;
         holdDir = null;
+        bendPX = bendPZ = bendVX = bendVZ = 0;
         waitUntilMs = 0L;
         queue.clear();
         if (leapGate != null) {
@@ -2231,6 +2232,7 @@ public final class Ap3Executor {
         // vanilla's own two-packet right click (useItemOn first), which pairs on Hypixel; with none, the server's ray along
         // the same look meets nothing either, and a use in the air fires.
         actFired = true;
+        actSentTick = tickCounter;
         switch (node.type) {
             case BLOCK -> {
                 // gameMode.useItemOn places client-side at once - the ghost block - whatever the server decides.
@@ -3204,6 +3206,7 @@ public final class Ap3Executor {
 
     /** The armed Term Aura click, at START (from {@link #tickStart}, which has asked the ActionGate). */
     private static void fireTermAura(Minecraft client, LocalPlayer player) {
+        actSentTick = tickCounter;
         net.minecraft.world.entity.decoration.ArmorStand stand = termAuraStand;
         termAuraStand = null;
         if (stand != null && !com.killer560.hub.terminalaura.TerminalAuraFeature.clickNow(client, player, stand,
@@ -5522,6 +5525,18 @@ public final class Ap3Executor {
         return out;
     }
 
+    /**
+     * For {@code util/TurnFirst.registerOffWalk}: the held walk's yaw while an aura with no walk-keyed look at its target
+     * (a lever beside the run, leverap3-1109) may bend the walk for its click's two ticks; NaN when no held walk drives or
+     * a jump is due or armed (a sprint jump's boost goes along the facing, so a turned body would throw the jump off).
+     */
+    public static float offWalkYaw() {
+        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0) {
+            return Float.NaN;
+        }
+        return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
     private static float heldKeysYaw;
     private static boolean heldKeysValid;
@@ -5536,6 +5551,7 @@ public final class Ap3Executor {
      */
     public static void beforeInputInstall() {
         if (!heldKeysValid || holdDir == null || aimLock) {
+            bendPX = bendPZ = bendVX = bendVZ = 0;
             return;
         }
         LocalPlayer player = Minecraft.getInstance().player;
@@ -5543,11 +5559,39 @@ public final class Ap3Executor {
             return;
         }
         float yaw = player.getYRot();
+        boolean ground = player.onGround();
+        double push = ground ? player.getSpeed() : player.isSprinting() ? Ap3AlignMath.AIR_SPEED_SPRINTING : Ap3AlignMath.AIR_SPEED;
+        double friction = ground ? 0.6 * Ap3AlignMath.FRICTION_SCALE : Ap3AlignMath.FRICTION_SCALE;
         if (Math.abs(yaw - heldKeysYaw) < 1e-4f) {
+            steerOutDigBend(player, yaw, push, friction);
             return;
         }
         float was = heldKeysYaw;
+        boolean digTurn = com.killer560.hub.util.HandDigAim.turnedThisTick();
+        double[] planned = digTurn ? moveDir(was) : null;
+        if (wantJump && !digTurn) {
+            // A jump goes in this tick under an aura's turn (or its hand-back): face the walk for it as applyHoldRealYaw
+            // does on a jump tick, or the sprint-jump boost goes along the aura's yaw and throws the route off (leverap3-1109:
+            // a lever turn on the platform jump put him in the lava). The aura's click misses this look and turns again.
+            yaw += Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z)) - yaw);
+            player.setYRot(yaw);
+            RouteRotation.rebase();
+        }
         writeHeldKeysAt(player, yaw);
+        if (digTurn) {
+            // His dig's look bends the walk this tick (no walk-keyed yaw struck his block): count the sideways push it
+            // adds - and on a jump tick the sprint-jump boost along the turned facing - so later ticks steer it back out.
+            double[] now = moveDir(yaw);
+            double ax = push * (now[0] - planned[0]), az = push * (now[1] - planned[1]);
+            if (wantJump && player.isSprinting()) {
+                double w = Math.toRadians(walkYawDeg()), f = Math.toRadians(yaw);
+                ax += 0.2 * (-Math.sin(f) + Math.sin(w));
+                az += 0.2 * (Math.cos(f) - Math.cos(w));
+            }
+            bendStep(ax, az, friction);
+        } else {
+            bendStep(0, 0, friction);
+        }
         LOGGER.info("[AP3] held walk: the body was turned from {} to {} before the move (another feature's turn) - keys"
                         + " re-picked for that yaw: {}{}{}{}",
                 String.format(Locale.US, "%.2f", was), String.format(Locale.US, "%.2f", yaw),
@@ -5555,11 +5599,105 @@ public final class Ap3Executor {
     }
 
     /**
+     * Where his dig turns have put the held walk against the walk without them: position and velocity difference (blocks),
+     * carried with vanilla's own per-tick physics (push, move, friction), so later ticks can steer it back out.
+     */
+    private static double bendPX, bendPZ, bendVX, bendVZ;
+    /** The most a steering tick turns the body off the walk (W stays held, so the sprint is kept). */
+    private static final double STEER_MAX_SIN = Math.sin(Math.toRadians(30));
+
+    /** One tick of the difference: this tick's extra push, the move, then friction (LivingEntity.travelInAir's order). */
+    private static void bendStep(double ax, double az, double friction) {
+        if (bendPX == 0 && bendPZ == 0 && ax == 0 && az == 0) {
+            return;
+        }
+        bendVX += ax;
+        bendVZ += az;
+        bendPX += bendVX;
+        bendPZ += bendVZ;
+        bendVX *= friction;
+        bendVZ *= friction;
+    }
+
+    private static float walkYawDeg() {
+        return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
+    /** The unit direction this tick's held keys push at body yaw {@code yawDeg} (vanilla's input vector, normalized). */
+    private static double[] moveDir(float yawDeg) {
+        double x = (wantLeft ? 1 : 0) - (wantRight ? 1 : 0), z = (wantForward ? 1 : 0) - (wantBackward ? 1 : 0);
+        double len = Math.hypot(x, z);
+        if (len < 1e-6) {
+            return new double[]{0, 0};
+        }
+        double r = Math.toRadians(yawDeg), sin = Math.sin(r), cos = Math.cos(r);
+        return new double[]{(x * cos - z * sin) / len, (z * cos + x * sin) / len};
+    }
+
+    /**
+     * A tick nothing else turns the body: while his dig turns have put the held walk off to the side, turn the body (keys
+     * kept, so the push turns with it, at most 30 degrees) by what cancels the side offset it will end with - the
+     * open-loop walk then ends where it would have without the digs (ap3digrot-1109). Never on a jump tick, a tick his dig
+     * or use goes (the movement packet's look is theirs) or while another feature's turn is out.
+     */
+    private static void steerOutDigBend(LocalPlayer player, float yaw, double push, double friction) {
+        if (bendPX == 0 && bendPZ == 0) {
+            return;
+        }
+        double w = Math.toRadians(walkYawDeg()), nx = -Math.cos(w), nz = -Math.sin(w); // d(direction)/d(yaw)
+        double side = bendPX * nx + bendPZ * nz, sideV = bendVX * nx + bendVZ * nz;
+        if (Math.abs(side) < 0.01 && Math.abs(sideV) < 0.003) {
+            bendPX = bendPZ = bendVX = bendVZ = 0;
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (wantJump || push <= 0 || com.killer560.hub.util.HandDigAim.digThisTick() || com.killer560.hub.util.TurnFirst.anyTurnOut()
+                || com.killer560.hub.util.TurnFirst.bodyOwned() || ActionGate.hisUseGoesThisTick(mc)) {
+            bendStep(0, 0, friction);
+            return;
+        }
+        // The side offset it ends with as it is: side + sideV*f/(1-f); a push a now ends a/(1-f) further.
+        double want = -(side * (1 - friction) + sideV * friction);
+        double[] before = moveDir(yaw);
+        float turned = yaw + (float) Math.toDegrees(Math.asin(Mth.clamp(want / push, -STEER_MAX_SIN, STEER_MAX_SIN)));
+        player.setYRot(turned);
+        RouteRotation.rebase();
+        double[] after = moveDir(turned);
+        bendStep(push * (after[0] - before[0]), push * (after[1] - before[1]), friction);
+        if (++steerLogs <= 40) {
+            LOGGER.info("[AP3] held walk: steering a dig's bend back out - body {} -> {} (side {} blocks, {} a tick)",
+                    String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", turned),
+                    String.format(Locale.US, "%.3f", side), String.format(Locale.US, "%.3f", sideV));
+        }
+    }
+
+    private static int steerLogs;
+
+    /**
      * Whether AP3 is steering the body's rotation itself right now, so another feature must not turn it
      * ({@code util/TurnFirst.registerBodyOwner}): an align (active, or queued and already holding the keys) plans every
      * press against the body's yaw, and an aimed Boom / Use / Block must keep its look until its use has gone out. A
      * held walk does NOT own it - an aura may turn him for a click mid-run; the walk yields (see applyHoldRealYaw).
      */
+    /**
+     * His own dig needs the body this tick ({@code util/HandDigAim}, ap3digrot-1109): an aimed node lets it go - its act,
+     * if armed for this tick's movement packet, waits a tick (START aims again from the body HandDigAim gives back) - but
+     * an align, or an act already sent this tick (its packets carry this tick's look), never does.
+     */
+    public static boolean yieldBodyToHand() {
+        if (!isRunning()) return true;
+        if (isInputOverridden() || actSentTick == tickCounter) return false;
+        if (actPending) {
+            actPending = false;
+            actPendingHit = null;
+            LOGGER.info("[AP3] his own dig takes this tick's look - {} #{} waits a tick", actNode == null ? "act" : actNode.type,
+                    actNode == null ? 0 : number(actNode));
+        }
+        return true;
+    }
+
+    private static long actSentTick = -1L;
+
     public static boolean ownsBodyRotation() {
         if (!isRunning()) {
             return false;

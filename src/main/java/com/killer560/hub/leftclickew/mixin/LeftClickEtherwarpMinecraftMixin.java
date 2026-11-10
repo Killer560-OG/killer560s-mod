@@ -28,7 +28,14 @@ public abstract class LeftClickEtherwarpMinecraftMixin {
         if (com.killer560.hub.leftclicksecrets.LeftClickSecrets.onLeftClick((Minecraft) (Object) this)
                 || LeftClickEtherwarp.onLeftClick((Minecraft) (Object) this)) {
             cir.setReturnValue(false);
+            return;
         }
+        com.killer560.hub.util.HandDigAim.beforeDig((Minecraft) (Object) this); // his dig under a held camera
+    }
+
+    @Inject(method = "startAttack", at = @At("RETURN"))
+    private void killer560smod$handDigSent(CallbackInfoReturnable<Boolean> cir) {
+        com.killer560.hub.util.HandDigAim.afterDig();
     }
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
@@ -36,6 +43,15 @@ public abstract class LeftClickEtherwarpMinecraftMixin {
         if (com.killer560.hub.leftclicksecrets.LeftClickSecrets.suppressHeld((Minecraft) (Object) this, leftClick)
                 || LeftClickEtherwarp.suppressHeldAttack((Minecraft) (Object) this, leftClick)) {
             ci.cancel();
+            return;
         }
+        if (leftClick) {
+            com.killer560.hub.util.HandDigAim.beforeHeldDig((Minecraft) (Object) this);
+        }
+    }
+
+    @Inject(method = "continueAttack", at = @At("RETURN"))
+    private void killer560smod$handDigHeldSent(boolean leftClick, CallbackInfo ci) {
+        com.killer560.hub.util.HandDigAim.afterDig();
     }
 }
