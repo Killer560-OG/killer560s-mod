@@ -70,9 +70,10 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
     private static final int PANEL_W = 300;
     private static final int PAD = 10;
-    private static final int ROW = 16;
     private static final int GAP = 4;
-    private static final int LINE = ROW + GAP;
+    /** Row and line height, shrunk by init when the panel would not fit the window. */
+    private int rowH = 16;
+    private int lineH = 20;
     private static final int TYPE_COLS = 4;
     private static final int ITEM_COLS = 2;
     private static final int ICON = 16;
@@ -175,16 +176,68 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             pending.put("Pitch", pitchKnown ? fmt(n.pitch) : "");
         }
 
+        // The panel is as tall as the rows laid out: build once at the top of the screen to measure, shrinking the
+        // rows until it fits the window, then build again centered.
+        int avail = this.height - 8;
+        for (int[] s : new int[][]{{16, 4}, {14, 3}, {12, 2}}) {
+            rowH = s[0];
+            lineH = rowH + s[1];
+            panelY = 0;
+            build();
+            if (panelH <= avail) {
+                break;
+            }
+        }
+        int h = panelH;
+        panelY = Math.max(4, (this.height - h) / 2);
+        this.clearWidgets();
+        fields.clear();
+        icons.clear();
+        build();
+    }
+
+    /** One half-width control of the flowing rows. */
+    private interface Cell {
+        void put(int x, int y, int w);
+    }
+
+    /** Lays the cells two to a row (an odd last one takes the whole row); returns the y after them. */
+    private int flow(List<Cell> cells, int x, int y, int w) {
+        int half = (w - GAP) / 2;
+        for (int i = 0; i < cells.size(); i += 2) {
+            if (i + 1 < cells.size()) {
+                cells.get(i).put(x, y, half);
+                cells.get(i + 1).put(x + half + GAP, y, w - half - GAP);
+            } else {
+                cells.get(i).put(x, y, w);
+            }
+            y += lineH;
+        }
+        return y;
+    }
+
+    private Cell field(String label, String shown, int labelW) {
+        return (cx, cy, cw) -> addField(cx, cy, cw, label, shown, labelW);
+    }
+
+    private Cell field(String label, int labelW) {
+        return field(label, label, labelW);
+    }
+
+    private Cell closeGateCell() {
+        return (cx, cy, cw) -> button(onOff("After terminal", closeGate).getString(), b -> {
+            closeGate = !closeGate;
+            b.setMessage(onOff("After terminal", closeGate));
+        }, cx, cy, cw, rowH);
+    }
+
+    /** Builds every widget for the current type and row size, and sets {@link #panelH} from what it laid out. */
+    private void build() {
         List<ItemChoice> choices = type.usesItem() && itemOpen ? itemChoices() : List.of();
         int typeRows = (Ap3Node.Type.values().length + TYPE_COLS - 1) / TYPE_COLS;
         int itemRows = (choices.size() + ITEM_COLS - 1) / ITEM_COLS;
-        int rows = 1 + (typeOpen ? typeRows : 0) + 1 /* xyz */ + 1 /* box */ + (type.usesYaw() ? 1 : 0)
-                + 1 /* wait, name */ + 1 /* leap counter */
-                + (type == Ap3Node.Type.BLINK_CHARGE ? 1 : 0) /* momentum */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
         panelW = PANEL_W;
-        panelH = 32 + rows * LINE + 12 /* status */ + 20 + PAD;
         panelX = (this.width - panelW) / 2;
-        panelY = Math.max(4, (this.height - panelH) / 2);
         int x = panelX + PAD;
         int w = panelW - PAD * 2;
         int half = (w - GAP) / 2;
@@ -195,8 +248,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             typeOpen = !typeOpen;
             itemOpen = false;
             rebuild();
-        }, x, y, w, ROW);
-        y += LINE;
+        }, x, y, w, rowH);
+        y += lineH;
         if (typeOpen) {
             Ap3Node.Type[] all = Ap3Node.Type.values();
             int cw = (w - GAP * (TYPE_COLS - 1)) / TYPE_COLS;
@@ -204,138 +257,120 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
                 final Ap3Node.Type t = all[i];
                 int col = i % TYPE_COLS;
                 int bx = x + col * (cw + GAP);
-                int by = y + (i / TYPE_COLS) * LINE;
+                int by = y + (i / TYPE_COLS) * lineH;
                 button((t == type ? "§6" : "§7") + t.label(), b -> chooseType(t), bx, by,
-                        col == TYPE_COLS - 1 ? x + w - bx : cw, ROW);
+                        col == TYPE_COLS - 1 ? x + w - bx : cw, rowH);
             }
-            y += typeRows * LINE;
+            y += typeRows * lineH;
         }
 
         int third = (w - GAP * 2) / 3;
         addField(x, y, third, "X", 12);
         addField(x + third + GAP, y, third, "Y", 12);
         addField(x + (third + GAP) * 2, y, w - (third + GAP) * 2, "Z", 12);
-        y += LINE;
+        y += lineH;
 
+        // Every box and switch is a half-width cell flowed two to a row, so no row has an empty half.
         // A type without a yaw has its box square to the world: width is east-west, length north-south.
         boolean world = !type.usesYaw();
-        addField(x, y, half, "Width", world ? "Width X" : "Width", 46);
-        addField(x + half + GAP, y, w - half - GAP, "Length", world ? "Length Z" : "Length", 50);
-        y += LINE;
-
+        List<Cell> cells = new ArrayList<>();
+        cells.add(field("Width", world ? "Width X" : "Width", 46));
+        cells.add(field("Length", world ? "Length Z" : "Length", 50));
         if (type.usesYaw()) {
+            cells.add(field("Yaw", 26));
             if (type.usesPitch()) {
-                addField(x, y, half, "Yaw", 26);
-                addField(x + half + GAP, y, w - half - GAP, "Pitch", 30);
-            } else {
-                addField(x, y, half, "Yaw", 26);
+                cells.add(field("Pitch", 30));
             }
-            y += LINE;
         }
-
-        if (type.usesName()) {
-            addField(x, y, half, "Wait ms", 46);
-            addField(x + half + GAP, y, w - half - GAP, "Name", 30);
-        } else {
-            addField(x, y, half, "Wait ms", 46);
-            ssButton(x + half + GAP, y, w - half - GAP);
-        }
-        y += LINE;
+        cells.add(field("Wait ms", 46));
+        cells.add(type.usesName() ? field("Name", 30) : this::ssButton);
         // The leapcounter: suffix (2026-10-26): 0 = none; any node type. Beside it the close suffix (2026-10-27).
-        addField(x, y, half, "Leap counter", 70);
-        button(onOff("After terminal", closeGate).getString(), b -> {
-            closeGate = !closeGate;
-            b.setMessage(onOff("After terminal", closeGate));
-        }, x + half + GAP, y, w - half - GAP, ROW);
-        y += LINE;
+        cells.add(field("Leap counter", 70));
+        cells.add(closeGateCell());
         // The sectiondone:<n> suffix (2026-10-27): 0 = none, 1-4 = wait for that P3 section to be done.
-        addField(x, y, half, "Section done", 70);
+        cells.add(field("Section done", 70));
         if (type.usesBlinkTicks()) {
             // Blink Charge / Blink Release: the ticks to bank or fire, 1-20; blank (or 0) = the max.
-            addField(x + half + GAP, y, w - half - GAP, "Blink ticks", 58);
+            cells.add(field("Blink ticks", 58));
         } else if (type == Ap3Node.Type.CRYSTAL) {
             // Crystal: the Spring Boots height in blocks, as /ap3 add crystal <n>; blank = the crystal above the node.
-            addField(x + half + GAP, y, w - half - GAP, "Crystal height", "Height", 38);
+            cells.add(field("Crystal height", "Height", 38));
         }
-        y += LINE;
+        y = flow(cells, x, y, w);
         if (type == Ap3Node.Type.BLINK_CHARGE) {
             // Momentum kept (default): his physics pauses while the charge banks; Stop: he brakes, then banks standing.
             button(momentumLabel(), b -> {
                 blinkStop = !blinkStop;
                 b.setMessage(Component.literal(momentumLabel()));
-            }, x, y, w, ROW);
-            y += LINE;
+            }, x, y, w, rowH);
+            y += lineH;
         }
 
         if (type.usesItem()) {
             ItemStack shown = hotbarStack(itemId);
             String text = itemId == null ? "§7held item / none" : "§6" + itemName(shown, itemId)
                     + (shown == null ? " §c(not in hotbar)" : "");
-            int bx = x;
             button(pad(shown) + "Item: " + text + (itemOpen ? " §7▲" : " §7▼"), b -> {
                 itemOpen = !itemOpen;
                 typeOpen = false;
                 rebuild();
-            }, bx, y, w, ROW);
+            }, x, y, w, rowH);
             if (shown != null) {
-                icons.add(new Icon(shown, bx + 2, y));
+                icons.add(new Icon(shown, x + 2, y));
             }
-            y += LINE;
+            y += lineH;
             if (itemOpen) {
                 int cw = (w - GAP * (ITEM_COLS - 1)) / ITEM_COLS;
                 for (int i = 0; i < choices.size(); i++) {
                     ItemChoice ch = choices.get(i);
                     int col = i % ITEM_COLS;
                     int cx = x + col * (cw + GAP);
-                    int cy = y + (i / ITEM_COLS) * LINE;
+                    int cy = y + (i / ITEM_COLS) * lineH;
                     int cwi = col == ITEM_COLS - 1 ? x + w - cx : cw;
                     boolean chosen = java.util.Objects.equals(ch.id(), itemId) && ch.usable();
                     String label = this.font.plainSubstrByWidth(ch.text(), cwi - 2 * (ICON + 6));
                     SettingsButtonWidget opt = button((ch.stack() != null ? "    " : "") + (chosen ? "§6" : ch.usable() ? "§f" : "§8") + label,
-                            b -> chooseItem(ch), cx, cy, cwi, ROW);
+                            b -> chooseItem(ch), cx, cy, cwi, rowH);
                     opt.active = ch.usable();
                     if (ch.stack() != null) {
                         icons.add(new Icon(ch.stack(), cx + 2, cy));
                     }
                 }
-                y += itemRows * LINE;
+                y += itemRows * lineH;
             }
         }
 
+        // A Stopwatch's wait row holds its name, so its After SS switch sits beside Jump / Edge instead.
+        cells = new ArrayList<>();
+        if (type.usesName()) {
+            cells.add(this::ssButton);
+        }
+        cells.add((cx, cy, cw) -> cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
+            jumpMod = SettingsButtonWidget.step(jumpMod, dir);
+            b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
+        }, cx, cy, cw, rowH));
         if (type.usesPrecise()) {
-            cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
-                jumpMod = SettingsButtonWidget.step(jumpMod, dir);
-                b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
-            }, x, y, half, ROW);
-            button(onOff("Precise", precise).getString(), b -> {
+            cells.add((cx, cy, cw) -> button(onOff("Precise", precise).getString(), b -> {
                 precise = !precise;
                 b.setMessage(onOff("Precise", precise));
-            }, x + half + GAP, y, w - half - GAP, ROW);
-        } else {
-            // A Stopwatch's wait row holds its name, so its After SS switch sits beside Jump / Edge instead.
-            int jw = type.usesName() ? half : w;
-            cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
-                jumpMod = SettingsButtonWidget.step(jumpMod, dir);
-                b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
-            }, x, y, jw, ROW);
-            if (type.usesName()) {
-                ssButton(x + half + GAP, y, w - half - GAP);
-            }
+            }, cx, cy, cw, rowH));
         }
-        y += LINE;
+        y = flow(cells, x, y, w);
 
         if (type.usesYaw()) {
-            button("Position from me", b -> fillFromPlayer(true, false), x, y, half, ROW);
-            button("Look from me", b -> fillFromPlayer(false, true), x + half + GAP, y, w - half - GAP, ROW);
+            button("Position from me", b -> fillFromPlayer(true, false), x, y, half, rowH);
+            button("Look from me", b -> fillFromPlayer(false, true), x + half + GAP, y, w - half - GAP, rowH);
         } else {
-            button("Position from me", b -> fillFromPlayer(true, false), x, y, w, ROW);
+            button("Position from me", b -> fillFromPlayer(true, false), x, y, w, rowH);
         }
-        y += LINE;
+        y += lineH;
 
         statusY = y + 1;
         y += 12;
-        button("§aSave", b -> save(), x, y, half, 20);
-        button("Cancel", b -> onClose(), x + half + GAP, y, w - half - GAP, 20);
+        int bh = rowH + 4;
+        button("§aSave", b -> save(), x, y, half, bh);
+        button("Cancel", b -> onClose(), x + half + GAP, y, w - half - GAP, bh);
+        panelH = y + bh + PAD - panelY;
     }
 
     /** Copies every box on screen into {@link #pending} and forgets the boxes (they are about to be rebuilt). */
@@ -453,7 +488,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         button(onOff("After SS", ssGate).getString(), b -> {
             ssGate = !ssGate;
             b.setMessage(onOff("After SS", ssGate));
-        }, x, y, w, ROW);
+        }, x, y, w, rowH);
     }
 
     /** A setting that steps through values: left click forward, right click back. */
@@ -480,7 +515,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
 
     /** A text box {@code w} wide at {@code x}, {@code shown} drawn in its first {@code labelW} pixels. */
     private void addField(int x, int y, int w, String label, String shown, int labelW) {
-        ThemedEditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, ROW, Component.literal(shown));
+        ThemedEditBox box = new ThemedEditBox(this.font, x + labelW, y, w - labelW, rowH, Component.literal(shown));
         box.onEnter(this::save);
         box.setMaxLength(32);
         box.setValue(pending.getOrDefault(label, ""));
