@@ -1172,8 +1172,8 @@ public final class BlinkCharge {
     private static long tpHeldTotal;
     private static long tpHoldMsMax;
     private static final int TP_HOLD_MAX_PACKETS = 2048;
-    /** A teleport hold with no ping after its confirm is let go after this long. */
-    private static final long TP_HOLD_MAX_MS = 3000L;
+    /** A teleport hold is let go after this long: its answer is due by then, and a longer one draws TimerLimit. */
+    private static final long TP_HOLD_MAX_MS = ANSWER_DELAY_MS;
 
     public static boolean teleportHeld() {
         return !tpSegs.isEmpty();
@@ -1442,8 +1442,17 @@ public final class BlinkCharge {
             if (!tickOpen && heldBlocks.isEmpty()) { // with block changes held, pumpDeferredBlocks released them above
                 releaseDueAnswersLocked(System.currentTimeMillis());
             }
-            if (!tpSegs.isEmpty() && System.currentTimeMillis() - tpSegs.peekFirst().startMs() > TP_HOLD_MAX_MS) {
-                releaseAnswersLocked(); // cannot happen (its answer waits at most the delay) - never hold past it
+            if (!tpSegs.isEmpty() && !tickOpen && System.currentTimeMillis() - tpSegs.peekFirst().startMs() > TP_HOLD_MAX_MS) {
+                // Every tick held goes out in one burst behind the answer, and GrimAC's TimerLimit allows him at most
+                // ~1120 ms behind (1000 ms + drift): a 1149 ms hold (33 packets) drew TimerLimit where 1090 ms ones (29-30)
+                // were clean (1027-ap3-blink-leap-route, 26.2, ap3grp-run5). Its answer goes now, a little early; the
+                // bank is backed again on still ticks as after any hold.
+                Answer mark = tpSegs.peekFirst().mark();
+                while (!answers.isEmpty() && !tpSegs.isEmpty() && tpSegs.peekFirst().mark() == mark) {
+                    Answer a = answers.pollFirst();
+                    sendLocked(a.held());
+                    answerSentLocked(a);
+                }
             }
         }
         if (deferredWhy != null && ((covered() && !clickGoesFirst(client, deferredWhy))
