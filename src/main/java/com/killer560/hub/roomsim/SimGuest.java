@@ -65,7 +65,11 @@ public final class SimGuest {
         });
         // DISCONNECT is on the netty thread and a task queued from it can be dropped (code-lessons): a flag the
         // render thread drains.
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PENDING_DROP.set(true));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            String bye = SimCoop.byeOf(handler.getConnection().getDisconnectionDetails());
+            if (byeReason == null && bye != null) byeReason = bye;
+            PENDING_DROP.set(true);
+        });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (PENDING_DROP.getAndSet(false)) drop();
             if (current != null || pendingArrive >= 0) guestTick(client);

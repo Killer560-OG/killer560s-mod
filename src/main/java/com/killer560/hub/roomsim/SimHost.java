@@ -254,9 +254,6 @@ public final class SimHost {
         if (active && server != null) {
             server.execute(() -> {
                 byeAll(server, "the owner closed the room");
-                for (ServerPlayer sp : List.copyOf(server.getPlayerList().getPlayers())) {
-                    if (!SimCoop.isHost(sp)) sp.connection.disconnect(Component.literal("The owner closed the room."));
-                }
                 server.unpublishServer();
             });
         }
@@ -287,19 +284,18 @@ public final class SimHost {
         if (server == null) return;
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-            if (sp != null && !SimCoop.isHost(sp)) kick(sp, "the owner kicked you", "The owner kicked you.");
+            if (sp != null && !SimCoop.isHost(sp)) kick(sp, "the owner kicked you");
         });
     }
 
-    private static void kick(ServerPlayer sp, String bye, String message) {
+    private static void kick(ServerPlayer sp, String bye) {
         kicks++;
-        SimCoop.LOGGER.info("[SimCoop] kicked {}: {}", sp.getGameProfile().name(), message);
+        SimCoop.LOGGER.info("[SimCoop] kicked {}: {}", sp.getGameProfile().name(), SimCoop.byeText(bye));
         SimCoop.bye(sp, bye);
-        sp.connection.disconnect(Component.literal(message));
     }
 
     private static void byeAll(MinecraftServer server, String reason) {
-        for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
+        for (ServerPlayer sp : List.copyOf(server.getPlayerList().getPlayers())) {
             if (!SimCoop.isHost(sp)) SimCoop.bye(sp, reason);
         }
     }
@@ -340,7 +336,7 @@ public final class SimHost {
                     TICKETS.remove(norm(id.toString()));
                     SimCoop.LOGGER.info("[SimCoop] {} admitted with a ticket", sp.getGameProfile().name());
                 } else if (gated && tick - since >= ADMIT_TICKS) {
-                    kick(sp, "join through the Multiplayer menu", "Join through the Multiplayer menu.");
+                    kick(sp, "join through the Multiplayer menu");
                     continue;
                 }
             }

@@ -204,9 +204,25 @@ public final class SimCoop {
         SimHost.register();
     }
 
-    /** Server thread: tells a modded guest why it is about to be dropped. */
+    /**
+     * Server thread: tells a guest why and drops it with the same words ("the owner left" -> "The owner left."). The
+     * bye packet's task can be dropped with the connection, so the guest also reads the reason off the disconnect.
+     */
     static void bye(ServerPlayer sp, String reason) {
-        if (sp.connection != null && ServerPlayNetworking.canSend(sp, BYE.id())) ServerPlayNetworking.send(sp, new Bye(reason));
+        if (sp.connection == null) return;
+        if (ServerPlayNetworking.canSend(sp, BYE.id())) ServerPlayNetworking.send(sp, new Bye(reason));
+        sp.connection.disconnect(net.minecraft.network.chat.Component.literal(byeText(reason)));
+    }
+
+    /** The words a dropped guest sees: "the owner left" -> "The owner left.". */
+    static String byeText(String reason) {
+        return Character.toUpperCase(reason.charAt(0)) + reason.substring(1) + ".";
+    }
+
+    /** The bye a host's disconnect message carries ("The owner left." -> "the owner left"), or null for any other. */
+    static String byeOf(net.minecraft.network.DisconnectionDetails details) {
+        String s = details == null ? "" : details.reason().getString();
+        return s.startsWith("The owner ") && s.endsWith(".") ? "t" + s.substring(1, s.length() - 1) : null;
     }
 
     /** Whether this server player is the one whose game is hosting (the singleplayer owner). */
