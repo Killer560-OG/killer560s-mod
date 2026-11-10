@@ -346,6 +346,23 @@ public final class TurnFirst {
             }
         }
         if (Float.isNaN(walk)) return null;
+        // The least bend is often a ray that only grazes the target's edge, and the eye lands a few hundredths off the
+        // predicted one (the re-picked keys move the air push): the S2 low lever was missed twice in a fall that way
+        // (leverap3-1109). So first a look that still strikes from the eye moved 0.06 any way, else any.
+        float[] sure = offWalkLook(player, eye, yaw0, pitch0, (a, b) -> {
+            for (Vec3 o : EYE_SLACK) {
+                if (!ray.test(a.add(o), b.add(o))) return false;
+            }
+            return true;
+        }, reach, walk);
+        return sure != null ? sure : offWalkLook(player, eye, yaw0, pitch0, ray, reach, walk);
+    }
+
+    private static final Vec3[] EYE_SLACK = {Vec3.ZERO, new Vec3(0.06, 0, 0), new Vec3(-0.06, 0, 0), new Vec3(0, 0.06, 0),
+            new Vec3(0, -0.06, 0), new Vec3(0, 0, 0.06), new Vec3(0, 0, -0.06)};
+
+    private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
+                                       java.util.function.BiPredicate<Vec3, Vec3> ray, double reach, float walk) {
         float[] best = null;
         float bestScore = Float.MAX_VALUE;
         for (int d = 0; d <= 60; d++) {
