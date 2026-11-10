@@ -87,7 +87,18 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
             prefs.save();
             com.killer560.hub.roomsim.SimMobFloor.setEnabled(on);
         }, () -> { }, null, contentX, contentY + 22, contentWidth, 18));
-        int y = contentY + 46;
+        // Receive Sim Invites (coopsim phase 3): ON keeps the relay socket a room owner's invite arrives through.
+        var coop = com.killer560.hub.roomsim.SimCoopConfig.get();
+        w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
+                contentX, contentY + 44, contentWidth, 18));
+        int blocked = coop.blocked().size();
+        if (blocked > 0) {
+            w.add(SettingsButtonWidget.builder(Component.literal("Clear Blocked Inviters: " + blocked), b -> {
+                coop.clearBlocked();
+                requestRebuild.run();
+            }).bounds(contentX, contentY + 66, contentWidth, 18).build());
+        }
+        int y = contentY + (blocked > 0 ? 90 : 68);
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Keybinds", false));
         y += 16;
         w.add(SettingsButtonWidget.builder(text("Next Room", 1, SimRoomCycle.getNextKey(), "/next"), b -> {

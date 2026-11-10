@@ -202,6 +202,7 @@ public final class SimCoop {
         SimGuest.register();
         SimRequests.register();
         SimHost.register();
+        SimReach.register();
     }
 
     /**

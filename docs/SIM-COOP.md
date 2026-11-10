@@ -1,4 +1,4 @@
-# Co-op dungeon sim (phases 1 and 2)
+# Co-op dungeon sim (phases 1 to 3)
 
 Branch `staging-coopsim` (post-2.0 staging: never shipped before 2.0). A second player joins the host's sim world over
 LAN (vanilla "Open to LAN"). The host's integrated server stays the only thing that writes the world; a guest's client
@@ -145,6 +145,39 @@ placement, Join list, password, full, protocol, Refresh), 1109-mp-upnp (off, sil
 only, a switched-off kind refused and saved, Kick, the two warnings, Close deletes listing and mapping), 1109-mp-two (two
 clients through `run-coop.sh -s 1109-mp-two`: Join page, wrong then right password, admitted and kept, Session page via the
 pause menu, speed honored then refused, Kick -> ended screen -> Back, rejoin, owner leaves -> "Session ended: the owner left").
+
+## Invites (phase 3)
+
+The owner invites friends by name; the receiver joins without the password. Relay side (relay `src/simreach.ts`, routes in
+`src/simrooms.ts`, contract in the relay CLAUDE.md "Sim invites"): ONE Durable Object `simreach` holds every receiver's
+HIBERNATING WebSocket (`GET /simreach?token=&mc=&protocol=`), tagged with the token's uuid and lower-case name; idle sockets
+cost nothing (the mod sends only WebSocket ping frames, which the runtime answers without waking the object). Reach
+(`POST /simrooms/reach`, up to 50 names, 6 a minute) and invite (`POST /simrooms/invite`, 10 a minute, 60 an hour, the same
+target once per 30 s) go through SimRooms, so only the owner of a live room can ask; an invite key lives 10 minutes with the
+room, is bound to the target's uuid, single use, and `POST /simrooms/join {invite}` skips the password with it (capacity
+still applies). Offline, OFF, blocked, another MC/protocol and yourself all answer the same 404 "not reachable", so a block
+is not revealed. The Presence object is untouched (no player data there, owner's rule).
+
+Mod side:
+- `roomsim/SimReach`: the socket while Sim Settings' "Receive Sim Invites" is ON (default ON, `SimCoopConfig.receiveInvites`,
+  BoolFields, in ProfileManager through SimCoopConfig). Connects from a client tick every second (never at boot), backs off
+  5 s .. 10 min with jitter, reconnects on an account switch, closes when OFF and on client stop; the socket is stored in
+  `onOpen`, before any message can arrive. It sends the block list (`SimCoopConfig.blocked`, at most 100, saved as
+  `blockedInviters`) after connecting and on every change. An invite shows as a chat line with [Join] [Decline] [Block]
+  (`/siminvite join|decline|block <n>`) in a world, or a Join / Decline prompt on the title and sim menus; live invites
+  (10 kept, dropped at expiry) are also listed at the top of the Join page with Decline and Block. Join leaves the current
+  world, opens the Join page and asks the relay with the invite key (`SimMultiplayerScreen.join(roomId, name, null, key)`),
+  then the phase-2 ticket path. Joining while hosting is refused.
+- Owner: Session page -> "Invite Players": the relay is asked which of his mirrored /fl friends, Best Friends and mod users
+  (at most 50) can take an invite now (on opening and on Refresh, at most once per 30 s); each has an Invite button, and
+  "Invite by name" (Enter = Invite) invites anyone with the mod. A LAN-only room (no listing) cannot invite.
+- Cost on the Cloudflare free plan (100k Worker and 100k DO requests a day): a receiver is 1 Worker + 1 DO request per
+  connect and nothing idle; a reach and an invite are 1 Worker + 2 DO each; the accepted join is 1 + 1.
+
+Testkit 1109-mp-invite (two clients, `run-coop.sh -s 1109-mp-invite -w`, which starts a local wrangler dev relay with the
+test secret): guest OFF -> socket closed, OFF survives a reload, the reach list is empty and an invite by name is refused;
+ON -> the reach list shows the guest, the row's Invite sends, the guest's title-screen prompt is declined (nothing pending,
+no world); a second invite by name with Enter, Join -> in the owner's world as a guest, admitted with its ticket, no password.
 
 ## Not done (phase 2+)
 

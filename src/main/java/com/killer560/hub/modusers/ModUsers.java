@@ -26,6 +26,9 @@ public final class ModUsers {
 
     public static int version() { return version; }
 
+    /** Everyone currently shown as a mod user (a snapshot). */
+    public static java.util.Set<String> names() { return java.util.Set.copyOf(SHOWN.keySet()); }
+
     /** The variant a player shows as ("legit" or "cheat"), or null when they show nothing. */
     public static String variantOf(String name) { return name == null ? null : SHOWN.get(name); }
 

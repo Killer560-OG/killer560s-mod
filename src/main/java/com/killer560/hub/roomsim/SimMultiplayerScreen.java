@@ -33,7 +33,7 @@ import java.util.UUID;
  */
 public final class SimMultiplayerScreen extends Screen {
 
-    enum View { CREATE, JOIN, SESSION }
+    enum View { CREATE, JOIN, SESSION, INVITE }
 
     /** One listed room, as the relay gave it. */
     record Room(String id, String owner, String name, boolean locked, int players, int max, String modVersion,
@@ -66,6 +66,13 @@ public final class SimMultiplayerScreen extends Screen {
     private String guestKey = "";
     private CommitEditBox roomBox, speedBox;
     private int itemIndex;
+    // Invite (owner): who the relay says can take an invite now, from friends, Best Friends and mod users
+    private static volatile List<String> reachable = List.of();
+    private static volatile String reachState = "";
+    private static long lastReachMs;
+    private static final java.util.Set<String> INVITED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private CommitEditBox inviteBox;
+    private int pendingKey;
 
     public SimMultiplayerScreen(Screen parent) {
         this(parent, null);
@@ -80,7 +87,8 @@ public final class SimMultiplayerScreen extends Screen {
 
     private View shown() {
         Minecraft mc = Minecraft.getInstance();
-        if (SimGuest.isGuest(mc) || SimHost.hosting()) return View.SESSION;
+        if (SimGuest.isGuest(mc)) return View.SESSION;
+        if (SimHost.hosting()) return view == View.INVITE ? View.INVITE : View.SESSION;
         return view == null || view == View.SESSION ? View.CREATE : view;
     }
 
@@ -96,7 +104,7 @@ public final class SimMultiplayerScreen extends Screen {
         }
         View v = shown();
         int x = nav.contentX, y = nav.contentY + 20, w = nav.contentW;
-        if (v != View.SESSION) {
+        if (v == View.CREATE || v == View.JOIN) {
             int half = (w - 6) / 2;
             addRenderableWidget(tabButton("Create", v == View.CREATE, x, y, half, View.CREATE));
             addRenderableWidget(tabButton("Join", v == View.JOIN, x + half + 6, y, w - half - 6, View.JOIN));
@@ -108,6 +116,7 @@ public final class SimMultiplayerScreen extends Screen {
             case SESSION -> {
                 if (guest) initGuest(x, y, w); else initOwner(x, y, w);
             }
+            case INVITE -> initInvite(x, y, w);
         }
         if (v == View.JOIN && lanDetector == null) startLan();
     }
@@ -158,8 +167,24 @@ public final class SimMultiplayerScreen extends Screen {
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), b -> fetchRooms())
                 .bounds(x + w - 70, y, 70, 18).build());
         y += ROW;
-        int listed = 0;
         int bottom = nav.contentBottom - ROW * 4;
+        pendingKey = SimReach.pending().hashCode();
+        for (SimReach.Invite inv : SimReach.pending()) {
+            if (y + ROW > bottom) break;
+            int bw = 56;
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite: " + inv.from() + " - " + inv.room()),
+                    b -> SimReach.act(this.minecraft, "join", inv.id())).bounds(x, y, w - 2 * (bw + 4), 20).build());
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Decline"), b -> {
+                SimReach.act(this.minecraft, "decline", inv.id());
+                rebuildWidgets();
+            }).bounds(x + w - 2 * bw - 4, y, bw, 20).build());
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Block"), b -> {
+                SimReach.act(this.minecraft, "block", inv.id());
+                rebuildWidgets();
+            }).bounds(x + w - bw, y, bw, 20).build());
+            y += ROW;
+        }
+        int listed = 0;
         for (Room r : rooms) {
             if (y + ROW > bottom) break;
             String label = (r.locked() ? "[Locked] " : "") + r.name() + "  -  " + r.owner() + "  " + r.players() + "/"
@@ -237,8 +262,13 @@ public final class SimMultiplayerScreen extends Screen {
 
     /** Asks the relay for a ticket, then connects straight to the host. */
     void join(Room r, String password) {
-        say("Joining " + r.name() + "...", MenuStyle.TXT_SOFT);
-        SimRooms.join(r.id(), password).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
+        join(r.id(), r.name(), password, null);
+    }
+
+    /** {@code invite}: a received invite's key, which skips the password (phase 3). */
+    void join(String roomId, String roomName, String password, String invite) {
+        say("Joining " + roomName + "...", MenuStyle.TXT_SOFT);
+        SimRooms.join(roomId, password, invite).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
             if (rep == null || rep.status() != 200 || rep.body() == null || !rep.body().has("nonce")) {
                 say(rep == null ? "Could not reach the room list." : SimRooms.refusal(rep), MenuStyle.RED);
                 return;
@@ -249,16 +279,16 @@ public final class SimMultiplayerScreen extends Screen {
                 JsonObject e = b.getAsJsonObject("endpoint");
                 address = e.get("host").getAsString() + ":" + e.get("port").getAsInt();
             }
-            SimGuest.expect(new SimGuest.Pending(r.id(), b.get("nonce").getAsString(),
+            SimGuest.expect(new SimGuest.Pending(roomId, b.get("nonce").getAsString(),
                     b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L, address,
-                    SimHost.key(r.id())));
+                    SimHost.key(roomId)));
             passwordFor = null;
             if (address == null) {
                 say("That room is LAN only: pick it in the LAN list (same network as the owner).", MenuStyle.TXT_SOFT);
                 rebuildWidgets();
                 return;
             }
-            connect(address, r.name());
+            connect(address, roomName);
         }));
     }
 
@@ -314,6 +344,13 @@ public final class SimMultiplayerScreen extends Screen {
             y += 20;
         }
         y += 4;
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite Players"), b -> {
+            view = View.INVITE;
+            message = "";
+            rebuildWidgets();
+            fetchReach(false);
+        }).bounds(x, y, w, 20).build());
+        y += ROW;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Close Room"), b -> {
             int n = SimHost.guests().size();
             if (n == 0) {
@@ -327,6 +364,113 @@ public final class SimMultiplayerScreen extends Screen {
             }, Component.literal("Close the room?"), Component.literal(disconnectWarning(n))));
         }).bounds(x, y, w, 20).build());
     }
+
+    // ---- Invite (owner) ----
+
+    private void initInvite(int x, int y, int w) {
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> {
+            view = View.SESSION;
+            message = "";
+            rebuildWidgets();
+        }).bounds(x, y, 60, 18).build());
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), b -> fetchReach(true))
+                .bounds(x + w - 70, y, 70, 18).build());
+        y += ROW + 11;
+        int bottom = nav.contentBottom - ROW * 2;
+        for (String name : reachable) {
+            if (y + ROW > bottom) break;
+            boolean sent = INVITED.contains(name.toLowerCase(java.util.Locale.ROOT));
+            SettingsButtonWidget b = addRenderableWidget(SettingsButtonWidget.builder(
+                    Component.literal(sent ? "Invited" : "Invite"), btn -> sendInvite(name)).bounds(x + w - 70, y, 70, 18).build());
+            b.active = !sent;
+            y += ROW;
+        }
+        y = Math.max(y, bottom) + 2;
+        inviteBox = box(x + 110, y, w - 110 - 74, 16, "Invite by name", inviteBox == null ? "" : inviteBox.getValue());
+        SettingsButtonWidget go = addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite"),
+                b -> sendInvite(inviteBox.getValue().trim())).bounds(x + w - 70, y, 70, 18).build());
+        inviteBox.pressOnEnter(go);
+    }
+
+    /** Friends (mirrored /fl), Best Friends and mod users, at most 50 names, built off the render thread. */
+    private static List<String> candidates() {
+        java.util.LinkedHashMap<String, String> out = new java.util.LinkedHashMap<>();
+        java.util.function.Consumer<String> add = n -> {
+            if (n != null && n.matches("[A-Za-z0-9_]{1,16}") && out.size() < 50) out.putIfAbsent(n.toLowerCase(java.util.Locale.ROOT), n);
+        };
+        com.killer560.hub.social.FriendsListConfig.getInstance().friends().forEach(f -> add.accept(f.name));
+        com.killer560.hub.social.BestFriendsStore.records().forEach(r -> add.accept(r.lastKnownName));
+        com.killer560.hub.modusers.ModUsers.names().forEach(add);
+        var user = Minecraft.getInstance().getUser();
+        if (user != null) out.remove(user.getName().toLowerCase(java.util.Locale.ROOT));
+        return new ArrayList<>(out.values());
+    }
+
+    /** Asks the relay which candidates can take an invite (on opening and on Refresh, at most once per 30 s). */
+    private void fetchReach(boolean asked) {
+        String roomId = SimHost.roomId(), secret = SimHost.secret();
+        if (roomId == null || secret == null) {
+            reachState = "This room is not on the room list (LAN only): nobody can be invited.";
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastReachMs < 30_000) {
+            if (asked) say("Refreshed less than 30 s ago.", MenuStyle.TXT_SOFT);
+            return;
+        }
+        lastReachMs = now;
+        reachState = "Looking for friends who can join...";
+        java.util.concurrent.CompletableFuture.supplyAsync(SimMultiplayerScreen::candidates)
+                .thenCompose(names -> names.isEmpty()
+                        ? java.util.concurrent.CompletableFuture.completedFuture((com.killer560.hub.relay.RelayCalls.Reply) null)
+                        : SimRooms.reach(roomId, secret, names))
+                .whenComplete((rep, err) -> {
+                    List<String> out = new ArrayList<>();
+                    if (rep != null && rep.ok() && rep.body().has("reachable")) {
+                        for (JsonElement e : rep.body().getAsJsonArray("reachable")) out.add(str(e.getAsJsonObject(), "name"));
+                    }
+                    reachable = List.copyOf(out);
+                    reachState = err != null ? "Could not reach the room list."
+                            : rep == null ? "No friends, Best Friends or mod users known yet: invite by name."
+                            : !rep.ok() ? SimRooms.refusal(rep)
+                            : out.isEmpty() ? "None of your friends can take an invite right now: invite by name."
+                            : "";
+                    Minecraft.getInstance().execute(() -> {
+                        if (McCompat.screen(Minecraft.getInstance()) == this && shown() == View.INVITE) rebuildWidgets();
+                    });
+                });
+    }
+
+    private void sendInvite(String target) {
+        String roomId = SimHost.roomId(), secret = SimHost.secret();
+        if (roomId == null || secret == null) {
+            say("This room is not on the room list (LAN only).", MenuStyle.RED);
+            return;
+        }
+        if (!target.matches("[A-Za-z0-9_]{1,16}")) {
+            say("Type a Minecraft name.", MenuStyle.RED);
+            return;
+        }
+        say("Inviting " + target + "...", MenuStyle.TXT_SOFT);
+        SimRooms.invite(roomId, secret, target).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
+            if (rep != null && rep.ok()) {
+                String name = str(rep.body(), "name");
+                INVITED.add((name.isEmpty() ? target : name).toLowerCase(java.util.Locale.ROOT));
+                say("Invited " + (name.isEmpty() ? target : name) + ".", MenuStyle.TXT);
+                if (inviteBox != null && inviteBox.getValue().trim().equalsIgnoreCase(target)) inviteBox.setValue("");
+                if (McCompat.screen(this.minecraft) == this) rebuildWidgets();
+            } else {
+                say(rep == null ? "Could not reach the room list."
+                        : rep.status() == 404 && !"gone".equals(rep.error()) ? target + " cannot take an invite now (offline, invites off, or another version)."
+                        : rep.status() == 429 ? "Too many invites, wait a moment." : SimRooms.refusal(rep), MenuStyle.RED);
+            }
+        }));
+    }
+
+    /** Invites sent from this page, for tests. */
+    public static java.util.Set<String> invitedForTest() { return java.util.Set.copyOf(INVITED); }
+
+    public static List<String> reachableForTest() { return reachable; }
 
     static String disconnectWarning(int n) {
         return n + (n == 1 ? " player" : " players") + " will be disconnected.";
@@ -423,6 +567,7 @@ public final class SimMultiplayerScreen extends Screen {
                 rebuildWidgets();
             }
             if (++listTicks >= LIST_EVERY) fetchRooms();
+            if (pendingKey != SimReach.pending().hashCode()) rebuildWidgets();
         } else if (v == View.SESSION && !SimGuest.isGuest(this.minecraft) && !guestKey.equals(guestsKey())) {
             rebuildWidgets();
         }
@@ -439,7 +584,7 @@ public final class SimMultiplayerScreen extends Screen {
         nav.drawFrame(g, this.width, this.height);
         int x = nav.contentX, y = nav.contentY;
         View v = shown();
-        ScreenChrome.text(g, v == View.SESSION ? "Session" : "Multiplayer", x, y + 4, MenuStyle.OR);
+        ScreenChrome.text(g, v == View.INVITE ? "Invite Players" : v == View.SESSION ? "Session" : "Multiplayer", x, y + 4, MenuStyle.OR);
         y += 20;
         if (v == View.SESSION && SimGuest.isGuest(this.minecraft)) {
             SimCoop.Info info = SimGuest.info();
@@ -469,6 +614,15 @@ public final class SimMultiplayerScreen extends Screen {
                 ScreenChrome.text(g, guest.name() + (guest.admitted() ? "" : "  (checking ticket)"), x, py, MenuStyle.TXT);
                 py += ROW;
             }
+        } else if (v == View.INVITE) {
+            ScreenChrome.text(g, reachState.isEmpty() ? "Friends who can join now:" : reachState, x, y + ROW + 2, MenuStyle.TXT_SOFT);
+            int py = y + ROW + 11 + 5;
+            for (String n : reachable) {
+                if (py + ROW > nav.contentBottom - ROW * 2) break;
+                ScreenChrome.text(g, n, x, py, MenuStyle.TXT);
+                py += ROW;
+            }
+            ScreenChrome.text(g, "Invite by name", x, nav.contentBottom - ROW * 2 + 2 + 5, MenuStyle.TXT);
         } else if (v == View.CREATE) {
             y += ROW + 6;
             ScreenChrome.text(g, "Room Name", x, y + 5, MenuStyle.TXT);

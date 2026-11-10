@@ -60,10 +60,32 @@ public final class SimRooms {
     }
 
     public static CompletableFuture<RelayCalls.Reply> join(String roomId, String password) {
+        return join(roomId, password, null);
+    }
+
+    /** Phase 3: an invite key (bound to this account) skips the password. */
+    public static CompletableFuture<RelayCalls.Reply> join(String roomId, String password, String invite) {
         JsonObject b = new JsonObject();
         b.addProperty("roomId", roomId);
         if (password != null && !password.isEmpty()) b.addProperty("password", password);
+        if (invite != null && !invite.isEmpty()) b.addProperty("invite", invite);
         return call("POST", "/simrooms/join", b);
+    }
+
+    /** Which of these names (at most 50) could take an invite to the owner's room right now. */
+    public static CompletableFuture<RelayCalls.Reply> reach(String roomId, String secret, java.util.Collection<String> names) {
+        JsonObject b = owner(roomId, secret);
+        com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+        names.stream().limit(50).forEach(a::add);
+        b.add("names", a);
+        return call("POST", "/simrooms/reach", b);
+    }
+
+    /** Sends one player (name or uuid) an invite to the owner's room: 200, 404 "not reachable" or 429. */
+    public static CompletableFuture<RelayCalls.Reply> invite(String roomId, String secret, String target) {
+        JsonObject b = owner(roomId, secret);
+        b.addProperty("target", target);
+        return call("POST", "/simrooms/invite", b);
     }
 
     /** What a join refusal means to the player. */

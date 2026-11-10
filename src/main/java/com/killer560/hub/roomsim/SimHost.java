@@ -111,6 +111,10 @@ public final class SimHost {
     public static int[] countsForTest() { return new int[]{kicks, fullRefusals}; }
 
     public static String roomIdForTest() { return roomId; }
+    /** The listed room and its owner secret (null while unlisted), for invites. */
+    static String roomId() { return roomId; }
+
+    static String secret() { return secret; }
 
     /**
      * Create. Null when it started, else why not. In the sim it publishes at once; elsewhere it opens the F7 boss (the
