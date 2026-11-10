@@ -124,7 +124,9 @@ public final class SimItems {
                 (player, level, hand, pos, direction) -> {
                     if (player instanceof ServerPlayer sp) return onServerAttack(sp, hand, pos.immutable(), direction);
                     Minecraft client = Minecraft.getInstance();
-                    if (!SimState.canAct(client) || player != client.player) return net.minecraft.world.InteractionResult.PASS;
+                    if (!(SimState.canAct(client) || SimState.isGuest(client)) || player != client.player) {
+                        return net.minecraft.world.InteractionResult.PASS;
+                    }
                     // PUZZLES GET THE CLICK FIRST, whatever is in hand.
                     //
                     // Creeper Beams: killer560 (2026-10-01) "creeper beams does nothing when i shoot the
@@ -151,9 +153,13 @@ public final class SimItems {
         // recoverable.
         net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                 (level, player, pos, state, entity) -> {
-                    // Fires on the sim's own integrated server, where player is a ServerPlayer and never
-                    // == client.player (the old comparison made this gate always pass).
-                    if (!SimState.isActive()) return true;
+                    // Fabric fires BEFORE only on the SERVER, with the ServerPlayer: the old `player != client.player`
+                    // test was always true, so this never refused anything (coopsim-1109). Every survival player on
+                    // the sim's server is refused now, host and co-op guest alike; creative passes this gate, but
+                    // onServerAttack already refuses every START on the sim's server (testkit 1109-coop-rules).
+                    if (!(player instanceof ServerPlayer sp) || !SimAbilities.simServer(sp) || sp.isCreative()) return true;
+                    com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] vanilla break refused for {} at {}",
+                            sp.getGameProfile().name(), pos.toShortString());
                     // NOTHING breaks through vanilla in the sim, not even the Dungeon Breaker.
                     //
                     // It used to allow the break when the breaker was held, which meant two things destroyed
@@ -274,6 +280,25 @@ public final class SimItems {
         return false;
     }
 
+    /** The ids {@link #giveTo} hands out, in the give list's order (a co-op guest's Session page offers them). */
+    public static java.util.List<String> giveIds() {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        for (GiveItem item : GiveItem.values()) ids.add(item.skyblockId);
+        return ids;
+    }
+
+    /** Server thread: gives {@code sp} one item of the give list (a co-op guest's request); false for any other id. */
+    static boolean giveTo(ServerPlayer sp, String skyblockId) {
+        for (GiveItem item : GiveItem.values()) {
+            if (item.skyblockId.equalsIgnoreCase(skyblockId)) {
+                ItemStack stack = build(item);
+                if (!sp.getInventory().add(stack)) com.killer560.hub.compat.McEntities.serverDrop(sp, stack);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Builds the stack on the client thread (cheap, no world access needed) and hands it to the SERVER's
      * player on the server thread - same reasoning as {@link SimAbilities#teleport}: only a change made to
@@ -366,7 +391,9 @@ public final class SimItems {
                 com.killer560.hub.util.ModLog.get("killer560smod-sim").info(
                         "[Sim] Spirit Sceptre at {} (pitch {}) yaw {}", sp.blockPosition().toShortString(),
                         Float.toString(sp.getXRot()), Float.toString(sp.getYRot()));
-                SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance())));
+                // A co-op guest's bats are its own: they fly from its aim and hurt as it (null: the host, unchanged).
+                java.util.UUID guest = SimCoop.isHost(sp) ? null : sp.getUUID();
+                SimAbilities.onClient(() -> SimAim.with(aim, () -> SimSpiritSceptre.fire(Minecraft.getInstance(), guest)));
                 yield true;
             }
             // Always true, so the click is consumed and vanilla never starts drawing the bow. killer560
@@ -375,9 +402,11 @@ public final class SimItems {
             // particular click produces one. Right click is always the shot, never Salvation.
             case "TERMINATOR" -> {
                 SimAim.Aim aim = SimAim.of(sp);
+                // A co-op guest shoots from itself with its own fire rate; the host's path is unchanged (guest null).
+                java.util.UUID guest = SimCoop.isHost(sp) ? null : sp.getUUID();
                 SimAbilities.onClient(() -> {
-                    if (SimTerminator.readyToFire()) {
-                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false));
+                    if (SimTerminator.readyToFire(guest)) {
+                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false, guest));
                     }
                 });
                 yield true;
@@ -432,6 +461,13 @@ public final class SimItems {
                                                                         BlockPos pos,
                                                                         net.minecraft.core.Direction face) {
         if (!SimAbilities.simServer(sp)) return net.minecraft.world.InteractionResult.PASS;
+        if (SimCoop.isGuestUse(sp, sp.level()) && com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.isLantern(pos)) {
+            // A co-op guest's hit on a Creeper Beams lantern (coopsim-p5): his own goes in on his client's half of this
+            // event; the guest's arrives here as its START and is judged from its own eye, on his client thread.
+            net.minecraft.world.phys.Vec3 eye = sp.getEyePosition();
+            Minecraft.getInstance().execute(() -> com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.struckAt(pos, eye));
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        }
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemInHand(hand));
         if ("DUNGEONBREAKER".equals(id)) {
             // ONE charge per block per press, which is what the real item costs.

@@ -50,7 +50,22 @@ public final class ServerCommands {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || player.connection == null) return false;
+        if (simChat(player, command)) return true;
         player.connection.send(new ServerboundChatCommandPacket(command));
         return true;
+    }
+
+    /**
+     * The dungeon sim has no chat channels (its integrated server has no /pc and would answer "Unknown or incomplete
+     * command"). A mod-sent channel command is answered here as Hypixel would: party chat goes to SimPartyChat (host and guest),
+     * the other channels stay silent. Never true on a real server.
+     */
+    private static boolean simChat(LocalPlayer player, String command) {
+        Minecraft client = Minecraft.getInstance();
+        if (!com.killer560.hub.roomsim.SimState.canAct(client) && !com.killer560.hub.roomsim.SimState.isGuest(client)) return false;
+        if (com.killer560.hub.roomsim.SimPartyChat.handle(command)) return true;
+        String c = command.strip();
+        int sp = c.indexOf(' ');
+        return OutgoingChat.CHAT_COMMANDS.contains((sp < 0 ? c : c.substring(0, sp)).toLowerCase(java.util.Locale.ROOT));
     }
 }

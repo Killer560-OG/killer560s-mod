@@ -92,6 +92,13 @@ public final class RelayCalls {
         return new Reply(response.statusCode(), body, error);
     }
 
+    /** The relay base URL and a bearer token for it (the same cached token {@link #call} uses), for a socket. */
+    public static CompletableFuture<String> bearer() {
+        String base = RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL);
+        if (!RelayEndpoint.isUsable(base)) return CompletableFuture.failedFuture(new IllegalStateException("relay unavailable"));
+        return token(base);
+    }
+
     private static CompletableFuture<String> token(String base) {
         String forTest = tokenForTest();
         if (forTest != null) {

@@ -70,6 +70,14 @@ public final class SimArrival {
      */
     static void teleport(ServerPlayer sp, ServerLevel level, double x, double y, double z, Set<Relative> relatives,
                          float yaw, float pitch) {
+        move(sp, level, x, y, z, relatives, yaw, pitch);
+        // A co-op guest's own client gets the same hold, kept from the host's server (SimCoop.hold); nothing for him.
+        SimCoop.hold(sp, x, y, z);
+    }
+
+    /** The teleport alone, without starting a co-op hold (the hold's own put-back uses it). Server thread. */
+    static void move(ServerPlayer sp, ServerLevel level, double x, double y, double z, Set<Relative> relatives,
+                     float yaw, float pitch) {
         sp.teleportTo(level, x, y, z, relatives, yaw, pitch, false);
         sp.fallDistance = 0;
         level.getChunkSource().move(sp);

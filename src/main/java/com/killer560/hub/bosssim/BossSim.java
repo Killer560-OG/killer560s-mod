@@ -66,6 +66,9 @@ public final class BossSim {
             if (BossDevices.isArrowMark(entity)) {
                 return InteractionResult.FAIL;
             }
+            if (BossDevices.isArrowFrame(entity)) {
+                BossDevices.noteActor(3, sp);
+            }
             if (hand == InteractionHand.MAIN_HAND && BossFight.useEntity(sp, entity)) {
                 return InteractionResult.SUCCESS;
             }
@@ -115,6 +118,7 @@ public final class BossSim {
             if (hand != InteractionHand.MAIN_HAND) {
                 return InteractionResult.PASS;
             }
+            BossDevices.noteBlockUse(sp, hit.getBlockPos());
             if (BossDevices.pullLight((ServerLevel) level, hit.getBlockPos())) {
                 return InteractionResult.SUCCESS;
             }
@@ -228,18 +232,25 @@ public final class BossSim {
         server.execute(() -> {
             // A phase change keeps his inventory and hotbar exactly as he left them (killer560, 2026-11-05: "i set up a
             // hotbar in p1 but then in p3 it was a different one"); the loadout is only for a start from outside a fight.
+            // Every player's, by UUID (coopsim-1109): a guest's hotbar is his own too.
             boolean running = BossFight.phase() != BossFight.Phase.IDLE;
             BossFight.stop("rebuild");
-            ServerPlayer sp = running ? server.getPlayerList().getPlayers().stream().findFirst().orElse(null) : null;
-            net.minecraft.world.item.ItemStack[] kept = sp == null ? null : new net.minecraft.world.item.ItemStack[sp.getInventory().getContainerSize()];
-            for (int i = 0; kept != null && i < kept.length; i++) kept[i] = sp.getInventory().getItem(i).copy();
+            java.util.Map<java.util.UUID, net.minecraft.world.item.ItemStack[]> kept = new java.util.HashMap<>();
+            for (ServerPlayer sp : running ? server.getPlayerList().getPlayers() : java.util.List.<ServerPlayer>of()) {
+                net.minecraft.world.item.ItemStack[] inv = new net.minecraft.world.item.ItemStack[sp.getInventory().getContainerSize()];
+                for (int i = 0; i < inv.length; i++) inv[i] = sp.getInventory().getItem(i).copy();
+                kept.put(sp.getUUID(), inv);
+            }
             long t0 = System.currentTimeMillis();
             // Out of the arena while it goes up (simspawn-1104): from a fresh world he stood at spawn, inside the box
             // being built, and from the floor every write was sent to his client as it landed.
             com.killer560.hub.roomsim.SimBuilder.holdPlayer(client, server.overworld());
             BossArena.build(server.overworld(), () -> {
                 LOGGER.info("[BossSim] arena built from the {} in {} ms", BossArena.source(), System.currentTimeMillis() - t0);
-                for (int i = 0; kept != null && i < kept.length; i++) sp.getInventory().setItem(i, kept[i]);
+                kept.forEach((uuid, inv) -> {
+                    ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+                    for (int i = 0; sp != null && i < inv.length; i++) sp.getInventory().setItem(i, inv[i]);
+                });
                 BossFight.begin(server, from, master);
                 building = false;
                 client.execute(() -> SimWorld.buildFinished(client, "F7 boss"));
@@ -259,17 +270,16 @@ public final class BossSim {
             return;
         }
         try {
+            BossPortal.serverTick(server);
             BossFight.tick(server);
             BossTerminals.tick(server);
+            leaveCheck(server);
         } catch (RuntimeException e) {
             LOGGER.error("[BossSim] server tick threw", e);
         }
     }
 
-    /**
-     * The fight ends when he leaves it: a new world, or more than two seconds outside the boss room (back on the floor, a
-     * new map). Then the boss phase the clear features sit out for is over too.
-     */
+    /** The fight ends with the world: a new world drops its state (its entities went with the old server). */
     private static void clientTick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
@@ -278,22 +288,33 @@ public final class BossSim {
                 BossFight.forget("world changed");
             }
             com.killer560.hub.secrets.DungeonState.simBossEnds();
-            return;
         }
-        if (!BossFight.running() || client.player == null) {
+    }
+
+    /**
+     * Server thread: the fight ends once EVERY player has been outside the boss room for two seconds (back on the floor,
+     * a new map); then the boss phase the clear features sit out for is over too. Read from the server's players, not
+     * his client, so a guest still fighting keeps it going and a lone host leaving ends it as before (coopsim-1109).
+     */
+    private static void leaveCheck(MinecraftServer server) {
+        var players = server.getPlayerList().getPlayers();
+        if (!BossFight.running() || players.isEmpty()) {
             outsideTicks = 0;
             return;
         }
-        double x = client.player.getX(), z = client.player.getZ();
-        boolean inside = x > -7 && z > -7 && x < BossArena.X0 + BossArena.W && z < BossArena.Z0 + BossArena.D;
-        outsideTicks = inside ? 0 : outsideTicks + 1;
+        boolean anyInside = false;
+        for (ServerPlayer p : players) {
+            anyInside |= insideBossRoom(p.getX(), p.getZ());
+        }
+        outsideTicks = anyInside ? 0 : outsideTicks + 1;
         if (outsideTicks == 40) {
-            MinecraftServer server = client.getSingleplayerServer();
-            if (server != null) {
-                server.execute(() -> BossFight.stop("left the boss room"));
-            }
+            BossFight.stop("left the boss room");
             com.killer560.hub.secrets.DungeonState.simBossEnds();
         }
+    }
+
+    static boolean insideBossRoom(double x, double z) {
+        return x > -7 && z > -7 && x < BossArena.X0 + BossArena.W && z < BossArena.Z0 + BossArena.D;
     }
 
     /** Testkit: whether a build is running. */

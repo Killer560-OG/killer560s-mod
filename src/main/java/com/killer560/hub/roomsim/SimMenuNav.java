@@ -67,6 +67,8 @@ public final class SimMenuNav {
 
     /** The screen for {@code page}, closing back to {@code parent}. */
     static Screen screenFor(Page page, Screen parent) {
+        // A co-op guest gets the Session page only: the builders are the owner's (coopsim phase 2).
+        if (SimGuest.isGuest(Minecraft.getInstance())) return new SimMultiplayerScreen(parent);
         if (page == Page.DESIGNER) {
             if (designer == null) {
                 designer = new SimMapEditorScreen(parent);
@@ -117,7 +119,8 @@ public final class SimMenuNav {
 
     /**
      * The column's entries and its Back, added through {@code add}. A page {@code local} can show itself (the sim menu's
-     * own three) goes there; anything else opens its screen. Back closes the whole menu to {@code parent}.
+     * own three) goes there; anything else opens its screen. Back closes the whole menu to {@code parent}. A null
+     * {@code current} is the Multiplayer screen, whose entry sits apart above Back.
      */
     void addItems(Consumer<AbstractWidget> add, Page current, Screen parent, Consumer<Page> local) {
         int x = sideX + 4;
@@ -138,10 +141,24 @@ public final class SimMenuNav {
         // The F7 boss (doc-adm-boss-1101): a chooser of where to start it, not a page of this menu.
         add.accept(new Item("F7 Boss", false, x, y, w, ITEM_H, () -> McCompat.setScreen(mc,
                 new com.killer560.hub.bosssim.BossStartScreen(McCompat.screen(mc)))));
-        add.accept(new Item("Back", false, x, backY(), w, ITEM_H, () -> McCompat.setScreen(mc, parent)));
+        add.accept(new Item(MULTIPLAYER, current == null, x, multiplayerY(), w, ITEM_H, () -> {
+            if (current != null) McCompat.setScreen(mc, new SimMultiplayerScreen(parent));
+        }));
+        addBack(add, parent);
+    }
+
+    /** The Multiplayer entry's label, set apart from the builders between two separators. */
+    public static final String MULTIPLAYER = "Multiplayer";
+
+    /** Back alone (a co-op guest's column). */
+    void addBack(Consumer<AbstractWidget> add, Screen parent) {
+        Minecraft mc = Minecraft.getInstance();
+        add.accept(new Item("Back", false, sideX + 4, backY(), sideW - 8, ITEM_H, () -> McCompat.setScreen(mc, parent)));
     }
 
     private int backY() { return sideY + sideH - 6 - ITEM_H; }
+
+    private int multiplayerY() { return backY() - 12 - ITEM_H; }
 
     /** The panel, its header bar with the menu's name, and the column's raised box. Widgets draw over it. */
     void drawFrame(GuiGraphicsExtractor g, int screenW, int screenH) {
@@ -153,6 +170,7 @@ public final class SimMenuNav {
         MenuStyle.dropShadow(r, sideX, sideY, sideW, sideH, 2);
         MenuStyle.bevel(r, sideX, sideY, sideW, sideH, MenuStyle.SIDE_TOP, MenuStyle.SIDE_BOTTOM);
         MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, backY() - 6);
+        MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, multiplayerY() - 6);
         r.submit();
     }
 

@@ -241,7 +241,7 @@ public final class SimTeleportCommands {
      * REFUSED rather than guessed: "blaze" matches both halves of the blaze pair and dropping him in the wrong
      * one is worse than making him type another letter.
      */
-    private static SimRoomIndex.Placed resolve(List<SimRoomIndex.Placed> placed, String wanted) {
+    static SimRoomIndex.Placed resolve(List<SimRoomIndex.Placed> placed, String wanted) {
         String want = wanted == null ? "" : wanted.trim().toLowerCase(Locale.ROOT);
         if (want.isEmpty()) return null;
         for (SimRoomIndex.Placed p : placed) {

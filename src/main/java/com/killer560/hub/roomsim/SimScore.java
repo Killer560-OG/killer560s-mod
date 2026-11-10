@@ -73,6 +73,7 @@ public final class SimScore {
         FOUND_BY_ROOM.clear();
         COUNTED_ONCE.clear();
         deaths = 0;
+        BY_PLAYER.clear();
         roomsCleared = 0;
         secretsTotal = mapSecretTotal;
         roomsTotal = mapRoomTotal;
@@ -168,6 +169,34 @@ public final class SimScore {
     }
 
     public static synchronized void died() { deaths++; }
+
+    /**
+     * Per player in the run (co-op, coopsim-p5): {secrets, deaths}. The score counts the party's totals, as Hypixel's
+     * does; this says whose they were. Cleared with the run, so it holds one entry per party member.
+     */
+    private static final java.util.Map<java.util.UUID, int[]> BY_PLAYER = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** A death of player {@code who}: the team's count and his own. */
+    public static synchronized void died(java.util.UUID who) {
+        deaths++;
+        BY_PLAYER.computeIfAbsent(who, k -> new int[2])[1]++;
+    }
+
+    /** Credits a secret just counted to {@code who}. */
+    public static void creditSecret(java.util.UUID who) {
+        if (who != null) BY_PLAYER.computeIfAbsent(who, k -> new int[2])[0]++;
+    }
+
+    /** Credits a secret just counted at {@code at} to the nearest player within 8 blocks (a picked-up item's taker). */
+    public static void creditNearest(net.minecraft.server.level.ServerLevel level, net.minecraft.core.BlockPos at) {
+        net.minecraft.world.entity.player.Player p = level.getNearestPlayer(at.getX() + 0.5, at.getY() + 0.5,
+                at.getZ() + 0.5, 8, e -> !SimMiniboss.isPlaced(e));
+        if (p != null) creditSecret(p.getUUID());
+    }
+
+    public static int secretsBy(java.util.UUID who) { int[] c = BY_PLAYER.get(who); return c == null ? 0 : c[0]; }
+
+    public static int deathsBy(java.util.UUID who) { int[] c = BY_PLAYER.get(who); return c == null ? 0 : c[1]; }
 
     /** Explore: rooms completed and secrets found, as a percentage pair. */
     /** Secrets found so far this run - read by the sim's sidebar. */

@@ -89,6 +89,10 @@ public final class CheatUtils {
         }
         // A pure function of the address string, asked by twenty callers - some per slot per frame (Inventory Theme) -
         // so the answer is kept for the address object it was worked out from (FPS sweep, 2026-10-07).
+        // A guest in another player's sim over LAN (read-only; the host's server does every write).
+        if (com.killer560.hub.roomsim.SimState.isGuest(client)) {
+            return true;
+        }
         IpVerdict last = lastIpVerdict;
         if (last != null && last.ip == server.ip) {
             return last.dungeon;

@@ -670,7 +670,7 @@ public final class SimIceFillPuzzle {
         if (TILE_SECTION.isEmpty() || complete) return;
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
         if (players.isEmpty()) return;
-        ServerPlayer sp = players.get(0);
+        ServerPlayer sp = solver(players);
         // A JUMP IS A FAIL. killer560 (2026-10-01): "if i leave the block that I am on by jumping or
         // teleporting then it should break that section." Airborne AND above standing height - a teleport's
         // landing reads not-on-ground for a tick or two until the client's next movement packet, and that is
@@ -686,6 +686,24 @@ public final class SimIceFillPuzzle {
         }
         airborneTicks = 0;
         judge(sp, sp.blockPosition().below(), "walk");
+    }
+
+    /** Who is doing the fill (coopsim-p5): whoever last stood on one of its tiles while still here, else whoever stands on
+     *  one now, else the first player (him; single player is unchanged). */
+    private static java.util.UUID solverId;
+
+    private static ServerPlayer solver(List<ServerPlayer> players) {
+        if (players.size() == 1) return players.get(0);
+        for (ServerPlayer p : players) {
+            if (TILE_SECTION.containsKey(p.blockPosition().below())) {
+                solverId = p.getUUID();
+                return p;
+            }
+        }
+        for (ServerPlayer p : players) {
+            if (p.getUUID().equals(solverId)) return p;
+        }
+        return players.get(0);
     }
 
     /**

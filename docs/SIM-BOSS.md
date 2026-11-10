@@ -173,6 +173,7 @@ point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons read
   it (GoldorPhase.kt blowGate), and the mod's P3 trackers depend on that line (bossparity-1103).
 - Maxor's stun used to come 60 ticks after both crystals wherever he was, so a test could "stun" him with nobody near the
   beam. Hypixel's needs him in the beam: a P1 test has to lure him (stand on the strip south of it, 73.5 225 76.5).
+- Lights device start (simlights-1109, killer560 2026-11-09): the four corner levers and the middle two (60,134 and 60,135, the LIGHTS list) start ON and every other lever off, so every lamp starts lit; the first pull of ANY lever (on or off) completes the device 2 ticks later (`lightsPulled`), the usual "completed a device! (1/1)" path. `/pc`, `/pchat`, `/party chat`, `/p chat` in the sim are swallowed by `roomsim/SimPartyChat` (ALLOW_COMMAND) and answer "You are not in a party right now." (Hypixel, no party), never the vanilla unknown-command error. Testkit 1109-boss-lights.
 
 ## Boss spots (boss-tpto-1109)
 

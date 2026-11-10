@@ -341,13 +341,31 @@ public final class SimDoors {
             // level.isClientSide(): this event also fires server-side; without this check the door would
             // try to open twice per real click, exactly the double-fire AbilityCooldownFeature's own
             // UseBlockCallback registration guards against the same way.
-            if (!level.isClientSide() || !SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+            boolean guest = SimCoop.isGuestUse(player, level);
+            if (!guest && (!level.isClientSide() || !SimState.canAct(client) || player != client.player)) {
+                return InteractionResult.PASS;
+            }
             Door door = BLOCK_INDEX.get(hitResult.getBlockPos());
             if (door == null || PENDING.containsKey(door)) {
                 // Not a door block, or this door is already mid-open - do not consume a second key for a
                 // barrier phase that is already running.
                 return InteractionResult.PASS;
             }
+            if (guest) {
+                // A co-op guest's click (coopsim-p5): the same rule, run on his client thread where it lives, for the guest.
+                client.execute(() -> useDoor(client, player, hand, door));
+                return InteractionResult.SUCCESS;
+            }
+            return useDoor(client, player, hand, door);
+        });
+        registerServerTick();
+    }
+
+    /** One click on a door by {@code player} (him, or a co-op guest's server player). Client thread. */
+    private static InteractionResult useDoor(Minecraft client, net.minecraft.world.entity.player.Player player,
+                                             InteractionHand hand, Door door) {
+        {
+            if (PENDING.containsKey(door) || !SimState.canAct(client)) return InteractionResult.PASS;
             // THE BLOOD DOOR OPENS WITHOUT A KEY. killer560 (2026-10-04) had the sim's Wither Key drop removed
             // ("we have nothing that should be dropping it right now"), and that drop was the only key the sim
             // ever made - so a blood door that still wanted one could never be opened. A plain right-click opens
@@ -358,7 +376,7 @@ public final class SimDoors {
                 // A floor with mobs (SimMobFloor) wants the team's Blood Key, dropped by the last mob room before it.
                 if (SimMobFloor.bloodDoorNeedsKey() && !SimKeys.hasBloodKey()) return InteractionResult.PASS;
                 SimKeys.useBloodKey();
-                openDoor(client, door, null);
+                openDoor(client, door, null, player.getUUID());
                 SimMobFloor.onBloodDoorOpened(client);
                 return InteractionResult.SUCCESS;
             }
@@ -366,14 +384,16 @@ public final class SimDoors {
             if (!WITHER_KEY_ID.equals(CheatUtils.skyblockId(held))) {
                 // Hypixel's keys are the team's, not items (SimKeys): a picked-up key opens it with any hand.
                 if (hand != InteractionHand.MAIN_HAND || !SimKeys.useWitherKey()) return InteractionResult.PASS;
-                openDoor(client, door, null);
-                announceWitherDoor(client);
+                openDoor(client, door, null, player.getUUID());
+                announceWitherDoor(client, player.getGameProfile().name());
                 return InteractionResult.SUCCESS;
             }
-            openDoor(client, door, hand);
+            openDoor(client, door, hand, player.getUUID());
             return InteractionResult.SUCCESS;
-        });
+        }
+    }
 
+    private static void registerServerTick() {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (!SimState.isActive() || PENDING.isEmpty()) return;
             try {
@@ -406,9 +426,13 @@ public final class SimDoors {
      * "server is authoritative" rule {@link SimAbilities#teleport} and {@link SimItems#giveOnServer} follow.
      */
     private static void openDoor(Minecraft client, Door door, InteractionHand hand) {
+        openDoor(client, door, hand, client.player.getUUID());
+    }
+
+    /** As above, for the player whose click it was ({@code uuid}: whose held key is used). */
+    private static void openDoor(Minecraft client, Door door, InteractionHand hand, UUID uuid) {
         var server = client.getSingleplayerServer();
         if (server == null) return;
-        UUID uuid = client.player.getUUID();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
             // A null hand is a door that takes no key (the blood door) - nothing to consume.
@@ -543,6 +567,15 @@ public final class SimDoors {
     /** Doors still registered and shut, for the sim's sidebar. */
     public static int doorsRemaining() { return DOORS.size(); }
 
+    /** Test hook: one block of every shut door of {@code type} (a DungeonLayout DOOR_*), in build order. */
+    public static List<BlockPos> doorBlocksForTest(int type) {
+        List<BlockPos> out = new ArrayList<>();
+        for (Door d : DOORS) {
+            if (d.type() == type && !d.blocks().isEmpty() && !PENDING.containsKey(d)) out.add(d.blocks().get(0));
+        }
+        return out;
+    }
+
     /** Wither keys in his inventory, counted the same way the real key tracker would. */
     public static int keysHeld() {
         Minecraft client = Minecraft.getInstance();
@@ -645,15 +678,10 @@ public final class SimDoors {
     }
 
     /** Hypixel's "<name> opened a WITHER door!" line, from the server. */
-    private static void announceWitherDoor(Minecraft client) {
+    private static void announceWitherDoor(Minecraft client, String name) {
         var server = client.getSingleplayerServer();
-        if (server == null || client.player == null) return;
-        String name = client.player.getGameProfile().name();
-        server.execute(() -> {
-            for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-                sp.sendSystemMessage(Component.literal(name + " opened a WITHER door!"));
-            }
-        });
+        if (server == null) return;
+        server.execute(() -> SimCoop.broadcast(server, Component.literal(name + " opened a WITHER door!")));
     }
 
     public static void clear() {

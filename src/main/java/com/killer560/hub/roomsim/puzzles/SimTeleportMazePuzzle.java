@@ -294,8 +294,7 @@ public final class SimTeleportMazePuzzle {
         boundPads = pads;
         bindCentre(level, anchor);
         drawLinks();
-        lockedPad = -1;
-        settleTicks = 0;
+        LOCKS.clear();
         int[] chosen = new int[CELL_COUNT];
         for (int c = 0; c < CELL_COUNT; c++) {
             chosen[c] = ThreadLocalRandom.current().nextInt(PADS_PER_CELL);
@@ -332,10 +331,12 @@ public final class SimTeleportMazePuzzle {
     private static volatile int exitPad = -1;
     /** Feet position -> pad id, at both heights a player can stand at on one (see {@link #PAD_INDEX}). */
     private static final Map<BlockPos, Integer> BOUND_INDEX = new java.util.concurrent.ConcurrentHashMap<>();
-    /** The pad he was just put on: inert until he has stepped off it. */
-    private static volatile int lockedPad = -1;
-    /** Ticks before a pad can fire again - the server moves him a tick or two after the client asks. */
-    private static volatile int settleTicks = 0;
+    /**
+     * Per player in the bound maze (co-op, coopsim-p5): {pad he was just put on, inert until he has stepped off it;
+     * ticks before a pad can fire again - the server moves him a tick or two after the client asks}. Cleared with
+     * the maze, so it holds at most one entry per party member.
+     */
+    private static final Map<UUID, int[]> LOCKS = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static int chamberOf(int pad) { return pad < END ? pad / PADS_PER_CELL : -1; }
 
@@ -533,34 +534,43 @@ public final class SimTeleportMazePuzzle {
 
     /** Pad ticking for the bound room. */
     private static void tickBound(Minecraft client) {
-        if (settleTicks > 0) {
-            settleTicks--;
+        tickBound(client, client.player.getUUID(), client.player.blockPosition(), client.player.getYRot());
+        // Every co-op guest walks the same maze with his own landing lock (coopsim-p5); the host's server moves him.
+        for (com.killer560.hub.roomsim.SimCoop.Spot g : com.killer560.hub.roomsim.SimCoop.guestSpots()) {
+            tickBound(client, g.uuid(), BlockPos.containing(g.x(), g.y(), g.z()), Float.NaN);
+        }
+    }
+
+    private static void tickBound(Minecraft client, UUID who, BlockPos feet, float curYaw) {
+        int[] lock = LOCKS.computeIfAbsent(who, k -> new int[]{-1, 0});
+        if (lock[1] > 0) {
+            lock[1]--;
             return;
         }
-        Integer pad = BOUND_INDEX.get(client.player.blockPosition());
+        Integer pad = BOUND_INDEX.get(feet);
         if (pad == null) {
-            lockedPad = -1;   // stepped off: the pad he landed on works again
+            lock[0] = -1;   // stepped off: the pad he landed on works again
             return;
         }
-        if (pad == lockedPad || link.length == 0) return;
+        if (pad == lock[0] || link.length == 0) return;
         if (pad == END) {
             // THE CENTER'S PAD IS THE WAY OUT. killer560 (2026-10-04): "the teleporter at the middle by the chest
             // should take me back right to the same block I would tp to into the room". Landing on it from the
             // exit pad locks it like any other landing, so it fires once he has stepped off it and back on.
             BlockPos back = returnSpot;
             if (back != null) {
-                lockedPad = END;
-                settleTicks = 5;
-                teleport(client, back.getX() + 0.5, back.getY(), back.getZ() + 0.5);
+                lock[0] = END;
+                lock[1] = 5;
+                teleport(client, who, back.getX() + 0.5, back.getY(), back.getZ() + 0.5, curYaw);
             }
             return;
         }
         int dest = link[pad];
         if (dest < 0) return;
         BlockPos to = boundPads[dest];
-        lockedPad = dest;
-        settleTicks = 5;
-        if (dest == END) {
+        lock[0] = dest;
+        lock[1] = 5;
+        if (dest == END && !complete) {
             complete = true;
             ModChat.send("Sim", ModChat.good("Teleport Maze crossed!"));
         }
@@ -568,10 +578,10 @@ public final class SimTeleportMazePuzzle {
         BlockPos exit = exitPad >= 0 ? boundPads[exitPad] : to;
         double dx = exit.getX() + 0.5 - (to.getX() + 0.5);
         double dz = exit.getZ() + 0.5 - (to.getZ() + 0.5);
-        float yaw = (dx == 0 && dz == 0) ? client.player.getYRot()
+        float yaw = (dx == 0 && dz == 0) ? curYaw
                 : (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90f;
         // x.5 / pad y + 0.5 / z.5: the shape TeleportMazeSolverFeature accepts as a maze teleport.
-        teleport(client, to.getX() + 0.5, to.getY() + 0.5, to.getZ() + 0.5, yaw);
+        teleport(client, who, to.getX() + 0.5, to.getY() + 0.5, to.getZ() + 0.5, yaw);
     }
 
     /** True once the last cell's correct pad has sent the player to the final landing spot. */
@@ -610,8 +620,7 @@ public final class SimTeleportMazePuzzle {
         link = new int[0];
         exitPad = -1;
         BOUND_INDEX.clear();
-        lockedPad = -1;
-        settleTicks = 0;
+        LOCKS.clear();
     }
 
     public static void reset() {
@@ -761,15 +770,19 @@ public final class SimTeleportMazePuzzle {
     }
 
     private static void teleport(Minecraft client, double x, double y, double z, float yaw) {
+        teleport(client, client.player.getUUID(), x, y, z, yaw);
+    }
+
+    /** Moves player {@code uuid} (his or a co-op guest's) on the server; a NaN yaw keeps that player's own. */
+    private static void teleport(Minecraft client, UUID uuid, double x, double y, double z, float yaw) {
         MinecraftServer server = client.getSingleplayerServer();
         if (server == null) return;
-        UUID uuid = client.player.getUUID();
-        float pitch = client.player.getXRot();
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
             if (sp == null) return;
             // level() rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2.
-            sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.<Relative>of(), yaw, pitch, false);
+            sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.<Relative>of(),
+                    Float.isNaN(yaw) ? sp.getYRot() : yaw, sp.getXRot(), false);
         });
     }
 }

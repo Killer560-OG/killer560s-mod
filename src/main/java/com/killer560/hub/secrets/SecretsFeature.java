@@ -65,6 +65,7 @@ public final class SecretsFeature {
         // Asked by every getShape of every button, lever, chest and skull (raycasts, the outline, the integrated
         // server's own lookups) while Secrets is on: a pure function of the address string, so it is worked out once
         // per address object instead of lower-casing a copy of it on each call (mixin FPS pass, 2026-10-15).
+        if (com.killer560.hub.roomsim.SimState.isGuest(client)) return true; // a co-op sim guest (read-only)
         IpVerdict last = lastIpVerdict;
         if (last != null && last.ip == server.ip) return last.dungeon;
         String ip = server.ip.toLowerCase(Locale.US);

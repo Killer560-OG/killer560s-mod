@@ -3,15 +3,14 @@ package com.killer560.hub.bosssim;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.ChatObserver;
-import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 
 import org.slf4j.Logger;
 
@@ -31,18 +30,21 @@ final class BossPortal {
     private static final int STAND_IN_TICKS = 100;
 
     private static String mapCode = "";
-    private static boolean watcherSeen;
-    private static boolean watcherDone;
+    private static volatile boolean watcherSeen;
+    private static volatile boolean watcherDone;
     private static int bloodTicks;
-    private static BlockPos portal;
+    private static volatile BlockPos portal;
     private static int particleTick;
-    private static boolean steppedOut;
+    /** Players who have been outside the portal since it opened: only a step INTO it takes one in. */
+    private static final java.util.Set<java.util.UUID> steppedOut = new java.util.HashSet<>();
+    /** Server tick the boss start was asked for, so the ticks before the build begins do not ask again. */
+    private static int askedAt = -1000;
+    private static int serverTicks;
 
     private BossPortal() {
     }
 
     static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BossPortal.tick", BossPortal::tick));
         ChatObserver.subscribe(message -> {
             String plain = ChatObserver.strip(message);
             if (plain == null || !SimState.isActive()) {
@@ -60,46 +62,62 @@ final class BossPortal {
 
     /** Testkit: where the portal is, or null. */
     public static int[] portal() {
-        return portal == null ? null : new int[]{portal.getX(), portal.getY(), portal.getZ()};
+        BlockPos p = portal;
+        return p == null ? null : new int[]{p.getX(), p.getY(), p.getZ()};
     }
 
-    private static void tick(Minecraft client) {
+    /**
+     * Server thread, every sim server tick (from {@link BossSim}): ANY player on the sim's server opens the portal by
+     * standing in Blood and goes in by stepping into it (coopsim-1109; it read his client before, so a guest did
+     * nothing). Its blocks are written here, on the server, as before.
+     */
+    static void serverTick(MinecraftServer server) {
+        serverTicks++;
         String code = SimState.mapCode();
         if (!code.equals(mapCode)) {
             mapCode = code;
             watcherSeen = watcherDone = false;
             bloodTicks = 0;
             portal = null;
-            steppedOut = false;
+            steppedOut.clear();
         }
-        if (!SimState.canAct(client) || !SimState.isGeneratedFloor() || BossFight.running() || BossSim.isBuilding()) {
+        Minecraft client = Minecraft.getInstance();
+        if (!SimState.canAct(client) || !SimState.isGeneratedFloor() || BossFight.running() || BossSim.isBuilding()
+                || serverTicks - askedAt < 40) {
             return;
         }
-        MinecraftServer server = client.getSingleplayerServer();
-        if (server == null) {
-            return;
-        }
-        if (portal != null) {
-            double dx = client.player.getX() - (portal.getX() + 0.5), dz = client.player.getZ() - (portal.getZ() + 0.5);
-            double dy = client.player.getY() - (portal.getY() + 1);
-            boolean in = dx * dx + dz * dz <= 2.25 && dy > -0.5 && dy < 2.0;
-            if (!in) {
-                steppedOut = true;
-            }
-            // Only a step INTO it: standing on the spot when it opens (where /goto lands) does not take him in.
-            if (in && steppedOut) {
-                LOGGER.info("[BossSim] into the boss through the Blood room's portal");
-                BossSim.start(client, BossFight.Start.P1, !"F7".equalsIgnoreCase(SimState.floorLabel()));
-                return;
+        var players = server.getPlayerList().getPlayers();
+        BlockPos open = portal;
+        if (open != null) {
+            for (ServerPlayer p : players) {
+                double dx = p.getX() - (open.getX() + 0.5), dz = p.getZ() - (open.getZ() + 0.5);
+                double dy = p.getY() - (open.getY() + 1);
+                boolean in = dx * dx + dz * dz <= 2.25 && dy > -0.5 && dy < 2.0;
+                if (!in) {
+                    steppedOut.add(p.getUUID());
+                } else if (steppedOut.contains(p.getUUID())) {
+                    // Only a step INTO it: standing on the spot when it opens (where /goto lands) does not take him in.
+                    LOGGER.info("[BossSim] into the boss through the Blood room's portal ({})", p.getGameProfile().name());
+                    askedAt = serverTicks;
+                    boolean master = !"F7".equalsIgnoreCase(SimState.floorLabel());
+                    client.execute(() -> BossSim.start(client, BossFight.Start.P1, master));
+                    return;
+                }
             }
             if (++particleTick % 10 == 0) {
-                BlockPos at = portal;
-                server.execute(() -> server.overworld().sendParticles(ParticleTypes.PORTAL, at.getX() + 0.5, at.getY() + 1.5,
-                        at.getZ() + 0.5, 30, 0.8, 1.0, 0.8, 0.2));
+                server.overworld().sendParticles(ParticleTypes.PORTAL, open.getX() + 0.5, open.getY() + 1.5,
+                        open.getZ() + 0.5, 30, 0.8, 1.0, 0.8, 0.2);
             }
             return;
         }
-        if (!"Blood".equals(SimState.currentRoomName())) {
+        ServerPlayer inBlood = null;
+        for (ServerPlayer p : players) {
+            if ("Blood".equals(SimState.roomNameAt(p.getBlockX(), p.getBlockZ()))) {
+                inBlood = p;
+                break;
+            }
+        }
+        if (inBlood == null) {
             return;
         }
         bloodTicks++;
@@ -111,19 +129,17 @@ final class BossPortal {
         if (step == 0) {
             return;
         }
-        int gx = 2 * Math.floorDiv(client.player.getBlockX() - origin.getX() + step, 2 * step);
-        int gz = 2 * Math.floorDiv(client.player.getBlockZ() - origin.getZ() + step, 2 * step);
+        int gx = 2 * Math.floorDiv(inBlood.getBlockX() - origin.getX() + step, 2 * step);
+        int gz = 2 * Math.floorDiv(inBlood.getBlockZ() - origin.getZ() + step, 2 * step);
         BlockPos center = DungeonLayout.cellCenter(gx, gz);
-        BlockPos at = new BlockPos(center.getX(), client.player.getBlockY() - 1, center.getZ());
+        BlockPos at = new BlockPos(center.getX(), inBlood.getBlockY() - 1, center.getZ());
         portal = at;
-        steppedOut = false;
+        steppedOut.clear();
         LOGGER.info("[BossSim] Blood done ({}) - portal at {}", watcherDone ? "the Watcher's line" : "stand-in", at.toShortString());
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            BossBlocks.fill(level, at.getX() - 1, at.getY(), at.getZ() - 1, at.getX() + 1, at.getY(), at.getZ() + 1,
-                    BossBlocks.of("minecraft:crying_obsidian"));
-            BossBlocks.fill(level, at.getX() - 1, at.getY() + 1, at.getZ() - 1, at.getX() + 1, at.getY() + 3, at.getZ() + 1,
-                    BossBlocks.AIR);
-        });
+        ServerLevel level = server.overworld();
+        BossBlocks.fill(level, at.getX() - 1, at.getY(), at.getZ() - 1, at.getX() + 1, at.getY(), at.getZ() + 1,
+                BossBlocks.of("minecraft:crying_obsidian"));
+        BossBlocks.fill(level, at.getX() - 1, at.getY() + 1, at.getZ() - 1, at.getX() + 1, at.getY() + 3, at.getZ() + 1,
+                BossBlocks.AIR);
     }
 }

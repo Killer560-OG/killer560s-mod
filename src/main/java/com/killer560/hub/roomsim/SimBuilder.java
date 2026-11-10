@@ -1057,7 +1057,7 @@ public final class SimBuilder {
         // One read of the field: the build callbacks that land here run on the server thread, and the render thread
         // nulls client.player when the world goes away - a check and a second read could see two different values.
         var player = client.player;
-        snapPlayerTo(player == null ? null : player.getUUID(), level, gridX, gridZ, room);
+        snapPlayerTo(player == null ? null : player.getUUID(), level, gridX, gridZ, room, null, null, true);
     }
 
     /**
@@ -1076,6 +1076,16 @@ public final class SimBuilder {
      */
     static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room, float[] face, java.util.function.Consumer<float[]> landed) {
+        snapPlayerTo(uuid, level, gridX, gridZ, room, face, landed, false);
+    }
+
+    /**
+     * As above; {@code party} true for a BUILD's landing (a floor, a room, a reset: the owner chose what is played), which
+     * takes every other player on the sim's server to the same spot as well (coopsim-p5). A personal teleport (/goto, a
+     * guest's request) passes false and moves only {@code uuid}.
+     */
+    static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ, RoomLibrary.Room room,
+                             float[] face, java.util.function.Consumer<float[]> landed, boolean party) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
         // An L whose missing quarter is its anchor tile: the anchor's center is not in the room at all (Lava Ravine
         // as Hypixel captures it, 2026-10-13 - the scan then stood him in the void quarter, or on the ravine's lava
@@ -1221,6 +1231,16 @@ public final class SimBuilder {
                 if (landed != null) {
                     landed.accept(new float[]{yaw, pitch});
                 }
+            }
+            if (!party) return;
+            // Every other player lands on the same spot, facing as he does (co-op guests; one player: nothing here).
+            for (ServerPlayer other : java.util.List.copyOf(level.getServer().getPlayerList().getPlayers())) {
+                if (other.getUUID().equals(uuid)) continue;
+                float oy = other.getYRot();
+                if (faceYaw != null) oy += ((faceYaw - oy) % 360f + 540f) % 360f - 180f;
+                SimArrival.teleport(other, level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), oy,
+                        facePitch != null ? facePitch : other.getXRot());
+                partyLandings++;
             }
         });
     }
@@ -1383,6 +1403,11 @@ public final class SimBuilder {
      * because the chunks then arrive through vanilla's own streaming when he is put in the room, a few per
      * tick, instead of two hundred at once from me.
      */
+    /** Other players a build's landing moved with him (coopsim-p5), for tests. */
+    private static volatile int partyLandings;
+
+    public static int partyLandingsForTest() { return partyLandings; }
+
     private static final net.minecraft.core.BlockPos HOLDING_AREA =
             new net.minecraft.core.BlockPos(8000, 200, 8000);
 
@@ -1393,17 +1418,17 @@ public final class SimBuilder {
      * still falls - and falling would drop him back through the region being built.
      */
     public static void holdPlayer(Minecraft client, ServerLevel level) {
-        // One read: this runs on the server thread, where client.player can go null between a check and a use.
-        var player = client.player;
-        var uuid = player == null ? null : player.getUUID();
-        if (uuid == null) return;
+        // EVERY player on the sim's server, not only his (coopsim-1109): a co-op guest left standing in the region being
+        // rebuilt would be inside the walls when it lands. Server thread; the player list is read there.
         level.getServer().execute(() -> {
-            ServerPlayer sp = level.getServer().getPlayerList().getPlayer(uuid);
-            if (sp == null) return;
+            var players = java.util.List.copyOf(level.getServer().getPlayerList().getPlayers());
+            if (players.isEmpty()) return;
             level.setBlockAndUpdate(HOLDING_AREA.below(),
                     net.minecraft.world.level.block.Blocks.BARRIER.defaultBlockState());
-            SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
-                    java.util.Set.of(), sp.getYRot(), sp.getXRot());
+            for (ServerPlayer sp : players) {
+                SimArrival.teleport(sp, level, HOLDING_AREA.getX() + 0.5, HOLDING_AREA.getY(), HOLDING_AREA.getZ() + 0.5,
+                        java.util.Set.of(), sp.getYRot(), sp.getXRot());
+            }
         });
     }
 
@@ -1902,7 +1927,7 @@ public final class SimBuilder {
                 SimScore.reset(Math.max(0, secrets), 1);
                 var player = client.player;
                 snapPlayerTo(player == null ? null : player.getUUID(), level, centre, centre, room, resetFace,
-                        face -> soloFacing = face);
+                        face -> soloFacing = face, true);
                 if (!reset) {
                     client.execute(() -> SimSecrets.report(roomName, secrets));
                 }

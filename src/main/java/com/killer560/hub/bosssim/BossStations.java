@@ -263,9 +263,16 @@ public final class BossStations {
 
     /** Debug and testkit: completes a station as its player would (the same path), server thread. */
     public static boolean testComplete(net.minecraft.server.MinecraftServer server, int section, String label) {
+        return testComplete(server, section, label, null);
+    }
+
+    /** Testkit (coopsim-1109): as {@link #testComplete}, credited to player {@code by} (null: the first player). */
+    public static boolean testComplete(net.minecraft.server.MinecraftServer server, int section, String label,
+                                       java.util.UUID by) {
         for (Station s : ALL) {
             if (s.section() == section && s.label().equals(label)) {
-                ServerPlayer p = server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
+                ServerPlayer p = by != null ? server.getPlayerList().getPlayer(by)
+                        : server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
                 return complete(server.overworld(), s, p);
             }
         }

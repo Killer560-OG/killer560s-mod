@@ -148,6 +148,14 @@ public final class SimLoadout {
         });
     }
 
+    /** This client's saved loadout, one id or "" per slot (a co-op guest sends it to the host). */
+    static java.util.List<String> slotsForRequest() {
+        load();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (String id : slots) out.add(id == null ? "" : id);
+        return out;
+    }
+
     /** Called when a sim world finishes loading. */
     public static void onSimEntered(Minecraft client) {
         load();

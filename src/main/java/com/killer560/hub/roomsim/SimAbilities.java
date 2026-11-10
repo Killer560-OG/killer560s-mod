@@ -278,7 +278,8 @@ public final class SimAbilities {
      */
     private static InteractionResult onClientUse(Player player, InteractionHand hand, BlockHitResult onBlock) {
         Minecraft client = Minecraft.getInstance();
-        if (!SimState.canAct(client) || player != client.player) return InteractionResult.PASS;
+        // A guest predicts too (read-only; its own server, the host, fires the ability).
+        if (!(SimState.canAct(client) || SimState.isGuest(client)) || player != client.player) return InteractionResult.PASS;
         String id = CheatUtils.skyblockId(player.getItemInHand(hand));
         if (id == null) return InteractionResult.PASS;
         if (onBlock != null) {
