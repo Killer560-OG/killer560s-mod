@@ -190,15 +190,17 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
         });
         y += 20;
 
+        // Three rows (breaker3-1110, killer560 2026-11-10). Legit Multi Break (multibreak-1102): every block in reach back to
+        // back, one a tick, flags no GrimAC check. Burst (owner exception 2026-11-02): the old one-tick burst, labeled as
+        // flagging. The two are one or the other (each setter turns the other off), so both rebuild the tab.
         widgets.add(onOffButton("Zero Ping", cfg::isBreakerAuraZeroPingRaw, cfg::setBreakerAuraZeroPing, cfg::save,
-                null, contentX, y, col2W, 18));
-        // Multi Break (multibreak-1102): every block in reach back to back, one a tick (GrimAC MultiBreak's limit).
-        widgets.add(onOffButton("Multi Break", cfg::isBreakerAuraMultiBreak, cfg::setBreakerAuraMultiBreak, cfg::save,
-                null, col2bX, y, col2W, 18));
+                null, contentX, y, contentWidth, 18));
         y += 20;
-        // Owner exception (killer560, 2026-11-02): the old one-tick burst, opt-in, labeled as flagging.
-        widgets.add(onOffButton("Burst Multi Break (flags newest Grim)", cfg::isBreakerAuraBurstMultiBreakRaw,
-                cfg::setBreakerAuraBurstMultiBreak, cfg::save, null, contentX, y, contentWidth, 18));
+        widgets.add(onOffButton("Legit Multi Break", cfg::isBreakerAuraMultiBreak, cfg::setBreakerAuraMultiBreak, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
+        y += 20;
+        widgets.add(onOffButton("Burst Multi Break (flags Grim)", cfg::isBreakerAuraBurstMultiBreakRaw,
+                cfg::setBreakerAuraBurstMultiBreak, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
 
         // How the picks are drawn (2026-10-06): Highlight (the original, depth-tested) or Waypoint (through walls,

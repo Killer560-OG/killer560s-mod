@@ -147,6 +147,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   only on a server without RotationBreak. The "sticks around" report (Burst + Blink Charge): BlinkCharge.deferBlockUpdate
   holds the server's break until its ping answer goes (~1 s) while the break sound is not held; a pending pick is now drawn
   as air through the SectionCompiler hook (`MithrilStone.replace`, remeshed on add/remove, expires at 3 s and on world change).
+  SUPERSEDED for Breaker Aura by breaker3-1110 (killer560 2026-11-10: "that burst should be the old one that was perfect"):
+  Burst Multi Break is now its own row, exclusive with Legit Multi Break, and is the pre-d2da58568 burst exactly - every
+  pick in reach on whatever look he has, on the first tick, charges the only limit, no aim (aimForMost, strikesAnyEye and the
+  refused-extras fallback are gone), no DigWindow hold, Cooldown after each burst. Default Grim draws nothing from it;
+  experimental Grim's MultiBreak (and RotationBreak on an off-look pick) flags it and cancels the extras, which re-dig on a
+  later tick. Kept from later work: path ordering, keepChargesForHisPath, vanilla-instant prediction, the PENDING air draw.
+  Auto Routes' breaker-node burst (`RouteExecutor.burstBreak`) is unchanged (aimed in obvious mode).
 - **Inventory Walk's held close went out with the route's sneak down (iwcause-1102, GrimAC MultiActionsD).** With Stop To
   Click on, Inventory Walk holds a container close until a still tick, but lets a held close out AHEAD of any use (a
   use may open the next menu). A chest the route's await counted opened and was closed between two ticks, so the route
