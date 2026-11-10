@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.chattabs.mixin",
 	"client": [
 		"ChatTabsAccessor",
-		"ChatTabsFilterMixin"
+		"ChatTabsFilterMixin",
+		"ChatTabsScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

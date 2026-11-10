@@ -107,6 +107,17 @@ public final class SecretSound {
      *  on a locked chest"): the chest's menu opening plays it at once, Hypixel's whole "That chest is locked!" line drops
      *  it, and with neither it plays after {@link #CHEST_CONFIRM_MS} (a round trip on any sane ping). */
     static final long CHEST_CONFIRM_MS = 500L;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretsound");
+
+    /** The wait for the locked line: twice the connection's round trip plus 50 ms, between 150 ms and {@link #CHEST_CONFIRM_MS}
+     *  (killer560, 2026-11-09: "extremely delayed, 1-2 seconds" - the fixed 500 ms plus a slow menu; a locked chest still
+     *  stays silent, 2026-11-01). */
+    private static long confirmMs(Minecraft client) {
+        var conn = client.getConnection();
+        var info = conn == null || client.player == null ? null : conn.getPlayerInfo(client.player.getUUID());
+        long rtt = info == null ? 100 : info.getLatency();
+        return Math.max(150L, Math.min(CHEST_CONFIRM_MS, rtt * 2 + 50));
+    }
     private static final String LOCKED_LINE = "That chest is locked!";
     /** One entry per chest click awaiting its proof (a second click inside the wait used to overwrite the first: one sound for two). */
     private static final java.util.ArrayDeque<Long> pendingChests = new java.util.ArrayDeque<>();
@@ -117,7 +128,8 @@ public final class SecretSound {
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!pendingChests.isEmpty()
                     && LOCKED_LINE.equals(com.killer560.hub.util.ChatObserver.strip(message).trim())) {
-                pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
+                long waited = System.currentTimeMillis() - pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
+                LOGGER.info("[SecretSound] locked chest, no sound ({} ms after the click)", waited);
                 lockedChestSoundsDropped++;
             }
         });
@@ -189,7 +201,10 @@ public final class SecretSound {
         if (!detecting() || level == null || !DungeonState.isInDungeon()) {
             return;
         }
-        checkItemEntity(level.getEntity(packet.getItemId()));
+        // Only the local player's own pickup of a secret item: a teammate's pickup nearby is no secret of ours.
+        if (Minecraft.getInstance().player != null && packet.getPlayerId() == Minecraft.getInstance().player.getId()) {
+            checkItemEntity(level.getEntity(packet.getItemId()));
+        }
     }
 
     static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, ClientLevel level) {
@@ -214,6 +229,7 @@ public final class SecretSound {
         if (name == null || !DUNGEON_ITEM_DROPS.contains(name)) {
             return;
         }
+        LOGGER.info("[SecretSound] secret item: " + name);
         onSecret(SecretType.ITEM, item.blockPosition());
     }
 
@@ -248,8 +264,10 @@ public final class SecretSound {
         boolean opened = com.killer560.hub.compat.McCompat.screen(client)
                 instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
         long now = System.currentTimeMillis();
-        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst() >= CHEST_CONFIRM_MS)) {
-            pendingChests.pollFirst();
+        long wait = confirmMs(client);
+        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst() >= wait)) {
+            long waited = now - pendingChests.pollFirst();
+            LOGGER.info("[SecretSound] chest sound after {} ms ({}, window {} ms)", waited, opened ? "menu opened" : "no locked line", wait);
             chestSoundsPlayed++;
             play();
         }

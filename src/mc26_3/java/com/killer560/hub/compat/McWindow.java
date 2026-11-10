@@ -271,8 +271,4 @@ public final class McWindow {
         com.mojang.blaze3d.Blaze3D.openPath(path);
     }
 
-    /** Puts the cursor at (x, y) in MouseHandler's xpos/ypos units (window coordinates), as vanilla's own grab does. */
-    public static void warpCursor(Window window, double x, double y) {
-        SDLMouse.SDL_WarpMouseInWindow(window.handle(), (float) x, (float) y);
-    }
 }

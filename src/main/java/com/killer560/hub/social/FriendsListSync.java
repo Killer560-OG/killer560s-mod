@@ -76,6 +76,8 @@ public final class FriendsListSync {
     /** When the open block last accepted a line (header or friend); a block that goes quiet this long without
      *  its closing separator is given up on, so {@link #walking} cannot stay stuck true. */
     private static long lastReadLineAtMs = 0L;
+    /** The first offline friend of this walk has been read (everyone after it is offline too). */
+    private static boolean offlineSeen = false;
     private static int currentPage = 0;
     private static int totalPages = 0;
     private static String nextPageCommand = null;
@@ -212,6 +214,10 @@ public final class FriendsListSync {
             String name = friend.group(1);
             boolean offline = friend.group(2).toLowerCase(Locale.US).contains("offline");
             ParsedFriend pf = new ParsedFriend(name, !offline, activityOf(friend.group(2)));
+            if (offline && !offlineSeen) {
+                offlineSeen = true;
+                FriendsListConfig.getInstance().markUnseenOffline(ACCUMULATED.keySet());
+            }
             if (ACCUMULATED.putIfAbsent(name.toLowerCase(Locale.US), pf) == null) {
                 FriendsListConfig.getInstance().noteScanned(name, pf.onlineHint(), pf.activity());
             }
@@ -285,6 +291,7 @@ public final class FriendsListSync {
         currentPage = 0;
         totalPages = 0;
         ACCUMULATED.clear();
+        offlineSeen = false;
     }
 
     private static void applySync(List<ParsedFriend> parsed, boolean truncated) {

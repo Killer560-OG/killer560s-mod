@@ -112,6 +112,7 @@ public final class MobEspFeature {
     public static void register() {
         EspRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MobEspFeature", client -> tick()));
+        GhostMobs.register();
         LevelRenderEvents.COLLECT_SUBMITS.register(MobEspFeature::render);
     }
 
@@ -261,7 +262,7 @@ public final class MobEspFeature {
         int bloodDrawn = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (entity == client.player) continue;
+            if (entity == client.player || GhostMobs.hidden(entity)) continue;
             if (wantBlood && bloodIds.contains(entity.getId())) {
                 // A Floor VII giant is 12 blocks tall: its eye sits in or above the Blood Room's ceiling while its body
                 // stands in plain view (killer560, 2026-10-22), so without ESP a blood mob also counts as seen when the
@@ -307,6 +308,7 @@ public final class MobEspFeature {
                 String name = starredName(stand);
                 if (name == null) continue;
                 Entity mob = resolveMob(client, stand, name);
+                if (mob != null && GhostMobs.hidden(mob)) continue;
                 if (mob != null) {
                     rememberStarred(mob);
                 }
@@ -561,7 +563,7 @@ public final class MobEspFeature {
             } else if (entity instanceof Player p && isMiniboss(client, p)) {
                 mob = p;
             }
-            if (mob != null && mob.isAlive() && !mob.isRemoved() && seen.add(mob.getId())) {
+            if (mob != null && mob.isAlive() && !mob.isRemoved() && !GhostMobs.hidden(mob) && seen.add(mob.getId())) {
                 out.add(mob);
             }
             if (mob != null && tag != null && tags != null) {
@@ -716,7 +718,7 @@ public final class MobEspFeature {
                 it.remove();
                 continue;
             }
-            if (draw && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
+            if (draw && !GhostMobs.hidden(mob) && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
                     foundBoxes, foundGlows, color)) {
                 drawn++;
                 rememberedDrawn++;

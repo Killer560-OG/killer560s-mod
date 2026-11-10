@@ -1,6 +1,6 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.gui.RangeSliderWidget;
 import com.killer560.hub.terminatorclicker.TerminatorClickerConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -8,12 +8,12 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Terminator Auto Clicker (cheat only): the switch and the clicks per second. See
+/** Shortbow Auto Clicker (cheat only): the switch and the clicks per second range (two handles). See
  *  {@link com.killer560.hub.terminatorclicker.TerminatorClickerFeature}. */
 public class TerminatorClickerTab extends BaseTab {
 
     public TerminatorClickerTab() {
-        super("Terminator Auto Clicker");
+        super("Shortbow Auto Clicker");
     }
 
     @Override
@@ -28,30 +28,24 @@ public class TerminatorClickerTab extends BaseTab {
             return widgets;
         }
         TerminatorClickerConfig cfg = TerminatorClickerConfig.getInstance();
-        widgets.add(onOffButton("Terminator Auto Clicker", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+        widgets.add(onOffButton("Shortbow Auto Clicker", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, contentY, contentWidth, 20));
         if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
-        int min = TerminatorClickerConfig.MIN_CPS;
-        int max = TerminatorClickerConfig.MAX_CPS;
-        widgets.add(new ThemedSliderButton(contentX, contentY + 24, contentWidth, 18, cpsText(cfg),
-                (cfg.getCps() - min) / (double) (max - min)) {
+        widgets.add(new RangeSliderWidget(contentX, contentY + 24, contentWidth, 18, TerminatorClickerConfig.MIN_CPS,
+                TerminatorClickerConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
             @Override
-            protected void updateMessage() {
-                setMessage(cpsText(cfg));
+            protected Component label(int low, int high) {
+                return Component.literal("Clicks Per Second: " + low + " - " + high);
             }
 
             @Override
-            protected void applyValue() {
-                cfg.setCps((int) Math.round(min + this.value * (max - min)));
-                saveOnRelease(cfg::save);
+            protected void onRangeChanged(int low, int high) {
+                cfg.setCpsRange(low, high);
+                com.killer560.hub.gui.ThemedSliderButton.saveOnRelease(cfg::save);
             }
         });
         return widgets;
-    }
-
-    private static Component cpsText(TerminatorClickerConfig cfg) {
-        return Component.literal("Clicks Per Second: " + cfg.getCps());
     }
 }

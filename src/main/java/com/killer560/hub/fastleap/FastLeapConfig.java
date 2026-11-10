@@ -132,6 +132,8 @@ public final class FastLeapConfig {
     public static final int RETURN_STAY = -2;
 
     private static final class TargetSettings {
+        /** Target Mode of this leap alone (killer560, 2026-11-09: "target mode should be inside of each leap option"). */
+        TargetMode mode = TargetMode.PER_LEAP;
         String name = "";
         DungeonClass clazz;
         String keywords;
@@ -152,7 +154,6 @@ public final class FastLeapConfig {
     private static FastLeapConfig instance;
 
     private boolean enabled = false;
-    private TargetMode targetMode = TargetMode.PER_LEAP;
     private int clickDelayMs = 250;
     private int timeoutMs = DEFAULT_TIMEOUT_MS;
     private boolean blockInputs = false;
@@ -195,7 +196,10 @@ public final class FastLeapConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = bool(obj, "enabled", false);
                 String oldMode = str(obj, "targetMode", "NAME");
-                cfg.targetMode = parseMode(oldMode);
+                // The one card-wide Target Mode of older files is every leap's own mode now, until a leap saves its own.
+                for (TargetSettings ts : cfg.targets.values()) {
+                    ts.mode = parseMode(oldMode);
+                }
                 cfg.clickDelayMs = clampDelay(intOr(obj, "clickDelayMs", 250));
                 cfg.timeoutMs = clampTimeout(intOr(obj, "timeoutMs", DEFAULT_TIMEOUT_MS));
                 cfg.blockInputs = bool(obj, "blockInputs", false);
@@ -237,6 +241,9 @@ public final class FastLeapConfig {
                             JsonObject o = t.getAsJsonObject(target.name());
                             TargetSettings s = cfg.targets.get(target);
                             s.name = str(o, "name", "");
+                            if (o.has("mode")) {
+                                s.mode = parseMode(str(o, "mode", ""));
+                            }
                             if (o.has("class")) {
                                 JsonElement c = o.get("class");
                                 s.clazz = c.isJsonNull() || c.getAsString().isEmpty() ? null : DungeonClass.byName(c.getAsString());
@@ -268,6 +275,7 @@ public final class FastLeapConfig {
                 }
                 // Before 2026-11-02 a per-class target applied whenever one was set; a file without the key keeps that
                 // (Set Class when any is set - with none set the two read the same).
+                cfg.dropNames();
                 cfg.useClassTargets = obj.has("useClassTargets") ? bool(obj, "useClassTargets", false)
                         : cfg.classTargetCount() > 0;
             } catch (Exception e) {
@@ -283,7 +291,6 @@ public final class FastLeapConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("targetMode", targetMode.name());
             obj.addProperty("clickDelayMs", clickDelayMs);
             obj.addProperty("timeoutMs", timeoutMs);
             obj.addProperty("blockInputs", blockInputs);
@@ -308,6 +315,7 @@ public final class FastLeapConfig {
                 TargetSettings s = targets.get(target);
                 JsonObject o = new JsonObject();
                 o.addProperty("name", s.name);
+                o.addProperty("mode", s.mode.name());
                 o.addProperty("class", s.clazz == null ? "" : s.clazz.name());
                 o.addProperty("keywords", s.keywords);
                 o.addProperty("byClass", s.byClass);
@@ -400,12 +408,56 @@ public final class FastLeapConfig {
         enabled = v;
     }
 
-    public TargetMode getTargetMode() {
-        return targetMode;
+    public TargetMode getTargetMode(LeapTarget target) {
+        return targets.get(target).mode;
     }
 
+    public void setTargetMode(LeapTarget target, TargetMode mode) {
+        targets.get(target).mode = mode == null ? TargetMode.PER_LEAP : mode;
+    }
+
+    /** Every leap's Target Mode at once (the testkit's shortcut; the card sets one leap at a time). */
     public void setTargetMode(TargetMode mode) {
-        targetMode = mode == null ? TargetMode.PER_LEAP : mode;
+        for (LeapTarget t : LeapTarget.values()) {
+            setTargetMode(t, mode);
+        }
+    }
+
+    /** The first leap's Target Mode (the testkit reads the all-leaps shortcut back through it). */
+    public TargetMode getTargetMode() {
+        return getTargetMode(LeapTarget.values()[0]);
+    }
+
+    /** No leap goes by a player's name any more (killer560, 2026-11-09: "just class"): a saved name becomes that player's
+     *  class when the party knows it, else the leap is emptied; logged once for the whole file. */
+    private void dropNames() {
+        int changed = 0;
+        for (Map.Entry<LeapTarget, TargetSettings> e : targets.entrySet()) {
+            TargetSettings s = e.getValue();
+            if (!s.byClass && !s.name.isBlank()) {
+                DungeonClass c = com.killer560.hub.leapmenu.PartyTracker.classOf(s.name);
+                if (c != null) {
+                    s.clazz = c; // else the class saved beside the name (its backup) stays
+                }
+                changed++;
+            }
+            s.byClass = true;
+            s.name = "";
+            for (Map.Entry<DungeonClass, ClassPick> p : new java.util.ArrayList<>(s.byPlayerClass.entrySet())) {
+                if (!p.getValue().byClass()) {
+                    DungeonClass c = com.killer560.hub.leapmenu.PartyTracker.classOf(p.getValue().name());
+                    if (c != null) {
+                        s.byPlayerClass.put(p.getKey(), new ClassPick(c, null));
+                    } else {
+                        s.byPlayerClass.remove(p.getKey());
+                    }
+                    changed++;
+                }
+            }
+        }
+        if (changed > 0) {
+            FastLeapFeature.LOGGER.info("[FastLeap] {} leap target(s) saved by player name were turned into classes (or emptied)", changed);
+        }
     }
 
     public int getClickDelayMs() {

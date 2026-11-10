@@ -335,8 +335,7 @@ public final class MainMenuTitleLayout {
                 }
             }
             // Mod Menu, when installed, owns the Mods button (killer560, 2026-11-05); ours only stands in without it.
-            if (com.killer560.hub.modlist.ModListConfig.getInstance().isMainMenuButton()
-                    && !net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("modmenu")) {
+            if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("modmenu")) {
                 if (modsList == null) {
                     modsList = new ModsButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
                             Component.literal("Mods"), btn -> McCompat.setScreen(Minecraft.getInstance(),

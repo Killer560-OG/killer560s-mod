@@ -9,7 +9,11 @@ import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.HotbarSelect;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import com.killer560.hub.bosssim.BossGates;
+import com.killer560.hub.leveraura.P3SectionTracker;
+import com.killer560.hub.secretwaypoints.CryptScanner;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,6 +40,7 @@ public final class AutoSuperboomFeature {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
+        P3SectionTracker.register();
         int bit = FeatureBits.register("Auto Superboom", () -> AutoSuperboomConfig.getInstance().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSuperboom", bit, AutoSuperboomFeature::tick));
     }
@@ -47,6 +52,7 @@ public final class AutoSuperboomFeature {
             restoreSlot = -1;
             return;
         }
+        P3SectionTracker.poll(client);
         boolean click = crackedClick(client);
         if (restoreSlot >= 0) {
             if (player.getInventory().getSelectedSlot() != boomSlot) {
@@ -74,13 +80,41 @@ public final class AutoSuperboomFeature {
         swappedTick = ActionGate.currentTick();
     }
 
-    /** His left click is queued for this tick's handleKeybinds and the crosshair is on a cracked wall within reach. */
+    /** His left click is queued for this tick's handleKeybinds and the crosshair is on something a Superboom opens within reach:
+     *  a cracked wall, a P3 gate's block (only while P3 runs), or a crypt's or prince's tomb blocks. */
     private static boolean crackedClick(Minecraft client) {
         if (!ActionGate.hisClickQueued(client.options.keyAttack)
                 || !(client.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) {
             return false;
         }
-        BlockState s = client.level.getBlockState(hit.getBlockPos());
-        return s.is(Blocks.CRACKED_STONE_BRICKS) || s.is(Blocks.INFESTED_CRACKED_STONE_BRICKS);
+        BlockPos pos = hit.getBlockPos();
+        BlockState s = client.level.getBlockState(pos);
+        return s.is(Blocks.CRACKED_STONE_BRICKS) || s.is(Blocks.INFESTED_CRACKED_STONE_BRICKS)
+                || P3SectionTracker.running() && DungeonState.isBossPhaseActive() && BossGates.isGateBlock(pos, s)
+                || isTombBlock(client, pos, s);
+    }
+
+    /** Crypt and prince tomb blocks around the click: {@link CryptScanner} runs only on a click at a block kind a tomb is made of,
+     *  over a 33 x 33 window centered on it, and its answer is kept 5 s (or until a click lands 8 blocks from the center). */
+    private static final java.util.Set<BlockPos> TOMB = new java.util.HashSet<>();
+    private static BlockPos tombCenter = BlockPos.ZERO;
+    private static long tombTick = Long.MIN_VALUE / 2;
+
+    private static boolean isTombBlock(Minecraft client, BlockPos pos, BlockState s) {
+        if (!(s.is(Blocks.SMOOTH_STONE_SLAB) || s.is(Blocks.SMOOTH_STONE) || s.is(Blocks.GOLD_BLOCK) || s.is(Blocks.SEA_LANTERN)
+                || s.is(Blocks.OBSIDIAN) || s.is(Blocks.POLISHED_ANDESITE))) {
+            return false;
+        }
+        long now = ActionGate.currentTick();
+        if (now - tombTick > 100 || Math.abs(pos.getX() - tombCenter.getX()) > 8 || Math.abs(pos.getZ() - tombCenter.getZ()) > 8) {
+            TOMB.clear();
+            for (CryptScanner.Found f : CryptScanner.scan(client.level,
+                    new int[]{pos.getX() - 16, pos.getZ() - 16, pos.getX() + 16, pos.getZ() + 16})) {
+                TOMB.addAll(f.blocks());
+            }
+            tombCenter = pos;
+            tombTick = now;
+        }
+        return TOMB.contains(pos);
     }
 }

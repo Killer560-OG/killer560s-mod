@@ -239,6 +239,11 @@ public final class BeamsSolverFeature {
                 lit.add(p);
             }
         }
+        if (!openingUsed && creeperFeet == null) {
+            // Waiting for the creeper to load (at most CREEPER_WAIT_SCANS scans): draw no step yet, because the nearest
+            // pair shown now would be replaced by the creeper's pair a few ticks later (killer560, 2026-11-09).
+            lit.clear();
+        }
         if (!openingUsed) {
             // Until the creeper is found (or given up on) nothing is locked in: a pick made before it loaded would
             // keep the nearest pair first for good (the 2026-11-08 "not the one below it every time" case).

@@ -428,7 +428,7 @@ public final class FastLeapFeature {
                 name = pick.name();
             }
         }
-        switch (cfg.getTargetMode()) {
+        switch (cfg.getTargetMode(target)) {
             case PER_LEAP -> {
                 if (byClass ? clazz == null : name.isBlank()) {
                     ModChat.send("Fast Leap", ModChat.value(displayLabel(target)), ModChat.text(" has no target picked"));

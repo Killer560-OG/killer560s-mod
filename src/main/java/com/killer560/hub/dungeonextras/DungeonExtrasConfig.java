@@ -58,7 +58,6 @@ public final class DungeonExtrasConfig {
     private boolean autoDialogueEnabled = false;
     private int autoDialogueDelayTicks = 5;
     /** Comma-separated NPC names; blank = any NPC (reference behavior). */
-    private String autoDialogueNpcFilter = "";
     /** Off (default): Auto Dialogue only acts while {@code DungeonState.isInDungeon()}. On: anywhere on Skyblock. */
     private boolean autoDialogueOutsideDungeons = false;
 
@@ -212,7 +211,6 @@ public final class DungeonExtrasConfig {
                 cfg.mageBeamDurationTicks = clampInt(o.has("mageBeamDurationTicks") ? o.get("mageBeamDurationTicks").getAsInt() : cfg.mageBeamDurationTicks, 5, 100);
                 cfg.autoDialogueEnabled = bool(o, "autoDialogueEnabled", cfg.autoDialogueEnabled);
                 cfg.autoDialogueDelayTicks = clampInt(o.has("autoDialogueDelayTicks") ? o.get("autoDialogueDelayTicks").getAsInt() : cfg.autoDialogueDelayTicks, 0, 40);
-                cfg.autoDialogueNpcFilter = o.has("autoDialogueNpcFilter") ? o.get("autoDialogueNpcFilter").getAsString() : cfg.autoDialogueNpcFilter;
                 cfg.autoDialogueOutsideDungeons = bool(o, "autoDialogueOutsideDungeons", cfg.autoDialogueOutsideDungeons);
                 cfg.breakerAuraEnabled = bool(o, "breakerAuraEnabled", cfg.breakerAuraEnabled);
                 // 4.5, not 5.5: past the measured limit the server refuses the break outright. Clamped on LOAD as
@@ -281,7 +279,6 @@ public final class DungeonExtrasConfig {
             o.addProperty("mageBeamColor2", mageBeamColor2);
             o.addProperty("autoDialogueEnabled", autoDialogueEnabled);
             o.addProperty("autoDialogueDelayTicks", autoDialogueDelayTicks);
-            o.addProperty("autoDialogueNpcFilter", autoDialogueNpcFilter);
             o.addProperty("autoDialogueOutsideDungeons", autoDialogueOutsideDungeons);
             o.addProperty("breakerAuraEnabled", breakerAuraEnabled);
             o.addProperty("breakerAuraReach", breakerAuraReach);
@@ -357,8 +354,6 @@ public final class DungeonExtrasConfig {
     public void setAutoDialogueEnabled(boolean v) { autoDialogueEnabled = v; }
     public int getAutoDialogueDelayTicks() { return autoDialogueDelayTicks; }
     public void setAutoDialogueDelayTicks(int v) { autoDialogueDelayTicks = clampInt(v, 0, 40); }
-    public String getAutoDialogueNpcFilter() { return autoDialogueNpcFilter; }
-    public void setAutoDialogueNpcFilter(String v) { autoDialogueNpcFilter = v == null ? "" : v; }
     public boolean isAutoDialogueOutsideDungeons() { return autoDialogueOutsideDungeons; }
     public void setAutoDialogueOutsideDungeons(boolean v) { autoDialogueOutsideDungeons = v; }
 

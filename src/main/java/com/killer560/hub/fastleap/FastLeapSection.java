@@ -24,8 +24,8 @@ import java.util.function.Consumer;
  * you should have a toggle to use universal or to use set class. right now everything feels very hard to read"):
  * <ul>
  *   <li>{@link #buildGeneral} - the front page: the Fast Leap switch, Targets (Universal / Set Class), the two page
- *       buttons (the one in use lit orange and marked "(in use)"), Target Mode, then the settings both modes share: Click
- *       Behavior and every leap's Off / Fast / Auto row ({@link #buildLeapSwitches}).</li>
+ *       buttons (the one in use lit orange and marked "(in use)"), then the settings both modes share: Click
+ *       Behavior ({@code each leap's Off / Fast / Auto and Target Mode are on the two pages below}).</li>
  *   <li>{@link #buildUniversalTargets} - who each leap goes to for everyone, per boss phase, with Posmsg's keywords.</li>
  *   <li>{@link #buildClassTargets} - the same list for the class picked at its top ("When You Play").</li>
  * </ul>
@@ -79,30 +79,13 @@ public final class FastLeapSection {
         return BuildVariant.CHEAT_FEATURES_ENABLED && FastLeapConfig.getInstance().isEnabledSetting();
     }
 
-    /** Keep Rotation On Leap's row label (fastleap/LeapRotation). */
-    public static final String TARGET_LOOK = "Leap Takes Target's Look";
-
-    /** The front page's last section, Leap Takes Target's Look (cheat block): its own feature (every leap, Fast Leap on
-     *  or off), so it is built in both states and is in FastLeapTab.masterToggles. */
-    public static int buildTargetLook(List<AbstractWidget> widgets, int x, int y, int width) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return y;
-        }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
-        int w = Math.max(1, width);
-        widgets.add(com.killer560.hub.gui.SectionHeaders.row(x, y, w, "Leap Look", true));
-        y += SECTION_HEADER_H;
-        widgets.add(toggle(x, y, w, TARGET_LOOK, cfg::isLeapTakesTargetLook, v -> cfg.setLeapTakesTargetLook(v), cfg));
-        return y + ROW + GAP;
-    }
-
     public static int buildGeneral(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         return buildGeneral(widgets, x, y, width, requestRebuild, false);
     }
 
     /**
-     * The front page down to the Leaps section: the switch, Targets, the two page buttons, Target Mode, then Click
-     * Behavior. The tab puts {@link #buildLeapSwitches} (the long list) under it.
+     * The front page : the switch, Targets, the two page buttons, then Click
+     * Behavior.
      * @param includeHidden true also draws Fast Mode while Block Inputs is off - only for the tab's off-screen search
      *  scan, so searching "fast mode" still finds it.
      * @return the y below the last row.
@@ -116,7 +99,7 @@ public final class FastLeapSection {
         int w = Math.max(1, width);
         y = buildSwitch(widgets, x, y, w, requestRebuild, cfg);
         if (!cfg.isEnabledSetting() && !includeHidden) {
-            widgets.add(titleLabel(x, y, w, "§7Turn Fast Leap on to set up the leaps below."));
+            widgets.add(titleLabel(x, y, w, "§7Turn Fast Leap on to set up your leaps."));
             return y + GROUP_TITLE_H;
         }
 
@@ -140,14 +123,7 @@ public final class FastLeapSection {
                 Page.CLASS, requestRebuild));
         y += ROW + GAP;
 
-        // Target Mode: Per Leap (the page's target) or Posmsg (whoever called the spot, the page's target as backup).
-        // Applies to both pages, so it stays here.
-        widgets.add(SettingsButtonWidget.cycling(Component.literal("Target Mode: §6" + cfg.getTargetMode().label), (btn, dir) -> {
-            cfg.setTargetMode(SettingsButtonWidget.step(cfg.getTargetMode(), dir));
-            cfg.save();
-            requestRebuild.run();
-        }).bounds(x, y, w, ROW).build());
-        y += ROW + GAP + GROUP_GAP - GAP;
+        y += GROUP_GAP - GAP;
         return buildClickBehavior(widgets, x, y, w, includeHidden) + GROUP_GAP - GAP;
     }
 
@@ -248,43 +224,6 @@ public final class FastLeapSection {
             new LeapPhase("P5", LeapGroup.RELIC),
     };
 
-    /**
-     * The front page's Leaps section: one cycling row per leap (killer560, 2026-11-03: Off / Fast / Auto), "Crystal Leap:
-     * Off" (unused), "Fast" (your left click with a leap item leaps) or "Auto" (it leaps by itself on its trigger). Door
-     * Opener's After Blood Off and P3's Gate Blown Only sit indented under their leap. These apply whichever Targets page
-     * is in use.
-     * @return the y below the last row.
-     */
-    public static int buildLeapSwitches(List<AbstractWidget> widgets, int x, int y, int width) {
-        if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return y;
-        }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
-        int w = Math.max(1, width);
-        widgets.add(sectionHeader(x, y, w, "Leaps"));
-        y += SECTION_HEADER_H;
-        // (no "Label:" shape in a hint: it would read as a setting row to search hits and to the testkit's row counts)
-        widgets.add(titleLabel(x, y, w, "§7Off = unused, Fast = your left click, Auto = leaps by itself."));
-        y += GROUP_TITLE_H + 2;
-        for (LeapPhase phase : PHASES) {
-            y = caption(widgets, x, y, w, phase.caption());
-            for (LeapGroup group : phase.groups()) {
-                widgets.add(leapSwitch(x, y, w, group, cfg));
-                y += ROW + GAP;
-                if (group == LeapGroup.DOOR) {
-                    widgets.add(toggle(x + INDENT, y, Math.max(1, w - INDENT), "After Blood Off", cfg::isDisableAfterBloodOpen,
-                            v -> cfg.setDisableAfterBloodOpen(v), cfg));
-                    y += ROW + GAP;
-                } else if (group == LeapGroup.P3) {
-                    widgets.add(toggle(x + INDENT, y, Math.max(1, w - INDENT), "Gate Blown Only", cfg::isOnlyWhenGateBlown,
-                            v -> cfg.setOnlyWhenGateBlown(v), cfg));
-                    y += ROW + GAP;
-                }
-            }
-        }
-        return y + GROUP_GAP - GAP;
-    }
-
     /** A leap's row: Off / Fast / Auto, left click forward, right click back, wrapping. "Off" is not "OFF", so the
      *  menu draws it as a value pill, not a switch. */
     static SettingsButtonWidget leapSwitch(int x, int y, int w, LeapGroup group, FastLeapConfig cfg) {
@@ -312,60 +251,40 @@ public final class FastLeapSection {
         widgets.add(SettingsButtonWidget.builder(Component.literal("< Back"), btn -> {
             page = Page.FRONT;
             requestRebuild.run();
-        }).bounds(x, y, BACK_W, ROW).build());
+        }).bounds(x, y + 1, BACK_W, ROW - 2).build());
         boolean inUse = (which == Page.CLASS) == cfg.isUseClassTargets();
         String title = which == Page.CLASS ? "Set Class Targets" : "Universal Targets";
-        widgets.add(new StringWidget(x + BACK_W + 8, y + (ROW - 8) / 2, Math.max(1, w - BACK_W - 8), 10,
-                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(not in use)")),
+        widgets.add(new StringWidget(x + BACK_W + 8, y + 5, Math.max(1, w - BACK_W - 8), 10,
+                Component.literal("§6§l" + title + (inUse ? " §a(in use)" : " §7(off: other page)")),
                 Minecraft.getInstance().font));
         y += ROW + GAP + 2;
         return y;
     }
 
     /**
-     * The Universal Targets page body: who each leap goes to for everyone, by boss phase. One row per target ("Crystal:
-     * Healer (Bob)", P3's "S1".."S4"); in Posmsg mode each target's keyword box sits under it.
+     * The Universal Targets page: for each boss phase, each leap's own rows (killer560, 2026-11-09: "you should set it in
+     * universal or class specific", "target mode should be inside of each leap option"): the leap's Off / Fast / Auto, then
+     * its target and Target Mode side by side (P3's S1..S4 each), with Posmsg's keyword box under a leap in Posmsg mode.
      * @param includeHidden true draws the keyword boxes outside Posmsg too (search scan only).
      */
     public static int buildUniversalTargets(List<AbstractWidget> widgets, int x, int y, int width, boolean includeHidden) {
+        return buildUniversalTargets(widgets, x, y, width, includeHidden, () -> { });
+    }
+
+    public static int buildUniversalTargets(List<AbstractWidget> widgets, int x, int y, int width, boolean includeHidden,
+                                            Runnable requestRebuild) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return y;
         }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
         int w = Math.max(1, width);
         widgets.add(titleLabel(x, y, w, "§7Who each leap goes to, whatever class you play."));
-        y += GROUP_TITLE_H + 2;
-        boolean keywords = includeHidden || cfg.getTargetMode() == FastLeapConfig.TargetMode.POSMSG;
-        for (LeapPhase phase : PHASES) {
-            y = caption(widgets, x, y, w, phase.caption());
-            for (LeapGroup group : phase.groups()) {
-                if (group == LeapGroup.DOOR) {
-                    y = doorNote(widgets, x, y, w);
-                    continue;
-                }
-                for (LeapTarget t : LeapTarget.values()) {
-                    if (t.group != group) {
-                        continue;
-                    }
-                    widgets.add(targetButton(x, y, w, t, cfg));
-                    y += ROW + GAP;
-                    if (keywords) {
-                        String hint = (group == LeapGroup.P3 ? t.label + " " : "") + "Keywords";
-                        addEditBox(widgets, editBox(x + INDENT, y, Math.max(1, w - INDENT), cfg.getTargetKeywords(t), hint, 128, v -> {
-                            cfg.setTargetKeywords(t, v);
-                            cfg.save();
-                        }));
-                        y += ROW + GAP;
-                    }
-                }
-            }
-        }
-        return y;
+        return phaseRows(widgets, x, y + GROUP_TITLE_H + 2, w, null, includeHidden, requestRebuild);
     }
 
     /**
-     * The Set Class Targets page body: "When You Play" picks one of your classes, then the same list as the Universal
-     * page for that class ("Crystal: Same as Universal" until one is set).
+     * The Set Class Targets page: "When You Play" picks one of your classes, then the same rows as the Universal page
+     * with that class's own target ("Same as Universal" until one is set). A leap's Off / Fast / Auto and Target Mode are
+     * the leap's own, the same on both pages.
      */
     public static int buildClassTargets(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -383,23 +302,59 @@ public final class FastLeapSection {
         int n = cfg.classTargetCount();
         widgets.add(titleLabel(x, y, w, "§7Same as Universal uses the Universal target. "
                 + n + (n == 1 ? " target" : " targets") + " set in all."));
-        y += GROUP_TITLE_H + 2;
+        return phaseRows(widgets, x, y + GROUP_TITLE_H + 2, w, mine, false, requestRebuild);
+    }
+
+    /** The phase headers and each leap's rows; {@code mine} null = the Universal target, else that class's own. */
+    private static int phaseRows(List<AbstractWidget> widgets, int x, int y, int w, DungeonClass mine, boolean includeHidden,
+                                 Runnable requestRebuild) {
+        FastLeapConfig cfg = FastLeapConfig.getInstance();
+        int modeW = Math.max(40, w * 2 / 5);
         for (LeapPhase phase : PHASES) {
             y = caption(widgets, x, y, w, phase.caption());
             for (LeapGroup group : phase.groups()) {
+                widgets.add(leapSwitch(x, y, w, group, cfg));
+                y += ROW + GAP;
                 if (group == LeapGroup.DOOR) {
-                    y = doorNote(widgets, x, y, w);
+                    widgets.add(toggle(x + INDENT, y, Math.max(1, w - INDENT), "After Blood Off", cfg::isDisableAfterBloodOpen,
+                            v -> cfg.setDisableAfterBloodOpen(v), cfg));
+                    y += ROW + GAP;
                     continue;
                 }
                 for (LeapTarget t : LeapTarget.values()) {
-                    if (t.group == group) {
-                        widgets.add(classTargetButton(x, y, w, t, mine, cfg));
+                    if (t.group != group) {
+                        continue;
+                    }
+                    widgets.add(mine == null ? targetButton(x, y, w - modeW - GAP, t, cfg)
+                            : classTargetButton(x, y, w - modeW - GAP, t, mine, cfg));
+                    widgets.add(targetModeButton(x + w - modeW, y, modeW, t, cfg, requestRebuild));
+                    y += ROW + GAP;
+                    if (mine == null && (includeHidden || cfg.getTargetMode(t) == FastLeapConfig.TargetMode.POSMSG)) {
+                        String hint = (group == LeapGroup.P3 ? t.label + " " : "") + "Keywords";
+                        addEditBox(widgets, editBox(x + INDENT, y, Math.max(1, w - INDENT), cfg.getTargetKeywords(t), hint, 128, v -> {
+                            cfg.setTargetKeywords(t, v);
+                            cfg.save();
+                        }));
                         y += ROW + GAP;
                     }
+                }
+                if (group == LeapGroup.P3) {
+                    widgets.add(toggle(x + INDENT, y, Math.max(1, w - INDENT), "Gate Blown Only", cfg::isOnlyWhenGateBlown,
+                            v -> cfg.setOnlyWhenGateBlown(v), cfg));
+                    y += ROW + GAP;
                 }
             }
         }
         return y;
+    }
+
+    /** One leap's Target Mode: Per Leap (the target on its row) or Posmsg (whoever called the spot, the target as backup). */
+    static SettingsButtonWidget targetModeButton(int x, int y, int w, LeapTarget t, FastLeapConfig cfg, Runnable requestRebuild) {
+        return SettingsButtonWidget.cycling(Component.literal("Mode: §6" + cfg.getTargetMode(t).label), (btn, dir) -> {
+            cfg.setTargetMode(t, SettingsButtonWidget.step(cfg.getTargetMode(t), dir));
+            cfg.save();
+            requestRebuild.run();
+        }).bounds(x, y, Math.max(1, w), ROW).build();
     }
 
     /** The class the Set Class page edits: the one picked there, else the class you play now, else Mage. */
@@ -428,14 +383,14 @@ public final class FastLeapSection {
     }
 
     private static int doorNote(List<AbstractWidget> widgets, int x, int y, int w) {
-        widgets.add(rowLabel(x, y, w, "§7Door Opener: whoever opened the door"));
+        widgets.add(leapSwitch(x, y, w, LeapGroup.DOOR, FastLeapConfig.getInstance()));
         return y + ROW + GAP;
     }
 
     /** A boss phase's gray caption line over its rows. */
     private static int caption(List<AbstractWidget> widgets, int x, int y, int w, String text) {
-        widgets.add(titleLabel(x, y + 2, w, "§8» §7" + text));
-        return y + GROUP_TITLE_H + 2;
+        widgets.add(sectionHeader(x, y + 4, w, text));
+        return y + SECTION_HEADER_H + 2;
     }
 
     /** The row label of a target: the leap's name, or "S1".."S4" for P3's sections. */
@@ -458,41 +413,19 @@ public final class FastLeapSection {
         }).bounds(x, y, Math.max(1, w), ROW).build();
     }
 
-    /** The Target button's choices in order: null (None), each class, then each party member's name. */
+    /** The Target button's choices in order: null (None), then each class (no player names, 2026-11-09). */
     static List<Object> targetChoices(LeapTarget target, FastLeapConfig cfg) {
         List<Object> out = new java.util.ArrayList<>();
         out.add(null);
         out.addAll(List.of(DungeonClass.values()));
-        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
-            out.add(n);
-        }
-        String name = cfg.getTargetName(target);
-        if (!cfg.isTargetByClass(target) && !name.isBlank() && !containsIgnoreCase(out, name)) {
-            out.add(name); // a saved name from an earlier party stays selectable
-        }
         return out;
     }
 
     /** Moves the target one choice forward (dir 1) or back (dir -1), wrapping. */
     public static void stepTarget(LeapTarget target, FastLeapConfig cfg, int dir) {
         List<Object> choices = targetChoices(target, cfg);
-        int at = 0;
-        if (cfg.isTargetByClass(target)) {
-            at = Math.max(0, choices.indexOf(cfg.getTargetClass(target)));
-        } else {
-            String name = cfg.getTargetName(target);
-            for (int i = 0; i < choices.size(); i++) {
-                if (choices.get(i) instanceof String s && s.equalsIgnoreCase(name)) {
-                    at = i;
-                }
-            }
-        }
-        Object next = choices.get(Math.floorMod(at + (dir < 0 ? -1 : 1), choices.size()));
-        if (next instanceof String s) {
-            cfg.setTargetPickName(target, s);
-        } else {
-            cfg.setTargetPickClass(target, (DungeonClass) next);
-        }
+        int at = Math.max(0, choices.indexOf(cfg.getTargetClass(target)));
+        cfg.setTargetPickClass(target, (DungeonClass) choices.get(Math.floorMod(at + (dir < 0 ? -1 : 1), choices.size())));
     }
 
     /**
@@ -507,34 +440,16 @@ public final class FastLeapSection {
         }).bounds(x, y, Math.max(1, w), ROW).build();
     }
 
-    /** Moves the per-class target one choice forward (dir 1) or back (dir -1): Same as Universal, each class, each party
-     *  member by name (plus a saved name from an earlier party), wrapping. */
+    /** Moves the per-class target one choice forward (dir 1) or back (dir -1): Same as Universal, then each class, wrapping. */
     public static void stepClassTarget(LeapTarget target, DungeonClass mine, FastLeapConfig cfg, int dir) {
         FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
         List<Object> choices = new java.util.ArrayList<>();
         choices.add(null);
         choices.addAll(List.of(DungeonClass.values()));
-        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
-            choices.add(n);
-        }
-        if (pick != null && !pick.byClass() && !containsIgnoreCase(choices, pick.name())) {
-            choices.add(pick.name());
-        }
-        int at = 0;
-        if (pick != null && pick.byClass()) {
-            at = choices.indexOf(pick.clazz());
-        } else if (pick != null) {
-            for (int i = 0; i < choices.size(); i++) {
-                if (choices.get(i) instanceof String s && s.equalsIgnoreCase(pick.name())) {
-                    at = i;
-                }
-            }
-        }
+        int at = pick != null && pick.byClass() ? choices.indexOf(pick.clazz()) : 0;
         Object next = choices.get(Math.floorMod(at + (dir < 0 ? -1 : 1), choices.size()));
         if (next == null) {
             cfg.clearClassTarget(target, mine);
-        } else if (next instanceof String s) {
-            cfg.setClassTargetName(target, mine, s);
         } else {
             cfg.setClassTargetClass(target, mine, (DungeonClass) next);
         }
@@ -542,57 +457,14 @@ public final class FastLeapSection {
 
     static Component classTargetLabel(LeapTarget target, DungeonClass mine, FastLeapConfig cfg) {
         FastLeapConfig.ClassPick pick = cfg.getClassTarget(target, mine);
-        String shown;
-        if (pick == null) {
-            shown = "§7Same as Universal";
-        } else if (pick.byClass()) {
-            DungeonClass c = pick.clazz();
-            Teammates.Teammate who = Teammates.firstAliveOfClass(c);
-            String holder = who != null ? who.name() : partyMemberOfClass(c);
-            shown = DungeonClass.colourCode(c) + c.displayName() + (holder == null ? "" : " §7(" + holder + ")");
-        } else {
-            DungeonClass c = com.killer560.hub.leapmenu.PartyTracker.classOf(pick.name());
-            shown = "§6" + pick.name() + (c == null ? "" : " §7(" + c.displayName() + ")");
-        }
+        String shown = pick == null || !pick.byClass() ? "§7Same as Universal"
+                : DungeonClass.colourCode(pick.clazz()) + pick.clazz().displayName();
         return Component.literal(targetName(target) + ": " + shown);
     }
 
-    private static boolean containsIgnoreCase(List<Object> list, String name) {
-        for (Object o : list) {
-            if (o instanceof String s && s.equalsIgnoreCase(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     static Component targetLabel(String label, LeapTarget target, FastLeapConfig cfg) {
-        String shown;
-        if (cfg.isTargetByClass(target)) {
-            DungeonClass c = cfg.getTargetClass(target);
-            if (c == null) {
-                shown = "§7None";
-            } else {
-                Teammates.Teammate who = Teammates.firstAliveOfClass(c);
-                String holder = who != null ? who.name() : partyMemberOfClass(c);
-                shown = DungeonClass.colourCode(c) + c.displayName() + (holder == null ? "" : " §7(" + holder + ")");
-            }
-        } else {
-            String n = cfg.getTargetName(target);
-            DungeonClass c = n.isBlank() ? null : com.killer560.hub.leapmenu.PartyTracker.classOf(n);
-            shown = "§6" + (n.isBlank() ? "None" : n) + (c == null ? "" : " §7(" + c.displayName() + ")");
-        }
-        return Component.literal(label + ": " + shown);
-    }
-
-    /** Outside a dungeon (no Teammates yet): the party member Leap Order's class picks give this class. */
-    private static String partyMemberOfClass(DungeonClass c) {
-        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) {
-            if (com.killer560.hub.leapmenu.PartyTracker.classOf(n) == c) {
-                return n;
-            }
-        }
-        return null;
+        DungeonClass c = cfg.getTargetClass(target);
+        return Component.literal(label + ": " + (c == null ? "§7None" : DungeonClass.colourCode(c) + c.displayName()));
     }
 
     /** @return how many equal columns of at least {@code minW} fit in {@code width}, capped at {@code max}. */

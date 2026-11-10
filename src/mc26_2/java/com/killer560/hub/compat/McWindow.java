@@ -210,8 +210,4 @@ public final class McWindow {
         net.minecraft.util.Util.getPlatform().openPath(path);
     }
 
-    /** Puts the cursor at (x, y) in MouseHandler's xpos/ypos units (window coordinates). */
-    public static void warpCursor(Window window, double x, double y) {
-        GLFW.glfwSetCursorPos(window.handle(), x, y);
-    }
 }

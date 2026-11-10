@@ -132,8 +132,11 @@ public final class BossFight {
     private static final int NECRON_AFTER = 62;
     private static final int NECRON_INTRO = 42;
     private static final int DRAGON_SPAWN = 100;
-    /** Hits a P5 dragon takes; one weapon hit deals them all ({@link #onHurt}). */
-    private static final int DRAGON_HITS = 8;
+    /**
+     * A P5 dragon's one health pool, in 1/15 units (killer560, 2026-11-09: "15 bow hits ... or 5 mage beams ... combined"):
+     * an arrow takes {@link #ARROW_UNITS}, a Mage beam {@link #BEAM_UNITS}. Integers, so a mix never drifts.
+     */
+    public static final int DRAGON_UNITS = 15, ARROW_UNITS = 1, BEAM_UNITS = 3;
 
     private static final Vec3 P1_SPAWN = new Vec3(73.5, BossArena.P1_FLOOR + 1, 14.5);
     private static final Vec3 MAXOR_AT = new Vec3(73.0, 226.0, 53.0);
@@ -402,7 +405,18 @@ public final class BossFight {
                 openBossHole(1);
                 int sec = from == Start.CORE ? 5 : from.ordinal() - Start.S1.ordinal() + 1;
                 BossArena.applyP3(level);
-                teleportAll(sectionSpawn(sec), 0f);
+                String spot = switch (sec) {
+                    case 2 -> "hee2";
+                    case 3 -> "ee3";
+                    case 4 -> "outcore";
+                    default -> null;
+                };
+                if (spot == null) {
+                    teleportAll(sectionSpawn(level, sec), 0f);
+                } else {
+                    BossSpots.Landing l = BossSpots.landing(level, spot);
+                    teleportAll(l.at(), l.yaw());
+                }
                 startP3(sec);
             }
             case P4 -> {
@@ -425,7 +439,7 @@ public final class BossFight {
     }
 
     /** Where a start at P3 section {@code sec} puts everyone: on the ground there (a capture's, not the plan's height). */
-    private static Vec3 sectionSpawn(int sec) {
+    static Vec3 sectionSpawn(ServerLevel level, int sec) {
         double[] xz = switch (sec) {
             case 2 -> new double[]{100.5, 133.5};
             case 3 -> new double[]{6.5, 133.5};
@@ -1936,12 +1950,12 @@ public final class BossFight {
         }
     }
 
-    private static void hitDragon(SimDragon d) {
+    private static void hitDragon(SimDragon d, int units) {
         for (int i = 0; i < 5; i++) {
             if (dragons[i] != d || dragonDead[i]) {
                 continue;
             }
-            if (++dragonHits[i] < DRAGON_HITS) {
+            if ((dragonHits[i] += units) < DRAGON_UNITS) {
                 return;
             }
             dragonDead[i] = true;
@@ -1984,7 +1998,7 @@ public final class BossFight {
         com.killer560.hub.secrets.DungeonState.simBossEnds();
     }
 
-    private static int lastHitClock = -1;
+    private static int lastHitClock = -1, lastHitUnits;
     private static Object lastHitTarget;
 
     /**
@@ -1992,12 +2006,13 @@ public final class BossFight {
      * target per server tick, and that one is the whole damage of the boss's current part (killer560 2026-11-05: "my mage
      * beam should do all the damage for a phase of any boss andd term as well"); the crystal, pillar and core steps stay.
      */
-    static void onHurt(Object target) {
-        if (clock == lastHitClock && target == lastHitTarget) {
+    static void onHurt(Object target, int units) {
+        if (clock == lastHitClock && target == lastHitTarget && units == lastHitUnits) {
             return;
         }
         lastHitClock = clock;
         lastHitTarget = target;
+        lastHitUnits = units;
         if (maxor != null && target == maxor.wither) {
             hitMaxor();
         } else if (storm != null && target == storm.wither) {
@@ -2007,13 +2022,21 @@ public final class BossFight {
         } else if (necron != null && target == necron.wither) {
             hitNecron();
         } else if (target instanceof SimDragon d) {
-            for (int i = 0; i < DRAGON_HITS; i++) {
-                hitDragon(d);
-            }
+            hitDragon(d, units);
         }
     }
 
     private static int lastRefusedLog = -100;
+
+    /** Testkit: health units the first live dragon has taken (of {@link #DRAGON_UNITS}), -1 with none alive. */
+    public static int dragonDamage() {
+        for (int i = 0; i < 5; i++) {
+            if (dragons[i] != null && !dragonDead[i]) {
+                return dragonHits[i];
+            }
+        }
+        return -1;
+    }
 
     /**
      * Every damage a boss wither is offered (simitems-1105): his own hits go to the fight, anything else (lava, fire, a
@@ -2022,7 +2045,7 @@ public final class BossFight {
      */
     static boolean bossDamage(Object target, DamageSource source, float amount) {
         if (source.getEntity() instanceof ServerPlayer) {
-            onHurt(target);
+            onHurt(target, amount == com.killer560.hub.roomsim.SimClass.BEAM_DAMAGE ? BEAM_UNITS : ARROW_UNITS);
         } else if (clock - lastRefusedLog >= 20) {
             lastRefusedLog = clock;
             LOGGER.info("[BossSim] refused {} damage {} to a boss (no player behind it)", source.getMsgId(), amount);
@@ -2056,6 +2079,7 @@ public final class BossFight {
      */
     static final class BossMob {
         final String name;
+        /** Null while the sim's Spawn Withers switch is OFF (the tag and speech stands still show). */
         final SimWither wither;
         Vec3 pos;
         private ArmorStand tag;
@@ -2065,13 +2089,17 @@ public final class BossFight {
         BossMob(String name, Vec3 at, int tagDelay) {
             this.name = name;
             this.pos = at;
-            wither = new SimWither(level);
-            wither.setNoAi(true);
-            wither.setSilent(true);
-            wither.setNoGravity(true);
-            wither.snapTo(at.x, at.y, at.z, 0f, 0f);
-            wither.setHealth(1f);
-            level.addFreshEntity(wither);
+            if (BossStartScreen.spawnWithers()) {
+                wither = new SimWither(level);
+                wither.setNoAi(true);
+                wither.setSilent(true);
+                wither.setNoGravity(true);
+                wither.snapTo(at.x, at.y, at.z, 0f, 0f);
+                wither.setHealth(1f);
+                level.addFreshEntity(wither);
+            } else {
+                wither = null;
+            }
             if (tagDelay <= 0) {
                 showTag();
             } else {
@@ -2080,7 +2108,7 @@ public final class BossFight {
         }
 
         private void showTag() {
-            if (wither.isRemoved()) {
+            if (wither != null && wither.isRemoved()) {
                 return;
             }
             tag = marker("§e﴾ §c§l" + name + "§r §e﴿", 3.6875);
@@ -2115,7 +2143,7 @@ public final class BossFight {
         }
 
         void armour(boolean on) {
-            if (wither.getHealth() > 0f) {
+            if (wither != null && wither.getHealth() > 0f) {
                 wither.setHealth(on ? 1f : wither.getMaxHealth());
             }
         }
@@ -2123,13 +2151,15 @@ public final class BossFight {
         /** Puts him at {@code p}, facing {@code look} (yaw = atan2(-dx, dz), as Hypixel's withers turn); null keeps his yaw. */
         void moveTo(Vec3 p, Vec3 look) {
             pos = p;
-            float yaw = wither.getYRot();
+            float yaw = wither == null ? 0f : wither.getYRot();
             if (look != null && (Math.abs(look.x - p.x) > 1e-6 || Math.abs(look.z - p.z) > 1e-6)) {
                 yaw = (float) Math.toDegrees(Math.atan2(-(look.x - p.x), look.z - p.z));
             }
-            wither.snapTo(p.x, p.y, p.z, yaw, 0f);
-            wither.setYHeadRot(yaw);
-            wither.yBodyRot = yaw;
+            if (wither != null) {
+                wither.snapTo(p.x, p.y, p.z, yaw, 0f);
+                wither.setYHeadRot(yaw);
+                wither.yBodyRot = yaw;
+            }
             if (tag != null) {
                 tag.snapTo(p.x, p.y + 3.6875, p.z, 0f, 0f);
             }
@@ -2151,12 +2181,16 @@ public final class BossFight {
         }
 
         void die() {
-            wither.setHealth(0f);
+            if (wither != null) {
+                wither.setHealth(0f);
+            }
             discardStands();
         }
 
         void remove() {
-            wither.discard();
+            if (wither != null) {
+                wither.discard();
+            }
             discardStands();
         }
 
@@ -2272,16 +2306,16 @@ public final class BossFight {
 
         @Override
         public boolean hurtServer(ServerLevel lvl, DamageSource source, float amount) {
-            return hit(lvl, source);
+            return hit(lvl, source, amount);
         }
 
         @Override
         public boolean hurt(ServerLevel lvl, EnderDragonPart part, DamageSource source, float amount) {
-            return hit(lvl, source);
+            return hit(lvl, source, amount);
         }
 
         /** A player's hit: the hurt flash and sound, Hypixel's arrow "ding" to the shooter, and one count for the fight. */
-        private boolean hit(ServerLevel lvl, DamageSource source) {
+        private boolean hit(ServerLevel lvl, DamageSource source, float amount) {
             if (!(source.getEntity() instanceof ServerPlayer p) || isDeadOrDying()) {
                 return false;
             }
@@ -2290,7 +2324,7 @@ public final class BossFight {
                 lvl.playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.ARROW_HIT_PLAYER,
                         net.minecraft.sounds.SoundSource.PLAYERS, 0.18f, 0.45f);
             }
-            onHurt(this);
+            onHurt(this, amount == com.killer560.hub.roomsim.SimClass.BEAM_DAMAGE ? BEAM_UNITS : ARROW_UNITS);
             return true;
         }
     }
@@ -2336,14 +2370,14 @@ public final class BossFight {
         switch (boss) {
             case "Maxor", "Goldor", "Necron" -> {
                 BossMob m = mob(boss);
-                if (m != null) {
-                    onHurt(m.wither);
+                if (m != null && m.wither != null) {
+                    onHurt(m.wither, 1);
                 }
             }
             default -> {
                 for (SimDragon d : dragons) {
                     if (d != null && !d.isRemoved() && d.getHealth() > 0f) {
-                        onHurt(d);
+                        onHurt(d, DRAGON_UNITS);
                         return;
                     }
                 }
@@ -2440,6 +2474,11 @@ public final class BossFight {
      * way the Mage beam deals it: {@code hurtServer} with his player-attack source. False with no such boss.
      */
     public static boolean testWeaponHit(String boss) {
+        return testWeaponHit(boss, false);
+    }
+
+    /** The same with the Mage beam's damage amount when {@code beam} (a dragon takes 1/5 of its health, an arrow 1/15). */
+    public static boolean testWeaponHit(String boss, boolean beam) {
         ServerPlayer p = server == null ? null : server.getPlayerList().getPlayers().stream().findFirst().orElse(null);
         Entity e = null;
         if ("Dragon".equals(boss)) {
@@ -2457,14 +2496,15 @@ public final class BossFight {
             return false;
         }
         lastHitClock = -1;
-        living.hurtServer(level, level.damageSources().playerAttack(p), 10_000f);
+        living.hurtServer(level, level.damageSources().playerAttack(p),
+                beam ? com.killer560.hub.roomsim.SimClass.BEAM_DAMAGE : 10_000f);
         return true;
     }
 
     /** Testkit: lava under {@code boss}'s wither and a fire hit with no player behind it; true if any was offered. */
     public static boolean testStrayDamage(String boss) {
         BossMob m = mob(boss);
-        if (m == null) {
+        if (m == null || m.wither == null) {
             return false;
         }
         BossBlocks.set(level, m.wither.blockPosition().below(), BossBlocks.of("minecraft:lava"));

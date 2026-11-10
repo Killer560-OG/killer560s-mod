@@ -315,7 +315,8 @@ public final class FakeCursor {
             if (firstMove) {
                 // The first look at a fresh board: the terminal's opening settle already covers most of it.
                 reaction *= 0.6f;
-            } else if (r.nextFloat() < 0.06f) {
+            } else if (clickCount > 1 && r.nextFloat() < 0.06f) {
+                // (never on the move after the FIRST click: a pre-aimed first click followed by a long pause read as a stall)
                 reaction += 150f + 230f * r.nextFloat();
                 hesitations++;
             }
@@ -332,7 +333,7 @@ public final class FakeCursor {
         int approach = -1;
         if (dist >= 1f) {
             moves++;
-            if (!quick && dist > 3.2f * cell && r.nextFloat() < 0.12f) {
+            if (!quick && clickCount > 1 && dist > 3.2f * cell && r.nextFloat() < 0.12f) {
                 // A second look on a long move: stop part way (a little off the line), then go on.
                 float f = 0.4f + 0.2f * r.nextFloat();
                 float off = (r.nextFloat() - 0.5f) * 0.3f * dist;
@@ -529,6 +530,9 @@ public final class FakeCursor {
         CLICK_TY[i] = aimedY;
         CLICK_HALF[i] = aimedHalf;
         clickCount++;
+        com.killer560.hub.util.ModLog.get("killer560smod-autoterminal").info("[FakeCursor] click #{} slot {} {} ms after the last (hand plan: {} segments, misses {}, double takes {}, hesitations {}) tick={}",
+                clickCount, slot, lastClickMs > 0 ? now - lastClickMs : -1L, segCount, misses, doubleTakes, hesitations,
+                Minecraft.getInstance().level != null ? Minecraft.getInstance().level.getGameTime() : -1L);
         if (firstClickAfterOpenMs < 0) {
             firstClickAfterOpenMs = now - openedAtMs;
         }

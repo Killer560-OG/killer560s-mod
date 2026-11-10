@@ -4184,7 +4184,7 @@ public final class Ap3Executor {
                 }
                 String name = cfg.getTargetName(target);
                 DungeonClass clazz = cfg.getTargetClass(target);
-                switch (cfg.getTargetMode()) {
+                switch (cfg.getTargetMode(target)) {
                     case PER_LEAP -> {
                         if (!cfg.isTargetByClass(target)) {
                             if (name.isBlank()) {

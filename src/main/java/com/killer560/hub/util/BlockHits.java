@@ -105,14 +105,9 @@ public final class BlockHits {
      * which is not how the server decides either.
      */
     public static double boxDistanceSq(Vec3 eye, BlockPos pos) {
-        return boxDistanceSq(eye.x, eye.y, eye.z, pos);
-    }
-
-    /** As {@link #boxDistanceSq(Vec3, BlockPos)}, from a point given by its coordinates (no Vec3 in a tick loop). */
-    public static double boxDistanceSq(double x, double y, double z, BlockPos pos) {
-        double dx = Math.max(0, Math.max(pos.getX() - x, x - (pos.getX() + 1)));
-        double dy = Math.max(0, Math.max(pos.getY() - y, y - (pos.getY() + 1)));
-        double dz = Math.max(0, Math.max(pos.getZ() - z, z - (pos.getZ() + 1)));
+        double dx = Math.max(0, Math.max(pos.getX() - eye.x, eye.x - (pos.getX() + 1)));
+        double dy = Math.max(0, Math.max(pos.getY() - eye.y, eye.y - (pos.getY() + 1)));
+        double dz = Math.max(0, Math.max(pos.getZ() - eye.z, eye.z - (pos.getZ() + 1)));
         return dx * dx + dy * dy + dz * dz;
     }
 

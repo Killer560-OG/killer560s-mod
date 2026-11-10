@@ -407,7 +407,12 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
                 && TerminalSolverFeature.isAutoTypeEnabled(type, cfg);
         boolean streamSafe = auto && cfg.isAutoStreamSafe();
         com.killer560.hub.terminals.PracticeCursor.setShowing(streamSafe);
-        if (!auto) return;
+        if (!auto) {
+            if (solved) {
+                com.killer560.hub.terminals.PracticeCursor.end();
+            }
+            return;
+        }
         long now = System.currentTimeMillis();
         // A real terminal waits its opening settle before the first click, the hand already on its way.
         boolean settling = now - startedAtMs < (long) cfg.getFirstClickDelayMs();

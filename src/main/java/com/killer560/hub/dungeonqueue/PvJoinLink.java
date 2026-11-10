@@ -85,8 +85,7 @@ public final class PvJoinLink {
         MutableComponent line = Component.literal(">> [PV] ").withStyle(s -> s.withColor(accent).withBold(true)
                 .withClickEvent(new ClickEvent.RunCommand("/pv " + name))
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to open " + name + "'s profile"))))
-                .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" - click to open their profile").withStyle(ChatFormatting.GRAY));
+                .append(Component.literal(name + " - click to open their profile").withStyle(st -> st.withBold(false)));
         synchronized (shown) {
             shown.add(name);
         }

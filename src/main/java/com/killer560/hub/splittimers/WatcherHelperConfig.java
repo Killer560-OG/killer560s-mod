@@ -17,11 +17,13 @@ public final class WatcherHelperConfig {
     private boolean enabled = false;
     private boolean speedTitle = true;
     private boolean breakdownChat = true;
+    private boolean sendToParty = false;
 
     private static final BoolFields<WatcherHelperConfig> BOOLS = new BoolFields<WatcherHelperConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("speedTitle", true, c -> c.speedTitle, (c, v) -> c.speedTitle = v)
-            .add("breakdownChat", true, c -> c.breakdownChat, (c, v) -> c.breakdownChat = v);
+            .add("breakdownChat", true, c -> c.breakdownChat, (c, v) -> c.breakdownChat = v)
+            .add("sendToParty", false, c -> c.sendToParty, (c, v) -> c.sendToParty = v);
 
     private WatcherHelperConfig() {
     }
@@ -61,4 +63,8 @@ public final class WatcherHelperConfig {
     public boolean isBreakdownChat() { return breakdownChat; }
 
     public void setBreakdownChat(boolean v) { breakdownChat = v; }
+
+    public boolean isSendToParty() { return sendToParty; }
+
+    public void setSendToParty(boolean v) { sendToParty = v; }
 }

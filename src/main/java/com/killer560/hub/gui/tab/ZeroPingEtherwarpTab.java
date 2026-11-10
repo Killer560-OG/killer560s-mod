@@ -55,6 +55,8 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
         boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         int y = contentY;
+        w.add(SectionHeaders.row(contentX, y, contentWidth, ZPEW, true));
+        y += 16;
         w.add(onOffButton(ZPEW, cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;
         if (cfg.isEnabled()) {

@@ -46,7 +46,7 @@ public class MobEspTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Starred Mob and Bat hitboxes, the Wither Boss Highlight and the cheat ESP are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Fel Skulls", "Mimic", "Wither Boss Highlight", "ESP");
+        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Fel Skulls", "Mimic", "Hide Ghost Mobs", "Wither Boss Highlight", "ESP");
     }
 
     @Override
@@ -137,6 +137,10 @@ public class MobEspTab extends BaseTab {
                 }
             });
         }
+        y += 22;
+        // killer560, 2026-11-09: a mob a far teammate killed stays on screen ("ghost mobs"); its own switch (GhostMobs).
+        widgets.add(onOffButton("Hide Ghost Mobs", cfg::isHideGhostMobs, cfg::setHideGhostMobs, cfg::save,
+                null, contentX, y, colW, 18));
         y += 28;
 
         // ---- Wither Boss Highlight (legit, its own section since 2026-09-20; renamed 2026-10-09, killer560: "make it

@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.reparty.RepartyConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -8,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Reparty (see {@link com.killer560.hub.reparty.RepartyFeature}): the switch for /rp and Auto Reparty with its delay. */
+/** Reparty (see {@link com.killer560.hub.reparty.RepartyFeature}): the switch for /rp, the invite delay and Auto Rejoin. */
 public class RepartyTab extends BaseTab {
 
     public RepartyTab() {
@@ -23,21 +22,23 @@ public class RepartyTab extends BaseTab {
             return widgets;
         }
         int colW = (contentWidth - 8) / 2;
-        widgets.add(onOffButton("Auto Reparty", cfg::isAuto, cfg::setAuto, cfg::save, null, contentX, contentY + 24, colW, 18));
-        widgets.add(SettingsButtonWidget.cycling(delayLabel(cfg), (btn, dir) -> {
-            int[] d = RepartyConfig.DELAYS;
-            int at = 0;
-            for (int i = 0; i < d.length; i++) {
-                at = d[i] == cfg.getDelaySeconds() ? i : at;
-            }
-            cfg.setDelaySeconds(d[SettingsButtonWidget.step(at, dir, d.length)]);
-            cfg.save();
-            btn.setMessage(delayLabel(cfg));
-        }).bounds(contentX + colW + 8, contentY + 24, colW, 18).build());
+        int y = contentY + 24;
+        widgets.add(steppedSlider(contentX, y, contentWidth, 18, delayLabel(cfg), RepartyConfig.MIN_DELAY, RepartyConfig.MAX_DELAY,
+                cfg.getInviteDelay(), 0.5, cfg::setInviteDelay, () -> delayLabel(cfg), cfg::save));
+        y += 24;
+        widgets.add(onOffButton("Auto Rejoin", cfg::isAutoRejoin, cfg::setAutoRejoin, cfg::save, requestRebuild, contentX, y, colW, 18));
+        if (cfg.isAutoRejoin() || isSearchScan()) {
+            widgets.add(steppedSlider(contentX + colW + 8, y, colW, 18, windowLabel(cfg), RepartyConfig.MIN_WINDOW, RepartyConfig.MAX_WINDOW,
+                    cfg.getRejoinWindow(), 5, v -> cfg.setRejoinWindow((int) v), () -> windowLabel(cfg), cfg::save));
+        }
         return widgets;
     }
 
     private static Component delayLabel(RepartyConfig cfg) {
-        return Component.literal("Auto Reparty Delay: §6" + cfg.getDelaySeconds() + " s");
+        return Component.literal("Invite Delay: §6" + cfg.getInviteDelay() + " s");
+    }
+
+    private static Component windowLabel(RepartyConfig cfg) {
+        return Component.literal("Rejoin Window: §6" + cfg.getRejoinWindow() + " s");
     }
 }

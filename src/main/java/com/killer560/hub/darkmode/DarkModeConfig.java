@@ -22,7 +22,7 @@ public final class DarkModeConfig {
 
     private boolean enabled = false;
     private int opacity = DEFAULT_OPACITY;
-    private boolean tintHud = false;
+    private boolean tintHud = true;
 
     private DarkModeConfig() {
     }

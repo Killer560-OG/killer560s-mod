@@ -1209,6 +1209,16 @@ public final class LiveMapFeature {
         return roomTypeOfIndex(currentRoomIndex());
     }
 
+    /** The centre (y 75) of the room tile the map knows as the Blood Room, or null: Blood Camp's anchor before it ever saw the Watcher. */
+    public static Vec3 bloodRoomCenter() {
+        for (RoomGroup g : groupsView()) {
+            if ("BLOOD".equals(roomTypeOfIndex(g.mainIdx))) {
+                return new Vec3(START_X + 16.0 * (g.mainIdx % GRID), 75.0, START_Z + 16.0 * (g.mainIdx / GRID));
+            }
+        }
+        return null;
+    }
+
     /** {@link #currentRoomType} for the room over world (x, z) instead of the player's: null in boss, outside the grid
      *  or when the map does not know. The Dungeon Breaker's fairy guard asks it about the block, not the player. */
     public static String roomTypeAt(double x, double z) {
@@ -1249,6 +1259,17 @@ public final class LiveMapFeature {
             return group.entry.type.toUpperCase(java.util.Locale.ROOT);
         }
         return MapPainter.mapColorType(group.mainIdx);
+    }
+
+    /** Names of the puzzle rooms identified on the map this run (Puzzle HUD under Funny Map). */
+    public static List<String> identifiedPuzzleNames() {
+        List<String> out = new ArrayList<>();
+        for (RoomGroup g : groupsView()) {
+            if (g.entry != null && "PUZZLE".equalsIgnoreCase(g.entry.type) && !out.contains(g.entry.name)) {
+                out.add(g.entry.name);
+            }
+        }
+        return out;
     }
 
     /** Whether a room with this database name has been identified on the map this run (Rare Room Alert). */
@@ -1769,9 +1790,6 @@ public final class LiveMapFeature {
                         .add(cfg.getIconScale());
                 MARKER_SEGMENT.draw(graphics, mk, PAINT_MARKERS);
                 namesShown = names;
-                if (!InteractiveMapFeature.isPeeking()) {
-                    RoomPreview.draw(graphics, this, ox, oy, ppu);
-                }
             } finally {
                 paintGraphics = null;
                 paintCfg = null;

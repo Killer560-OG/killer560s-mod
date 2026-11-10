@@ -23,6 +23,7 @@ public class WatcherHelperTab extends BaseTab {
         int colW = (contentWidth - 8) / 2;
         widgets.add(onOffButton("Watcher Speed Title", cfg::isSpeedTitle, cfg::setSpeedTitle, cfg::save, null, contentX, contentY + 24, colW, 18));
         widgets.add(onOffButton("Watcher Breakdown", cfg::isBreakdownChat, cfg::setBreakdownChat, cfg::save, null, contentX + colW + 8, contentY + 24, colW, 18));
+        widgets.add(onOffButton("Send To Party Chat", cfg::isSendToParty, cfg::setSendToParty, cfg::save, null, contentX, contentY + 48, colW, 18));
         return widgets;
     }
 }

@@ -91,6 +91,9 @@ public final class BloodCampConfig {
     /** Auto Blood Camp acts only while his dungeon class is Mage (killer560, 2026-11-01: "Have an option to only toggle
      *  as mage"). Cheat. */
     private boolean mageOnly = false;
+    /** Cheat: Trigger Bot and Aura also run while he stands up to {@link #OUTSIDE_MARGIN} blocks outside the room's bounds. */
+    private boolean workOutside = false;
+    public static final int OUTSIDE_MARGIN = 6;
     /** Blood Camp Stats HUD lines (killer560, 2026-11-01): mobs left, mob ticks alive (the ticks lost to slow kills) and
      *  the server lag during the camp. Legit. */
     private boolean hudMobsLeft = false;
@@ -136,6 +139,7 @@ public final class BloodCampConfig {
             .add("countdownStartSound", true, c -> c.countdownStartSound, (c, v) -> c.countdownStartSound = v)
             .add("killSound", true, c -> c.killSound, (c, v) -> c.killSound = v)
             .add("mageOnly", false, c -> c.mageOnly, (c, v) -> c.mageOnly = v)
+            .add("workOutside", false, c -> c.workOutside, (c, v) -> c.workOutside = v)
             .add("hudMobsLeft", false, c -> c.hudMobsLeft, (c, v) -> c.hudMobsLeft = v)
             .add("hudMobTicks", false, c -> c.hudMobTicks, (c, v) -> c.hudMobTicks = v)
             .add("hudCampLag", false, c -> c.hudCampLag, (c, v) -> c.hudCampLag = v)
@@ -402,6 +406,14 @@ public final class BloodCampConfig {
 
     public void setMageOnly(boolean mageOnly) {
         this.mageOnly = mageOnly;
+    }
+
+    public boolean isWorkOutside() {
+        return workOutside;
+    }
+
+    public void setWorkOutside(boolean workOutside) {
+        this.workOutside = workOutside;
     }
 
     public boolean isHudMobsLeft() {

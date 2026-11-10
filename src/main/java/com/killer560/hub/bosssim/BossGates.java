@@ -19,7 +19,7 @@ import java.util.function.Predicate;
  * </ul>
  * Over the built-in plan (no capture) a boundary is the plan's iron wall ({@link BossStations#GATES}), gone with the door.
  */
-final class BossGates {
+public final class BossGates {
 
     /** Each door's box (x1, y1, z1, x2, y2, z2), by gate index 0-2; the gate's cells are the arch's kinds inside it. */
     private static final int[][] DOORS = {{95, 115, 121, 105, 136, 124}, {16, 115, 127, 19, 136, 137}, {3, 115, 48, 13, 136, 51}};
@@ -38,6 +38,16 @@ final class BossGates {
 
     private static boolean captured() {
         return "capture".equals(BossArena.source());
+    }
+
+    /** Whether {@code s} at {@code p} is one of a P3 gate's own blocks (arch, door or portcullis kinds inside a gate's box): Auto Superboom's target. */
+    public static boolean isGateBlock(BlockPos p, BlockState s) {
+        for (int[] b : NEAR) {
+            if (p.getX() >= b[0] && p.getX() <= b[3] && p.getY() >= b[1] && p.getY() <= b[4] && p.getZ() >= b[2] && p.getZ() <= b[5]) {
+                return ARCH.test(s) || DOOR.test(s) || PORTCULLIS.test(s);
+            }
+        }
+        return false;
     }
 
     /** The gate (1-3) whose blocks are within 1.5 of {@code p}, or 0. */

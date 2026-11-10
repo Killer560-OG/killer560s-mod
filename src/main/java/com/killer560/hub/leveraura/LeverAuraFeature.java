@@ -9,7 +9,6 @@ import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Blocks;
@@ -41,10 +40,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
  * no line-of-sight check, never with a container open; a lever the reported look does not reach gets the body (never the
- * camera) turned to it a tick first (util/TurnFirst), while moving the tick before it comes into reach. Pacing is a CPS
- * setting (1-20): a lever must be in range, or due in range on his present course, for one gap before its first click,
- * and clicks are spaced by 1000 / CPS ms with +-10% jitter, scheduled from the previous
- * click's due tick, at most one a tick.
+ * camera) turned to it a tick first (util/TurnFirst), while moving the tick before it comes into reach. Pacing is the
+ * Lever Cooldown (50-1000 ms, +-10% jitter) since the previous flick's due tick, at most one a tick.
  */
 public final class LeverAuraFeature {
 
@@ -59,8 +56,6 @@ public final class LeverAuraFeature {
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
     private static final Set<Long> clickedS2 = new HashSet<>();
-    private static final Map<Long, Long> inRangeSince = new HashMap<>();
-    private static final Map<Long, Long> requiredDwell = new HashMap<>();
     /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
     private static double nextClickDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
@@ -124,10 +119,8 @@ public final class LeverAuraFeature {
         }
         int section = P3SectionTracker.section();
         if (section != lastSection) {
-            LOGGER.info("[LeverAura] section {} -> {}: dwell timers cleared", lastSection, section);
+            LOGGER.info("[LeverAura] section {} -> {}", lastSection, section);
             lastSection = section;
-            inRangeSince.clear();
-            requiredDwell.clear();
         }
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
         String gate = null;
@@ -155,21 +148,18 @@ public final class LeverAuraFeature {
             return;
         }
 
-        long now = System.currentTimeMillis();
         boolean s2Open = section == 2;
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
-        // Where the eye goes per tick (the fall counts in the air): an AP3 walk can carry him through a lever's reach in
-        // 2 ticks, too few to see it, wait the dwell, turn and flick (HEE2-EE3 v3 missed the high lever that way). So the
-        // dwell starts when the lever is due in reach within one gap, and the body turns the tick before it is in reach.
+        // An AP3 walk can carry him through a lever's reach in 2 ticks or fewer (HEE2-EE3 v3 missed the high lever that
+        // way), so a lever in reach from next tick's eye (this tick's step, the fall counting in the air) has the body
+        // turned now and is flicked in its first tick in reach.
         Vec3 v = client.player.getDeltaMovement();
-        double sx = v.x, sy = client.player.onGround() ? 0.0 : v.y, sz = v.z;
-        int horizon = Math.min(20, (int) Math.ceil(1100.0 / cfg.getCps() / 50.0) + 1);
+        Vec3 eyeNext = new Vec3(eye.x + v.x, eye.y + (client.player.onGround() ? 0.0 : v.y), eye.z + v.z);
 
         BlockPos target = null;
         String reason = null;
         boolean approach = false;
-        Set<Long> inRangeNow = new HashSet<>();
 
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
         if (sectionWanted) {
@@ -182,44 +172,32 @@ public final class LeverAuraFeature {
                 }
                 // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-                int soon = d <= rangeSq ? 0 : ticksToReach(eye, sx, sy, sz, pos, rangeSq, horizon);
-                if (soon < 0) {
+                boolean next = d > rangeSq;
+                if (next && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) > rangeSq) {
                     logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
                     continue;
                 }
                 long key = pos.asLong();
-                inRangeNow.add(key);
-                boolean dwellOk = dwellPassed(cfg, key, now);
-                if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
-                    logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
+                if ((s2Open ? clickedS2 : clickedEarly).contains(key) || !hasNotActivatedStand(client, pos)) {
+                    if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
+                        logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
+                    } else {
+                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
+                    }
                     continue;
                 }
-                // Read back what dwellPassed just stored (no second call: it rolls the dwell on first sight). A lever due
-                // next tick takes its turn now if its dwell is over by then.
-                long left = requiredDwell.get(key) - (now - inRangeSince.get(key));
-                if (soon == 0 ? !dwellOk : soon > 1 || left > 50) {
-                    logLever(pos, "dwell", (soon == 0 ? "in range" : "in range in " + soon + " ticks") + ", waiting the dwell ("
-                            + requiredDwell.get(key) + " ms)", d);
-                    continue;
-                }
-                if (!hasNotActivatedStand(client, pos)) {
-                    logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
-                    continue;
-                }
-                logLever(pos, soon == 0 ? "eligible" : "approach", soon == 0 ? reasonFor(s2Open) : "in range next tick: turn first", d);
+                logLever(pos, next ? "approach" : "eligible", next ? "in range next tick: turn first" : reasonFor(s2Open), d);
                 // One in reach now goes before one only due next tick.
-                double rank = soon == 0 ? d : 1e9 + d;
+                double rank = next ? 1e9 + d : d;
                 if (rank < best) {
                     best = rank;
                     target = pos;
-                    approach = soon > 0;
+                    approach = next;
                     reason = s2Open ? "S2 section lever" : "S2 section lever (early)";
                 }
             }
         }
 
-        inRangeSince.keySet().retainAll(inRangeNow);
-        requiredDwell.keySet().retainAll(inRangeNow);
 
         long tick = ActionGate.currentTick();
         if (target == null) {
@@ -227,7 +205,7 @@ public final class LeverAuraFeature {
             return;
         }
         if (tick < nextClickDueTick) {
-            logHeld("cps", "CPS gap: next flick due at tick " + String.format(java.util.Locale.ROOT, "%.2f", nextClickDueTick)
+            logHeld("cooldown", "Lever cooldown: next flick due at tick " + String.format(java.util.Locale.ROOT, "%.2f", nextClickDueTick)
                     + " (now " + tick + ") lever " + target.toShortString());
             return;
         }
@@ -238,7 +216,7 @@ public final class LeverAuraFeature {
             logHeld("gate", "ActionGate refused LEVER_AURA, lever " + target.toShortString());
             return;
         }
-        if (approach ? preTurn(client, target, new Vec3(eye.x + sx, eye.y + sy, eye.z + sz))
+        if (approach ? preTurn(client, target, eyeNext)
                 : !click(client, cfg, target, reason, s2Open)) {
             // The body was turned to it this tick (or no hit yet): the flick goes next tick.
             if (turnStartTick < 0) {
@@ -250,10 +228,10 @@ public final class LeverAuraFeature {
         // turned flick added its turn tick to the gap and 10 CPS measured about 8.
         long base = turnStartTick >= 0 ? turnStartTick : tick;
         turnStartTick = -1L;
-        // CPS: each gap is 1000 / CPS ms with +-10% jitter (never a metronome), scheduled from the previous click's due
-        // tick, not this one, so the average is the CPS set even when the gap is a fraction of a tick. One flick a tick
-        // at most, so 20 is the ceiling; a flick the gate held back carries at most a tick of backlog.
-        nextClickDueTick = Math.max(nextClickDueTick, base - 1) + gapMs(cfg) / 50.0;
+        // Cooldown (2026-11-09): an unflicked lever goes the moment the cooldown since the last flick has passed (nothing
+        // pending = nothing sent, no fixed rate); each cooldown is the set ms +-10% (never a metronome). One flick a tick
+        // at most, so 50 ms is the shortest.
+        nextClickDueTick = base + gapMs(cfg) / 50.0;
     }
 
     /**
@@ -308,26 +286,9 @@ public final class LeverAuraFeature {
         return true;
     }
 
-    /** Ticks (1..horizon) until {@code pos} is in reach if the eye keeps its step per tick, or -1. */
-    private static int ticksToReach(Vec3 eye, double sx, double sy, double sz, BlockPos pos, double rangeSq, int horizon) {
-        for (int k = 1; k <= horizon; k++) {
-            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye.x + sx * k, eye.y + sy * k, eye.z + sz * k, pos) <= rangeSq) {
-                return k;
-            }
-        }
-        return -1;
-    }
-
-    /** A lever must have been in range for one CPS gap (rolled when it came into range) before its first click. */
-    private static boolean dwellPassed(LeverAuraConfig cfg, long key, long now) {
-        long since = inRangeSince.computeIfAbsent(key, k -> now);
-        long need = requiredDwell.computeIfAbsent(key, k -> Math.round(gapMs(cfg)));
-        return now - since >= need;
-    }
-
-    /** One gap between flicks: 1000 / CPS ms, +-10%. */
+    /** One cooldown between flicks: the set ms, +-10%. */
     private static double gapMs(LeverAuraConfig cfg) {
-        return 1000.0 / cfg.getCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
+        return cfg.getCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
     /** QUOI isBossBlock / SecretAuraFeature#isBossLeverClickable: a "Not Activated" armor stand just above. */
@@ -345,8 +306,6 @@ public final class LeverAuraFeature {
         lastHeldKey = null;
         clickedEarly.clear();
         clickedS2.clear();
-        inRangeSince.clear();
-        requiredDwell.clear();
         nextClickDueTick = 0.0;
         turnStartTick = -1L;
         lastSection = P3SectionTracker.section();
@@ -358,12 +317,5 @@ public final class LeverAuraFeature {
     public static boolean owns(BlockPos pos) {
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
         return cfg.isSectionLevers() && S2_SECTION_LEVERS.contains(pos);
-    }
-
-    /** For the tab's status line. */
-    public static Component statusText() {
-        int section = P3SectionTracker.section();
-        String s = section >= 5 ? "Core open" : section > 2 ? "Past S2" : section == 2 ? "S2 open" : "S2 not open";
-        return Component.literal("§7Tracked: §f" + s);
     }
 }

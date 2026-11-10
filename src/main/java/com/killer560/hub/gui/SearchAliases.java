@@ -15,6 +15,9 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            // cheatbugs-1109: renamed from Terminator Auto Clicker.
+            Map.entry("terminator clicker", "shortbow auto clicker"),
+            Map.entry("terminator auto", "shortbow auto clicker"),
             // featC-1108: other mods names for these.
             Map.entry("puzzle display", "puzzle hud"),
             Map.entry("puzzle timer", "puzzle hud"),
@@ -24,9 +27,13 @@ public final class SearchAliases {
             Map.entry("carry", "carry tracker"),
             Map.entry("carries", "carry tracker"),
             Map.entry("carry counter", "carry tracker"),
-            Map.entry("map hover", "room preview"),
-            Map.entry("room info", "room preview"),
             Map.entry("watcher speed", "watcher helper"),
+            // orderhelper-1109: renamed from Bazaar Order Helper.
+            Map.entry("bazaar order helper", "order helper"),
+            Map.entry("bz order helper", "order helper"),
+            Map.entry("secret triggerbot", "secret aura"),
+            Map.entry("leap look", "no rotate"),
+            Map.entry("leap takes target", "no rotate"),
             Map.entry("jungle pickaxe", "wrong armor alert"),
             // killer560 (2026-11-04): the built-in mod list is "essentially mod menu".
             Map.entry("mod menu", "mods screen"),

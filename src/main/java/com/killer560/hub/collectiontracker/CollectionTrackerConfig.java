@@ -18,12 +18,15 @@ import java.util.List;
 public final class CollectionTrackerConfig {
 
     public static final int MAX_SELECTED = 30;
+    public static final int RECENT_MIN = 10, RECENT_MAX = 300;
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-collectiontracker.json");
 
     private static CollectionTrackerConfig instance;
 
     private boolean enabled = false;
     private boolean showRate = true;
+    private boolean onlyRecent = false;
+    private int recentSeconds = 60;
     private final List<String> selected = new ArrayList<>();
 
     private CollectionTrackerConfig() {
@@ -42,6 +45,8 @@ public final class CollectionTrackerConfig {
         if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
             cfg.showRate = ConfigJson.getBool(obj, "showRate", cfg.showRate);
+            cfg.onlyRecent = ConfigJson.getBool(obj, "onlyRecent", cfg.onlyRecent);
+            cfg.setRecentSeconds(ConfigJson.getInt(obj, "recentSeconds", cfg.recentSeconds));
             JsonArray arr = ConfigJson.getArray(obj, "selected");
             if (arr != null) {
                 for (JsonElement e : arr) {
@@ -59,6 +64,8 @@ public final class CollectionTrackerConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
         obj.addProperty("showRate", showRate);
+        obj.addProperty("onlyRecent", onlyRecent);
+        obj.addProperty("recentSeconds", recentSeconds);
         JsonArray arr = new JsonArray();
         selected.forEach(arr::add);
         obj.add("selected", arr);
@@ -76,6 +83,21 @@ public final class CollectionTrackerConfig {
 
     public void setShowRate(boolean showRate) {
         this.showRate = showRate;
+        CollectionTracker.selectionChanged();
+    }
+
+    public boolean isOnlyRecent() { return onlyRecent; }
+
+    public void setOnlyRecent(boolean onlyRecent) {
+        this.onlyRecent = onlyRecent;
+        CollectionTracker.selectionChanged();
+    }
+
+    /** Only Recent's window in seconds, {@link #RECENT_MIN} to {@link #RECENT_MAX}. */
+    public int getRecentSeconds() { return recentSeconds; }
+
+    public void setRecentSeconds(int seconds) {
+        recentSeconds = Math.max(RECENT_MIN, Math.min(RECENT_MAX, seconds));
         CollectionTracker.selectionChanged();
     }
 
