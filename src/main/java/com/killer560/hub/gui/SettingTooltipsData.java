@@ -1122,9 +1122,8 @@ final class SettingTooltipsData {
         d.put("freelook/pan key", "Key or mouse button to hold to pan the camera around you with the mouse. Works in any view; from first person it shows the normal third-person view while held. Esc while binding clears it.");
         d.put("strength", "How much of the previous frame is kept (0-100%); higher means longer trails.");
         d.put("blur gui", "Also blurs the HUD and open menus.");
-        d.put("dark mode", "Darkens the game by drawing a black tint over the whole screen, the HUD, the open chat and the HUD editor. Other open menus are never tinted.");
+        d.put("dark mode", "Darkens literally everything with one black tint drawn last: the world, HUD, chat, inventory, every menu and container, the title screen and this mod's screens, all at the same level.");
         d.put("dark mode/opacity", "How dark the tint is, from 1% (barely darker) to 80%.");
-        d.put("tint hud", "Off: only the world is darkened and the HUD stays as it is. On (default): the HUD (hotbar, chat, scoreboard and this mod's HUD elements), the chat and every screen this mod draws or skins (its menus, editors, the AH and Bazaar reskins) are darkened too.");
         d.put("open layout picker", "Opens a monitor preview; click a cell to move and resize this window into it.");
         d.put("windows per monitor", "How many equal slots (1-9) the picker splits the monitor into.");
         d.put("respect taskbar", "Keeps windows inside the monitor's work area so they do not cover the taskbar.");

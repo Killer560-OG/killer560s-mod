@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Dark Mode settings: enabled (default off), opacity 1-80 % (default 25) and Tint HUD (default off). */
+/** Persisted Dark Mode settings: enabled (default off) and opacity 1-80 % (default 25). The old "tintHud" key is ignored. */
 public final class DarkModeConfig {
 
     public static final int MIN_OPACITY = 1;
@@ -22,7 +22,6 @@ public final class DarkModeConfig {
 
     private boolean enabled = false;
     private int opacity = DEFAULT_OPACITY;
-    private boolean tintHud = true;
 
     private DarkModeConfig() {
     }
@@ -42,7 +41,6 @@ public final class DarkModeConfig {
                 JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
                 cfg.opacity = clampOpacity(ConfigJson.getInt(obj, "opacity", cfg.opacity));
-                cfg.tintHud = ConfigJson.getBool(obj, "tintHud", cfg.tintHud);
             } catch (Exception ignored) {
                 // unreadable file: keep defaults for this session
             }
@@ -54,7 +52,6 @@ public final class DarkModeConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
         obj.addProperty("opacity", opacity);
-        obj.addProperty("tintHud", tintHud);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -76,13 +73,5 @@ public final class DarkModeConfig {
 
     public void setOpacity(int opacity) {
         this.opacity = clampOpacity(opacity);
-    }
-
-    public boolean isTintHud() {
-        return tintHud;
-    }
-
-    public void setTintHud(boolean tintHud) {
-        this.tintHud = tintHud;
     }
 }
