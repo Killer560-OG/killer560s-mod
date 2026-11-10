@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Inventory Walk's Look Key (killer560, 2026-11-05; reworked 2026-11-09: "looking in my inventory is kinda laggy and the
@@ -91,6 +92,40 @@ public abstract class InventoryWalkLookMixin {
     private void killer560smod$noClick(CallbackInfo ci) {
         if (killer560smod$looking) {
             ci.cancel();
+        }
+    }
+
+    /**
+     * The screen's pointer while looking: the menu's last spot (invlook-1110, killer560: "the mouse keeps moving around like
+     * i am not looking"). {@code onMove} writes the moving absolute position into xpos/ypos even while grabbed (SDL relative
+     * mode on 26.3, a disabled GLFW cursor on 26.2), and the screen's hover, slot highlight and tooltip read it through these.
+     * xpos itself must keep moving: 26.2 takes its deltas from it.
+     */
+    @Inject(method = "getScaledXPos(Lcom/mojang/blaze3d/platform/Window;)D", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$frozenX(CallbackInfoReturnable<Double> cir) {
+        if (killer560smod$looking) {
+            cir.setReturnValue(MouseHandler.getScaledXPos(minecraft.getWindow(), killer560smod$savedX));
+        }
+    }
+
+    @Inject(method = "getScaledYPos(Lcom/mojang/blaze3d/platform/Window;)D", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$frozenY(CallbackInfoReturnable<Double> cir) {
+        if (killer560smod$looking) {
+            cir.setReturnValue(MouseHandler.getScaledYPos(minecraft.getWindow(), killer560smod$savedY));
+        }
+    }
+
+    @Inject(method = "xpos", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$frozenRawX(CallbackInfoReturnable<Double> cir) {
+        if (killer560smod$looking) {
+            cir.setReturnValue(killer560smod$savedX);
+        }
+    }
+
+    @Inject(method = "ypos", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$frozenRawY(CallbackInfoReturnable<Double> cir) {
+        if (killer560smod$looking) {
+            cir.setReturnValue(killer560smod$savedY);
         }
     }
 }

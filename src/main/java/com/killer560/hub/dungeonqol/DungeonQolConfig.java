@@ -8,8 +8,8 @@ import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.file.Path;
 
-/** Settings of the three small dungeon extras (featE-1108): Item Quality tooltip, Iced Mob Boxes, Room Name HUD.
- *  All default OFF; the feature getters also need Skyblock, the tabs read the {@code *Raw} ones. */
+/** Settings of the small dungeon extras: Item Quality tooltip, Iced Mob Boxes, Room Name HUD (featE-1108), Block Ender Pearls In Boss.
+ *  All default OFF except the pearl block; the feature getters also need Skyblock, the tabs read the {@code *Raw} ones. */
 public final class DungeonQolConfig {
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-dungeonqol.json");
@@ -18,12 +18,14 @@ public final class DungeonQolConfig {
     private boolean itemQuality = false;
     private boolean icedBoxes = false;
     private boolean roomHud = false;
+    private boolean blockBossPearls = true;
     private int icedColor = 0xFF55FFFF;
 
     private static final BoolFields<DungeonQolConfig> BOOLS = new BoolFields<DungeonQolConfig>()
             .add("itemQuality", false, c -> c.itemQuality, (c, v) -> c.itemQuality = v)
             .add("icedBoxes", false, c -> c.icedBoxes, (c, v) -> c.icedBoxes = v)
-            .add("roomHud", false, c -> c.roomHud, (c, v) -> c.roomHud = v);
+            .add("roomHud", false, c -> c.roomHud, (c, v) -> c.roomHud = v)
+            .add("blockBossPearls", true, c -> c.blockBossPearls, (c, v) -> c.blockBossPearls = v);
 
     private DungeonQolConfig() {
     }
@@ -62,6 +64,9 @@ public final class DungeonQolConfig {
 
     public boolean isRoomHud() { return roomHud; }
     public void setRoomHud(boolean v) { roomHud = v; }
+
+    public boolean isBlockBossPearls() { return blockBossPearls; }
+    public void setBlockBossPearls(boolean v) { blockBossPearls = v; }
 
     public int getIcedColor() { return icedColor; }
     public void setIcedColor(int argb) { icedColor = argb; }

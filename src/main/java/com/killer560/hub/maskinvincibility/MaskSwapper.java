@@ -162,10 +162,13 @@ public final class MaskSwapper {
     private static boolean phoenixSummoned = false;
     /** Server lines only: each starts at the line's start, where a player's message has his rank and name. The pet name is
      *  letters, spaces and apostrophes, bounded, with an optional skin star. */
-    private static final Pattern SUMMONED = Pattern.compile("^You summoned your ([A-Za-z' ]{1,32}?)(?: \u2726)?!$");
-    private static final Pattern AUTOPET = Pattern.compile(
-            "^Autopet equipped your \\[Lvl \\d{1,3}] ([A-Za-z' ]{1,32}?)(?: \u2726)?! VIEW RULE$");
-    private static final Pattern DESPAWNED = Pattern.compile("^You despawned your ([A-Za-z' ]{1,32}?)(?: \u2726)?!$");
+    /** The pet name as any line carries it: an optional level before ("[Lvl 100] Phoenix") or after it ("Phoenix [Lvl 100]",
+     *  "(Lvl 100)", "Lvl 100"; 0.27.3 puts the level in the summon line, exact wording unknown), then the optional skin star. */
+    private static final String LVL = "(?:\\[Lvl \\d{1,3}]|\\(Lvl \\d{1,3}\\)|Lvl \\d{1,3})";
+    private static final String PET = "(?:" + LVL + " )?([A-Za-z' ]{1,32}?)(?: " + LVL + ")?(?: \u2726)?(?: " + LVL + ")?";
+    private static final Pattern SUMMONED = Pattern.compile("^You summoned your " + PET + "!$");
+    private static final Pattern AUTOPET = Pattern.compile("^Autopet equipped your " + PET + "! VIEW RULE$");
+    private static final Pattern DESPAWNED = Pattern.compile("^You despawned your " + PET + "!$");
     private MaskSwapper() {
     }
 

@@ -6,7 +6,8 @@
 	"client": [
 		"InventoryWalkSendMixin",
 		"InventoryWalkInputMixin",
-		"InventoryWalkLookMixin"
+		"InventoryWalkLookMixin",
+		"InventoryWalkCloseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

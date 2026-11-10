@@ -148,6 +148,7 @@ final class CardBlurbsData {
         d.put("AutoCloseChestTab", "Closes chests on a key.");
         d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
         d.put("IcedMobsTab", "Boxes frozen mobs.");
+        d.put("BossPearlTab", "No own pearl throws in boss.");
         d.put("RoomNameTab", "HUD with the room you are in.");
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");

@@ -2103,8 +2103,8 @@ public final class BossFight {
      */
     static final class BossMob {
         final String name;
-        /** Null while the sim's Spawn Withers switch is OFF (the tag and speech stands still show). */
-        final SimWither wither;
+        /** Null while the sim's Spawn Withers switch is OFF; then no tag or speech stand exists either. */
+        SimWither wither;
         Vec3 pos;
         private ArmorStand tag;
         private ArmorStand speech;
@@ -2132,7 +2132,7 @@ public final class BossFight {
         }
 
         private void showTag() {
-            if (wither != null && wither.isRemoved()) {
+            if (!BossStartScreen.spawnWithers() || wither != null && wither.isRemoved()) {
                 return;
             }
             tag = marker("§e﴾ §c§l" + name + "§r §e﴿", 3.6875);
@@ -2152,6 +2152,9 @@ public final class BossFight {
         }
 
         void speak(String line) {
+            if (!BossStartScreen.spawnWithers()) {
+                return;
+            }
             if (speech != null) {
                 speech.discard();
             }
@@ -2160,6 +2163,13 @@ public final class BossFight {
         }
 
         void tick() {
+            if (!BossStartScreen.spawnWithers() && (wither != null || tag != null || speech != null)) {
+                remove();
+                wither = null;
+                tag = null;
+                speech = null;
+                return;
+            }
             if (speech != null && t >= speechUntil) {
                 speech.discard();
                 speech = null;
