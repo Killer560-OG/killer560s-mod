@@ -1,6 +1,8 @@
 package com.killer560.hub.fastleap;
 
 import com.killer560.hub.BuildVariant;
+import com.killer560.hub.autopuzzles.AutoPuzzleUtil;
+import com.killer560.hub.compat.McPackets;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -9,6 +11,8 @@ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -30,7 +34,9 @@ import java.util.Locale;
  * wrapped), pitch inside -90..90, sent by the next movement packet as any turn is; position is never touched. It runs
  * first in Fast Leap's tick, so a use later in that tick (his or Fast Leap's) carries the turned look, and waits a tick if
  * a use already went out at the old one (GrimAC BadPacketsJ; testkit 1105-leaplook-same-*). Every other
- * teleport (etherwarp, setback, an absolute leap) is left as vanilla applies it. Event-driven; the tick does work only
+ * teleport (etherwarp, setback, an absolute leap) is left as vanilla applies it. Hypixel 0.27.3 sends a pearl and AOTE/AOTV
+ * teleport with a relative 0/0 look too, so the player's own pearl / AOTE-AOTV use drops a pending teleport and leap line
+ * (a use is always before its teleport; the leap's own teleport comes after the leap's use). Event-driven; the tick does work only
  * while a turn is pending.
  */
 public final class LeapRotation {
@@ -151,8 +157,18 @@ public final class LeapRotation {
 
     /** Every packet that went on the wire (Connection.send's tail): a use_item since the last client_tick_end. */
     public static void onSent(Object packet) {
-        if (packet instanceof ServerboundUseItemPacket || packet instanceof ServerboundClientTickEndPacket) {
-            useThisTick = packet instanceof ServerboundUseItemPacket;
+        if (packet instanceof ServerboundUseItemPacket use) {
+            useThisTick = true;
+            LocalPlayer p = Minecraft.getInstance().player;
+            if (p != null && (leapLineName != null || relTeleportMs != 0L)) {
+                ItemStack held = p.getItemInHand(McPackets.useItemHand(use));
+                if (held.isEmpty() || held.is(Items.ENDER_PEARL) || AutoPuzzleUtil.isAotv(held)) { // a lone pearl is already consumed client-side when its use is sent (held is then empty)
+                    // 0.27.3: a pearl / AOTE teleport also keeps the look (relative 0/0), so it is not the leap's (fastleap-guard-0273)
+                    clear();
+                }
+            }
+        } else if (packet instanceof ServerboundClientTickEndPacket) {
+            useThisTick = false;
         }
     }
 }

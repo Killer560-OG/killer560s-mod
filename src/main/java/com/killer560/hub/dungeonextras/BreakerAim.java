@@ -155,27 +155,18 @@ public final class BreakerAim {
     }
 
     /** True when a dig on {@code pos} sent now is judged by GrimAC on a look that strikes it. */
-    static boolean digReady(LocalPlayer player, BlockPos pos, boolean anyEye) {
-        return anyEye ? DigAim.heardLookStrikesAnyEye(player, pos) : DigAim.heardLookStrikes(player, pos);
-    }
-
-    /**
-     * Burst (burstmax-1108): turns the body so this tick's movement packet carries the look that strikes the MOST of
-     * {@code targets} from where he will be (pitch only while he walks, else yaw too), so next tick's burst digs them all
-     * on a look the server heard. @return what was done, or null when none can be aimed without steering his walk.
-     */
-    static String aimForMost(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean urgent) {
-        return aim(client, player, targets, true, urgent);
+    static boolean digReady(LocalPlayer player, BlockPos pos) {
+        return DigAim.heardLookStrikes(player, pos);
     }
 
     /**
      * Turns the body (camera held) so this tick's movement packet carries the look that strikes the most of {@code targets}
-     * (on GrimAC's three eye rays when {@code anyEye}, else on his own eye) from where he will be. While he walks only a
+     * from where he will be. While he walks only a
      * yaw that leaves his walk exactly as it was (walkYaws) is used, with any pitch; standing, any look. When none strikes
      * and the pick is {@code urgent} (in his way, he is not getting anywhere, or it waited too long: BreakerAuraFeature),
      * the look goes straight at it as before balate-1109, his keys turned the nearest 45-degree steps back (balatefix-1109).
      */
-    private static String aim(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean anyEye, boolean urgent) {
+    private static String aim(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean urgent) {
         if (targets.isEmpty() || handsBusy(client) || routeRunning() || someoneElseHolds() || !pitchFree(player)
                 || TurnFirst.bodyOwned()) {
             lastWait = targets.isEmpty() ? "" : handsBusy(client) ? "his hands are busy" : routeRunning() ? "a route runs"
@@ -203,7 +194,7 @@ public final class BreakerAim {
             float lo = 0f;
             float hi = 0f;
             for (float p = -90f; p <= 90f; p += 0.5f) {
-                int n = struck(feet, now, eyeH, y, p, targets, anyEye);
+                int n = struck(feet, now, eyeH, y, p, targets);
                 if (n > top) {
                     top = n;
                     lo = p;
@@ -253,7 +244,7 @@ public final class BreakerAim {
                 if (err >= bestErr && best == targets.size()) {
                     continue;
                 }
-                int n = struck(feet, feet, eyeH, y, wantPitch, targets, anyEye);
+                int n = struck(feet, feet, eyeH, y, wantPitch, targets);
                 if (n > best || (n == best && n > 0 && err < bestErr)) {
                     best = n;
                     bestErr = err;
@@ -282,8 +273,7 @@ public final class BreakerAim {
 
     /** How many of {@code targets} the look strikes from both {@code feet} and {@code alsoFeet} (where he is now and where
      *  he will be). A target more than 75 degrees off the yaw and not under or over him is skipped without a ray. */
-    private static int struck(Vec3 feet, Vec3 alsoFeet, double eyeH, float yaw, float pitch, List<BlockPos> targets,
-                              boolean anyEye) {
+    private static int struck(Vec3 feet, Vec3 alsoFeet, double eyeH, float yaw, float pitch, List<BlockPos> targets) {
         int n = 0;
         for (BlockPos t : targets) {
             double dx = t.getX() + 0.5 - feet.x;
@@ -292,16 +282,12 @@ public final class BreakerAim {
                     && Math.abs(Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-dx, dz)) - yaw)) > 75f) {
                 continue;
             }
-            if (strikes(feet, eyeH, yaw, pitch, t, anyEye)
-                    && (alsoFeet == feet || strikes(alsoFeet, eyeH, yaw, pitch, t, anyEye))) {
+            if (DigAim.strikes(feet, eyeH, yaw, pitch, t)
+                    && (alsoFeet == feet || DigAim.strikes(alsoFeet, eyeH, yaw, pitch, t))) {
                 n++;
             }
         }
         return n;
-    }
-
-    private static boolean strikes(Vec3 feet, double eyeH, float yaw, float pitch, BlockPos t, boolean anyEye) {
-        return anyEye ? DigAim.strikesAnyEye(feet, yaw, pitch, t) : DigAim.strikes(feet, eyeH, yaw, pitch, t);
     }
 
     /**
@@ -391,7 +377,7 @@ public final class BreakerAim {
      * will be (see {@link #aim}). @return what was done, or null when the pick cannot be aimed now without changing his walk.
      */
     static String aimFor(Minecraft client, LocalPlayer player, BlockPos pos, boolean urgent) {
-        return aim(client, player, List.of(pos), false, urgent);
+        return aim(client, player, List.of(pos), urgent);
     }
 
     /** Why the last aim found nothing: the first pick, where he stood, his view yaw and the yaws tried (for the wait log). */

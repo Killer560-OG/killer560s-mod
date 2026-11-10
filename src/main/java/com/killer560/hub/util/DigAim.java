@@ -46,33 +46,4 @@ public final class DigAim {
         Vec3 end = eye.add(Vec3.directionFromRotation(pitch, yaw).scale(REACH));
         return box.clip(eye, end).isPresent();
     }
-
-    /** The eye heights GrimAC 2.3.74 tries on every ray, whatever his pose (GrimPlayer 313-315, RotationBreak 80-122). */
-    private static final double[] GRIM_EYES = {1.62, 1.27, 0.4};
-
-    /**
-     * True when GrimAC RotationBreak passes a dig on {@code pos} on this look: the ray from ANY of its three eye heights
-     * strikes the box, or the eye column 0.4..1.62 (grown by 0.03) stands in it (burstmax-1108: a wall in front is struck
-     * by three parallel rays, not one).
-     */
-    public static boolean strikesAnyEye(Vec3 feet, float yaw, float pitch, BlockPos pos) {
-        AABB box = new AABB(pos);
-        if (new AABB(feet.x, feet.y + 0.4, feet.z, feet.x, feet.y + 1.62, feet.z).inflate(0.03).intersects(box)) {
-            return true;
-        }
-        Vec3 reach = Vec3.directionFromRotation(pitch, yaw).scale(REACH);
-        for (double h : GRIM_EYES) {
-            Vec3 eye = feet.add(0, h, 0);
-            if (box.clip(eye, eye.add(reach)).isPresent()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** {@link #strikesAnyEye} on the look and position the server last heard. */
-    public static boolean heardLookStrikesAnyEye(LocalPlayer player, BlockPos pos) {
-        float[] look = RightClick.heardLook();
-        return look != null && player != null && strikesAnyEye(RightClick.heardFeet(player), look[0], look[1], pos);
-    }
 }

@@ -104,12 +104,6 @@ public final class BreakerAuraFeature {
     private static final double PRE_SWAP_REACH_MARGIN = 1.5;
     private static int lastLoreCharges = -1;
     private static int spentSinceLore = 0;
-    /** Burst digs past the first of their tick that the server refused. Experimental GrimAC's MultiBreak cancels every
-     *  one (MultiBreak.java:49), so a refused burst only re-digs; from 2 on, Burst goes one a tick for
-     *  {@link #ONE_A_TICK_TICKS} (a charge the lore miscounted is refused the same way, so it is not for good). */
-    private static int refusedExtras = 0;
-    private static long refusedAt = 0L;
-    private static final long ONE_A_TICK_TICKS = 100L;
     private static String lastSkipReason = null;
     private static boolean wasActive = false;
 
@@ -225,12 +219,8 @@ public final class BreakerAuraFeature {
             } else if (zeroPing && !st.isAir()) {
                 LOGGER.info("[BreakerAura] outcome: pos={} PUT BACK as {} {} tick(s) after the zero-ping START - the"
                         + " server refused the break", pos.toShortString(), st.getBlock().getName().getString(), age);
-                refused(e.getValue());
                 it.remove();
             } else if (age >= SENT_WATCH_TICKS) {
-                if (!zeroPing && !st.isAir()) {
-                    refused(e.getValue());
-                }
                 LOGGER.info("[BreakerAura] outcome: pos={} after {} tick(s): {}", pos.toShortString(), age,
                         zeroPing ? "still air (zero-ping prediction held, the server agreed)"
                                 : "STILL " + st.getBlock().getName().getString() + " - the server never broke it");
@@ -253,22 +243,11 @@ public final class BreakerAuraFeature {
     private BreakerAuraFeature() {
     }
 
-    private static void refused(long[] watch) {
-        if (watch.length > 2 && watch[2] == 1L) {
-            refusedAt = com.killer560.hub.util.SessionRecorderSink.tick();
-            if (++refusedExtras == 2) {
-                LOGGER.info("[BreakerAura] Burst: the server refuses a second dig in one tick (experimental GrimAC"
-                        + " MultiBreak); one a tick for {} ticks", ONE_A_TICK_TICKS);
-            }
-        }
-    }
-
     private static void resetState() {
         RECENT.clear();
         RECENT_SEQ.clear();
         lastSkipReason = null;
         spentSinceLore = 0;
-        refusedExtras = 0;
         lastLoreCharges = -1;
         swappedFromSlot = -1;
         swapArmedTicks = 0;
@@ -932,13 +911,12 @@ public final class BreakerAuraFeature {
         // so one a tick is the fastest clean pace. Multi Break now means BACK TO BACK: every block in reach goes on
         // consecutive ticks with no cooldown between them; OFF waits the cooldown after each (multibreak-1102).
         boolean multiBreak = cfg.isBreakerAuraMultiBreak();
-        // Burst Multi Break (owner exception, 2026-11-02): everything in reach this tick, charges the only limit - the
-        // pre-d2da5856 Multi Break. GrimAC's experimental MultiBreak flags it; the setting's label says so.
+        // Burst Multi Break (owner exception, 2026-11-02; its own row since breaker3-1110, killer560 2026-11-10: "that burst
+        // should be the old one that was perfect"): the pre-d2da5856 Multi Break exactly - everything in reach this tick,
+        // charges the only limit, no aim, no DigWindow hold, the cooldown after each burst. GrimAC's experimental MultiBreak
+        // (and RotationBreak on an unaimed pick) flags it; the setting's label says so.
         boolean burst = cfg.isBreakerAuraBurstMultiBreak();
-        if (refusedExtras > 0 && com.killer560.hub.util.SessionRecorderSink.tick() - refusedAt > ONE_A_TICK_TICKS) {
-            refusedExtras = 0;
-        }
-        int allowed = burst && refusedExtras < 2 ? available : 1;
+        int allowed = burst ? available : 1;
         Vec3 feet = player.position();
         Vec3 vel = player.getDeltaMovement();
         double speed = Math.hypot(vel.x, vel.z);
@@ -1000,27 +978,20 @@ public final class BreakerAuraFeature {
         List<BlockPos> inReach = order;
         // balatefix-1109: a pick he will walk into (or one he presses against, or one waiting 10 ticks) is struck with a
         // look off his walk when no walk-keeping look reaches it - live 2026-11-09 he ran into the S2 wall while it waited.
-        boolean urgent = urgent(order, feet, dirX, dirZ);
-        // Burst Multi Break (owner exception, labeled as flagging) sends every pick in reach on the look the server has
-        // this tick - aimed too (killer560, 2026-11-02: only its MultiBreak is accepted, never RotationBreak).
-        if (!order.isEmpty()) {
+        // Burst digs every pick in reach on whatever look he has, as before d2da5856.
+        boolean urgent = !burst && urgent(order, feet, dirX, dirZ);
+        if (!burst && !order.isEmpty()) {
             BlockPos ready = null;
-            List<BlockPos> onLook = new ArrayList<>();
             for (BlockPos p : order) {
-                if (BreakerAim.digReady(player, p, burst)) {
-                    if (ready == null) {
-                        ready = p;
-                    }
-                    onLook.add(p);
-                    if (!burst) {
-                        break;
-                    }
+                if (BreakerAim.digReady(player, p)) {
+                    ready = p;
+                    break;
                 }
             }
             if (ready == null) {
-                String how = burst ? BreakerAim.aimForMost(client, player, order, urgent) : null;
-                BlockPos aimed = how == null ? null : order.get(0);
-                for (BlockPos p : burst ? List.<BlockPos>of() : order) {
+                String how = null;
+                BlockPos aimed = null;
+                for (BlockPos p : order) {
                     how = BreakerAim.aimFor(client, player, p, urgent);
                     if (how != null) {
                         aimed = p;
@@ -1038,10 +1009,9 @@ public final class BreakerAuraFeature {
                 census("aim");
                 return;
             }
-            order = burst ? onLook : List.of(ready);
+            order = List.of(ready);
             aimWaits = 0;
         }
-        List<BlockPos> dugThisTick = new ArrayList<>();
         for (BlockPos pos : order) {
             if (sent >= allowed) {
                 break;
@@ -1109,10 +1079,9 @@ public final class BreakerAuraFeature {
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (SENT_WATCH.size() < 256) {
                 SENT_WATCH.put(pos.immutable(), new long[]{com.killer560.hub.util.SessionRecorderSink.tick(),
-                        lastSentPredicted ? 1L : 0L, dugThisTick.isEmpty() ? 0L : 1L});
+                        lastSentPredicted ? 1L : 0L});
             }
             RECENT.put(pos, now);
-            dugThisTick.add(pos);
             RECENT_SEQ.put(pos.immutable(), lastSentSeq);
             spentSinceLore++;
             sent++;
@@ -1128,24 +1097,12 @@ public final class BreakerAuraFeature {
         }
         census("sent");
         // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
-        // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn.
+        // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn. Burst
+        // never turns him (the old burst did not).
         BlockPos dugNow = order.get(0);
-        if (burst) {
-            // Aim at what is LEFT: the old loop below could aim at a pick dug this very tick and waste the next one.
-            List<BlockPos> left = new ArrayList<>();
-            for (BlockPos p : inReach) {
-                if (!dugThisTick.contains(p)) {
-                    left.add(p);
-                }
-            }
-            if (left.stream().anyMatch(p -> BreakerAim.digReady(player, p, true))) {
-                BreakerAim.keep();
-            } else {
-                BreakerAim.aimForMost(client, player, left, urgent);
-            }
-        } else if (inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p, false))) {
+        if (!burst && inReach.stream().anyMatch(p -> !p.equals(dugNow) && BreakerAim.digReady(player, p))) {
             BreakerAim.keep();
-        } else {
+        } else if (!burst) {
             for (BlockPos p : inReach) {
                 if (!p.equals(dugNow) && BreakerAim.aimFor(client, player, p, urgent) != null) {
                     break;

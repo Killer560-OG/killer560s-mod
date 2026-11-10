@@ -104,9 +104,12 @@ public final class DungeonExtrasConfig {
 
     /**
      * Burst Multi Break (owner exception, killer560 2026-11-02: "Have a setting that says use multibreak - flags newest
-     * test grim. So someone can still use the old one because I don't think it flags on hypixel yet."). With Multi Break
-     * on, every block in reach goes on ONE tick, exactly as Multi Break did before 2026-11-02 (d2da5856). GrimAC 2.3.74's
-     * experimental MultiBreak flags it, and its label says so. Default OFF; nothing while Multi Break is off.
+     * test grim. So someone can still use the old one because I don't think it flags on hypixel yet."). Every block in
+     * reach goes on ONE tick, exactly as Multi Break did before 2026-11-02 (d2da5856). GrimAC 2.3.74's experimental
+     * MultiBreak flags it, and its label says so. Default OFF. Since breaker3-1110 (killer560 2026-11-10: "one for legit
+     * multi break (doesnt flag any grim) and one for burst multi break (flags grim)") it is its own row, and it and
+     * {@link #breakerAuraMultiBreak} (Legit Multi Break) are never both on: each setter turns the other off, and a file
+     * from before with both on loads as Burst.
      */
     private boolean breakerAuraBurstMultiBreak = false;
      /**
@@ -246,6 +249,9 @@ public final class DungeonExtrasConfig {
                                     + " tab for one block per break cycle.");
                 }
                 cfg.breakerAuraBurstMultiBreak = bool(o, "breakerAuraBurstMultiBreak", false);
+                if (cfg.breakerAuraBurstMultiBreak) {
+                    cfg.breakerAuraMultiBreak = false; // breaker3-1110: Burst and Legit Multi Break are one or the other
+                }
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
@@ -384,12 +390,25 @@ public final class DungeonExtrasConfig {
     public boolean isBreakerAuraMultiBreak() { return breakerAuraMultiBreak; }
     /** The switch itself (the menu row). */
     public boolean isBreakerAuraBurstMultiBreakRaw() { return breakerAuraBurstMultiBreak; }
-    public void setBreakerAuraBurstMultiBreak(boolean v) { breakerAuraBurstMultiBreak = v; }
-    /** True when breaks go as the old burst: Multi Break AND Burst Multi Break on, cheat build only. */
-    public boolean isBreakerAuraBurstMultiBreak() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraMultiBreak && breakerAuraBurstMultiBreak;
+    public void setBreakerAuraBurstMultiBreak(boolean v) {
+        breakerAuraBurstMultiBreak = v;
+        if (v) {
+            breakerAuraMultiBreak = false;
+        }
     }
-    public void setBreakerAuraMultiBreak(boolean v) { breakerAuraMultiBreak = v; }
+    /** True when breaks go as the old burst: Burst Multi Break on, cheat build only. */
+    public boolean isBreakerAuraBurstMultiBreak() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && breakerAuraBurstMultiBreak;
+    }
+    /** Legit Multi Break: back to back, one a server tick (the menu row). */
+    public void setBreakerAuraMultiBreak(boolean v) {
+        breakerAuraMultiBreak = v;
+        if (v) {
+            breakerAuraBurstMultiBreak = false;
+        }
+    }
+    /** Either Multi Break: blocks in reach go with no cooldown between them (Auto Routes breaker nodes too). */
+    public boolean isBreakerAuraAnyMultiBreak() { return breakerAuraMultiBreak || isBreakerAuraBurstMultiBreak(); }
     public int getBreakerAuraCooldownTicks() { return breakerAuraCooldownTicks; }
     // Lower bound is 0, matching the field's own default and what the loader accepts. It clamped to 1, so once
     // this setter had been called there was no way back to the shipped value of "no cooldown".

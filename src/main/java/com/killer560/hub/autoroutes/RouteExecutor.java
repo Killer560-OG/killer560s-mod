@@ -5538,7 +5538,7 @@ public final class RouteExecutor {
             // in both modes (QUOI's and RSA's own pace, BreakerNode.kt / BreakNode.java); OFF, legit mode waits its
             // Interact Delay between blocks as before.
             boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-            boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+            boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak();
             int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
             if (stepTicks % delay != 0) {
                 return;
@@ -6045,7 +6045,7 @@ public final class RouteExecutor {
         // One dig a tick at most (GrimAC MultiBreak, util/DigWindow): back to back with Multi Break on or in obvious mode,
         // one per Interact Delay in legit mode with Multi Break off.
         boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak();
         int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
         if (lingerTicks % delay != 0) {
             return;
