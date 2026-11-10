@@ -4,6 +4,7 @@ import com.killer560.hub.bazaar.BazaarOrderHelperConfig;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,12 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 
-/** Bazaar Order Helper ({@link com.killer560.hub.bazaar.BazaarOrderHelper}): the switch, Highlight Outbid and Highlight
+/** Order Helper ({@link com.killer560.hub.bazaar.BazaarOrderHelper}): the switch, Highlight Outbid and Highlight
  *  Filled, and their two colors. */
 public class BazaarOrderHelperTab extends BaseTab {
 
     public BazaarOrderHelperTab() {
-        super("Bazaar Order Helper");
+        super("Order Helper");
     }
 
     @Override
@@ -29,12 +30,14 @@ public class BazaarOrderHelperTab extends BaseTab {
         int colBX = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(onOffButton("Bazaar Order Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
+        widgets.add(onOffButton("Order Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
         if (!cfg.isEnabledRaw()) {
             return widgets;
         }
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Bazaar", false));
+        y += 14;
         widgets.add(onOffButton("Highlight Outbid", cfg::isHighlightOutbid, cfg::setHighlightOutbid, cfg::save,
                 null, contentX, y, colW, 18));
         widgets.add(colorButton("Outbid Color", cfg.getOutbidColor(), BazaarOrderHelperConfig.DEFAULT_OUTBID_COLOR, argb -> {
@@ -56,6 +59,9 @@ public class BazaarOrderHelperTab extends BaseTab {
             cfg.save();
         }, colBX, y, colW));
         y += 20;
+        y += 4;
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auction House", false));
+        y += 14;
         widgets.add(onOffButton("Highlight Auction House", cfg::isHighlightAuctions, cfg::setHighlightAuctions, cfg::save,
                 null, contentX, y, colW, 18));
         return widgets;

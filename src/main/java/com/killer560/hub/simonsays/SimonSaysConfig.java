@@ -264,6 +264,17 @@ public final class SimonSaysConfig {
 
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
+    /** The device tracking and the cheat automation run while Simon Says is on OR an Auto Simon Says feature is: Auto SS reads the
+     *  sequence itself, whatever the solver, highlights and party tracker switches say (killer560, 2026-11-09). */
+    public boolean isMachineryRaw() {
+        return enabled || com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled
+                && (triggerBotEnabled || autoSolveEnabled || autoStartEnabled);
+    }
+
+    public boolean isMachineryOn() {
+        return isMachineryRaw() && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
     public void setEnabled(boolean enabled) {
         this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }

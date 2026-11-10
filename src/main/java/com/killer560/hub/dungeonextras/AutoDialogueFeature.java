@@ -17,8 +17,7 @@ import java.util.regex.Pattern;
  * Auto Dialogue (cheat build) - port of QUOI's {@code AutoDialogue.kt} (also used verbatim by NoammAddons'
  * {@code ChatFeatures.kt}, origin/26.1.2): when a chat line's plain text starts with {@code "Select an option: "}
  * and does not contain {@code "[BARBARIANS] [MAGES]"}, run the {@link ClickEvent.RunCommand} of its first sibling
- * (the first option). Extra safety on top of the reference: a configurable delay, an optional NPC-name allow-list
- * (matched against the most recent {@code [NPC] Name: ...} line within 10s), a purchase/trade keyword block-list
+ * (the first option). Extra safety on top of the reference: a configurable delay, every NPC (the NPC-name allow-list was removed 2026-11-09), a purchase/trade keyword block-list
  * checked against the option line, the command and the preceding NPC line, and a 3s same-command guard.
  */
 public final class AutoDialogueFeature {
@@ -117,22 +116,6 @@ public final class AutoDialogueFeature {
             }
         }
 
-        String filter = cfg.getAutoDialogueNpcFilter().trim();
-        if (!filter.isEmpty()) {
-            boolean allowed = false;
-            if (npcName != null) {
-                for (String name : filter.split(",")) {
-                    if (!name.isBlank() && npcName.equalsIgnoreCase(name.trim())) {
-                        allowed = true;
-                        break;
-                    }
-                }
-            }
-            if (!allowed) {
-                LOGGER.info("[DungeonExtras] Auto Dialogue skipped: NPC '{}' not in filter.", npcName);
-                return;
-            }
-        }
         String unsafe = findUnsafeKeyword(plain + " " + first.getString() + " " + command + " " + npcText + hover);
         if (unsafe != null) {
             LOGGER.info("[DungeonExtras] Auto Dialogue skipped: blocked keyword '{}' (npc='{}', command='{}').", unsafe, npcName, command);

@@ -144,7 +144,7 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         // of the legit build.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             y += 6;
-            widgets.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Instant", true));
+            widgets.add(com.killer560.hub.gui.SectionHeaders.row(contentX, y, contentWidth, "Instant", true));
             y += 16;
             widgets.add(onOffButton("Instant (0-tick)", cfg::isInstantRaw, cfg::setInstant, cfg::save, requestRebuild,
                     contentX, y, contentWidth, 18));

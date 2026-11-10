@@ -79,8 +79,6 @@ public final class InventoryWalkFeature {
      * honest keyless input and his momentum decays as the server predicts (invwalkclean-1109; hiding keys while walking was
      * Simulation every tick).
      */
-    private static int menuTicks;
-    private static int lastMenuId;
     private static boolean standingStill;
     private static long standStillTicks;
     private static long clicksHeld;
@@ -194,9 +192,7 @@ public final class InventoryWalkFeature {
         }
         activeTicks++;
         int menuId = cfg.isStillInMenus() && screen instanceof AbstractContainerScreen<?> s ? s.getMenu().containerId : 0;
-        menuTicks = menuId == 0 ? 0 : menuId == lastMenuId ? menuTicks + 1 : 1;
-        lastMenuId = menuId;
-        standingStill = menuId != 0 && (cfg.getStillTicks() >= InventoryWalkConfig.STILL_WHOLE_MENU || menuTicks <= cfg.getStillTicks());
+        standingStill = menuId != 0;
         if (standingStill) {
             standStillTicks++;
         }
@@ -281,8 +277,6 @@ public final class InventoryWalkFeature {
         // Otherwise a click or close still held keeps waiting for its still tick (the tick handles it with no screen).
         active = false;
         pauseLeft = 0;
-        menuTicks = 0;
-        lastMenuId = 0;
         standingStill = false;
         LocalPlayer player = client.player;
         Vec3 end = player == null ? null : player.position();

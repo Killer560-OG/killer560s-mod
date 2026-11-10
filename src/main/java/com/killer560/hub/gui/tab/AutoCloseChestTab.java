@@ -1,16 +1,14 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autoclosechest.AutoCloseChestConfig;
-import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.SectionHeaders;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Auto Close Chest settings. Click mode (any key or mouse press closes the dungeon secret chest, featE-1108) is in
- *  every build; Auto mode, which closes the chest before it opens, is cheat build only (killer560, 2026-10-07) - the
- *  Mode row exists only in a cheat jar. See {@link com.killer560.hub.autoclosechest.AutoCloseChestFeature}. */
+/** Auto Close Chest settings: Close On Any Key (every build, featE-1108) and the cheat-only Auto, which closes the chest
+ *  before it opens (killer560, 2026-10-07; 2026-11-09 rework). See {@link com.killer560.hub.autoclosechest.AutoCloseChestFeature}. */
 public class AutoCloseChestTab extends BaseTab {
 
     public AutoCloseChestTab() {
@@ -25,11 +23,17 @@ public class AutoCloseChestTab extends BaseTab {
 
         widgets.add(onOffButton("Auto Close Chest", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 null, contentX, y, contentWidth, 20));
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && (cfg.isEnabledRaw() || isSearchScan())) {
+        if (cfg.isEnabledRaw() || isSearchScan()) {
             y += 24;
-            widgets.add(SettingsButtonWidget.cycleEnum(() -> Component.literal("Close Mode: "
-                            + (cfg.getMode() == AutoCloseChestConfig.Mode.AUTO ? "Auto" : "Click")),
-                    cfg::getMode, cfg::setMode, cfg::save).bounds(contentX, y, contentWidth, 20).build());
+            widgets.add(onOffButton("Close On Any Key", cfg::isAnyKey, cfg::setAnyKey, cfg::save,
+                    null, contentX, y, contentWidth, 20));
+            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                y += 28;
+                widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Automation", true));
+                y += 16;
+                widgets.add(onOffButton("Auto", cfg::isAutoRaw, cfg::setAuto, cfg::save,
+                        null, contentX, y, contentWidth, 20));
+            }
         }
         return widgets;
     }

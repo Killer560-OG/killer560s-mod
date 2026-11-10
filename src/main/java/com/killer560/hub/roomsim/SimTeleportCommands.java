@@ -1,5 +1,7 @@
 package com.killer560.hub.roomsim;
 
+import com.killer560.hub.bosssim.BossSpots;
+import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -106,6 +108,7 @@ public final class SimTeleportCommands {
      * of the same template and the second entry would be a duplicate line in the list with no way to pick it.
      */
     private static List<String> roomNames() {
+        if (inBoss()) return BossSpots.names();
         Set<String> out = new LinkedHashSet<>();
         for (SimRoomIndex.Placed p : SimRoomIndex.placed()) {
             if (p.name() != null && !p.name().isBlank()) {
@@ -170,6 +173,7 @@ public final class SimTeleportCommands {
         }
         var server = client.getSingleplayerServer();
         if (server == null) return 1;
+        if (inBoss()) return goToSpot(client, server, wanted);
         List<SimRoomIndex.Placed> placed = SimRoomIndex.placed();
         if (placed.isEmpty()) {
             ModChat.send("Sim", ModChat.dim("No floor is loaded yet - nothing to go to."));
@@ -201,6 +205,31 @@ public final class SimTeleportCommands {
         server.execute(() -> {
             SimBuilder.snapPlayerTo(uuid, server.overworld(), target.gridX(), target.gridZ(), room);
             ModChat.send("Sim", ModChat.text("Teleported to "), ModChat.value(name));
+        });
+        return 1;
+    }
+
+    /** The F7 boss fight is on in the sim: {@code /tpto} then takes the boss spots instead of rooms. */
+    private static boolean inBoss() {
+        return DungeonState.isSimBoss();
+    }
+
+    /** A boss spot, landed the way every other sim landing is ({@code BossFight.teleportAll} -> SimArrival.place). */
+    private static int goToSpot(Minecraft client, net.minecraft.server.MinecraftServer server, String wanted) {
+        String spot = BossSpots.resolve(wanted);
+        if (spot == null) {
+            ModChat.send("Sim", ModChat.text("No boss spot called "), ModChat.value(wanted),
+                    ModChat.dim(". Spots: " + String.join(", ", BossSpots.names())));
+            return 1;
+        }
+        var uuid = client.player == null ? null : client.player.getUUID();
+        if (uuid == null) return 1;
+        server.execute(() -> {
+            var sp = server.getPlayerList().getPlayer(uuid);
+            if (sp == null) return;
+            var landing = BossSpots.landing(server.overworld(), spot);
+            SimArrival.place(sp, server.overworld(), landing.at().x, landing.at().y, landing.at().z, landing.yaw(), 0f);
+            ModChat.send("Sim", ModChat.text("Teleported to "), ModChat.value(spot));
         });
         return 1;
     }

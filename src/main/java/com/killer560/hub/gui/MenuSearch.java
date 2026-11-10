@@ -87,6 +87,7 @@ public final class MenuSearch {
             {"tooltip", "lore"},
             {"warning", "alert", "notify", "notification", "alarm"},
             {"zoom", "magnify"},
+            {"ghost", "phantom", "desync"},
     };
 
     /** Stemmed word -> the stemmed words it stands for (itself excluded). */

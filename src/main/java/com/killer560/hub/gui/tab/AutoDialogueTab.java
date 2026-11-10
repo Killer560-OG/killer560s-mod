@@ -1,6 +1,5 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.CommitEditBox;
 import com.killer560.hub.dungeonextras.DungeonExtrasConfig;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
@@ -56,18 +55,6 @@ public class AutoDialogueTab extends BaseTab {
             }
         });
         y += 20;
-
-        CommitEditBox filter = new CommitEditBox(mc.font, contentX, y, contentWidth, 18, Component.literal("NPC filter"));
-        filter.setMaxLength(200);
-        filter.setHint(Component.literal("NPC names, comma-separated (blank = any)"));
-        filter.setValue(cfg.getAutoDialogueNpcFilter());
-        filter.setResponder(text -> {
-            cfg.setAutoDialogueNpcFilter(text);
-            cfg.save();
-        });
-        widgets.add(filter);
-        CommitEditBox.withSet(widgets, filter);
-        y += 26;
 
         widgets.add(onOffButton("Outside Dungeons", cfg::isAutoDialogueOutsideDungeons,
                 cfg::setAutoDialogueOutsideDungeons, cfg::save, requestRebuild, contentX, y, contentWidth, 20));

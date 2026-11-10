@@ -226,7 +226,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component pilotRunText() {
-        return Component.literal("Autopilot: " + (AutoSecretFeature.isAutopilot() ? "§aRunning" : "§cStopped"));
+        return Component.literal(AutoSecretFeature.isAutopilot() ? "§cStop Autopilot" : "§aStart Autopilot");
     }
 
     private Component pilotKeyText(AutoSecretConfig cfg) {
@@ -255,7 +255,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component runText() {
-        return Component.literal("Auto Secret: " + (AutoSecretFeature.isRunning() ? "§aRunning" : "§cStopped"));
+        return Component.literal(AutoSecretFeature.isRunning() ? "§cStop Auto Secret" : "§aStart Auto Secret");
     }
 
     private Component keyText(AutoSecretConfig cfg) {

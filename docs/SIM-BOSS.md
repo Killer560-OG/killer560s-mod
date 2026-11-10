@@ -90,7 +90,7 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
 - **P4 Necron**: a fixed script; his bar holds in each part (1 -> 0.8, 0.8 -> 0.25, 0.25 -> 0.05) until one hit takes
   that part's damage: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
   back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
-- **P5** (M7): one hit kills a dragon; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
+- **P5** (M7): a dragon is one pool of 15 units (boss-tpto-1109, killer560 2026-11-09; integers, no drift): an arrow takes 1, a Mage beam 3 (`SimClass.BEAM_DAMAGE` 10,001 vs a Terminator arrow's 10,000 tells them apart in `BossFight.onHurt`), so 15 arrows, 5 beams or 10 + 2 kill one; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
   at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec), flies
   (`SimDragon.aiStep`: goals inside its `WitherDragon.box`, 0.3 a tick, yaw 6 a tick) and places its 8 parts each tick.
 
@@ -174,3 +174,7 @@ point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons read
 - Maxor's stun used to come 60 ticks after both crystals wherever he was, so a test could "stun" him with nobody near the
   beam. Hypixel's needs him in the beam: a P1 test has to lure him (stand on the strip south of it, 73.5 225 76.5).
 - Lights device start (simlights-1109, killer560 2026-11-09): the four corner levers and the middle two (60,134 and 60,135, the LIGHTS list) start ON and every other lever off, so every lamp starts lit; the first pull of ANY lever (on or off) completes the device 2 ticks later (`lightsPulled`), the usual "completed a device! (1/1)" path. `/pc`, `/pchat`, `/party chat`, `/p chat` in the sim are swallowed by `roomsim/SimPartyChat` (ALLOW_COMMAND) and answer "You are not in a party right now." (Hypixel, no party), never the vanilla unknown-command error. Testkit 1109-boss-lights.
+
+## Boss spots (boss-tpto-1109)
+
+`/tpto` and `/goto` inside the boss take `BossSpots`: ss, s1, hee2, ee3, outcore, storm, maxor, p5, necron. Coordinates are Posmsg's presets (killer560's own: Simon Says, EE2 High, EE3 Low, Outcore, P5, Necron's Platform) and BossFight's start spots; over a plan room (no capture) the P3 spots fall back to the section start. The menu's Section 2/3/4 start at hee2/ee3/outcore. Attack speed: the sim already fixes every weapon at 100 (`SimAttackSpeed`: melee 5 ticks, shortbow 5, Mage beam 5); testkit 1109-boss-tpto checks the constants.

@@ -928,7 +928,7 @@ public class ModScreen extends Screen {
         for (AbstractWidget w : built) {
             SettingTooltips.scope(w, tab.name);
         }
-        if (openFeature == tab && contentW < STACK_BELOW) {
+        if (openFeature == tab && contentW < STACK_BELOW && !tab.keepsRows()) {
             stackRows(built, contentX, contentW);
         } else if (openFeature == tab) {
             widenLoneRows(built, contentX, contentW);

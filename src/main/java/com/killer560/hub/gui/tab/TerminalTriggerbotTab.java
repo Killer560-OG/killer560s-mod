@@ -1,14 +1,11 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Terminal Triggerbot settings - cheat build only, so the whole tab only exists on the cheat jar and its
  *  headers are drawn red. See {@code TerminalTriggerbotFeature}. */
@@ -43,39 +40,19 @@ public class TerminalTriggerbotTab extends BaseTab {
         }
         y += 24;
 
-        widgets.add(SettingsButtonWidget.cycling(delayText(cfg), (btn, dir) -> {
-                    cfg.setDelayMs((int) SettingsButtonWidget.step(cfg.getDelayMs(), 25, 0,
-                            TerminalTriggerbotConfig.MAX_DELAY_MS, dir));
-                    cfg.save();
-                    btn.setMessage(delayText(cfg));
-                }).bounds(contentX, y, halfW, ROW).build());
-        widgets.add(SettingsButtonWidget.cycling(cooldownText(cfg), (btn, dir) -> {
-                    cfg.setCooldownMs((int) SettingsButtonWidget.step(cfg.getCooldownMs(), 50, 0,
-                            TerminalTriggerbotConfig.MAX_COOLDOWN_MS, dir));
-                    cfg.save();
-                    btn.setMessage(cooldownText(cfg));
-                }).bounds(contentX + halfW + GAP, y, rightW, ROW).build());
+        widgets.add(valueSlider(contentX, y, halfW, "Delay", "ms", 0, TerminalTriggerbotConfig.MAX_DELAY_MS, 25, 0,
+                cfg::getDelayMs, v -> cfg.setDelayMs((int) v), cfg::save));
+        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Cooldown", "ms", 0, TerminalTriggerbotConfig.MAX_COOLDOWN_MS,
+                50, 0, cfg::getCooldownMs, v -> cfg.setCooldownMs((int) v), cfg::save));
         y += ROW + GAP;
 
-        widgets.add(SettingsButtonWidget.cycling(rangeText(cfg), (btn, dir) -> {
-                    cfg.setRange(SettingsButtonWidget.step(cfg.getRange(), 0.5, 1.0, TerminalTriggerbotConfig.MAX_RANGE, dir));
-                    cfg.save();
-                    btn.setMessage(rangeText(cfg));
-                }).bounds(contentX, y, halfW, ROW).build());
+        widgets.add(valueSlider(contentX, y, halfW, "Range", "", 1.0, TerminalTriggerbotConfig.MAX_RANGE, 0.5, 1,
+                cfg::getRange, cfg::setRange, cfg::save));
         y += ROW + GAP;
 
         return widgets;
     }
 
-    private static Component delayText(TerminalTriggerbotConfig cfg) {
-        return Component.literal("Delay: " + cfg.getDelayMs() + "ms");
-    }
 
-    private static Component cooldownText(TerminalTriggerbotConfig cfg) {
-        return Component.literal("Cooldown: " + cfg.getCooldownMs() + "ms");
-    }
 
-    private static Component rangeText(TerminalTriggerbotConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Range: %.1f", cfg.getRange()));
-    }
 }

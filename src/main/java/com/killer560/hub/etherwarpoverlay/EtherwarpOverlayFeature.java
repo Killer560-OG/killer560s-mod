@@ -4,6 +4,8 @@ import com.killer560.hub.armourdye.mixin.CustomDataTagAccessor;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -230,28 +232,30 @@ public final class EtherwarpOverlayFeature {
         }
         lastOutcome = "drawn " + etherPos.pos().toShortString() + (etherPos.succeeded() ? " ok" : " failed");
 
-        AABB box = cfg.isFullBlock() ? new AABB(etherPos.pos()) : realBoxFor(client.level, etherPos.pos());
+        List<AABB> shapeBoxes = cfg.isFullBlock() ? List.of(new AABB(etherPos.pos())) : realBoxesFor(client.level, etherPos.pos());
         // Pulled 1% of the way toward the camera, so lines drawn exactly on the block's own faces never tie with them
         // for depth. Scaling about the eye moves every point along its own sight line: the box lands on exactly the same
         // pixels and only its depth changes (growing the box instead pushed the lines visibly outside the face up close).
         Vec3 cam = McRender.cameraPos(context);
-        box = towardsCamera(box, cam);
+        final List<AABB> boxes = new ArrayList<>(shapeBoxes.size());
+        for (AABB box : shapeBoxes) {
+            boxes.add(towardsCamera(box, cam));
+        }
         // Color + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
         // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
         // "Filled+Outline" look the same across the mod: a plain fill uses the color's own alpha, the combo
         // halves the fill so the outline still reads. Never let a render exception escape into the frame.
         try {
             float[] c = WorldRenderUtils.argbToFloats(etherPos.succeeded() ? cfg.getSafeColor() : cfg.getFailedColor());
-            final AABB b = box;
             final boolean thru = cfg.isShowThroughBlocks();
             switch (cfg.getStyle()) {
                 case FILLED -> submit(context, cam, com.killer560.hub.util.EspTypes.fill(thru),
-                        (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3]));
+                        (pose, buf) -> boxes.forEach(b -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3])));
                 case FILLED_OUTLINE -> {
                     submit(context, cam, com.killer560.hub.util.EspTypes.fill(thru),
-                            (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3] * 0.5f));
+                            (pose, buf) -> boxes.forEach(b -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3] * 0.5f)));
                     submit(context, cam, com.killer560.hub.util.EspTypes.lines(thru),
-                            (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
+                            (pose, buf) -> boxes.forEach(b -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f)));
                 }
                 // The box's own edges at every distance (an edge off screen is simply not seen), but only those of the
                 // faces turned toward him. killer560 (2026-10-13): "I want the full outline and if you can't see an Edge
@@ -259,7 +263,7 @@ public final class EtherwarpOverlayFeature {
                 // was pressed against. The back edges showed through a stair's open corner and made the box look as if it
                 // sat behind the block (his screenshots of a stone brick stair, both versions).
                 default -> submit(context, cam, com.killer560.hub.util.EspTypes.lines(thru),
-                        (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
+                        (pose, buf) -> boxes.forEach(b -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f)));
             }
         } catch (Exception e) {
             LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
@@ -296,9 +300,28 @@ public final class EtherwarpOverlayFeature {
                 cam.x + (box.maxX - cam.x) * k, cam.y + (box.maxY - cam.y) * k, cam.z + (box.maxZ - cam.z) * k);
     }
 
-    private static AABB realBoxFor(Level level, BlockPos pos) {
-        var shape = level.getBlockState(pos).getShape(level, pos);
-        return (shape.isEmpty() ? new AABB(0, 0, 0, 1, 1, 1) : shape.bounds()).move(pos);
+    /** Per block state: the boxes of its outline shape at the origin (a stair is its steps, not its bounding cube).
+     *  Bounded; cleared when it grows past {@link #SHAPE_CACHE_MAX}. Render thread only. */
+    private static final java.util.Map<net.minecraft.world.level.block.state.BlockState, List<AABB>> SHAPE_BOXES = new java.util.HashMap<>();
+    private static final int SHAPE_CACHE_MAX = 256;
+
+    /** The outline shape's boxes of the block at {@code pos}, moved there (a full cube for an empty shape). Public for the testkit. */
+    public static List<AABB> realBoxesFor(Level level, BlockPos pos) {
+        var state = level.getBlockState(pos);
+        List<AABB> origin = SHAPE_BOXES.get(state);
+        if (origin == null) {
+            var shape = state.getShape(level, pos);
+            origin = shape.isEmpty() ? List.of(new AABB(0, 0, 0, 1, 1, 1)) : List.copyOf(shape.toAabbs());
+            if (SHAPE_BOXES.size() >= SHAPE_CACHE_MAX) {
+                SHAPE_BOXES.clear();
+            }
+            SHAPE_BOXES.put(state, origin);
+        }
+        List<AABB> out = new ArrayList<>(origin.size());
+        for (AABB b : origin) {
+            out.add(b.move(pos));
+        }
+        return out;
     }
 
     /**

@@ -15,8 +15,8 @@ import java.util.regex.Pattern;
 
 /**
  * Milestone Display (featF-1108; SkyHanni DungeonMilestonesDisplay): a small HUD "Milestone: N" counting the dungeon
- * milestone lines Hypixel prints ("Milestone ❖: You have dealt 1.2M damage so far! (3s)") this run, red at 0 and 1,
- * yellow at 2, green at 3 (the last one). The count is per world: a new dungeon is a new level and starts at 0. Reads
+ * milestone lines Hypixel prints ("Milestone ❖: You have dealt 1.2M damage so far! (3s)") this run, up to 9: red at 0 and 1,
+ * orange at 2, green from 3 on. The count is per world: a new dungeon is a new level and starts at 0. Reads
  * the line through {@link ChatObserver}, hides nothing. The HUD is drawn by {@code hud/HudInGameRenderer}.
  */
 public final class MilestoneFeature {
@@ -26,7 +26,7 @@ public final class MilestoneFeature {
 
     public static final HudElement HUD = new MilestoneHud();
 
-    private static final int MAX = 3;
+    private static final int MAX = 9;
     private static int count;
     private static Object level;
 
@@ -98,7 +98,7 @@ public final class MilestoneFeature {
             if (!editor && (n == 0 || !MilestoneConfig.getInstance().isEnabled())) {
                 return;
             }
-            int color = n >= MAX ? 0xFF55FF55 : n == 2 ? 0xFFFFFF55 : 0xFFFF5555;
+            int color = n >= 3 ? 0xFF55FF55 : n == 2 ? 0xFFFFAA00 : 0xFFFF5555;
             graphics.text(client.font, "Milestone: " + n, x, y, color, true);
             HudSeen.markDrawn(id());
         }

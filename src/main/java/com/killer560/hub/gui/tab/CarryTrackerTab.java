@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.carrytracker.CarryCommands;
 import com.killer560.hub.carrytracker.CarryTracker;
 import com.killer560.hub.carrytracker.CarryTrackerConfig;
 import com.killer560.hub.gui.CommitEditBox;
@@ -13,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Carry Tracker (see {@link CarryTracker}): the switch, the names being carried with their run counts, and the latest runs. */
+/** Carry Tracker (see {@link CarryTracker}): the switch, adding clients (box, party, /carry), their runs targets and counts, and the latest runs. */
 public class CarryTrackerTab extends BaseTab {
 
     public CarryTrackerTab() {
@@ -36,22 +37,46 @@ public class CarryTrackerTab extends BaseTab {
         name.setMaxLength(16);
         widgets.add(name);
         SettingsButtonWidget add = SettingsButtonWidget.builder(Component.literal("Add Player"), btn -> {
-            if (cfg.add(name.getValue())) {
-                cfg.save();
+            if (CarryCommands.addClient(name.getValue(), 0)) {
                 requestRebuild.run();
             }
         }).bounds(contentX + 136, y, 90, 20).build();
         widgets.add(add);
         name.pressOnEnter(add);
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Add Party"), btn -> {
+            if (CarryCommands.addParty() > 0) {
+                requestRebuild.run();
+            }
+        }).bounds(contentX + 232, y, 90, 20).build());
         y += 26;
-        for (String n : cfg.getTracked()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth - 80, 20,
-                    Component.literal("\u00a7f" + n + " \u00a77- \u00a7e" + CarryTracker.count(n) + " runs"), font));
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Remove"), btn -> {
-                cfg.remove(n);
+        widgets.add(normSlider(contentX, y, contentWidth, 20, () -> "Default Runs: " + cfg.getDefaultRuns(),
+                (cfg.getDefaultRuns() - CarryTrackerConfig.MIN_RUNS) / (double) (CarryTrackerConfig.MAX_RUNS - CarryTrackerConfig.MIN_RUNS),
+                v -> cfg.setDefaultRuns((int) Math.round(CarryTrackerConfig.MIN_RUNS + v * (CarryTrackerConfig.MAX_RUNS - CarryTrackerConfig.MIN_RUNS))),
+                cfg::save));
+        y += 24;
+        widgets.add(onOffButton("Remove When Done", cfg::isRemoveWhenDone, cfg::setRemoveWhenDone, cfg::save, null, contentX, y, contentWidth, 20));
+        y += 26;
+        for (CarryTrackerConfig.Client c : cfg.getTracked()) {
+            String n = c.name();
+            long done = CarryTracker.count(n);
+            widgets.add(new StringWidget(contentX, y, contentWidth - 100, 20, Component.literal("§f" + n + " §7- "
+                    + (done >= c.runs() ? "§a" : "§e") + done + "/" + c.runs() + " runs"), font));
+            widgets.add(SettingsButtonWidget.builder(Component.literal("-"), btn -> {
+                cfg.setRuns(n, cfg.getRuns(n) - 1);
                 cfg.save();
                 requestRebuild.run();
-            }).bounds(contentX + contentWidth - 74, y, 70, 20).build());
+            }).bounds(contentX + contentWidth - 96, y, 22, 20).build());
+            widgets.add(SettingsButtonWidget.builder(Component.literal("+"), btn -> {
+                cfg.setRuns(n, cfg.getRuns(n) + 1);
+                cfg.save();
+                requestRebuild.run();
+            }).bounds(contentX + contentWidth - 72, y, 22, 20).build());
+            widgets.add(SettingsButtonWidget.builder(Component.literal("X"), btn -> {
+                cfg.remove(n);
+                cfg.save();
+                CarryTracker.reset(n);
+                requestRebuild.run();
+            }).bounds(contentX + contentWidth - 46, y, 22, 20).build());
             y += 22;
         }
         for (CarryTracker.Entry e : CarryTracker.recent(5)) {

@@ -7,7 +7,8 @@
 		"DungeonExtrasPacketMixin",
 		"ManualBreakMixin",
 		"OutboundBreakMixin",
-		"MultiPlayerGameModeInvoker"
+		"MultiPlayerGameModeInvoker",
+		"BreakerAuraInputMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

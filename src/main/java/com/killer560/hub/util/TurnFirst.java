@@ -63,7 +63,8 @@ public final class TurnFirst {
 
     public static void registerYawConstraint(java.util.function.Supplier<float[]> c) { YAW_CONSTRAINTS.add(c); }
 
-    private static float[] yawConstraint() {
+    /** The yaws a held walk allows right now (see {@link #registerYawConstraint}), or null for any yaw. */
+    public static float[] yawConstraint() {
         for (java.util.function.Supplier<float[]> c : YAW_CONSTRAINTS) {
             float[] y = c.get();
             if (y != null) return y;

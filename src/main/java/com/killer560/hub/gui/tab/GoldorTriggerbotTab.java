@@ -65,12 +65,8 @@ public class GoldorTriggerbotTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(clickTypeText(cfg));
                 }).bounds(contentX, y, halfW, ROW).build());
-        widgets.add(SettingsButtonWidget.cycling(aimDelayText(cfg), (btn, dir) -> {
-                    cfg.setAimDelayMs((int) SettingsButtonWidget.step(cfg.getAimDelayMs(), 25, 0,
-                            GoldorTriggerbotConfig.MAX_AIM_DELAY_MS, dir));
-                    cfg.save();
-                    btn.setMessage(aimDelayText(cfg));
-                }).bounds(contentX + halfW + GAP, y, rightW, ROW).build());
+        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Aim Delay", "ms", 0, GoldorTriggerbotConfig.MAX_AIM_DELAY_MS,
+                25, 0, cfg::getAimDelayMs, v -> cfg.setAimDelayMs((int) v), cfg::save));
         y += ROW + GAP;
 
         widgets.add(onOffButton("All Wither Bosses", cfg::isAllWithers, cfg::setAllWithers, cfg::save,
@@ -108,8 +104,5 @@ public class GoldorTriggerbotTab extends BaseTab {
         return Component.literal("Click Type: §b" + cfg.getClickType().label);
     }
 
-    private static Component aimDelayText(GoldorTriggerbotConfig cfg) {
-        return Component.literal("Aim Delay: " + cfg.getAimDelayMs() + "ms");
-    }
 
 }

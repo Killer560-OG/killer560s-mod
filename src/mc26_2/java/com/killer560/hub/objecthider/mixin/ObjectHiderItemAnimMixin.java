@@ -58,22 +58,10 @@ public abstract class ObjectHiderItemAnimMixin {
             return attack;
         }
         Player player = Minecraft.getInstance().player;
-        if (player != null && (isShortbow(player.getMainHandItem()) || isShortbow(player.getOffhandItem()))) {
+        if (player != null && (com.killer560.hub.trajectories.Shortbows.isShortbowId(player.getMainHandItem())
+                || com.killer560.hub.trajectories.Shortbows.isShortbowId(player.getOffhandItem()))) {
             return 0f;
         }
         return attack;
-    }
-
-    /** Same technique as {@code ObjectHiderFeature.skyblockId} - the item's Skyblock id from CUSTOM_DATA. */
-    private static boolean isShortbow(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
-        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read only: per arm render, no deep copy
-        if (tag == null) {
-            return false;
-        }
-        String id = tag.contains("id") ? tag.getStringOr("id", null) : null;
-        return id != null && id.contains("SHORTBOW");
     }
 }

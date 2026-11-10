@@ -175,10 +175,10 @@ public class AutoCroesusTab extends BaseTab {
                 y += 42;
             }
             // Live status only - the button that actually starts it is drawn over the Croesus menu itself.
-            widgets.add(label(contentX, y, contentWidth, AutoCroesusFeature.isRunning()
-                    ? "§aRunning §7- Escape stops it"
-                    : "§7Idle §8- §7starts from the §6Start Croesus §7button over the menu"));
-            y += 14;
+            if (AutoCroesusFeature.isRunning()) {
+                widgets.add(label(contentX, y, contentWidth, "§aRunning §7- Escape stops it"));
+                y += 14;
+            }
             if (AutoCroesusFeature.isRunning()) {
                 widgets.add(SettingsButtonWidget.builder(Component.literal("§cStop Auto Croesus"), btn -> {
                             AutoCroesusFeature.requestStop();

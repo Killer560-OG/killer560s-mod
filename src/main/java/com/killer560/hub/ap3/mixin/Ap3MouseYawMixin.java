@@ -27,6 +27,9 @@ public abstract class Ap3MouseYawMixin {
             return 0.0;
         }
         if (Ap3Executor.onMouseYaw((float) yawDelta * 0.15f)) {
+            // A hold under AP3's view (Breaker Aura aiming during a walk) follows his mouse too, or the camera jumps to
+            // its stale view the moment AP3's lets go (the S1 "look angle snap", balate-1109).
+            com.killer560.hub.util.ViewFreeze.turnView((float) yawDelta * 0.15f, 0f);
             return 0.0;
         }
         // Whoever else is holding the camera (the auto puzzles) gets steered too, so it is a FREE camera he can
@@ -49,6 +52,7 @@ public abstract class Ap3MouseYawMixin {
             return 0.0;
         }
         if (Ap3Executor.onMousePitch((float) pitchDelta * 0.15f)) {
+            com.killer560.hub.util.ViewFreeze.turnView(0f, (float) pitchDelta * 0.15f);
             return 0.0;
         }
         if (com.killer560.hub.util.ViewFreeze.isHeld()) {

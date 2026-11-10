@@ -19,6 +19,32 @@ public final class BossStartScreen extends Screen {
     private static final java.nio.file.Path MODE_FILE = com.killer560.hub.util.ModPaths.config("killer560smod-sim-boss.txt");
     private static boolean master = true;
 
+    /** Spawn Withers switch (default ON), saved beside the mode: {@code off} or absent. */
+    private static final java.nio.file.Path WITHERS_FILE = com.killer560.hub.util.ModPaths.config("killer560smod-sim-boss-withers.txt");
+    private static Boolean withers;
+
+    public static boolean spawnWithers() {
+        if (withers == null) {
+            try {
+                withers = !java.nio.file.Files.isRegularFile(WITHERS_FILE)
+                        || !java.nio.file.Files.readString(WITHERS_FILE).trim().equalsIgnoreCase("off");
+            } catch (java.io.IOException | RuntimeException e) {
+                withers = true;
+            }
+        }
+        return withers;
+    }
+
+    public static void setSpawnWithers(boolean on) {
+        withers = on;
+        try {
+            java.nio.file.Files.createDirectories(WITHERS_FILE.getParent());
+            java.nio.file.Files.writeString(WITHERS_FILE, on ? "on" : "off");
+        } catch (java.io.IOException ignored) {
+            // the choice still holds for this session
+        }
+    }
+
     private static void loadMode() {
         try {
             if (java.nio.file.Files.isRegularFile(MODE_FILE)) {
@@ -100,8 +126,18 @@ public final class BossStartScreen extends Screen {
             saveMode();
             b.setMessage(Component.literal(modeLabel()));
         }).bounds(x1, y, bw, 18).build());
+        var withersBtn = addRenderableWidget(SettingsButtonWidget.builder(withersLabel(), btn -> {
+            setSpawnWithers(!spawnWithers());
+            btn.setMessage(withersLabel());
+        }).bounds(x2, y, bw, 18).build());
+        withersBtn.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(
+                com.killer560.hub.gui.SettingTooltips.describe("F7 Boss", "Spawn Withers"))));
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
                 .bounds(x2, panelY + panelH - 24, bw, 18).build());
+    }
+
+    private static Component withersLabel() {
+        return Component.literal("Spawn Withers: " + (spawnWithers() ? "§aON" : "§cOFF"));
     }
 
     private static String modeLabel() {

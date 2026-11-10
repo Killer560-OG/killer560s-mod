@@ -261,7 +261,8 @@ public final class BloodCampFeature {
         }
         // Before any entity lookup: until the Watcher is known no move packet can matter (every stand in the world sends them).
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || watcherEntityId == null && lastWatcherPos == null) {
+        if (client.player == null || !roomAnchorKnown()) {
+            // (the Watcher's last spot, or the Blood Room the map knows)
             return;
         }
         if (!(packet.getEntity(level) instanceof ArmorStand entity)) {
@@ -309,7 +310,7 @@ public final class BloodCampFeature {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || watcherEntityId == null && lastWatcherPos == null || level == null) {
+        if (client.player == null || !roomAnchorKnown() || level == null) {
             return;
         }
         if (!(level.getEntity(entityId) instanceof ArmorStand entity)) {
@@ -382,10 +383,17 @@ public final class BloodCampFeature {
         if (w != null) {
             lastWatcherPos = w.position();
         }
-        return lastWatcherPos;
+        return lastWatcherPos != null ? lastWatcherPos : mapBloodAnchor;
     }
 
     private static Vec3 lastWatcherPos;
+    /** The Blood Room's centre as the live map knows it (refreshed once a second while the Watcher was never seen), so
+     *  the boxes draw from anywhere in the dungeon the server sends the skull stands to, not only once he stood in the room. */
+    private static Vec3 mapBloodAnchor;
+
+    private static boolean roomAnchorKnown() {
+        return watcherEntityId != null || lastWatcherPos != null || mapBloodAnchor != null;
+    }
 
     /**
      * Whether a skull stand can be one of the Watcher's: in his room tile (the Blood Room), or within 20 blocks of him.
@@ -663,6 +671,7 @@ public final class BloodCampFeature {
             LANDED.clear();
             CLAIMS.clear();
             lastWatcherPos = null;
+            mapBloodAnchor = null;
             UNKNOWN_SKULLS_LOGGED.clear();
             COMPANIONS_LOGGED.clear();
             TAGGED_AT.clear();
@@ -707,6 +716,9 @@ public final class BloodCampFeature {
         }
         if (watcherEntityId == null) {
             scanForWatcher(client);
+            if (lastWatcherPos == null && client.level.getGameTime() % 20 == 0) {
+                mapBloodAnchor = com.killer560.hub.livemap.LiveMapFeature.bloodRoomCenter();
+            }
         }
 
         long now = client.level.getGameTime();
@@ -734,7 +746,7 @@ public final class BloodCampFeature {
                     com.killer560.hub.leapmenu.PartyTracker.selfClass(), now);
         }
         lastClassOkLogged = classOk;
-        inRoom = inRoom && classOk;
+        inRoom = (inRoom || cfg.isWorkOutside() && nearBloodRoom(client)) && classOk;
         if (inRoom != lastInBloodRoom) {
             LOGGER.info("[BloodCamp] Blood Room: {} (watcher={} mapType={} watcherTile={}) tick={}", inRoom ? "entered" : "left",
                     watcherEntityId, com.killer560.hub.livemap.LiveMapFeature.currentRoomType(),
@@ -2113,6 +2125,20 @@ public final class BloodCampFeature {
      *  calls the room BLOOD. A map type that is anything else never overrules the Watcher. */
     public static boolean bloodRoomVerdict(String mapRoomType, boolean inWatcherTile) {
         return inWatcherTile || "BLOOD".equals(mapRoomType);
+    }
+
+    /** Work Just Outside Blood Room: within {@link BloodCampConfig#OUTSIDE_MARGIN} blocks of the Blood Room's tile (the Watcher's
+     *  last spot, or the map's Blood Room, stands in for him while he is out of range). */
+    static boolean nearBloodRoom(Minecraft client) {
+        Vec3 a = watcherAnchor(client.level);
+        if (a == null || client.player == null) {
+            return false;
+        }
+        Vec3 p = client.player.position();
+        double reach = 16.0 + BloodCampConfig.OUTSIDE_MARGIN;
+        return Math.abs(p.x - (com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(a.x))) <= reach
+                && Math.abs(p.z - (com.killer560.hub.livemap.LiveMapFeature.START_Z + 32.0 * roomTile(a.z))) <= reach
+                && Math.abs(p.y - a.y) < 40.0;
     }
 
     private static boolean inWatcherTile(Minecraft client) {
