@@ -247,6 +247,12 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   extra flying packet, and Grim's Timer counts every tick packet (client_tick_end too, 1.21.2+) with only 120 ms of
   fall-behind (`clockDrift`), so that cannot be banked. Arrow Align Aura therefore does one frame a tick, all its clicks
   (Clicks Per Tick up to 7), and RSA's and QUOI's auras do the same (one frame, every click, then `break`).
+- **GrimAC 2.3.74 RotationPlace (vineflower of `RotationPlace.class`) judges a block click by a ray against the block's
+  FULL cube, only out to `BLOCK_INTERACTION_RANGE` (4.5), from the server's eye with yaw/pitch/lastYaw/lastPitch mixes.**
+  A lever whose outline is hit 4.85-5.0 away can sit within 4.5 by box distance yet have the look enter its cube past 4.5:
+  the EE3 v3 route's low S2 lever 27,124,127 drew "post-flying" then "pre-flying" on every later place (leverap3-1109).
+  Lever Aura's `TurnFirst.grimReach()` requires that cube-in-range ray too; re-pitching in the click tick for the next eye
+  made it worse (both levers flagged). A lever the route never brings that close is not flicked: fix the route.
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
   before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at
