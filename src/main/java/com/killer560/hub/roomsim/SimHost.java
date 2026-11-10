@@ -4,7 +4,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.relay.RelayCalls;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
@@ -73,8 +72,10 @@ public final class SimHost {
             if (!active || !(server instanceof IntegratedServer)) return;
             if (server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
         });
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            if (active) byeAll(server, "the owner left");
+        // As the owner's own connection drops, while the guests' still carry the bye (by SERVER_STOPPING the
+        // connection listener has already closed them: the guest read "Disconnected").
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            if (active && SimCoop.isHost(handler.player)) byeAll(server, "the owner left");
         });
     }
 
@@ -296,7 +297,10 @@ public final class SimHost {
 
     private static void byeAll(MinecraftServer server, String reason) {
         for (ServerPlayer sp : List.copyOf(server.getPlayerList().getPlayers())) {
-            if (!SimCoop.isHost(sp)) SimCoop.bye(sp, reason);
+            if (!SimCoop.isHost(sp)) {
+                SimCoop.LOGGER.info("[SimCoop] dropped {}: {}", sp.getGameProfile().name(), SimCoop.byeText(reason));
+                SimCoop.bye(sp, reason);
+            }
         }
     }
 
