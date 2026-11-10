@@ -251,7 +251,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   FULL cube, only out to `BLOCK_INTERACTION_RANGE` (4.5), from the server's eye with yaw/pitch/lastYaw/lastPitch mixes.**
   A lever whose outline is hit 4.85-5.0 away can sit within 4.5 by box distance yet have the look enter its cube past 4.5:
   the EE3 v3 route's low S2 lever 27,124,127 drew "post-flying" then "pre-flying" on every later place (leverap3-1109).
-  Lever Aura's `TurnFirst.grimReach()` requires that cube-in-range ray too; re-pitching in the click tick for the next eye
+  `TurnFirst.readyBlock` (every block-click aura: Secret Aura, Lights Device, Simon Says, door opener, auto puzzles, Lever Aura; grimreach-1110 made it the default, no flag) requires that cube-in-range ray too; re-pitching in the click tick for the next eye
   made it worse (both levers flagged). A lever the route never brings that close is not flicked: fix the route.
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation

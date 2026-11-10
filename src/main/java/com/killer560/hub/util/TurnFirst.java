@@ -90,14 +90,6 @@ public final class TurnFirst {
         return this;
     }
 
-    private boolean grimReach;
-
-    /** Block clicks also need the look on the full cube within the interaction range (GrimAC RotationPlace). */
-    public TurnFirst grimReach() {
-        grimReach = true;
-        return this;
-    }
-
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-turnfirst");
 
     /** How the last click this owner was told to make got its look: for the log line at the click. */
@@ -229,11 +221,11 @@ public final class TurnFirst {
         Vec3 end = eye.add(look(player).scale(reach));
         AABB cube = new AABB(pos);
         double range = player.blockInteractionRange();
-        // grimReach: the look must also meet the block's full cube within the interaction range, which is how GrimAC's
+        // Every block click (readyBlock): the look must also meet the block's full cube within the interaction range, which is how GrimAC's
         // RotationPlace judges a block click; a lever hit 4.85-5.0 away drew it (leverap3-1109).
         java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> (shape.isEmpty() ? cube.clip(a, b).isPresent()
                 : shape.clip(a, b, pos) != null)
-                && (!grimReach || cube.contains(a) || cube.clip(a, a.add(b.subtract(a).normalize().scale(range))).isPresent());
+                && (cube.contains(a) || cube.clip(a, a.add(b.subtract(a).normalize().scale(range))).isPresent());
         return settle(player, ray.test(eye, end), aimPoint, ray, reach, pos.toShortString());
     }
 

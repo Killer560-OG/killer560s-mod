@@ -107,7 +107,7 @@ public final class LeverAuraFeature {
     // Tick
 
     /** The body turn for a lever the reported look does not reach (see util/TurnFirst); the camera never moves. */
-    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst().offWalk().grimReach();
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst().offWalk();
 
     private static void tick(Minecraft client) {
         // First, always: a body turned for a flick is held for it and given back the tick after.
