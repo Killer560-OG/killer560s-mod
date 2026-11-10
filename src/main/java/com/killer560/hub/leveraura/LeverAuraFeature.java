@@ -41,8 +41,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
  * no line-of-sight check, never with a container open; a lever the reported look does not reach gets the body (never the
- * camera) turned to it a tick first (util/TurnFirst). Pacing is a CPS setting (1-20): a lever must be in range for one
- * gap before its first click, and clicks are spaced by 1000 / CPS ms with +-10% jitter, scheduled from the previous
+ * camera) turned to it a tick first (util/TurnFirst), while moving the tick before it comes into reach. Pacing is a CPS
+ * setting (1-20): a lever must be in range, or due in range on his present course, for one gap before its first click,
+ * and clicks are spaced by 1000 / CPS ms with +-10% jitter, scheduled from the previous
  * click's due tick, at most one a tick.
  */
 public final class LeverAuraFeature {
@@ -158,9 +159,16 @@ public final class LeverAuraFeature {
         boolean s2Open = section == 2;
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
+        // Where the eye goes per tick (the fall counts in the air): an AP3 walk can carry him through a lever's reach in
+        // 2 ticks, too few to see it, wait the dwell, turn and flick (HEE2-EE3 v3 missed the high lever that way). So the
+        // dwell starts when the lever is due in reach within one gap, and the body turns the tick before it is in reach.
+        Vec3 v = client.player.getDeltaMovement();
+        double sx = v.x, sy = client.player.onGround() ? 0.0 : v.y, sz = v.z;
+        int horizon = Math.min(20, (int) Math.ceil(1100.0 / cfg.getCps() / 50.0) + 1);
 
         BlockPos target = null;
         String reason = null;
+        boolean approach = false;
         Set<Long> inRangeNow = new HashSet<>();
 
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
@@ -174,30 +182,37 @@ public final class LeverAuraFeature {
                 }
                 // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-                if (d > rangeSq) {
+                int soon = d <= rangeSq ? 0 : ticksToReach(eye, sx, sy, sz, pos, rangeSq, horizon);
+                if (soon < 0) {
                     logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
                     continue;
                 }
                 long key = pos.asLong();
                 inRangeNow.add(key);
-                if (!dwellPassed(cfg, key, now) || (s2Open ? clickedS2 : clickedEarly).contains(key)
-                        || !hasNotActivatedStand(client, pos)) {
-                    // Read back what dwellPassed just stored (no second call: it rolls the dwell on first sight).
-                    Long since = inRangeSince.get(key);
-                    Long need = requiredDwell.get(key);
-                    if (since != null && need != null && now - since < need) {
-                        logLever(pos, "dwell", "in range, waiting the dwell (" + need + " ms)", d);
-                    } else if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
-                        logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
-                    } else {
-                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
-                    }
+                boolean dwellOk = dwellPassed(cfg, key, now);
+                if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
+                    logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
                     continue;
                 }
-                logLever(pos, "eligible", reasonFor(s2Open), d);
-                if (d < best) {
-                    best = d;
+                // Read back what dwellPassed just stored (no second call: it rolls the dwell on first sight). A lever due
+                // next tick takes its turn now if its dwell is over by then.
+                long left = requiredDwell.get(key) - (now - inRangeSince.get(key));
+                if (soon == 0 ? !dwellOk : soon > 1 || left > 50) {
+                    logLever(pos, "dwell", (soon == 0 ? "in range" : "in range in " + soon + " ticks") + ", waiting the dwell ("
+                            + requiredDwell.get(key) + " ms)", d);
+                    continue;
+                }
+                if (!hasNotActivatedStand(client, pos)) {
+                    logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
+                    continue;
+                }
+                logLever(pos, soon == 0 ? "eligible" : "approach", soon == 0 ? reasonFor(s2Open) : "in range next tick: turn first", d);
+                // One in reach now goes before one only due next tick.
+                double rank = soon == 0 ? d : 1e9 + d;
+                if (rank < best) {
+                    best = rank;
                     target = pos;
+                    approach = soon > 0;
                     reason = s2Open ? "S2 section lever" : "S2 section lever (early)";
                 }
             }
@@ -223,7 +238,8 @@ public final class LeverAuraFeature {
             logHeld("gate", "ActionGate refused LEVER_AURA, lever " + target.toShortString());
             return;
         }
-        if (!click(client, cfg, target, reason, s2Open)) {
+        if (approach ? preTurn(client, target, new Vec3(eye.x + sx, eye.y + sy, eye.z + sz))
+                : !click(client, cfg, target, reason, s2Open)) {
             // The body was turned to it this tick (or no hit yet): the flick goes next tick.
             if (turnStartTick < 0) {
                 turnStartTick = tick;
@@ -238,6 +254,21 @@ public final class LeverAuraFeature {
         // tick, not this one, so the average is the CPS set even when the gap is a fraction of a tick. One flick a tick
         // at most, so 20 is the ceiling; a flick the gate held back carries at most a tick of backlog.
         nextClickDueTick = Math.max(nextClickDueTick, base - 1) + gapMs(cfg) / 50.0;
+    }
+
+    /**
+     * A lever in reach only from next tick's eye: turn the body now (aimed from that eye) so the flick can go in its first
+     * tick in reach. Never clicks. Always true (nothing went out; the flick is scheduled from this tick).
+     */
+    private static boolean preTurn(Minecraft client, BlockPos pos, Vec3 eyeNext) {
+        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos, eyeNext);
+        // Already turned (a slow approach): keep that hold; asking again would read "hits" and give the body back early.
+        if (hit != null && !TURN.isTurned() && !TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
+                eyeNext.distanceTo(hit.getLocation()) + 1.0)) {
+            LOGGER.info("[LeverAura] turning body to lever {} a tick before it is in reach tick={}", pos.toShortString(),
+                    ActionGate.currentTick());
+        }
+        return true;
     }
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
@@ -275,6 +306,16 @@ public final class LeverAuraFeature {
             ModChat.send(CHAT_TAG, ModChat.text("Flicked "), ModChat.value(pos.toShortString()), ModChat.dim(" (" + reason + ")"));
         }
         return true;
+    }
+
+    /** Ticks (1..horizon) until {@code pos} is in reach if the eye keeps its step per tick, or -1. */
+    private static int ticksToReach(Vec3 eye, double sx, double sy, double sz, BlockPos pos, double rangeSq, int horizon) {
+        for (int k = 1; k <= horizon; k++) {
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye.x + sx * k, eye.y + sy * k, eye.z + sz * k, pos) <= rangeSq) {
+                return k;
+            }
+        }
+        return -1;
     }
 
     /** A lever must have been in range for one CPS gap (rolled when it came into range) before its first click. */
