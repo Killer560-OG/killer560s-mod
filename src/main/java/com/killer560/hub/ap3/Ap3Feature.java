@@ -273,6 +273,8 @@ public final class Ap3Feature {
         public Integer leapCounter;
         /** {@code sectiondone:<n>}: fire only once P3 section n (1-4) is complete (2026-10-27). */
         public Integer sectionDone;
+        /** {@code crystals:<n>}: wait for n (1-2) End Crystals to appear within 5 blocks (2026-11-09). */
+        public Integer crystalWait;
         /** BLINK_CHARGE / BLINK_RELEASE: the tick count typed after the type, null = the max. */
         public Integer blinkTicks;
         /** BLINK_CHARGE {@code stop}: a plain stop instead of frozen momentum. */
@@ -319,6 +321,9 @@ public final class Ap3Feature {
             }
             if (sectionDone != null) {
                 node.sectionDone = Math.max(0, Math.min(4, sectionDone));
+            }
+            if (crystalWait != null) {
+                node.crystalWait = Math.max(0, Math.min(2, crystalWait));
             }
             if (leapCounter != null) {
                 node.setLeapCounter(leapCounter);

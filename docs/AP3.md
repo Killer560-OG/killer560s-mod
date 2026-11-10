@@ -172,6 +172,7 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   on every section change, so a finished S1 count cannot answer for S2; it resets on Goldor's line and a world change, and
   reads only F7/M7 lines whose name group is `[A-Za-z0-9_]{1,16}` (a forged "[VIP] Bob: a activated a terminal! (7/7)"
   does nothing - testkit 1027-ap3-section-s1..s4).
+- **`crystals:<1|2>` (2026-11-09).** Any node; saved as "crystalWait". Held by the leapcounter: gate. On entry the gate snapshots the ids of every End Crystal within 32 blocks (already standing, never counted); each END tick, while it holds, it scans End Crystals in a 5-block box and counts any new id within 5 blocks (3D) of him. Released at the count; a left click skips; nothing scans while no crystal wait holds. The sim's Energy Crystal placing (bosssim/BossFight.crystal) adds a real EndCrystal, so it works there.
 - **Left click on a wait (2026-10-27).** His 09:22:39 log: leapcounter #37 held, he opened chat, "dropped (a screen
   opened)", and the node - he was standing in its box - could not fire again until he walked off and back on; a click had
   no gate to skip. A screen no longer stops AP3 while the only thing running is a gate (gateOnlyWaiting), and a stop that

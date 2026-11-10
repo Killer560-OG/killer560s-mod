@@ -104,6 +104,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     private boolean ssGate;
     /** The {@code close} suffix: fire only after a terminal is closed. */
     private boolean closeGate;
+    private int crystalWait;
     /** USE: the Skyblock id to swap to, or null for "use whatever is held". */
     private String itemId;
     private boolean typeOpen;
@@ -156,6 +157,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             precise = n.precise;
             ssGate = n.ssGate;
             closeGate = n.closeGate;
+            crystalWait = n.crystalWait;
             blinkStop = n.blinkStop;
             itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
@@ -179,7 +181,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         int typeRows = (Ap3Node.Type.values().length + TYPE_COLS - 1) / TYPE_COLS;
         int itemRows = (choices.size() + ITEM_COLS - 1) / ITEM_COLS;
         int rows = 1 + (typeOpen ? typeRows : 0) + 1 /* xyz */ + 1 /* box */ + (type.usesYaw() ? 1 : 0)
-                + 1 /* wait, name */ + 1 /* leap counter */
+                + 1 /* wait, name */ + 1 /* leap counter */ + 1 /* crystals */
                 + (type == Ap3Node.Type.BLINK_CHARGE ? 1 : 0) /* momentum */ + (type.usesItem() ? 1 + itemRows : 0) + 1 /* jump, precise */ + 1 /* from me */;
         panelW = PANEL_W;
         panelH = 32 + rows * LINE + 12 /* status */ + 20 + PAD;
@@ -257,6 +259,12 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             // Crystal: the Spring Boots height in blocks, as /ap3 add crystal <n>; blank = the crystal above the node.
             addField(x + half + GAP, y, w - half - GAP, "Crystal height", "Height", 38);
         }
+        y += LINE;
+        // The crystals:<n> suffix (2026-11-09): Off / 1 / 2 End Crystals placed within 5 blocks before the node fires.
+        cycleButton(crystalLabel(), (b, dir) -> {
+            crystalWait = SettingsButtonWidget.step(crystalWait, dir, 3);
+            b.setMessage(Component.literal(crystalLabel()));
+        }, x, y, w, ROW);
         y += LINE;
         if (type == Ap3Node.Type.BLINK_CHARGE) {
             // Momentum kept (default): his physics pauses while the charge banks; Stop: he brakes, then banks standing.
@@ -467,6 +475,10 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
                 .bounds(x, y, w, h).build());
     }
 
+    private String crystalLabel() {
+        return "Wait For Crystal: \u00a76" + (crystalWait == 0 ? "off" : String.valueOf(crystalWait));
+    }
+
     /** BLINK_CHARGE: the plain stop instead of frozen momentum ({@link Ap3Node#blinkStop}). */
     private boolean blinkStop;
 
@@ -575,6 +587,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;
             node.closeGate = closeGate;
+            node.crystalWait = crystalWait;
             if (newType.usesPrecise()) {
                 node.precise = precise;
             }
