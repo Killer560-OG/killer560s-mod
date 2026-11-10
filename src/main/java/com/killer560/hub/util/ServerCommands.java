@@ -74,8 +74,13 @@ public final class ServerCommands {
         }
         if (!OutgoingChat.CHAT_COMMANDS.contains(word)) return false;
         if ((word.equals("pc") || word.equals("pchat")) && !text.isEmpty()) {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§9Party §8> §7" + player.getGameProfile().name() + "§f: " + text));
+            net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("Party")
+                    .withStyle(net.minecraft.ChatFormatting.BLUE)
+                    .append(net.minecraft.network.chat.Component.literal(" > ").withStyle(net.minecraft.ChatFormatting.DARK_GRAY))
+                    .append(net.minecraft.network.chat.Component.literal(player.getGameProfile().name())
+                            .withStyle(net.minecraft.ChatFormatting.GRAY))
+                    .append(net.minecraft.network.chat.Component.literal(": " + text).withStyle(net.minecraft.ChatFormatting.WHITE));
+            player.sendSystemMessage(line);
         }
         return true;
     }
