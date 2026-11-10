@@ -5522,6 +5522,18 @@ public final class Ap3Executor {
         return out;
     }
 
+    /**
+     * For {@code util/TurnFirst.registerOffWalk}: the held walk's yaw while an aura with no walk-keyed look at its target
+     * (a lever beside the run, leverap3-1109) may bend the walk for its click's two ticks; NaN when no held walk drives or
+     * a jump is due or armed (a sprint jump's boost goes along the facing, so a turned body would throw the jump off).
+     */
+    public static float offWalkYaw() {
+        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0) {
+            return Float.NaN;
+        }
+        return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
     private static float heldKeysYaw;
     private static boolean heldKeysValid;
@@ -5547,6 +5559,14 @@ public final class Ap3Executor {
             return;
         }
         float was = heldKeysYaw;
+        if (wantJump) {
+            // A jump goes in this tick under an aura's turn (or its hand-back): face the walk for it as applyHoldRealYaw
+            // does on a jump tick, or the sprint-jump boost goes along the aura's yaw and throws the route off (leverap3-1109:
+            // a lever turn on the platform jump put him in the lava). The aura's click misses this look and turns again.
+            yaw += Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z)) - yaw);
+            player.setYRot(yaw);
+            RouteRotation.rebase();
+        }
         writeHeldKeysAt(player, yaw);
         LOGGER.info("[AP3] held walk: the body was turned from {} to {} before the move (another feature's turn) - keys"
                         + " re-picked for that yaw: {}{}{}{}",

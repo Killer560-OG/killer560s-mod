@@ -224,6 +224,15 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `util/TurnFirst` (or BodyAim), camera held, and send only after a movement packet has carried the turn: an AP3 Term Aura
   click sent at the START right after an END turn preceded every packet facing the stand, and after an earlier flag GrimAC
   let none through (testkit 416). Digs are not judged this way (54: behind and through a wall, 0 lines).
+- **Lever Aura never flipped an S2 lever beside an AP3 run (leverap3-1109).** Three causes, all in the HEE2 -> EE3 sim:
+  (1) under a held walk TurnFirst allowed only the walk-keyed yaws, and a lever 2-4 blocks to the side meets none, so it
+  deferred every tick (fix: `TurnFirst.offWalk()`, docs/AP3.md); (2) TurnFirst aimed from the eye after this tick's move
+  with the HORIZONTAL motion only, so in a fall (about a block a tick) the look missed by the drop, the click never went and
+  the body was turned again every tick; the prediction now adds `v.y` off the ground; (3) a turn out on a jump tick sent the
+  sprint-jump boost along the lever's yaw and threw him into the lava; AP3 faces the walk on every jump tick now. Testkit
+  1109-boss-ee3route (sim, levers t31-33 and t49-51, EE3 at t201-202 three of three) and 1109-boss-ee3route-grim /
+  -same-use / -same-swap / -same-dig (hx, Grim default and experimental clean; use and swap share GrimAC ticks with the
+  lever click on the wire, a queued dig holds it to another tick).
 - **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
   checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
   Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact

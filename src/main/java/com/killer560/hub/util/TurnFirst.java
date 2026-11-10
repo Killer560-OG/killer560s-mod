@@ -72,6 +72,24 @@ public final class TurnFirst {
         return null;
     }
 
+    /**
+     * The held walk's own yaw while an owner that opted in ({@link #offWalk()}) may bend that walk for the two ticks of
+     * one click when no walk-keyed yaw meets its target, NaN when not (leverap3-1109: a lever beside his AP3 run was never
+     * flipped, no W / W+A / W+D yaw met it in the ~6 ticks it was in reach).
+     */
+    private static final java.util.List<java.util.function.Supplier<Float>> OFF_WALK =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void registerOffWalk(java.util.function.Supplier<Float> s) { OFF_WALK.add(s); }
+
+    private boolean offWalk;
+
+    /** Lets this owner's turns bend a held walk for one click when no walk-keyed yaw reaches the target. */
+    public TurnFirst offWalk() {
+        offWalk = true;
+        return this;
+    }
+
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-turnfirst");
 
     /** How the last click this owner was told to make got its look: for the log line at the click. */
@@ -243,16 +261,25 @@ public final class TurnFirst {
             // whose ray meets the target from where the click will be judged - the eye after this tick's move (the
             // click goes out at the next START, judged by the position and look of this tick's movement packet).
             Vec3 v = player.getDeltaMovement();
-            Vec3 eyeNext = player.getEyePosition().add(v.x, 0.0, v.z);
-            float[] found = walkKeyedLook(allowed, eyeNext, pitch, ray, reach);
+            // Falling counts: the eye drops about a block a tick late in a fall, and a look aimed from the eye before the
+            // drop missed the low S2 lever every tick (leverap3-1109).
+            Vec3 eyeNext = player.getEyePosition().add(v.x, player.onGround() ? 0.0 : v.y, v.z);
+            float[] found = walkKeyedLook(allowed, eyeNext, pitch, ray, reach, 720);
+            boolean bent = false;
+            if (found == null && offWalk) {
+                found = offWalkLook(player, eyeNext, yaw, pitch, ray, reach);
+                bent = found != null;
+            }
             if (found == null) {
                 method = "deferred";
                 return false; // none this tick: no turn at all; the bearing moves as he walks, try again next tick
             }
             yaw = found[0];
             pitch = found[1];
-            method = String.format(java.util.Locale.US, "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)",
-                    yaw, pitch);
+            method = String.format(java.util.Locale.US, bent
+                    ? "an off-walk look (yaw %.1f, pitch %.1f: the walk bent %.1f degrees for this click)"
+                    : "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)", yaw, pitch,
+                    bent ? found[2] : 0f);
         } else {
             method = String.format(java.util.Locale.US, "a body turn (yaw %.1f, pitch %.1f)", yaw, pitch);
         }
@@ -282,9 +309,9 @@ public final class TurnFirst {
     /** The first allowed yaw with a pitch (searched out from {@code pitch0} in quarter degrees) whose ray from {@code eye}
      *  meets the target within {@code reach}; null when none does. */
     private static float[] walkKeyedLook(float[] yaws, Vec3 eye, float pitch0, java.util.function.BiPredicate<Vec3, Vec3> ray,
-                                         double reach) {
+                                         double reach, int pitchSteps) {
         for (float yaw : yaws) {
-            for (int i = 0; i <= 720; i++) {
+            for (int i = 0; i <= pitchSteps; i++) {
                 float step = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.25f;
                 float pitch = pitch0 + step;
                 if (pitch < -90f || pitch > 90f) continue;
@@ -296,6 +323,43 @@ public final class TurnFirst {
             }
         }
         return null;
+    }
+
+    /**
+     * A look off the walk for one click (see {@link #registerOffWalk}): of the yaws within 30 degrees of the target whose
+     * ray meets it, the one whose nearest key combination keeps W (the sprint) and lies nearest a whole 45-degree step off
+     * the walk, so the walk's keys re-picked at that yaw (Ap3Executor.beforeInputInstall) bend it the least on the two ticks
+     * the body is turned. On the ground only W-keeping yaws; in the air any (the keys only steer the small air push there).
+     * {yaw, pitch, bend in degrees}, or null.
+     */
+    private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
+                                       java.util.function.BiPredicate<Vec3, Vec3> ray, double reach) {
+        float walk = Float.NaN;
+        for (java.util.function.Supplier<Float> s : OFF_WALK) {
+            Float w = s.get();
+            if (w != null && !w.isNaN()) {
+                walk = w;
+                break;
+            }
+        }
+        if (Float.isNaN(walk)) return null;
+        float[] best = null;
+        float bestScore = Float.MAX_VALUE;
+        for (int d = 0; d <= 60; d++) {
+            float yaw = yaw0 + (d % 2 == 0 ? d / 2 : -(d + 1) / 2);
+            float rel = Mth.wrapDegrees(walk - yaw); // the walk seen from this facing: W keeps while |rel| < 67.5
+            boolean keepsW = Math.abs(rel) < 67.5f;
+            if (!keepsW && player.onGround()) continue;
+            float bend = Math.abs(rel - 45f * Math.round(rel / 45f));
+            float score = bend + (keepsW ? 0f : 100f);
+            if (score >= bestScore) continue;
+            float[] f = walkKeyedLook(new float[]{yaw}, eye, pitch0, ray, reach, 120);
+            if (f != null) {
+                best = new float[]{f[0], f[1], bend};
+                bestScore = score;
+            }
+        }
+        return best;
     }
 
     /** The look the movement packets report: the body's rotation, NOT getViewVector (which a held camera answers). */

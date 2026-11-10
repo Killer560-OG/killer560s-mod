@@ -151,6 +151,13 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the sprint kept, so `TurnFirst.registerYawConstraint` (AP3: `Ap3Executor.walkKeyedYaws`) lets an aura turn only to one
   of those, with any pitch whose ray meets the target from the eye after this tick's move; none this tick = no turn, the
   click waits. A/D/back yaws were allowed first and dropped the sprint, which bent the path after the next node by 0.65.
+- **Lever Aura may bend the walk for a lever beside the run (leverap3-1109).** With only the three walk-keyed yaws, an S2
+  lever 2-4 blocks to the side of an HEE2 -> EE3 run never got its click: Lever Aura logged "turning body to lever ...
+  first" every tick until out of range. `TurnFirst.offWalk()` (Lever Aura only) then tries yaws within 30 degrees of the
+  lever, scored by the bend from the nearest whole 45-degree key step (`Ap3Executor.offWalkYaw`, the walk yaw; NaN while a
+  jump is due or armed), keeping W on the ground so the sprint stays. The bend lasts the click's two ticks; AP3's held keys
+  are re-picked at that yaw (`nearestKey8`). On a jump tick AP3 faces the walk whatever turn is out (the sprint-jump boost
+  goes along the facing; a lever turn on the platform jump threw him into the lava), and the click turns again after.
 - **#34 on main 3011406a (2026-10-27).** (1) The "no stepping down unless the point is lower" rule stranded an align that
   had to cross a stair's low half: his 09:25:55 Fast Align #34 started on the low half, stepped up, then refused every
   press for 50 ticks at rest 0.78 from the point. A press may now cross a lower floor down to start - 0.5 when the fall
