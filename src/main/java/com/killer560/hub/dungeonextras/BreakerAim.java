@@ -60,6 +60,11 @@ public final class BreakerAim {
     private static long pitchAims;
     private static long yawAims;
     private static long yawWaits;
+    private static long offWalkAims;
+    /** The last walkYaws answer allows a look off his walk for a pick in his way (not a sprint-jump take-off, not AP3
+     *  driving without a held walk's yaws). */
+    private static boolean freeLookOk;
+    private static String lastWait = "";
 
     private BreakerAim() {
     }
@@ -159,18 +164,23 @@ public final class BreakerAim {
      * {@code targets} from where he will be (pitch only while he walks, else yaw too), so next tick's burst digs them all
      * on a look the server heard. @return what was done, or null when none can be aimed without steering his walk.
      */
-    static String aimForMost(Minecraft client, LocalPlayer player, List<BlockPos> targets) {
-        return aim(client, player, targets, true);
+    static String aimForMost(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean urgent) {
+        return aim(client, player, targets, true, urgent);
     }
 
     /**
      * Turns the body (camera held) so this tick's movement packet carries the look that strikes the most of {@code targets}
      * (on GrimAC's three eye rays when {@code anyEye}, else on his own eye) from where he will be. While he walks only a
-     * yaw that leaves his walk exactly as it was (walkYaws) is used, with any pitch; standing, any look.
+     * yaw that leaves his walk exactly as it was (walkYaws) is used, with any pitch; standing, any look. When none strikes
+     * and the pick is {@code urgent} (in his way, he is not getting anywhere, or it waited too long: BreakerAuraFeature),
+     * the look goes straight at it as before balate-1109, his keys turned the nearest 45-degree steps back (balatefix-1109).
      */
-    private static String aim(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean anyEye) {
+    private static String aim(Minecraft client, LocalPlayer player, List<BlockPos> targets, boolean anyEye, boolean urgent) {
         if (targets.isEmpty() || handsBusy(client) || routeRunning() || someoneElseHolds() || !pitchFree(player)
                 || TurnFirst.bodyOwned()) {
+            lastWait = targets.isEmpty() ? "" : handsBusy(client) ? "his hands are busy" : routeRunning() ? "a route runs"
+                    : someoneElseHolds() ? "another feature holds the camera" : !pitchFree(player) ? "in water or riding"
+                    : "AP3 owns the body";
             return null;
         }
         Vec3 feet = player.position().add(player.getDeltaMovement());
@@ -220,28 +230,53 @@ public final class BreakerAim {
             return String.format(java.util.Locale.ROOT, ownYaw ? "yaw %.1f/%.1f, walk kept (%d of %d)" : "pitch %2$.1f (%3$d of %4$d)",
                     bestYaw, bestPitch, best, targets.size());
         }
-        if (yaws != null) {
+        if (yaws != null && !(urgent && freeLookOk)) {
             yawWaits++;
+            lastWait = String.format(java.util.Locale.ROOT, "first %s, feet %.2f %.2f %.2f, view yaw %.1f, yaws tried %s, %s",
+                    targets.get(0).toShortString(), now.x, now.y, now.z, yaw, java.util.Arrays.toString(yaws),
+                    !urgent ? "not in his way yet" : "free look barred (sprint-jump take-off or AP3 drives)");
             return null;
         }
-        // Standing: try the look at each target's center, keep the one striking most.
+        // Standing, or a pick in his way no walk-keeping look strikes: a look near each target's center, the one striking
+        // most; while he walks, of those the yaw nearest a whole 45-degree step off his own, so his keys turned back by whole
+        // steps bend his walk the least on that one tick.
         Vec3 eye = feet.add(0, eyeH, 0);
+        float bestErr = 99f;
         for (BlockPos t : targets) {
             Vec3 to = Vec3.atCenterOf(t).subtract(eye);
             float wantPitch = (float) Mth.clamp(Math.toDegrees(-Math.atan2(to.y, Math.hypot(to.x, to.z))), -90, 90);
             float runYaw = player.getYRot() + Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-to.x, to.z)) - player.getYRot());
-            int n = struck(feet, feet, eyeH, runYaw, wantPitch, targets, anyEye);
-            if (n > best) {
-                best = n;
-                bestYaw = runYaw;
-                bestPitch = wantPitch;
+            for (int d = 0; d <= (yaws == null ? 0 : 60); d++) {
+                float y = runYaw + (d % 2 == 0 ? d / 2 : -(d + 1) / 2);
+                float off = Mth.wrapDegrees(y - yaw);
+                float err = yaws == null ? 0f : Math.abs(off - 45f * Math.round(off / 45f));
+                if (err >= bestErr && best == targets.size()) {
+                    continue;
+                }
+                int n = struck(feet, feet, eyeH, y, wantPitch, targets, anyEye);
+                if (n > best || (n == best && n > 0 && err < bestErr)) {
+                    best = n;
+                    bestErr = err;
+                    bestYaw = y;
+                    bestPitch = wantPitch;
+                }
             }
         }
         if (best == 0) {
+            lastWait = String.format(java.util.Locale.ROOT, "first %s, feet %.2f %.2f %.2f: no look at a center strikes it",
+                    targets.get(0).toShortString(), now.x, now.y, now.z);
             return null;
         }
         turn(player, bestYaw, bestPitch, true);
         yawAims++;
+        if (yaws != null) {
+            // Off his walk for one tick: his own keys turned the nearest whole steps back (off by at most 22.5 degrees);
+            // an AP3 held walk re-picks its keys for this yaw itself (Ap3Executor.beforeInputInstall).
+            keySteps = ownKeys ? Math.round((bestYaw - yaw) / 45f) : 0;
+            offWalkAims++;
+            return String.format(java.util.Locale.ROOT, "yaw %.1f/%.1f off his walk, in his way (%d of %d)", bestYaw, bestPitch,
+                    best, targets.size());
+        }
         return String.format(java.util.Locale.ROOT, "yaw %.1f/%.1f (%d of %d)", bestYaw, bestPitch, best, targets.size());
     }
 
@@ -279,6 +314,7 @@ public final class BreakerAim {
      */
     private static float[] walkYaws(Minecraft client, LocalPlayer player, float yaw) {
         ownKeys = false;
+        freeLookOk = true;
         float[] held = TurnFirst.yawConstraint();
         if (held != null) {
             float[] out = new float[held.length + 1];
@@ -295,6 +331,7 @@ public final class BreakerAim {
         int f = (o.keyUp.isDown() ? 1 : 0) - (o.keyDown.isDown() ? 1 : 0);
         int s = (o.keyLeft.isDown() ? 1 : 0) - (o.keyRight.isDown() ? 1 : 0);
         if ((f == 0 && s == 0) || (player.isSprinting() && o.keyJump.isDown() && player.onGround()) || ap3Drives()) {
+            freeLookOk = f == 0 && s == 0 && !ap3Drives() && !(o.keyJump.isDown() && player.onGround());
             return new float[]{yaw};
         }
         ownKeys = true;
@@ -353,8 +390,13 @@ public final class BreakerAim {
      * Turns the body (camera held) so this tick's movement packet carries a look that strikes {@code pos} from where he
      * will be (see {@link #aim}). @return what was done, or null when the pick cannot be aimed now without changing his walk.
      */
-    static String aimFor(Minecraft client, LocalPlayer player, BlockPos pos) {
-        return aim(client, player, List.of(pos), false);
+    static String aimFor(Minecraft client, LocalPlayer player, BlockPos pos, boolean urgent) {
+        return aim(client, player, List.of(pos), false, urgent);
+    }
+
+    /** Why the last aim found nothing: the first pick, where he stood, his view yaw and the yaws tried (for the wait log). */
+    static String lastWait() {
+        return lastWait;
     }
 
     /** Keeps the current aim for another tick (its pick is dug next tick on the look already sent). */
@@ -392,5 +434,10 @@ public final class BreakerAim {
 
     static long yawWaits() {
         return yawWaits;
+    }
+
+    /** Looks turned off his walk for one tick because a pick in his way had no walk-keeping look (balatefix-1109). */
+    static long offWalkAims() {
+        return offWalkAims;
     }
 }
