@@ -169,9 +169,11 @@ public final class AutoFruitDigging {
         }
         // The dig starts through vanilla's own hold of Attack (startDestroyBlock, then continueDestroyBlock each tick), so
         // the sequence and progress are a real player's; one start a tick through the gate.
-        if (ActionGate.hisClickQueued(mc.options.keyAttack) || !ActionGate.tryAct(ActionGate.Actor.CARNIVAL_WORLD)) {
+        if (ActionGate.hisClickQueued(mc.options.keyAttack) || ActionGate.hisUseGoesThisTick(mc)
+                || !ActionGate.tryAct(ActionGate.Actor.CARNIVAL_WORLD)) {
             return;
         }
+        CarnivalInput.countTap();
         holding = true;
         mc.options.keyAttack.setDown(true);
         {

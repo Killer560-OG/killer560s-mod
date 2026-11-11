@@ -132,6 +132,11 @@ final class CarnivalInput {
         return true;
     }
 
+    /** A dig the caller holds Attack for counts as one tap (harness counter). */
+    static void countTap() {
+        taps++;
+    }
+
     /** Selects hotbar {@code slot} through the gate, as a number key would. */
     static boolean select(Minecraft mc, LocalPlayer player, int slot) {
         // GrimAC PacketOrderE: no set_carried_item after a use / click / attack in the same server tick.
