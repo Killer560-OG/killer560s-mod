@@ -559,8 +559,8 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             FriendsListConfig.Friend f = visible.get(i);
             int right = rowRight();
             if (isHeader(f)) {
-                int hc = f == PARTY_HEADER ? com.killer560.hub.gui.ThemeAccent.light(0xFFAA00) : MenuStyle.DIM;
-                if (f == REST_HEADER) graphics.fill(listX, rowY + 1, right, rowY + 2, com.killer560.hub.gui.ThemeAccent.dim(0x553311));
+                int hc = f == PARTY_HEADER ? com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) : MenuStyle.DIM;
+                if (f == REST_HEADER) graphics.fill(listX, rowY + 1, right, rowY + 2, com.killer560.hub.gui.ThemeAccent.dim(0xFF553311));
                 ScreenChrome.text(graphics, f.name, listX + 4, rowY + (ROW_H - this.font.lineHeight) / 2 + 1, hc);
                 continue;
             }
