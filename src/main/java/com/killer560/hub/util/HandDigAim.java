@@ -71,13 +71,15 @@ public final class HandDigAim {
         double reach = p.blockInteractionRange();
         Vec3 eye = p.getEyePosition();
         if (ray.test(eye, eye.add(TurnFirst.look(p).scale(reach)))) return true;
-        if (ActionGate.hisUseGoesThisTick(mc) || TurnFirst.bodyOwnedAgainstHand()) return true; // a use_item's look (BadPacketsJ) / an AP3 align
-        float[] allowed = TurnFirst.yawConstraint();
+        // The body may not turn for it: a use_item this tick carries the look (BadPacketsJ), an AP3 align owns the body. The
+        // dig went with that look until ap3holddig-1110 and drew experimental RotationBreak on every one during align #32.
+        boolean pinned = ActionGate.hisUseGoesThisTick(mc) || TurnFirst.bodyOwnedAgainstHand();
+        float[] allowed = pinned ? null : TurnFirst.yawConstraint();
         float[] found = allowed == null ? null : TurnFirst.walkKeyedLook(allowed, eye, viewPitch, ray, reach, 720);
-        if (found == null && allowed != null) {
+        if (pinned || found == null && allowed != null) {
             digTick = false;
             if (++waits <= 20 || waits % 100 == 0) {
-                LOGGER.info("[HandDigAim] his dig on {} waits: no walk-keyed look strikes it - #{}", pos.toShortString(), waits);
+                LOGGER.info("[HandDigAim] his dig on {} waits: {} - #{}", pos.toShortString(), pinned ? "the body is pinned this tick" : "no walk-keyed look strikes it", waits);
             }
             return false;
         }
