@@ -854,6 +854,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   With that deny, the old 1.6-block box made a shot pause for each off-lane block in turn (one dig per pause) and run out of
   time mid-wall, so `pendingWallAhead` counts only held blocks in the box his next two ticks sweep (velocity x2, +0.3 sides).
   Testkit 1110-blink-breaker-gap-walk/-leap/-stand (a one-wide trench before the wall).
+  Sprinting into a paused shot, vanilla flipped sprint off and on again across withheld ticks; both flips sat in `preHeld`
+  and went out before ONE move, and GrimAC 2.3.74's experimental BadPacketsX (javap: a second sprint or sneak entity
+  action with no tick packet since the first) flagged x2 in -leap. A held sprint flip now cancels the opposite one still
+  held (`sprintFlip`): the server's sprint state is unchanged, so neither goes.
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
