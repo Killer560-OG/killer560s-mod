@@ -76,6 +76,9 @@ public final class PartyTracker {
     private static final Map<String, DungeonClass> CLASSES = new HashMap<>();
     /** Lowercase names the dungeon tab list currently shows as "(DEAD)". */
     private static final Set<String> DEAD = new HashSet<>();
+    /** Lowercase names that left or were kicked: Hypixel's dungeon tab keeps them until the run ends, so the tab read
+     *  must not put them back (partyleft-1110). Cleared on a rejoin, a new party and the end of the dungeon. */
+    private static final Set<String> LEFT_NAMES = new HashSet<>();
     private static boolean wasInDungeon = false;
     private static boolean readingList = false;
     private static int tickCounter = 0;
@@ -159,6 +162,7 @@ public final class PartyTracker {
             add(m.group(1));
         } else if ((m = YOU_JOINED.matcher(plain)).matches()) {
             MEMBERS.clear();
+            LEFT_NAMES.clear();
             add(m.group(1));
         } else if ((m = PARTYING_WITH.matcher(plain)).matches()) {
             for (String part : m.group(1).split(", ")) {
@@ -180,6 +184,7 @@ public final class PartyTracker {
             remove(m.group(2));
         } else if (CLEARED.matcher(plain).matches()) {
             MEMBERS.clear();
+            LEFT_NAMES.clear();
         }
     }
 
@@ -227,6 +232,7 @@ public final class PartyTracker {
                 wasInDungeon = false;
                 CLASSES.clear();
                 DEAD.clear();
+                LEFT_NAMES.clear();
             }
             return;
         }
@@ -246,6 +252,9 @@ public final class PartyTracker {
                 continue;
             }
             String name = m.group(1);
+            if (!LEFT_NAMES.isEmpty() && LEFT_NAMES.contains(name.toLowerCase(Locale.US))) {
+                continue;
+            }
             fromTab.add(name);
             if ("DEAD".equals(m.group(2))) {
                 DEAD.add(name.toLowerCase(Locale.US));
@@ -269,6 +278,7 @@ public final class PartyTracker {
         MEMBERS.clear();
         CLASSES.clear();
         DEAD.clear();
+        LEFT_NAMES.clear();
         readingList = false;
         wasInDungeon = false;
     }
@@ -278,12 +288,16 @@ public final class PartyTracker {
     }
 
     private static void add(String name) {
+        LEFT_NAMES.remove(name.toLowerCase(Locale.US));
         if (MEMBERS.stream().noneMatch(existing -> existing.equalsIgnoreCase(name))) {
             MEMBERS.add(name);
         }
     }
 
     private static void remove(String name) {
+        if (LEFT_NAMES.size() < 64) {
+            LEFT_NAMES.add(name.toLowerCase(Locale.US));
+        }
         MEMBERS.removeIf(existing -> existing.equalsIgnoreCase(name));
     }
 
