@@ -340,7 +340,8 @@ public final class CrashReportFeature {
                 }
             }
         }
-        String s = sb.toString().strip();
+        String held = nativeCrash ? null : ShutdownGuard.heldBy(crash);
+        String s = (held == null ? "" : held + "\n") + sb.toString().strip();
         return s.length() > MAX_SUMMARY ? s.substring(0, MAX_SUMMARY - 3) + "..." : s;
     }
 
