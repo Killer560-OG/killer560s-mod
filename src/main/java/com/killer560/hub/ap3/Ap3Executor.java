@@ -379,6 +379,7 @@ public final class Ap3Executor {
         lookHeld = false;
         holdDir = null;
         bendPX = bendPZ = bendVX = bendVZ = 0;
+        bendDir = null;
         waitUntilMs = 0L;
         queue.clear(); swHeld.clear();
         if (leapGate != null) {
@@ -2146,8 +2147,14 @@ public final class Ap3Executor {
         if (actNode.type == Ap3Node.Type.TERM_AURA && termAuraTurnTick >= 0L && tickCounter <= termAuraTurnTick) {
             return;
         }
+        // His own click, dig or use held the act back last tick: this tick it goes and his hand waits (holdHisHand).
+        if (handWaited) {
+            handWaited = false;
+            holdHisHand(client);
+        }
         // The gate decides whether this tick's one automated interaction is ours; a refused tick tries again next one.
         if (!ActionGate.tryAct(ActionGate.Actor.ROUTE)) {
+            handWaited = ActionGate.hisClickQueued(client.options.keyAttack);
             return;
         }
         if (actNode.type == Ap3Node.Type.TERM_AURA) {
@@ -2219,8 +2226,11 @@ public final class Ap3Executor {
         }
         // His own use / click already went this tick: a hotbar change after it is GrimAC PacketOrderE (and a place after
         // his use PacketOrderN), so the act waits for the next tick (START arms it again; SWAP_TIMEOUT bounds it).
-        if (actSlot >= 0 && self.getInventory().getSelectedSlot() != actSlot
-                && com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
+        // His own dig went this tick too (handleKeybinds runs first): a second dig, or our click after it, in one server
+        // tick is GrimAC MultiBreak / PacketOrder, so the act waits likewise - and holds his hand next tick.
+        if (com.killer560.hub.util.HandDigAim.digThisTick() || (actSlot >= 0 && self.getInventory().getSelectedSlot() != actSlot
+                && com.killer560.hub.util.HotbarSelect.swapWouldFlag())) {
+            handWaited = true;
             return;
         }
         // Written, not flushed: the movement packet sendPosition sends next flushes them with it, one write, so the
@@ -2272,6 +2282,52 @@ public final class Ap3Executor {
             self.connection.getConnection().flushChannel();
         }
     }
+
+    /**
+     * Set when his own input held the armed act back a tick (his queued left click at the gate, his dig or use ahead of
+     * it in the tick). Holding a key down sends that input every tick, and the act then never went: boom #26 timed out
+     * and AP3 STOPPED under a held dig or right click (1109-boss-ee3route-same-dig / -same-use, ap3holddig-1110). So
+     * his input goes first once, and the next tick is the act's.
+     */
+    private static boolean handWaited;
+    /** The tick his hand waits for the act ({@link #holdsHisHand}), and his clicks queued for it, given back at END. */
+    private static long handHeldTick = -1L;
+    private static int heldAttackClicks, heldUseClicks;
+    private static int handHolds;
+
+    /** START, before the gate: his queued clicks wait for the next tick, his held dig and use pause this one. */
+    private static void holdHisHand(Minecraft client) {
+        handHeldTick = tickCounter;
+        heldAttackClicks += moveClicks(client.options.keyAttack, 0);
+        heldUseClicks += moveClicks(client.options.keyUse, 0);
+        if (++handHolds <= 20 || handHolds % 100 == 0) {
+            LOGGER.info("[AP3] {} #{} goes this tick - his own click / dig / use waits a tick (#{})", actNode.type,
+                    number(actNode), handHolds);
+        }
+    }
+
+    /** Sets {@code key}'s queued clicks to {@code n}; returns how many it had. */
+    private static int moveClicks(net.minecraft.client.KeyMapping key, int n) {
+        if (!(key instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k)) return 0;
+        int was = k.killer560smod$getClickCount();
+        k.killer560smod$setClickCount(n);
+        return was;
+    }
+
+    /** END_CLIENT_TICK (from {@link Ap3Feature}): the clicks held this tick are queued again for the next. */
+    static void giveBackHand(Minecraft client) {
+        if ((heldAttackClicks | heldUseClicks) == 0) return;
+        moveClicks(client.options.keyAttack, moveClicks(client.options.keyAttack, 0) + heldAttackClicks);
+        moveClicks(client.options.keyUse, moveClicks(client.options.keyUse, 0) + heldUseClicks);
+        heldAttackClicks = heldUseClicks = 0;
+    }
+
+    /** His own dig, attack or use must not go now: AP3's held-back act has this tick ({@code LeftClickEtherwarpMinecraftMixin},
+     *  {@code Ap3HandHoldMixin}). Ends when the act is sent. */
+    public static boolean holdsHisHand() { return handHeldTick == tickCounter && actNode != null && !actFired; }
+
+    /** Ticks his hand waited for an act (only goes up) - read by the testkit. */
+    public static int handHolds() { return handHolds; }
 
     /** The armed act's packets: hotbar change first if it needs one, then the click along the aim. */
     private static void sendAct(Minecraft client, LocalPlayer player, Ap3Node node, BlockHitResult b) {
@@ -5247,9 +5303,13 @@ public final class Ap3Executor {
         } else {
             boolean sprint = holdSprint && aimKey[0] > 0 && !player.isInWater();
             writeDiscrete(player, aimKey[0], aimKey[1], false, sprint, player.getYRot(), modelFor(player, false), lastSneakSent);
+            aimKeysYaw = player.getYRot();
         }
         return true;
     }
+
+    /** The yaw {@link #applyAimedHold}'s keys were picked at; NaN when it pressed none. */
+    private static float aimKeysYaw = Float.NaN;
 
     private static void endAim(LocalPlayer player) {
         if (!aiming) {
@@ -5555,32 +5615,27 @@ public final class Ap3Executor {
             writeHeldKeysAt(player, player.getYRot());
             return;
         }
+        snapToWalk(player);
+        writeHeldKeysAt(player, player.getYRot());
+    }
+
+    /**
+     * Turns the real yaw onto the held walk. SNAP, not a glide (killer560, 2026-09-21: "my head doesn't snap it is smooth
+     * rotating, so the walk will be slightly off kilter every time. It should snap"): the whole wrapped delta in one tick,
+     * added to the live yaw, so the very first key press already points exactly along the walk. Freeze View hides it.
+     * On the tick a jump goes in, face the walk and hold W only (killer560, 2026-09-21: "the run needs to be readjusted
+     * whenever falling/in the air, it always pulls the way of the strafe"): vanilla's sprint-jump boost pushes 0.2 along
+     * the FACING, 45 degrees off the walk during a strafe. In the air it strafes again ("I want that movespeed buff"):
+     * W+A moves at yaw - 45, W+D at yaw + 45, whichever is the shorter turn.
+     */
+    private static float snapToWalk(LocalPlayer player) {
         float yaw = player.getYRot();
-        float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
-        float target;
-        // On the tick a jump goes in, face the walk and hold W only (killer560, 2026-09-21: "the run needs to be
-        // readjusted whenever falling/in the air, it always pulls the way of the strafe"). Vanilla's sprint-jump boost
-        // (Player.jumpFromGround) pushes 0.2 along the FACING, which during a 45 degree strafe is 45 degrees off the
-        // walk - that is the pull. Only that one tick: in the air it strafes again ("I still want it strafing in
-        // midair though ... I want that movespeed buff") - W+A's air push is already exactly along the walk.
-        boolean jumpTick = wantJump;
-        if (Ap3Config.getInstance().isStrafe45() && !jumpTick) {
-            // W+A moves at yaw - 45, W+D at yaw + 45: whichever side is the shorter turn.
-            float wa = walkYaw + 45f;
-            float wd = walkYaw - 45f;
-            target = Math.abs(Mth.wrapDegrees(wa - yaw)) <= Math.abs(Mth.wrapDegrees(wd - yaw)) ? wa : wd;
-        } else {
-            target = walkYaw;
-        }
-        // SNAP, not a glide (killer560, 2026-09-21: "my head doesn't snap it is smooth rotating, so the walk will be
-        // slightly off kilter every time. It should snap"): the whole wrapped delta in one tick, added to the live
-        // yaw, so the very first key press already points exactly along the walk. Freeze View hides it.
-        float delta = Mth.wrapDegrees(target - yaw);
+        float delta = Mth.wrapDegrees(walkFacing(yaw) - yaw);
         if (Math.abs(delta) > 1e-4f) {
             player.setYRot(yaw + delta);
             RouteRotation.rebase();
         }
-        writeHeldKeysAt(player, player.getYRot());
+        return player.getYRot();
     }
 
     /** The held walk's keys: the real key combination nearest the walk at {@code yaw} (the body's), remembered so the
@@ -5605,15 +5660,19 @@ public final class Ap3Executor {
             return null;
         }
         float walkYaw = (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
-        // Only the combinations with W in them (W+A, W+D, W - the first three of AIM_KEYS): any other drops the sprint for
-        // that tick, which slows him, moves where he enters the next node's box and so bends the path after it (testkit
-        // 1027-boss-ap3-lights-path, 2026-10-27: 0.65 blocks off at the end with D allowed). None of these meets the
-        // target this tick: the click waits for one that does.
-        float[] out = new float[3];
-        for (int i = 0; i < 3; i++) {
-            out[i] = walkYaw - AIM_KEYS[i][2];
+        if (wantJump) {
+            // A jump goes in this tick: the sprint-jump boost (0.2) goes along the FACING, so only W at the walk's own yaw
+            // keeps the path (ap3holddig-1110: his dig turned to the W+D yaw on the jump tick threw him 0.15 blocks aside).
+            return new float[]{walkYaw};
         }
-        return out;
+        // Only the combinations the walk itself uses: one without W drops the sprint (testkit 1027-boss-ap3-lights-path,
+        // 0.65 blocks off with D allowed), and W+A / W+D push 2% harder than W alone (input 1.00 against 0.98), so a dig
+        // held on the W+D yaw for ten ticks put him 0.07 ahead and he missed the step before the lava (ap3holddig-1110).
+        // None of these meets the target this tick: the click waits for one that does.
+        if (!Ap3Config.getInstance().isStrafe45()) {
+            return new float[]{walkYaw};
+        }
+        return new float[]{walkYaw - AIM_KEYS[0][2], walkYaw - AIM_KEYS[1][2]};
     }
 
     /**
@@ -5626,6 +5685,27 @@ public final class Ap3Executor {
             return Float.NaN;
         }
         return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
+    /** The yaw the held walk faces for a body at {@code yaw}: the walk on a jump tick, else (45 Degree Strafe) its W+A / W+D yaw nearer. */
+    private static float walkFacing(float yaw) {
+        float target = walkYawDeg();
+        if (Ap3Config.getInstance().isStrafe45() && !wantJump) {
+            float wa = target + 45f, wd = target - 45f;
+            target = Math.abs(Mth.wrapDegrees(wa - yaw)) <= Math.abs(Mth.wrapDegrees(wd - yaw)) ? wa : wd;
+        }
+        return target;
+    }
+
+    /**
+     * For {@code util/TurnFirst.registerHandBack}: where an aura's hand-back puts the body while a held walk drives, the
+     * walk's facing as END would snap it (an armed Boom / Use still lets the walk face; AP3's own aim or align does not).
+     */
+    public static Float handBackYaw(Float from) {
+        if (!isRunning() || holdDir == null || aiming || aimLock || isInputOverridden() || activeNode != null && activeNode.type.ownsMovement()) {
+            return Float.NaN;
+        }
+        return walkFacing(from);
     }
 
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
@@ -5641,13 +5721,32 @@ public final class Ap3Executor {
      * real keys at that real yaw.
      */
     public static void beforeInputInstall() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (aimLock && holdDir != null && player != null && Math.abs(player.getYRot() - aimKeysYaw) > 1e-4f
+                && (aimNode == activeNode || aimNode == actNode) && aimKey != null) {
+            // His dig was let go ahead of the aimed act and turned the body to his view: the aim's keys pushed 50 degrees
+            // off the walk for that tick, and in the fall after boom #26 the 0.1 blocks it put on him missed the corner the
+            // route slides past and took him into the lava (ap3holddig-1110, every same-dig run). The walk's keys at that yaw.
+            writeHeldKeysAt(player, player.getYRot());
+            aimKeysYaw = player.getYRot();
+        }
         if (!heldKeysValid || holdDir == null || aimLock) {
             bendPX = bendPZ = bendVX = bendVZ = 0;
             return;
         }
-        LocalPlayer player = Minecraft.getInstance().player;
         if (player == null) {
             return;
+        }
+        if (bendDir != holdDir) {
+            // A new walk starts where its node fired him, which his position decides: being behind along the old walk
+            // only fires it later, so that part of the bend is not an offset of the new walk - only the old side one is
+            // (ap3holddig-1110: carried over, a dig's 0.3 blocks of lag read as 0.3 sideways and steered 30 degrees off).
+            if (bendDir != null) {
+                double along = bendPX * bendDir.x + bendPZ * bendDir.z;
+                bendPX -= along * bendDir.x;
+                bendPZ -= along * bendDir.z;
+            }
+            bendDir = holdDir;
         }
         float yaw = player.getYRot();
         boolean ground = player.onGround();
@@ -5659,30 +5758,35 @@ public final class Ap3Executor {
         }
         float was = heldKeysYaw;
         boolean digTurn = com.killer560.hub.util.HandDigAim.turnedThisTick();
-        double[] planned = digTurn ? moveDir(was) : null;
         if (wantJump && !digTurn) {
             // A jump goes in this tick under an aura's turn (or its hand-back): face the walk for it as applyHoldRealYaw
             // does on a jump tick, or the sprint-jump boost goes along the aura's yaw and throws the route off (leverap3-1109:
             // a lever turn on the platform jump put him in the lava). The aura's click misses this look and turns again.
-            yaw += Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z)) - yaw);
-            player.setYRot(yaw);
-            RouteRotation.rebase();
+            yaw = snapToWalk(player);
+        } else if (!digTurn && !com.killer560.hub.util.TurnFirst.anyTurnOut()
+                && !ActionGate.hisUseGoesThisTick(Minecraft.getInstance()) && !useWentThisTick()) {
+            // An aura's hand-back: it puts back the yaw from before its turn, which is the OLD walk's when a node changed the
+            // walk under the turn, and the keys re-picked there lost W and the sprint on that tick (ap3holddig-1110: Lever
+            // Aura's 2-tick dwell put the hand-back on the landing tick before the 110.5 walk, 0.2 blocks off at boom #26 and
+            // into the lava, every time). With no turn out the body is the walk's again: face it now, as END would.
+            yaw = snapToWalk(player);
         }
         writeHeldKeysAt(player, yaw);
-        if (digTurn) {
-            // His dig's look bends the walk this tick (no walk-keyed yaw struck his block): count the sideways push it
-            // adds - and on a jump tick the sprint-jump boost along the turned facing - so later ticks steer it back out.
-            double[] now = moveDir(yaw);
-            double ax = push * (now[0] - planned[0]), az = push * (now[1] - planned[1]);
-            if (wantJump && player.isSprinting()) {
-                double w = Math.toRadians(walkYawDeg()), f = Math.toRadians(yaw);
-                ax += 0.2 * (-Math.sin(f) + Math.sin(w));
-                az += 0.2 * (Math.cos(f) - Math.cos(w));
-            }
-            bendStep(ax, az, friction);
-        } else {
-            bendStep(0, 0, friction);
+        // Any foreign turn bends the walk: the keys re-picked at the turned yaw push off the walk by up to 22.5 degrees
+        // (eight key directions), and his dig's look can do more. Count the sideways push it adds against the walk itself
+        // (never against the last tick's keys: on a tick the walk changes direction they are the old walk, and the bend
+        // counted was the turn of the route) - and on a jump tick the sprint-jump boost along the turned facing - so later
+        // ticks steer it back out (ap3holddig-1110: a Lever Aura turn's keys bent the walk 10-12 degrees, and 0.1 blocks
+        // off at the boom put about 4 runs in 10 into the lava before EE3).
+        double[] now = moveDir(yaw);
+        double hl = Math.hypot(holdDir.x, holdDir.z);
+        double ax = push * (now[0] - holdDir.x / hl), az = push * (now[1] - holdDir.z / hl);
+        if (wantJump && player.isSprinting()) {
+            double w = Math.toRadians(walkYawDeg()), f = Math.toRadians(yaw);
+            ax += 0.2 * (-Math.sin(f) + Math.sin(w));
+            az += 0.2 * (Math.cos(f) - Math.cos(w));
         }
+        bendStep(ax, az, friction);
         LOGGER.info("[AP3] held walk: the body was turned from {} to {} before the move (another feature's turn) - keys"
                         + " re-picked for that yaw: {}{}{}{}",
                 String.format(Locale.US, "%.2f", was), String.format(Locale.US, "%.2f", yaw),
@@ -5694,6 +5798,8 @@ public final class Ap3Executor {
      * carried with vanilla's own per-tick physics (push, move, friction), so later ticks can steer it back out.
      */
     private static double bendPX, bendPZ, bendVX, bendVZ;
+    /** The walk the bend above is counted against (a node's {@code dir()}, a new object each time a walk starts). */
+    private static Vec3 bendDir;
     /** The most a steering tick turns the body off the walk (W stays held, so the sprint is kept). */
     private static final double STEER_MAX_SIN = Math.sin(Math.toRadians(30));
 
@@ -5737,13 +5843,13 @@ public final class Ap3Executor {
         }
         double w = Math.toRadians(walkYawDeg()), nx = -Math.cos(w), nz = -Math.sin(w); // d(direction)/d(yaw)
         double side = bendPX * nx + bendPZ * nz, sideV = bendVX * nx + bendVZ * nz;
-        if (Math.abs(side) < 0.01 && Math.abs(sideV) < 0.003) {
+        if (Math.abs(side) < 0.001 && Math.abs(sideV) < 0.0005) { // 0.01 left runs 0.01-0.02 off at the boom (ap3holddig-1110)
             bendPX = bendPZ = bendVX = bendVZ = 0;
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         if (wantJump || push <= 0 || com.killer560.hub.util.HandDigAim.digThisTick() || com.killer560.hub.util.TurnFirst.anyTurnOut()
-                || com.killer560.hub.util.TurnFirst.bodyOwned() || ActionGate.hisUseGoesThisTick(mc)) {
+                || com.killer560.hub.util.TurnFirst.bodyOwned() || ActionGate.hisUseGoesThisTick(mc) || useWentThisTick()) {
             bendStep(0, 0, friction);
             return;
         }
@@ -5756,13 +5862,20 @@ public final class Ap3Executor {
         double[] after = moveDir(turned);
         bendStep(push * (after[0] - before[0]), push * (after[1] - before[1]), friction);
         if (++steerLogs <= 40) {
-            LOGGER.info("[AP3] held walk: steering a dig's bend back out - body {} -> {} (side {} blocks, {} a tick)",
+            LOGGER.info("[AP3] held walk: steering a bend back out - body {} -> {} (side {} blocks, {} a tick)",
                     String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", turned),
                     String.format(Locale.US, "%.3f", side), String.format(Locale.US, "%.3f", sideV));
         }
     }
 
     private static int steerLogs;
+
+    /** A use already went out this tick, ahead of its movement packet (a use from START, outside his keys): a look
+     *  change in that packet is GrimAC BadPacketsJ (ap3holddig-1110: 12 in a run with a use every tick). */
+    private static boolean useWentThisTick() {
+        String o = com.killer560.hub.util.HotbarSelect.orderConflict();
+        return o != null && o.startsWith("use_item");
+    }
 
     /**
      * Whether AP3 is steering the body's rotation itself right now, so another feature must not turn it
@@ -5777,10 +5890,11 @@ public final class Ap3Executor {
      */
     public static boolean yieldBodyToHand() {
         if (!isRunning()) return true;
-        if (isInputOverridden() || actSentTick == tickCounter) return false;
+        if (isInputOverridden() || actSentTick == tickCounter || holdsHisHand()) return false;
         if (actPending) {
             actPending = false;
             actPendingHit = null;
+            handWaited = true;
             LOGGER.info("[AP3] his own dig takes this tick's look - {} #{} waits a tick", actNode == null ? "act" : actNode.type,
                     actNode == null ? 0 : number(actNode));
         }
