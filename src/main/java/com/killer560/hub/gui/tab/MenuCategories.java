@@ -48,13 +48,16 @@ public final class MenuCategories {
         FolderTab dungeon = new DungeonTab();
         // The pre-2.0 Mining category (to-do Doc, 2026-11-01): its tabs are made by MiningQolTab, like the other folders.
         FolderTab mining = new MiningQolTab();
+        // Carnival (carnival-1110, killer560: ships before 2.0): the Carnival minigames' solvers, helpers and autos.
+        FolderTab carnival = new CarnivalTab();
         for (BaseTab t : List.of(home, profiles, general, display, chat, social, cosmetics, items, hud, helpers, dungeon,
-                mining)) {
+                mining, carnival)) {
             remember(t, t.name);
         }
 
         Map<Class<?>, BaseTab> pool = new LinkedHashMap<>();
-        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining)) {
+        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining,
+                carnival)) {
             for (BaseTab sub : f.subTabs()) {
                 pool.put(sub.getClass(), sub);
             }
@@ -62,6 +65,7 @@ public final class MenuCategories {
 
         List<BaseTab> dungeons = take(pool, dungeon.subTabs());
         List<BaseTab> miningList = take(pool, mining.subTabs());
+        List<BaseTab> carnivalList = take(pool, carnival.subTabs());
         List<BaseTab> hudList = new ArrayList<>();
         // Gather the HUD tabs; the order they are shown in is the alphabetical one cheatLast gives every category.
         for (Class<?> c : List.of(HealthAndManaBarsTab.class, CustomScoreboardTab.class, StorageOverlayTab.class,
@@ -91,6 +95,7 @@ public final class MenuCategories {
         top.add(home);
         top.add(new CategoryTab("Dungeons", "⚔", cheatLast(dungeons)));
         top.add(new CategoryTab("Mining", "⛏", cheatLast(miningList)));
+        top.add(new CategoryTab("Carnival", "★", cheatLast(carnivalList)));
         top.add(new CategoryTab("HUD", "▣", cheatLast(hudList)));
         top.add(new CategoryTab("Chat", "✉", cheatLast(chatList)));
         top.add(new CategoryTab("Items", "◆", cheatLast(itemsList)));

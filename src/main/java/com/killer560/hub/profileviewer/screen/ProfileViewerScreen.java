@@ -339,7 +339,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // 2026-10-08: a hair bigger than the old 480 x 290 now the backend footer is gone.
         pvStyle = ProfileViewerConfig.getInstance().getStyle();
         boolean iconTabs = pvStyle != ProfileViewerConfig.Style.DEFAULT;
-        layoutTabs();
         if (iconTabs) {
             // The originals' own sizes, centered on the screen (PvStyleChrome cites the lines); the tabs stand above it
             // and the profile button sits under it, so a short screen keeps both on it.
@@ -351,6 +350,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             panelH = Math.min(this.height - 12, 320);
             panelY = (this.height - panelH) / 2;
         }
+        layoutTabs(); // after panelW: the first open used last frame's width (0), squeezing every tab
         panelX = (this.width - panelW) / 2;
         contentX = panelX + 8;
         // Default: two rows of named tabs inside the panel; the other Styles stand icon tabs on its top edge.
@@ -978,6 +978,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         ProfileViewerFeature.Target self = ProfileViewerFeature.self();
         y = sidebarRow(g, x, y, self.uuid(), self.name(), mx, my, () -> open(self));
+        GuiRects div = GuiRects.begin(g);
+        MenuStyle.separator(div, sidebarX + 4, sidebarX + sidebarW - 4, y + 1);
+        div.submit();
+        y += 5;
 
         int bottom = sidebarY + sidebarH - 4;
         for (ProfileViewerConfig.RecentView v : ProfileViewerConfig.getInstance().getRecentViews()) {
@@ -995,9 +999,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             ScreenChrome.row(hr, x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, true, false, false);
             hr.submit();
         }
+        if (uuid.equals(this.uuid)) {
+            selBand(g, x - 2, y - 2, sidebarW - 4, SIDEBAR_ROW_H - 1);
+        }
         g.item(headFor(uuid), x, y - 1);
         String name = LIVE_NAME_CACHE.getOrDefault(uuid, storedName);
-        tx(g, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover ? VALUE : TEXT);
+        tx(g, this.font.plainSubstrByWidth(name, sidebarW - 22), x + 18, y + 3, hover || uuid.equals(this.uuid) ? VALUE : TEXT);
         hotspots.add(new Hotspot(x - 2, y - 1, sidebarW - 4, SIDEBAR_ROW_H, onClick));
         return y + SIDEBAR_ROW_H;
     }
@@ -1171,10 +1178,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             sbpvDunDone[0] = cata.level() >= 50 ? 1 : (float) cata.progress();
             double sum = 0;
             for (int i = 0; i < 5; i++) {
-                LevelTables.Level l = LevelTables.catacombsLevel(d.classXp().getOrDefault(SBPV_CLASSES[i], 0L), false);
+                LevelTables.Level l = LevelTables.catacombsLevel(d.classXp().getOrDefault(SBPV_CLASSES[i], 0L), true);
                 sum += Math.min(50, l.level());
                 sbpvDunLevels[i + 1] = SbProfile.titleCase(SBPV_CLASSES[i]) + ": " + l.level();
-                sbpvDunDone[i + 1] = l.maxed() || l.level() >= 50 ? 1 : (float) l.progress();
+                sbpvDunDone[i + 1] = l.maxed() ? 1 : (float) l.progress();
             }
             sbpvDunInfo = new String[] {"Class Average: " + String.format(Locale.ROOT, "%.2f", sum / 5), "Secrets: " + commas(d.secrets()),
                     "Secrets/Run: " + String.format(Locale.ROOT, "%.2f", d.totalRuns() == 0 ? 0 : (double) d.secrets() / d.totalRuns())};
@@ -1498,7 +1505,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         y += 12;
         double classSum = 0;
         for (Map.Entry<String, Long> e : d.classXp().entrySet()) {
-            LevelTables.Level lvl = LevelTables.catacombsLevel(e.getValue(), false);
+            LevelTables.Level lvl = LevelTables.catacombsLevel(e.getValue(), true);
             classSum += Math.min(50, lvl.level());
             String name = SbProfile.titleCase(e.getKey());
             if (e.getKey().equals(d.selectedClass())) {
@@ -1525,11 +1532,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             tx(g, headers[i], cols[i], ty, ACCENT);
         }
         ty += 12;
-        int rowH = Math.max(10, Math.min(12, (contentH - 22) / 16));
+        int rowH = Math.max(10, Math.min(12, (contentH - 38) / 17));
         for (int floor = 0; floor <= 7; floor++) {
             ty = floorRow(g, cols, ty, rowH, floor == 0 ? "Entrance" : "Floor " + floor, d.normal().get(floor), floor % 2 == 0);
         }
+        ty += 4;
+        g.fill(cols[0] - 3, ty, contentX + contentW - 6, ty + 1, ACCENT);
         ty += 3;
+        tx(g, "Master Mode", cols[0], ty, ACCENT);
+        ty += rowH;
         for (int floor = 1; floor <= 7; floor++) {
             ty = floorRow(g, cols, ty, rowH, "Master " + floor, d.master().get(floor), floor % 2 == 1);
         }
@@ -1548,7 +1559,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         tx(g, "Classes", cx, cy, ACCENT);
         cy += 12;
         for (Map.Entry<String, Long> e : d.classXp().entrySet()) {
-            LevelTables.Level lvl = LevelTables.catacombsLevel(e.getValue(), false);
+            LevelTables.Level lvl = LevelTables.catacombsLevel(e.getValue(), true);
             classSum += Math.min(50, lvl.level());
             String name = SbProfile.titleCase(e.getKey());
             if (e.getKey().equals(d.selectedClass())) {
@@ -1581,6 +1592,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         for (int floor = 0; floor <= 7; floor++) {
             ty = floorRow(g, cols, fx + fl[2] - 2, ty, 10, floor == 0 ? "E" : "F" + floor, d.normal().get(floor), floor % 2 == 0);
         }
+        ty += 1;
+        g.fill(cols[0] - 3, ty, fx + fl[2] - 2, ty + 1, ACCENT);
         ty += 2;
         for (int floor = 1; floor <= 7; floor++) {
             ty = floorRow(g, cols, fx + fl[2] - 2, ty, 10, "M" + floor, d.master().get(floor), floor % 2 == 1);

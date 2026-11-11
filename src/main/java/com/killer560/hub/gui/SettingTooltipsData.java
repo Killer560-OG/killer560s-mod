@@ -10,6 +10,17 @@ final class SettingTooltipsData {
     private SettingTooltipsData() {
     }
 
+    /** The Target and Mode columns of one leap row on the Fast/Auto Leap target pages ("Crystal Target", "P3 S1 Mode"). */
+    private static void leapCells(java.util.Map<String, String> d, String name, String spot) {
+        String dim = " Dimmed while the leap is Off; the choice is kept. Left click forward, right click back (cheat build only).";
+        d.put("fast/auto leap/" + name + " target", "Target column: who " + spot + " goes to. On Universal Targets a class"
+                + " (the teammate who has it, Leap Order's class picks included) or None. On Set Class Targets the pick for the"
+                + " class chosen at the top, or Universal (the Universal Targets page's pick is used)." + dim);
+        d.put("fast/auto leap/" + name + " mode", "Mode column: how " + spot + " picks its target. Per Leap: the Target"
+                + " column. Posmsg: whoever announced the spot in party chat, with the Target column as backup (its words go"
+                + " in the Keywords box under the row)." + dim);
+    }
+
     static void register(Map<String, String> d) {
         for (com.killer560.hub.clicksound.SoundEffect e : com.killer560.hub.clicksound.SoundEffect.values()) {
             d.put("sound effects/" + e.label.toLowerCase(java.util.Locale.ROOT), "Plays the sound you pick instead of the game's for "
@@ -106,6 +117,7 @@ final class SettingTooltipsData {
         part3(d);
         mining(d);
         SettingTooltipsMining3.register(d);
+        SettingTooltipsCarnival.register(d);
         invSortAndAutoSell(d);
         autoKick(d);
         customPartyFinder(d);
@@ -2182,7 +2194,7 @@ final class SettingTooltipsData {
                 {"p4", "the P4 target in the middle. Auto leaps on Necron's 2nd 'ARGH!'"},
                 {"relic", "the Relic target in P5. Auto leaps as soon as you pick up a relic"}};
         for (String[] t : leapTriggers) {
-            d.put("fast/auto leap/" + t[0] + " leap", "Goes to " + t[1] + ". Off: unused. Fast: your left click with a Spirit Leap or Infinileap there leaps. Auto: it leaps by itself. Left click forward, right click back (cheat build only).");
+            d.put("fast/auto leap/" + t[0] + " leap", "Fast/Auto column: goes to " + t[1] + ". Off: unused (its target and mode are kept, dimmed). Fast: your left click with a Spirit Leap or Infinileap there leaps. Auto: it leaps by itself. Left click forward, right click back (cheat build only).");
         }
         // The 2026-11-02 layout: front page, then the Universal Targets and Set Class Targets pages.
         d.put("fast/auto leap/targets", "Which targets the leaps use: Universal (the Universal Targets page, whatever class you play) or Set Class (the Set Class Targets page's pick for the class you are playing; a leap with none set there uses its Universal target). Left click forward, right click back (cheat build only).");
@@ -2202,6 +2214,10 @@ final class SettingTooltipsData {
                 {"relic", "the Relic leap (P5)"}};
         for (String[] s : spots) {
             d.put("fast/auto leap/" + s[0], "Who " + s[1] + " goes to." + pick);
+            leapCells(d, s[0], s[1]);
+        }
+        for (int sec = 1; sec <= 4; sec++) {
+            leapCells(d, "p3 s" + sec, "the P3 leap after section " + sec);
         }
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");

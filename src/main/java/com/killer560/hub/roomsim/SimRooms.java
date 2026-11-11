@@ -29,7 +29,7 @@ public final class SimRooms {
     public static synchronized void clearCallsForTest() { CALLS.clear(); }
 
     public static CompletableFuture<RelayCalls.Reply> list(String mc) {
-        return call("GET", "/simrooms/list?mc=" + URLEncoder.encode(mc, StandardCharsets.UTF_8), null);
+        return call("GET", "/simrooms/list?mc=" + URLEncoder.encode(mc, StandardCharsets.UTF_8) + "&all=1", null);
     }
 
     public static CompletableFuture<RelayCalls.Reply> create(String name, String password, int max, String mode,

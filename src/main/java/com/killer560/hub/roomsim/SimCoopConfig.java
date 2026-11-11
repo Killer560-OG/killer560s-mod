@@ -34,6 +34,8 @@ public final class SimCoopConfig {
     private volatile java.util.Map<String, String> blocked = java.util.Map.of();
     volatile String roomName = "";
     volatile int maxPlayers = 5;
+    /** Where the sim starts and is moved to: a {@code BossFight.Start} name. */
+    volatile String startAt = "P1";
 
     private SimCoopConfig() {
     }
@@ -55,6 +57,7 @@ public final class SimCoopConfig {
         BOOLS.load(c, o);
         c.roomName = ConfigJson.getString(o, "roomName", "");
         c.maxPlayers = Math.max(2, Math.min(5, ConfigJson.getInt(o, "maxPlayers", 5)));
+        c.startAt = ConfigJson.getString(o, "startAt", "P1");
         java.util.Map<String, String> b = new java.util.LinkedHashMap<>();
         if (o.has("blockedInviters") && o.get("blockedInviters").isJsonObject()) {
             for (var e : o.getAsJsonObject("blockedInviters").entrySet()) {
@@ -71,6 +74,7 @@ public final class SimCoopConfig {
         BOOLS.save(c, o);
         o.addProperty("roomName", c.roomName);
         o.addProperty("maxPlayers", c.maxPlayers);
+        o.addProperty("startAt", c.startAt);
         JsonObject b = new JsonObject();
         c.blocked.forEach(b::addProperty);
         o.add("blockedInviters", b);
@@ -134,6 +138,19 @@ public final class SimCoopConfig {
     public String roomName() { return roomName; }
 
     public int maxPlayers() { return maxPlayers; }
+
+    public com.killer560.hub.bosssim.BossFight.Start startAt() {
+        try {
+            return com.killer560.hub.bosssim.BossFight.Start.valueOf(startAt);
+        } catch (IllegalArgumentException e) {
+            return com.killer560.hub.bosssim.BossFight.Start.P1;
+        }
+    }
+
+    public void setStartAt(com.killer560.hub.bosssim.BossFight.Start s) {
+        startAt = s.name();
+        save();
+    }
 
     public void setRoom(String name, int max) {
         roomName = name;
