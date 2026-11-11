@@ -433,14 +433,6 @@
     1
    ]
   ],
-  "Blood": [
-   [
-    -82,
-    69,
-    37,
-    2
-   ]
-  ],
   "Blue Skulls": [
    [
     5,
@@ -831,14 +823,6 @@
     4
    ]
   ],
-  "Default": [
-   [
-    47,
-    69,
-    -72,
-    1
-   ]
-  ],
   "Dip": [
    [
     6,
@@ -937,12 +921,6 @@
     69,
     14,
     3
-   ],
-   [
-    10,
-    72,
-    -28,
-    1
    ]
   ],
   "Golden Oasis": [
@@ -1451,42 +1429,6 @@
   ],
   "Mage": [
    [
-    -87,
-    69,
-    -12,
-    1
-   ],
-   [
-    -87,
-    69,
-    -9,
-    4
-   ],
-   [
-    -83,
-    69,
-    -12,
-    1
-   ],
-   [
-    -82,
-    69,
-    13,
-    3
-   ],
-   [
-    -78,
-    69,
-    12,
-    1
-   ],
-   [
-    -67,
-    69,
-    -24,
-    1
-   ],
-   [
     12,
     76,
     16,
@@ -1701,46 +1643,12 @@
     1
    ]
   ],
-  "Mossy": [
-   [
-    -4,
-    69,
-    -87,
-    3
-   ],
-   [
-    -2,
-    69,
-    -84,
-    1
-   ],
-   [
-    14,
-    69,
-    -87,
-    1
-   ],
-   [
-    17,
-    69,
-    -87,
-    1
-   ]
-  ],
   "Mural": [
    [
     17,
     69,
     23,
     2
-   ]
-  ],
-  "Museum": [
-   [
-    47,
-    69,
-    -21,
-    1
    ]
   ],
   "Mushroom": [
@@ -1854,18 +1762,6 @@
    ]
   ],
   "Pedestal": [
-   [
-    -18,
-    69,
-    -11,
-    2
-   ],
-   [
-    -15,
-    69,
-    -11,
-    1
-   ],
    [
     5,
     79,
@@ -3063,32 +2959,6 @@
     1
    ]
   ],
-  "Water Board": [
-   [
-    11,
-    69,
-    -140,
-    1
-   ],
-   [
-    21,
-    69,
-    -151,
-    4
-   ],
-   [
-    32,
-    67,
-    -111,
-    2
-   ],
-   [
-    52,
-    72,
-    -113,
-    6
-   ]
-  ],
   "Waterfall": [
    [
     7,
@@ -3419,12 +3289,6 @@
     7
    ],
    [
-    75,
-    69,
-    -106,
-    1
-   ],
-   [
     80,
     69,
     7,
@@ -3459,12 +3323,6 @@
     69,
     20,
     4
-   ],
-   [
-    91,
-    65,
-    -86,
-    1
    ]
   ]
  },
@@ -3478,7 +3336,6 @@
   "Basement": "learned on Hypixel, Prism instance '26.3'",
   "Beams": "learned on Hypixel, Prism instance '26.3'",
   "Big Red Flag": "learned on Hypixel, Prism instance '26.3'",
-  "Blood": "learned on Hypixel, Prism instance '26.3'",
   "Blue Skulls": "learned on Hypixel, Prism instance '26.3'",
   "Bridges": "learned on Hypixel, Prism instance '26.3'",
   "Cage": "learned on Hypixel, Prism instance '26.3'",
@@ -3488,7 +3345,6 @@
   "Chambers": "learned on Hypixel, Prism instance '26.3'",
   "Criss Cross": "learned on Hypixel, Prism instance '26.3'",
   "Crypt": "learned on Hypixel, Prism instance '26.3'",
-  "Default": "learned on Hypixel, Prism instance '26.3'",
   "Dip": "learned on Hypixel, Prism instance '26.3'",
   "Doors": "learned on Hypixel, Prism instance '26.3'",
   "Double Diamond": "learned on Hypixel, Prism instance '26.3'",
@@ -3509,9 +3365,7 @@
   "Mage": "learned on Hypixel, Prism instance '26.3'",
   "Mines": "learned on Hypixel, Prism instance '26.3'",
   "Mirror": "learned on Hypixel, Prism instance '26.3'",
-  "Mossy": "learned on Hypixel, Prism instance '26.3'",
   "Mural": "learned on Hypixel, Prism instance '26.3'",
-  "Museum": "learned on Hypixel, Prism instance '26.3'",
   "Mushroom": "learned on Hypixel, Prism instance '26.3'",
   "Overgrown": "learned on Hypixel, Prism instance '26.3'",
   "Overgrown Chains": "learned on Hypixel, Prism instance '26.3'",
@@ -3542,7 +3396,6 @@
   "Temple": "learned on Hypixel, Prism instance '26.3'",
   "Tomioka": "learned on Hypixel, Prism instance '26.3'",
   "Water": "learned on Hypixel, Prism instance '26.3'",
-  "Water Board": "learned on Hypixel, Prism instance '26.3'",
   "Waterfall": "learned on Hypixel, Prism instance '26.3'",
   "Withermancer": "learned on Hypixel, Prism instance '26.3'",
   "Wizard": "learned on Hypixel, Prism instance '26.3'"
