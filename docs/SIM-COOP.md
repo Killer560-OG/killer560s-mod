@@ -290,7 +290,7 @@ carries signaling only (create/refresh/list/join/punch and the host's PUNCH sock
    messages, any frame from the host closes it 1003, a guest is refused 410). A guest whose direct probe fails POSTs
    `/simrooms/punch {roomId, nonce, port}`; the relay sends the host a PUNCH frame (type 4, conn 0, JSON {ip, port, key,
    delayMs}) and answers the guest {host, port, key, delayMs 1500}. After the delay both sides connect to each other from their
-   ports every 50 ms (300 ms connect timeout) for 6 s: TCP simultaneous open. Windows cannot share a port between a listening
+   ports for 6 s, 5 ms after each refused try (300 ms connect timeout): TCP simultaneous open. Windows cannot share a port between a listening
    and a connecting socket, so neither side listens. The guest sends the key first; the host splices only a socket that sent
    it to its LAN port, and the guest hands vanilla a 127.0.0.1 port, so every server-side check is unchanged. One punch at a
    time on the host. Log lines: guest "[SimPunch] guest punched through to the owner", host "[SimPunch] host joined a punched

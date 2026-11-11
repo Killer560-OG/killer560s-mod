@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
  * host's PUNCH frames (the testkit's failure path).
  */
 final class SimPunch {
-    private static final int TRY_MS = 6_000, CONNECT_MS = 300, KEY_WAIT_MS = 3_000;
+    private static final int TRY_MS = 6_000, CONNECT_MS = 300, RETRY_MS = 5, KEY_WAIT_MS = 3_000;
     /** One punch at a time on the host; a second while one runs is dropped (that guest is told it cannot connect). */
     private static final ThreadPoolExecutor HOST = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(1), r -> {
@@ -152,7 +152,9 @@ final class SimPunch {
             } catch (IOException e) {
                 last = e;
                 close(s);
-                Thread.sleep(50);
+                // A refused connect comes back in ~1 ms on loopback and a LAN, and simultaneous open needs both SYNs to
+                // cross inside that: 50 ms between tries lost 1 punch in 5 across two processes, 5 ms none in 30 (Q4.java).
+                Thread.sleep(RETRY_MS);
             }
         }
         why[0] = ip + ":" + port + " from port " + localPort + ", " + tries + " tries, last " + last;
