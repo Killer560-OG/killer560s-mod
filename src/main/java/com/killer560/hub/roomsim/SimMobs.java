@@ -168,6 +168,7 @@ public final class SimMobs {
             }
         });
         SimMobFloor.register();
+        SimBloodCamp.register();
     }
 
     private static void tick(Minecraft client) {
@@ -420,20 +421,7 @@ public final class SimMobs {
                 }
                 LIVE.add(s.getUUID());
             }
-            case MINIBOSS -> {
-                SimMiniboss.Name name = MinibossPick.pick(pos);
-                SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, hp);
-                if (placed == null) {
-                    spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, pos.getY(), true, hp);
-                    return;
-                }
-                ServerPlayer boss = placed.boss();
-                SPAWNED.add(boss.getUUID());
-                STARRED.add(boss.getUUID());
-                recordStarred(boss.getUUID(), boss.getX(), boss.getY(), boss.getZ());
-                attachStarTag(level, boss, name.text(), hp, placed.tag());
-                LIVE.add(boss.getUUID());
-            }
+            case MINIBOSS -> placeBoss(level, pos, MinibossPick.pick(pos), hp);
             default -> {
                 SimZombie z = new SimZombie(McEntities.ZOMBIE, level);
                 spawnDummy(level, z, pos, pos.getY(), true, hp);
@@ -443,6 +431,119 @@ public final class SimMobs {
                 LIVE.add(z.getUUID());
             }
         }
+    }
+
+    /** A live miniboss of {@code name} on {@code pos} (a starred zombie when it cannot be placed). Server thread. */
+    private static void placeBoss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, double hp) {
+        SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, hp);
+        if (placed == null) {
+            spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, pos.getY(), true, hp);
+            return;
+        }
+        ServerPlayer boss = placed.boss();
+        SPAWNED.add(boss.getUUID());
+        STARRED.add(boss.getUUID());
+        recordStarred(boss.getUUID(), boss.getX(), boss.getY(), boss.getZ());
+        attachStarTag(level, boss, name.text(), hp, placed.tag());
+        LIVE.add(boss.getUUID());
+    }
+
+    /**
+     * A starred mob as it looked on Hypixel ({@link SimMobLooks}, Real Mob Looks): its entity type, its six equipment
+     * slots, its facing ({@code yaw}, already turned with the room) and its star tag's real name, standing still with
+     * {@code health} like every sim mob. A player-model mob is a miniboss when its name is one, else a zombie wearing the
+     * player's skin as a head. Server thread.
+     */
+    static void spawnLook(ServerLevel level, BlockPos pos, SimMobLooks.Look look, float yaw, double health) {
+        double hp = Math.max(ONE_HP, health);
+        String type = look.type();
+        Mob mob = null;
+        if (type.endsWith(":player")) {
+            for (SimMiniboss.Name n : SimMiniboss.Name.values()) {
+                if (n.text().equals(look.name())) {
+                    placeBoss(level, pos, n, hp);
+                    return;
+                }
+            }
+        } else if (type.equals("minecraft:skeleton")) {
+            mob = new SimSkeleton(McEntities.SKELETON, level);
+        } else if (!type.equals("minecraft:zombie")) {
+            net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.tryParse(type);
+            EntityType<?> et = id == null ? null
+                    : net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
+            Entity made = et == null ? null : et.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD);
+            if (made instanceof Mob m && m.getAttribute(Attributes.MAX_HEALTH) != null) {
+                mob = m;
+            } else if (made != null) {
+                made.discard();
+            }
+        }
+        if (mob == null) {
+            mob = new SimZombie(McEntities.ZOMBIE, level);
+        }
+        if (look.skin() != null && !look.gear().containsKey(EquipmentSlot.HEAD)) {
+            mob.setItemSlot(EquipmentSlot.HEAD, SimMobLooks.skinHead(look.skin()));
+        }
+        for (var g : look.gear().entrySet()) {
+            mob.setItemSlot(g.getKey(), g.getValue().copy());
+        }
+        mob.setYRot(yaw);
+        mob.setYHeadRot(yaw);
+        mob.setYBodyRot(yaw);
+        spawnDummy(level, mob, pos, pos.getY(), false, hp);
+        STARRED.add(mob.getUUID());
+        recordStarred(mob.getUUID(), mob.getX(), mob.getY(), mob.getZ());
+        attachStarTag(level, mob, look.name(), hp);
+        LIVE.add(mob.getUUID());
+    }
+
+    /** Blood camp (SimBloodCamp): the Watcher, still and unhittable, in his own skull (BloodCampFeature knows him by it). */
+    static Entity spawnWatcher(ServerLevel level, double x, double y, double z, String skin) {
+        SimZombie w = new SimZombie(McEntities.ZOMBIE, level);
+        w.setItemSlot(EquipmentSlot.HEAD, SimMobLooks.skinHead(skin));
+        w.setNoGravity(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(w, true);
+        w.setCustomName(Component.literal("The Watcher"));
+        spawnDummy(level, w, BlockPos.containing(x, y, z), y, false, ONE_HP);
+        w.setPos(x, y, z);
+        return w;
+    }
+
+    /** Blood camp: a mob's skull on an invisible stand, in its display case until the Watcher sends it out. */
+    static ArmorStand spawnBloodSkull(ServerLevel level, double x, double y, double z, String skin) {
+        ArmorStand s = new ArmorStand(level, x, y, z);
+        s.setInvisible(true);
+        s.setNoGravity(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(s, true);
+        s.setItemSlot(EquipmentSlot.HEAD, SimMobLooks.skinHead(skin));
+        level.addFreshEntity(s);
+        SPAWNED.add(s.getUUID());
+        return s;
+    }
+
+    /** Blood camp: the mob a skull lands as, one HP, with Hypixel's "Name 1❤" tag built right after it (ESP maps id-1): {mob, tag}. */
+    static Entity[] spawnBloodMob(ServerLevel level, double x, double y, double z, String skin, String name, float yaw) {
+        SimZombie m = new SimZombie(McEntities.ZOMBIE, level);
+        m.setItemSlot(EquipmentSlot.HEAD, SimMobLooks.skinHead(skin));
+        m.setYRot(yaw);
+        m.setYHeadRot(yaw);
+        m.setYBodyRot(yaw);
+        m.setNoGravity(true);
+        ArmorStand tag = new ArmorStand(level, x, y + m.getBbHeight() + 0.1, z);
+        spawnDummy(level, m, BlockPos.containing(x, y, z), y, false, ONE_HP);
+        m.setPos(x, y, z);
+        tag.snapTo(x, y + m.getBbHeight() + 0.1, z, 0f, 0f);
+        tag.setInvisible(true);
+        tag.setNoGravity(true);
+        tag.setNoBasePlate(true);
+        com.killer560.hub.compat.McEntities.setInvulnerable(tag, true);
+        byte flags = tag.getEntityData().get(ArmorStand.DATA_CLIENT_FLAGS);
+        tag.getEntityData().set(ArmorStand.DATA_CLIENT_FLAGS, (byte) (flags | ArmorStand.CLIENT_FLAG_MARKER));
+        tag.setCustomName(Component.literal(name + " 1\u2764"));
+        tag.setCustomNameVisible(true);
+        level.addFreshEntity(tag);
+        SPAWNED.add(tag.getUUID());
+        return new Entity[]{m, tag};
     }
 
     /** Which miniboss a live CHAMPION room gets: the two whose profile names fit, picked by the spot (reproducible). */
