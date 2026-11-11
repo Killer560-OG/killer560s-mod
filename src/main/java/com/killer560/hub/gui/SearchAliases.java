@@ -60,6 +60,9 @@ public final class SearchAliases {
             Map.entry("zpew", "zero ping etherwarp"),
             // drillfuel-1104: the Drill Fuel Bar and Drill Fuel Text rows in Health and Mana Bars.
             Map.entry("fuel bar", "drill fuel"),
+            // hideskillxp-1110: the Skill XP Text row in Health and Mana Bars.
+            Map.entry("skill xp", "skill xp text"),
+            Map.entry("xp popup", "skill xp text"),
             // killer560 (2026-11-01, to-do Doc "VIDEO BROWSER"): "make this show up if i search things like tictok or yt or
             // youtube or web or anything like that".
             Map.entry("tiktok", "video browser"),

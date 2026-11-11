@@ -52,6 +52,8 @@ public final class PlayerStatsConfig {
     private boolean hideHypixelStatText = false;
     /** Hide Hypixel's "1,650/3k Drill Fuel" action bar segment (drillfuel-1104). */
     private boolean hideDrillFuelText = false;
+    /** Hide Hypixel's "+0.6 Mining (15.05%)" skill XP action bar segment (hideskillxp-1110). */
+    private boolean hideSkillXpText = false;
     /** Hides the vanilla experience bar and the level number above it. Independent of {@link #enabled}. */
     private boolean hideXpBar = false;
     /** Vanilla's held-item name over the hotbar (killer560, 2026-10-07: "an option to hide that text that pops up saying
@@ -164,6 +166,7 @@ public final class PlayerStatsConfig {
             // Before 2026-10-04 the stat line was hidden whenever Stat Bars was on, so an old file keeps that.
             cfg.hideHypixelStatText = ConfigJson.getBool(obj, "hideHypixelStatText", cfg.enabled);
             cfg.hideDrillFuelText = ConfigJson.getBool(obj, "hideDrillFuelText", cfg.hideDrillFuelText);
+            cfg.hideSkillXpText = ConfigJson.getBool(obj, "hideSkillXpText", cfg.hideSkillXpText);
             cfg.hideXpBar = ConfigJson.getBool(obj, "hideXpBar", false);
             cfg.heldItemName = HeldItemName.byKey(ConfigJson.getString(obj, "heldItemName", null), cfg.heldItemName);
             if (obj.has("readouts") && obj.get("readouts").isJsonObject()) {
@@ -253,6 +256,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("showHeartsInRift", showHeartsInRift);
             obj.addProperty("hideHypixelStatText", hideHypixelStatText);
             obj.addProperty("hideDrillFuelText", hideDrillFuelText);
+            obj.addProperty("hideSkillXpText", hideSkillXpText);
             obj.addProperty("hideXpBar", hideXpBar);
             obj.addProperty("heldItemName", heldItemName.key);
             JsonObject readouts = new JsonObject();
@@ -341,6 +345,8 @@ public final class PlayerStatsConfig {
     public void setHideHypixelStatText(boolean value) { this.hideHypixelStatText = value; }
     public boolean isHideDrillFuelText() { return hideDrillFuelText; }
     public void setHideDrillFuelText(boolean value) { this.hideDrillFuelText = value; }
+    public boolean isHideSkillXpText() { return hideSkillXpText; }
+    public void setHideSkillXpText(boolean value) { this.hideSkillXpText = value; }
 
     public boolean isHideXpBar() { return hideXpBar; }
 
