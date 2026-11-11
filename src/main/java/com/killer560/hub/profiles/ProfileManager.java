@@ -666,6 +666,7 @@ public final class ProfileManager {
                 com.killer560.hub.gfs.LegitGfs::reload,
                 com.killer560.hub.cape.CapeConfig::load,
                 com.killer560.hub.roomsim.SimLoadout::reload,
+                com.killer560.hub.roomsim.SimMenuPrefs::reload,
                 com.killer560.hub.roomsim.SimCoopConfig::load,
                 com.killer560.hub.roomsim.SimRoomFilters::reloadAll,
         };

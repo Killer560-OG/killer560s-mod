@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
  * stands (the entity one id below it, else the first living thing in the stand's box moved down). A player-model NPC
  * (version-2 UUID) whose own name is exactly one of the names counts too; a real player never does.
  */
-final class BloodMobNames {
+public final class BloodMobNames {
 
     static final List<String> NAMES = List.of(
             // undead, every floor
@@ -38,6 +38,11 @@ final class BloodMobNames {
             "Bigfoot", "Jolly Pink Giant", "L.A.S.R.", "The Diamond Giant", "Giant");
 
     private static final Set<String> NAME_SET = Set.copyOf(NAMES);
+
+    /** The names, undead first (the sim's blood camp names its mobs from these, simblood-1110). */
+    public static List<String> names() {
+        return NAMES;
+    }
 
     // Hypixel puts an affix word before some blood mobs' names ("Stormy Doze", "Stormy Mr. Dead", "Army Walker", killer560
     // 2026-10-18 screenshots), so one optional capitalized word may come before the name. Before that, mob-type icons:

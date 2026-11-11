@@ -2427,7 +2427,7 @@ public final class Ap3Executor {
         }
         if (edgeArmedTicks > 0) {
             edgeArmedTicks--;
-            if (player.onGround() && leavesGroundNextTick(player)) {
+            if (player.onGround() && (leavesGroundNextTick(player) || edgeNearerNow(player))) {
                 wantJump = true;
                 edgeArmedTicks = 0;
             }
@@ -2445,6 +2445,25 @@ public final class Ap3Executor {
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         return player.onGround()
                 && player.level().noCollision(player, box.move(0.0, -0.0625, 0.0).setMaxY(box.minY));
+    }
+
+    /**
+     * The edge is nearer now than it will be on the coyote tick: half of next tick's move (this tick's velocity plus
+     * the ground push along it) already leaves the box clear below. At a run of 1.5 blocks a tick the coyote tick can
+     * land up to a whole move past the edge, and where a step stands just beyond the edge the jump tick's move runs
+     * into it and the step-up eats the jump (ap3strafe-1110: 45 Degree Strafe put him 0.3 further on, the coyote jump
+     * from x 38.80 hit the block at x 36, he stood at y 131, skipped the next 1x1 RUN box and walked into the lava).
+     * So EDGE jumps on whichever grounded tick is nearer the edge; at a walk the two are a few hundredths apart.
+     */
+    private static boolean edgeNearerNow(LocalPlayer player) {
+        Vec3 v = player.getDeltaMovement();
+        double h = Math.hypot(v.x, v.z);
+        if (h < 1e-3) {
+            return false;
+        }
+        double k = 0.5 * (1.0 + Ap3AlignMath.groundSpeed((float) player.getSpeed(), blockFriction(player)) / h);
+        net.minecraft.world.phys.AABB box = player.getBoundingBox().move(v.x * k, 0.0, v.z * k);
+        return player.level().noCollision(player, box.move(0.0, -0.0625, 0.0).setMaxY(box.minY));
     }
 
     // ---- close gate: "only fires on left click, or after a terminal closes" ------------------------------------
@@ -5622,10 +5641,30 @@ public final class Ap3Executor {
      * a jump is due or armed (a sprint jump's boost goes along the facing, so a turned body would throw the jump off).
      */
     public static float offWalkYaw() {
-        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0) {
+        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0 || jumpNodeAtFeet()) {
             return Float.NaN;
         }
         return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
+    /**
+     * A JUMP / EDGE node (or one with a jump / edge modifier) whose box he stands in: scanBoxes fires it
+     * on this very tick, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110: Lever Aura's
+     * off-walk look turned him on the tick node 23's sprint-jump went, the boost followed it and he fell off the platform).
+     */
+    private static boolean jumpNodeAtFeet() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (chain == null || p == null) {
+            return false;
+        }
+        Vec3 now = p.position();
+        for (Ap3Node n : chain.nodes()) {
+            if ((n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE)
+                    && n.contains(now)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */

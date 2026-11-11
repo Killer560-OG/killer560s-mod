@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -146,6 +147,8 @@ public final class SimLiveMobs {
         Map<String, Boolean> champion = new TreeMap<>();
         Map<String, Integer> roomIndex = new TreeMap<>();
         Map<String, List<BlockPos>> spots = new TreeMap<>();
+        Map<String, com.killer560.hub.autoroutes.RouteCoords.Frame> frames = new HashMap<>();
+        boolean looks = SimMenuPrefs.cached().realMobs;
         LEARNED_IN.clear();
         for (int i = 0; i < layout.roomCount(); i++) {
             RoomEntry e = layout.entry(i);
@@ -165,8 +168,9 @@ public final class SimLiveMobs {
             // spawn"), turned with the room by its clay corner and rotation. A room with none keeps the seeded spots.
             int[] cr = layout.clayRotation(i);
             if (cr != null) {
-                List<BlockPos> learned = com.killer560.hub.bloodrush.BloodRushSpots.worldSpots(name,
-                        new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]));
+                var frame = new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
+                frames.put(name, frame);
+                List<BlockPos> learned = com.killer560.hub.bloodrush.BloodRushSpots.worldSpots(name, frame);
                 if (!learned.isEmpty()) {
                     spots.put(name, learned);
                 }
@@ -184,17 +188,26 @@ public final class SimLiveMobs {
             int placed = 0;
             int starredFels = 0;
             int plainFels = 0;
+            int looked = 0;
             List<String> per = new ArrayList<>();
             for (Map.Entry<String, List<BlockPos>> e : tiles.entrySet()) {
                 java.util.Random rng = new java.util.Random((code + "|" + e.getKey()).hashCode());
                 int room = roomIndex.get(e.getKey());
                 List<BlockPos> got = new ArrayList<>();
                 List<BlockPos> learned = spots.get(e.getKey());
+                Map<BlockPos, SimMobLooks.Look> lookAt = new HashMap<>();
+                var frame = frames.get(e.getKey());
                 if (learned != null) {
                     for (BlockPos s : learned) {
                         BlockPos feet = standable(level, s);
                         if (feet != null && !got.contains(feet)) {
                             got.add(feet);
+                            // Real Mob Looks (simblood-1110): what stood on this spot on Hypixel, if it was recorded.
+                            SimMobLooks.Look look = looks ? SimMobLooks.lookAt(e.getKey(),
+                                    com.killer560.hub.autoroutes.RouteCoords.toRelativeBlock(frame, s)) : null;
+                            if (look != null) {
+                                lookAt.put(feet, look);
+                            }
                         }
                     }
                     if (!got.isEmpty()) {
@@ -229,7 +242,12 @@ public final class SimLiveMobs {
                 boolean boss = bosses && champion.get(e.getKey()) && !got.isEmpty();
                 int k = 0;
                 for (BlockPos p : got) {
-                    if (boss && k == 0) {
+                    if (lookAt.containsKey(p)) {
+                        SimMobLooks.Look look = lookAt.get(p);
+                        SimMobs.spawnLook(level, p, look,
+                                com.killer560.hub.autoroutes.RouteCoords.toRealYaw(frame, look.yaw()), hp);
+                        looked++;
+                    } else if (boss && k == 0) {
                         // The room's first spot is its miniboss's (three times the health; it never walks).
                         SimMobs.spawnLive(level, p, SimMobs.Kind.MINIBOSS, hp * 3, false);
                     } else {
@@ -265,10 +283,13 @@ public final class SimLiveMobs {
                 if (!got.isEmpty()) {
                     FIRST_SPOT.put(e.getKey(), got.get(0));
                 }
-                per.add(e.getKey() + " " + got.size() + (bosses && champion.get(e.getKey()) ? "+boss" : "") + felNote);
+                per.add(e.getKey() + " " + got.size() + (lookAt.isEmpty() ? "" : " (" + lookAt.size() + " real)") + (bosses && champion.get(e.getKey()) ? "+boss" : "") + felNote);
             }
             LOGGER.info("[Sim] live mobs placed: {} starred mob(s) in {} mob room(s) ({}): {}", placed, tiles.size(),
                     describe(), String.join(", ", per));
+            if (looks) {
+                LOGGER.info("[Sim] real mob looks: {} of {} starred mob(s) as recorded on Hypixel", looked, placed);
+            }
             if (withFels) {
                 LOGGER.info("[Sim] fels placed: {} starred, {} not starred", starredFels, plainFels);
             }

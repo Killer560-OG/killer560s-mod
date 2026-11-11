@@ -191,6 +191,10 @@ public final class BloodCampMoveTimer {
         } else if (CAMP_DONE.matcher(plain).matches()) {
             spawningDone = true;
             LOGGER.info("[BloodCamp] Watcher: camp cleared (\"You have proven yourself.\") at tick {}", now);
+            // The numbers the sim's camp estimates (docs/SIM.md, Blood camp): read these to refine them.
+            LOGGER.info("[BloodCamp] camp census: floor {}, {} skull trips ({} first wave), cleared {} game ticks after the"
+                            + " greeting", com.killer560.hub.secrets.DungeonState.getFloor(), censusTrips, censusFirst,
+                    bloodOpenTick < 0 ? -1 : gameTicksSinceGreeting());
             BloodCampStats.onCampCleared();
         } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
             bloodOpenTick = now;
@@ -199,6 +203,7 @@ public final class BloodCampMoveTimer {
             moveAtElapsed = -1L;
             firstSpawns = true;
             spawningDone = false;
+            censusTrips = censusFirst = 0;
             LOGGER.info("[BloodCamp] Watcher greeting seen at tick {} - move prediction armed.", now);
             BloodCampStats.onGreeting();
         } else {
@@ -221,7 +226,17 @@ public final class BloodCampMoveTimer {
      */
     private static final int[] FLOOR_MOVE_TICKS = {480, 600, 500, 500, 500, 470, 470, 420};
 
-    static int fastWatcherMoveTicks(String floor) {
+    /** Camp census (simblood-1110): skull trips since the greeting, and how many of them were first-wave. */
+    private static int censusTrips;
+    private static int censusFirst;
+
+    static void countTrip(boolean firstWave) {
+        censusTrips++;
+        if (firstWave) censusFirst++;
+    }
+
+    /** The floor's Watcher move, in server ticks after the greeting (also the sim's camp, simblood-1110). */
+    public static int fastWatcherMoveTicks(String floor) {
         if (floor == null || floor.isEmpty()) {
             return FAST_WATCHER_MOVE_TICKS;
         }

@@ -451,6 +451,7 @@ public final class BloodCampFeature {
         if (data == null) {
             data = new BloodMobState(packetVec, nowTick, firstSpawn);
             bloodMobs.put(entity, data);
+            BloodCampMoveTimer.countTrip(firstSpawn);
             LOGGER.info("[BloodCamp] trip tracked ({}): stand #{} {} tracked={} tick={}", kind, entity.getId(), data.brief(),
                     bloodMobs.size(), nowTick);
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
@@ -636,6 +637,16 @@ public final class BloodCampFeature {
      *  codebase's own {@code SecretsFeature} already uses successfully for real skull identification,
      *  extended one step further to the texture string itself instead of stopping at the profile UUID
      *  (needed here since two of the real mob skulls have no attached player profile at all). */
+    /** The Watcher's head skin (the sim's Watcher wears it, simblood-1110): one fixed entry of the set this reads. */
+    public static String watcherSkin() {
+        return WATCHER_SKULL_TEXTURES.stream().sorted().findFirst().orElseThrow();
+    }
+
+    /** The blood mob head skins this reads, in a fixed order (the sim's flying skulls wear them). */
+    public static java.util.List<String> bloodMobSkins() {
+        return MOB_SKULL_TEXTURES.stream().sorted().toList();
+    }
+
     private static String getSkullTexture(ItemStack stack) {
         if (stack.isEmpty()) {
             return null;
