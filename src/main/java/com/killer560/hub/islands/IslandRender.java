@@ -21,14 +21,19 @@ public final class IslandRender {
     /** {@link #label}, drawn through walls when {@code walls}. */
     public static void label(LevelRenderContext context, double x, double y, double z, String text, int color,
                              boolean walls) {
+        Vec3 c = McRender.cameraPos(context);
+        label(context, x, y, z, text, color, walls, 0.025f * labelGrowth(Math.sqrt(c.distanceToSqr(x, y, z))));
+    }
+
+    /** {@link #label} at a fixed world scale (0.025 is a name tag; Fruit Digging's small labels use 0.012). */
+    public static void label(LevelRenderContext context, double x, double y, double z, String text, int color,
+                             boolean walls, float s) {
         PoseStack poseStack = context.poseStack();
         if (poseStack == null || text == null || text.isEmpty()) {
             return;
         }
         Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
-        double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
-        float s = 0.025f * (float) labelGrowth(dist);
         poseStack.pushPose();
         try {
             poseStack.translate(x - cam.x, y - cam.y, z - cam.z);

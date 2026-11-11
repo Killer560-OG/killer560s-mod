@@ -7,7 +7,7 @@ import com.killer560.hub.islands.IslandConfig;
  * {@code "enabled"} is the feature's switch and defaults OFF; profile apply re-reads it through
  * {@link IslandConfig#loadAll()}, and {@link #reload()} puts every setter's clamp back over a hand-edited file.
  */
-abstract class CarnivalSettings {
+public abstract class CarnivalSettings {
 
     private final IslandConfig cfg;
     private boolean clamped;

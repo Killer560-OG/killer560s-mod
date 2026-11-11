@@ -22,8 +22,8 @@ import org.slf4j.Logger;
  * pick after three taps that change nothing. After a Rum the shovel's ability is off for the next dig, so it leaves it.
  * One action a tick through {@link ActionGate}. Automation: can get you banned; keep it off on the main server.
  *
- * <p>The mode is read off the held item: its name naming the mode if it does, else its look - an iron shovel Mines, a
- * diamond one Anchor, a golden one Treasure (the wiki's icons). Unverified in game.
+ * <p>The mode is read off the held item's model component (carnival_shovel_iron Mines, _diamond Anchor, _gold Treasure;
+ * confirmed from the Hypixel pack's model names in PackDisabler), else its name, else its base item.
  */
 public final class AutoShovelSwap {
 
@@ -44,16 +44,35 @@ public final class AutoShovelSwap {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoShovelSwap.tick", bit, AutoShovelSwap::tick));
     }
 
-    /** The dowsing mode a shovel is in ("Mines", "Anchor", "Treasure"), or null when it is not a shovel. */
-    static String modeOf(ItemStack stack) {
+    /** The dowsing mode a shovel is in ("Mines", "Anchor", "Treasure"), or null when it is not a shovel. Hypixel's one
+     *  Carnival Shovel is always an iron-shovel item; its mode shows only in the item MODEL component (hypixel_skyblock
+     *  item/uncategorized/carnival_shovel_iron | _gold | _diamond, PackDisabler's dynamicModel), so the base item says
+     *  nothing (11-11: it read every mode as Mines and Prevent Wrong Shovel refused a right Anchor dig). */
+    public static String modeOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
-        if (!path.endsWith("_shovel")) {
+        net.minecraft.resources.Identifier model = stack.get(net.minecraft.core.component.DataComponents.ITEM_MODEL);
+        return modeOf(BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath(), model == null ? null : model.getPath(),
+                ChatObserver.stripCodes(stack.getHoverName().getString()));
+    }
+
+    /** {@link #modeOf(ItemStack)} from its parts: the base item's path, its model path (or null) and plain name (or null). */
+    public static String modeOf(String itemPath, String modelPath, String name) {
+        if (modelPath != null) {
+            String last = modelPath.substring(modelPath.lastIndexOf('/') + 1);
+            if (last.startsWith("carnival_shovel_")) {
+                return switch (last) {
+                    case "carnival_shovel_iron" -> "Mines";
+                    case "carnival_shovel_diamond" -> "Anchor";
+                    case "carnival_shovel_gold" -> "Treasure";
+                    default -> null;
+                };
+            }
+        }
+        if (!itemPath.endsWith("_shovel")) {
             return null;
         }
-        String name = ChatObserver.stripCodes(stack.getHoverName().getString());
         if (name != null) {
             for (String m : new String[]{"Mines", "Anchor", "Treasure"}) {
                 if (name.contains(m)) {
@@ -61,7 +80,7 @@ public final class AutoShovelSwap {
                 }
             }
         }
-        return switch (path) {
+        return switch (itemPath) {
             case "iron_shovel" -> "Mines";
             case "diamond_shovel" -> "Anchor";
             case "golden_shovel" -> "Treasure";
@@ -84,6 +103,15 @@ public final class AutoShovelSwap {
         if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()) {
             return;
         }
+        step(mc, player, cfg.getDelayMs());
+    }
+
+    /**
+     * One step toward the shovel mode the solver wants: a hotbar select or a Use tap (at most one per {@code delayMs}),
+     * nothing when the mode is right. Auto Fruit Digging calls it on the ticks it is not digging, so its swap and its dig
+     * never share a tick (GrimAC PacketOrderE / BadPacketsJ: no hotbar or use action in a dig's tick).
+     */
+    static void step(Minecraft mc, LocalPlayer player, int delayMs) {
         CarnivalInput.watchCorrections(NAME);
         FruitDiggingSolver.Recommendation r = FruitDigging.recommendation();
         if (r == null || FruitDigging.lastFruit() == Fruit.RUM) {
@@ -112,7 +140,7 @@ public final class AutoShovelSwap {
             if (i != player.getInventory().getSelectedSlot() && want.equals(modeOf(player.getInventory().getItem(i)))) {
                 if (CarnivalInput.select(mc, player, i)) {
                     swaps++;
-                    nextTick = now + ActionGate.delayTicks(cfg.getDelayMs());
+                    nextTick = now + ActionGate.delayTicks(delayMs);
                     LOGGER.info("[{}] selected slot {} ({} mode) for {}", NAME, i + 1, want, r.label());
                 }
                 return;
@@ -130,7 +158,7 @@ public final class AutoShovelSwap {
         if (CarnivalInput.tap(mc.options.keyUse)) {
             swaps++;
             modeBeforeTap = held;
-            nextTick = now + ActionGate.delayTicks(cfg.getDelayMs());
+            nextTick = now + ActionGate.delayTicks(delayMs);
             LOGGER.info("[{}] stepping the shovel from {} toward {} for {}", NAME, held, want, r.label());
         }
     }

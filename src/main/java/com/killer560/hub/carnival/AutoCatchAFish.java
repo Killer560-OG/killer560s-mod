@@ -42,6 +42,12 @@ public final class AutoCatchAFish {
     private static long lastHookedTick;
     private static int casts;
     private static int reels;
+    /** Walking to the pond's edge on keys (Sneak + Forward), the sneak kept while fishing so it cannot step in. */
+    private static boolean walking;
+    private static boolean sneaking;
+    private static int walkTicks;
+    static final int WALK_MAX_TICKS = 160;
+    private static int walks;
 
     private AutoCatchAFish() {
     }
@@ -49,12 +55,23 @@ public final class AutoCatchAFish {
     public static void register() {
         CarnivalInput.register();
         CatchAFish.addWant(() -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
-        CarnivalState.onGameStart(g -> stoppedThisGame = false);
+        CarnivalState.onGameStart(g -> {
+            stoppedThisGame = false;
+            walkTicks = 0;
+            CatchAFish.forgetFlung();
+        });
         int bit = FeatureBits.register(NAME, () -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCatchAFish.tick", bit, AutoCatchAFish::tick));
     }
 
     private static void release(Minecraft mc) {
+        if (walking || sneaking) {
+            walking = false;
+            sneaking = false;
+            // Hand the keys back as they really are.
+            mc.options.keyUp.setDown(Islands.physical(mc, mc.options.keyUp));
+            mc.options.keyShift.setDown(Islands.physical(mc, mc.options.keyShift));
+        }
         if (holding) {
             holding = false;
             // Hand the key back as it really is: down only if he is holding the button himself.
@@ -102,6 +119,9 @@ public final class AutoCatchAFish {
             case AIM -> {
                 if (hook != null) {
                     to(hooked ? State.REEL : State.WAIT_HOOK, now);
+                    return;
+                }
+                if (walkToEdge(mc, player, cfg)) {
                     return;
                 }
                 if (target == null) {
@@ -158,6 +178,83 @@ public final class AutoCatchAFish {
                 }
             }
         }
+    }
+
+    /** The middle of the fish in view (the pond), or null with none. */
+    static Vec3 pond(java.util.List<CatchAFish.Fish> fish) {
+        if (fish.isEmpty()) {
+            return null;
+        }
+        double x = 0;
+        double z = 0;
+        for (CatchAFish.Fish f : fish) {
+            x += f.stand().getX();
+            z += f.stand().getZ();
+        }
+        return new Vec3(x / fish.size(), fish.get(0).stand().getY(), z / fish.size());
+    }
+
+    /** Whether the floor one step ahead of {@code player} toward {@code dir} (horizontal) is missing or water: the edge. */
+    static boolean edgeAhead(net.minecraft.client.multiplayer.ClientLevel level, LocalPlayer player, Vec3 dir) {
+        double len = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+        if (len < 1e-3) {
+            return true;
+        }
+        net.minecraft.core.BlockPos ahead = net.minecraft.core.BlockPos.containing(player.getX() + dir.x / len * 0.8,
+                player.getY() - 0.5, player.getZ() + dir.z / len * 0.8);
+        return level.getBlockState(ahead).getCollisionShape(level, ahead).isEmpty();
+    }
+
+    /**
+     * Walks to the pond's edge crouched, on key presses only (Sneak held, Forward held while the view faces the pond's
+     * middle): while a fish in the pond is out of sight, until all are in view, the floor ahead ends (the edge) or the
+     * pond is under 2.5 blocks away; at most {@link #WALK_MAX_TICKS} ticks a game, so it never freezes. The sneak stays
+     * held afterward. True while it is walking (the caller does not cast then).
+     */
+    private static boolean walkToEdge(Minecraft mc, LocalPlayer player, AutoCatchAFishConfig cfg) {
+        Vec3 pond = pond(CatchAFish.fish());
+        boolean seesAll = true;
+        for (CatchAFish.Fish f : CatchAFish.fish()) {
+            seesAll &= CatchAFish.inSight(player, f);
+        }
+        Vec3 dir = pond == null ? Vec3.ZERO : pond.subtract(player.position());
+        boolean done = pond == null || seesAll || walkTicks >= WALK_MAX_TICKS || dir.horizontalDistanceSqr() < 6.25
+                || edgeAhead(mc.level, player, dir);
+        if (done) {
+            if (sneaking) {
+                mc.options.keyShift.setDown(true);
+            }
+            if (walking) {
+                walking = false;
+                mc.options.keyUp.setDown(Islands.physical(mc, mc.options.keyUp));
+                CarnivalInput.release(NAME);
+                aiming = false;
+                ModChat.log(NAME, ModChat.text("At the pond's edge."));
+            }
+            return false;
+        }
+        if (!walking) {
+            walking = true;
+            walks++;
+            ModChat.log(NAME, ModChat.text("Walking to the pond's edge, crouched."));
+        }
+        sneaking = true;
+        walkTicks++;
+        aiming = true;
+        CarnivalInput.aim(NAME, player, new Vec3(pond.x, player.getEyeY(), pond.z), false, cfg.isFreeCamera());
+        mc.options.keyShift.setDown(true);
+        mc.options.keyUp.setDown(true);
+        return true;
+    }
+
+    /** Harness: walks to the edge started. */
+    public static int walks() {
+        return walks;
+    }
+
+    /** Harness: whether it is walking now. */
+    public static boolean walking() {
+        return walking;
     }
 
     /** Harness: casts made. */
