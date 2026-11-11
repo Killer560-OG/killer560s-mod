@@ -1740,9 +1740,7 @@ public final class ClearExecutor {
             }
             return;
         }
-        // Not over his own screen: a container click inside the burst's sneaking ticks draws GrimAC MultiActionsC (testkit
-        // 62-argrim-1110-mapchain-same-click); the warps go one a tick then.
-        if (com.killer560.hub.compat.McCompat.screen(client) != null || !ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+        if (!ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
             return;
         }
         int fired = 0;
@@ -2439,6 +2437,12 @@ public final class ClearExecutor {
     }
 
     private static boolean canNext() {
+        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
+            // His own inventory is open: a click in it on a tick that carries a hop (the mod's sneak, his click) is GrimAC
+            // MultiActionsC (testkit 62-argrim-1110-mapchain-same-click); the path waits for him to close it.
+            waitReason = "his inventory is open";
+            return false;
+        }
         if (syncDelay != 0 || globalDelay > 0 || nodes == null || nodes.isEmpty()) {
             return false;
         }
