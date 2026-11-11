@@ -1008,3 +1008,15 @@ many ticks went between ("N sent between them for a position in time").
   Digging and the Triggerbot) goes only while `DigAim.heardLookStrikes` (RotationBreak) and every hotbar select waits out
   `HotbarSelect.swapWouldFlag()`. Prevent Misclicks / Prevent Wrong Shovel cancel the AttackBlockCallback, which fires every
   tick while the button is held, so their chat line is deduped (2 s per reason).
+
+## Carnival autos (carnival-1110)
+
+- **A key tap from an auto goes through `CarnivalInput.tap`, which waits out the player's own input that tick.** Its first
+  taps went the same tick as his right click, and GrimAC flagged PacketOrderJ (a use after an attack in one tick); a tap of
+  a key he had also pressed sent two presses in one tick. The tap now waits while `ActionGate.hisClickQueued(key)` or, for
+  an attack, `ActionGate.hisUseGoesThisTick`, then asks `ActionGate.tryAct(CARNIVAL_WORLD)`. Testkit 3792 lands his use,
+  dig, hotbar swap and a teleport in the auto's own tick on default and experimental Grim and checks both on the wire.
+- Carnival configs are `CarnivalSettings` maps (`IslandConfig`), with no Java fields, so `DefaultsOff1104Cases.TABLE` cannot
+  read them; testkit 3761-3772 check each card's switch loads OFF from a fresh config instead. A new Carnival switch goes there.
+- Shovel modes in Fruit Digging are read from the item name, else from its look (iron = Mines, diamond = Anchor, golden =
+  Treasure), not yet checked against Hypixel; `AutoShovelSwap.mode` is the one place to fix if they differ.
