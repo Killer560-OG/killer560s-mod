@@ -5622,10 +5622,30 @@ public final class Ap3Executor {
      * a jump is due or armed (a sprint jump's boost goes along the facing, so a turned body would throw the jump off).
      */
     public static float offWalkYaw() {
-        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0) {
+        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0 || jumpNodeAtFeet()) {
             return Float.NaN;
         }
         return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
+    }
+
+    /**
+     * A JUMP / EDGE node (or one with a jump / edge modifier) whose box he stands in or reaches next tick: scanBoxes fires it
+     * on this very tick, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110: Lever Aura's
+     * off-walk look turned him on the tick node 23's sprint-jump went, the boost followed it and he fell off the platform).
+     */
+    private static boolean jumpNodeAtFeet() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (chain == null || p == null) {
+            return false;
+        }
+        Vec3 now = p.position(), next = now.add(p.getDeltaMovement());
+        for (Ap3Node n : chain.nodes()) {
+            if ((n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE)
+                    && (n.contains(now) || n.contains(next))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
