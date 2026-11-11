@@ -352,7 +352,10 @@ public final class TurnFirst {
      * A look off the walk for one click (see {@link #registerOffWalk}): of the yaws within 30 degrees of the target whose
      * ray meets it, the one whose nearest key combination keeps W (the sprint) and lies nearest a whole 45-degree step off
      * the walk, so the walk's keys re-picked at that yaw (Ap3Executor.beforeInputInstall) bend it the least on the two ticks
-     * the body is turned. On the ground only W-keeping yaws; in the air any (the keys only steer the small air push there).
+     * the body is turned. On the ground only W-keeping yaws (a W-less tick dropped the route's sprint, leverkey-1110); in
+     * the air any (the air push is a twentieth of a ground one, and sprint comes back with W the tick after): the high S2
+     * lever on the EE3 route is in reach with W only on the ground tick before node 23's jump, where the bend threw him
+     * short of the landing (leverjump-1111), and right after the jump with S+D at a 2-degree bend. None means the click waits.
      * {yaw, pitch, bend in degrees}, or null.
      */
     private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
@@ -389,14 +392,13 @@ public final class TurnFirst {
             float yaw = yaw0 + (d % 2 == 0 ? d / 2 : -(d + 1) / 2);
             float rel = Mth.wrapDegrees(walk - yaw); // the walk seen from this facing: W keeps while |rel| < 67.5
             boolean keepsW = Math.abs(rel) < 67.5f;
-            if (!keepsW && player.onGround()) continue;
+            if (!keepsW && player.onGround()) continue; // never drop W on the ground: the sprint stays held (leverkey-1110)
             float bend = Math.abs(rel - 45f * Math.round(rel / 45f));
-            float score = bend + (keepsW ? 0f : 100f);
-            if (score >= bestScore) continue;
+            if (bend >= bestScore) continue;
             float[] f = walkKeyedLook(new float[]{yaw}, eye, pitch0, ray, reach, 120);
             if (f != null) {
                 best = new float[]{f[0], f[1], bend};
-                bestScore = score;
+                bestScore = bend;
             }
         }
         return best;

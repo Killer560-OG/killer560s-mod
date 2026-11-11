@@ -10,6 +10,7 @@ import com.killer560.hub.storagesearch.StorageSearchNbtCodec;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
@@ -47,6 +48,10 @@ public final class InvSortLoadoutCache {
     private static volatile String itemsAccount;
     private static volatile String tried;
 
+    private static Component titleSeen;
+    private static int titlePage;
+    private static int titleOf;
+
     private InvSortLoadoutCache() {
     }
 
@@ -56,9 +61,15 @@ public final class InvSortLoadoutCache {
         if (!(screen instanceof AbstractContainerScreen<?> container) || !container.getMenu().getCarried().isEmpty()) {
             return;
         }
-        Matcher m = LoadoutKeybindsFeature.LOADOUT_TITLE.matcher(container.getTitle().getString());
-        if (m.find()) {
-            capture(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)),
+        Component title = container.getTitle();
+        if (title != titleSeen) { // every container screen reaches here each tick: read the title once per title object
+            Matcher m = LoadoutKeybindsFeature.LOADOUT_TITLE.matcher(title.getString());
+            titlePage = m.find() ? Integer.parseInt(m.group(1)) : 0;
+            titleOf = titlePage > 0 ? Integer.parseInt(m.group(2)) : 0;
+            titleSeen = title;
+        }
+        if (titlePage > 0) {
+            capture(titlePage, titleOf,
                     container.getMenu().slots.stream().limit(Math.max(0, container.getMenu().slots.size() - PLAYER_SLOTS))
                             .map(s -> s.getItem()).toList());
         }

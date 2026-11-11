@@ -109,7 +109,14 @@ public final class ScoreboardData {
         return objective != null ? objective : scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
     }
 
+    /** The level and game tick of the last sidebar read: {@link #sidebarNow} callers (Carnival, Cold, low health, the Bazaar
+     *  frame: each tick, or each frame) share one rebuild per tick instead of sorting and formatting the board each time. */
+    private static Object readLevel;
+    private static long readTick = Long.MIN_VALUE;
+
     private static void readSidebar(Minecraft client) {
+        readLevel = client.level;
+        readTick = client.level.getGameTime();
         Scoreboard scoreboard = client.level.getScoreboard();
         Objective objective = sidebarObjective(client);
         if (objective == null) {
@@ -340,7 +347,9 @@ public final class ScoreboardData {
      */
     public static List<String> sidebarNow(Minecraft client) {
         if (client == null || client.level == null || client.player == null) return Collections.emptyList();
-        readSidebar(client);
+        if (client.level != readLevel || client.level.getGameTime() != readTick) {
+            readSidebar(client);
+        }
         return sidebarLines;
     }
 

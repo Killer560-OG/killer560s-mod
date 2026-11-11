@@ -55,6 +55,8 @@ final class SettingTooltipsData {
         d.put("clear blocked inviters", "Lets the players you blocked from the invite message invite you again.");
         d.put("spawn withers", "Dungeon Sim F7 Boss: ON spawns the boss withers (Maxor, Storm, Goldor, Necron) as Hypixel does. OFF: no wither in any phase, so the arena stays quiet while you set up routes, waypoints and terminals. The phase names and chat lines still show.");
         d.put("spawn starred mobs", "Dungeon Sim: the next floor gets starred mobs in every mob room (on the spawn spots Blood Rush Helper learned, where it has them), Fels, wither doors and keys. The same setting as the Map Designer's Mobs button. Off: no room mobs, and every mob room clears when you walk in.");
+        d.put("real mob looks", "Dungeon Sim, with Spawn Starred Mobs: a starred mob on a spot whose real mob Blood Rush Helper saw on Hypixel is spawned as that mob - its type, armor, skin and facing, turned with the room. Spots never seen keep the plain dummy. Learn Spawn Spots records them on your own runs.");
+        d.put("watcher blood camp", "Dungeon Sim: the Watcher runs a blood camp in the Blood room - his lines, skulls flying out of the wall cases and landing as one-HP blood mobs on Hypixel's timing; after the last kill he lets you pass and the boss portal opens. Off: five seconds in Blood open the portal.");
         d.put("blood rush helper", "On the blood rush, boxes where the starred mobs of the room you are in stand, grouped into spots and numbered in the order to kill them from the door you came in by; the next one is filled in, and a spot goes when its mobs die. Until the Blood door opens. Shows only, never moves or clicks.");
         d.put("blood rush helper/killers", "How many of you kill on the rush (the door runner not counted). Above Just Me each room is split into one area a killer, as seen from the door you came in by. Party chat (!3br 2) overrides it for a run.");
         d.put("blood rush helper/my role", "Your role, numbered as the reference mod adm numbers them: role 1 takes the area farthest from the door (in master mode the biggest area). Door kills nothing. In master mode your class picks it (Archer 1, Mage 2, Berserk 3, Tank 4, Healer the door). Party chat (!br 2, !br d) overrides it for a run.");
@@ -2908,6 +2910,7 @@ final class SettingTooltipsData {
         d.put("best friends/track party time", "Counts the time you spend in a party with each player and the dungeon runs you clear together, for the /bestfriends list.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
+        d.put("friends list/party friends on top", "Friends who are in your party are listed first under an In Party header, apart from the rest of your list.");
         d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");

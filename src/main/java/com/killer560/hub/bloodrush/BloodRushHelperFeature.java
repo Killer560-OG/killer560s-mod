@@ -421,6 +421,7 @@ public final class BloodRushHelperFeature {
         int gen = LiveMapFeature.resetGeneration();
         if (client.level != level || gen != generation) {
             BloodRushSpots.saveIfDirty(true);
+            com.killer560.hub.roomsim.SimMobLooks.saveIfDirty(true);
             if (client.level != level) {
                 // adm's rule: party-chat roles last until the dungeon they were for is over.
                 BloodRushRoles.newWorld(wasInDungeon);
@@ -616,7 +617,10 @@ public final class BloodRushHelperFeature {
             int[] cr = layout.clayRotation(p.room);
             String name = layout.name(p.room);
             if (cr != null && name != null && !"Unknown".equals(name)) {
-                BloodRushSpots.learn(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]), BlockPos.containing(p.at));
+                RouteCoords.Frame frame = new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
+                BloodRushSpots.learn(name, frame, BlockPos.containing(p.at));
+                // Its look too (type, gear, skin, name), for the sim's Real Mob Looks (simblood-1110).
+                com.killer560.hub.roomsim.SimMobLooks.record(name, frame, e, tagOf(client, e));
             }
         }
     }

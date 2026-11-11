@@ -19,7 +19,7 @@ block capture of Hypixel's boss room (box x -8..143, y 0..255, z -8..159) and is
   fit in one world and `Floor7Tracker.inF7Boss()` (x > -7, z > -7) is true by position alone - every boss feature
   (Terminal Solver, AP3, P3 Nav, Fast Leap...) works with no special case.
 - Ways in: the floor's Blood room portal (`BossPortal`: the Watcher's "You may pass." line, or five seconds standing in
-  Blood while the sim has no Watcher), the sim menu's F7 Boss entry (`BossStartScreen`), `/simboss <phase> [floor7|master]`.
+  Blood while the sim has no Watcher, i.e. Watcher Blood Camp off: `roomsim/SimBloodCamp`), the sim menu's F7 Boss entry (`BossStartScreen`), `/simboss <phase> [floor7|master]`.
   Starting from inside the sim does NOT go through `SimWorld.open` (its in-sim path resets the floor's per-map state).
 - Server side: `BossSim.serverTick` (END_SERVER_TICK, only for the integrated server while `SimState.isActive()`),
   interaction callbacks answer only while `BossSim.serverOk` (sim + a fight running).
