@@ -123,9 +123,75 @@ public class LividSolverTab extends BaseTab {
             widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Through Walls", true));
             y += 16;
             SolverEspRows.throughWallsRow(widgets, SOLVER, contentX, contentWidth, y);
+            autoM5Rows(widgets, cfg, contentX, below(widgets, y), contentWidth, requestRebuild);
         }
 
         return widgets;
+    }
+
+    /** Auto M5 (cheat build): runs only under the Livid Solver's switch, so it is not a separate master toggle. */
+    private static void autoM5Rows(List<AbstractWidget> widgets, LividSolverConfig cfg, int x, int y, int w, Runnable rebuild) {
+        widgets.add(SectionHeaders.row(x, y, w, "Auto M5", true));
+        y += 16;
+        widgets.add(onOffButton("Auto M5", cfg::getAutoM5Raw, cfg::setAutoM5, cfg::save, rebuild, x, y, w, 18));
+        y += 24;
+        if (!cfg.getAutoM5Raw() && !isSearchScan()) {
+            return;
+        }
+        int half = (w - 6) / 2;
+        widgets.add(onOffButton("Walk To Mid", cfg::isM5Mid, cfg::setM5Mid, cfg::save, null, x, y, half, 18));
+        widgets.add(SettingsButtonWidget.builder(midText(cfg), btn -> {
+                    com.killer560.hub.boss.AutoM5Feature.setMidHere();
+                    btn.setMessage(midText(cfg));
+                }).bounds(x + half + 6, y, w - half - 6, 18).build());
+        y += 24;
+        widgets.add(onOffButton("Armor Swap", cfg::isM5ArmorSwap, cfg::setM5ArmorSwap, cfg::save, rebuild, x, y, w, 18));
+        y += 24;
+        if (cfg.isM5ArmorSwap() || isSearchScan()) {
+            widgets.add(SettingsButtonWidget.cycling(loadoutText(cfg), (btn, dir) -> {
+                        cfg.setM5Loadout(SettingsButtonWidget.step(cfg.getM5Loadout() - 1, dir, LividSolverConfig.MAX_LOADOUT) + 1);
+                        cfg.save();
+                        btn.setMessage(loadoutText(cfg));
+                    }).bounds(x, y, w, 18).build());
+            y += 24;
+        }
+        widgets.add(onOffButton("Ragnarock Buff", cfg::isM5Buff, cfg::setM5Buff, cfg::save, null, x, y, w, 18));
+        y += 24;
+        widgets.add(onOffButton("Auto Aim", cfg::isM5Aim, cfg::setM5Aim, cfg::save, rebuild, x, y, w, 18));
+        y += 24;
+        if (cfg.isM5Aim() || isSearchScan()) {
+            widgets.add(onOffButton("Aim At Head", cfg::isM5AimHead, cfg::setM5AimHead, cfg::save, null, x, y, w, 18));
+            y += 24;
+            int span = LividSolverConfig.MAX_SMOOTHING - LividSolverConfig.MIN_SMOOTHING;
+            widgets.add(new ThemedSliderButton(x, y, w, 18, smoothingText(cfg),
+                    (cfg.getM5Smoothing() - LividSolverConfig.MIN_SMOOTHING) / (double) span) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(smoothingText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setM5Smoothing(LividSolverConfig.MIN_SMOOTHING + (int) Math.round(this.value * span));
+                    saveOnRelease(cfg::save);
+                }
+            }.steps(span));
+            y += 24;
+        }
+        widgets.add(onOffButton("Auto Kill", cfg::isM5Kill, cfg::setM5Kill, cfg::save, null, x, y, w, 18));
+    }
+
+    private static Component midText(LividSolverConfig cfg) {
+        net.minecraft.core.BlockPos p = cfg.getM5MidSpot();
+        return Component.literal(p == null ? "Set Mid Here: §7not set" : "Set Mid Here: §6" + p.getX() + ", " + p.getY() + ", " + p.getZ());
+    }
+
+    private static Component loadoutText(LividSolverConfig cfg) {
+        return Component.literal("Loadout: §6" + cfg.getM5Loadout());
+    }
+
+    private static Component smoothingText(LividSolverConfig cfg) {
+        return Component.literal("Smoothing: " + cfg.getM5Smoothing());
     }
 
     /** The y under everything in {@code widgets} so far, with the same 6-unit gap the shared rows use. */

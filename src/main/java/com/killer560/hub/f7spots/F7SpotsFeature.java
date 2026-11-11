@@ -32,6 +32,7 @@ public final class F7SpotsFeature {
 
     public static void register() {
         F7SpotsConfig.getInstance();
+        StormBowFeature.register();
         LevelRenderEvents.COLLECT_SUBMITS.register(com.killer560.hub.util.FeatureGuard.collectFeatures(
                 com.killer560.hub.util.FeatureBits.register("F7 Spots render", () -> F7SpotsConfig.getInstance().getWalkWaypointsRaw() || F7SpotsConfig.getInstance().getAimSpotsRaw()), context -> {
             if (!SkyblockGate.allows()) {

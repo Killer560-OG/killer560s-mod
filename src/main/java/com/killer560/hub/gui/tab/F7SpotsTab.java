@@ -61,7 +61,9 @@ public class F7SpotsTab extends BaseTab {
     /** The card is ON while either Walk Waypoints or Aim Spots is, OFF only when both are. */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Walk Waypoints", "Aim Spots");
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                ? switchRows(built, "Walk Waypoints", "Aim Spots", "Storm Bow")
+                : switchRows(built, "Walk Waypoints", "Aim Spots");
     }
 
     @Override
@@ -183,7 +185,66 @@ public class F7SpotsTab extends BaseTab {
                     }
                     requestRebuild.run();
                 }).bounds(col2X, y, colW, 18).build());
+        y += 26;
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            stormBowRows(widgets, cfg, contentX, y, contentWidth, requestRebuild);
+        }
         return widgets;
+    }
+
+    /** Storm Bow (cheat build): its own switch, at the bottom under a red header. */
+    private static void stormBowRows(List<AbstractWidget> widgets, F7SpotsConfig cfg, int x, int y, int w, Runnable rebuild) {
+        widgets.add(SectionHeaders.row(x, y, w, "Storm Bow", true));
+        y += 16;
+        widgets.add(onOffButton("Storm Bow", cfg::getStormBowRaw, cfg::setStormBow, cfg::save, rebuild, x, y, w, 18));
+        y += 24;
+        if (!cfg.getStormBowRaw() && !isSearchScan()) {
+            return;
+        }
+        float span = F7SpotsConfig.MAX_RELEASE_TICKS - F7SpotsConfig.MIN_RELEASE_TICKS;
+        widgets.add(new ThemedSliderButton(x, y, w, 18, releaseText(cfg),
+                (cfg.getStormBowReleaseTicks() - F7SpotsConfig.MIN_RELEASE_TICKS) / span) {
+            @Override
+            protected void updateMessage() {
+                setMessage(releaseText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setStormBowReleaseTicks(F7SpotsConfig.MIN_RELEASE_TICKS + (float) this.value * span);
+                saveOnRelease(cfg::save);
+            }
+        }.steps((int) (span * 4)));
+        y += 24;
+        widgets.add(onOffButton("Swap To Terminator", cfg::isStormBowTerminator, cfg::setStormBowTerminator, cfg::save,
+                null, x, y, w, 18));
+        y += 24;
+        widgets.add(onOffButton("Walk After Release", cfg::isStormBowWalk, cfg::setStormBowWalk, cfg::save, rebuild,
+                x, y, w, 18));
+        y += 24;
+        if (cfg.isStormBowWalk() || isSearchScan()) {
+            widgets.add(new ThemedSliderButton(x, y, w, 18, walkText(cfg),
+                    (cfg.getStormBowWalkTicks() - 1) / (double) (F7SpotsConfig.MAX_WALK_TICKS - 1)) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(walkText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setStormBowWalkTicks(1 + (int) Math.round(this.value * (F7SpotsConfig.MAX_WALK_TICKS - 1)));
+                    saveOnRelease(cfg::save);
+                }
+            }.steps(F7SpotsConfig.MAX_WALK_TICKS - 1));
+        }
+    }
+
+    private static Component releaseText(F7SpotsConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Release At Tick: %.2f", cfg.getStormBowReleaseTicks()));
+    }
+
+    private static Component walkText(F7SpotsConfig cfg) {
+        return Component.literal("Walk Ticks: " + cfg.getStormBowWalkTicks());
     }
 
     /** Adds the block you're standing on, tagged with the selected (or current) phase and floor. */
