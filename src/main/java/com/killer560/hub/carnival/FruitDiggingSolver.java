@@ -43,6 +43,10 @@ public final class FruitDiggingSolver {
         public boolean mustFruit;
         /** The tile is known to hold no fruit (it stood beside a bomb that went off). */
         public boolean notFruit;
+        /** The neighbors that were still unknown when this tile was dug: the tiles its clue counts. Null reads the
+         *  neighbors that are unknown now (older callers); a clue counted at dig time must not lose a tile that was
+         *  dug, marked or destroyed since, or its Anchor's marked fruit and its Mines count stop fitting any board. */
+        public int[] from;
 
         public Cell copy() {
             Cell c = new Cell();
@@ -54,6 +58,7 @@ public final class FruitDiggingSolver {
             c.noFruitNearby = noFruitNearby;
             c.mustFruit = mustFruit;
             c.notFruit = notFruit;
+            c.from = from;
             return c;
         }
     }
@@ -437,14 +442,17 @@ public final class FruitDiggingSolver {
         for (int i = 0; i < CELLS; i++) {
             Cell c = cells[i];
             List<Integer> hidden = new ArrayList<>();
-            for (int nb : NEIGHBORS[i]) {
-                if (cells[nb].diggable && slotOf[nb] >= 0) {
+            int knownBombs = 0;
+            for (int nb : c.from != null ? c.from : NEIGHBORS[i]) {
+                if (slotOf[nb] >= 0 && (c.from != null || cells[nb].diggable)) {
                     hidden.add(slotOf[nb]);
+                } else if (c.from != null && cells[nb].content == Fruit.BOMB) {
+                    knownBombs++;
                 }
             }
             int[] h = hidden.stream().mapToInt(Integer::intValue).toArray();
             if (c.mines >= 0) {
-                out.add(new BombCount(h, c.mines));
+                out.add(new BombCount(h, Math.max(0, c.mines - knownBombs)));
             }
             if (c.noFruitNearby) {
                 out.add(new NoFruit(h));
@@ -466,8 +474,9 @@ public final class FruitDiggingSolver {
     }
 
     private static boolean knownNeighbor(Cell[] cells, int i, Fruit f) {
-        for (int nb : NEIGHBORS[i]) {
-            if (cells[nb].diggable && cells[nb].content == f) {
+        boolean stamped = cells[i].from != null;
+        for (int nb : stamped ? cells[i].from : NEIGHBORS[i]) {
+            if ((stamped || cells[nb].diggable) && cells[nb].content == f) {
                 return true;
             }
         }

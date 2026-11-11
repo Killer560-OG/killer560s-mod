@@ -342,6 +342,7 @@ public final class FruitDigging {
                 digsUsed++;
                 previousDug = lastDug;
                 lastDug = i;
+                c.from = unknownNeighbors(i);
                 lastDugTick = tick;
                 attacked = -1;
                 LOGGER.info("[Fruit Digging] dug {} ({} of {})", FruitDiggingSolver.label(i), digsUsed,
@@ -351,6 +352,12 @@ public final class FruitDigging {
                 c.mustFruit = true;
             }
         }
+    }
+
+    /** The neighbors of {@code i} that are sand with nothing known under them: what a clue from digging {@code i} counts. */
+    private static int[] unknownNeighbors(int i) {
+        return java.util.Arrays.stream(FruitDiggingSolver.neighbors(i)).filter(nb -> cells[nb].diggable && cells[nb].content == null)
+                .toArray();
     }
 
     private static boolean isNeighbor(int a, int b) {
