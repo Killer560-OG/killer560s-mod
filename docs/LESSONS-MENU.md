@@ -231,6 +231,7 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   pack: `SoundBufferLibrary.getCompleteBuffer` is answered from the folder by a second mixin, and the decoded `SoundBuffer` is
   kept per file because each owns an OpenAL buffer freed only when the engine clears its library. An `Identifier` cannot hold
   capitals or spaces, so an imported file is named to the engine by a hashed key (`imported/s<hash>`).
+- **Profile Viewer pvtweak-1110:** class levels use `LevelTables.catacombsLevel(xp, true)` (overflow, 200M XP per level past 50); only Class Average caps at 50. `layoutTabs()` must run after `panelW` is set in `init()`: before 2026-11-11 it read the previous width (0 on first open) and squeezed every Default tab (testkit 693 failed "a tab runs outside the panel: x 4"). The Recent sidebar highlights the viewed uuid with `selBand`; own account sits above a separator. Testkit 1110-menu-pvtweak.
 - **A settings grid (one row per item, columns of cyclers) is built from compact `SettingsButtonWidget`s** (leaprow-1110,
   Fast/Auto Leap target pages): `.compact()` draws only the value pill across the widget (no label, no row band) while the
   label stays in the message for tooltips, search and tests, and `.dim(on)` greys a kept-but-unused value that stays

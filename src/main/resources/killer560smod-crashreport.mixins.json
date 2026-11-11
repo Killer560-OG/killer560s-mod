@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.crashreport.mixin",
 	"client": [
-		"CrashReportSaveMixin"
+		"CrashReportSaveMixin",
+		"ShutdownWatchdogMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
