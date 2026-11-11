@@ -61,6 +61,8 @@ public final class SimHost {
     private static final Set<UUID> ADMITTED = ConcurrentHashMap.newKeySet();
     /** Guests turned away as over Max, until they are gone (a disconnect takes a tick or two). */
     private static final Set<UUID> FULL = ConcurrentHashMap.newKeySet();
+    /** Joiners waiting to be landed at the end of the server tick they joined in. */
+    private static final Set<UUID> LANDING = ConcurrentHashMap.newKeySet();
     private static volatile int kicks, fullRefusals;
 
     private SimHost() {
@@ -69,14 +71,52 @@ public final class SimHost {
     static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(SimHost::clientTick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            if (!active || !(server instanceof IntegratedServer)) return;
-            if (server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
+            if (!(server instanceof IntegratedServer)) return;
+            if (active && server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
+            else LANDING.add(handler.player.getUUID());   // also a sim opened with vanilla's Open to LAN
+        });
+        // JOIN fires inside placeNewPlayer, before the chunk map tracks the player: a teleport there threw
+        // (DistanceManager.removePlayer NPE, "Invalid player data"), so the landing waits for the end of the tick.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (LANDING.isEmpty()) return;
+            for (UUID id : List.copyOf(LANDING)) {
+                LANDING.remove(id);
+                ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                if (sp != null) landJoiner(server, sp);
+            }
         });
         // As the owner's own connection drops, while the guests' still carry the bye (by SERVER_STOPPING the
         // connection listener has already closed them: the guest read "Disconnected").
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             if (active && SimCoop.isHost(handler.player)) byeAll(server, "the owner left");
         });
+    }
+
+    /**
+     * A joiner starts on the host's spot (a clear one, held for its chunks), not on the world spawn, which is the bedrock
+     * roof above the sim. While a build runs everyone is at the holding area and is placed when it ends. Server thread.
+     */
+    private static void landJoiner(MinecraftServer server, ServerPlayer sp) {
+        if (SimCoop.isHost(sp) || !SimState.isActive() || SimWorld.isBuilding()
+                || com.killer560.hub.bosssim.BossSim.isBuilding()) return;
+        for (ServerPlayer h : server.getPlayerList().getPlayers()) {
+            if (SimCoop.isHost(h) && h.level() instanceof net.minecraft.server.level.ServerLevel level) {
+                SimArrival.place(sp, level, h.getX(), h.getY(), h.getZ(), h.getYRot(), 0f);
+                SimCoop.LOGGER.info("[SimCoop] {} joined: landed beside the host at {} {} {}", sp.getGameProfile().name(),
+                        Math.round(sp.getX()), Math.round(sp.getY()), Math.round(sp.getZ()));
+                return;
+            }
+        }
+    }
+
+    /** Moves everyone to {@code at} (the host's world rebuilds that part); host only. Client thread. */
+    public static void moveTo(Minecraft mc, com.killer560.hub.bosssim.BossFight.Start at) {
+        SimCoopConfig.get().setStartAt(at);
+        if (mc.getSingleplayerServer() == null || !SimState.isActive()) return;
+        var fight = com.killer560.hub.bosssim.BossFight.running();
+        boolean master = at == com.killer560.hub.bosssim.BossFight.Start.P5
+                || fight && com.killer560.hub.bosssim.BossFight.master();
+        com.killer560.hub.bosssim.BossSim.start(mc, at, master);
     }
 
     public static boolean hosting() { return active; }
@@ -134,7 +174,7 @@ public final class SimHost {
         pendingOpen = true;
         openTicks = 0;
         status = "Opening the sim world...";
-        com.killer560.hub.bosssim.BossSim.start(mc, com.killer560.hub.bosssim.BossFight.Start.P1, false);
+        com.killer560.hub.bosssim.BossSim.start(mc, SimCoopConfig.get().startAt(), false);
         return null;
     }
 
@@ -182,8 +222,9 @@ public final class SimHost {
                 secret = rep.body().get("hostSecret").getAsString();
                 roomKey = key(id);
                 roomId = id;
-                listLine = "Listed in the room list" + (publicHost == null ? " (LAN only)." : ".");
-                SimCoop.LOGGER.info("[SimCoop] room listed ({})", publicHost == null ? "LAN only" : "public");
+                listLine = "Listed in the room list" + (publicHost == null ? " (joins go through the relay)." : ".");
+                SimCoop.LOGGER.info("[SimCoop] room listed ({})", publicHost == null ? "relay tunnel only" : "public + relay tunnel");
+                SimTunnel.hostOpen(id, secret, port);
             } else {
                 String why = rep == null ? String.valueOf(err) : rep.error() == null ? "status " + rep.status() : rep.error();
                 listLine = "Not in the room list (" + why + ")" + (locked()
@@ -225,6 +266,7 @@ public final class SimHost {
             end("the world closed");
             return;
         }
+        SimTunnel.hostTick();
         if (++refreshTicks < REFRESH_TICKS && !refreshNow) return;
         refreshTicks = 0;
         refreshNow = false;
@@ -276,6 +318,7 @@ public final class SimHost {
         TICKETS.clear();
         CLAIMED.clear();
         if (id != null) SimRooms.delete(id, s);
+        SimTunnel.hostClose();
         SimUpnp.unmap();
         if (was) {
             status = "Room closed (" + why + ").";
