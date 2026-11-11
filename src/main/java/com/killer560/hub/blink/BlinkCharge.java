@@ -1172,8 +1172,12 @@ public final class BlinkCharge {
     private static long tpHeldTotal;
     private static long tpHoldMsMax;
     private static final int TP_HOLD_MAX_PACKETS = 2048;
-    /** A teleport hold is let go after this long: its answer is due by then, and a longer one draws TimerLimit. */
-    private static final long TP_HOLD_MAX_MS = ANSWER_DELAY_MS;
+    /**
+     * A teleport hold is let go after this long: a longer one draws TimerLimit (~1120 ms allowed). The cap is checked once
+     * per client tick, so it sits two ticks under the answer delay: at the delay itself a loaded client let a hold run
+     * to 1142 ms and drew TimerLimit (1027-ap3-blink-leap-route, 26.3, ap3grp2-1110).
+     */
+    private static final long TP_HOLD_MAX_MS = ANSWER_DELAY_MS - 100L;
 
     public static boolean teleportHeld() {
         return !tpSegs.isEmpty();

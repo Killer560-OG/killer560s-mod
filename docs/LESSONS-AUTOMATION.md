@@ -1001,6 +1001,8 @@ everything held goes out in one burst, and a 1149 ms hold (33 packets) drew Time
 (ap3grp-run5) where 1090 ms ones (29-30) were clean. `TP_HOLD_MAX_MS` was 3000 ("cannot happen"); it is `ANSWER_DELAY_MS`
 now, and past it the client tick sends the hold's answer early and flushes (ap3grp2-1110). Holds then read 1051-1096 ms,
 26-30 packets, and the 26.2 group ran clean. The flush logs "teleport hold let go after N ms": read it before a TimerLimit.
+The cap is checked once per client tick, so under load a 26.3 full group still let one run to 1142 ms (TimerLimit); it is
+`ANSWER_DELAY_MS - 100` since, two ticks of margin under the ~1120 ms GrimAC allows.
 
 A LOOK's frozen view outlives AP3: after a stop, `tickView` glides the body 30 degrees a tick under it. Until ap3grp2-1110 a
 server teleport that set his look did not end that glide, so the body turned away from the server's look right after it
