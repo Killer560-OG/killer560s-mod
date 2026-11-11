@@ -810,7 +810,11 @@ public final class BlinkCharge {
                 // (1027-blink-c-keep-delay, fc3), so a teleport whose oldest answer is short of the bank takes the hold below.
                 long oldestAge = mark == null ? 0L : System.currentTimeMillis() - answers.peekFirst().madeMs();
                 boolean coverKept = oldestAge >= 50L * (banked + shotLeft + 1) - TP_BATCH_SLACK_MS;
-                if (mark != null && TP_BATCH && tpSegs.isEmpty() && coverKept) {
+                // A chain of warps is running (noteChain): the hold would keep every later warp a second behind this
+                // confirm (his 26.3 log 2026-11-10 08:39: 12 map warps in two ~1030 ms holds). The batch goes now and
+                // the bank is backed again on still ticks, as after the hold - same cost, no second's wait.
+                boolean chain = !coverKept && chainRunning();
+                if (mark != null && TP_BATCH && tpSegs.isEmpty() && (coverKept || chain)) {
                     // The cover survives the teleport (killer560 2026-10-27: "keep them through a leap truly"). Every
                     // waiting answer up to the teleport's ping goes now, back to back with no move between them, and the
                     // confirm right behind. GrimAC's Timer moves its lag floor (lastMovementPlayerClock) only on the FIRST
@@ -833,9 +837,16 @@ public final class BlinkCharge {
                     // Actions held for this tick go after the answers: sent before them, they sat after his last move
                     // with an answer behind - GrimAC Post "entity action" (1027-blink-c-p3sim (d) on 26.2, ts10).
                     flushPreLocked();
-                    BlinkLog.event("charge: %s teleport confirmed - bank kept (%d) and still covered; %d answer(s) sent back "
+                    if (chain) {
+                        chainConfirms++;
+                        if (banked + shotLeft > 0) {
+                            rebackBank();
+                        }
+                    }
+                    BlinkLog.event("charge: %s teleport confirmed - bank kept (%d) and %s; %d answer(s) sent back "
                             + "to back with the confirm right behind (oldest %d ms)", teleportInPlace ? "in-place" : "moving",
-                            banked, sent, oldestAge);
+                            banked, chain ? "a chain is running, so no hold (backed again on the next " + unbacked
+                                    + " still tick(s))" : "still covered", sent, oldestAge);
                     return false;
                 }
                 if (mark != null) {
@@ -1166,6 +1177,42 @@ public final class BlinkCharge {
 
     public static boolean teleportHeld() {
         return !tpSegs.isEmpty();
+    }
+
+    /** When a feature last said a chain of its warps is running ({@link #noteChain}); render thread writes, any reads. */
+    private static volatile long chainNotedMs;
+    private static long chainConfirms;
+
+    /**
+     * A feature has more warps of a chain to send or in flight (Auto Routes' Zero Ping Chain, the Interactive Map's path):
+     * called each tick it does, so no teleport confirm waits behind its ping's answer meanwhile, and a hold already running
+     * goes now. The bank is kept and backed again on still ticks after (mapchain-1110).
+     */
+    public static void noteChain(String who) {
+        if (!active) {
+            return;
+        }
+        chainNotedMs = System.currentTimeMillis();
+        synchronized (LOCK) {
+            if (!tpSegs.isEmpty()) {
+                int sent = releaseAnswersLocked();
+                if (banked + shotLeft > 0) {
+                    rebackBank();
+                }
+                BlinkLog.event("charge: %s chain running - the teleport hold and %d answer(s) go now; bank kept (%d), "
+                        + "backed again on the next %d still tick(s)", who, sent, banked, unbacked);
+            }
+        }
+    }
+
+    /** A chain was noted within the last three ticks. */
+    private static boolean chainRunning() {
+        return System.currentTimeMillis() - chainNotedMs < 150L;
+    }
+
+    /** Teleports confirmed at once because a chain was running (testkit). */
+    public static long chainConfirms() {
+        return chainConfirms;
     }
 
     public static long teleportHolds() {
