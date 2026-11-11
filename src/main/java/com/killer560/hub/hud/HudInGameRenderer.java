@@ -31,6 +31,8 @@ public final class HudInGameRenderer {
             "advanced_position",
             // Spotify HUD (2026-10-20).
             "spotify_hud",
+            // The Carnival HUDs (carnival-1110).
+            "carnival_tracker", "carnival_catch_a_fish", "carnival_zombie_shootout", "carnival_fruit_digging",
             // Blink's "Blink 12/22 ticks" line (2026-10-25) - missing at first, so it never drew in game (the demo video).
             "blink",
             // Boss Health (2026-10-25).

@@ -249,8 +249,20 @@ public final class RecordCatalog {
         }
     });
 
+    /** Carnival Tracker (carnival-1110): games played and tokens earned are counters, best scores the larger of two, the
+     *  goals and the tickets day the last one written. The legacy file only existed on the unshipped staging branch. */
+    public static final Kind CARNIVAL = new Kind("killer560smod-carnival-history.json", null, "carnival-history.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            if (JsonMerge.matches(path, "played.*") || path.equals("tokensEarned")) return JsonMerge.NumberMode.COUNTER;
+            if (JsonMerge.matches(path, "best.*") || path.equals("goalsReadAtMs")) return JsonMerge.NumberMode.MAX;
+            return JsonMerge.NumberMode.STATE;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, CARNIVAL);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

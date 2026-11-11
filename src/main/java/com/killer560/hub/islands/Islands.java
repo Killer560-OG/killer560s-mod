@@ -36,6 +36,26 @@ public final class Islands {
         }
     }
 
+    /** Whether the key bound to {@code m} is physically held now (keyboard or mouse), whatever the mod set it to. */
+    public static boolean physical(Minecraft mc, net.minecraft.client.KeyMapping m) {
+        com.mojang.blaze3d.platform.InputConstants.Key key = com.mojang.blaze3d.platform.InputConstants.getKey(m.saveString());
+        if (key == null || key == com.mojang.blaze3d.platform.InputConstants.UNKNOWN || mc.getWindow() == null) {
+            return false;
+        }
+        return key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.MOUSE
+                ? com.killer560.hub.compat.McInput.isNativeButtonDown(mc.getWindow(), key.getValue())
+                : com.killer560.hub.compat.McInput.isNativeKeyDown(mc.getWindow(), key.getValue());
+    }
+
+    /** One press of {@code m}, as a human tap: the mapping's click count goes up once and vanilla handles it this tick.
+     *  Nothing is held; an unbound mapping does nothing. */
+    public static void tap(net.minecraft.client.KeyMapping m) {
+        com.mojang.blaze3d.platform.InputConstants.Key key = com.mojang.blaze3d.platform.InputConstants.getKey(m.saveString());
+        if (key != null && key != com.mojang.blaze3d.platform.InputConstants.UNKNOWN) {
+            net.minecraft.client.KeyMapping.click(key);
+        }
+    }
+
     /** Milliseconds as seconds with one decimal: "12.4s". */
     public static String seconds(long ms) {
         return String.format(java.util.Locale.US, "%.1fs", ms / 1000.0);
