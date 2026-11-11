@@ -5728,7 +5728,7 @@ public final class Ap3Executor {
     }
 
     /**
-     * A JUMP / EDGE node (or one with a jump / edge modifier) whose box he stands in or this tick's move enters: scanBoxes fires it
+     * A JUMP / EDGE node (or one with a jump / edge modifier) whose box he stands in: scanBoxes fires it
      * on this very tick, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110: Lever Aura's
      * off-walk look turned him on the tick node 23's sprint-jump went, the boost followed it and he fell off the platform).
      */
@@ -5737,10 +5737,10 @@ public final class Ap3Executor {
         if (chain == null || p == null) {
             return false;
         }
-        Vec3 now = p.position(), next = now.add(p.getDeltaMovement());
+        Vec3 now = p.position();
         for (Ap3Node n : chain.nodes()) {
             if ((n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE)
-                    && (n.contains(now) || n.contains(next))) {
+                    && n.contains(now)) {
                 return true;
             }
         }
