@@ -31,6 +31,11 @@ abstract class CarnivalSettings {
         }
     }
 
+    /** The settings file (the menu tests read it). */
+    public final java.nio.file.Path path() {
+        return cfg.path();
+    }
+
     public final void reload() {
         cfg.load();
         clamped = true;

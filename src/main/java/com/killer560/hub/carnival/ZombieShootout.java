@@ -267,7 +267,7 @@ public final class ZombieShootout {
      *  block in front of it. */
     static Target targetUnderCrosshair(LocalPlayer player, double reach) {
         Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getViewVector(1f).scale(reach));
+        Vec3 end = eye.add(Vec3.directionFromRotation(player.getXRot(), player.getYRot()).scale(reach));
         Target hit = null;
         double hitDist = Double.MAX_VALUE;
         for (Target t : targets) {
