@@ -339,7 +339,6 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // 2026-10-08: a hair bigger than the old 480 x 290 now the backend footer is gone.
         pvStyle = ProfileViewerConfig.getInstance().getStyle();
         boolean iconTabs = pvStyle != ProfileViewerConfig.Style.DEFAULT;
-        layoutTabs();
         if (iconTabs) {
             // The originals' own sizes, centered on the screen (PvStyleChrome cites the lines); the tabs stand above it
             // and the profile button sits under it, so a short screen keeps both on it.
@@ -351,6 +350,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             panelH = Math.min(this.height - 12, 320);
             panelY = (this.height - panelH) / 2;
         }
+        layoutTabs(); // after panelW: the first open used last frame's width (0), squeezing every tab
         panelX = (this.width - panelW) / 2;
         contentX = panelX + 8;
         // Default: two rows of named tabs inside the panel; the other Styles stand icon tabs on its top edge.
