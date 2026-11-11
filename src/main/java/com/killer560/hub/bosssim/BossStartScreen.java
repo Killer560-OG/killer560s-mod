@@ -71,7 +71,6 @@ public final class BossStartScreen extends Screen {
     private int panelX, panelY, panelW, panelH;
     /** Each section's box and title: {x, y, w} plus the title, drawn behind its buttons. */
     private final java.util.List<Object[]> sections = new java.util.ArrayList<>();
-    private String roomSource = "Room: built-in";
 
     /** One phase's box: its title on top and its start buttons side by side under it. */
     private void section(String title, int x, int y, int w, Object[][] starts) {
@@ -97,7 +96,6 @@ public final class BossStartScreen extends Screen {
 
     @Override
     protected void init() {
-        roomSource = java.nio.file.Files.isRegularFile(BossArena.capturePath()) ? "Room: captured" : "Room: built-in";
         loadMode();
         panelW = Math.min(this.width - 16, 340);
         panelH = Math.min(this.height - 16, 250);
@@ -170,8 +168,6 @@ public final class BossStartScreen extends Screen {
         ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(g, panelX, panelY, panelW);
         ScreenChrome.title(g, "F7 BOSS", panelX + 10, panelY + 11, false);
-        String src = roomSource;
-        MenuStyle.text(g, src, panelX + panelW - 10 - this.font.width(src), panelY + 11, MenuStyle.DIM);
         for (Object[] s : sections) {
             int x = (int) s[0], y = (int) s[1], w = (int) s[2];
             ScreenChrome.well(g, x, y, w, SECTION_H);

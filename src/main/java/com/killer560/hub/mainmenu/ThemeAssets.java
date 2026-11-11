@@ -139,25 +139,11 @@ public final class ThemeAssets {
     /** Downloads may happen: the custom title screen is on (with it off - "no custom title screen" - nothing ever is). */
     static boolean allowed() { return MainMenuTheme.active(); }
 
-    /**
-     * The checked file for {@code name}, cached or downloaded now WHATEVER the title screen setting: for sim data published
-     * beside the theme assets (the F7 boss arena captures, coopnet-1110), which every player needs. Completes with null
-     * when it is not an asset or could not be fetched; runs on the asset thread, never the caller's.
-     */
-    public static CompletableFuture<Path> obtain(String name) {
-        Asset a = name == null ? null : assets().get(name);
-        if (a == null) return CompletableFuture.completedFuture(null);
-        return CompletableFuture.supplyAsync(() -> {
-            fetch(a, true, true);
-            return ready(name);
-        }, executor());
-    }
-
     /** Looks every asset up in the cache, in the background (client init), so {@link #ready} knows a cached one at once. */
     public static void scan() {
         for (Asset a : assets().values()) {
             if (STATE.putIfAbsent(a.name(), State.PENDING) == null) {
-                executor().execute(() -> fetch(a, false, false));
+                executor().execute(() -> fetch(a, false));
             }
         }
     }
@@ -176,7 +162,7 @@ public final class ThemeAssets {
         if (s == State.FAILED && System.nanoTime() - FAILED_AT.getOrDefault(name, 0L) < RETRY_NANOS) return;
         if (!allowed()) return;
         STATE.put(name, State.PENDING);
-        executor().execute(() -> fetch(a, true, false));
+        executor().execute(() -> fetch(a, true));
     }
 
     /** Requests what {@code look} shows and plays: its painted picture and, with Theme Music on, its theme's own loop. */
@@ -213,16 +199,15 @@ public final class ThemeAssets {
         return e;
     }
 
-    /** Background thread: the cached copy if it is there, else (when {@code download}) the release asset, checked.
-     *  {@code force}: download even with the custom title screen off ({@link #obtain}). */
-    private static void fetch(Asset a, boolean download, boolean force) {
+    /** Background thread: the cached copy if it is there, else (when {@code download}) the release asset, checked. */
+    private static void fetch(Asset a, boolean download) {
         Path target = file(a);
         if (cachedNow(a.name()) != null) return;
         if (!WANTED.remove(a.name()) && !download) {
             STATE.remove(a.name(), State.PENDING);
             return;
         }
-        if (!force && !allowed()) { // switched to no custom title screen while this waited
+        if (!allowed()) { // switched to no custom title screen while this waited
             STATE.remove(a.name(), State.PENDING);
             return;
         }

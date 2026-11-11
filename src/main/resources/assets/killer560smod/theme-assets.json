@@ -22,16 +22,6 @@
       "size": 3356970
     },
     {
-      "name": "sim-bossarena-p3.bin",
-      "sha256": "11eb0978eeba0087398bee85b00903d83eb38a1e68db3ff2c6b61f4d026b5bfa",
-      "size": 523826
-    },
-    {
-      "name": "sim-bossarena.bin",
-      "sha256": "5a41f8a2ef3d96c12dabb695bf9654583fc2c52d06153c4dd524c4b0dfb66078",
-      "size": 523339
-    },
-    {
       "name": "theme_amber.ogg",
       "sha256": "ae4c934b26394d7fef4472050961f548821ff0cd0f6a70962132a2c89ed90f34",
       "size": 213664

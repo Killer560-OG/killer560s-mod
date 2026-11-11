@@ -261,12 +261,10 @@ killer560 2026-11-10: "rooms should never be lan only". A friend behind a router
   and pick() refuses another version with "Host is on 26.2 - open 26.2 to join." (no join call). A real cross-version join
   would need protocol translation (ViaVersion-style, both directions, every packet and registry the sim uses), not built.
   Relays without `all=1` (old mods) keep getting their own version only.
-- **Arena**: the reskinned F7 arena is his captures (`shared/sim-boss/killer560smod-sim-bossarena.bin`, `-p3.bin`), which no
-  other PC had, so a friend hosting built the built-in plan ("the very original one"). In co-op the HOST builds the world, so
-  guests see the host's arena. The captures are published as theme assets `sim-bossarena.bin` / `sim-bossarena-p3.bin`
-  (release theme-assets-1, sha-checked, hash-named in the cache, so a stale copy is replaced); `BossArena.fetchPublished`
-  fetches them (20 s cap, off the server thread) before `BossSim.buildAndBegin` builds when this PC has no own capture, and
-  `ThemeAssets.obtain` downloads them even with the custom title screen off.
+- **Arena**: the reskinned F7 arena is his captures, which sat only in his shared store, so a friend hosting built the built-in
+  plan ("the very original one"). In co-op the HOST builds the world, so guests see the host's arena. His P1 and P3 captures
+  now ship in the jar (`assets/killer560smod/sim-boss/`, ~1 MB) and are always used, with no way to override them (his call,
+  2026-11-10); the plan is an ERROR fallback only. Nothing is downloaded and nothing is sent to guests.
 - Testkit: 1110-mp-tunnel (two clients, local wrangler relay, host UPnP off; the guest must connect to 127.0.0.1 and move),
   1109-mp-menu (other-version row and blocked Join, every list call has all=1).
 

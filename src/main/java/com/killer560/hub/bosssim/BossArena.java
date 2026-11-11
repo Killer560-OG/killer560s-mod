@@ -3,7 +3,6 @@ package com.killer560.hub.bosssim;
 import com.killer560.hub.roomsim.RoomPlacer;
 import com.killer560.hub.roomsim.SimBuildQueue;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.util.ModPaths;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -15,8 +14,6 @@ import org.slf4j.Logger;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -27,9 +24,11 @@ import java.util.zip.GZIPInputStream;
  *
  * <p>Two sources, best first:
  * <ol>
- * <li><b>A capture of the real room</b> ({@code <shared store>/sim-boss/killer560smod-sim-bossarena.bin}), written by
- * a dev capture on Hypixel in an F7/M7 boss. Block for block, so every route and landing matches.</li>
- * <li><b>The built-in plan</b> ({@link #plan}): floors, walls, the P3 ring and core, gates, the terminal, lever and device
+ * <li><b>His capture of the real (reskinned) room</b>, bundled in the jar ({@code assets/killer560smod/sim-boss/}, P1 and
+ * P3) and always used, for every player (killer560, 2026-11-10: "the one i have is the right one any other one is wrong
+ * ... pushed to everyone with no way to overwrite it"). No file on disk is read. Block for block, so every route and
+ * landing matches.</li>
+ * <li><b>The built-in plan</b> ({@link #plan}), only when the bundled capture cannot be read (logged as an ERROR): floors, walls, the P3 ring and core, gates, the terminal, lever and device
  * spots, the P4 and P5 floors, built from the coordinates this mod already reads Hypixel's boss by (the terminal, lever
  * and device positions, the section boxes, the gates, the Storm pillars and pads, the Necron platforms, the dragon and
  * relic spots). An approximation: every station and device sits exactly where Hypixel's does, the rooms around them are
@@ -83,32 +82,6 @@ public final class BossArena {
     /** "capture" or "plan": what the last build was made from (the testkit and the report read it). */
     public static String source() {
         return source;
-    }
-
-    /** The P1 capture (the fight's start), the file every capture before bossfloor-1104 went to. */
-    public static Path capturePath() {
-        return capturePath("P1");
-    }
-
-    /**
-     * The capture taken in {@code phase} ("P1".."P5"). Captures are his and not in the jar, so they live in the shared
-     * store's {@code sim-boss/} folder for every instance on the PC (bosssim1108: a fresh instance had only the built-in
-     * plan, the capture sat in the one instance it was taken in). An instance's own file under the config folder is moved
-     * in the first time it is looked for.
-     */
-    public static Path capturePath(String phase) {
-        String name = "P1".equals(phase) ? "killer560smod-sim-bossarena.bin"
-                : "killer560smod-sim-bossarena-" + phase.toLowerCase(java.util.Locale.ROOT) + ".bin";
-        Path dst = com.killer560.hub.shared.SharedFolders.folder("sim-boss", null).resolve(name);
-        Path old = ModPaths.config(name);
-        if (Files.isRegularFile(old) && !Files.exists(dst)) {
-            try {
-                Files.move(old, dst);
-            } catch (IOException e) {
-                LOGGER.warn("[BossSim] could not move {} into the shared store", old, e);
-            }
-        }
-        return dst;
     }
 
     static boolean building() {
@@ -555,74 +528,44 @@ public final class BossArena {
     record Captured(String phase, int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
     }
 
-    /**
-     * The published copy of his captures (coopnet-1110): P1 and P3 ride beside the theme assets (theme-assets/ in the repo,
-     * a GitHub pre-release), so a PC without its own capture - a friend hosting a co-op sim - builds the same arena instead
-     * of the built-in plan. Null for a phase that is not published.
-     */
-    static String publishedName(String phase) {
-        return "P1".equals(phase) ? "sim-bossarena.bin" : "P3".equals(phase) ? "sim-bossarena-p3.bin" : null;
+    /** The bundled capture of {@code phase}: P1 and P3 are in the jar, every other phase has none. */
+    static String bundled(String phase) {
+        return "P1".equals(phase) ? "/assets/killer560smod/sim-boss/sim-bossarena.bin"
+                : "P3".equals(phase) ? "/assets/killer560smod/sim-boss/sim-bossarena-p3.bin" : null;
     }
 
-    /** Fetches the published captures when this PC has no capture of its own; completes when done or after 20 s. */
-    static java.util.concurrent.CompletableFuture<Void> fetchPublished() {
-        if (Files.isRegularFile(capturePath())) {
-            return java.util.concurrent.CompletableFuture.completedFuture(null);
-        }
-        return java.util.concurrent.CompletableFuture.allOf(
-                        com.killer560.hub.mainmenu.ThemeAssets.obtain(publishedName("P1")),
-                        com.killer560.hub.mainmenu.ThemeAssets.obtain(publishedName("P3")))
-                .completeOnTimeout(null, 20, java.util.concurrent.TimeUnit.SECONDS)
-                .exceptionally(e -> null);
-    }
-
-    /** His own capture for {@code phase} when this PC has one, else the downloaded published copy, else the own path. */
-    private static Path source(String phase) {
-        Path own = capturePath(phase);
-        if (Files.isRegularFile(own)) {
-            return own;
-        }
-        Path pub = com.killer560.hub.mainmenu.ThemeAssets.ready(publishedName(phase));
-        return pub != null ? pub : own;
-    }
-
-    /** The P1 capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
+    /** The P1 capture, or null when it cannot be read (an ERROR: the plan is then used). */
     static Captured readCapture() {
         return readCapture("P1");
     }
 
-    /**
-     * The capture taken in {@code phase}, or null. The P1 file holds whatever was captured before captures kept their
-     * phase: it counts as P1 unless it says otherwise, and then as that phase's when that phase has no file of its own.
-     */
+    /** The bundled capture taken in {@code phase}, or null (none bundled for it, or unreadable: logged as an ERROR). */
     static Captured readCapture(String phase) {
-        Path path = source(phase);
-        Captured own = readFile(path, phase);
-        if (own != null && phase.equals(own.phase)) {
-            return own;
-        }
-        if (own != null) {
-            LOGGER.warn("[BossSim] {} was captured in {}, not {} - not used as {}", path, own.phase, phase, phase);
-        }
-        if ("P1".equals(phase) || Files.isRegularFile(path)) {
+        String name = bundled(phase);
+        if (name == null) {
             return null;
         }
-        Captured base = readFile(source("P1"), "P1");
-        return base != null && phase.equals(base.phase) ? base : null;
+        Captured c;
+        try (InputStream raw = BossArena.class.getResourceAsStream(name)) {
+            c = raw == null ? null : readStream(raw, name, phase);
+        } catch (IOException | RuntimeException e) {
+            LOGGER.error("[BossSim] could not read the bundled boss capture {}", name, e);
+            return null;
+        }
+        if (c == null || !phase.equals(c.phase)) {
+            LOGGER.error("[BossSim] the bundled boss capture {} is missing or not {} - using the built-in plan", name, phase);
+            return null;
+        }
+        return c;
     }
 
-    /** {@code filePhase}: the phase a version-1 file (no phase of its own) is taken for, its file name's. */
-    private static Captured readFile(Path p, String filePhase) {
-        if (!Files.isRegularFile(p)) {
-            return null;
-        }
-        try (InputStream raw = Files.newInputStream(p);
-             DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(new GZIPInputStream(raw, 1 << 16)))) {
+    /** {@code filePhase}: the phase a version-1 file (no phase of its own) is taken for. */
+    private static Captured readStream(InputStream raw, String p, String filePhase) throws IOException {
+        try (DataInputStream in = new DataInputStream(new java.io.BufferedInputStream(new GZIPInputStream(raw, 1 << 16)))) {
             byte[] magic = new byte[4];
             in.readFully(magic);
             int version = "K5BA".equals(new String(magic, java.nio.charset.StandardCharsets.US_ASCII)) ? in.readInt() : -1;
             if (version != 1 && version != 2) {
-                LOGGER.warn("[BossSim] {} is not a boss capture (bad header) - using the built-in plan", p);
                 return null;
             }
             String phase = version == 2 ? in.readUTF() : filePhase;
@@ -649,9 +592,6 @@ public final class BossArena {
             }
             states = undoDioriteGlass(x0, y0, z0, w, d, states, cells);
             return new Captured(phase, x0, y0, z0, w, h, d, states, cells);
-        } catch (IOException | RuntimeException e) {
-            LOGGER.warn("[BossSim] could not read the boss capture {} - using the built-in plan", p, e);
-            return null;
         }
     }
 }
