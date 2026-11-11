@@ -117,6 +117,7 @@ final class SettingTooltipsData {
         part3(d);
         mining(d);
         SettingTooltipsMining3.register(d);
+        SettingTooltipsCarnival.register(d);
         invSortAndAutoSell(d);
         autoKick(d);
         customPartyFinder(d);

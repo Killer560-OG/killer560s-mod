@@ -124,7 +124,7 @@ menu's "Sim Session", `SimPauseEntry`).
 - **Join**: the relay list for this MC version (fetched on opening Join, on Refresh, and at most every 30 s while open),
   rows "[Locked] name  -  owner  p/max  mode  vX". A locked room asks for its password. `SimRooms.join` gets a ticket
   (nonce, 120 s) and the owner's endpoint; 403 "Wrong password.", 409 "That room is full.", 404 "That room is gone.", no
-  endpoint "That room is LAN only: pick it in the LAN list", another `protocol` refused before asking. Also join by address
+  endpoint (or an unreachable one) goes through the relay tunnel (below), another `protocol` refused before asking. Also join by address
   (host:port) and the LAN list (vanilla `LanServerDetection`). A ticket's address is trusted like a private one by
   `SimGuest.eligible` (the receivers register for that connection only).
 - **Admission** (`SimHost.serverTick` / `acked`): in a locked or listed room a guest must name a live ticket for its uuid in
@@ -170,7 +170,7 @@ Mod side:
   then the phase-2 ticket path. Joining while hosting is refused.
 - Owner: Session page -> "Invite Players": the relay is asked which of his mirrored /fl friends, Best Friends and mod users
   (at most 50) can take an invite now (on opening and on Refresh, at most once per 30 s); each has an Invite button, and
-  "Invite by name" (Enter = Invite) invites anyone with the mod. A LAN-only room (no listing) cannot invite.
+  "Invite by name" (Enter = Invite) invites anyone with the mod. A room not on the list yet (its listing failed) cannot invite.
 - Cost on the Cloudflare free plan (100k Worker and 100k DO requests a day): a receiver is 1 Worker + 1 DO request per
   connect and nothing idle; a reach and an invite are 1 Worker + 2 DO each; the accepted join is 1 + 1.
 
@@ -241,6 +241,32 @@ Test lessons (coopsim-p5): a fake guest (testkit GuestPlayer) never acknowledges
 awaitingPositionFromClient; a real client acks at once. Sim doors are carved only in loaded chunks and a floor may have no
 shut wither door near the party, so the door check makes one (SimDoors.makeWitherDoor) on the door nearest the host.
 Two runs in one testkit checkout at once kill each other (the client exits -1): run them one after another.
+
+## Relay tunnel, MC versions and the arena (coopnet-1110)
+
+killer560 2026-11-10: "rooms should never be lan only". A friend behind a router that refuses UPnP got "That room is LAN only".
+- **Tunnel** (`roomsim/SimTunnel`, relay `src/simtunnel.ts`, DO `SimTunnel` one per room): a listed host keeps ONE standing
+  WebSocket `/simtunnel?role=host` (headers `x-sim-room`, `x-sim-key` = its host secret; owner checked by token). A guest whose
+  direct endpoint is null or fails a 2.5 s TCP probe (`SimMultiplayerScreen.reachable`, log "[SimCoop] direct address not
+  reachable (...); trying the relay tunnel") opens `role=guest` with its ticket's nonce (the relay checks nonce + uuid) and
+  gets a local `ServerSocket` on 127.0.0.1; vanilla connects there, so the ticket, password, Max and hello checks all run as
+  before. Frames: host `[type][conn u16][payload]`, guest `[type][payload]`; DATA 0, OPEN 1, CLOSE 2, ACK 3 (u32 bytes). The host
+  side bridges each conn to its own LAN port with a 1 MiB send window (guest ACKs every 256 KiB, 32 KB chunks), so a slow guest
+  never buffers unbounded. Relay limits: guests up to the room's Max (at most 8), a per-session byte cap (4008), 400 messages a second a guest (4029), text frames close (1003), the
+  host leaving closes guests (4004). Daily budget `SIMTUNNEL_DAILY_MSGS` (600k messages, about 4 guest-hours) answers
+  join `tunnel:false` and refuses sockets 503 once spent: then join says "the relay tunnel is out of capacity for today".
+  Cloudflare Free bills WebSocket messages 20:1 against 100k requests a day; a Paid plan ($5/mo) would lift the cap (his call).
+  Nothing runs on the render thread: sockets are java.net.http WebSockets plus daemon threads per connection, `hostTick` only checks state.
+- **Versions**: the list is fetched with `all=1`, each room carries `mc`, rows read `[26.3] ...` or `[26.2 - other version] ...`,
+  and pick() refuses another version with "Host is on 26.2 - open 26.2 to join." (no join call). A real cross-version join
+  would need protocol translation (ViaVersion-style, both directions, every packet and registry the sim uses), not built.
+  Relays without `all=1` (old mods) keep getting their own version only.
+- **Arena**: the reskinned F7 arena is his captures, which sat only in his shared store, so a friend hosting built the built-in
+  plan ("the very original one"). In co-op the HOST builds the world, so guests see the host's arena. His P1 and P3 captures
+  now ship in the jar (`assets/killer560smod/sim-boss/`, ~1 MB) and are always used, with no way to override them (his call,
+  2026-11-10); the plan is an ERROR fallback only. Nothing is downloaded and nothing is sent to guests.
+- Testkit: 1110-mp-tunnel (two clients, local wrangler relay, host UPnP off; the guest must connect to 127.0.0.1 and move),
+  1109-mp-menu (other-version row and blocked Join, every list call has all=1).
 
 ## Party chat (coopsim final pass)
 

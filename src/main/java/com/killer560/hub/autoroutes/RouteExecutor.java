@@ -1501,6 +1501,11 @@ public final class RouteExecutor {
         if (!inFlight.isEmpty()) {
             zeroPingTimeout(client, player);
         }
+        if (!inFlight.isEmpty() || step == Step.CONFIRM && activeNode != null && activeNode.type == RouteNode.Type.ETHERWARP
+                && AutoRoutesConfig.getInstance().isZeroPingChain()) {
+            // A chain's warps are in flight: no landing's confirm waits a second behind Blink Charge's answers.
+            com.killer560.hub.blink.BlinkCharge.noteChain("Auto Routes");
+        }
         if (!AutoRoutesFeature.screenBlocks(client) && containerMenuOpen(player)) {
             // A chest's menu is open on the server before its screen is drawn: no sneak goes out under it.
             wantSneak = false;

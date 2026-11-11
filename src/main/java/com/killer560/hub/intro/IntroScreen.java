@@ -116,9 +116,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         scenes.add(Scene.THEME);
         scenes.add(Scene.THEME_DONE);
         scenes.add(Scene.VARIANT);
-        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            scenes.add(Scene.BAN_LOGS);
-        }
+        scenes.add(Scene.BAN_LOGS);
         scenes.add(Scene.CRASH_REPORTS);
         scenes.add(Scene.DISCORD_LINK);
         scenes.add(Scene.AUTO_UPDATE);
@@ -574,7 +572,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         }
         finished = true;
         if (autoOpened) {
-            if (BuildVariant.CHEAT_FEATURES_ENABLED && banChoice == null) {
+            if (banChoice == null) {
                 chooseBanLogs(true);
             }
             if (crashChoice == null) {
