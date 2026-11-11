@@ -1452,6 +1452,7 @@ public final class BlinkCharge {
                 // were clean (1027-ap3-blink-leap-route, 26.2, ap3grp-run5). Its answer goes now, a little early; the
                 // bank is backed again on still ticks as after any hold.
                 Answer mark = tpSegs.peekFirst().mark();
+                BlinkLog.event("charge: teleport hold at its %d ms cap - its answer goes now", TP_HOLD_MAX_MS);
                 while (!answers.isEmpty() && !tpSegs.isEmpty() && tpSegs.peekFirst().mark() == mark) {
                     Answer a = answers.pollFirst();
                     sendLocked(a.held());
