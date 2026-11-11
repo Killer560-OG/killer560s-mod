@@ -116,9 +116,15 @@ final class CarnivalInput {
         return owner.equals(aimOwner) && RouteRotation.userMovedCamera(player);
     }
 
-    /** One tap of {@code key} through the gate; false when the gate held it (try again next tick). */
+    /**
+     * One tap of {@code key} through the gate; false when the gate held it (try again next tick). It waits a tick while
+     * his own press of the same key is queued (one press a tick), and an attack waits while his right click goes this
+     * tick (GrimAC PacketOrderJ: a use after an attack in one tick).
+     */
     static boolean tap(KeyMapping key) {
-        if (!ActionGate.tryAct(ActionGate.Actor.CARNIVAL_WORLD)) {
+        Minecraft mc = Minecraft.getInstance();
+        if (ActionGate.hisClickQueued(key) || (key == mc.options.keyAttack && ActionGate.hisUseGoesThisTick(mc))
+                || !ActionGate.tryAct(ActionGate.Actor.CARNIVAL_WORLD)) {
             return false;
         }
         Islands.tap(key);
