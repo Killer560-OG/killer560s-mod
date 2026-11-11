@@ -1000,3 +1000,11 @@ many ticks went between ("N sent between them for a position in time").
 - Blood Camp Work Just Outside Blood Room (cheat, default OFF): the room anchor comes from the live map (`LiveMapFeature.bloodRoomCenter`) when the Watcher was never seen, so the overlay draws anywhere; margin `OUTSIDE_MARGIN` 6 blocks outside the room for the Trigger Bot and Aura. Outside-the-room Grim runs are still open (the config and the gate are tested, not a shot from outside).
 - Lever Cooldown replaced Lever CPS (Secret Aura boss levers): `LeverAuraConfig.cooldownMs` 50-1000, an old `cps` migrates to 1000/cps; the first-sight dwell is gone, the next flick is due `cooldown` after the last REAL flick, never from backlog. Only two S2 levers exist (LeverAuraFeature.S2_SECTION_LEVERS), 11 blocks apart, so a many-lever pacing test cannot be built from them.
 - Cycler to slider: `BaseTab.valueSlider(...)` (snapping, saves on release) replaced the numeric cyclers of Terminal Triggerbot and Wither Boss Triggerbot; use it instead of another per-tab slider helper.
+- Carnival (carnival-1110, ported from staging-carnival-3): RouteRotation only moves the camera when someone calls
+  `RouteRotation.frame()` each render frame; RouteExecutor does it only while a route runs, so the Carnival autos
+  (`carnival/CarnivalInput`) register their own frame hook and step it while they own the aim and no route or AP3 runs. The
+  Carnival Shovel (item id CARNIVAL_SHOVEL) changes its dowsing mode on RIGHT click (wiki Carnival_Shovel: iron = Mines,
+  diamond = Anchor, golden = Treasure), so Auto Shovel Swap cycles with use taps, not a hotbar swap. Every dig (Auto Fruit
+  Digging and the Triggerbot) goes only while `DigAim.heardLookStrikes` (RotationBreak) and every hotbar select waits out
+  `HotbarSelect.swapWouldFlag()`. Prevent Misclicks / Prevent Wrong Shovel cancel the AttackBlockCallback, which fires every
+  tick while the button is held, so their chat line is deduped (2 s per reason).

@@ -284,5 +284,6 @@ final class CardBlurbsData {
         d.put("AutoShovelSwapTab", "Puts the shovel in the right mode.");
         d.put("AutoFruitDiggingTab", "Digs the solver's best tile.");
         d.put("AutoCatchAFishTab", "Casts at and reels in the fish.");
+        d.put("FruitDiggingTriggerbotTab", "Digs the tile you aim at.");
     }
 }
