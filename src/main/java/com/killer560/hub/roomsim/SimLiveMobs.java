@@ -205,7 +205,11 @@ public final class SimLiveMobs {
                     Set<Long> reach = reachable(level, layout, room, standable(level, e.getValue().get(0)));
                     for (BlockPos s : learned) {
                         BlockPos feet = standable(level, s);
-                        if (feet != null && (reach == null || reach.contains(feet.asLong())) && !got.contains(feet)) {
+                        if (feet != null && reach != null && !reach.contains(feet.asLong())) {
+                            LOGGER.info("[Sim] {}: learned spawn spot {} is walled in, no mob there", e.getKey(), s);
+                            continue;
+                        }
+                        if (feet != null && !got.contains(feet)) {
                             got.add(feet);
                             // Real Mob Looks (simblood-1110): what stood on this spot on Hypixel, if it was recorded.
                             SimMobLooks.Look look = looks ? SimMobLooks.lookAt(e.getKey(),
