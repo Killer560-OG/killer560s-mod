@@ -1744,6 +1744,7 @@ public final class ClearExecutor {
             return;
         }
         int fired = 0;
+        int idle = 0;
         int bank0 = com.killer560.hub.blink.BlinkCharge.banked();
         while (nodes != null && !nodes.isEmpty() && issued.size() - confirmed < BURST_LEAD) {
             int uses = com.killer560.hub.util.RightClick.itemUsesSent();
@@ -1751,8 +1752,14 @@ public final class ClearExecutor {
                 break;
             }
             if (com.killer560.hub.util.RightClick.itemUsesSent() == uses) {
-                break; // the hop is waiting on something else (a click, mana, the item): the rest of the bank stays
+                // The first hop's sneak reaches the server on this spent tick, its use goes on the next; two in a row
+                // means the hop waits on something else (a click, mana, the item): the rest of the bank stays.
+                if (++idle > 1) {
+                    break;
+                }
+                continue;
             }
+            idle = 0;
             fired++;
         }
         if (fired > 0) {
