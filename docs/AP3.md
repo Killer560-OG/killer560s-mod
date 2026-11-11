@@ -232,3 +232,11 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   not in any log. Testkit 1101-ap3-stop-once-reenter, 1101-ap3-termaura-once-reenter, 1101-boss-ap3-termaura-run; the
   63-ap3-hold-term-aura expectation is now "run ENDED".
 - Stopwatch timing (ap3sw-1110, killer560: "stopwatches shouldnt fire while align is working ... running onto one as the end stopwatch it should fire the tick it hits it"): a STOPWATCH node fires in the client tick its box is entered (the scan runs, then `fireInstant`, same tick), also while his movement keys are down (it used to wait in `unfired` until he let go, like any non-align node). If an ALIGN / FAST_ALIGN / AXIS_ALIGN that is active or queued shares its block (either box holds the other's center) it waits in `Ap3Executor.swHeld` and fires in the tick that align finishes (`releaseStopwatches`, called again right after `tickNode`). t0 and the reported time are both wall-clock `System.currentTimeMillis()` read in the firing tick (the same clock as the Stopwatch HUD); no tick counting. A stopwatch is still locked out for 1 s after it fired. Testkit 1110-ap3-stopwatch-align / -touch.
+- Edge Jump at a full run (ap3strafe-1110): the coyote tick (`leavesGroundNextTick`) can land up to a whole move (1.5
+  blocks at the test's speed) past the edge, so the jump's start drifts with the phase of the run. On the EE3 route,
+  45 Degree Strafe put him 0.3 further along, and the coyote jump from the stairs at x 40 started at x 38.80. Its jump
+  tick ran into the step at x 36, the step-up cancelled the jump, he ran on at y 131, skipped node 22 (a 1x1 box crossed
+  at 1.6 blocks a tick) and walked into the lava. `edgeNearerNow` now jumps one tick sooner when half of the next
+  move (velocity plus the ground push) already clears the edge, so the jump starts on whichever grounded tick is nearer
+  the edge. With strafe off the route still jumps on the coyote tick. AP3 boxes are tested only at end-of-tick
+  positions, so a 1x1 box at a run is hit by luck; give a route's run boxes at least the move length.
