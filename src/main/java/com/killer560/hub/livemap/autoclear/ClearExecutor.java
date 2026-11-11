@@ -1775,9 +1775,9 @@ public final class ClearExecutor {
         globalDelay = 0; // Ticks Between Etherwarps: a banked tick is a tick for the server
         if (canNext() && nodes != null) {
             handleQueue(position, nodes);
-            if (pendingInteract != null) {
-                doInteract(client);
-            }
+        }
+        if (pendingInteract != null) {
+            doInteract(client); // also a hop held from the last spent tick (its look had to be turned and heard first)
         }
     }
 
