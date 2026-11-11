@@ -49,6 +49,7 @@ public final class PigeonDrillSwap {
     private static int lastSwapSlot = -1;
     /** After a swap: the slot to confirm is still held on the next ticks (the server may put him back). */
     private static int verifySlot = -1;
+    private static int verifyFrom = -1;
     private static int verifyTicks = 0;
     private static boolean retried = false;
 
@@ -83,7 +84,7 @@ public final class PigeonDrillSwap {
 
     static void tick(Minecraft client) {
         if (verifyTicks > 0) {
-            verify(client);
+            if (--verifyTicks == 0) verify(client);
             return;
         }
         if (pendingTicks <= 0) return;
@@ -107,35 +108,33 @@ public final class PigeonDrillSwap {
         if (player.getInventory().getSelectedSlot() == slot) {
             return; // already holding it
         }
+        verifyFrom = player.getInventory().getSelectedSlot();
         HotbarSelect.select(client, player, slot);
+        swaps++;
+        lastSwapSlot = slot;
         verifySlot = slot;
-        verifyTicks = 3;
+        verifyTicks = 2;
         retried = false;
     }
 
-    /** Announces only a swap that held: a server slot correction (or the ghost place) can undo it; retried once. */
+    /** Announces only a swap that held. When the server put him back on the pigeon slot (the ghost place or a slot
+     *  correction) it retries once; a slot he moved himself is left alone. */
     private static void verify(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player == null || com.killer560.hub.compat.McCompat.screen(client) != null) {
-            verifyTicks = 0;
-            return;
-        }
-        if (player.getInventory().getSelectedSlot() == verifySlot) {
-            if (--verifyTicks == 0) {
-                swaps++;
-                lastSwapSlot = verifySlot;
-                ModChat.send("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(verifySlot)) + ".")
-                        .withStyle(ChatFormatting.GRAY));
+        verifyTicks = 0;
+        if (player == null || com.killer560.hub.compat.McCompat.screen(client) != null) return;
+        int held = player.getInventory().getSelectedSlot();
+        if (held == verifySlot) {
+            ModChat.send("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(verifySlot)) + ".")
+                    .withStyle(ChatFormatting.GRAY));
+        } else if (held == verifyFrom && !retried) {
+            if (HotbarSelect.swapWouldFlag()) {
+                verifyTicks = 1; // same tick as a use: next tick
+            } else {
+                retried = true;
+                HotbarSelect.select(client, player, verifySlot);
+                verifyTicks = 2;
             }
-            return;
-        }
-        if (retried) {
-            verifyTicks = 0;
-            ModChat.send("Pigeon Drill", Component.literal("The server kept the Royal Pigeon in hand.").withStyle(ChatFormatting.GRAY));
-        } else if (!HotbarSelect.swapWouldFlag()) {
-            retried = true;
-            verifyTicks = 3;
-            HotbarSelect.select(client, player, verifySlot);
         }
     }
 
