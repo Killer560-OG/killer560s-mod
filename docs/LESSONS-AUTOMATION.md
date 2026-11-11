@@ -996,6 +996,12 @@ clean to 1100). Hold keeps every packet, pongs included, in order for the whole 
 is as old as the hold; sending the pongs ahead would show GrimAC the hold as a Timer burst, and releasing the hold on a stall is
 an early release. Needs the owner's call.
 
+A teleport HOLD (a moving teleport's confirm waiting behind the answer to its ping) is the same limit from the other side:
+everything held goes out in one burst, and a 1149 ms hold (33 packets) drew TimerLimit in 1027-ap3-blink-leap-route on 26.2
+(ap3grp-run5) where 1090 ms ones (29-30) were clean. `TP_HOLD_MAX_MS` was 3000 ("cannot happen"); it is `ANSWER_DELAY_MS`
+now, and past it the client tick sends the hold's answer early and flushes (ap3grp2-1110). Holds then read 1051-1096 ms,
+26-30 packets, and the 26.2 group ran clean. The flush logs "teleport hold let go after N ms": read it before a TimerLimit.
+
 ### Position reminder and BadPacketsV (ship3fix2-1104)
 
 GrimAC 2.3.74's experimental BadPacketsV (javap) counts tick-end packets since the last position packet and flags a still
