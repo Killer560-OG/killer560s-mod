@@ -199,10 +199,11 @@ public final class SimLiveMobs {
                 List<BlockPos> learned = spots.get(e.getKey());
                 Map<BlockPos, SimMobLooks.Look> lookAt = new HashMap<>();
                 var frame = frames.get(e.getKey());
+                // A spot walled in behind a lever (Redstone Crypt) or sealed off is one Hypixel never spawns a mob at and Auto
+                // Clear cannot reach ("no etherwarp path", a key it cannot pick up): keep only spots a mob can walk to from the
+                // room's first tile, learned or seeded.
+                Set<Long> reach = reachable(level, layout, room, standable(level, e.getValue().get(0)));
                 if (learned != null) {
-                    // A learned spot walled in behind a lever (Redstone Crypt) is one Hypixel never spawns a mob at and Auto
-                    // Clear cannot reach ("no etherwarp path"): keep only spots a mob can walk to from the room's first tile.
-                    Set<Long> reach = reachable(level, layout, room, standable(level, e.getValue().get(0)));
                     for (BlockPos s : learned) {
                         BlockPos feet = standable(level, s);
                         if (feet != null && reach != null && !reach.contains(feet.asLong())) {
@@ -236,6 +237,7 @@ public final class SimLiveMobs {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                                     && level.getFluidState(feet).isEmpty()) {
+                                if (reach != null && !reach.contains(feet.asLong())) break;
                                 boolean far = true;
                                 for (BlockPos o : got) {
                                     far &= o.distSqr(feet) >= 9;
