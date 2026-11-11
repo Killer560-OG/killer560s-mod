@@ -51,7 +51,7 @@ def preview_bytes(path):
 
 def main():
     check = "--check" in sys.argv[1:]
-    files = sorted(p for p in SRC.iterdir() if p.is_file() and p.suffix in (".webp", ".ogg"))
+    files = sorted(p for p in SRC.iterdir() if p.is_file() and p.suffix in (".webp", ".ogg", ".bin"))
     assets = [{"name": p.name, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "size": p.stat().st_size} for p in files]
     manifest = json.dumps({"release": RELEASE, "assets": assets}, indent=2) + "\n"
     stale = []

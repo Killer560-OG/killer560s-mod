@@ -555,6 +555,37 @@ public final class BossArena {
     record Captured(String phase, int x0, int y0, int z0, int w, int h, int d, BlockState[] states, short[] cells) {
     }
 
+    /**
+     * The published copy of his captures (coopnet-1110): P1 and P3 ride beside the theme assets (theme-assets/ in the repo,
+     * a GitHub pre-release), so a PC without its own capture - a friend hosting a co-op sim - builds the same arena instead
+     * of the built-in plan. Null for a phase that is not published.
+     */
+    static String publishedName(String phase) {
+        return "P1".equals(phase) ? "sim-bossarena.bin" : "P3".equals(phase) ? "sim-bossarena-p3.bin" : null;
+    }
+
+    /** Fetches the published captures when this PC has no capture of its own; completes when done or after 20 s. */
+    static java.util.concurrent.CompletableFuture<Void> fetchPublished() {
+        if (Files.isRegularFile(capturePath())) {
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }
+        return java.util.concurrent.CompletableFuture.allOf(
+                        com.killer560.hub.mainmenu.ThemeAssets.obtain(publishedName("P1")),
+                        com.killer560.hub.mainmenu.ThemeAssets.obtain(publishedName("P3")))
+                .completeOnTimeout(null, 20, java.util.concurrent.TimeUnit.SECONDS)
+                .exceptionally(e -> null);
+    }
+
+    /** His own capture for {@code phase} when this PC has one, else the downloaded published copy, else the own path. */
+    private static Path source(String phase) {
+        Path own = capturePath(phase);
+        if (Files.isRegularFile(own)) {
+            return own;
+        }
+        Path pub = com.killer560.hub.mainmenu.ThemeAssets.ready(publishedName(phase));
+        return pub != null ? pub : own;
+    }
+
     /** The P1 capture, or null when there is none (or it cannot be read - then the plan is used and it is logged). */
     static Captured readCapture() {
         return readCapture("P1");
@@ -565,17 +596,18 @@ public final class BossArena {
      * phase: it counts as P1 unless it says otherwise, and then as that phase's when that phase has no file of its own.
      */
     static Captured readCapture(String phase) {
-        Captured own = readFile(capturePath(phase), phase);
+        Path path = source(phase);
+        Captured own = readFile(path, phase);
         if (own != null && phase.equals(own.phase)) {
             return own;
         }
         if (own != null) {
-            LOGGER.warn("[BossSim] {} was captured in {}, not {} - not used as {}", capturePath(phase), own.phase, phase, phase);
+            LOGGER.warn("[BossSim] {} was captured in {}, not {} - not used as {}", path, own.phase, phase, phase);
         }
-        if ("P1".equals(phase) || Files.isRegularFile(capturePath(phase))) {
+        if ("P1".equals(phase) || Files.isRegularFile(path)) {
             return null;
         }
-        Captured base = readFile(capturePath(), "P1");
+        Captured base = readFile(source("P1"), "P1");
         return base != null && phase.equals(base.phase) ? base : null;
     }
 

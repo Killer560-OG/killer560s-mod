@@ -229,7 +229,8 @@ public final class BossSim {
         boolean master = pendingMaster;
         pendingStart = null;
         building = true;
-        server.execute(() -> {
+        // A PC without his capture (a friend hosting co-op) fetches the published one first (coopnet-1110), off this thread.
+        BossArena.fetchPublished().whenComplete((x, e) -> server.execute(() -> {
             // A phase change keeps his inventory and hotbar exactly as he left them (killer560, 2026-11-05: "i set up a
             // hotbar in p1 but then in p3 it was a different one"); the loadout is only for a start from outside a fight.
             // Every player's, by UUID (coopsim-1109): a guest's hotbar is his own too.
@@ -255,7 +256,7 @@ public final class BossSim {
                 building = false;
                 client.execute(() -> SimWorld.buildFinished(client, "F7 boss"));
             });
-        });
+        }));
     }
 
     /** The sim's server, acting for its own player. */

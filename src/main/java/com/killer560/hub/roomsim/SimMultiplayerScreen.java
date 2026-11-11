@@ -25,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The Dungeon Sim menu's Multiplayer entry (co-op phase 2, docs/SIM-COOP.md "Multiplayer"): Create a room, Join one
@@ -36,9 +37,11 @@ public final class SimMultiplayerScreen extends Screen {
 
     enum View { CREATE, JOIN, SESSION, INVITE }
 
-    /** One listed room, as the relay gave it. */
+    /** One listed room, as the relay gave it; {@code mc} is the host's Minecraft version (every version is listed). */
     record Room(String id, String owner, String name, boolean locked, int players, int max, String modVersion,
-                int protocol, String mode) {
+                int protocol, String mode, String mc) {
+        /** A room on another Minecraft version: vanilla refuses a different network protocol, so Join is blocked. */
+        boolean otherVersion() { return !mc.isEmpty() && !mc.equals(SimGuest.mc()); }
     }
 
     private static final int ROW = 22;
@@ -220,7 +223,8 @@ public final class SimMultiplayerScreen extends Screen {
         int listed = 0;
         for (Room r : rooms) {
             if (y + ROW > bottom) break;
-            String label = (r.locked() ? "[Locked] " : "") + r.name() + "  -  " + r.owner() + "  " + r.players() + "/"
+            String label = "[" + (r.mc().isEmpty() ? "?" : r.mc()) + (r.otherVersion() ? " - other version] " : "] ")
+                    + (r.locked() ? "[Locked] " : "") + r.name() + "  -  " + r.owner() + "  " + r.players() + "/"
                     + r.max() + "  " + r.mode() + "  v" + r.modVersion();
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal(label), b -> pick(r))
                     .bounds(x, y, w, 20).build());
@@ -261,7 +265,7 @@ public final class SimMultiplayerScreen extends Screen {
                 for (JsonElement e : rep.body().getAsJsonArray("rooms")) {
                     JsonObject o = e.getAsJsonObject();
                     out.add(new Room(str(o, "id"), str(o, "owner"), str(o, "name"), o.has("locked") && o.get("locked").getAsBoolean(),
-                            num(o, "players"), num(o, "max"), str(o, "modVersion"), num(o, "protocol"), str(o, "mode")));
+                            num(o, "players"), num(o, "max"), str(o, "modVersion"), num(o, "protocol"), str(o, "mode"), str(o, "mc")));
                 }
                 listState = out.isEmpty() ? "No rooms listed." : "";
             } else {
@@ -279,6 +283,10 @@ public final class SimMultiplayerScreen extends Screen {
     private static int num(JsonObject o, String k) { return o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsInt() : 0; }
 
     private void pick(Room r) {
+        if (r.otherVersion()) {
+            say("Host is on " + r.mc() + " - open " + r.mc() + " to join.", MenuStyle.RED);
+            return;
+        }
         if (r.protocol() != SimCoop.PROTOCOL) {
             say("That room runs a different sim version (protocol " + r.protocol() + ").", MenuStyle.RED);
             return;
@@ -293,7 +301,7 @@ public final class SimMultiplayerScreen extends Screen {
         join(r, null);
     }
 
-    /** Asks the relay for a ticket, then connects straight to the host. */
+    /** Asks the relay for a ticket, then connects straight to the host, or through the relay tunnel when that fails. */
     void join(Room r, String password) {
         join(r.id(), r.name(), password, null);
     }
@@ -307,22 +315,46 @@ public final class SimMultiplayerScreen extends Screen {
                 return;
             }
             JsonObject b = rep.body();
-            String address = null;
+            String direct = null;
             if (b.has("endpoint") && b.get("endpoint").isJsonObject()) {
                 JsonObject e = b.getAsJsonObject("endpoint");
-                address = e.get("host").getAsString() + ":" + e.get("port").getAsInt();
+                direct = e.get("host").getAsString() + ":" + e.get("port").getAsInt();
             }
-            SimGuest.expect(new SimGuest.Pending(roomId, b.get("nonce").getAsString(),
-                    b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L, address,
-                    SimHost.key(roomId)));
+            String nonce = b.get("nonce").getAsString();
+            long expires = b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L;
+            boolean tunnel = b.has("tunnel") && b.get("tunnel").getAsBoolean();
             passwordFor = null;
-            if (address == null) {
-                say("That room is LAN only: pick it in the LAN list (same network as the owner).", MenuStyle.TXT_SOFT);
-                rebuildWidgets();
-                return;
-            }
-            connect(address, roomName);
+            rebuildWidgets();
+            String first = direct;
+            CompletableFuture.supplyAsync(() -> first != null && reachable(first))
+                    .thenCompose(ok -> {
+                        if (ok) return CompletableFuture.completedFuture(first);
+                        if (!tunnel) return CompletableFuture.failedFuture(new IllegalStateException(
+                                "the relay tunnel is out of capacity for today; try the owner's address or the LAN list"));
+                        Minecraft.getInstance().execute(() -> say("Joining " + roomName + " through the relay...", MenuStyle.TXT_SOFT));
+                        return SimTunnel.guest(roomId, nonce);
+                    })
+                    .whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
+                        if (failed != null) {
+                            say("Could not reach " + roomName + ": " + SimTunnel.reason(failed) + ".", MenuStyle.RED);
+                            return;
+                        }
+                        SimGuest.expect(new SimGuest.Pending(roomId, nonce, expires, address, SimHost.key(roomId)));
+                        connect(address, roomName);
+                    }));
         }));
+    }
+
+    /** A TCP connect to the host's public address within 2.5 s (off the render thread). */
+    private static boolean reachable(String address) {
+        int colon = address.lastIndexOf(':');
+        try (java.net.Socket s = new java.net.Socket()) {
+            s.connect(new java.net.InetSocketAddress(address.substring(0, colon), Integer.parseInt(address.substring(colon + 1))), 2_500);
+            return true;
+        } catch (Exception e) {
+            SimCoop.LOGGER.info("[SimCoop] direct address not reachable ({}); trying the relay tunnel", e.toString());
+            return false;
+        }
     }
 
     private void joinAddress() {
@@ -445,7 +477,7 @@ public final class SimMultiplayerScreen extends Screen {
     private void fetchReach(boolean asked) {
         String roomId = SimHost.roomId(), secret = SimHost.secret();
         if (roomId == null || secret == null) {
-            reachState = "This room is not on the room list (LAN only): nobody can be invited.";
+            reachState = "This room is not on the room list yet: nobody can be invited.";
             return;
         }
         long now = System.currentTimeMillis();
@@ -479,7 +511,7 @@ public final class SimMultiplayerScreen extends Screen {
     private void sendInvite(String target) {
         String roomId = SimHost.roomId(), secret = SimHost.secret();
         if (roomId == null || secret == null) {
-            say("This room is not on the room list (LAN only).", MenuStyle.RED);
+            say("This room is not on the room list yet.", MenuStyle.RED);
             return;
         }
         if (!target.matches("[A-Za-z0-9_]{1,16}")) {
