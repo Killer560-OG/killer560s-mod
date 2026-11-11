@@ -2441,10 +2441,17 @@ public final class Ap3Executor {
      * NEXT tick can still jump, from further out. So the jump goes in on the first tick that starts with the box
      * already clear of every block below while {@code onGround} is still true: the latest possible jump.
      */
+    /**
+     * A floor this far under the feet is a step down, not an edge (MAX_LEDGE_DROP plus a hair). leverjump-strafe-1111: with
+     * Strafe node 30's EDGE armed while he walked along the low half of a stair beside its floor, read the 0.5 step as the
+     * edge and jumped at once, short of node 31's landing.
+     */
+    private static final double EDGE_DROP = 0.5 + 1.0e-3; // MAX_LEDGE_DROP (declared below) + epsilon
+
     private static boolean leavesGroundNextTick(LocalPlayer player) {
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         return player.onGround()
-                && player.level().noCollision(player, box.move(0.0, -0.0625, 0.0).setMaxY(box.minY));
+                && player.level().noCollision(player, box.move(0.0, -EDGE_DROP, 0.0).setMaxY(box.minY));
     }
 
     /**
@@ -2466,7 +2473,7 @@ public final class Ap3Executor {
         double k = 1.0 + Ap3AlignMath.groundSpeed((float) player.getSpeed(), blockFriction(player)) / h;
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         net.minecraft.world.phys.AABB half = box.move(v.x * k * 0.5, 0.0, v.z * k * 0.5);
-        if (!player.level().noCollision(player, half.move(0.0, -0.0625, 0.0).setMaxY(half.minY))) {
+        if (!player.level().noCollision(player, half.move(0.0, -EDGE_DROP, 0.0).setMaxY(half.minY))) {
             return false;
         }
         // The coyote tick's jump: up 0.42 first (vanilla resolves Y before X/Z), then one move plus the 0.2 boost.
@@ -5568,6 +5575,13 @@ public final class Ap3Executor {
      * steers only the view, so moving the crosshair can no longer bend the walk.
      */
     private static void applyHoldRealYaw(LocalPlayer player) {
+        if (holdNode != null && number(holdNode) >= 26) { // DEV leverjump-strafe: path after the boom
+            LOGGER.info("[AP3 dev] hold #{} pos {} {} {} vel {} {} ground {} yaw {} walk {}", number(holdNode),
+                    String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getY()),
+                    String.format(Locale.US, "%.3f", player.getZ()), String.format(Locale.US, "%.3f", player.getDeltaMovement().x),
+                    String.format(Locale.US, "%.3f", player.getDeltaMovement().z), player.onGround(),
+                    String.format(Locale.US, "%.1f", player.getYRot()), String.format(Locale.US, "%.1f", walkYawDeg()));
+        }
         if (Float.isNaN(viewYaw) && freezeViewWanted()) {
             viewYaw = player.getYRot();
         }
@@ -5580,7 +5594,8 @@ public final class Ap3Executor {
             // START - and the keys picked for the walk's yaw then moved him along the AURA's yaw: backwards at his nodes
             // 16/17 beside the Lights levers (killer560, 2026-10-26: "it makes me run backwards"). Leave the turn alone
             // and press the keys that go along the walk at the yaw he has; the aura gives the body back after its click.
-            writeHeldKeysAt(player, player.getYRot());
+            float steer = fallSteer(player, walkYawDeg());
+            writeHeldKeysAt(player, player.getYRot(), Float.isNaN(steer) ? walkYawDeg() : steer);
             return;
         }
         float yaw = player.getYRot();
@@ -5592,6 +5607,10 @@ public final class Ap3Executor {
         // walk - that is the pull. Only that one tick: in the air it strafes again ("I still want it strafing in
         // midair though ... I want that movespeed buff") - W+A's air push is already exactly along the walk.
         boolean jumpTick = wantJump;
+        float steer = jumpTick ? jumpSteer(player, walkYaw) : fallSteer(player, walkYaw);
+        if (!Float.isNaN(steer)) {
+            walkYaw = steer;
+        }
         if (Ap3Config.getInstance().isStrafe45() && !jumpTick) {
             // W+A moves at yaw - 45, W+D at yaw + 45: whichever side is the shorter turn.
             float wa = walkYaw + 45f;
@@ -5608,13 +5627,175 @@ public final class Ap3Executor {
             player.setYRot(yaw + delta);
             RouteRotation.rebase();
         }
-        writeHeldKeysAt(player, player.getYRot());
+        writeHeldKeysAt(player, player.getYRot(), walkYaw);
+    }
+
+    /** Footprint offsets a landing is scored on: the body's corners, edge middles and center. */
+    private static final double[] FOOT = {-0.29, -0.145, 0, 0.145, 0.29};
+    private static final int FOOT_ALL = FOOT.length * FOOT.length;
+    private static boolean fallSteerLogged;
+
+    /**
+     * In the air on a held walk whose route drops to its next node: the move direction, within 30 degrees of the walk,
+     * whose fall (vanilla's air physics: push, move, gravity 0.08 x 0.98, drag 0.91) lands with the most of his footprint
+     * on a real floor at that node's height; NaN when the walk itself lands fully supported or nothing does better.
+     * leverjump-strafe-1111: with 45 Degree Strafe he reached node 23's jump 0.1 blocks a tick faster (node 18's edge
+     * jump came a tick sooner) and fell past the corner of node 24's platform into the lava; the platform there is not
+     * the node's box, so the steer scores real collision floors, not the box or its center.
+     */
+    private static float fallSteer(LocalPlayer p, float walkYaw) {
+        if (holdNode == null || chain == null || p.isInWater()) {
+            return Float.NaN;
+        }
+        Ap3Node next = nextInChain(holdNode);
+        if (p.onGround()) {
+            fallSteerLogged = false;
+            // A step below the next node's floor (a stair's low half beside the route's level): walk AT that node, so the move
+            // runs into the step and climbs it. leverjump-strafe-1111: with Strafe he left node 29 0.8 blocks east of the
+            // recorded line, came down on the low half of the stairs beside node 30's floor, and node 29's own yaw led along
+            // that half until it ended over the lava. (Aiming at every next node broke the walks around the walls before
+            // node 24, and at the next node whenever the floor ahead thins walked him into the first wall: only the step.)
+            double up = next == null ? 0 : next.y - p.getY();
+            return up < 0.05 || up > 0.6 ? Float.NaN
+                    : (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
+        }
+        if (next == null || next.y > p.getY() - 1.0) {
+            return Float.NaN;
+        }
+        return bestSteer(p, walkYaw, next, false);
+    }
+
+    /**
+     * The jump tick of a held walk whose route drops to its next node: the facing (vanilla's sprint-jump boost, 0.2 a tick,
+     * goes along it, ten times what air control can add later) within 30 degrees of the walk whose fall lands with the
+     * most of his footprint on that node's floor. leverjump-strafe-1111: with 45 Degree Strafe he reached node 23's jump
+     * still carrying -0.28 b/t across the walk, and no air steer could reach node 24's platform from there.
+     */
+    private static float jumpSteer(LocalPlayer p, float walkYaw) {
+        if (!p.onGround() || holdNode == null || chain == null || p.isInWater()) {
+            return Float.NaN;
+        }
+        Ap3Node next = nextInChain(holdNode);
+        if (next == null || next.y > p.getY() - 1.0) {
+            return Float.NaN;
+        }
+        return bestSteer(p, walkYaw, next, true);
+    }
+
+    private static boolean devMapDone;
+    private static double devLX, devLZ;
+    private static float bestSteer(LocalPlayer p, float walkYaw, Ap3Node next, boolean jump) {
+        if (!devMapDone) {
+            devMapDone = true;
+            StringBuilder sb = new StringBuilder();
+            for (int iz = 0; iz <= 24; iz++) {
+                double zz = Math.floor(next.z) - 3 + iz * 0.25;
+                sb.append(String.format(Locale.US, "%n z%7.2f ", zz));
+                for (int ix = 0; ix <= 24; ix++) {
+                    double xx = Math.floor(next.x) - 3 + ix * 0.25;
+                    boolean top = !p.level().noCollision(p, new net.minecraft.world.phys.AABB(xx - 0.01, next.y - 0.6, zz - 0.01, xx + 0.01, next.y + 0.1, zz + 0.01));
+                    boolean wall = !p.level().noCollision(p, new net.minecraft.world.phys.AABB(xx - 0.01, next.y + 0.2, zz - 0.01, xx + 0.01, next.y + 1.5, zz + 0.01));
+                    sb.append(wall ? 'W' : top ? '#' : '.');
+                }
+            }
+            LOGGER.info("[AP3 dev] floor map around #{} y{} from x{} (0.25 a column):{}", number(next), next.y, Math.floor(next.x) - 3, sb);
+        }
+        int base = fallScore(p, walkYaw, walkYaw, jump, next.y);
+        double blx = devLX, blz = devLZ;
+        if (base == FOOT_ALL) {
+            return Float.NaN;
+        }
+        int best = base;
+        float bestD = 0;
+        // The jump's facing up to 60 degrees off the walk: its 0.2 boost is what can take out a sideways speed he carries in
+        // from the node before (node 23's walk left him -0.8 b/t across node 24's jump). In the air only 30: the keys follow it.
+        for (int i = 1; i <= (jump ? 24 : 12) && best < FOOT_ALL; i++) {
+            for (int s = -1; s <= 1; s += 2) {
+                float d = s * i * 2.5f;
+                int sc = fallScore(p, walkYaw + d, jump ? walkYaw : walkYaw + d, jump, next.y);
+                if (sc > best) {
+                    best = sc;
+                    bestD = d;
+                }
+            }
+        }
+        LOGGER.info("[AP3 dev] fallsteer pos {} {} {} vel {} {} {} base {} best {} d {}", String.format(Locale.US, "%.3f", p.getX()),
+                String.format(Locale.US, "%.3f", p.getY()), String.format(Locale.US, "%.3f", p.getZ()),
+                String.format(Locale.US, "%.3f", p.getDeltaMovement().x), String.format(Locale.US, "%.3f", p.getDeltaMovement().y),
+                String.format(Locale.US, "%.3f", p.getDeltaMovement().z), base, best, bestD
+                + String.format(Locale.US, " land %.3f %.3f jump %s", blx, blz, jump));
+        if (bestD == 0) {
+            return Float.NaN;
+        }
+        if (jump || !fallSteerLogged) {
+            fallSteerLogged = true;
+            LOGGER.info("[AP3] held walk: the {} onto #{} lands {}/{} on its floor along the walk - steering {} degrees ({}/{})",
+                    jump ? "jump" : "fall", number(next), base, FOOT_ALL, String.format(Locale.US, "%.1f", bestD), best, FOOT_ALL);
+        }
+        return walkYaw + bestD;
+    }
+
+    /** How many footprint points of the landing at {@code floorY} have a floor, falling with a constant push at {@code moveYaw}. */
+    private static int fallScore(LocalPlayer p, float faceYaw, float moveYaw, boolean jump, double floorY) {
+        Vec3 v = p.getDeltaMovement();
+        double x = p.getX(), y = p.getY(), z = p.getZ(), vx = v.x, vy = v.y, vz = v.z;
+        if (jump) { // Player.jumpFromGround (0.42, the sprint boost along the facing), then one ground tick of W at the facing
+            double f = Math.toRadians(faceYaw), fx = -Math.sin(f), fz = Math.cos(f);
+            double boost = p.isSprinting() ? 0.2 : 0.0;
+            double g = Ap3AlignMath.groundSpeed((float) p.getSpeed(), blockFriction(p));
+            float fr = Ap3AlignMath.frictionMultiplier(blockFriction(p), true);
+            vx += fx * (boost + g);
+            vz += fz * (boost + g);
+            x += vx;
+            y += 0.42;
+            z += vz;
+            vy = (0.42 - 0.08) * 0.98;
+            vx *= fr;
+            vz *= fr;
+        }
+        // The walk's sprint, not this tick's: an aura's turn can drop it for a tick or two, and the rest of the fall sprints.
+        double a = holdSprint ? Ap3AlignMath.AIR_SPEED_SPRINTING : Ap3AlignMath.AIR_SPEED;
+        double r = Math.toRadians(moveYaw), ux = -Math.sin(r) * a, uz = Math.cos(r) * a;
+        for (int t = 0; t < 60; t++) {
+            vx += ux;
+            vz += uz;
+            if (vy < 0 && y + vy <= floorY) {
+                break; // vanilla moves Y first: he lands on (or falls past) the floor at the x/z he starts this tick at
+            }
+            x += vx;
+            y += vy;
+            z += vz;
+            vy = (vy - 0.08) * 0.98;
+            vx *= Ap3AlignMath.FRICTION_SCALE;
+            vz *= Ap3AlignMath.FRICTION_SCALE;
+        }
+        devLX = x;
+        devLZ = z;
+        return support(p, x, z, floorY - 0.6, floorY + 0.1);
+    }
+
+    /** How many footprint points at x/z have a block between heights {@code lo} and {@code hi}. */
+    private static int support(LocalPlayer p, double x, double z, double lo, double hi) {
+        int n = 0;
+        for (double ox : FOOT) {
+            for (double oz : FOOT) {
+                if (!p.level().noCollision(p, new net.minecraft.world.phys.AABB(x + ox - 0.01, lo, z + oz - 0.01, x + ox + 0.01, hi, z + oz + 0.01))) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /** The held walk's keys: the real key combination nearest the walk at {@code yaw} (the body's), remembered so the
      *  input hook can tell when the body was turned after they were picked ({@link #beforeInputInstall}). */
     private static void writeHeldKeysAt(LocalPlayer player, float yaw) {
-        int[] key = nearestKey8(holdDir.x, holdDir.z, yaw);
+        writeHeldKeysAt(player, yaw, walkYawDeg());
+    }
+
+    private static void writeHeldKeysAt(LocalPlayer player, float yaw, float moveYaw) {
+        double mr = Math.toRadians(moveYaw);
+        int[] key = nearestKey8(-Math.sin(mr), Math.cos(mr), yaw);
         boolean sprint = holdSprint && key[0] > 0 && !player.isInWater();
         writeDiscrete(player, key[0], key[1], false, sprint, yaw, modelFor(player, false), lastSneakSent);
         heldKeysYaw = yaw;
