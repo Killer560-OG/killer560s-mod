@@ -722,6 +722,14 @@ public final class Ap3Commands {
                         return null;
                     }
                     spec.sectionDone = sec;
+                } else if (t.matches("(crystals|crystal_wait|cw)[:=]\\d+")) {
+                    // killer560 (2026-11-09): wait for 1 or 2 End Crystals to be placed within 5 blocks.
+                    int cw = Integer.parseInt(t.substring(t.indexOf(t.contains(":") ? ':' : '=') + 1));
+                    if (cw < 1 || cw > 2) {
+                        ModChat.send(FEATURE, ModChat.bad("crystals takes 1 or 2, not " + cw + "."));
+                        return null;
+                    }
+                    spec.crystalWait = cw;
                 } else if (t.matches("(leapcounter|leap_counter|lc)[:=]\\d+")) {
                     // The leap counter suffix (2026-10-26): this node waits for n leaps, and nothing but an align fires
                     // until they come.
@@ -1191,6 +1199,9 @@ public final class Ap3Commands {
         }
         if (node.sectionDone > 0) {
             sb.append(" sectiondone:").append(node.sectionDone);
+        }
+        if (node.crystalWait > 0) {
+            sb.append(" crystals:").append(node.crystalWait);
         }
         if (node.ssGate) {
             sb.append(" ss");

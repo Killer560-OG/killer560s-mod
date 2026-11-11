@@ -325,14 +325,14 @@ public final class ItemProtect {
             return false;
         }
 
-        String reason = anvilAllows(loss, slot.getItem()) ? null : protectReason(slot.getItem());
+        String reason = starredAllowed(loss, slot.getItem()) ? null : protectReason(slot.getItem());
         if (reason != null) {
             announceBlock(action, slot.getItem(), reason);
             return true;
         }
         if (type == ContainerInput.SWAP && button >= 0 && button < 9) {
             ItemStack dest = inv.getItem(button);
-            String destReason = anvilAllows(loss, dest) ? null : protectReason(dest);
+            String destReason = starredAllowed(loss, dest) ? null : protectReason(dest);
             if (destReason != null) {
                 announceBlock(action, dest, destReason);
                 return true;
@@ -351,8 +351,8 @@ public final class ItemProtect {
      * there (owner, 2026-10-20: "Blocked using in the anvil Storm's Chestplate - this should not exist"). An item
      * protected by hand (Protect Item) still stops at the anvil.
      */
-    private static boolean anvilAllows(LossScreen loss, ItemStack stack) {
-        return loss == LossScreen.ANVIL && !stack.isEmpty() && !isExplicitlyProtected(stack)
+    private static boolean starredAllowed(LossScreen loss, ItemStack stack) {
+        return (loss == LossScreen.ANVIL || loss == LossScreen.TRADE) && !stack.isEmpty() && !isExplicitlyProtected(stack)
                 && isStarred(stack);
     }
 

@@ -242,6 +242,8 @@ public final class Ap3Executor {
     private static final Set<Ap3Node> moverDeferred = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
     private static final List<Ap3Node> queue = new ArrayList<>();
+    /** Stopwatches entered while an align on their block was running or queued: they fire the tick it ends. */
+    private static final List<Ap3Node> swHeld = new ArrayList<>();
     /** Scratch: the nodes {@link #scanBoxes} triggered this tick, for the "queued behind" report. */
     private static final List<Ap3Node> triggeredThisTick = new ArrayList<>();
     private static Vec3 lastSelfPos;
@@ -378,13 +380,14 @@ public final class Ap3Executor {
         holdDir = null;
         bendPX = bendPZ = bendVX = bendVZ = 0;
         waitUntilMs = 0L;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         if (leapGate != null) {
             LOGGER.info("[AP3] leap gate: {} #{} dropped ({}) at {}/{} leaps", leapGate.type.label(), number(leapGate),
                     reason, leapGateArrived, leapGate.leapCounter);
             droppedGate = leapGate; // a left click while he still stands in its box fires it (takeLeapGateClick)
         }
         leapGate = null;
+        gateCrystalSeen.clear();
         leapCleared.clear();
         triggeredAt.clear();
         chargeAlignPulled.clear();
@@ -469,7 +472,7 @@ public final class Ap3Executor {
      */
     private static void arm(Ap3Chain nodes, boolean seedFromPosition, LocalPlayer player) {
         chain = nodes;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         inside.clear();
         unfired.clear();
         ssWaiting.clear();
@@ -487,7 +490,7 @@ public final class Ap3Executor {
     /** After a placement / edit / reload: whatever box you stand in counts as already entered (see {@link #arm}).
      *  Also drops anything queued - the queued nodes may no longer exist. */
     static void resync() {
-        queue.clear();
+        queue.clear(); swHeld.clear();
         LocalPlayer player = Minecraft.getInstance().player;
         arm(chain, true, player);
     }
@@ -733,7 +736,7 @@ public final class Ap3Executor {
             return;
         }
         holdDir = null;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
         clearMovement();
@@ -920,6 +923,9 @@ public final class Ap3Executor {
             if (activeNode != null) {
                 tickNode(client, player);
             }
+            if (canAct && !swHeld.isEmpty()) {
+                releaseStopwatches(); // the align that held them ended in tickNode: they go in this same tick
+            }
             if (chargeDoneThisTick) {
                 // killer560 (2026-10-27): charge, release and run in one block - "the tick it is charged it should release
                 // while holding the run". The charge finished in tickNode above, after this END's fireInstant and begin:
@@ -994,7 +1000,7 @@ public final class Ap3Executor {
                     alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
                     traceStart();
                 }
-                if (handsOn && !node.type.isAlign()) {
+                if (handsOn && !node.type.isAlign() && node.type != Ap3Node.Type.STOPWATCH) {
                     unfired.add(node);
                 } else {
                     fire(node, pos, bestMover);
@@ -1302,9 +1308,15 @@ public final class Ap3Executor {
      */
     private static void fireInstant(Minecraft client, LocalPlayer player) {
         boolean movementOwned = activeNode != null && activeNode.ownsMovementNow();
+        releaseStopwatches();
         for (int i = 0; i < queue.size(); ) {
             Ap3Node node = queue.get(i);
-            boolean gated = ((node.closeGate || node.sectionDone > 0) && !testMode)
+            if (node.type == Ap3Node.Type.STOPWATCH && alignOver(node)) {
+                queue.remove(i); // an align is working on this block: the stopwatch goes the tick it is done
+                swHeld.add(node);
+                continue;
+            }
+            boolean gated = ((node.closeGate || node.sectionDone > 0 || node.crystalWait > 0) && !testMode)
                     || (node.leapCounter > 0 && !leapCleared.contains(node));
             boolean fire = !gated && switch (node.type) {
                 case STOPWATCH -> true;
@@ -1325,17 +1337,11 @@ public final class Ap3Executor {
             }
             queue.remove(i);
             if (node.type == Ap3Node.Type.STOPWATCH) {
-                // Always on: a stopwatch node that fired in the last second is not fired again (walking off and back on
-                // over it for an align must not restart the timer).
-                long nowMs = System.currentTimeMillis();
-                if (nowMs - node.lastStopwatchFiredMs < STOPWATCH_REFIRE_LOCK_MS) {
-                    continue;
-                }
-                node.lastStopwatchFiredMs = nowMs;
+                fireStopwatch(node);
+                continue;
             }
             switch (node.type) {
                 case LOOK -> doLook(player, node);
-                case STOPWATCH -> toggleStopwatch(node);
                 case WALK, RUN -> {
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
@@ -1419,6 +1425,7 @@ public final class Ap3Executor {
         leapGateArrived = Math.max(leapGateArrived, leapGate.leapCounter);
         gateCloseDone = true;
         gateSectionSkipped = true;
+        gateCrystalCount = Math.max(gateCrystalCount, leapGate.crystalWait);
         if (leapGate.sectionDone > 0) {
             LOGGER.info("[AP3] section gate: {} #{} sectiondone:{} skipped by left click", leapGate.type.label(),
                     number(leapGate), leapGate.sectionDone);
@@ -1485,7 +1492,7 @@ public final class Ap3Executor {
     }
 
     private static String gateKind(Ap3Node node) {
-        return node.leapCounter > 0 ? "leap" : node.closeGate ? "close" : node.sectionDone > 0 ? "section" : "leap";
+        return node.leapCounter > 0 ? "leap" : node.closeGate ? "close" : node.sectionDone > 0 ? "section" : node.crystalWait > 0 ? "crystal" : "leap";
     }
 
     /** What a gate waits for, in words: "2 leaps", "a terminal to close", "section 3 to be done", joined by "and". */
@@ -1499,6 +1506,9 @@ public final class Ap3Executor {
         }
         if (node.sectionDone > 0) {
             parts.add("section " + node.sectionDone + " to be done");
+        }
+        if (node.crystalWait > 0) {
+            parts.add(node.crystalWait + (node.crystalWait == 1 ? " crystal" : " crystals") + " to be placed");
         }
         return parts.isEmpty() ? "nothing" : String.join(" and ", parts);
     }
@@ -1550,7 +1560,7 @@ public final class Ap3Executor {
             return null;
         }
         Ap3Node next = queue.remove(0);
-        if ((next.leapCounter > 0 || ((next.closeGate || next.sectionDone > 0) && !testMode)) && !leapCleared.remove(next)) {
+        if ((next.leapCounter > 0 || ((next.closeGate || next.sectionDone > 0 || next.crystalWait > 0) && !testMode)) && !leapCleared.remove(next)) {
             engageLeapGate(next, player);
             // A wait already met as he arrives (the section already done, a terminal already closed in the box) goes on
             // this tick, not the next: the owner's "if section N is already complete when he steps on the node, fire at
@@ -1566,6 +1576,38 @@ public final class Ap3Executor {
         return next;
     }
 
+    /** The crystal suffix: End Crystal entity ids seen when the wait began (or counted since), and how many were new. */
+    private static final Set<Integer> gateCrystalSeen = new HashSet<>();
+    private static int gateCrystalCount;
+
+    /** Wait begins: every crystal standing within 32 blocks is "already there" and never counts. */
+    private static void crystalSnapshot(Minecraft client, LocalPlayer player) {
+        gateCrystalSeen.clear();
+        gateCrystalCount = 0;
+        if (leapGate == null || leapGate.crystalWait == 0 || client.level == null) {
+            return;
+        }
+        for (net.minecraft.world.entity.boss.enderdragon.EndCrystal c : client.level.getEntitiesOfClass(
+                net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, player.getBoundingBox().inflate(32))) {
+            gateCrystalSeen.add(c.getId());
+        }
+    }
+
+    /** Each END while a crystal wait holds: an End Crystal not seen before within 5 blocks (3D) counts once. */
+    private static void countCrystals(Minecraft client, LocalPlayer player) {
+        if (client.level == null) {
+            return;
+        }
+        double r = Ap3Node.CRYSTAL_WAIT_RANGE;
+        for (net.minecraft.world.entity.boss.enderdragon.EndCrystal c : client.level.getEntitiesOfClass(
+                net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, player.getBoundingBox().inflate(r))) {
+            if (c.position().distanceToSqr(player.position()) <= r * r && gateCrystalSeen.add(c.getId())) {
+                gateCrystalCount++;
+                LOGGER.info("[AP3] crystal gate: a crystal appeared ({}/{})", gateCrystalCount, leapGate.crystalWait);
+            }
+        }
+    }
+
     private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
         leapGate = node;
         gateSinceTick = tickCounter;
@@ -1576,6 +1618,7 @@ public final class Ap3Executor {
         gateCloseDone = node.closeGate && reached != null && lastTerminalCloseTick >= reached;
         gateSectionSkipped = false;
         gateSectionLogged = false;
+        crystalSnapshot(Minecraft.getInstance(), player);
         lastPositions.clear();
         counted.clear();
         Minecraft client = Minecraft.getInstance();
@@ -1627,6 +1670,11 @@ public final class Ap3Executor {
                 }
             }
         }
+        if (testMode) {
+            gateCrystalCount = node.crystalWait;
+        } else if (node.crystalWait > 0 && gateCrystalCount < node.crystalWait) {
+            countCrystals(client, player);
+        }
         boolean sectionOk = node.sectionDone == 0 || gateSectionSkipped
                 || com.killer560.hub.leveraura.P3SectionTracker.sectionDone(node.sectionDone);
         if (node.sectionDone > 0 && sectionOk && !gateSectionSkipped && !gateSectionLogged) {
@@ -1636,8 +1684,10 @@ public final class Ap3Executor {
                     com.killer560.hub.leveraura.P3SectionTracker.sectionCurrent(),
                     com.killer560.hub.leveraura.P3SectionTracker.sectionTotal());
         }
-        if (leapGateArrived >= node.leapCounter && (!node.closeGate || gateCloseDone) && sectionOk) {
+        if (leapGateArrived >= node.leapCounter && (!node.closeGate || gateCloseDone) && sectionOk
+                && gateCrystalCount >= node.crystalWait) {
             leapGate = null;
+            gateCrystalSeen.clear();
             droppedGate = null;
             leapCleared.add(node);
             queue.add(0, node);
@@ -5316,6 +5366,47 @@ public final class Ap3Executor {
         double pr = Math.toRadians(pitch);
         double cp = Math.cos(pr);
         return new Vec3(-Math.sin(yr) * cp, -Math.sin(pr), Math.cos(yr) * cp);
+    }
+
+    /** A stopwatch node that fired in the last second is not fired again (walking off and back on over it for an align
+     *  must not restart the timer). */
+    private static void fireStopwatch(Ap3Node node) {
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - node.lastStopwatchFiredMs >= STOPWATCH_REFIRE_LOCK_MS) {
+            node.lastStopwatchFiredMs = nowMs;
+            toggleStopwatch(node);
+        }
+    }
+
+    /** Whether an align that is active or queued shares its block with this stopwatch (killer560, 2026-11-10:
+     *  "stopwatches shouldnt fire while align is working"). */
+    private static boolean alignOver(Ap3Node sw) {
+        if (activeNode != null && activeNode.type.isAlign() && overlaps(activeNode, sw)) {
+            return true;
+        }
+        for (Ap3Node q : queue) {
+            if (q.type.isAlign() && overlaps(q, sw)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean overlaps(Ap3Node a, Ap3Node b) {
+        return a.contains(new Vec3(b.x, b.y, b.z)) || b.contains(new Vec3(a.x, a.y, a.z));
+    }
+
+    /** Fires every held stopwatch whose align is done. */
+    private static void releaseStopwatches() {
+        for (int i = 0; i < swHeld.size(); ) {
+            Ap3Node sw = swHeld.get(i);
+            if (alignOver(sw)) {
+                i++;
+            } else {
+                swHeld.remove(i);
+                fireStopwatch(sw);
+            }
+        }
     }
 
     /** How long after a stopwatch node fires before it can fire again (killer560, 2026-10-22: one second). */

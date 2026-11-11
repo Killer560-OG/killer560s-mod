@@ -292,6 +292,11 @@ public final class Ap3Node {
      *  1-4 = held by the node gate until P3 section n is complete this run (leveraura.P3SectionTracker#sectionDone),
      *  wherever he stands; 0 = none. */
     public int sectionDone;
+    /** Modifier on ANY node ({@code crystals:<n>}, killer560 2026-11-09): 1 or 2 = held by the node gate until that many End
+     *  Crystals newly appear within {@link #CRYSTAL_WAIT_RANGE} blocks of him after the wait began (a placed Energy
+     *  Crystal); 0 = none. Saved as "crystalWait". */
+    public int crystalWait;
+    public static final double CRYSTAL_WAIT_RANGE = 5.0;
     /**
      * Modifier on ANY node ({@code ss}): the node fires only once Simon Says is done this run. killer560 (2026-10-18):
      * "For ap3 add a ss trailer that will only trigger that node after ss finishes just like close is after a term
@@ -759,6 +764,9 @@ public final class Ap3Node {
         if (sectionDone > 0) {
             sb.append(" sectiondone:").append(sectionDone);
         }
+        if (crystalWait > 0) {
+            sb.append(" crystals:").append(crystalWait);
+        }
         if (leapCounter > 0) {
             sb.append(" leapcounter:").append(leapCounter);
         }
@@ -812,6 +820,7 @@ public final class Ap3Node {
         leapCount = o.leapCount;
         leapCounter = o.leapCounter;
         sectionDone = o.sectionDone;
+        crystalWait = o.crystalWait;
         blinkTicks = o.blinkTicks;
         blinkStop = o.blinkStop;
         crystalHeight = o.crystalHeight;
@@ -834,7 +843,7 @@ public final class Ap3Node {
                 && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
-                && leapCount == o.leapCount && leapCounter == o.leapCounter && sectionDone == o.sectionDone && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && crystalHeight == o.crystalHeight && pathIndex == o.pathIndex && pathStart == o.pathStart
+                && leapCount == o.leapCount && leapCounter == o.leapCounter && sectionDone == o.sectionDone && crystalWait == o.crystalWait && blinkTicks == o.blinkTicks && blinkStop == o.blinkStop && crystalHeight == o.crystalHeight && pathIndex == o.pathIndex && pathStart == o.pathStart
                 && pathEnd == o.pathEnd && minSpeed == o.minSpeed && maxSpeed == o.maxSpeed && hasDir == o.hasDir
                 && dirDeg == o.dirDeg && dirTolDeg == o.dirTolDeg && termWait == o.termWait
                 && java.util.Objects.equals(colour, o.colour);
@@ -857,6 +866,7 @@ public final class Ap3Node {
         n.leapCount = leapCount;
         n.leapCounter = leapCounter;
         n.sectionDone = sectionDone;
+        n.crystalWait = crystalWait;
         n.blinkTicks = blinkTicks;
         n.blinkStop = blinkStop;
         n.crystalHeight = crystalHeight;

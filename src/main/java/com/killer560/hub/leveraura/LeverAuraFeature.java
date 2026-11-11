@@ -40,9 +40,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
  * no line-of-sight check, never with a container open; a lever the reported look does not reach gets the body (never the
- * camera) turned to it a tick first (util/TurnFirst). Pacing is a CPS setting (1-20): a lever must be in range for one
- * gap before its first click, and clicks are spaced by 1000 / CPS ms with +-10% jitter, scheduled from the previous
- * click's due tick, at most one a tick.
+ * camera) turned to it a tick first (util/TurnFirst), while moving the tick before it comes into reach. Pacing is the
+ * Lever Cooldown (50-1000 ms, +-10% jitter) since the previous flick's due tick, at most one a tick.
  */
 public final class LeverAuraFeature {
 
@@ -149,14 +148,19 @@ public final class LeverAuraFeature {
             return;
         }
 
-        long now = System.currentTimeMillis();
         boolean s2Open = section == 2;
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
+        double approachSq = (cfg.getRange() - 0.05) * (cfg.getRange() - 0.05);
+        // An AP3 walk can carry him through a lever's reach in 2 ticks or fewer (HEE2-EE3 v3 missed the high lever that
+        // way), so a lever in reach from next tick's eye (this tick's step, the fall counting in the air) has the body
+        // turned now and is flicked in its first tick in reach.
+        Vec3 v = client.player.getDeltaMovement();
+        Vec3 eyeNext = new Vec3(eye.x + v.x, eye.y + (client.player.onGround() ? 0.0 : v.y), eye.z + v.z);
 
         BlockPos target = null;
         String reason = null;
-        Set<Long> inRangeNow = new HashSet<>();
+        boolean approach = false;
 
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
         if (sectionWanted) {
@@ -169,12 +173,14 @@ public final class LeverAuraFeature {
                 }
                 // Nearest point of the block, not its center. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-                if (d > rangeSq) {
+                boolean next = d > rangeSq;
+                // 0.05 short of the range: the push of next tick's keys is not in eyeNext, and a lever predicted in reach by a
+                // hair stayed out, so the turn aimed from an eye a tick early missed (leverap3-1109, low lever 4.50 vs 4.505).
+                if (next && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) > approachSq) {
                     logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
                     continue;
                 }
                 long key = pos.asLong();
-                inRangeNow.add(key);
                 if ((s2Open ? clickedS2 : clickedEarly).contains(key) || !hasNotActivatedStand(client, pos)) {
                     if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
                         logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
@@ -183,10 +189,13 @@ public final class LeverAuraFeature {
                     }
                     continue;
                 }
-                logLever(pos, "eligible", reasonFor(s2Open), d);
-                if (d < best) {
-                    best = d;
+                logLever(pos, next ? "approach" : "eligible", next ? "in range next tick: turn first" : reasonFor(s2Open), d);
+                // One in reach now goes before one only due next tick.
+                double rank = next ? 1e9 + d : d;
+                if (rank < best) {
+                    best = rank;
                     target = pos;
+                    approach = next;
                     reason = s2Open ? "S2 section lever" : "S2 section lever (early)";
                 }
             }
@@ -196,6 +205,9 @@ public final class LeverAuraFeature {
         long tick = ActionGate.currentTick();
         if (target == null) {
             turnStartTick = -1L;
+            // The lever it turned for left reach unflicked: give the body back next tick, not after TurnFirst's whole wait
+            // (an air walk held turned 8 ticks lost its line and fell off the HEE2-EE3 v3 landing, leverap3-1109).
+            TURN.drop();
             return;
         }
         if (tick < nextClickDueTick) {
@@ -210,7 +222,8 @@ public final class LeverAuraFeature {
             logHeld("gate", "ActionGate refused LEVER_AURA, lever " + target.toShortString());
             return;
         }
-        if (!click(client, cfg, target, reason, s2Open)) {
+        if (approach ? preTurn(client, target, eyeNext)
+                : !click(client, cfg, target, reason, s2Open)) {
             // The body was turned to it this tick (or no hit yet): the flick goes next tick.
             if (turnStartTick < 0) {
                 turnStartTick = tick;
@@ -225,6 +238,21 @@ public final class LeverAuraFeature {
         // pending = nothing sent, no fixed rate); each cooldown is the set ms +-10% (never a metronome). One flick a tick
         // at most, so 50 ms is the shortest.
         nextClickDueTick = base + gapMs(cfg) / 50.0;
+    }
+
+    /**
+     * A lever in reach only from next tick's eye: turn the body now (aimed from that eye) so the flick can go in its first
+     * tick in reach. Never clicks. Always true (nothing went out; the flick is scheduled from this tick).
+     */
+    private static boolean preTurn(Minecraft client, BlockPos pos, Vec3 eyeNext) {
+        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos, eyeNext);
+        // Already turned (a slow approach): keep that hold; asking again would read "hits" and give the body back early.
+        if (hit != null && !TURN.isTurned() && !TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
+                eyeNext.distanceTo(hit.getLocation()) + 1.0)) {
+            LOGGER.info("[LeverAura] turning body to lever {} a tick before it is in reach tick={}", pos.toShortString(),
+                    ActionGate.currentTick());
+        }
+        return true;
     }
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */

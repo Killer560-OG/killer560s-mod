@@ -105,6 +105,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     private boolean ssGate;
     /** The {@code close} suffix: fire only after a terminal is closed. */
     private boolean closeGate;
+    private int crystalWait;
     /** USE: the Skyblock id to swap to, or null for "use whatever is held". */
     private String itemId;
     private boolean typeOpen;
@@ -157,6 +158,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             precise = n.precise;
             ssGate = n.ssGate;
             closeGate = n.closeGate;
+            crystalWait = n.crystalWait;
             blinkStop = n.blinkStop;
             itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
@@ -296,6 +298,11 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             // Crystal: the Spring Boots height in blocks, as /ap3 add crystal <n>; blank = the crystal above the node.
             cells.add(field("Crystal height", "Height", 38));
         }
+        // The crystals:<n> suffix (2026-11-09): Off / 1 / 2 End Crystals placed within 5 blocks before the node fires.
+        cells.add((cx, cy, cw) -> cycleButton(crystalLabel(), (b, dir) -> {
+            crystalWait = SettingsButtonWidget.step(crystalWait, dir, 3);
+            b.setMessage(Component.literal(crystalLabel()));
+        }, cx, cy, cw, rowH));
         y = flow(cells, x, y, w);
         if (type == Ap3Node.Type.BLINK_CHARGE) {
             // Momentum kept (default): his physics pauses while the charge banks; Stop: he brakes, then banks standing.
@@ -502,6 +509,10 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
                 .bounds(x, y, w, h).build());
     }
 
+    private String crystalLabel() {
+        return "Wait For Crystal: \u00a76" + (crystalWait == 0 ? "off" : String.valueOf(crystalWait));
+    }
+
     /** BLINK_CHARGE: the plain stop instead of frozen momentum ({@link Ap3Node#blinkStop}). */
     private boolean blinkStop;
 
@@ -610,6 +621,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.jumpMod = jumpMod;
             node.ssGate = ssGate;
             node.closeGate = closeGate;
+            node.crystalWait = crystalWait;
             if (newType.usesPrecise()) {
                 node.precise = precise;
             }

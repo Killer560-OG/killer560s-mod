@@ -280,6 +280,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.mining.profit.MiningProfitTracker.register();
         com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
         com.killer560.hub.mining.chmap.ChDiscovery.register();
+        com.killer560.hub.carnival.CarnivalFeatures.register();
         com.killer560.hub.mining.chmap.ChWaypointRender.register();
         HudElementRegistry.register(new com.killer560.hub.mining.chmap.ChMapHud());
         com.killer560.hub.mining.chmap.ChShare.register();

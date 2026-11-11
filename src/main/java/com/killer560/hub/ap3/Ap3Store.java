@@ -579,6 +579,7 @@ public final class Ap3Store {
         n.setLeapCount(ConfigJson.getInt(o, "leapCount", 1));
         n.setLeapCounter(ConfigJson.getInt(o, "leapCounter", 0));
         n.sectionDone = Math.max(0, Math.min(4, ConfigJson.getInt(o, "sectionDone", 0)));
+        n.crystalWait = Math.max(0, Math.min(2, ConfigJson.getInt(o, "crystalWait", 0)));
         n.setBlinkTicks(ConfigJson.getInt(o, "blinkTicks", 0));
         if (type == Ap3Node.Type.CRYSTAL) {
             n.setCrystalHeight(ConfigJson.getDouble(o, "crystalHeight", 0));
@@ -675,6 +676,9 @@ public final class Ap3Store {
         }
         if (n.sectionDone > 0) {
             o.addProperty("sectionDone", n.sectionDone);
+        }
+        if (n.crystalWait > 0) {
+            o.addProperty("crystalWait", n.crystalWait);
         }
         if (n.leapCounter > 0) {
             o.addProperty("leapCounter", n.leapCounter);

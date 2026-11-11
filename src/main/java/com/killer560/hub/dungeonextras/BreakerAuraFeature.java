@@ -1221,14 +1221,19 @@ public final class BreakerAuraFeature {
         com.killer560.hub.blink.BlinkCharge.addShotPause(BreakerAuraFeature::pendingWallAhead);
     }
 
-    /** A wall he asked the server to break, still there on the client and within his next step: a Blink shot waits. */
+    /**
+     * A wall he asked the server to break, still there on the client and in the box his next two ticks sweep: a Blink
+     * shot waits. Only blocks his move would strike count (blinkbreaker-1110): a 1.6-block box round him paused the shot
+     * for walls beside his path, and each pause costs ~1 s of held answers while the rest of the wall waits undug.
+     */
     private static String pendingWallAhead(net.minecraft.client.Minecraft mc) {
         if (PENDING.isEmpty() || mc.player == null || mc.level == null) {
             return null;
         }
         long now = System.currentTimeMillis();
         LocalPlayer p = mc.player;
-        AABB near = p.getBoundingBox().inflate(1.6, 0.0, 1.6);
+        net.minecraft.world.phys.Vec3 v = p.getDeltaMovement();
+        AABB near = p.getBoundingBox().expandTowards(v.x * 2, 0.0, v.z * 2).inflate(0.3, 0.0, 0.3);
         String found = null;
         for (java.util.Iterator<java.util.Map.Entry<BlockPos, Long>> it = PENDING.entrySet().iterator(); it.hasNext(); ) {
             java.util.Map.Entry<BlockPos, Long> e = it.next();

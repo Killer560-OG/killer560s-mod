@@ -26,7 +26,7 @@ import java.util.Locale;
  * three. Search scans all three pages with their hidden rows laid open, and {@link #revealSetting} opens the page a hit
  * is on.
  * <p>
- * Cheat-only, so the tab title and every section header are red ({@link SectionHeaders}).
+ * Cheat-only, so the tab title is red; its section headers take the theme's accent ({@link SectionHeaders}).
  */
 public class FastLeapTab extends BaseTab {
 
@@ -37,6 +37,12 @@ public class FastLeapTab extends BaseTab {
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
         return switchRows(built, "Fast Leap");
+    }
+
+    /** The target pages are a grid (name, Off/Fast/Auto, target, mode on one line): never stacked in a narrow drawer. */
+    @Override
+    public boolean keepsRows() {
+        return true;
     }
 
     @Override
@@ -67,7 +73,7 @@ public class FastLeapTab extends BaseTab {
             }
             case CLASS -> {
                 y = FastLeapSection.buildPageHeader(widgets, x, y, w, requestRebuild, Page.CLASS);
-                FastLeapSection.buildClassTargets(widgets, x, y, w, requestRebuild);
+                FastLeapSection.buildClassTargets(widgets, x, y, w, requestRebuild, includeHidden);
             }
             default -> {
                 // The Fast Leap switch is the tab's first row: no header above it.
