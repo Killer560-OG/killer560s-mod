@@ -6,6 +6,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.HotbarSelect;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -46,12 +47,24 @@ public final class PigeonDrillSwap {
     private static int pendingTicks = 0;
     private static int swaps = 0;
     private static int lastSwapSlot = -1;
+    /** After a swap: the slot to confirm is still held on the next ticks (the server may put him back). */
+    private static int verifySlot = -1;
+    private static int verifyTicks = 0;
+    private static boolean retried = false;
 
     private PigeonDrillSwap() {
     }
 
     static void register() {
         UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (level.isClientSide() && player == Minecraft.getInstance().player) {
+                onUse(player.getItemInHand(hand));
+            }
+            return InteractionResult.PASS;
+        });
+        // Aimed at a block, vanilla runs the block use first and only a PASS reaches UseItemCallback: the pigeon is
+        // ghost-placed (a consumed use), so the item callback never fired and no swap was made (pigeondrill-1110).
+        UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (level.isClientSide() && player == Minecraft.getInstance().player) {
                 onUse(player.getItemInHand(hand));
             }
@@ -69,6 +82,10 @@ public final class PigeonDrillSwap {
     }
 
     static void tick(Minecraft client) {
+        if (verifyTicks > 0) {
+            verify(client);
+            return;
+        }
         if (pendingTicks <= 0) return;
         LocalPlayer player = client.player;
         if (player == null || !MiningQolConfig.getInstance().isPigeonDrill()
@@ -91,10 +108,35 @@ public final class PigeonDrillSwap {
             return; // already holding it
         }
         HotbarSelect.select(client, player, slot);
-        swaps++;
-        lastSwapSlot = slot;
-        ModChat.send("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(slot)) + ".")
-                .withStyle(ChatFormatting.GRAY));
+        verifySlot = slot;
+        verifyTicks = 3;
+        retried = false;
+    }
+
+    /** Announces only a swap that held: a server slot correction (or the ghost place) can undo it; retried once. */
+    private static void verify(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (player == null || com.killer560.hub.compat.McCompat.screen(client) != null) {
+            verifyTicks = 0;
+            return;
+        }
+        if (player.getInventory().getSelectedSlot() == verifySlot) {
+            if (--verifyTicks == 0) {
+                swaps++;
+                lastSwapSlot = verifySlot;
+                ModChat.send("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(verifySlot)) + ".")
+                        .withStyle(ChatFormatting.GRAY));
+            }
+            return;
+        }
+        if (retried) {
+            verifyTicks = 0;
+            ModChat.send("Pigeon Drill", Component.literal("The server kept the Royal Pigeon in hand.").withStyle(ChatFormatting.GRAY));
+        } else if (!HotbarSelect.swapWouldFlag()) {
+            retried = true;
+            verifyTicks = 3;
+            HotbarSelect.select(client, player, verifySlot);
+        }
     }
 
     /** The hotbar slot (0-7) of the drill to hold for a claim, or -1. */
@@ -216,6 +258,7 @@ public final class PigeonDrillSwap {
 
     public static void resetForTest() {
         pendingTicks = 0;
+        verifyTicks = 0;
         swaps = 0;
         lastSwapSlot = -1;
     }
