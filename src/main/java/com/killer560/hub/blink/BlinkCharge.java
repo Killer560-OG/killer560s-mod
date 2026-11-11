@@ -390,6 +390,11 @@ public final class BlinkCharge {
      * server's count, and GrimAC's experimental BadPacketsV flags a still position packet fewer than 19 ticks after the
      * last (ship3fix2-1104: every Blink case on experimental checks).
      */
+    private static boolean sprintFlip(net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket p) {
+        return p.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket.Action.START_SPRINTING
+                || p.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket.Action.STOP_SPRINTING;
+    }
+
     private static void dropStash() {
         if (stash != null && stash.packet() instanceof ServerboundMovePlayerPacket m && m.hasRotation()) {
             rotationOwed = true;
@@ -666,6 +671,14 @@ public final class BlinkCharge {
                 // tick the move is withheld; the action sent alone sat after his last sent move, and the next answer made
                 // GrimAC's Post check flag it ("entity action", owner's p3sim log 16:54:25: AP3's frozen charge flips sprint;
                 // "held item change", his scroll while charged, 1105-blink-charge-same-swap). A use or click flushes it first.
+                // A sprint flip held while its tick was withheld (a paused shot, a banked tick) undoes the one before it:
+                // both went out before one move and GrimAC's experimental BadPacketsX flagged two sprint actions with no
+                // tick between (blinkbreaker-1110, gap-leap). The pair cancels, so neither goes.
+                if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket pc
+                        && preHeld.removeIf(h -> h.packet() instanceof net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket o
+                        && sprintFlip(o) && sprintFlip(pc))) {
+                    return true;
+                }
                 preHeld.addLast(new Held(packet, listener, flush));
                 return true;
             }
