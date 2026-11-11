@@ -231,3 +231,9 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   pack: `SoundBufferLibrary.getCompleteBuffer` is answered from the folder by a second mixin, and the decoded `SoundBuffer` is
   kept per file because each owns an OpenAL buffer freed only when the engine clears its library. An `Identifier` cannot hold
   capitals or spaces, so an imported file is named to the engine by a hashed key (`imported/s<hash>`).
+- **A settings grid (one row per item, columns of cyclers) is built from compact `SettingsButtonWidget`s** (leaprow-1110,
+  Fast/Auto Leap target pages): `.compact()` draws only the value pill across the widget (no label, no row band) while the
+  label stays in the message for tooltips, search and tests, and `.dim(on)` greys a kept-but-unused value that stays
+  clickable. Name each cell "<Row> <Column>: value" so the tooltip key and search hit are per cell, put the row name in a
+  StringWidget sized to its text, return `keepsRows()` true (stackRows would split the row below 380 px), and compute the
+  columns once from the content width (`FastLeapSection.grid`). Testkit 1110-ui-leaprow checks the grid at 3 sizes.
