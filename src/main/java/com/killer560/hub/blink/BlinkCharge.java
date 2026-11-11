@@ -345,6 +345,45 @@ public final class BlinkCharge {
         return shotPauses;
     }
 
+    /** This tick's physics was skipped because the shot is paused (set at aiStep, read by the tick-end). Render thread. */
+    private static boolean pauseFrozen;
+    private static long pauseHeldTicks;
+
+    /**
+     * True while a shot is paused (the rest waits for a Breaker Aura wall): his physics and every automated world action
+     * wait, and the tick is withheld uncounted, so no game time passes for him on either side. Live ticks during the pause
+     * walked him into the wall still standing on the client and off its ledge, and the pause then ended because he had
+     * fallen below the wall, not because it was gone: the rest of the shot fell 8 blocks into the lava (blinkbreaker-1110,
+     * owner's boss sim 17:39:25, AP3 #38). Never past the position gap a reminder must keep (BadPacketsR).
+     */
+    public static boolean pauseHolds() {
+        return shotPaused() && rebackKeepsPositions();
+    }
+
+    /**
+     * A shot is paused: no automated world action goes out, not even on a tick sent for the position reminder. A Breaker
+     * Aura dig on that tick rode a look a withheld tick had carried and drew experimental RotationBreak once per paused
+     * shot (blinkbreaker-1110, 1027-blink-breaker-leap/-stand).
+     */
+    public static boolean shotPaused() {
+        return active && shotLeft > 0 && pausedWhy != null && !inShotLoop;
+    }
+
+    /** LocalPlayer.aiStep head (Ap3FreezeMixin): skip his physics this tick while {@link #pauseHolds()}. */
+    public static boolean takePauseFreeze() {
+        if (!pauseHolds()) {
+            return false;
+        }
+        pauseFrozen = true;
+        pauseHeldTicks++;
+        return true;
+    }
+
+    /** Ticks of his physics skipped and withheld while a shot was paused (testkit, log). */
+    public static long pauseHeldTicks() {
+        return pauseHeldTicks;
+    }
+
     /**
      * A withheld tick: drops the held packet, owing the server its look when it carried one, and takes the tick back off
      * vanilla's position reminder count. The server never saw the tick, so a reminder counted with it came early by the
@@ -656,6 +695,16 @@ public final class BlinkCharge {
                 boolean settling = settleTicks > 0;
                 if (settling) {
                     settleTicks--;
+                }
+                if (pauseFrozen) {
+                    // A tick a paused shot held (takePauseFreeze): it never happened for him, so it never reaches GrimAC.
+                    pauseFrozen = false;
+                    if (!busy) {
+                        dropStash();
+                        return true;
+                    }
+                    frozenTicksSent++;
+                    BlinkLog.event("charge: a tick held by the shot's pause had an action in it - sent as it was");
                 }
                 // While re-backing, a still tick is withheld only if the next position still goes in time (BadPacketsR).
                 boolean posInTime = unbacked <= 0 || !still || rebackKeepsPositions();

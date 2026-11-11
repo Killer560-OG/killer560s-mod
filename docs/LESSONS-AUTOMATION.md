@@ -844,6 +844,15 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   at a wall Breaker Aura dug that is still there (about 1.3 s at 150 ms) and goes on covered; Breaker Aura never re-digs
   a held block (that drew AirLiquidBreak x108). Answering the block's ping early instead cost the bank its cover (Timer on
   the rest of the shot). The testkit's HxAbilities now emulates the Dungeon Breaker (1027-blink-breaker-walk/-leap/-stand).
+  (5) blinkbreaker-1110 (his boss sim, AP3 #38, Multi Break off): while a shot was paused at that wall his ticks ran LIVE,
+  so his momentum walked him into the wall still solid on the client and off its ledge; the pause then ended because he
+  had dropped out of its 1.6-block box, not because the wall was gone, and the rest of the shot fell 8 blocks into the lava.
+  A paused shot now freezes him: aiStep is skipped (Ap3FreezeMixin -> BlinkCharge.takePauseFreeze, nothing written) and
+  the tick is withheld uncounted like a reback tick, while the position gap allows (BadPacketsR); ActionGate refuses WORLD
+  actions meanwhile (an action would make it a real tick). The rest of the shot goes on from the same spot and velocity.
+  With that deny, the old 1.6-block box made a shot pause for each off-lane block in turn (one dig per pause) and run out of
+  time mid-wall, so `pendingWallAhead` counts only held blocks in the box his next two ticks sweep (velocity x2, +0.3 sides).
+  Testkit 1110-blink-breaker-gap-walk/-leap/-stand (a one-wide trench before the wall).
 - The same lag allowance is shared by a hold and the bank: a hold while charging sends the waiting answers (TransactionOrder)
   and its own in its burst, so after it GrimAC covers only ~2 ticks of the kept bank. Before campaign-blink-1027 the shot after
   a kept hold drew Timer/TimerLimit and was half set back however long he waited (the bank was full, so nothing re-banked:
