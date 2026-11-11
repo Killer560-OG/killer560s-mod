@@ -61,6 +61,8 @@ public final class SimHost {
     private static final Set<UUID> ADMITTED = ConcurrentHashMap.newKeySet();
     /** Guests turned away as over Max, until they are gone (a disconnect takes a tick or two). */
     private static final Set<UUID> FULL = ConcurrentHashMap.newKeySet();
+    /** Joiners waiting to be landed at the end of the server tick they joined in. */
+    private static final Set<UUID> LANDING = ConcurrentHashMap.newKeySet();
     private static volatile int kicks, fullRefusals;
 
     private SimHost() {
@@ -71,7 +73,17 @@ public final class SimHost {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             if (!(server instanceof IntegratedServer)) return;
             if (active && server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
-            else landJoiner(server, handler.player);   // also a sim opened with vanilla's Open to LAN
+            else LANDING.add(handler.player.getUUID());   // also a sim opened with vanilla's Open to LAN
+        });
+        // JOIN fires inside placeNewPlayer, before the chunk map tracks the player: a teleport there threw
+        // (DistanceManager.removePlayer NPE, "Invalid player data"), so the landing waits for the end of the tick.
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (LANDING.isEmpty()) return;
+            for (UUID id : List.copyOf(LANDING)) {
+                LANDING.remove(id);
+                ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                if (sp != null) landJoiner(server, sp);
+            }
         });
         // As the owner's own connection drops, while the guests' still carry the bye (by SERVER_STOPPING the
         // connection listener has already closed them: the guest read "Disconnected").
