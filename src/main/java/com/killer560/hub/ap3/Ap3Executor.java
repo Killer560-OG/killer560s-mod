@@ -3742,6 +3742,19 @@ public final class Ap3Executor {
         player.yBob = player.yBobO + (viewYaw - player.yBobO) * 0.5f;
     }
 
+    /** A server teleport that sets his look (absolute yaw, or a relative turn) while nothing of AP3 holds the view any
+     *  more: the glide of the body back under the old frozen view ends, so the camera shows the server's look and the body
+     *  stays on it. Until ap3grp2-1110 a stopped LOOK's view kept turning the body 30 degrees a tick after a teleport, away
+     *  from the look the server had just set (testkit 63-ap3-look-queued walked off its lane). */
+    public static void onServerLook(boolean setsLook) {
+        if (!setsLook || Float.isNaN(viewYaw) || activeNode != null || holdDir != null || aiming) {
+            return;
+        }
+        viewYaw = Float.NaN;
+        viewPitch = Float.NaN;
+        lookView = false;
+    }
+
     /** Adds {@code delta} to the real yaw (wrapped, so it lands on the view modulo 360) and ends the freeze. The hand
      *  sway is shifted by the same whole turns so it does not spin to catch up. */
     private static void releaseView(LocalPlayer player, float delta) {
