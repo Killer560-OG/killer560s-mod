@@ -49,6 +49,11 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
      * are on reads at a glance (killer560, 2026-10-15: "it is really hard to tell which filters are selected").
      */
     private Boolean toggled;
+    /** A cycling pill drawn alone across the whole widget, no label (a column of a grid row); the label stays in the
+     *  message for tooltips, search and tests. */
+    private final boolean compact;
+    /** Drawn dimmed (the setting is kept but does nothing now); still clickable. */
+    private final boolean dim;
     /** Its animation in the mod menu (hover, switch, press, value); handed to its rebuilt copy by ModScreen. */
     private final MenuAnim.RowAnim anim = new MenuAnim.RowAnim();
 
@@ -64,8 +69,10 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     }
 
     private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean cycling,
-            boolean primary, boolean danger, Boolean toggled, int x, int y, int width, int height) {
+            boolean primary, boolean danger, Boolean toggled, boolean compact, boolean dim, int x, int y, int width, int height) {
         super(x, y, width, height, message);
+        this.compact = compact;
+        this.dim = dim;
         this.onPress = onPress;
         this.onSecondaryPress = onSecondaryPress;
         this.cycling = cycling;
@@ -77,6 +84,16 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     /** For a {@link Builder#toggle} chip: whether it is chosen; null for an ordinary button. Read by the testkit. */
     public Boolean toggleState() {
         return toggled;
+    }
+
+    /** Built with {@link Builder#compact()} (read by the testkit). */
+    public boolean isCompact() {
+        return compact;
+    }
+
+    /** Built with {@link Builder#dim(boolean)} on (read by the testkit). */
+    public boolean isDim() {
+        return dim;
     }
 
     /** Whether this was built with {@link Builder#danger(boolean)} on (read by the testkit). */
@@ -152,6 +169,8 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         private boolean primary;
         private boolean danger;
         private Boolean toggled;
+        private boolean compact;
+        private boolean dim;
         private int x;
         private int y;
         private int width = 150;
@@ -196,9 +215,21 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return this;
         }
 
+        /** In the menu, draws only the value pill across the whole widget (no label, no row band): a grid column. */
+        public Builder compact() {
+            this.compact = true;
+            return this;
+        }
+
+        /** Draws the value dimmed when {@code on} (kept but not in effect now); it stays clickable. */
+        public Builder dim(boolean on) {
+            this.dim = on;
+            return this;
+        }
+
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, onSecondaryPress, cycling, primary, danger, toggled, x, y, width,
-                    height);
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, cycling, primary, danger, toggled, compact, dim,
+                    x, y, width, height);
         }
     }
 
@@ -375,6 +406,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             case SWITCH -> new int[]{right - MenuStyle.SWITCH_W, getY() + (h - MenuStyle.SWITCH_H) / 2,
                     MenuStyle.SWITCH_W, MenuStyle.SWITCH_H};
             case PILL, CHIP -> {
+                if (compact) {
+                    yield new int[]{getX(), getY() + 2, getWidth(), h - 4};
+                }
                 int w = pillWidth(p);
                 yield new int[]{right - w, getY() + 3, w, h - 6};
             }
@@ -448,14 +482,20 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         }
         // A setting row: faint hover band and a separator under it, label left, control right. A press washes the row
         // in the accent for a moment.
-        if (hv > 0f) {
-            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x0E * hv)));
-        }
-        if (pr > 0f) {
-            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.OR, Math.round(0x22 * pr)));
-        }
-        MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
         int[] c = controlBounds();
+        if (compact) {
+            if (pr > 0f) {
+                r.fill(c[0], c[1], c[0] + c[2], c[1] + c[3], MenuStyle.alpha(MenuStyle.OR, Math.round(0x22 * pr)));
+            }
+        } else {
+            if (hv > 0f) {
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x0E * hv)));
+            }
+            if (pr > 0f) {
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.OR, Math.round(0x22 * pr)));
+            }
+            MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
+        }
         switch (p.look()) {
             case SWITCH -> {
                 float on = p.on() ? 1f : 0f;
@@ -463,7 +503,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
                 anim.onColour.set(on);
                 MenuStyle.toggle(r, c[0], c[1], anim.on.get(), anim.onColour.get(), hv);
             }
-            case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, hv);
+            case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, dim ? hv * 0.5f : hv);
             default -> {
                 r.outline(c[0], c[1], c[2], c[3], MenuStyle.ease(MenuStyle.BLACK, MenuStyle.OR2, hv));
                 r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + c[3] - 1, MenuStyle.PILL_BG);
@@ -475,7 +515,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
                 : MenuStyle.ease(MenuStyle.TXT, MenuStyle.TXT_HOVER, hv));
         int labelMax = c[0] - x0 - 10;
         String label = p.label();
-        if (!p.note().isEmpty() && font.width(label + " " + p.note()) <= labelMax) {
+        if (compact) {
+            // no label: the grid row's name and its column heads say what this is
+        } else if (!p.note().isEmpty() && font.width(label + " " + p.note()) <= labelMax) {
             graphics.text(font, label, x0 + 4, textY, faded(labelColor), MenuStyle.TEXT_SHADOW);
             graphics.text(font, p.note(), x0 + 4 + font.width(label) + 4, textY, faded(MenuStyle.DIM2), MenuStyle.TEXT_SHADOW);
         } else {
@@ -485,7 +527,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         if (p.look() == Look.PILL) {
             // The arrow on the half the mouse is over lights up: that half is what a click steps (pillStep).
             int half = hover ? pillHalf(mouseX, c) : 0;
-            int arrow = MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR, hv);
+            int arrow = dim ? MenuStyle.DIM2 : MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR, hv);
             graphics.text(font, "‹", c[0] + 3, vy, faded(half < 0 ? MenuStyle.OR_HOVER : arrow), false);
             graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy,
                     faded(half > 0 ? MenuStyle.OR_HOVER : arrow), false);
@@ -497,7 +539,8 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             float prevFade = MenuAnim.pushFade(0.2f + 0.8f * in);
             try {
                 graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2 + slide, vy,
-                        faded(MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, hv)), MenuStyle.TEXT_SHADOW);
+                        faded(dim ? MenuStyle.ease(MenuStyle.DIM2, MenuStyle.DIM, hv)
+                                : MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, hv)), MenuStyle.TEXT_SHADOW);
             } finally {
                 MenuAnim.popFade(prevFade);
             }

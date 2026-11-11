@@ -136,7 +136,7 @@ public class HealthAndManaBarsTab extends BaseTab {
     @Override
     public java.util.List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(
             java.util.List<net.minecraft.client.gui.components.AbstractWidget> built) {
-        String[] labels = {"Stat Bars", "XP Bar And Level", "Hypixel Stat Text", "Drill Fuel Text"};
+        String[] labels = {"Stat Bars", "XP Bar And Level", "Hypixel Stat Text", "Drill Fuel Text", "Skill XP Text"};
         java.util.List<com.killer560.hub.gui.SettingsButtonWidget> rows = switchRows(built, labels);
         if (rows.size() == labels.length || scanningForSearch) {
             return rows;
@@ -359,6 +359,10 @@ public class HealthAndManaBarsTab extends BaseTab {
         y[0] += ROW;
         // Hypixel's "1,650/3k Drill Fuel" segment alone (drillfuel-1104), whether or not the stat text hides.
         toggle(widgets, contentX, y[0], half, "Drill Fuel Text", ps::isHideDrillFuelText, ps::setHideDrillFuelText,
+                ps::save, null);
+        y[0] += ROW;
+        // Hypixel's "+0.6 Mining (15.05%)" skill XP segment alone (hideskillxp-1110).
+        toggle(widgets, contentX, y[0], half, "Skill XP Text", ps::isHideSkillXpText, ps::setHideSkillXpText,
                 ps::save, null);
         y[0] += ROW;
         // Vanilla's held-item name over the hotbar (2026-10-07): Shown / Hidden Over Bars (the default) / Hidden.

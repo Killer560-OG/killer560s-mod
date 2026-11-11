@@ -224,6 +224,9 @@ public final class TurnFirst {
 
     public boolean isTurned() { return turned; }
 
+    /** The turned-for action will not go out (its target left reach): the next {@link #tick} gives the body back. */
+    public void drop() { pending = false; }
+
     /**
      * A block: true when its outline is on the reported look within {@code reach} - act now. Otherwise turns the body to
      * {@code aimPoint} (a point on the block, e.g. {@link BlockHits#surface}'s) and returns false: ask again next tick.
@@ -232,10 +235,14 @@ public final class TurnFirst {
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(look(player).scale(reach));
-        boolean hits = shape.isEmpty() ? new AABB(pos).clip(eye, end).isPresent() : shape.clip(eye, end, pos) != null;
-        java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> shape.isEmpty() ? new AABB(pos).clip(a, b).isPresent()
-                : shape.clip(a, b, pos) != null;
-        return settle(player, hits, aimPoint, ray, reach, pos.toShortString());
+        AABB cube = new AABB(pos);
+        double range = player.blockInteractionRange();
+        // Every block click (readyBlock): the look must also meet the block's full cube within the interaction range, which is how GrimAC's
+        // RotationPlace judges a block click; a lever hit 4.85-5.0 away drew it (leverap3-1109).
+        java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> (shape.isEmpty() ? cube.clip(a, b).isPresent()
+                : shape.clip(a, b, pos) != null)
+                && (cube.contains(a) || cube.clip(a, a.add(b.subtract(a).normalize().scale(range))).isPresent());
+        return settle(player, ray.test(eye, end), aimPoint, ray, reach, pos.toShortString());
     }
 
     /** As {@link #readyBlock}, for an entity (or any) box. */
@@ -359,6 +366,23 @@ public final class TurnFirst {
             }
         }
         if (Float.isNaN(walk)) return null;
+        // The least bend is often a ray that only grazes the target's edge, and the eye lands a few hundredths off the
+        // predicted one (the re-picked keys move the air push): the S2 low lever was missed twice in a fall that way
+        // (leverap3-1109). So first a look that still strikes from the eye moved 0.06 any way, else any.
+        float[] sure = offWalkLook(player, eye, yaw0, pitch0, (a, b) -> {
+            for (Vec3 o : EYE_SLACK) {
+                if (!ray.test(a.add(o), b.add(o))) return false;
+            }
+            return true;
+        }, reach, walk);
+        return sure != null ? sure : offWalkLook(player, eye, yaw0, pitch0, ray, reach, walk);
+    }
+
+    private static final Vec3[] EYE_SLACK = {Vec3.ZERO, new Vec3(0.06, 0, 0), new Vec3(-0.06, 0, 0), new Vec3(0, 0.06, 0),
+            new Vec3(0, -0.06, 0), new Vec3(0, 0, 0.06), new Vec3(0, 0, -0.06)};
+
+    private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
+                                       java.util.function.BiPredicate<Vec3, Vec3> ray, double reach, float walk) {
         float[] best = null;
         float bestScore = Float.MAX_VALUE;
         for (int d = 0; d <= 60; d++) {
