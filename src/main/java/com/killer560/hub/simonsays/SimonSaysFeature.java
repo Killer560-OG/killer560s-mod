@@ -3280,18 +3280,17 @@ public final class SimonSaysFeature {
         public int width() {
             // The widest drawn line (2026-10-07 box audit: it was a fixed 180); 180 with nothing to show, so the
             // HUD editor still has something to grab.
-            List<Map.Entry<String, PartyProgress>> entries = visibleEntries();
-            if (entries.isEmpty()) return 180;
-            long now = System.currentTimeMillis();
+            List<String> shown = lines();
+            if (shown.isEmpty()) return 180;
             int w = 1;
-            for (Map.Entry<String, PartyProgress> e : entries) {
-                w = Math.max(w, Minecraft.getInstance().font.width(lineText(e, now)));
+            for (String line : shown) {
+                w = Math.max(w, Minecraft.getInstance().font.width(line));
             }
             return w;
         }
 
         @Override
-        public int height() { return com.killer560.hub.hud.HudText.height(visibleEntries().size(), 12); }
+        public int height() { return com.killer560.hub.hud.HudText.height(lines().size(), 12); }
 
         private static String lineText(Map.Entry<String, PartyProgress> e, long now) {
             PartyProgress p = e.getValue();
@@ -3303,6 +3302,23 @@ public final class SimonSaysFeature {
                 eta = String.format(Locale.US, " (~%.1fs)", remainingMs / 1000.0);
             }
             return String.format(Locale.US, "%s: %d/%d%s", e.getKey(), p.progress, p.total, eta);
+        }
+
+        private List<String> cachedLines = List.of();
+        private long cachedAtMs;
+
+        /** The drawn lines, rebuilt at most every 200 ms (width, height and render each asked every frame: two String.formats a row). */
+        private List<String> lines() {
+            long now = System.currentTimeMillis();
+            if (now - cachedAtMs >= 200) {
+                List<String> out = new ArrayList<>();
+                for (Map.Entry<String, PartyProgress> e : visibleEntries()) {
+                    out.add(lineText(e, now));
+                }
+                cachedLines = out;
+                cachedAtMs = now;
+            }
+            return cachedLines;
         }
 
         private List<Map.Entry<String, PartyProgress>> visibleEntries() {
@@ -3325,10 +3341,9 @@ public final class SimonSaysFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             if (!SimonSaysConfig.getInstance().isPartyProgressTrackerEnabled() || HudVisibility.hidesHud()) return;
-            long now = System.currentTimeMillis();
             int lineY = y;
-            for (Map.Entry<String, PartyProgress> e : visibleEntries()) {
-                graphics.text(Minecraft.getInstance().font, lineText(e, now), x, lineY, 0xFFFFFFFF, false);
+            for (String line : lines()) {
+                graphics.text(Minecraft.getInstance().font, line, x, lineY, 0xFFFFFFFF, false);
                 lineY += 12;
             }
             if (lineY != y) {

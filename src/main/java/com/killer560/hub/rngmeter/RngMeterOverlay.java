@@ -215,12 +215,23 @@ public final class RngMeterOverlay {
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            List<RngMeterEngine.RankedItem> shown = withUnpricedDyesFirst(RngMeterEngine.rankAll(scanned));
-            shownRowCount = shown.size();
-            scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
-            renderRanking(graphics, 0, 0, title, shown, committedSelected);
+            // Rank, format and measure only when an input changed or 250 ms passed (prices move slowly); per frame this was
+            // a sort, ~10 String.formats and a font.width per line (fpssweep-1110).
+            long now = System.currentTimeMillis();
+            if (memoScan != scanned || memoSel != committedSelected || memoScroll != scrollOffset || now - memoAt > 250) {
+                List<RngMeterEngine.RankedItem> shown = withUnpricedDyesFirst(RngMeterEngine.rankAll(scanned));
+                shownRowCount = shown.size();
+                scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
+                memoLines = rankingLines(shown, committedSelected);
+                memoSize = sizeOf(memoLines);
+                memoScan = scanned;
+                memoSel = committedSelected;
+                memoScroll = scrollOffset;
+                memoAt = now;
+            }
+            drawLines(graphics, 0, 0, memoLines);
             graphics.pose().popMatrix();
-            int[] size = rankingSize(shown, committedSelected);
+            int[] size = memoSize;
             com.killer560.hub.containercover.ContainerCover.coverRect(screen, "rngmeter.ranking",
                     pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);
         } catch (Exception e) {
@@ -651,9 +662,20 @@ public final class RngMeterOverlay {
     private record RankLine(String text, int color, int dy) {
     }
 
+    private static List<RngItem> memoScan;
+    private static SelectedDropInfo memoSel;
+    private static int memoScroll;
+    private static long memoAt;
+    private static List<RankLine> memoLines = List.of();
+    private static int[] memoSize = {1, 1};
+
     private static void renderRanking(GuiGraphicsExtractor graphics, int x, int y, String title, List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {
+        drawLines(graphics, x, y, rankingLines(rows, selected));
+    }
+
+    private static void drawLines(GuiGraphicsExtractor graphics, int x, int y, List<RankLine> lines) {
         var font = Minecraft.getInstance().font;
-        for (RankLine line : rankingLines(rows, selected)) {
+        for (RankLine line : lines) {
             graphics.text(font, line.text(), x, y + line.dy(), line.color());
         }
     }
@@ -674,10 +696,14 @@ public final class RngMeterOverlay {
 
     /** {width, height} of the ranking panel for these rows - what renderRanking draws, measured. */
     private static int[] rankingSize(List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {
+        return sizeOf(rankingLines(rows, selected));
+    }
+
+    private static int[] sizeOf(List<RankLine> lines) {
         var font = Minecraft.getInstance().font;
         int w = 1;
         int h = 1;
-        for (RankLine line : rankingLines(rows, selected)) {
+        for (RankLine line : lines) {
             w = Math.max(w, font.width(line.text()));
             h = Math.max(h, line.dy() + font.lineHeight);
         }
