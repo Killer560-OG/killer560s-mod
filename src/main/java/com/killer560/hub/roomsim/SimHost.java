@@ -69,9 +69,9 @@ public final class SimHost {
     static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(SimHost::clientTick);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            if (!active || !(server instanceof IntegratedServer)) return;
-            if (server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
-            else landJoiner(server, handler.player);
+            if (!(server instanceof IntegratedServer)) return;
+            if (active && server.getPlayerList().getPlayers().size() > max) refuseFull(handler.player);
+            else landJoiner(server, handler.player);   // also a sim opened with vanilla's Open to LAN
         });
         // As the owner's own connection drops, while the guests' still carry the bye (by SERVER_STOPPING the
         // connection listener has already closed them: the guest read "Disconnected").
@@ -90,6 +90,8 @@ public final class SimHost {
         for (ServerPlayer h : server.getPlayerList().getPlayers()) {
             if (SimCoop.isHost(h) && h.level() instanceof net.minecraft.server.level.ServerLevel level) {
                 SimArrival.place(sp, level, h.getX(), h.getY(), h.getZ(), h.getYRot(), 0f);
+                SimCoop.LOGGER.info("[SimCoop] {} joined: landed beside the host at {} {} {}", sp.getGameProfile().name(),
+                        Math.round(sp.getX()), Math.round(sp.getY()), Math.round(sp.getZ()));
                 return;
             }
         }
@@ -98,7 +100,7 @@ public final class SimHost {
     /** Moves everyone to {@code at} (the host's world rebuilds that part); host only. Client thread. */
     public static void moveTo(Minecraft mc, com.killer560.hub.bosssim.BossFight.Start at) {
         SimCoopConfig.get().setStartAt(at);
-        if (!active) return;
+        if (mc.getSingleplayerServer() == null || !SimState.isActive()) return;
         var fight = com.killer560.hub.bosssim.BossFight.running();
         boolean master = at == com.killer560.hub.bosssim.BossFight.Start.P5
                 || fight && com.killer560.hub.bosssim.BossFight.master();
