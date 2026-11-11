@@ -56,9 +56,10 @@ final class SimPunch {
             try {
                 JsonObject o = JsonParser.parseString(json).getAsJsonObject();
                 String key = o.get("key").getAsString();
-                Socket s = punch(punchPort, o.get("ip").getAsString(), o.get("port").getAsInt(), o.get("delayMs").getAsLong());
+                String[] why = {""};
+                Socket s = punch(punchPort, o.get("ip").getAsString(), o.get("port").getAsInt(), o.get("delayMs").getAsLong(), why);
                 if (s == null) {
-                    SimCoop.LOGGER.info("[SimPunch] host punch failed (no answer within {} s)", TRY_MS / 1000);
+                    SimCoop.LOGGER.info("[SimPunch] host punch failed (no answer within {} s; {})", TRY_MS / 1000, why[0]);
                     return;
                 }
                 s.setSoTimeout(KEY_WAIT_MS);
@@ -98,8 +99,12 @@ final class SimPunch {
             ServerSocket loop = null;
             Socket s = null;
             try {
-                s = punch(local, b.get("host").getAsString(), b.get("port").getAsInt(), b.get("delayMs").getAsLong());
-                if (s == null) throw new IllegalStateException("no answer from the owner's game");
+                String[] why = {""};
+                s = punch(local, b.get("host").getAsString(), b.get("port").getAsInt(), b.get("delayMs").getAsLong(), why);
+                if (s == null) {
+                    SimCoop.LOGGER.info("[SimPunch] guest punch failed ({})", why[0]);
+                    throw new IllegalStateException("no answer from the owner's game");
+                }
                 s.getOutputStream().write(key.getBytes(StandardCharsets.US_ASCII));
                 s.getOutputStream().flush();
                 loop = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
@@ -125,12 +130,18 @@ final class SimPunch {
         });
     }
 
-    /** Connects from {@code localPort} to the peer again and again until one connect lands or 6 s pass; null if none. */
-    private static Socket punch(int localPort, String ip, int port, long delayMs) throws InterruptedException {
+    /**
+     * Connects from {@code localPort} to the peer again and again until one connect lands or 6 s pass; null if none, with
+     * {@code why[0]} naming the target, the tries and the last error.
+     */
+    private static Socket punch(int localPort, String ip, int port, long delayMs, String[] why) throws InterruptedException {
         Thread.sleep(Math.max(0, Math.min(delayMs, 5_000)));
         InetSocketAddress to = new InetSocketAddress(ip, port);
         long end = System.currentTimeMillis() + TRY_MS;
+        int tries = 0;
+        IOException last = null;
         while (System.currentTimeMillis() < end) {
+            tries++;
             Socket s = new Socket();
             try {
                 s.setReuseAddress(true);
@@ -139,10 +150,12 @@ final class SimPunch {
                 s.setTcpNoDelay(true);
                 return s;
             } catch (IOException e) {
+                last = e;
                 close(s);
                 Thread.sleep(50);
             }
         }
+        why[0] = ip + ":" + port + " from port " + localPort + ", " + tries + " tries, last " + last;
         return null;
     }
 
