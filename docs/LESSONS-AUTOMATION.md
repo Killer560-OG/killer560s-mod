@@ -1002,6 +1002,11 @@ everything held goes out in one burst, and a 1149 ms hold (33 packets) drew Time
 now, and past it the client tick sends the hold's answer early and flushes (ap3grp2-1110). Holds then read 1051-1096 ms,
 26-30 packets, and the 26.2 group ran clean. The flush logs "teleport hold let go after N ms": read it before a TimerLimit.
 
+A LOOK's frozen view outlives AP3: after a stop, `tickView` glides the body 30 degrees a tick under it. Until ap3grp2-1110 a
+server teleport that set his look did not end that glide, so the body turned away from the server's look right after it
+(63-ap3-look-queued walked off its lane: move packets -90, -60, -30, 0, 30, 37.5 after a tp at yaw -90). `onServerLook`
+(Ap3PositionPacketMixin) drops the view when a teleport sets the look (absolute yaw or a relative turn) and nothing of AP3 holds it.
+
 ### Position reminder and BadPacketsV (ship3fix2-1104)
 
 GrimAC 2.3.74's experimental BadPacketsV (javap) counts tick-end packets since the last position packet and flags a still
