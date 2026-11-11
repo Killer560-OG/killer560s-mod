@@ -242,6 +242,8 @@ public final class Ap3Executor {
     private static final Set<Ap3Node> moverDeferred = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
     private static final List<Ap3Node> queue = new ArrayList<>();
+    /** Stopwatches entered while an align on their block was running or queued: they fire the tick it ends. */
+    private static final List<Ap3Node> swHeld = new ArrayList<>();
     /** Scratch: the nodes {@link #scanBoxes} triggered this tick, for the "queued behind" report. */
     private static final List<Ap3Node> triggeredThisTick = new ArrayList<>();
     private static Vec3 lastSelfPos;
@@ -378,7 +380,7 @@ public final class Ap3Executor {
         holdDir = null;
         bendPX = bendPZ = bendVX = bendVZ = 0;
         waitUntilMs = 0L;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         if (leapGate != null) {
             LOGGER.info("[AP3] leap gate: {} #{} dropped ({}) at {}/{} leaps", leapGate.type.label(), number(leapGate),
                     reason, leapGateArrived, leapGate.leapCounter);
@@ -470,7 +472,7 @@ public final class Ap3Executor {
      */
     private static void arm(Ap3Chain nodes, boolean seedFromPosition, LocalPlayer player) {
         chain = nodes;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         inside.clear();
         unfired.clear();
         ssWaiting.clear();
@@ -488,7 +490,7 @@ public final class Ap3Executor {
     /** After a placement / edit / reload: whatever box you stand in counts as already entered (see {@link #arm}).
      *  Also drops anything queued - the queued nodes may no longer exist. */
     static void resync() {
-        queue.clear();
+        queue.clear(); swHeld.clear();
         LocalPlayer player = Minecraft.getInstance().player;
         arm(chain, true, player);
     }
@@ -734,7 +736,7 @@ public final class Ap3Executor {
             return;
         }
         holdDir = null;
-        queue.clear();
+        queue.clear(); swHeld.clear();
         jumpPendingTicks = 0;
         edgeArmedTicks = 0;
         clearMovement();
@@ -921,6 +923,9 @@ public final class Ap3Executor {
             if (activeNode != null) {
                 tickNode(client, player);
             }
+            if (canAct && !swHeld.isEmpty()) {
+                releaseStopwatches(); // the align that held them ended in tickNode: they go in this same tick
+            }
             if (chargeDoneThisTick) {
                 // killer560 (2026-10-27): charge, release and run in one block - "the tick it is charged it should release
                 // while holding the run". The charge finished in tickNode above, after this END's fireInstant and begin:
@@ -995,7 +1000,7 @@ public final class Ap3Executor {
                     alignEntered.put(node, new long[]{tickCounter, System.currentTimeMillis()});
                     traceStart();
                 }
-                if (handsOn && !node.type.isAlign()) {
+                if (handsOn && !node.type.isAlign() && node.type != Ap3Node.Type.STOPWATCH) {
                     unfired.add(node);
                 } else {
                     fire(node, pos, bestMover);
@@ -1303,8 +1308,14 @@ public final class Ap3Executor {
      */
     private static void fireInstant(Minecraft client, LocalPlayer player) {
         boolean movementOwned = activeNode != null && activeNode.ownsMovementNow();
+        releaseStopwatches();
         for (int i = 0; i < queue.size(); ) {
             Ap3Node node = queue.get(i);
+            if (node.type == Ap3Node.Type.STOPWATCH && alignOver(node)) {
+                queue.remove(i); // an align is working on this block: the stopwatch goes the tick it is done
+                swHeld.add(node);
+                continue;
+            }
             boolean gated = ((node.closeGate || node.sectionDone > 0 || node.crystalWait > 0) && !testMode)
                     || (node.leapCounter > 0 && !leapCleared.contains(node));
             boolean fire = !gated && switch (node.type) {
@@ -1326,17 +1337,11 @@ public final class Ap3Executor {
             }
             queue.remove(i);
             if (node.type == Ap3Node.Type.STOPWATCH) {
-                // Always on: a stopwatch node that fired in the last second is not fired again (walking off and back on
-                // over it for an align must not restart the timer).
-                long nowMs = System.currentTimeMillis();
-                if (nowMs - node.lastStopwatchFiredMs < STOPWATCH_REFIRE_LOCK_MS) {
-                    continue;
-                }
-                node.lastStopwatchFiredMs = nowMs;
+                fireStopwatch(node);
+                continue;
             }
             switch (node.type) {
                 case LOOK -> doLook(player, node);
-                case STOPWATCH -> toggleStopwatch(node);
                 case WALK, RUN -> {
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
@@ -5361,6 +5366,47 @@ public final class Ap3Executor {
         double pr = Math.toRadians(pitch);
         double cp = Math.cos(pr);
         return new Vec3(-Math.sin(yr) * cp, -Math.sin(pr), Math.cos(yr) * cp);
+    }
+
+    /** A stopwatch node that fired in the last second is not fired again (walking off and back on over it for an align
+     *  must not restart the timer). */
+    private static void fireStopwatch(Ap3Node node) {
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - node.lastStopwatchFiredMs >= STOPWATCH_REFIRE_LOCK_MS) {
+            node.lastStopwatchFiredMs = nowMs;
+            toggleStopwatch(node);
+        }
+    }
+
+    /** Whether an align that is active or queued shares its block with this stopwatch (killer560, 2026-11-10:
+     *  "stopwatches shouldnt fire while align is working"). */
+    private static boolean alignOver(Ap3Node sw) {
+        if (activeNode != null && activeNode.type.isAlign() && overlaps(activeNode, sw)) {
+            return true;
+        }
+        for (Ap3Node q : queue) {
+            if (q.type.isAlign() && overlaps(q, sw)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean overlaps(Ap3Node a, Ap3Node b) {
+        return a.contains(new Vec3(b.x, b.y, b.z)) || b.contains(new Vec3(a.x, a.y, a.z));
+    }
+
+    /** Fires every held stopwatch whose align is done. */
+    private static void releaseStopwatches() {
+        for (int i = 0; i < swHeld.size(); ) {
+            Ap3Node sw = swHeld.get(i);
+            if (alignOver(sw)) {
+                i++;
+            } else {
+                swHeld.remove(i);
+                fireStopwatch(sw);
+            }
+        }
     }
 
     /** How long after a stopwatch node fires before it can fire again (killer560, 2026-10-22: one second). */

@@ -92,6 +92,11 @@ public final class PlayerStatsFeature {
     private static final Pattern DRILL_FUEL_STRIP =
             Pattern.compile(CODES + "[\\d,.]+[kKmM]?/[\\d,.]+[kKmM]?" + CODES + " Drill Fuel");
 
+    // Skill XP gain (hideskillxp-1110): "+0.6 Mining (15.05%)", "+12.5 Combat (1,234/50,000)", "+12.5 Combat XP (...)".
+    // Nothing in the mod reads it, so the strip is all there is.
+    private static final Pattern SKILL_XP_STRIP = Pattern.compile(
+            CODES + "\\+[\\d,.]+[kKmM]? [A-Za-z]+(?: XP)? \\((?:[\\d,.]+%|[\\d,.]+[kKmM]?/[\\d,.]+[kKmM]?)\\)");
+
     // Numeric copies for the custom bars and readouts (StatElements). -1 = not seen yet this session.
     static long healthCur = -1, healthMax = -1;
     static long manaCur = -1, manaMax = -1;
@@ -531,7 +536,8 @@ public final class PlayerStatsFeature {
         PlayerStatsConfig cfg = PlayerStatsConfig.getInstance();
         boolean stats = cfg.isHideHypixelStatText();
         boolean fuel = cfg.isHideDrillFuelText();
-        if (message == null || resending || !(stats || fuel) || !com.killer560.hub.util.SkyblockGate.allows()) {
+        boolean xp = cfg.isHideSkillXpText();
+        if (message == null || resending || !(stats || fuel || xp) || !com.killer560.hub.util.SkyblockGate.allows()) {
             return message;
         }
         String raw = message.getString();
@@ -545,6 +551,10 @@ public final class PlayerStatsFeature {
         // Drill Fuel Text (drillfuel-1104): only its own segment, whatever the stat hide says.
         if (fuel) {
             left = DRILL_FUEL_STRIP.matcher(left).replaceAll("");
+        }
+        // Skill XP Text (hideskillxp-1110): only its own segment.
+        if (xp) {
+            left = SKILL_XP_STRIP.matcher(left).replaceAll("");
         }
         if (left.equals(raw)) {
             return message;

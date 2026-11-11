@@ -2660,6 +2660,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/settings panel", "Edit Bars only: where these settings sit beside the bars (Right, Left or Hidden). Every change shows on the bars at once.");
         d.put("health and mana bars/hypixel stat text", "Takes Hypixel's own health, defense and mana numbers (and the other stat segments) out of the action bar, leaving anything else on that line.");
         d.put("health and mana bars/drill fuel text", "Takes Hypixel's \"1,650/3k Drill Fuel\" segment out of the action bar while you hold a drill, leaving the rest of the line. Works whether or not Hypixel Stat Text is on.");
+        d.put("health and mana bars/skill xp text", "Takes Hypixel's \"+0.6 Mining (15.05%)\" skill XP gain out of the action bar, leaving the rest of the line.");
         d.put("health and mana bars/xp bar and level", "Hides the vanilla experience bar and the level number above it (also the locator and mount jump bars that share its slot).");
         d.put("health and mana bars/health bar", "A health bar you can move, scale and resize (drag its edges) in Edit HUD. Health past your max shows in the absorption color.");
         d.put("health and mana bars/mana bar", "A mana bar you can move, scale and resize (drag its edges) in Edit HUD.");
