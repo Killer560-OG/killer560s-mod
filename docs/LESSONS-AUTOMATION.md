@@ -716,6 +716,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
   The in-flight cap must sit inside Blink's 22 ticks or a blinked chain stalls until Blink's own limit releases it.
+- A chain under Blink Charge waited about 1 s per warp (mapchain-1110, his 26.3 log: 14 teleport holds of 1027-1088 ms,
+  #15's confirm held while #16-#21 were predicted and queued behind it). A confirm may go only right behind the answer to
+  the ping sent with its teleport; when the oldest held answer no longer covered the bank, Charge held the confirm and
+  everything after it ~1 s (`tpSegs`), and in a chain the second teleport always finds only young answers. While a chain
+  runs (`BlinkCharge.noteChain`, called each tick by RouteExecutor and ClearExecutor) the answers up to that ping and the
+  confirm go at once, a running hold is released, and the bank is backed again on the next still ticks (`rebackBank`).
+  The "never shows my blink running out" half: Charged Chain lived only in Auto Routes; the Interactive Map's
+  ClearExecutor sent one hop a tick (MAX_LEAD 6). It now spends banked ticks (`spendTick` per hop, lead up to 21, only
+  while `shotCovered()`) and honors Blink The Chain. Testkit 62-argrim-1110-mapchain-charged/-nobank/-same-*,
+  62-argrim-1110-archain-nohold (wire: uses in one 50 ms window, bank drop, no holds, default and experimental Grim).
 - The testkit's PacketTrace hooks `Connection.send` as Blink does, so with Blink holding it counts a held packet when
   made and again on release; judge blinked runs by the mod's log and the server's counters.
 - Grim's lag anchor (Timer/TimerLimit `lastMovementPlayerClock`, javap 2.3.74) is the send time of the last ping the
@@ -1014,3 +1024,24 @@ many ticks went between ("N sent between them for a position in time").
 - Blood Camp Work Just Outside Blood Room (cheat, default OFF): the room anchor comes from the live map (`LiveMapFeature.bloodRoomCenter`) when the Watcher was never seen, so the overlay draws anywhere; margin `OUTSIDE_MARGIN` 6 blocks outside the room for the Trigger Bot and Aura. Outside-the-room Grim runs are still open (the config and the gate are tested, not a shot from outside).
 - Lever Cooldown replaced Lever CPS (Secret Aura boss levers): `LeverAuraConfig.cooldownMs` 50-1000, an old `cps` migrates to 1000/cps; the first-sight dwell is gone, the next flick is due `cooldown` after the last REAL flick, never from backlog. Only two S2 levers exist (LeverAuraFeature.S2_SECTION_LEVERS), 11 blocks apart, so a many-lever pacing test cannot be built from them.
 - Cycler to slider: `BaseTab.valueSlider(...)` (snapping, saves on release) replaced the numeric cyclers of Terminal Triggerbot and Wither Boss Triggerbot; use it instead of another per-tab slider helper.
+- Carnival (carnival-1110, ported from staging-carnival-3): RouteRotation only moves the camera when someone calls
+  `RouteRotation.frame()` each render frame; RouteExecutor does it only while a route runs, so the Carnival autos
+  (`carnival/CarnivalInput`) register their own frame hook and step it while they own the aim and no route or AP3 runs. The
+  Carnival Shovel (item id CARNIVAL_SHOVEL) changes its dowsing mode on RIGHT click (wiki Carnival_Shovel: iron = Mines,
+  diamond = Anchor, golden = Treasure), so Auto Shovel Swap selects the shovel slot, then cycles the mode with use taps. Every dig (Auto Fruit
+  Digging and the Triggerbot) goes only while `DigAim.heardLookStrikes` (RotationBreak) and every hotbar select waits out
+  `HotbarSelect.swapWouldFlag()`. Prevent Misclicks / Prevent Wrong Shovel cancel the AttackBlockCallback, which fires every
+  tick while the button is held, so their chat line is deduped (2 s per reason).
+
+## Carnival autos (carnival-1110)
+
+- **A key tap from an auto goes through `CarnivalInput.tap`, which waits out the player's own input that tick.** Its first
+  taps went the same tick as his right click, and GrimAC flagged PacketOrderJ (a use after an attack in one tick); a tap of
+  a key he had also pressed sent two presses in one tick. The tap now waits while `ActionGate.hisClickQueued(key)` or, for
+  an attack, `ActionGate.hisUseGoesThisTick`, then asks `ActionGate.tryAct(CARNIVAL_WORLD)`. Testkit 3792 lands his use,
+  dig, hotbar swap and a teleport in the auto's own tick on default and experimental Grim and checks both on the wire.
+- Carnival configs are `CarnivalSettings` maps (`IslandConfig`), with no Java fields, so `DefaultsOff1104Cases.TABLE` cannot
+  read them; testkit 3761-3772 check each card's switch loads OFF from a fresh config instead. A new Carnival switch goes there.
+- Shovel modes in Fruit Digging are read from the item name, else from its look (iron = Mines, diamond = Anchor, golden =
+  Treasure), not yet checked against Hypixel; `AutoShovelSwap.mode` is the one place to fix if they differ.
+- Under ViewFreeze (Free Camera), `LocalPlayer.getViewYRot/getViewXRot` and so `getViewVector` answer the HELD view (Ap3ViewYawMixin), so a crosshair test that must follow the body (No Rotate never shot, gate 1 of carnival-1110) uses `Vec3.directionFromRotation(player.getXRot(), player.getYRot())`. Testkit: a `/tp` yaw is wrapped by the server, so the client must take the same wrapped value (CarnivalSuite.stand) or GrimAC flags AimModulo360; under SameTick DIG the auto's dig and his are the same packet, so a dig is the auto's only in a client tick `CarnivalInput.taps()` rose.
