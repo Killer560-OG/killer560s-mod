@@ -201,7 +201,7 @@ public final class IcedMobsFeature {
             ICED.values().removeIf(end -> end <= now);
         }
         // Scan for the marker only around a click (every other tick for 5 s plus a little), never all the time.
-        if (now >= sprayAt && now - sprayAt <= FREEZE_TICKS + 20) {
+        if (sprayAt != Long.MIN_VALUE && now >= sprayAt && now - sprayAt <= FREEZE_TICKS + 20) { // MIN: now - MIN overflows to "recent"
             if ((now & 1) == 0 && DungeonQolConfig.getInstance().isIcedBoxes()) {
                 marked = scanMarked(client);
                 if (!marked.isEmpty()) {
