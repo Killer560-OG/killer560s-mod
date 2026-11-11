@@ -31,11 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * of its join answer, listens on a loopback port and points Minecraft at it. The relay only carries bytes: Minecraft's own
  * login (Mojang session + encryption) runs end to end, and the host still admits only ticketed guests.
  * Wire: host side [type][conn u16][payload], guest side [type][payload]; types DATA, OPEN (to the host), CLOSE, ACK (u32
- * bytes the guest took since its last ACK). The host stops reading a connection while WINDOW bytes are unacknowledged.
+ * bytes the guest took since its last ACK) and PUNCH (to the host: a guest's hole punch, {@link SimPunch}). The host
+ * stops reading a connection while WINDOW bytes are unacknowledged.
  * Every thread is a daemon of its own; nothing here runs on the render thread.
  */
 final class SimTunnel {
-    static final int DATA = 0, OPEN = 1, CLOSE = 2, ACK = 3;
+    static final int DATA = 0, OPEN = 1, CLOSE = 2, ACK = 3, PUNCH = 4;
     private static final int CHUNK = 32 * 1024, WINDOW = 1 << 20, ACK_EVERY = 256 * 1024, MAX_FRAME = 64 * 1024 + 3;
     private static final int MAX_CONNS = 8;
     private static final long MIN_BACKOFF_MS = 5_000, MAX_BACKOFF_MS = 60_000;
@@ -120,6 +121,8 @@ final class SimTunnel {
                         case ACK -> {
                             if (c != null && f.length >= 7) c.acked(ByteBuffer.wrap(f, 3, 4).getInt());
                         }
+                        case PUNCH -> SimPunch.onHostFrame(new String(f, 3, f.length - 3, StandardCharsets.UTF_8),
+                                SimHost.punchPort(), port);
                         default -> { }
                     }
                 }
@@ -493,7 +496,7 @@ final class SimTunnel {
         return b.flip();
     }
 
-    private static void daemon(String name, Runnable r) {
+    static void daemon(String name, Runnable r) {
         Thread t = new Thread(r, name);
         t.setDaemon(true);
         t.start();

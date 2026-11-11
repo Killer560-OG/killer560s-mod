@@ -46,7 +46,7 @@ public final class SimHost {
 
     private static volatile boolean active, pendingOpen, refreshNow, inFlight;
     private static volatile String name = "", password = "", roomId, secret, publicHost;
-    private static volatile int max = 5, port = -1;
+    private static volatile int max = 5, port = -1, publicPort = -1, punchPort;
     private static volatile long roomKey;
     /** What Create shows: the port, the router's answer, the list's answer. */
     private static volatile String status = "", upnpLine = "", listLine = "";
@@ -145,7 +145,10 @@ public final class SimHost {
     public static List<Guest> guests() { return guests; }
 
     /** The public address guests outside his network use, or null when the router did not open the port. */
-    public static String publicAddress() { return publicHost == null ? null : publicHost + ":" + port; }
+    public static String publicAddress() { return publicHost == null ? null : publicHost + ":" + publicPort; }
+
+    /** The local port this room's TCP hole punches go out from (0: punching is off). */
+    static int punchPort() { return punchPort; }
 
     /** {kicked without a ticket or by the owner, refused as full}, for tests. */
     public static int[] countsForTest() { return new int[]{kicks, fullRefusals}; }
@@ -192,6 +195,7 @@ public final class SimHost {
         secret = null;
         roomKey = 0;
         publicHost = null;
+        punchPort = SimPunch.pickHostPort();
         TICKETS.clear();
         CLAIMED.clear();
         ADMITTED.clear();
@@ -204,6 +208,7 @@ public final class SimHost {
             if (!active || port != p) return;
             upnpLine = r.ok() ? r.message() + ": anyone can join." : r.message();
             publicHost = r.ok() ? r.externalIp() : null;
+            publicPort = r.externalPort();
             list();
         });
         return null;
@@ -214,7 +219,7 @@ public final class SimHost {
         if (!active || inFlight) return;
         inFlight = true;
         listLine = "Listing the room...";
-        SimRooms.create(name, password, max, mode(), publicHost, port).whenComplete((rep, err) -> {
+        SimRooms.create(name, password, max, mode(), publicHost, publicPort, punchPort).whenComplete((rep, err) -> {
             inFlight = false;
             if (!active) return;
             if (rep != null && rep.status() == 200 && rep.body() != null && rep.body().has("roomId")) {
@@ -222,8 +227,10 @@ public final class SimHost {
                 secret = rep.body().get("hostSecret").getAsString();
                 roomKey = key(id);
                 roomId = id;
-                listLine = "Listed in the room list" + (publicHost == null ? " (joins go through the relay)." : ".");
-                SimCoop.LOGGER.info("[SimCoop] room listed ({})", publicHost == null ? "relay tunnel only" : "public + relay tunnel");
+                listLine = "Listed in the room list" + (publicHost != null ? "." : punchPort > 0
+                        ? " (guests join by hole punch, else through the relay)." : " (joins go through the relay).");
+                SimCoop.LOGGER.info("[SimCoop] room listed ({}{})", publicHost == null ? "relay tunnel" : "public + relay tunnel",
+                        punchPort > 0 ? ", hole punch from port " + punchPort : "");
                 SimTunnel.hostOpen(id, secret, port);
             } else {
                 String why = rep == null ? String.valueOf(err) : rep.error() == null ? "status " + rep.status() : rep.error();
@@ -278,7 +285,7 @@ public final class SimHost {
         if (inFlight) return;
         inFlight = true;
         int players = Math.max(1, Math.min(max, server.getPlayerCount()));
-        SimRooms.refresh(id, secret, players, mode(), publicHost, port).whenComplete((rep, err) -> {
+        SimRooms.refresh(id, secret, players, mode(), publicHost, publicPort, punchPort).whenComplete((rep, err) -> {
             inFlight = false;
             if (rep == null || !active) return;
             if (rep.status() == 404) {

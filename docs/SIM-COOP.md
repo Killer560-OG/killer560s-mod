@@ -255,7 +255,8 @@ killer560 2026-11-10: "rooms should never be lan only". A friend behind a router
   never buffers unbounded. Relay limits: guests up to the room's Max (at most 8), a per-session byte cap (4008), 400 messages a second a guest (4029), text frames close (1003), the
   host leaving closes guests (4004). Daily budget `SIMTUNNEL_DAILY_MSGS` (600k messages, about 4 guest-hours) answers
   join `tunnel:false` and refuses sockets 503 once spent: then join says "the relay tunnel is out of capacity for today".
-  Cloudflare Free bills WebSocket messages 20:1 against 100k requests a day; a Paid plan ($5/mo) would lift the cap (his call).
+  Cloudflare Free bills WebSocket messages 20:1 against 100k requests a day. Since coopfree-1111 the budget is 300k (below the
+  Free plan) and the relay is the LAST way in; see "Free co-op" below.
   Nothing runs on the render thread: sockets are java.net.http WebSockets plus daemon threads per connection, `hostTick` only checks state.
 - **Versions**: the list is fetched with `all=1`, each room carries `mc`, rows read `[26.3] ...` or `[26.2 - other version] ...`,
   and pick() refuses another version with "Host is on 26.2 - open 26.2 to join." (no join call). A real cross-version join
@@ -280,3 +281,28 @@ position). The host's server broadcasts `Party > Name: message` (blue, dark gray
 player through `SimCoop.broadcast`. Nothing is registered on Hypixel: a guest's receivers exist only on a private non-Hypixel address, and the hook
 acts only while the sim's state is held. PROTOCOL stays 2 (a new payload, no changed field). Test: 1109-coopfloor-two (`/pc` both ways in party format,
 `SimPartyChat.sentForTest`, no "Unknown or incomplete"); simlights' 1109-boss-lights keeps the alone line; 1110-sim-partychat covers the mod-sent solo path.
+
+## Free co-op: direct, hole punch, relay last (coopfree-1111)
+
+killer560 2026-11-11: "no cost for me to eat" - co-op must never cost him money, so the relay is Free plan only and carries
+game traffic only when nothing else works. A join tries, in order:
+1. **Direct**: the host's router forwards the port. `SimUpnp` asks UPnP IGD for a one-hour lease (`NewLeaseDuration` 3600; a
+   router that answers error 725 OnlyPermanentLeasesSupported gets a permanent one), renewed every 30 minutes while hosting,
+   removed on close and by a JVM shutdown hook. No UPnP router: NAT-PMP (UDP 5351 on x.y.z.1 of this PC's address, opcode 2
+   TCP map, then opcode 0 for the public address), and PCP MAP (version 2, nonce kept for the delete) when the router answers
+   NAT-PMP with UNSUPP_VERSION. NAT-PMP/PCP may give another external port: the room lists `Result.externalPort()`. Tests
+   name fakes with `killer560.simcoop.ssdp` / `killer560.simcoop.natpmp`; a test or offline client never asks a real router.
+2. **Hole punch** (`roomsim/SimPunch`): the host picks a free local port at publish and lists it as `punchPort`. A guest whose
+   direct probe fails POSTs `/simrooms/punch {roomId, nonce, port}`; the relay sends the host a PUNCH frame (type 4, conn 0,
+   JSON {ip, port, key, delayMs}) on its standing tunnel socket and answers the guest {host, port, key, delayMs 1500}. After
+   the delay both sides connect to each other from their ports every 50 ms (300 ms connect timeout) for 6 s: TCP simultaneous
+   open. Windows cannot share a port between a listening and a connecting socket, so neither side listens. The guest sends the
+   key first; the host splices only a socket that sent it to its LAN port, and the guest hands vanilla a 127.0.0.1 port, so
+   every server-side check is unchanged. One punch at a time on the host (a second is dropped). Log lines: guest
+   "[SimPunch] guest punched through to the owner", host "[SimPunch] host joined a punched guest to the game". Property
+   `killer560.simcoop.punch`: `off` (no punchPort, guest skips), `drop` (host advertises but ignores PUNCH: the fail path).
+3. **Relay tunnel** (above), only while the day's budget lasts; past it join carries `relayFull` and the guest shows "Could
+   not reach X: relay full today, host needs UPnP or a port forward." The host's standing socket hibernates and costs nothing.
+Every join logs "[SimCoop] join path: Direct|Punched|Relay (address)"; list rows end in [Direct], [Punch] or [Relay] (the
+relay's guess, `path`). Testkit: 1111-mp-punch (punch on, guest must log Punched and open no tunnel), 1110-mp-tunnel (host
+`drop`: punch fails, then Relay), 1109-mp-menu (relayFull text), 1109-mp-upnp (lease 3600, 725 retry, renew, NAT-PMP, PCP).

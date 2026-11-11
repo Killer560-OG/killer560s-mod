@@ -39,7 +39,7 @@ public final class SimMultiplayerScreen extends Screen {
 
     /** One listed room, as the relay gave it; {@code mc} is the host's Minecraft version (every version is listed). */
     record Room(String id, String owner, String name, boolean locked, int players, int max, String modVersion,
-                int protocol, String mode, String mc) {
+                int protocol, String mode, String mc, String path) {
         /** A room on another Minecraft version: vanilla refuses a different network protocol, so Join is blocked. */
         boolean otherVersion() { return !mc.isEmpty() && !mc.equals(SimGuest.mc()); }
     }
@@ -225,7 +225,7 @@ public final class SimMultiplayerScreen extends Screen {
             if (y + ROW > bottom) break;
             String label = "[" + (r.mc().isEmpty() ? "?" : r.mc()) + (r.otherVersion() ? " - other version] " : "] ")
                     + (r.locked() ? "[Locked] " : "") + r.name() + "  -  " + r.owner() + "  " + r.players() + "/"
-                    + r.max() + "  " + r.mode() + "  v" + r.modVersion();
+                    + r.max() + "  " + r.mode() + "  v" + r.modVersion() + pathTag(r.path());
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal(label), b -> pick(r))
                     .bounds(x, y, w, 20).build());
             y += ROW;
@@ -265,7 +265,8 @@ public final class SimMultiplayerScreen extends Screen {
                 for (JsonElement e : rep.body().getAsJsonArray("rooms")) {
                     JsonObject o = e.getAsJsonObject();
                     out.add(new Room(str(o, "id"), str(o, "owner"), str(o, "name"), o.has("locked") && o.get("locked").getAsBoolean(),
-                            num(o, "players"), num(o, "max"), str(o, "modVersion"), num(o, "protocol"), str(o, "mode"), str(o, "mc")));
+                            num(o, "players"), num(o, "max"), str(o, "modVersion"), num(o, "protocol"), str(o, "mode"), str(o, "mc"),
+                            str(o, "path")));
                 }
                 listState = out.isEmpty() ? "No rooms listed." : "";
             } else {
@@ -323,16 +324,28 @@ public final class SimMultiplayerScreen extends Screen {
             String nonce = b.get("nonce").getAsString();
             long expires = b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L;
             boolean tunnel = b.has("tunnel") && b.get("tunnel").getAsBoolean();
+            boolean punch = b.has("punch") && b.get("punch").getAsBoolean();
+            String full = b.has("relayFull") && b.get("relayFull").isJsonPrimitive() ? b.get("relayFull").getAsString()
+                    : "the relay tunnel is out of capacity for today; try the owner's address or the LAN list";
             passwordFor = null;
             rebuildWidgets();
             String first = direct;
+            // Direct first, then a TCP hole punch, then the relay tunnel (the only way that costs the relay traffic).
             CompletableFuture.supplyAsync(() -> first != null && reachable(first))
                     .thenCompose(ok -> {
-                        if (ok) return CompletableFuture.completedFuture(first);
-                        if (!tunnel) return CompletableFuture.failedFuture(new IllegalStateException(
-                                "the relay tunnel is out of capacity for today; try the owner's address or the LAN list"));
+                        if (ok) return CompletableFuture.completedFuture(joined(first, "Direct"));
+                        if (!punch) return CompletableFuture.completedFuture((String) null);
+                        Minecraft.getInstance().execute(() -> say("Joining " + roomName + " by hole punch...", MenuStyle.TXT_SOFT));
+                        return SimPunch.guest(roomId, nonce).handle((a, e) -> {
+                            if (e != null) SimCoop.LOGGER.info("[SimCoop] hole punch failed ({}); trying the relay tunnel", SimTunnel.reason(e));
+                            return a == null ? null : joined(a, "Punched");
+                        });
+                    })
+                    .thenCompose(address -> {
+                        if (address != null) return CompletableFuture.completedFuture(address);
+                        if (!tunnel) return CompletableFuture.failedFuture(new IllegalStateException(full));
                         Minecraft.getInstance().execute(() -> say("Joining " + roomName + " through the relay...", MenuStyle.TXT_SOFT));
-                        return SimTunnel.guest(roomId, nonce);
+                        return SimTunnel.guest(roomId, nonce).thenApply(a -> joined(a, "Relay"));
                     })
                     .whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
                         if (failed != null) {
@@ -343,6 +356,25 @@ public final class SimMultiplayerScreen extends Screen {
                         connect(address, roomName);
                     }));
         }));
+    }
+
+    /** Logs how a join got through (Direct, Punched or Relay) and hands the address on. */
+    private static String joined(String address, String path) {
+        SimCoop.LOGGER.info("[SimCoop] join path: {} ({})", path, address);
+        lastPath = path;
+        return address;
+    }
+
+    /** How the last join got through: Direct, Punched or Relay (null before one). Join page and testkit. */
+    static volatile String lastPath;
+
+    private static String pathTag(String path) {
+        return switch (path) {
+            case "direct" -> "  [Direct]";
+            case "punch" -> "  [Punch]";
+            case "relay" -> "  [Relay]";
+            default -> "";
+        };
     }
 
     /** A TCP connect to the host's public address within 2.5 s (off the render thread). */
