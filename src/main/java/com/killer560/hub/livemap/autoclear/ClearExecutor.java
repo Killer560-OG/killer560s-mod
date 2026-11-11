@@ -1740,7 +1740,9 @@ public final class ClearExecutor {
             }
             return;
         }
-        if (!ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+        // Not over his own screen: a container click inside the burst's sneaking ticks draws GrimAC MultiActionsC (testkit
+        // 62-argrim-1110-mapchain-same-click); the warps go one a tick then.
+        if (com.killer560.hub.compat.McCompat.screen(client) != null || !ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
             return;
         }
         int fired = 0;
