@@ -340,6 +340,11 @@ public final class SimMiniboss {
          * the next server tick.
          */
         @Override
-        public void die(DamageSource source) { this.dead = true; }
+        public void die(DamageSource source) {
+            this.dead = true;
+            // super.die is skipped, so the AFTER_DEATH hook SimMobs reads kills from never fired: a killed miniboss
+            // was only counted dead after ten seconds missing, and King Midas' room read uncleared.
+            net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.invoker().afterDeath(this, source);
+        }
     }
 }
