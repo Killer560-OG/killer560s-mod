@@ -1155,7 +1155,10 @@ public final class AutoRoutesFeature {
      * ends or the bank does. The chain's warps all leave in this one real tick.
      */
     private static void chargedChainBurst(Minecraft client) {
-        if (!AutoRoutesConfig.getInstance().isChargedChain() || !com.killer560.hub.blink.BlinkCharge.isActive()) {
+        // Only while GrimAC covers the bank: spent after a teleport's answers went early (a chain's confirms), the burst
+        // draws TimerLimit until the still ticks have backed it again.
+        if (!AutoRoutesConfig.getInstance().isChargedChain() || !com.killer560.hub.blink.BlinkCharge.isActive()
+                || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
             return;
         }
         int fired = 0;

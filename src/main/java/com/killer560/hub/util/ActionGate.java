@@ -184,6 +184,11 @@ public final class ActionGate {
         GOLDOR_TRIGGER(Kind.WORLD),
         /** Terminator Auto Clicker's left click (cheat build, featH-1109). */
         TERMINATOR_CLICK(Kind.WORLD),
+        /** The Carnival cheat block (carnival-1110): the Shootout's shots, Fruit Digging's digs and mode taps, Catch a
+         *  Fish's cast and reel (WORLD), and Auto Shovel Swap's hotbar change (HOTBAR). One flow: the swap and the dig
+         *  after it are one sequence. Sent only from {@code carnival.CarnivalInput}. */
+        CARNIVAL_HOTBAR(Kind.HOTBAR, "carnival"),
+        CARNIVAL_WORLD(Kind.WORLD, "carnival"),
         /** Relic Triggerbot (M7 P5): picking up the aimed relic and placing it on the aimed cauldron. Wired in
          *  {@code witherdragons.RelicHelpersFeature}, its only caller. */
         RELIC(Kind.WORLD),
@@ -574,6 +579,9 @@ public final class ActionGate {
         Screen screen = McCompat.screen(client);
         switch (actor.kind) {
             case WORLD -> {
+                // A paused Blink shot withholds this tick (BlinkCharge.pauseHolds): an action would make it a real tick
+                // with his physics skipped. The rest of the shot runs Breaker Aura's digs before each of its ticks.
+                if (com.killer560.hub.blink.BlinkCharge.shotPaused()) return deny(actor, "a Blink shot is paused at a wall");
                 // Only a CONTAINER screen blocks a world action, not every screen (killer560, 2026-09-20:
                 // "delete the in menus setting but let stuff still work in things like our mod menu").
                 // The distinction is what the SERVER can see. Hypixel opened the container, so it knows that
