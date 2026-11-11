@@ -1004,7 +1004,7 @@ many ticks went between ("N sent between them for a position in time").
   `RouteRotation.frame()` each render frame; RouteExecutor does it only while a route runs, so the Carnival autos
   (`carnival/CarnivalInput`) register their own frame hook and step it while they own the aim and no route or AP3 runs. The
   Carnival Shovel (item id CARNIVAL_SHOVEL) changes its dowsing mode on RIGHT click (wiki Carnival_Shovel: iron = Mines,
-  diamond = Anchor, golden = Treasure), so Auto Shovel Swap cycles with use taps, not a hotbar swap. Every dig (Auto Fruit
+  diamond = Anchor, golden = Treasure), so Auto Shovel Swap selects the shovel slot, then cycles the mode with use taps. Every dig (Auto Fruit
   Digging and the Triggerbot) goes only while `DigAim.heardLookStrikes` (RotationBreak) and every hotbar select waits out
   `HotbarSelect.swapWouldFlag()`. Prevent Misclicks / Prevent Wrong Shovel cancel the AttackBlockCallback, which fires every
   tick while the button is held, so their chat line is deduped (2 s per reason).
