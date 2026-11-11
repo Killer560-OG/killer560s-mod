@@ -302,7 +302,7 @@ public final class SimMultiplayerScreen extends Screen {
         join(r, null);
     }
 
-    /** Asks the relay for a ticket, then connects straight to the host, or through the relay tunnel when that fails. */
+    /** Asks the relay for a ticket, then connects straight to the host, or by a TCP hole punch; never through the relay. */
     void join(Room r, String password) {
         join(r.id(), r.name(), password, null);
     }
@@ -323,33 +323,26 @@ public final class SimMultiplayerScreen extends Screen {
             }
             String nonce = b.get("nonce").getAsString();
             long expires = b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L;
-            boolean tunnel = b.has("tunnel") && b.get("tunnel").getAsBoolean();
             boolean punch = b.has("punch") && b.get("punch").getAsBoolean();
-            String full = b.has("relayFull") && b.get("relayFull").isJsonPrimitive() ? b.get("relayFull").getAsString()
-                    : "the relay tunnel is out of capacity for today; try the owner's address or the LAN list";
+            String blocked = blockedText(direct);
             passwordFor = null;
             rebuildWidgets();
             String first = direct;
-            // Direct first, then a TCP hole punch, then the relay tunnel (the only way that costs the relay traffic).
+            // Direct first, then a TCP hole punch. Game traffic never goes through the relay (killer560, 2026-11-11).
             CompletableFuture.supplyAsync(() -> first != null && reachable(first))
                     .thenCompose(ok -> {
                         if (ok) return CompletableFuture.completedFuture(joined(first, "Direct"));
                         if (!punch) return CompletableFuture.completedFuture((String) null);
                         Minecraft.getInstance().execute(() -> say("Joining " + roomName + " by hole punch...", MenuStyle.TXT_SOFT));
                         return SimPunch.guest(roomId, nonce).handle((a, e) -> {
-                            if (e != null) SimCoop.LOGGER.info("[SimCoop] hole punch failed ({}); trying the relay tunnel", SimTunnel.reason(e));
+                            if (e != null) SimCoop.LOGGER.info("[SimCoop] hole punch failed ({})", SimSignal.reason(e));
                             return a == null ? null : joined(a, "Punched");
                         });
                     })
-                    .thenCompose(address -> {
-                        if (address != null) return CompletableFuture.completedFuture(address);
-                        if (!tunnel) return CompletableFuture.failedFuture(new IllegalStateException(full));
-                        Minecraft.getInstance().execute(() -> say("Joining " + roomName + " through the relay...", MenuStyle.TXT_SOFT));
-                        return SimTunnel.guest(roomId, nonce).thenApply(a -> joined(a, "Relay"));
-                    })
                     .whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
-                        if (failed != null) {
-                            say("Could not reach " + roomName + ": " + SimTunnel.reason(failed) + ".", MenuStyle.RED);
+                        if (address == null) {
+                            SimCoop.LOGGER.info("[SimCoop] join failed: {}", failed == null ? "no direct or punched way in" : SimSignal.reason(failed));
+                            say("Can't connect to " + roomName + ": " + blocked, MenuStyle.RED);
                             return;
                         }
                         SimGuest.expect(new SimGuest.Pending(roomId, nonce, expires, address, SimHost.key(roomId)));
@@ -358,21 +351,28 @@ public final class SimMultiplayerScreen extends Screen {
         }));
     }
 
-    /** Logs how a join got through (Direct, Punched or Relay) and hands the address on. */
+    /** What a guest is told when neither the direct address nor the hole punch got in. */
+    static String blockedText(String direct) {
+        int colon = direct == null ? -1 : direct.lastIndexOf(':');
+        String port = colon < 0 ? "the co-op port shown on their Host page" : "port " + direct.substring(colon + 1);
+        return "the host's router blocks direct connections; the host can enable UPnP or forward " + port + ".";
+    }
+
+    /** Logs how a join got through (Direct or Punched) and hands the address on. */
     private static String joined(String address, String path) {
         SimCoop.LOGGER.info("[SimCoop] join path: {} ({})", path, address);
         lastPath = path;
         return address;
     }
 
-    /** How the last join got through: Direct, Punched or Relay (null before one). Join page and testkit. */
+    /** How the last join got through: Direct or Punched (null before one). Join page and testkit. */
     static volatile String lastPath;
 
     private static String pathTag(String path) {
         return switch (path) {
             case "direct" -> "  [Direct]";
             case "punch" -> "  [Punch]";
-            case "relay" -> "  [Relay]";
+            case "none" -> "  [Blocked]";
             default -> "";
         };
     }
@@ -384,7 +384,7 @@ public final class SimMultiplayerScreen extends Screen {
             s.connect(new java.net.InetSocketAddress(address.substring(0, colon), Integer.parseInt(address.substring(colon + 1))), 2_500);
             return true;
         } catch (Exception e) {
-            SimCoop.LOGGER.info("[SimCoop] direct address not reachable ({}); trying the relay tunnel", e.toString());
+            SimCoop.LOGGER.info("[SimCoop] direct address not reachable ({})", e.toString());
             return false;
         }
     }

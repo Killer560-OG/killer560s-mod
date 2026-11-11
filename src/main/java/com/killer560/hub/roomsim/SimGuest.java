@@ -39,7 +39,7 @@ public final class SimGuest {
 
     /**
      * The relay ticket of the room the Join page joined (phase 2): its nonce goes in the ack, its room key must be the
-     * hello's nonce, and its address (the host's public one, or the relay tunnel's loopback port) is trusted like a private address.
+     * hello's nonce, and its address (the host's public one, or the hole punch's loopback port) is trusted like a private address.
      */
     record Pending(String roomId, String nonce, long expiresMs, String address, long roomKey) {
     }

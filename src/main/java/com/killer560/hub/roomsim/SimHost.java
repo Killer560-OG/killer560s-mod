@@ -228,10 +228,11 @@ public final class SimHost {
                 roomKey = key(id);
                 roomId = id;
                 listLine = "Listed in the room list" + (publicHost != null ? "." : punchPort > 0
-                        ? " (guests join by hole punch, else through the relay)." : " (joins go through the relay).");
-                SimCoop.LOGGER.info("[SimCoop] room listed ({}{})", publicHost == null ? "relay tunnel" : "public + relay tunnel",
+                        ? " (guests join by hole punch; if that fails, enable UPnP or forward port " + port + ")."
+                        : " (no way in from outside: enable UPnP or forward port " + port + ").");
+                SimCoop.LOGGER.info("[SimCoop] room listed ({}{})", publicHost == null ? "no public address" : "public",
                         punchPort > 0 ? ", hole punch from port " + punchPort : "");
-                SimTunnel.hostOpen(id, secret, port);
+                SimSignal.hostOpen(id, secret, port);
             } else {
                 String why = rep == null ? String.valueOf(err) : rep.error() == null ? "status " + rep.status() : rep.error();
                 listLine = "Not in the room list (" + why + ")" + (locked()
@@ -273,7 +274,7 @@ public final class SimHost {
             end("the world closed");
             return;
         }
-        SimTunnel.hostTick();
+        SimSignal.hostTick();
         if (++refreshTicks < REFRESH_TICKS && !refreshNow) return;
         refreshTicks = 0;
         refreshNow = false;
@@ -325,7 +326,7 @@ public final class SimHost {
         TICKETS.clear();
         CLAIMED.clear();
         if (id != null) SimRooms.delete(id, s);
-        SimTunnel.hostClose();
+        SimSignal.hostClose();
         SimUpnp.unmap();
         if (was) {
             status = "Room closed (" + why + ").";

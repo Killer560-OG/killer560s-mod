@@ -77,7 +77,7 @@ public final class SimUpnp {
     /** Maps TCP {@code port} on the router to this machine, off the calling thread. Never completes exceptionally. */
     public static CompletableFuture<Result> map(int port) {
         CompletableFuture<Result> out = new CompletableFuture<>();
-        SimTunnel.daemon("killer560smod-upnp", () -> {
+        SimSignal.daemon("killer560smod-upnp", () -> {
             Result r;
             try {
                 r = mapNow(port);
@@ -93,7 +93,7 @@ public final class SimUpnp {
 
     /** Removes the mapping made by {@link #map}, if any, off the calling thread. */
     public static void unmap() {
-        SimTunnel.daemon("killer560smod-upnp", SimUpnp::unmapNow);
+        SimSignal.daemon("killer560smod-upnp", SimUpnp::unmapNow);
     }
 
     /** The port currently mapped, or -1. For tests. */

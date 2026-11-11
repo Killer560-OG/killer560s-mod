@@ -17,10 +17,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The co-op sim's TCP hole punch (coopfree-1111), tried between the direct address and the relay tunnel, so a room behind
- * a router with no UPnP still costs the relay nothing but two small calls. The host advertises a source port when it
+ * The co-op sim's TCP hole punch (coopfree-1111), tried after the direct address (the relay never carries the game), so a room behind
+ * a router with no UPnP costs the relay nothing but two small calls. The host advertises a source port when it
  * lists the room; a guest with a ticket asks the relay ({@code /simrooms/punch}), which tells the host over its standing
- * tunnel socket (PUNCH frame); after {@code delayMs} both connect to each other from those ports at once (TCP
+ * signal socket ({@link SimSignal}, PUNCH frame); after {@code delayMs} both connect to each other from those ports at once (TCP
  * simultaneous open). The guest sends the relay's key first and the host joins only a socket that sent it to its LAN game
  * port, so the server's own checks (ticket, password, Max) stay the same. Windows cannot share a port between a listening
  * and a connecting socket, so neither side listens: both only connect. Every thread is a daemon; never the render thread.
@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  */
 final class SimPunch {
     private static final int TRY_MS = 6_000, CONNECT_MS = 300, KEY_WAIT_MS = 3_000;
-    /** One punch at a time on the host; a second while one runs is dropped (the guest falls back to the relay). */
+    /** One punch at a time on the host; a second while one runs is dropped (that guest is told it cannot connect). */
     private static final ThreadPoolExecutor HOST = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(1), r -> {
                 Thread t = new Thread(r, "k560-simpunch-host");
@@ -46,7 +46,7 @@ final class SimPunch {
         return "off".equals(mode()) ? 0 : freePort();
     }
 
-    /** The host's tunnel socket got a PUNCH frame ({@code json} = {ip, port, key, delayMs}). Any thread. */
+    /** The host's signal socket got a PUNCH frame ({@code json} = {ip, port, key, delayMs}). Any thread. */
     static void onHostFrame(String json, int punchPort, int lanPort) {
         if (punchPort <= 0 || "drop".equals(mode())) {
             SimCoop.LOGGER.info("[SimPunch] punch request ignored ({})", punchPort <= 0 ? "no punch port" : "drop mode");
@@ -106,7 +106,7 @@ final class SimPunch {
                 loop.setSoTimeout(60_000);
                 ServerSocket ss = loop;
                 Socket peer = s;
-                SimTunnel.daemon("k560-simpunch-guest", () -> {
+                SimSignal.daemon("k560-simpunch-guest", () -> {
                     try (ServerSocket server = ss) {
                         Socket mc = server.accept();
                         mc.setTcpNoDelay(true);
@@ -148,8 +148,8 @@ final class SimPunch {
 
     /** Pipes both ways until either side ends, then closes both. */
     private static void splice(Socket a, Socket b) {
-        SimTunnel.daemon("k560-simpunch-pipe", () -> pipe(a, b));
-        SimTunnel.daemon("k560-simpunch-pipe", () -> pipe(b, a));
+        SimSignal.daemon("k560-simpunch-pipe", () -> pipe(a, b));
+        SimSignal.daemon("k560-simpunch-pipe", () -> pipe(b, a));
     }
 
     private static void pipe(Socket from, Socket to) {
