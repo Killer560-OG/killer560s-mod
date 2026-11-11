@@ -249,8 +249,24 @@ public final class RecordCatalog {
         }
     });
 
+    /** Starred mob looks (simblood-1110): what each starred mob on a Blood Rush spawn spot looked like on Hypixel (type, name,
+     *  equipment, skin), one entry per room and room-relative block, for the Dungeon Sim's Real Mob Looks
+     *  ({@code roomsim.SimMobLooks}). Shared by every account and instance. The legacy name never existed (a new record). */
+    public static final Kind SIM_MOB_LOOKS = new Kind("killer560smod-sim-mob-looks.json", null, "sim-mob-looks.json",
+            Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("mobs") ? JsonMerge.fields("room", "x", "y", "z") : null;
+        }
+
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            return JsonMerge.matches(path, "mobs.[].seen") ? JsonMerge.NumberMode.COUNTER : JsonMerge.NumberMode.STATE;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

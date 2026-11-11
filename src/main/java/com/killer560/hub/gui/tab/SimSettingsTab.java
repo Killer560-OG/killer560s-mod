@@ -86,19 +86,41 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
             prefs.mobs = on;
             prefs.save();
             com.killer560.hub.roomsim.SimMobFloor.setEnabled(on);
-        }, () -> { }, null, contentX, contentY + 22, contentWidth, 18));
+        }, () -> { }, requestRebuild, contentX, contentY + 22, contentWidth, 18));
+        int y = contentY + 44;
+        // Real Mob Looks (simblood-1110): the starred mobs as Blood Rush Helper's learning saw them on Hypixel (type, gear,
+        // skin, facing); a spot with no recorded look keeps the dummy. Only with the mobs on.
+        com.killer560.hub.roomsim.SimMenuPrefs shown = com.killer560.hub.roomsim.SimMenuPrefs.cached();
+        if (shown.mobs || isSearchScan()) {
+            w.add(onOffButton("Real Mob Looks", () -> com.killer560.hub.roomsim.SimMenuPrefs.cached().realMobs, on -> {
+                com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+                prefs.realMobs = on;
+                prefs.save();
+            }, () -> { }, null, contentX, y, contentWidth, 18));
+            y += 22;
+        }
+        // Watcher Blood Camp (simblood-1110, killer560 2026-11-10: "fully recreate the blood camp"): the Watcher, his lines
+        // and his waves in the Blood room; OFF keeps the five seconds in Blood that open the portal.
+        w.add(onOffButton("Watcher Blood Camp", () -> com.killer560.hub.roomsim.SimMenuPrefs.cached().bloodCamp, on -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            prefs.bloodCamp = on;
+            prefs.save();
+        }, () -> { }, null, contentX, y, contentWidth, 18));
+        y += 22;
         // Receive Sim Invites (coopsim phase 3): ON keeps the relay socket a room owner's invite arrives through.
         var coop = com.killer560.hub.roomsim.SimCoopConfig.get();
         w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
-                contentX, contentY + 44, contentWidth, 18));
+                contentX, y, contentWidth, 18));
+        y += 22;
         int blocked = coop.blocked().size();
         if (blocked > 0) {
             w.add(SettingsButtonWidget.builder(Component.literal("Clear Blocked Inviters: " + blocked), b -> {
                 coop.clearBlocked();
                 requestRebuild.run();
-            }).bounds(contentX, contentY + 66, contentWidth, 18).build());
+            }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
         }
-        int y = contentY + (blocked > 0 ? 90 : 68);
+        y += 2;
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Keybinds", false));
         y += 16;
         w.add(SettingsButtonWidget.builder(text("Next Room", 1, SimRoomCycle.getNextKey(), "/next"), b -> {

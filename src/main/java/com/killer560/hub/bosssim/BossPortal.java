@@ -1,6 +1,5 @@
 package com.killer560.hub.bosssim;
 
-import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.roomsim.SimState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModLog;
@@ -124,14 +123,10 @@ final class BossPortal {
         if (!(watcherDone || (!watcherSeen && bloodTicks >= STAND_IN_TICKS))) {
             return;
         }
-        BlockPos origin = DungeonLayout.cellCenter(0);
-        int step = DungeonLayout.cellCenter(1).getX() - origin.getX();
-        if (step == 0) {
+        BlockPos center = com.killer560.hub.roomsim.SimBloodCamp.roomCenterAt(inBlood.getBlockX(), inBlood.getBlockZ());
+        if (center == null) {
             return;
         }
-        int gx = 2 * Math.floorDiv(inBlood.getBlockX() - origin.getX() + step, 2 * step);
-        int gz = 2 * Math.floorDiv(inBlood.getBlockZ() - origin.getZ() + step, 2 * step);
-        BlockPos center = DungeonLayout.cellCenter(gx, gz);
         BlockPos at = new BlockPos(center.getX(), inBlood.getBlockY() - 1, center.getZ());
         portal = at;
         steppedOut.clear();
