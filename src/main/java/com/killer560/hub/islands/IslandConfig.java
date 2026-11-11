@@ -76,6 +76,11 @@ public final class IslandConfig {
         return this;
     }
 
+    /** The settings file. */
+    public Path path() {
+        return path;
+    }
+
     public String name() {
         return name;
     }
