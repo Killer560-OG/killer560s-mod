@@ -96,6 +96,9 @@ public final class SimBloodCamp {
     private static Entity watcher;
     private static Random rng;
     private static final List<Trip> TRIPS = new ArrayList<>();
+    /** The room's chunks, kept loaded while the camp runs: an entity chunk that unloads comes back as new entities with
+     *  new ids, so the trips' skulls read removed and the camp stalled (ship3 gate, 1 or 4 of 16 sent). */
+    private static int forcedX = Integer.MIN_VALUE, forcedZ;
 
     private SimBloodCamp() {
     }
@@ -211,6 +214,7 @@ public final class SimBloodCamp {
             LOGGER.info("[Sim] blood camp cleared {} ticks after the greeting ({} mobs)", tick, TRIPS.size());
             done = true;
             tick = -1;
+            forceChunks(server.overworld(), 0, 0, false);
         }
     }
 
@@ -238,6 +242,7 @@ public final class SimBloodCamp {
                     names.get(rng.nextInt(names.size())), startAt, first ? FIRST_FLIGHT : LATER_FLIGHT, first ? 16.1 : 11.9));
         }
         watcher = SimMobs.spawnWatcher(level, center.x, center.y + 6, center.z, BloodCampFeature.watcherSkin());
+        forceChunks(level, c.getX() >> 4, c.getZ() >> 4, true);
         tick = 0;
         lastKillLine = -KILL_LINE_GAP;
         say(server, GREETINGS[n]);
@@ -326,6 +331,20 @@ public final class SimBloodCamp {
                 .append(Component.literal(": " + line).withStyle(ChatFormatting.WHITE)));
     }
 
+    /** Forces the 3 x 3 chunks around (cx, cz) on, or releases the ones it forced. */
+    private static void forceChunks(ServerLevel level, int cx, int cz, boolean on) {
+        if (!on && forcedX == Integer.MIN_VALUE) return;
+        if (!on) {
+            cx = forcedX;
+            cz = forcedZ;
+        }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) level.setChunkForced(cx + dx, cz + dz, on);
+        }
+        forcedX = on ? cx : Integer.MIN_VALUE;
+        forcedZ = cz;
+    }
+
     private static void reset(ServerLevel level) {
         for (Trip t : TRIPS) {
             if (!t.skull.isRemoved()) t.skull.discard();
@@ -334,6 +353,7 @@ public final class SimBloodCamp {
         }
         if (watcher != null && !watcher.isRemoved()) watcher.discard();
         TRIPS.clear();
+        forceChunks(level, 0, 0, false);
         watcher = null;
         tick = -1;
         passAt = -1;
