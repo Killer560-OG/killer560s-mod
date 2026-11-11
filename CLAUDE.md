@@ -299,7 +299,10 @@ MultiBreak* only while it is on.
   03:00-12:00, once a day) runs the full old gate on origin's tip and files each real failure as `[ ] nightly-<mmdd>
   <case>`; it never pushes. `km-scripts/preview.sh` puts every ready branch into testing jars on the two Untested
   instances whenever the ready lines change (an agent may run it for its own branch: `--extra JOB:SHA`); it never
-  touches `26.3`. Logs: `killer560s-mod-logs/train/<id>/train.txt`.
+  touches `26.3`. Logs: `killer560s-mod-logs/train/<id>/train.txt`. Its runs start through `km-scripts/train-run1.sh`,
+  because clientslot.sh makes any caller whose command line contains "ship" a SHIP ticket: a `bash -c` naming
+  ship-smoke6.ps1 put a dry run's six tickets at the front of the queue (2026-11-11). Dry runs and the nightly never set
+  KM_SHIP.
 - Push only when no game is running (`(Get-Process javaw -ErrorAction SilentlyContinue | Measure-Object).Count` is 0).
   With a game running, commit but do not push; a jar that must reach a running instance is staged as `.jar.pending`.
   Testkit clients (`java.exe` with `-Dfabric.addMods=` pointing at a test jar folder) and Gradle daemons do NOT block a
