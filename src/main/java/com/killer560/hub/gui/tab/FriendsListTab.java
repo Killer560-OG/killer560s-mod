@@ -28,6 +28,9 @@ public class FriendsListTab extends BaseTab {
         widgets.add(onOffButton("Use Our /fl", cfg::isEnabled, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
+        widgets.add(onOffButton("Party Friends On Top", cfg::isPartyFriendsOnTop, cfg::setPartyFriendsOnTop, cfg::save,
+                requestRebuild, contentX, y, 220, 20));
+        y += 26;
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.social.FriendsListScreen.THEME_ID, contentX, y, 220, 20));
         y += 26;
         // killer560 (2026-10-08) asked for the "/fl opens our list..." line and the "N friends on your list." line

@@ -2892,6 +2892,7 @@ final class SettingTooltipsData {
         d.put("best friends/track party time", "Counts the time you spend in a party with each player and the dungeon runs you clear together, for the /bestfriends list.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
+        d.put("friends list/party friends on top", "Friends who are in your party are listed first under an In Party header, apart from the rest of your list.");
         d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours.");
         d.put("pet wheel/pet wheel", "Turns on the Pet Wheel for quickly summoning pets.");
         d.put("pet wheel/wheel key", "The key or mouse button that opens the wheel.");

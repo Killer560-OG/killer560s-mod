@@ -195,8 +195,37 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         filteredFrom = all;
         filteredQuery = searchQuery;
         filteredArea = areaFilter;
-        visible = inArea(filter(all, searchQuery), areaFilter);
+        visible = partyFirst(inArea(filter(all, searchQuery), areaFilter), party);
     }
+
+    /** Header rows of the party grouping; never real friends (rowAt and the draw code check for them). */
+    private static final FriendsListConfig.Friend PARTY_HEADER = new FriendsListConfig.Friend("In Party");
+    private static final FriendsListConfig.Friend REST_HEADER = new FriendsListConfig.Friend("Friends");
+
+    /** Names of the party right now (lowercase), refreshed from tick() so a join or leave regroups the list. */
+    private java.util.Set<String> party = java.util.Set.of();
+
+    /** Friends who are in your party first under an "In Party" header, then a "Friends" header and the rest in their
+     *  own order. Unchanged when the setting is off or no friend is in the party. */
+    static List<FriendsListConfig.Friend> partyFirst(List<FriendsListConfig.Friend> list, java.util.Set<String> party) {
+        if (party.isEmpty() || !FriendsListConfig.getInstance().isPartyFriendsOnTop()) return list;
+        List<FriendsListConfig.Friend> in = new java.util.ArrayList<>();
+        List<FriendsListConfig.Friend> rest = new java.util.ArrayList<>();
+        for (FriendsListConfig.Friend f : list) {
+            (f.name != null && party.contains(f.name.toLowerCase(java.util.Locale.US)) ? in : rest).add(f);
+        }
+        if (in.isEmpty()) return list;
+        List<FriendsListConfig.Friend> out = new java.util.ArrayList<>(list.size() + 2);
+        out.add(PARTY_HEADER);
+        out.addAll(in);
+        if (!rest.isEmpty()) {
+            out.add(REST_HEADER);
+            out.addAll(rest);
+        }
+        return out;
+    }
+
+    private static boolean isHeader(FriendsListConfig.Friend f) { return f == PARTY_HEADER || f == REST_HEADER; }
 
     private String filteredArea;
 
@@ -265,6 +294,12 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     @Override
     public void tick() {
         super.tick();
+        java.util.Set<String> now = new java.util.HashSet<>();
+        for (String n : com.killer560.hub.leapmenu.PartyTracker.teammates()) now.add(n.toLowerCase(java.util.Locale.US));
+        if (!now.equals(party)) {
+            party = now;
+            filteredFrom = null;
+        }
         // The area list follows the friends data, but never rebuilds under an open list.
         if (selected == null && DropdownWidget.openOne() == null
                 && !areasOf(FriendsListConfig.getInstance().friends()).equals(shownAreas)) {
@@ -404,7 +439,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private FriendsListConfig.Friend rowAt(double mx, double my) {
         if (mx < listX || mx >= rowRight() || my < listY || my >= listY + listH) return null;
         int i = (int) ((my - listY + scroll) / ROW_H);
-        return i >= 0 && i < visible.size() ? visible.get(i) : null;
+        return i >= 0 && i < visible.size() && !isHeader(visible.get(i)) ? visible.get(i) : null;
     }
 
     private int maxScroll() { return Math.max(0, visible.size() * ROW_H - listH); }
@@ -523,6 +558,12 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             if (rowY > listY + listH) break;
             FriendsListConfig.Friend f = visible.get(i);
             int right = rowRight();
+            if (isHeader(f)) {
+                int hc = f == PARTY_HEADER ? com.killer560.hub.gui.ThemeAccent.light(0xFFAA00) : MenuStyle.DIM;
+                if (f == REST_HEADER) graphics.fill(listX, rowY + 1, right, rowY + 2, com.killer560.hub.gui.ThemeAccent.dim(0x553311));
+                ScreenChrome.text(graphics, f.name, listX + 4, rowY + (ROW_H - this.font.lineHeight) / 2 + 1, hc);
+                continue;
+            }
             GuiRects rr = GuiRects.begin(graphics);
             ScreenChrome.row(rr, listX, rowY, right - listX, ROW_H, f == hovered, false, i % 2 == 0);
             rr.submit();
