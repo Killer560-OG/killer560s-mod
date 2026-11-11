@@ -849,7 +849,8 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   had dropped out of its 1.6-block box, not because the wall was gone, and the rest of the shot fell 8 blocks into the lava.
   A paused shot now freezes him: aiStep is skipped (Ap3FreezeMixin -> BlinkCharge.takePauseFreeze, nothing written) and
   the tick is withheld uncounted like a reback tick, while the position gap allows (BadPacketsR); ActionGate refuses WORLD
-  actions meanwhile (an action would make it a real tick). The rest of the shot goes on from the same spot and velocity.
+  actions for the WHOLE pause (`shotPaused`), also on a tick that goes out live for the position reminder: a dig there rode
+  a look a withheld tick had carried and drew experimental RotationBreak once per shot. The rest of the shot goes on from the same spot and velocity.
   With that deny, the old 1.6-block box made a shot pause for each off-lane block in turn (one dig per pause) and run out of
   time mid-wall, so `pendingWallAhead` counts only held blocks in the box his next two ticks sweep (velocity x2, +0.3 sides).
   Testkit 1110-blink-breaker-gap-walk/-leap/-stand (a one-wide trench before the wall).
