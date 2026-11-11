@@ -447,6 +447,22 @@ public final class ZombieShootout {
         return b == null ? null : b.label();
     }
 
+    /** Harness: zombie timers by source now: {Hypixel's own tag (ours hidden), ours drawn}. One per zombie in all. */
+    public static int[] timerSources() {
+        int theirs = 0;
+        int ours = 0;
+        for (Target t : targets) {
+            if (t.zombie() != null) {
+                if (t.theirTimer()) {
+                    theirs++;
+                } else {
+                    ours++;
+                }
+            }
+        }
+        return new int[]{theirs, ours};
+    }
+
     /** Harness: lamps watched. */
     public static int lampCount() {
         return LAMPS.size();

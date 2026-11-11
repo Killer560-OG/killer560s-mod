@@ -573,6 +573,12 @@ public final class FruitDigging {
     private static final float SMALL_LABEL = 0.012f;
     private static final float BEST_LABEL = 0.016f;
     private static int labelsDrawn;
+    private static int labelsLast;
+
+    /** Harness: text labels the last frame drew. */
+    public static int labelsLastFrame() {
+        return labelsLast;
+    }
 
     /** Harness: text labels drawn so far (the testkit diffs it across frames). */
     public static int labelsDrawn() {
@@ -593,6 +599,7 @@ public final class FruitDigging {
         if (!cfg.isEnabled() || !active() || origin == null) {
             return;
         }
+        int labelsBefore = labelsDrawn;
         for (int i = 0; i < FruitDiggingSolver.CELLS; i++) {
             FruitDiggingSolver.Cell c = cells[i];
             BlockPos p = posOf(i);
@@ -648,6 +655,7 @@ public final class FruitDigging {
                     "§aDig here §7(" + r.shovel() + ", " + pct(r.pBomb()) + "% bomb)", 0xFFFFFF, false, BEST_LABEL);
             labelsDrawn++;
         }
+        labelsLast = labelsDrawn - labelsBefore;
     }
 
     static List<String> lines() {
