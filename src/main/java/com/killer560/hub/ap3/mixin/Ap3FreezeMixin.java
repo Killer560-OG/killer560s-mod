@@ -28,7 +28,7 @@ public abstract class Ap3FreezeMixin {
             ci.cancel();
             return;
         }
-        if (com.killer560.hub.ap3.Ap3Executor.takeBlinkFreeze()) {
+        if (com.killer560.hub.ap3.Ap3Executor.takeBlinkFreeze() || com.killer560.hub.blink.BlinkCharge.takePauseFreeze()) {
             // A momentum-keeping Blink Charge (killer560, 2026-10-27): this tick banks, so no game time passes for him on
             // the server; his physics is skipped to match. Nothing is written - velocity and position stay as they were.
             ci.cancel();
