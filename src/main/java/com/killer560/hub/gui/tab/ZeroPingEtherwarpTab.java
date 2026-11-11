@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.SettingTooltips;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.leftclickew.LeftClickEtherwarpConfig;
@@ -17,18 +18,17 @@ import java.util.List;
  * click etherwarp"): Zero Ping Etherwarp ({@link com.killer560.hub.zpew.ZeroPingEtherwarp}) and Left Click Etherwarp
  * ({@link com.killer560.hub.leftclickew.LeftClickEtherwarp}) under a red header at the bottom. The whole tab is
  * cheat-only since 2026-11-02 (killer560: "all zero ping etherwarp stuff should be cheat only nothing in legit"): it
- * is built only in DungeonTab's cheat block. Two features side by side, so the card's switch stands for both ({@link #masterToggles}).
- *
- * <p>No explanation lines: each row says what it does in its hover tooltip ("If you need to explain it then it should be
- * text shown when hovering a setting"). Works For is the last of ZPEW's legit rows ("Move the works for to the bottom");
- * the cheat rows follow it at the bottom, as everywhere. The
- * class keeps its old name so a starred card and a toggle key (both kept by class name) carry over.
+ * is built only in DungeonTab's cheat block. Three features side by side (Zero Ping Etherwarp, Multi Warps, Left Click
+ * Etherwarp), so the card's switch stands for all three ({@link #masterToggles}); Multi Warps works with Zero Ping
+ * Etherwarp off (zpewunify-1111). Each row says what it does in its hover tooltip. The class keeps its old name so a
+ * starred card and a toggle key (both kept by class name) carry over.
  */
 public class ZeroPingEtherwarpTab extends BaseTab {
 
     private static final int ROW = 18;
     public static final String ZPEW = "Zero Ping Etherwarp";
     public static final String LEFT_CLICK = "Left Click Etherwarp";
+    public static final String MULTI = "Multi Warps";
 
     public ZeroPingEtherwarpTab() {
         super("Etherwarp");
@@ -46,20 +46,19 @@ public class ZeroPingEtherwarpTab extends BaseTab {
 
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, ZPEW, LEFT_CLICK);
+        return switchRows(built, ZPEW, MULTI, LEFT_CLICK);
     }
 
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
-        boolean cheat = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
         int y = contentY;
         w.add(SectionHeaders.row(contentX, y, contentWidth, ZPEW, true));
         y += 16;
         w.add(onOffButton(ZPEW, cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;
-        if (cfg.isEnabled()) {
+        if (cfg.isEnabled() || isSearchScan()) {
             w.add(onOffButton("Dungeons Only", cfg::isDungeonsOnly, cfg::setDungeonsOnly, cfg::save, null,
                     contentX, y, contentWidth, ROW));
             y += ROW + 4;
@@ -85,48 +84,44 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                 }
             });
             y += ROW + 6;
-            // Works For (killer560, 2026-10-27), last of the legit rows since 2026-11-01 ("Move the works for to the
-            // bottom"): one switch per sender. The cheat rows (its cheat senders, Multi Warps, Left Click Etherwarp) stay
-            // under it, as every cheat setting goes at the bottom of its tab (testkit 512).
-            w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", false));
+            // Works For (killer560, 2026-11-11: "the only thing i should have to select is auto routes, interactive map,
+            // auto puzzles and manual"). Auto Routes is also the zero-ping chain of Auto Routes' etherwarp nodes.
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", true));
             y += 16;
-            y = sourceRows(w, cfg, contentX, y, contentWidth, false);
-            if (cheat) {
-                y += 6;
-                w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat Build - Works For", true));
-                y += 16;
-                y = sourceRows(w, cfg, contentX, y, contentWidth, true);
-            }
-            if (cheat) {
-                y += 6;
-                // Multi Warps (killer560, 2026-11-01: "Make a toggle for the multi warps. Change that setting to be called
-                // multi warps"): the switch over Warps Per Tick and Aimed Warps, which show only while it is on.
-                w.add(SectionHeaders.row(contentX, y, contentWidth, "Multi Warps", true));
-                y += 16;
-                w.add(onOffButton("Multi Warps", cfg::isMultiWarps, cfg::setMultiWarps, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
-                y += ROW + 4;
-                if (cfg.isMultiWarps()) {
-                    w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
-                                cfg.setWarpsPerTick((int) SettingsButtonWidget.step(cfg.getWarpsPerTick(), 1, 1,
-                                        ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
-                                cfg.save();
-                                btn.setMessage(warpsPerTickText(cfg));
-                            }).bounds(contentX, y, contentWidth, ROW).build());
-                    y += ROW + 4;
-                    w.add(onOffButton("Aimed Warps", cfg::isAimedWarps, cfg::setAimedWarps, cfg::save, null,
-                            contentX, y, contentWidth, ROW));
-                    y += ROW + 4;
-                }
-                y += 2;
-            }
+            y = sourceRows(w, null, cfg::getWorksForSetting, cfg::setWorksFor, cfg, contentX, y, contentWidth,
+                    ZpewSource.Group.values());
             y += 6;
         }
-        if (cheat) {
-            LeftClickEtherwarpConfig lce = LeftClickEtherwarpConfig.getInstance();
-            w.add(SectionHeaders.row(contentX, y, contentWidth, LEFT_CLICK, true));
+        // Multi Warps (killer560, 2026-11-01 "Make a toggle for the multi warps"; 2026-11-11 "in etherwarp if i have zero ping
+        // off it should still show multiwarp"): its own feature, built whatever Zero Ping Etherwarp's switch says.
+        w.add(SectionHeaders.row(contentX, y, contentWidth, MULTI, true));
+        y += 16;
+        w.add(onOffButton(MULTI, cfg::isMultiWarps, cfg::setMultiWarps, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
+        y += ROW + 4;
+        if (cfg.isMultiWarps() || isSearchScan()) {
+            w.add(SettingsButtonWidget.cycling(warpsPerTickText(cfg), (btn, dir) -> {
+                        cfg.setWarpsPerTick((int) SettingsButtonWidget.step(cfg.getWarpsPerTick(), 1, 1,
+                                ZeroPingEtherwarpConfig.MAX_WARPS_PER_TICK, dir));
+                        cfg.save();
+                        btn.setMessage(warpsPerTickText(cfg));
+                    }).bounds(contentX, y, contentWidth, ROW).build());
+            y += ROW + 4;
+            w.add(onOffButton("Aimed Warps", cfg::isAimedWarps, cfg::setAimedWarps, cfg::save, null,
+                    contentX, y, contentWidth, ROW));
+            y += ROW + 6;
+            // Which sources Multi Warps acts for: Manual (Warps Per Tick, Aimed Warps), Auto Routes and the Interactive
+            // Map (a chain of warps in one tick from Blink Charge's bank, the old Charged Chain). Auto Puzzles sends single
+            // repositions, so there is nothing to multiply there. Scoped, so their hovers differ from Works For's.
+            w.add(SectionHeaders.row(contentX, y, contentWidth, "Multi Warps For", true));
             y += 16;
-            w.add(onOffButton(LEFT_CLICK, lce::isEnabled, lce::setEnabled, lce::save, null, contentX, y, contentWidth, ROW));
+            y = sourceRows(w, MULTI, cfg::getMultiWarpsForSetting, cfg::setMultiWarpsFor, cfg, contentX, y, contentWidth,
+                    ZpewSource.Group.AUTO_ROUTES, ZpewSource.Group.INTERACTIVE_MAP, ZpewSource.Group.MANUAL);
         }
+        y += 6;
+        LeftClickEtherwarpConfig lce = LeftClickEtherwarpConfig.getInstance();
+        w.add(SectionHeaders.row(contentX, y, contentWidth, LEFT_CLICK, true));
+        y += 16;
+        w.add(onOffButton(LEFT_CLICK, lce::isEnabled, lce::setEnabled, lce::save, null, contentX, y, contentWidth, ROW));
         return w;
     }
 
@@ -134,28 +129,23 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         return Component.literal("Warps Per Tick: " + cfg.getWarpsPerTick());
     }
 
-    /** A Works For row's label: Left Click Etherwarp's reads "Left Click Etherwarps" here, so it is never taken for the
-     *  Left Click Etherwarp switch further down (the card's switch finds that one by its label). */
-    static String sourceLabel(ZpewSource s) {
-        return s == ZpewSource.LEFT_CLICK ? "Left Click Etherwarps" : s.label();
-    }
-
-    /** The Works For switches of one kind, two to a row. @return the y under them */
-    private static int sourceRows(List<AbstractWidget> w, ZeroPingEtherwarpConfig cfg, int x, int y, int width,
-                                  boolean cheat) {
+    /** One switch per source, two to a row; {@code scope} keys their hovers ("multi warps/auto routes"). @return the y under them */
+    private static int sourceRows(List<AbstractWidget> w, String scope,
+                                  java.util.function.Predicate<ZpewSource.Group> get,
+                                  java.util.function.BiConsumer<ZpewSource.Group, Boolean> set, ZeroPingEtherwarpConfig cfg,
+                                  int x, int y, int width, ZpewSource.Group... groups) {
         int gap = 8;
         int colW = (width - gap) / 2;
         int col = 0;
-        for (ZpewSource s : ZpewSource.values()) {
-            if (s.cheatOnly() != cheat) {
-                continue;
-            }
-            String label = sourceLabel(s);
-            w.add(SettingsButtonWidget.builder(onOff(label, cfg.getWorksForSetting(s)), btn -> {
-                        cfg.setWorksFor(s, !cfg.getWorksForSetting(s));
+        for (ZpewSource.Group g : groups) {
+            String label = g.label();
+            SettingsButtonWidget b = SettingsButtonWidget.builder(onOff(label, get.test(g)), btn -> {
+                        set.accept(g, !get.test(g));
                         cfg.save();
-                        btn.setMessage(onOff(label, cfg.getWorksForSetting(s)));
-                    }).bounds(x + col * (colW + gap), y, colW, ROW).build());
+                        btn.setMessage(onOff(label, get.test(g)));
+                    }).bounds(x + col * (colW + gap), y, colW, ROW).build();
+            SettingTooltips.scope(b, scope);
+            w.add(b);
             if (++col == 2) {
                 col = 0;
                 y += ROW + 2;

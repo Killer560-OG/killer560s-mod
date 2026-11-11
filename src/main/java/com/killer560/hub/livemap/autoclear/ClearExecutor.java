@@ -170,10 +170,8 @@ public final class ClearExecutor {
 
     /** Hops in flight the server has not answered yet before the queue waits for it. */
     private static final int MAX_LEAD = 6;
-    /** ... while a chain goes out in one burst (Charged Chain, Blink The Chain): Blink's 21 at most. */
+    /** ... while a chain goes out in one burst (Charged Chain): Blink's 21 at most. */
     private static final int BURST_LEAD = 21;
-    /** Blink The Chain: the hold this path started before its second hop, released once its last hop went. */
-    private static boolean blinkChainOwned;
     /** Ticks without progress before a path is given up on (and planned again). */
     private static final int STALL_TICKS = 20;
     /** Ticks he may stand off the path's first spot before it is planned again from where he is. */
@@ -1646,10 +1644,6 @@ public final class ClearExecutor {
             lastLevel = client.level;
             reset();
         }
-        if (blinkChainOwned && (nodes == null || nodes.isEmpty()) && pendingInteract == null) {
-            blinkChainOwned = false;
-            com.killer560.hub.blink.BlinkFeature.end("Interactive Map chain sent");
-        }
         if (client.player == null) {
             return;
         }
@@ -1689,7 +1683,7 @@ public final class ClearExecutor {
         if (!canNext()) {
             return;
         }
-        if (issued.size() - confirmed >= (blinkChainOwned ? BURST_LEAD : MAX_LEAD)) {
+        if (issued.size() - confirmed >= MAX_LEAD) {
             waitReason = "the server did not answer " + (issued.size() - confirmed) + " warp(s)";
             return;
         }
@@ -1703,7 +1697,7 @@ public final class ClearExecutor {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !hasSwappedThisTick
                 && com.killer560.hub.util.RightClick.itemUsesSent() == itemUsesAtTickStart) {
             chainInOneTick(client);
-            if (!canNext() || issued.size() - confirmed >= (blinkChainOwned ? BURST_LEAD : MAX_LEAD)) {
+            if (!canNext() || issued.size() - confirmed >= MAX_LEAD) {
                 return;
             }
         }
@@ -1721,26 +1715,17 @@ public final class ClearExecutor {
     }
 
     /**
-     * Auto Routes' Charged Chain and Blink The Chain for a map path (mapchain-1110, killer560 2026-11-10: "it doesnt feel
-     * like it does all of the warps in one tick"), from the path's first hop, before this tick sends any use (by its
-     * second hop the first confirm has backed the bank again, so it could never spend it). With
-     * Blink charging and its bank covered, every hop left goes now, one banked tick each (each its own whole tick on the
-     * wire: the use, his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends. With Charge
-     * off, a Blink hold starts here and is let go once the last hop went (onTickStart), so the server gets them together.
+     * Charged Chain for a map path (mapchain-1110, killer560 2026-11-10: "it doesnt feel like it does all of the warps in
+     * one tick"): the Etherwarp tab's Multi Warps for this trip's source (Auto Routes for Auto Secret / Auto Clear /
+     * Pathfinding trips, else Interactive Map; zpewunify-1111). From the path's first hop, before this tick sends any use
+     * (by its second hop the first confirm has backed the bank again, so it could never spend it). With Blink charging
+     * and its bank covered, every hop left goes now, one banked tick each (each its own whole tick on the wire: the use,
+     * his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends.
      */
     private static void chainInOneTick(Minecraft client) {
-        com.killer560.hub.autoroutes.AutoRoutesConfig ar = com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance();
-        if (nodes == null || nodes.isEmpty()) {
-            return;
-        }
-        if (!com.killer560.hub.blink.BlinkCharge.isActive()) {
-            if (ar.isBlinkChain() && !blinkChainOwned && !com.killer560.hub.blink.BlinkFeature.isHolding()) {
-                com.killer560.hub.blink.BlinkFeature.begin("Interactive Map chain");
-                blinkChainOwned = com.killer560.hub.blink.BlinkFeature.isHolding();
-            }
-            return;
-        }
-        if (!ar.isChargedChain() || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+        if (nodes == null || nodes.isEmpty() || !com.killer560.hub.blink.BlinkCharge.isActive()
+                || !com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().multiWarpsFor(hopSource())
+                || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
             return;
         }
         int fired = 0;
