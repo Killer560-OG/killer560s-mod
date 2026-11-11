@@ -2453,7 +2453,9 @@ public final class Ap3Executor {
      * land up to a whole move past the edge, and where a step stands just beyond the edge the jump tick's move runs
      * into it and the step-up eats the jump (ap3strafe-1110: 45 Degree Strafe put him 0.3 further on, the coyote jump
      * from x 38.80 hit the block at x 36, he stood at y 131, skipped the next 1x1 RUN box and walked into the lava).
-     * So EDGE jumps on whichever grounded tick is nearer the edge; at a walk the two are a few hundredths apart.
+     * So EDGE jumps on whichever grounded tick is nearer the edge, but ONLY when the coyote tick's jump would run into a
+     * block: everywhere else the coyote tick stays, which routes are planned on (leverjump-1111: the earlier jump on the
+     * open EE3 route put him short of two landings, at node 23 with 45 Degree Strafe and before EE3 without it).
      */
     private static boolean edgeNearerNow(LocalPlayer player) {
         Vec3 v = player.getDeltaMovement();
@@ -2461,9 +2463,16 @@ public final class Ap3Executor {
         if (h < 1e-3) {
             return false;
         }
-        double k = 0.5 * (1.0 + Ap3AlignMath.groundSpeed((float) player.getSpeed(), blockFriction(player)) / h);
-        net.minecraft.world.phys.AABB box = player.getBoundingBox().move(v.x * k, 0.0, v.z * k);
-        return player.level().noCollision(player, box.move(0.0, -0.0625, 0.0).setMaxY(box.minY));
+        double k = 1.0 + Ap3AlignMath.groundSpeed((float) player.getSpeed(), blockFriction(player)) / h;
+        net.minecraft.world.phys.AABB box = player.getBoundingBox();
+        net.minecraft.world.phys.AABB half = box.move(v.x * k * 0.5, 0.0, v.z * k * 0.5);
+        if (!player.level().noCollision(player, half.move(0.0, -0.0625, 0.0).setMaxY(half.minY))) {
+            return false;
+        }
+        // The coyote tick's jump: up 0.42 first (vanilla resolves Y before X/Z), then one move plus the 0.2 boost.
+        double b = 1.0 + 0.2 / (h * k);
+        net.minecraft.world.phys.AABB coyote = box.move(v.x * k, 0.42, v.z * k);
+        return !player.level().noCollision(player, coyote.expandTowards(v.x * k * b, 0.0, v.z * k * b));
     }
 
     // ---- close gate: "only fires on left click, or after a terminal closes" ------------------------------------
@@ -5648,19 +5657,25 @@ public final class Ap3Executor {
     }
 
     /**
-     * A JUMP / EDGE node (or one with a jump / edge modifier) whose box he stands in: scanBoxes fires it
-     * on this very tick, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110: Lever Aura's
-     * off-walk look turned him on the tick node 23's sprint-jump went, the boost followed it and he fell off the platform).
+     * A JUMP / EDGE node (or one with a jump / edge modifier) not yet fired whose box he stands in or this tick's move
+     * enters: scanBoxes fires it then, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110:
+     * Lever Aura's off-walk look turned him on the tick node 23's sprint-jump went). A turn the tick BEFORE that jump
+     * bends one ground move at route speed, and the deficit along the new walk cannot be steered back in the air
+     * (leverjump-1111: 7.3 degrees at 1.5 blocks a tick put him 0.35 short of the landing below, into the lava); the
+     * lever goes in the air after the jump instead (TurnFirst.offWalkLook), where a bend costs almost nothing.
      */
     private static boolean jumpNodeAtFeet() {
         LocalPlayer p = Minecraft.getInstance().player;
         if (chain == null || p == null) {
             return false;
         }
-        Vec3 now = p.position();
+        Vec3 now = p.position(), v = p.getDeltaMovement();
+        double h = Math.hypot(v.x, v.z);
+        double k = p.onGround() && h > 1e-3 ? 1.0 + Ap3AlignMath.groundSpeed((float) p.getSpeed(), blockFriction(p)) / h : 1.0;
+        Vec3 next = now.add(v.x * k, v.y, v.z * k);
         for (Ap3Node n : chain.nodes()) {
             if ((n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE)
-                    && n.contains(now)) {
+                    && !inside.contains(n) && (n.contains(now) || n.contains(next))) {
                 return true;
             }
         }
@@ -5692,12 +5707,17 @@ public final class Ap3Executor {
         boolean ground = player.onGround();
         double push = ground ? player.getSpeed() : player.isSprinting() ? Ap3AlignMath.AIR_SPEED_SPRINTING : Ap3AlignMath.AIR_SPEED;
         double friction = ground ? 0.6 * Ap3AlignMath.FRICTION_SCALE : Ap3AlignMath.FRICTION_SCALE;
-        if (Math.abs(yaw - heldKeysYaw) < 1e-4f) {
+        boolean digTurn = com.killer560.hub.util.HandDigAim.turnedThisTick();
+        // A jump under an aura's turn made on an EARLIER tick: the keys were already re-picked at the turned yaw, so the
+        // yaw looks unchanged here, but the sprint-jump boost would still follow it (leverjump-1111: Lever Aura turned
+        // him at tick 274, flicked at 275 as node 23's jump went, and the jump at yaw 88.7 put him in the lava).
+        boolean jumpUnderTurn = wantJump && !digTurn && com.killer560.hub.util.TurnFirst.anyTurnOut()
+                && Math.abs(Mth.wrapDegrees(walkYawDeg() - yaw)) > 1e-4f;
+        if (Math.abs(yaw - heldKeysYaw) < 1e-4f && !jumpUnderTurn) {
             steerOutDigBend(player, yaw, push, friction);
             return;
         }
         float was = heldKeysYaw;
-        boolean digTurn = com.killer560.hub.util.HandDigAim.turnedThisTick();
         double[] planned = digTurn ? moveDir(was) : null;
         if (wantJump && !digTurn) {
             // A jump goes in this tick under an aura's turn (or its hand-back): face the walk for it as applyHoldRealYaw
@@ -5723,9 +5743,9 @@ public final class Ap3Executor {
             bendStep(0, 0, friction);
         }
         LOGGER.info("[AP3] held walk: the body was turned from {} to {} before the move (another feature's turn) - keys"
-                        + " re-picked for that yaw: {}{}{}{}",
+                        + " re-picked for that yaw: {}{}{}{}{}",
                 String.format(Locale.US, "%.2f", was), String.format(Locale.US, "%.2f", yaw),
-                wantForward ? "W" : "", wantBackward ? "S" : "", wantLeft ? "A" : "", wantRight ? "D" : "");
+                wantForward ? "W" : "", wantBackward ? "S" : "", wantLeft ? "A" : "", wantRight ? "D" : "", ground ? "" : " (in the air)");
     }
 
     /**
