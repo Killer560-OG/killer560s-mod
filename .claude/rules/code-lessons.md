@@ -113,6 +113,7 @@ They are the same rules as before; only where they live changed.
   `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
   refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
   every leap (2026-11-02). The queue spaces lines 500 ms apart and sends at once when idle (docs/LESSONS.md).
+  Hypixel handles one player's commands IN ORDER, so every party line already sent sits in front of his next command: his /stats Chat Keybind in EE3 opened only after the mod's /pc burst echoed (2026-11-11 log, 21:29:31 sends, 21:29:33 echoes, 21:29:34 Stats; burst lines echoed 2-3 s late, lone ones at once). So OutgoingChat keeps ONE party line in flight (the next waits for Hypixel's "Party > ...: text" echo or ECHO_WAIT_MS 1500), and every command he sends (typed: Fabric COMMAND event; Chat Keybinds: noteOther) goes at once with our waiting lines a full gap after it. Command Keybinds logs "[CommandKeybinds] sent /x". Testkit 1111-hx-cmdkey-first (cmdfirst-1111).
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven

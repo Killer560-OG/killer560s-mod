@@ -3,6 +3,8 @@ package com.killer560.hub.commandkeybinds;
 import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsFeature;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.OutgoingChat;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -24,6 +26,8 @@ import com.killer560.hub.compat.McCompat;
  * custom shortcuts, under this feature's one switch, and a custom shortcut may carry a key that this tick fires.
  */
 public final class CommandKeybindsFeature {
+
+    private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-commandkeybinds");
 
     /** Edge-detect state, index-aligned with the bind list; resized whenever the list changes. */
     private static boolean[] wasDown = new boolean[0];
@@ -71,7 +75,11 @@ public final class CommandKeybindsFeature {
             // The key is polled first: isKeyLive trims the command string, which is wasted work on every tick a key is up.
             boolean isDown = c.key() != -1 && isBindDown(client, c.key()) && CommandShortcutsFeature.isKeyLive(c);
             if (fire && isDown && !customWasDown[i]) {
-                ServerCommands.toServer(CommandShortcutsFeature.commandOf(c));
+                String cmd = CommandShortcutsFeature.commandOf(c);
+                if (ServerCommands.toServer(cmd)) {
+                    OutgoingChat.noteOther();
+                    LOGGER.info("[CommandKeybinds] sent /{}", cmd);
+                }
             }
             customWasDown[i] = isDown;
         }
@@ -85,11 +93,14 @@ public final class CommandKeybindsFeature {
         if (line.charAt(0) == '/') {
             String command = line.substring(1);
             if (!command.isEmpty()) {
+                // sendCommand fires Fabric's COMMAND event, which OutgoingChat counts: our queued lines wait after it.
                 client.player.connection.sendCommand(command);
+                LOGGER.info("[CommandKeybinds] sent /{}", command);
             }
             return;
         }
         client.player.connection.sendChat(line);
+        LOGGER.info("[CommandKeybinds] sent chat line");
     }
 
     /** Polls a keyboard code through {@code KeyUtil} (which guards GLFW's keyboard-only range) or a mouse

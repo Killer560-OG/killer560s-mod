@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -43,6 +42,15 @@ public final class OutgoingChat {
     static final long REJECT_WINDOW_MS = 1_500L;
     /** Hypixel's answer when two lines come too close (his 26.3 log, 2026-11-02). Exact: a system line, not chat. */
     public static final String RATE_LIMIT_LINE = "Woah slow down, you're doing that too fast!";
+    /**
+     * After a party line, the next line waits for Hypixel's own "Party > ...: text" echo of it, or this long. Hypixel
+     * handles a player's commands one after another, so every line already sent sits in front of the next command he
+     * presses: his 26.3 log, 2026-11-11, EE3: /pc "Spirit Mask popped!" and "at ee3" left at 21:29:31, echoed 21:29:33,
+     * and his /stats keybind's "Stats & Equipment" opened only at 21:29:34, right behind them (the same at 21:19:41,
+     * 21:20:02, 21:26:22). Lines sent in a burst echoed 2-3 s late, lone ones at once. One line in flight keeps his own
+     * command at most one line behind ours.
+     */
+    static final long ECHO_WAIT_MS = 1_500L;
 
     /** Command words that are chat lines to Hypixel (counted against the gap when he types them himself). */
     static final Set<String> CHAT_COMMANDS = Set.of("pc", "ac", "gc", "oc", "cc", "msg", "w", "r", "tell",
@@ -97,6 +105,8 @@ public final class OutgoingChat {
     private static final ArrayDeque<Slot> QUEUE = new ArrayDeque<>();
     private static long lastSentMs = Long.MIN_VALUE / 4;
     private static Slot lastOurs;
+    /** The text of our last party line until Hypixel echoes it (null: nothing in flight). */
+    private static String awaitEcho;
     private static boolean registered;
 
     private OutgoingChat() {
@@ -107,12 +117,8 @@ public final class OutgoingChat {
         registered = true;
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("OutgoingChat", client -> drain()));
         ClientSendMessageEvents.CHAT.register(message -> noteOther());
-        ClientSendMessageEvents.COMMAND.register(command -> {
-            String word = command.trim().split(" ", 2)[0].toLowerCase(Locale.ROOT);
-            if (CHAT_COMMANDS.contains(word)) {
-                noteOther();
-            }
-        });
+        // Every command he types (not only chat lines) goes first: our waiting lines take their gap after it.
+        ClientSendMessageEvents.COMMAND.register(command -> noteOther());
         ChatObserver.subscribe(message -> onServerLine(ChatObserver.strip(message)));
     }
 
@@ -191,9 +197,11 @@ public final class OutgoingChat {
                     return;
                 }
                 if (t - lastSentMs < MIN_GAP_MS) return;
+                if (awaitEcho != null && t - lastSentMs < ECHO_WAIT_MS) return;
                 send = QUEUE.pollFirst();
                 lastSentMs = t;
                 lastOurs = send;
+                awaitEcho = send.command && send.line.regionMatches(true, 0, "pc ", 0, 3) ? send.line.substring(3).strip() : null;
                 break;
             }
         }
@@ -206,13 +214,23 @@ public final class OutgoingChat {
         LOGGER.info("[OutgoingChat] sent {}{}", send.command ? "/" : "", send.line);
     }
 
-    /** He typed a chat line (or another mod sent one through the normal path): the gap counts from it too. */
-    private static synchronized void noteOther() {
+    /**
+     * He sent a line or command himself (typed, a Chat Keybind, another mod through the normal path): it goes now, and
+     * our waiting lines take their full gap after it, never before it.
+     */
+    public static synchronized void noteOther() {
         lastSentMs = now();
         lastOurs = null;
     }
 
     private static void onServerLine(String text) {
+        String echo = awaitEcho;
+        if (echo != null && text.startsWith("Party > ") && text.endsWith(": " + echo)) {
+            synchronized (OutgoingChat.class) {
+                awaitEcho = null;
+            }
+            return;
+        }
         if (!RATE_LIMIT_LINE.equals(text)) return;
         synchronized (OutgoingChat.class) {
             Slot ours = lastOurs;
