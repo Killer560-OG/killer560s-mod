@@ -151,6 +151,6 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   terminal opens; every one Hypixel closed unsolved had one to four of our /pc lines (Leaping To, Cringe, Posmsg) sent and
   not yet echoed at the open, while all 41 opens with none in flight were solved; 34 Melody progress lines sent inside an
   open terminal closed none. So `util/OutgoingChat` holds its lines while he stands within 5 blocks of an undone P3
-  terminal (`P3StatusFeature.nearUndoneTerminal`, 3 s at most), from an entity click (RightClickSendMixin,
-  `onInteractSent`) until a menu opens (1 s at most), and for 1.5 s after a terminal opens; his own commands never wait.
+  terminal (`P3StatusFeature.nearUndoneTerminal`, 250 ms at most), from an entity click (RightClickSendMixin,
+  `onInteractSent`) until a menu opens (250 ms at most), and for 250 ms after a terminal opens (every OutgoingChat wait is 250 ms since 2026-11-11, his choice); his own commands never wait.
   The log says `[OutgoingChat] holding N line(s): <why>`. Testkit 1111-termclose-click/-free/-near (500-boss-session).

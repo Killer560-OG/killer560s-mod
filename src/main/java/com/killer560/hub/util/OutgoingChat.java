@@ -18,7 +18,7 @@ import java.util.Set;
  * line left in the same tick and Hypixel answered "Woah slow down, you're doing that too fast!" - the line was lost - while
  * the Cringe line Leap Message sends 10 ticks (0.5 s) after Leaping To went through. So 0.5 s between two lines is a gap
  * Hypixel is seen to accept, and the same tick is one it is seen to refuse. SkyHanni's ChatUtils queue spaces its own
- * lines 300 ms apart; 500 ms is the gap his own log proves.
+ * lines 300 ms apart; 0.5 s is a gap his own log proves, and he chose 250 ms (2026-11-11).
  * <p>
  * A line goes out at once when nothing is waiting and the last line (ours, or one he typed: Fabric's
  * {@link ClientSendMessageEvents} reports those) is at least the gap old; otherwise it waits its turn and the tick
