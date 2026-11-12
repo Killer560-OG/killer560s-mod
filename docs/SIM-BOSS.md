@@ -88,14 +88,31 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   with him still in its section), flies into the core (0.8) once everyone is in it; one hit there kills him (ADM's kill is a
   timer standing in for a party's damage); his "...." queues behind his lines; the core's floor goes 2 ticks before
   Necron's line. Death-tick and Frenzy LINES only (the sim deals no damage).
+- **Necron's pull** (necronpull-1111, killer560 2026-11-11): as the core floor goes, Necron pulls every player (co-op
+  guests too, spectators not) down the shaft and holds them hovering 3 over his platform through his welcome lines, then
+  lets go at "Goodbye." (P4 t 84). Facts: the floor goes 2 ticks before his first line, 62 ticks after Goldor's death; the
+  wiki's "as the players are about to reach the bottom ... Necron hovers them in the air over a platform". All movement is
+  server side (`BossFight.necronPull`): a player outside the shaft (x 52-57, z 112-117) is teleported into it at his own
+  height, one above the hover height is pushed down at 1.2 a tick and drawn to the shaft, one at it is held (motion 0,
+  teleported back past 0.3); the look is kept (relative rotation). Logs "Necron pulls everyone down" and "Necron lets go".
+  The older wiki text about Necron breaking the platform under them is not modeled. Testkit 1111-boss-necronpull.
 - **P4 Necron**: a fixed script; his bar holds in each part (1 -> 0.8, 0.8 -> 0.25, 0.25 -> 0.05) until one hit takes
   that part's damage: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
   back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
-- **P5** (M7): a dragon is one pool of 15 units (boss-tpto-1109, killer560 2026-11-09; integers, no drift): an arrow takes 1, a Mage beam 3 (`SimClass.BEAM_DAMAGE` 10,001 vs a Terminator arrow's 10,000 tells them apart in `BossFight.onHurt`), so 15 arrows, 5 beams or 10 + 2 kill one; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
-  at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec), flies
-  (`SimDragon.aiStep`: goals inside its `WitherDragon.box`, 0.3 a tick, yaw 6 a tick) and places its 8 parts each tick.
+- **P5** (M7): a dragon is one pool of 15 units (boss-tpto-1109, killer560 2026-11-09; integers, no drift): EVERY arrow takes 1 (necronpull-1111: an arrow counts in `SimDragon.hit` itself, never through `onHurt`'s once-a-tick rule, so all 3 arrows of a Terminator volley count), a Mage beam 3 (`SimClass.BEAM_DAMAGE` 10,001 vs a Terminator arrow's 10,000 tells them apart in `BossFight.onHurt`), so 15 arrows, 5 beams or 10 + 2 kill one; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
+  at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec) and places its
+  8 parts each tick. Health (necronpull-1111): it sends Hypixel's 1,000,000,000 synched health, scaled by the units left
+  (`SimDragon.showHealth`, through `SimLivingHealthAccessor` because `setHealth` clamps to the vanilla max of 200), so
+  Wither Dragons' readout drops on every hit. Flight (necronpull-1111, his "mimic the movement from hypixel not this
+  random type of flying"): no public trace of the real paths exists, so the pattern keeps what is known: it rises
+  straight up out of its spawn point for 40 ticks (0.12 a tick, where stack-shooters aim at spawn + 3.5), then loops its
+  own area (`WitherDragon.box`) round the box center at radius min(x, z size)/2 - 5, 0.3 a tick, yaw 6 a tick,
+  alternate dragons the other way round, its height swinging slowly between the rise top and 3 under the box top.
+  Testkit 1111-boss-dragonhp (rise, loop, 3 arrows in one tick = 3 units, client and Wither Dragons health).
 
-Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick.
+Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick
+(except arrows on a dragon, which count one each: that rule ate 2 of every Terminator volley's 3 arrows, his "the dragon
+doesnt feel like it is taking every single arrow", necronpull-1111).
 One-hit phases (simitems-1105, killer560 2026-11-05: one mage beam or Terminator volley does all of a phase's damage):
 the bars (Maxor's, Storm's, Necron's) are the fight's only health and move ONLY on his hits and on Hypixel's scripted
 steps (laser hits, crushes, enrages, deaths); they used to drain on the clock, which read as damage with no hit. Storm

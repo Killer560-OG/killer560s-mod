@@ -238,6 +238,10 @@ public final class BossFight {
     private static int goldorDeadAt = -1;
     // P4
     private static int necronDeadAt = -1;
+    private static boolean necronPulling;
+    private static double pullHoverY;
+    /** Where each player is held while Necron's pull hovers him (cleared on release; one entry per player). */
+    private static final java.util.Map<java.util.UUID, Vec3> pullHeld = new java.util.HashMap<>();
     private static int necronPlatform, necronBarPhase;
     private static Vec3 necronSide = new Vec3(0, 0, 1);
     private static String necronTaunt = "";
@@ -390,6 +394,8 @@ public final class BossFight {
         necronDone = 0;
         goldorDeadAt = -1;
         necronDeadAt = -1;
+        necronPulling = false;
+        pullHeld.clear();
         java.util.Arrays.fill(dragonHits, 0);
         java.util.Arrays.fill(dragonDead, false);
         java.util.Arrays.fill(dragonSpawnAt, -1);
@@ -554,6 +560,9 @@ public final class BossFight {
             case P5 -> tickP5();
             default -> {
             }
+        }
+        if (necronPulling) {
+            necronPull();
         }
         BossLava.tick(s, level);
     }
@@ -1565,8 +1574,9 @@ public final class BossFight {
             goldorFrenzy();
         }
         if (goldorDeadAt >= 0 && t - goldorDeadAt == NECRON_AFTER - 2) {
-            // The floor under the core goes 2 ticks before Necron's line; everyone falls into P4.
+            // The floor under the core goes 2 ticks before Necron's line, and he pulls everyone down into P4.
             openCoreFloor();
+            startNecronPull();
         }
     }
 
@@ -1785,6 +1795,72 @@ public final class BossFight {
     private static final String[] NECRON_TAUNTS = {
             "Sometimes when you have a problem, you just need to destroy it all and start again.", "WITNESS MY RAW NUCLEAR POWER!"};
 
+    /** The square of the core's shaft a pulled player is kept in (inside the plug, x 51-57, z 111-117). */
+    private static final double[] PULL_SHAFT = {52.0, 112.0, 57.0, 117.0};
+    private static final double PULL_SPEED = 1.2;
+
+    /**
+     * Necron's pull (necronpull-1111, killer560 2026-11-11: "implement the necron pull down sequence into p4"): as the
+     * core's floor goes (2 ticks before his first line) he drags everyone down the shaft and holds them hovering over his
+     * platform through his welcome lines (the wiki: "Necron hovers them in the air over a platform" while he speaks);
+     * "Goodbye." (P4 t 84) lets them drop the 3 blocks onto it, before he can first be hit (89). Server side only.
+     */
+    private static void startNecronPull() {
+        pullHoverY = BossArena.standY(level, 54.5, 114.5, BossArena.P4_FLOOR, 100) + 3.0;
+        pullHeld.clear();
+        necronPulling = true;
+        LOGGER.info("[BossSim] Necron pulls everyone down at P3 t {} (hover y {})", t, pullHoverY);
+    }
+
+    /**
+     * One tick of the pull, for every player on the sim server (a co-op guest is a ServerPlayer too): one outside the
+     * shaft is put in it, one above the hover height is drawn down at {@link #PULL_SPEED} a tick (his motion set on the
+     * server and sent, {@code SimLaunch.push}), and one there is held: motion zero every tick, a teleport back (look
+     * kept) when his client drifts. No client-side position write anywhere.
+     */
+    private static void necronPull() {
+        boolean release = phase == Phase.P4 && t >= 2 * NECRON_INTRO;
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (p.level() != level || p.isSpectator()) {
+                continue;
+            }
+            p.fallDistance = 0;
+            if (release) {
+                com.killer560.hub.roomsim.SimLaunch.push(p, Vec3.ZERO);
+                continue;
+            }
+            double x = net.minecraft.util.Mth.clamp(p.getX(), PULL_SHAFT[0], PULL_SHAFT[2]);
+            double z = net.minecraft.util.Mth.clamp(p.getZ(), PULL_SHAFT[1], PULL_SHAFT[3]);
+            double y = p.getY();
+            Vec3 held = pullHeld.get(p.getUUID());
+            if (held == null && Math.abs(x - p.getX()) + Math.abs(z - p.getZ()) > 1.5) {
+                pullTeleport(p, x, Math.max(pullHoverY, Math.min(y, CORE_PLUG_Y - 1.0)), z);
+            } else if (held == null && y > pullHoverY + 0.3) {
+                com.killer560.hub.roomsim.SimLaunch.push(p,
+                        new Vec3((x - p.getX()) * 0.3, Math.max(-PULL_SPEED, pullHoverY - y), (z - p.getZ()) * 0.3));
+            } else {
+                if (held == null) {
+                    held = new Vec3(x, pullHoverY, z);
+                    pullHeld.put(p.getUUID(), held);
+                }
+                com.killer560.hub.roomsim.SimLaunch.push(p, Vec3.ZERO);
+                if (p.position().distanceToSqr(held) > 0.09) {
+                    pullTeleport(p, held.x, held.y, held.z);
+                }
+            }
+        }
+        if (release) {
+            necronPulling = false;
+            LOGGER.info("[BossSim] Necron lets go at P4 t {} ({} held)", t, pullHeld.size());
+            pullHeld.clear();
+        }
+    }
+
+    private static void pullTeleport(ServerPlayer p, double x, double y, double z) {
+        p.teleportTo(level, x, y, z, java.util.Set.of(net.minecraft.world.entity.Relative.X_ROT,
+                net.minecraft.world.entity.Relative.Y_ROT), 0f, 0f, false);
+    }
+
     private static void startP4() {
         phase(Phase.P4);
         BossChat.boss(server, "Necron", "You went further than any human before, congratulations.");
@@ -1965,9 +2041,10 @@ public final class BossFight {
             }
             if (dragonSpawnAt[i] >= 0 && t == dragonSpawnAt[i] + DRAGON_SPAWN && dragons[i] == null) {
                 WitherDragon spec = WitherDragon.values()[i];
-                SimDragon d = new SimDragon(level, spec.box);
+                SimDragon d = new SimDragon(level, spec, i % 2 == 0);
                 d.snapTo(spec.spawnPos.getX() + 0.5, spec.spawnPos.getY(), spec.spawnPos.getZ() + 0.5, 0f, 0f);
                 d.placeParts();
+                d.showHealth(DRAGON_UNITS);
                 level.addFreshEntity(d);
                 dragons[i] = d;
                 LOGGER.info("[BossSim] {} dragon spawned at P5 t {}", spec.colourName, t);
@@ -1980,7 +2057,11 @@ public final class BossFight {
             if (dragons[i] != d || dragonDead[i]) {
                 continue;
             }
-            if ((dragonHits[i] += units) < DRAGON_UNITS) {
+            dragonHits[i] = Math.min(DRAGON_UNITS, dragonHits[i] + units);
+            if (dragonHits[i] < DRAGON_UNITS) {
+                d.showHealth(DRAGON_UNITS - dragonHits[i]);
+                LOGGER.info("[BossSim] {} dragon hit at P5 t {}: {}/{} ({} health)", WitherDragon.values()[i].colourName, t,
+                        dragonHits[i], DRAGON_UNITS, (long) d.getHealth());
                 return;
             }
             dragonDead[i] = true;
@@ -2275,13 +2356,37 @@ public final class BossFight {
      * The parts are placed here as vanilla places them in level flight.
      */
     static final class SimDragon extends EnderDragon {
-        private static final double SPEED = 0.3;
+        /** Hypixel's M7 dragon health (Wither Dragons colors it by 750m / 500m / 250m of it). */
+        static final float HP = 1_000_000_000f;
+        private static final double SPEED = 0.3, RISE = 0.12;
+        private static final int RISE_TICKS = 40;
         private final AABB area;
-        private Vec3 goal;
+        private final Vec3 center;
+        private final double radius, lowY, highY;
+        private final boolean clockwise;
+        private int age;
 
-        SimDragon(Level level, AABB box) {
+        /**
+         * Its flight (simdragonfly-1111, killer560 2026-11-11: "mimic the movement from hypixel not this random type of
+         * flying"): it comes up out of its spawn point, straight up for {@link #RISE_TICKS} (its body passes the point the
+         * mods stack arrows on, spawn + 3.5, as it does on Hypixel), then circles its own statue's area: a loop round the
+         * area's middle as wide as the area allows with its wings inside, rising and dipping within the area's height,
+         * neighbors turning opposite ways. It never leaves its {@code WitherDragon.box} (the box Hypixel's kill check uses).
+         */
+        SimDragon(Level level, WitherDragon spec, boolean clockwise) {
             super(McEntities.ENDER_DRAGON, level);
-            area = box.deflate(3.0);
+            area = spec.box;
+            center = area.getCenter();
+            radius = Math.max(3.0, Math.min(area.getXsize(), area.getZsize()) / 2 - 5.0);
+            lowY = Math.min(area.maxY - 3.0, spec.spawnPos.getY() + RISE * RISE_TICKS);
+            highY = Math.max(lowY, area.maxY - 3.0);
+            this.clockwise = clockwise;
+        }
+
+        /** Its synched health, {@code unitsLeft} of {@link BossFight#DRAGON_UNITS} of {@link #HP}: what the client reads. */
+        void showHealth(int unitsLeft) {
+            getEntityData().set(com.killer560.hub.roomsim.mixin.SimLivingHealthAccessor.killer560smod$healthId(),
+                    HP * unitsLeft / DRAGON_UNITS);
         }
 
         @Override
@@ -2289,17 +2394,24 @@ public final class BossFight {
             if (isDeadOrDying()) {
                 return;
             }
-            if (goal == null || position().distanceToSqr(goal) < 4.0) {
-                var r = getRandom();
-                goal = new Vec3(area.minX + r.nextDouble() * area.getXsize(), area.minY + r.nextDouble() * area.getYsize(),
-                        area.minZ + r.nextDouble() * area.getZsize());
+            Vec3 step;
+            if (++age <= RISE_TICKS) {
+                step = new Vec3(0, RISE, 0);
+            } else {
+                // Aim 30 degrees ahead on the loop: from the middle it heads out to the loop, on it it follows it.
+                double a = Math.atan2(getZ() - center.z, getX() - center.x) + (clockwise ? -0.52 : 0.52);
+                double y = lowY + (highY - lowY) * (0.5 - 0.5 * Math.cos(age * 0.025));
+                Vec3 goal = new Vec3(center.x + Math.cos(a) * radius, y, center.z + Math.sin(a) * radius);
+                step = goal.subtract(position());
+                double len = step.length();
+                step = len < 1e-6 ? Vec3.ZERO : step.scale(Math.min(SPEED, len) / len);
             }
-            Vec3 step = goal.subtract(position());
-            step = step.scale(Math.min(SPEED, step.length()) / step.length());
-            // A dragon's head is at +sin(yaw), -cos(yaw) (vanilla's own convention, the reverse of a mob's look).
-            float want = (float) Math.toDegrees(Math.atan2(step.x, -step.z));
-            setYRot(getYRot() + net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(want - getYRot()), -6f, 6f));
-            yBodyRot = getYRot();
+            if (step.horizontalDistanceSqr() > 1e-8) {
+                // A dragon's head is at +sin(yaw), -cos(yaw) (vanilla's own convention, the reverse of a mob's look).
+                float want = (float) Math.toDegrees(Math.atan2(step.x, -step.z));
+                setYRot(getYRot() + net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(want - getYRot()), -6f, 6f));
+                yBodyRot = getYRot();
+            }
             setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
             placeParts();
         }
@@ -2359,7 +2471,13 @@ public final class BossFight {
                 lvl.playSound(null, p.getX(), p.getY(), p.getZ(), net.minecraft.sounds.SoundEvents.ARROW_HIT_PLAYER,
                         net.minecraft.sounds.SoundSource.PLAYERS, 0.18f, 0.45f);
             }
-            onHurt(this, amount == com.killer560.hub.roomsim.SimClass.BEAM_DAMAGE ? BEAM_UNITS : ARROW_UNITS);
+            if (source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow) {
+                // Every arrow is its own hit (killer560, 2026-11-11: "the dragon doesnt feel like it is taking every single
+                // arrow"): a volley's three land in one tick, and onHurt's one-per-tick rule kept only the first.
+                hitDragon(this, ARROW_UNITS);
+            } else {
+                onHurt(this, amount == com.killer560.hub.roomsim.SimClass.BEAM_DAMAGE ? BEAM_UNITS : ARROW_UNITS);
+            }
             return true;
         }
     }
