@@ -215,15 +215,18 @@ public final class SimTerminator {
     }
 
     /** Whether enough time has passed since the last shot, and claims the slot if so. */
-    public static boolean readyToFire() { return readyToFire(null); }
+    public static boolean readyToFire() { return readyToFire(null, true); }
 
     /** Each co-op guest's last shot (client tick count), by its UUID; cleared with {@link #reset}. */
     private static final java.util.Map<UUID, Integer> GUEST_LAST_SHOT = new java.util.HashMap<>();
 
     /** {@link #readyToFire()} for a co-op guest's own fire rate ({@code guest} null: the host's). Client thread. */
-    static boolean readyToFire(UUID guest) {
+    static boolean readyToFire(UUID guest) { return readyToFire(guest, false); }
+
+    /** As above; a left click may shoot every {@link SimAttackSpeed#TERMINATOR_CLICK_INTERVAL_TICKS}, a right click every shortbow cooldown. */
+    static boolean readyToFire(UUID guest, boolean leftClick) {
         int last = guest == null ? lastShotTick : GUEST_LAST_SHOT.getOrDefault(guest, -1000);
-        if (tickCounter - last < SHOT_COOLDOWN_TICKS) return false;
+        if (tickCounter - last < (leftClick ? SimAttackSpeed.TERMINATOR_CLICK_INTERVAL_TICKS : SHOT_COOLDOWN_TICKS)) return false;
         if (guest == null) lastShotTick = tickCounter; else GUEST_LAST_SHOT.put(guest, tickCounter);
         return true;
     }
@@ -346,7 +349,7 @@ public final class SimTerminator {
         SimAim.Aim aim = SimAim.of(sp);
         UUID guest = sp.getUUID();
         SimAbilities.onClient(() -> {
-            if (readyToFire(guest)) {
+            if (readyToFire(guest, true)) {
                 SimAim.with(aim, () -> use(Minecraft.getInstance(), true, guest));
             }
         });
