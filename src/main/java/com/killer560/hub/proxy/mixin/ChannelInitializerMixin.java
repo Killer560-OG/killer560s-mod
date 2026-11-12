@@ -1,14 +1,9 @@
 package com.killer560.hub.proxy.mixin;
 
+import com.killer560.hub.proxy.ProxyInstall;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
 import io.netty.handler.proxy.ProxyHandler;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -41,29 +36,6 @@ public class ChannelInitializerMixin {
         if (!config.isEnabled()) return;
         ProxyHandler handler = config.createHandler();
         if (handler == null) return;
-        install(channel, handler);
-    }
-
-    public static void install(Channel channel, ProxyHandler handler) {
-        // Insert before Minecraft's own handlers so the SOCKS handshake runs first.
-        channel.pipeline().addFirst("killer560smod:socks", handler);
-        // Loopback and LAN servers are connected to directly: the gate sees connect() first and drops the proxy handler.
-        channel.pipeline().addAfter("killer560smod:socks", "killer560smod:socksgate", new ChannelOutboundHandlerAdapter() {
-            @Override
-            public void connect(ChannelHandlerContext ctx, SocketAddress remote, SocketAddress local, ChannelPromise promise) throws Exception {
-                if (isLocal(remote)) ctx.pipeline().remove("killer560smod:socks");
-                ctx.pipeline().remove(this);
-                super.connect(ctx, remote, local, promise);
-            }
-        });
-    }
-
-    /** True for localhost, loopback, any-local, link-local and private (10/8, 172.16/12, 192.168/16, fc00::/7) addresses. */
-    public static boolean isLocal(SocketAddress remote) {
-        if (!(remote instanceof InetSocketAddress isa)) return false;
-        InetAddress a = isa.getAddress();
-        if (a == null) return "localhost".equalsIgnoreCase(isa.getHostString());
-        return a.isLoopbackAddress() || a.isAnyLocalAddress() || a.isLinkLocalAddress() || a.isSiteLocalAddress()
-                || (a.getAddress().length == 16 && (a.getAddress()[0] & 0xFE) == 0xFC);
+        ProxyInstall.install(channel, handler);
     }
 }
