@@ -34,8 +34,9 @@ public final class OutgoingChat {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-outgoingchat");
 
+    // Every wait below is 250 ms (killer560, 2026-11-11: "just remove that crazy delay. it should be like .25s").
     /** The least time between two lines this mod sends (see the class comment for where the number comes from). */
-    public static final long MIN_GAP_MS = 500L;
+    public static final long MIN_GAP_MS = 250L;
     /** A reserved place nobody filled in this long is given up, so it never holds the queue for good. */
     static final long RESERVE_TIMEOUT_MS = 3_000L;
     /** Hypixel's rate-limit answer counts as being about our last line only this soon after it. */
@@ -50,7 +51,7 @@ public final class OutgoingChat {
      * 21:20:02, 21:26:22). Lines sent in a burst echoed 2-3 s late, lone ones at once. One line in flight keeps his own
      * command at most one line behind ours.
      */
-    static final long ECHO_WAIT_MS = 1_500L;
+    static final long ECHO_WAIT_MS = 250L;
     /**
      * Terminal guard (termclose-1111, killer560 2026-11-11: "something keeps closing my terminals"). His 26.3 logs of
      * 11-11: every F7 terminal Hypixel closed unsolved (5 of 75 opens) had one of our party lines unanswered (sent, not
@@ -59,11 +60,11 @@ public final class OutgoingChat {
      * terminal not yet done (at most {@link #NEAR_WAIT_MS}), from his click on an entity (a terminal stand) until a menu
      * opens ({@link #OPEN_WAIT_MS} at most), and until a terminal has been open this long. His own commands never wait.
      */
-    static final long TERMINAL_SETTLE_MS = 1_500L;
+    static final long TERMINAL_SETTLE_MS = 250L;
     /** After an entity click, how long our lines wait for a menu to open. */
-    static final long OPEN_WAIT_MS = 1_000L;
+    static final long OPEN_WAIT_MS = 250L;
     /** The longest our lines wait while he stands at a terminal without opening it (someone else may be in it). */
-    static final long NEAR_WAIT_MS = 3_000L;
+    static final long NEAR_WAIT_MS = 250L;
 
     /** Command words that are chat lines to Hypixel (counted against the gap when he types them himself). */
     static final Set<String> CHAT_COMMANDS = Set.of("pc", "ac", "gc", "oc", "cc", "msg", "w", "r", "tell",
