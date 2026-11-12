@@ -2371,18 +2371,26 @@ public final class BossFight {
         static final float HP = 1_000_000_000f;
         private static final double SPEED = 0.3, RISE = 0.12;
         private static final int RISE_TICKS = 40;
+        /**
+         * Ticks of past hitboxes an arrow may still strike: the client draws a dragon 1-1.5 blocks (4-5 ticks at
+         * {@link #SPEED}) behind the server's boxes (position sent every few ticks, then interpolated), and he aims at the
+         * drawn one (necronpull-1111: arrows at the drawn body missed or started inside the server box).
+         */
+        private static final int LAG = 6;
         private final AABB area;
-        private final Vec3 center;
-        private final double radius, lowY, highY;
+        private Vec3 center;
+        private double radius, lowY, highY;
         private final boolean clockwise;
         private int age;
+        private final AABB[][] past = new AABB[LAG][];
+        private int pastAt;
 
         /**
          * Its flight (simdragonfly-1111, killer560 2026-11-11: "mimic the movement from hypixel not this random type of
          * flying"): it comes up out of its spawn point, straight up for {@link #RISE_TICKS} (its body passes the point the
          * mods stack arrows on, spawn + 3.5, as it does on Hypixel), then circles its own statue's area: a loop round the
-         * area's middle as wide as the area allows with its wings inside, rising and dipping within the area's height,
-         * neighbors turning opposite ways. It never leaves its {@code WitherDragon.box} (the box Hypixel's kill check uses).
+         * area's middle clear of every block (see {@link #clearLoop}), rising and dipping,
+         * neighbors turning opposite ways.
          */
         SimDragon(Level level, WitherDragon spec, boolean clockwise) {
             super(McEntities.ENDER_DRAGON, level);
@@ -2392,6 +2400,91 @@ public final class BossFight {
             lowY = Math.min(area.maxY - 3.0, spec.spawnPos.getY() + RISE * RISE_TICKS);
             highY = Math.max(lowY, area.maxY - 3.0);
             this.clockwise = clockwise;
+            for (int k = 0; k < LAG; k++) {
+                past[k] = new AABB[getSubEntities().length];
+            }
+            clearLoop(spec);
+        }
+
+        /** Each dragon's clear loop {center x, z, radius, low y, rise}, found once (the arena never changes; 5 entries). */
+        private static final java.util.Map<WitherDragon, double[]> LOOPS = new java.util.EnumMap<>(WitherDragon.class);
+        /** How far past its area (up, and out across) a loop may go to clear its statue and the room's roof. */
+        private static final double CLIMB = 8.0, REACH = 8.0;
+
+        /**
+         * The nearest, then lowest, then widest loop whose every point keeps all 8 parts out of the arena's blocks (his "never inside
+         * blocks": Red's loop ran through its statue and arrows stopped on it). Centers nearest the area's middle first,
+         * up to {@link #REACH} outside it across and {@link #CLIMB} above it; a level loop if no rising and dipping one is
+         * clear. Keeps the first plan, with a WARN, if nothing is clear.
+         */
+        private void clearLoop(WitherDragon spec) {
+            double[] plan = LOOPS.get(spec);
+            long t0 = System.nanoTime();
+            if (plan == null) {
+                plan = findLoop();
+                if (plan != null) {
+                    LOOPS.put(spec, plan);
+                }
+            }
+            if (plan == null) {
+                LOGGER.warn("[BossSim] {} dragon: no loop near its area is clear of blocks; flying the plain one", spec.colourName);
+                return;
+            }
+            highY = plan[3] + plan[4];
+            center = new Vec3(plan[0], plan[3], plan[1]);
+            radius = plan[2];
+            lowY = plan[3];
+            LOGGER.info("[BossSim] {} dragon loop: center {}, radius {}, y {}-{} ({} ms)", spec.colourName, center, radius,
+                    lowY, highY, (System.nanoTime() - t0) / 1_000_000);
+        }
+
+        private double[] findLoop() {
+            List<Vec3> centers = new ArrayList<>();
+            Vec3 mid = area.getCenter();
+            for (double x = area.minX - REACH; x <= area.maxX + REACH; x += 2) {
+                for (double z = area.minZ - REACH; z <= area.maxZ + REACH; z += 2) {
+                    centers.add(new Vec3(x, 0, z));
+                }
+            }
+            centers.sort(java.util.Comparator.comparingDouble(c -> c.distanceToSqr(mid.x, 0, mid.z)));
+            for (double band : new double[]{highY - lowY, 0}) {
+                for (Vec3 c : centers) {
+                    for (double low = lowY; low <= area.maxY + CLIMB; low += 2.0) {
+                        for (double r = radius; r >= 3.0; r -= 2.0) {
+                            if (loopClear(c, r, low, low + band)) {
+                                return new double[]{c.x, c.z, r, low, band};
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        private boolean loopClear(Vec3 c, double r, double low, double high) {
+            for (double y : new double[]{low, (low + high) / 2, high}) {
+                for (int k = 0; k < 24; k++) {
+                    double a = k * Math.PI / 12;
+                    float yaw = (float) Math.toDegrees(Math.atan2(-Math.sin(a), -Math.cos(a))) + (clockwise ? 180f : 0f);
+                    if (!clearAt(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r, yaw)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /** Whether all 8 parts, placed for a body at x, y, z facing yaw, are out of every block (moves the parts). */
+        private boolean clearAt(double x, double y, double z, float yaw) {
+            setPos(x, y, z);
+            setYRot(yaw);
+            placeParts();
+            for (EnderDragonPart part : getSubEntities()) {
+                if (!level().noCollision(part.getBoundingBox())) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /** Its synched health, {@code unitsLeft} of {@link BossFight#DRAGON_UNITS} of {@link #HP}: what the client reads. */
@@ -2417,14 +2510,75 @@ public final class BossFight {
                 double len = step.length();
                 step = len < 1e-6 ? Vec3.ZERO : step.scale(Math.min(SPEED, len) / len);
             }
+            float yaw = getYRot();
             if (step.horizontalDistanceSqr() > 1e-8) {
                 // A dragon's head is at +sin(yaw), -cos(yaw) (vanilla's own convention, the reverse of a mob's look).
                 float want = (float) Math.toDegrees(Math.atan2(step.x, -step.z));
-                setYRot(getYRot() + net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(want - getYRot()), -6f, 6f));
-                yBodyRot = getYRot();
+                yaw += net.minecraft.util.Mth.clamp(net.minecraft.util.Mth.wrapDegrees(want - yaw), -6f, 6f);
             }
-            setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
+            double x = getX(), y = getY(), z = getZ();
+            if (age > RISE_TICKS && y + SPEED < highY + 3.0 && clearAt(x, y, z, getYRot())
+                    && !clearAt(x + step.x, y + step.y, z + step.z, yaw)) {
+                // Out in the open, a block is in the way: climb over it. Still inside the statue it spawned in (or with
+                // no room to climb), it flies on out to its loop.
+                step = new Vec3(0, SPEED, 0);
+            }
+            setYRot(yaw);
+            yBodyRot = yaw;
+            setPos(x + step.x, y + step.y, z + step.z);
             placeParts();
+            if (level() instanceof ServerLevel lvl) {
+                hitDrawn(lvl);
+            }
+        }
+
+        /**
+         * Lag-compensated arrows: an arrow whose path this tick crosses, or starts inside, one of the part boxes of the
+         * last {@link #LAG} ticks (where his client still draws the dragon) is a hit, unless a block is in the way.
+         * Vanilla's own hit test covers only the current boxes, and an arrow it counts is gone before this sees it.
+         */
+        private void hitDrawn(ServerLevel lvl) {
+            EnderDragonPart[] parts = getSubEntities();
+            AABB[] now = past[pastAt];
+            for (int k = 0; k < parts.length; k++) {
+                now[k] = parts[k].getBoundingBox();
+            }
+            pastAt = (pastAt + 1) % LAG;
+            for (net.minecraft.world.entity.projectile.arrow.AbstractArrow arrow : lvl.getEntitiesOfClass(
+                    net.minecraft.world.entity.projectile.arrow.AbstractArrow.class, getBoundingBox().inflate(12),
+                    a -> a.getOwner() instanceof ServerPlayer && a.getDeltaMovement().lengthSqr() > 0.01)) {
+                Vec3 from = new Vec3(arrow.xo, arrow.yo, arrow.zo);
+                Vec3 to = arrow.position().add(arrow.getDeltaMovement());
+                Vec3 at = struck(from, to);
+                if (at != null && lvl.clip(new net.minecraft.world.level.ClipContext(from, at,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                        arrow)).getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                        && hit(lvl, damageSources().arrow(arrow, arrow.getOwner()), 0f)) { // an arrow counts by itself, the amount is unused
+                    arrow.discard();
+                }
+            }
+        }
+
+        /** Where the segment first meets a remembered part box (its start if it starts inside one), or null. */
+        private Vec3 struck(Vec3 from, Vec3 to) {
+            Vec3 best = null;
+            double bestD = Double.MAX_VALUE;
+            for (AABB[] boxes : past) {
+                for (AABB b : boxes) {
+                    if (b == null) {
+                        continue;
+                    }
+                    if (b.contains(from)) {
+                        return from;
+                    }
+                    Vec3 hitAt = b.clip(from, to).orElse(null);
+                    if (hitAt != null && hitAt.distanceToSqr(from) < bestD) {
+                        best = hitAt;
+                        bestD = hitAt.distanceToSqr(from);
+                    }
+                }
+            }
+            return best;
         }
 
         /** Head, neck, body, tail 1-3, wings: vanilla EnderDragon.aiStep's offsets with no climb or tail swing. */

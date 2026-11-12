@@ -107,17 +107,23 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   clamping the entity to its max a tick after the packet, so Wither Dragons draws the PACKET's health (`packetHealth`),
   never `getHealth()` at render (its label read 200). Flight (necronpull-1111, his "mimic the movement from hypixel not this
   random type of flying"): no public trace of the real paths exists, so the pattern keeps what is known: it rises
-  straight up out of its spawn point for 40 ticks (0.12 a tick, where stack-shooters aim at spawn + 3.5), then loops its
-  own area (`WitherDragon.box`) round the box center at radius min(x, z size)/2 - 5, 0.3 a tick, yaw 6 a tick,
-  alternate dragons the other way round, its height swinging slowly between the rise top and 3 under the box top.
-  Testkit 1111-boss-dragonhp (rise, loop, 3 arrows in one tick = 3 units, client and Wither Dragons health).
+  straight up out of its spawn point for 40 ticks (0.12 a tick, where stack-shooters aim at spawn + 3.5), then loops
+  near its own area (`WitherDragon.box`), 0.3 a tick, yaw 6 a tick, alternate dragons the other way round, its height
+  swinging slowly. The loop is never inside blocks (his "never inside blocks"): once per session per dragon
+  (`SimDragon.LOOPS`, 45-360 ms on the server thread at its first spawn) it takes the loop nearest the box center, then
+  lowest, then widest, whose 72 sample points keep all 8 part boxes clear, centers up to 8 past the box and heights up
+  to 8 over it (Red's statue fills its box up to the roof, so Red loops at (26.5, 43.5) r 3.5 just north of it). Out of
+  the statue it spawned in, a dragon whose next step meets a block climbs instead. Testkit 1111-boss-dragonhp (rise,
+  loop, no part in blocks over 120 ticks, 3 arrows in one tick = 3 units, client and Wither Dragons health).
 
 Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick
 (except arrows on a dragon, which count one each: that rule ate 2 of every Terminator volley's 3 arrows, his "the dragon
 doesnt feel like it is taking every single arrow", necronpull-1111). After that fix no hit is dropped: traced arrow by arrow (testkit 1111-boss-dragonhp, 27 of 27 over 3 runs),
 every lost arrow either met a block first (the arena wall, the statue the body overlaps) or was shot from inside the
 body box (a clip from inside misses). The client draws the dragon 1-1.5 blocks behind the server hitbox (position sent
-every 3 ticks, then interpolated), as a real server does.
+every 3 ticks, then interpolated), and he aims at the drawn one, so `SimDragon.hitDrawn` lag-compensates: each tick an
+arrow of a player whose path crosses, or starts inside, a part box of the last 6 ticks counts unless a block is between
+(9 of 9 Terminator arrows aimed at the client-drawn body from 6 blocks, testkit 1111-boss-dragonhp).
 One-hit phases (simitems-1105, killer560 2026-11-05: one mage beam or Terminator volley does all of a phase's damage):
 the bars (Maxor's, Storm's, Necron's) are the fight's only health and move ONLY on his hits and on Hypixel's scripted
 steps (laser hits, crushes, enrages, deaths); they used to drain on the clock, which read as damage with no hit. Storm
