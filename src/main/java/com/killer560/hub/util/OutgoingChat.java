@@ -124,7 +124,7 @@ public final class OutgoingChat {
     private static long interactSentMs = Long.MIN_VALUE / 4;
     private static Object terminalScreen;
     private static long terminalOpenedMs;
-    private static boolean holdLogged;
+    private static String holdLogged;
     private static long nearSinceMs = Long.MIN_VALUE / 4;
     private static boolean wasNear;
 
@@ -246,6 +246,7 @@ public final class OutgoingChat {
         } else if (screen != terminalScreen) {
             terminalScreen = screen;
             terminalOpenedMs = t;
+            holdLogged = null;
             interactSentMs = Long.MIN_VALUE / 4;
         }
         boolean near = !terminal && !QUEUE.isEmpty() && client.player != null
@@ -255,12 +256,11 @@ public final class OutgoingChat {
         String why = terminal && t - terminalOpenedMs < TERMINAL_SETTLE_MS ? "a terminal just opened"
                 : !terminal && screen == null && t - interactSentMs < OPEN_WAIT_MS ? "an entity click may open a terminal"
                 : near && t - nearSinceMs < NEAR_WAIT_MS ? "he stands at a terminal" : null;
-        boolean hold = why != null;
-        if (hold && !QUEUE.isEmpty() && !holdLogged) {
+        if (why != null && !QUEUE.isEmpty() && !why.equals(holdLogged)) {
             LOGGER.info("[OutgoingChat] holding {} line(s): {}", QUEUE.size(), why);
         }
-        holdLogged = hold && !QUEUE.isEmpty();
-        return hold;
+        holdLogged = QUEUE.isEmpty() ? null : why;
+        return why != null;
     }
 
     /**
