@@ -684,7 +684,7 @@ final class SettingTooltipsData {
         d.put("fast mode", "Holds movement and blocks inputs only while the leap menu is open, not the whole leap.");
         d.put("swap back", "Switches back to the hotbar slot you held before the automatic action.");
         d.put("door opener leap", "Fast leap goes to whoever last opened a Wither or Blood door; in Auto mode, leaps as soon as one opens.");
-        d.put("crystal leap", "F7 P1 (crystals): fast leap to this target; in Auto mode, leaps on the 2nd Energy Laser message.");
+        d.put("crystal leap", "F7 P1 (crystals): fast leap to this target; in Auto mode, leaps the moment you pick up an Energy Crystal.");
         d.put("predev leap", "F7 during P1/P2: fast leap to the predev target; in Auto mode, leaps on Storm's 'happy to show you' line.");
         d.put("green pad leap", "F7 P2 green pad: fast leap to its target; in Auto mode, leaps on Storm's 1st crush.");
         d.put("yellow pad leap", "F7 P2 yellow pad: fast leap to its target; in Auto mode, leaps on Storm's 2nd crush.");
@@ -2184,7 +2184,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
         d.put("fast/auto leap/leaps", "One row per leap spot: Off (unused), Fast (your left click with a leap item there leaps) or Auto (it leaps by itself on its trigger). Who each one leaps to is on the Universal and Set Class Targets pages.");
         String[][] leapTriggers = {{"door opener", "whoever last opened a Wither or Blood door. Auto leaps as soon as one opens"},
-                {"crystal", "the Crystal target in F7 P1. Auto leaps on the 2nd Energy Laser message"},
+                {"crystal", "the Crystal target in F7 P1. Auto leaps the moment you pick up an Energy Crystal"},
                 {"predev", "the Predev target in F7 P1/P2. Auto leaps on Storm's 'happy to show you' line"},
                 {"green pad", "the Green Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
                 {"yellow pad", "the Yellow Pad target in F7 P2. Auto leaps on Storm's 2nd crush"},
