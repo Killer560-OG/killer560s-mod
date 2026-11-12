@@ -180,21 +180,11 @@ public final class TranslateFeature {
         // addToHistory=false: this text was never typed by killer560 (it's a bot-generated line, e.g.
         // /cringe or a Leap Message), so it shouldn't show up when he presses Up Arrow in chat -
         // that history is for recalling what HE typed.
-        // A generated line for Hypixel takes its place in util/OutgoingChat NOW, so a translation still on the network
-        // keeps its turn: Leap Message's lines go before a Posmsg callout asked for a tick later (2026-11-02).
-        OutgoingChat.Slot slot = "kc".equalsIgnoreCase(commandWord) ? null : OutgoingChat.reserve();
-        processAndSend(message, commandWord, false, translateActive, autoCorrectActive, emotesActive, cfg, slot);
+        processAndSend(message, commandWord, false, translateActive, autoCorrectActive, emotesActive, cfg);
     }
 
     private static void processAndSend(String toProcess, String commandWord, boolean addToHistory,
             boolean translateActive, boolean autoCorrectActive, boolean emotesActive, TranslateConfig cfg) {
-        processAndSend(toProcess, commandWord, addToHistory, translateActive, autoCorrectActive, emotesActive, cfg, null);
-    }
-
-    /** @param slot a generated line's place in {@link OutgoingChat}, or null for a line he typed (and for Mod Chat). */
-    private static void processAndSend(String toProcess, String commandWord, boolean addToHistory,
-            boolean translateActive, boolean autoCorrectActive, boolean emotesActive, TranslateConfig cfg,
-            OutgoingChat.Slot slot) {
         String finalCommandWord = commandWord;
 
         // Auto Correct runs first and is purely local (no network), so it's applied synchronously
@@ -221,9 +211,7 @@ public final class TranslateFeature {
             // Either Translate is off, or the whole message was just emote trigger(s) with no real
             // text left to translate - either way, nothing left for Translate to do.
             if (client.player != null) {
-                sendFinal(client, finalCommandWord, correctedWithEmotes, addToHistory, slot);
-            } else if (slot != null) {
-                slot.cancel();
+                sendFinal(client, finalCommandWord, correctedWithEmotes, addToHistory);
             }
             return;
         }
@@ -245,9 +233,6 @@ public final class TranslateFeature {
                 .thenCombine(translating, (ignored, result) -> result)
                 .thenAccept(result -> client.execute(() -> {
                     if (client.player == null) {
-                        if (slot != null) {
-                            slot.cancel();
-                        }
                         return;
                     }
                     String translatedBody = result != null ? result.text() : null;
@@ -260,20 +245,17 @@ public final class TranslateFeature {
                     String bodyOut = (translatedBody != null && !translatedBody.isBlank())
                             ? translatedBody : bodyToTranslate;
                     String outgoing = ChatEmoteFeature.join(emoteSplit.prefix(), bodyOut, emoteSplit.suffix());
-                    sendFinal(client, finalCommandWord, outgoing, addToHistory, slot);
+                    sendFinal(client, finalCommandWord, outgoing, addToHistory);
                 }))
                 .exceptionally(t -> {
                     LOGGER.warn("Outgoing translate send failed", t);
-                    if (slot != null) {
-                        slot.cancel();
-                    }
                     return null;
                 });
     }
 
     /** @param typed true for a line he typed (it goes out the way vanilla sends a command), false for a generated one.
-     *  @param slot a generated line's place in {@link OutgoingChat} (it is filled here), or null. */
-    private static void sendFinal(Minecraft client, String commandWord, String text, boolean typed, OutgoingChat.Slot slot) {
+     */
+    private static void sendFinal(Minecraft client, String commandWord, String text, boolean typed) {
         if (!"kc".equalsIgnoreCase(commandWord)) {
             // A translation can come back longer than what he typed, and a line over 256 characters makes the packet
             // encoder throw and drops the connection; a section sign or control character gets him kicked. Same rule
@@ -281,37 +263,25 @@ public final class TranslateFeature {
             text = com.killer560.hub.spotify.SpotifyLyricsFeature.chatSafe(text,
                     commandWord == null ? "" : "/" + commandWord + " ");
             if (text.isEmpty()) {
-                if (slot != null) {
-                    slot.cancel();
-                }
                 return;
             }
         }
-        if (slot != null && !"kc".equalsIgnoreCase(commandWord)) {
-            // A generated line: it goes when its turn in util/OutgoingChat comes (commands below the client dispatcher,
-            // through util/ServerCommands, where no client command of this or any mod can catch them).
-            if (commandWord == null) {
-                slot.fillChat(text);
-            } else {
-                slot.fillCommand(commandWord + " " + text);
-            }
-            return;
-        }
-        if (slot != null) {
-            slot.cancel();
-        }
         if (commandWord == null) {
             // Plain chat: while his channel is Mod Chat (/chat k), Fabric's ALLOW_CHAT hands this to the relay.
-            client.player.connection.sendChat(text);
+            if (typed) {
+                client.player.connection.sendChat(text);
+            } else {
+                OutgoingChat.chat(text);
+            }
         } else if ("kc".equalsIgnoreCase(commandWord)) {
             // Mod Chat is this mod's own channel, not a Hypixel command: straight to the relay, never to Hypixel.
             com.killer560.hub.modchat.ModChatChannel.sendLine(text);
         } else if (typed) {
             client.player.connection.sendCommand(commandWord + " " + text);
         } else {
-            // A generated line is always for Hypixel's channel commands (/pc, /ac, /msg ...): send it below the client
-            // dispatcher (util/ServerCommands), where no client command of this or any mod can catch it.
-            com.killer560.hub.util.ServerCommands.toServer(commandWord + " " + text);
+            // A generated line is always for Hypixel's channel commands (/pc, /ac, /msg ...): it goes out at once, below
+            // the client dispatcher (util/OutgoingChat -> ServerCommands), where no client command can catch it.
+            OutgoingChat.command(commandWord + " " + text);
         }
     }
 

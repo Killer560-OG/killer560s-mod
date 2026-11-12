@@ -109,11 +109,15 @@ They are the same rules as before; only where they live changed.
   `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
-- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (or
-  `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
-  refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
-  every leap (2026-11-02). The queue spaces lines 250 ms apart and sends at once when idle (docs/LESSONS.md).
-  Hypixel handles one player's commands IN ORDER, so every party line already sent sits in front of his next command: his /stats Chat Keybind in EE3 opened only after the mod's /pc burst echoed (2026-11-11 log, 21:29:31 sends, 21:29:33 echoes, 21:29:34 Stats; burst lines echoed 2-3 s late, lone ones at once). So OutgoingChat keeps ONE party line in flight (the next waits for Hypixel's "Party > ...: text" echo or ECHO_WAIT_MS 250 ms), and every command he sends (typed: Fabric COMMAND event; Chat Keybinds: noteOther) goes at once with our waiting lines a full gap after it. Command Keybinds logs "[CommandKeybinds] sent /x". Testkit 1111-hx-cmdkey-first (cmdfirst-1111).
+- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (plain chat:
+  `OutgoingChat.chat`), never straight to `sendCommand`/`toServer`, and it leaves THE MOMENT it is requested: no queue, no gap
+  between lines, no wait for an echo, no yielding to Chat Keybinds (killer560, 2026-11-12: "do away with the timing stuff. just
+  have it all send when i should send it"; chatnow-1112 removed the 250 ms gap, the one-party-line-in-flight rule, the
+  refused-line resend, Translate's reserved places and Party Commands' Reply Delay setting; an old `replyDelayMs` key in a file
+  is ignored). Two rules stay: nothing while not connected, and nothing mod-originated while a terminal GUI is open ("nothing
+  goes off in a terminal", same day): the line is held (at most 16) and goes on the first tick no terminal is open, or is dropped
+  if then over 30 s old. His own commands never wait. Hypixel may answer "Woah slow down" to two lines in one tick (2026-11-02):
+  that is accepted. Testkit 1112-hx-chatnow-burst / -terminal.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven

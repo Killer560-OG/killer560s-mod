@@ -4,7 +4,6 @@ import com.killer560.hub.commandshortcuts.CommandShortcutsConfig;
 import com.killer560.hub.commandshortcuts.CommandShortcutsFeature;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
-import com.killer560.hub.util.OutgoingChat;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -77,7 +76,6 @@ public final class CommandKeybindsFeature {
             if (fire && isDown && !customWasDown[i]) {
                 String cmd = CommandShortcutsFeature.commandOf(c);
                 if (ServerCommands.toServer(cmd)) {
-                    OutgoingChat.noteOther();
                     LOGGER.info("[CommandKeybinds] sent /{}", cmd);
                 }
             }
@@ -93,7 +91,6 @@ public final class CommandKeybindsFeature {
         if (line.charAt(0) == '/') {
             String command = line.substring(1);
             if (!command.isEmpty()) {
-                // sendCommand fires Fabric's COMMAND event, which OutgoingChat counts: our queued lines wait after it.
                 client.player.connection.sendCommand(command);
                 LOGGER.info("[CommandKeybinds] sent /{}", command);
             }

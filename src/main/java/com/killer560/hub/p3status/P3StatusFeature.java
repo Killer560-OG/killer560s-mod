@@ -170,20 +170,6 @@ public final class P3StatusFeature {
         return null;
     }
 
-    /**
-     * True while {@code at} is within 5 blocks of a terminal of the running P3 section not yet known done: he is about to
-     * click it (util/OutgoingChat holds our party lines then, termclose-1111).
-     */
-    public static boolean nearUndoneTerminal(Vec3 at) {
-        if (!DungeonState.isF7OrM7() || !P3SectionTracker.running()) return false;
-        int s = P3SectionTracker.section() - 1;
-        if (s < 0 || s > 3) return false;
-        for (int i = 0; i < TERMINALS[s].length; i++) {
-            if (!TERMINAL_DONE[s][i] && TERMINALS[s][i].distanceToSqr(at) <= 25.0) return true;
-        }
-        return false;
-    }
-
     private static void tick(Minecraft client) {
         P3SectionTracker.poll(client);
         syncRun();
