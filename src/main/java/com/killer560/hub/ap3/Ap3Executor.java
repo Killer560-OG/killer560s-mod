@@ -5575,13 +5575,6 @@ public final class Ap3Executor {
      * steers only the view, so moving the crosshair can no longer bend the walk.
      */
     private static void applyHoldRealYaw(LocalPlayer player) {
-        if (holdNode != null && number(holdNode) >= 26) { // DEV leverjump-strafe: path after the boom
-            LOGGER.info("[AP3 dev] hold #{} pos {} {} {} vel {} {} ground {} yaw {} walk {}", number(holdNode),
-                    String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getY()),
-                    String.format(Locale.US, "%.3f", player.getZ()), String.format(Locale.US, "%.3f", player.getDeltaMovement().x),
-                    String.format(Locale.US, "%.3f", player.getDeltaMovement().z), player.onGround(),
-                    String.format(Locale.US, "%.1f", player.getYRot()), String.format(Locale.US, "%.1f", walkYawDeg()));
-        }
         if (Float.isNaN(viewYaw) && freezeViewWanted()) {
             viewYaw = player.getYRot();
         }
@@ -5655,8 +5648,19 @@ public final class Ap3Executor {
             // recorded line, came down on the low half of the stairs beside node 30's floor, and node 29's own yaw led along
             // that half until it ended over the lava. (Aiming at every next node broke the walks around the walls before
             // node 24, and at the next node whenever the floor ahead thins walked him into the first wall: only the step.)
-            double up = next == null ? 0 : next.y - p.getY();
-            return up < 0.05 || up > 0.6 ? Float.NaN
+            // Only while he stands more than a step BELOW his own node's level (he fell off it): node 19's walk climbs the
+            // stairs to node 20 on the recorded line, and aiming at node 20 there moved Strafe OFF's node 24 jump 0.2 blocks,
+            // short of node 25.
+            // The walk into an align point (node 31 to the align at 32) also aims at it: with Strafe he landed 1.9 blocks past
+            // node 31, and node 31's own yaw from there ran off the floor's side beside the align.
+            if (next == null) {
+                return Float.NaN;
+            }
+            double up = next.y - p.getY();
+            boolean step = up >= 0.05 && up <= 0.6 && p.getY() < holdNode.y - 0.6;
+            boolean toAlign = next.type.isAlign() && Math.abs(up) <= 0.6
+                    && Math.hypot(next.x - p.getX(), next.z - p.getZ()) > 0.5;
+            return !step && !toAlign ? Float.NaN
                     : (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
         }
         if (next == null || next.y > p.getY() - 1.0) {
@@ -5682,26 +5686,8 @@ public final class Ap3Executor {
         return bestSteer(p, walkYaw, next, true);
     }
 
-    private static boolean devMapDone;
-    private static double devLX, devLZ;
     private static float bestSteer(LocalPlayer p, float walkYaw, Ap3Node next, boolean jump) {
-        if (!devMapDone) {
-            devMapDone = true;
-            StringBuilder sb = new StringBuilder();
-            for (int iz = 0; iz <= 24; iz++) {
-                double zz = Math.floor(next.z) - 3 + iz * 0.25;
-                sb.append(String.format(Locale.US, "%n z%7.2f ", zz));
-                for (int ix = 0; ix <= 24; ix++) {
-                    double xx = Math.floor(next.x) - 3 + ix * 0.25;
-                    boolean top = !p.level().noCollision(p, new net.minecraft.world.phys.AABB(xx - 0.01, next.y - 0.6, zz - 0.01, xx + 0.01, next.y + 0.1, zz + 0.01));
-                    boolean wall = !p.level().noCollision(p, new net.minecraft.world.phys.AABB(xx - 0.01, next.y + 0.2, zz - 0.01, xx + 0.01, next.y + 1.5, zz + 0.01));
-                    sb.append(wall ? 'W' : top ? '#' : '.');
-                }
-            }
-            LOGGER.info("[AP3 dev] floor map around #{} y{} from x{} (0.25 a column):{}", number(next), next.y, Math.floor(next.x) - 3, sb);
-        }
         int base = fallScore(p, walkYaw, walkYaw, jump, next.y);
-        double blx = devLX, blz = devLZ;
         if (base == FOOT_ALL) {
             return Float.NaN;
         }
@@ -5719,11 +5705,6 @@ public final class Ap3Executor {
                 }
             }
         }
-        LOGGER.info("[AP3 dev] fallsteer pos {} {} {} vel {} {} {} base {} best {} d {}", String.format(Locale.US, "%.3f", p.getX()),
-                String.format(Locale.US, "%.3f", p.getY()), String.format(Locale.US, "%.3f", p.getZ()),
-                String.format(Locale.US, "%.3f", p.getDeltaMovement().x), String.format(Locale.US, "%.3f", p.getDeltaMovement().y),
-                String.format(Locale.US, "%.3f", p.getDeltaMovement().z), base, best, bestD
-                + String.format(Locale.US, " land %.3f %.3f jump %s", blx, blz, jump));
         if (bestD == 0) {
             return Float.NaN;
         }
@@ -5769,8 +5750,6 @@ public final class Ap3Executor {
             vx *= Ap3AlignMath.FRICTION_SCALE;
             vz *= Ap3AlignMath.FRICTION_SCALE;
         }
-        devLX = x;
-        devLZ = z;
         return support(p, x, z, floorY - 0.6, floorY + 0.1);
     }
 
