@@ -105,7 +105,7 @@ public final class PartyCommandsConfig {
         DICE("Dice", Kind.INFO, true, "dice"),
         TPS("TPS", Kind.INFO, true, "tps"),
         LOCATION("Location", Kind.INFO, true, "location"),
-        DISCORD("Discord", Kind.INFO, true, "odin", "od", "killer560", "k560");
+        DISCORD("Discord", Kind.INFO, true, "odin", "od", "killer", "killer560", "k560");
 
         private final String label;
         private final Kind kind;
