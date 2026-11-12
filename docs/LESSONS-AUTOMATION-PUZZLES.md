@@ -146,3 +146,11 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   intro 0-1 s after his own room entry in all 47 runs where he walked in, so Auto Quiz no longer walks to a guessed "CLICK"
   stand to talk. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two BEFORE the live
   map names the room, so anything pairing the two must allow either order ([QuizLog] does).
+- **A mod party line in flight as a terminal opens gets the terminal closed** (termclose-1111, killer560 2026-11-11: "something
+  keeps closing my terminals"). His 26.3 logs of 11-11 (killer560s-mod-logs/termclose-1111-scan.py, -flight.py): 75 real F7
+  terminal opens; every one Hypixel closed unsolved had one to four of our /pc lines (Leaping To, Cringe, Posmsg) sent and
+  not yet echoed at the open, while all 41 opens with none in flight were solved; 34 Melody progress lines sent inside an
+  open terminal closed none. So `util/OutgoingChat` holds its lines while he stands within 5 blocks of an undone P3
+  terminal (`P3StatusFeature.nearUndoneTerminal`, 3 s at most), from an entity click (RightClickSendMixin,
+  `onInteractSent`) until a menu opens (1 s at most), and for 1.5 s after a terminal opens; his own commands never wait.
+  The log says `[OutgoingChat] holding N line(s): <why>`. Testkit 1111-termclose-click/-free/-near (500-boss-session).

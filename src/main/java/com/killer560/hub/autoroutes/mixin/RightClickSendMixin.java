@@ -43,6 +43,10 @@ public abstract class RightClickSendMixin {
                 // Anything that acts on the world (a dig, a swap, a use, a click, a swing): Auto Routes starts its next node
                 // in the same tick only when nothing of the kind went this tick (RouteExecutor.actionPacketsSent).
                 com.killer560.hub.autoroutes.RouteExecutor.onActionPacket();
+                if (packet instanceof net.minecraft.network.protocol.game.ServerboundInteractPacket) {
+                    // A terminal stand click: our party lines wait until the terminal has settled (util/OutgoingChat).
+                    com.killer560.hub.util.OutgoingChat.onInteractSent();
+                }
             }
             if (packet instanceof net.minecraft.network.protocol.game.ServerboundClientTickEndPacket) {
                 // The click-gap clock: the server judges a use against a click by the client ticks between them.

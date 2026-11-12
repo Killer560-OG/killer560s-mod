@@ -51,6 +51,19 @@ public final class OutgoingChat {
      * command at most one line behind ours.
      */
     static final long ECHO_WAIT_MS = 1_500L;
+    /**
+     * Terminal guard (termclose-1111, killer560 2026-11-11: "something keeps closing my terminals"). His 26.3 logs of
+     * 11-11: every F7 terminal Hypixel closed unsolved (5 of 75 opens) had one of our party lines unanswered (sent, not
+     * yet echoed) or sent within a second of the open, while 41 opens with nothing in flight were all solved, and the 34
+     * Melody progress lines sent well inside an open terminal closed none. So our lines wait while he stands at a P3
+     * terminal not yet done (at most {@link #NEAR_WAIT_MS}), from his click on an entity (a terminal stand) until a menu
+     * opens ({@link #OPEN_WAIT_MS} at most), and until a terminal has been open this long. His own commands never wait.
+     */
+    static final long TERMINAL_SETTLE_MS = 1_500L;
+    /** After an entity click, how long our lines wait for a menu to open. */
+    static final long OPEN_WAIT_MS = 1_000L;
+    /** The longest our lines wait while he stands at a terminal without opening it (someone else may be in it). */
+    static final long NEAR_WAIT_MS = 3_000L;
 
     /** Command words that are chat lines to Hypixel (counted against the gap when he types them himself). */
     static final Set<String> CHAT_COMMANDS = Set.of("pc", "ac", "gc", "oc", "cc", "msg", "w", "r", "tell",
@@ -108,6 +121,12 @@ public final class OutgoingChat {
     /** The text of our last party line until Hypixel echoes it (null: nothing in flight). */
     private static String awaitEcho;
     private static boolean registered;
+    private static long interactSentMs = Long.MIN_VALUE / 4;
+    private static Object terminalScreen;
+    private static long terminalOpenedMs;
+    private static boolean holdLogged;
+    private static long nearSinceMs = Long.MIN_VALUE / 4;
+    private static boolean wasNear;
 
     private OutgoingChat() {
     }
@@ -180,6 +199,7 @@ public final class OutgoingChat {
                 return;
             }
             long t = now();
+            if (terminalHold(client, t)) return;
             while (!QUEUE.isEmpty()) {
                 Slot head = QUEUE.peekFirst();
                 if (head.cancelled) {
@@ -212,6 +232,35 @@ public final class OutgoingChat {
             client.player.connection.sendChat(send.line);
         }
         LOGGER.info("[OutgoingChat] sent {}{}", send.command ? "/" : "", send.line);
+    }
+
+    /** An entity click (his or Terminal Aura's) left: a terminal may be opening (RightClickSendMixin). */
+    public static synchronized void onInteractSent() { interactSentMs = now(); }
+
+    /** True while our lines must wait for a terminal that is opening or just opened (see {@link #TERMINAL_SETTLE_MS}). */
+    private static boolean terminalHold(Minecraft client, long t) {
+        net.minecraft.client.gui.screens.Screen screen = com.killer560.hub.compat.McCompat.screen(client);
+        boolean terminal = com.killer560.hub.hud.HudVisibility.isTerminalMenu(screen);
+        if (!terminal) {
+            terminalScreen = null;
+        } else if (screen != terminalScreen) {
+            terminalScreen = screen;
+            terminalOpenedMs = t;
+            interactSentMs = Long.MIN_VALUE / 4;
+        }
+        boolean near = !terminal && !QUEUE.isEmpty() && client.player != null
+                && com.killer560.hub.p3status.P3StatusFeature.nearUndoneTerminal(client.player.position());
+        if (near && !wasNear) nearSinceMs = t;
+        wasNear = near;
+        String why = terminal && t - terminalOpenedMs < TERMINAL_SETTLE_MS ? "a terminal just opened"
+                : !terminal && screen == null && t - interactSentMs < OPEN_WAIT_MS ? "an entity click may open a terminal"
+                : near && t - nearSinceMs < NEAR_WAIT_MS ? "he stands at a terminal" : null;
+        boolean hold = why != null;
+        if (hold && !QUEUE.isEmpty() && !holdLogged) {
+            LOGGER.info("[OutgoingChat] holding {} line(s): {}", QUEUE.size(), why);
+        }
+        holdLogged = hold && !QUEUE.isEmpty();
+        return hold;
     }
 
     /**
