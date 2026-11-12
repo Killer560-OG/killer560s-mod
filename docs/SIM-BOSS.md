@@ -114,7 +114,10 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
 
 Every hit goes through `SimWither.hurtServer` / `SimDragon.hurt*` -> `BossFight.onHurt`, one per target per tick
 (except arrows on a dragon, which count one each: that rule ate 2 of every Terminator volley's 3 arrows, his "the dragon
-doesnt feel like it is taking every single arrow", necronpull-1111).
+doesnt feel like it is taking every single arrow", necronpull-1111). After that fix no hit is dropped: traced arrow by arrow (testkit 1111-boss-dragonhp, 27 of 27 over 3 runs),
+every lost arrow either met a block first (the arena wall, the statue the body overlaps) or was shot from inside the
+body box (a clip from inside misses). The client draws the dragon 1-1.5 blocks behind the server hitbox (position sent
+every 3 ticks, then interpolated), as a real server does.
 One-hit phases (simitems-1105, killer560 2026-11-05: one mage beam or Terminator volley does all of a phase's damage):
 the bars (Maxor's, Storm's, Necron's) are the fight's only health and move ONLY on his hits and on Hypixel's scripted
 steps (laser hits, crushes, enrages, deaths); they used to drain on the clock, which read as damage with no hit. Storm
