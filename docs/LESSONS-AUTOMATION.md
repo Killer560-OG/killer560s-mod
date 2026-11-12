@@ -705,6 +705,14 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   TimerLimit), and turn the first look from the yaw that last went ON THE WIRE (Charge keeps turn-only ticks off it, so
   the running yaw can be a whole turn away; a look jump over 320 is AimModulo360). The test's first path, a square
   (+x, +z, -x, -z, +x), spun the client a full 360 between two ticks and drew AimModulo360 with or without the burst.
+- Differently aimed warps in one tick WITHOUT the Blink bank cannot be made clean (mwnoblink-1110, testkit 1110-zpewnb-*,
+  26.3 cheat, 2026-11-11). Each extra look ran as a whole unbanked tick (use, his movement tick at that look, tick-end;
+  `BlinkCharge.runUnbankedTick`), all uses in ONE client tick on the wire. After a 700 ms client freeze (ticks dropped, so
+  Timer's floor gives back its allowance) a burst of 2-4 looks was clean on default and experimental Grim, but the
+  allowance (about a ping plus 120 ms, 2-3 extra tick packets) does not come back while the client ticks normally: at
+  0 ms and 50 ms the 3rd or 4th back-to-back burst drew Timer, TimerLimit and BadPacketsJ (Timer drops the flying, so J
+  then sees the wrong look), and experimental Grim flagged a 4-look burst even fresh at 0 ms. At 150 ms every shape was
+  clean. So the only room is lag the player already had; a reliable feature needs a bank, which is Blink Charge. Not built.
 - A spent tick must put its look on the wire itself when vanilla will not (zpew263-1101, 2026-11-01). Vanilla's
   sendPosition reports a look only when it differs from the last one IT sent, and a banked tick's turn never reached the
   server, so a burst whose first look equals the client's last "sent" look sent USE then the tick-end alone, and GrimAC

@@ -73,6 +73,7 @@ public final class FriendsListConfig {
     private static FriendsListConfig instance;
 
     private boolean enabled = false;
+    private boolean partyFriendsOnTop = true;
     /** Keyed by lowercase name; iteration order is insertion order, which {@link #applyRealSync} rebuilds
      *  fresh from Hypixel's own listing order every successful sync. */
     private final Map<String, Friend> friends = new LinkedHashMap<>();
@@ -102,6 +103,7 @@ public final class FriendsListConfig {
         JsonObject obj = ConfigJson.read(CONFIG_PATH);
         if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.partyFriendsOnTop = ConfigJson.getBool(obj, "partyFriendsOnTop", true);
             cfg.everSynced = ConfigJson.getBool(obj, "everSynced", false);
             cfg.lastSyncedAtMs = ConfigJson.getLong(obj, "lastSyncedAtMs", 0L);
             cfg.lastSyncTruncated = ConfigJson.getBool(obj, "lastSyncTruncated", false);
@@ -134,6 +136,7 @@ public final class FriendsListConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
+        obj.addProperty("partyFriendsOnTop", partyFriendsOnTop);
         obj.addProperty("everSynced", everSynced);
         obj.addProperty("lastSyncedAtMs", lastSyncedAtMs);
         obj.addProperty("lastSyncTruncated", lastSyncTruncated);
@@ -156,6 +159,10 @@ public final class FriendsListConfig {
     public boolean isEnabled() { return enabled; }
 
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public boolean isPartyFriendsOnTop() { return partyFriendsOnTop; }
+
+    public void setPartyFriendsOnTop(boolean on) { this.partyFriendsOnTop = on; }
 
     public boolean isEverSynced() { return everSynced; }
 
