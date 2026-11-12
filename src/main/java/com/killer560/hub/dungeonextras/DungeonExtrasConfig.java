@@ -255,7 +255,7 @@ public final class DungeonExtrasConfig {
                 cfg.breakerAuraCooldownTicks = clampInt(o.has("breakerAuraCooldownTicks") ? o.get("breakerAuraCooldownTicks").getAsInt() : cfg.breakerAuraCooldownTicks, 0, 20);
                 cfg.breakerAuraZeroPing = bool(o, "breakerAuraZeroPing", cfg.breakerAuraZeroPing);
                 cfg.breakerAuraRespectEditMode = bool(o, "breakerAuraRespectEditMode", cfg.breakerAuraRespectEditMode);
-                cfg.breakerAuraEditMode = bool(o, "breakerAuraEditMode", cfg.breakerAuraEditMode);
+                cfg.breakerAuraEditMode = false; // never survives a restart (killer560, 2026-11-11: "Yes, auto off")
                 cfg.breakerAuraAutoSwap = bool(o, "breakerAuraAutoSwap", cfg.breakerAuraAutoSwap);
                 cfg.breakerAuraSwapDelayTicks = clampInt(o.has("breakerAuraSwapDelayTicks") ? o.get("breakerAuraSwapDelayTicks").getAsInt() : cfg.breakerAuraSwapDelayTicks, 1, 20);
                 cfg.breakerAuraSwapBack = bool(o, "breakerAuraSwapBack", cfg.breakerAuraSwapBack);
