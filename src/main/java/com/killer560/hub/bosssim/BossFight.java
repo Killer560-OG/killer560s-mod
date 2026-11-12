@@ -394,8 +394,7 @@ public final class BossFight {
         necronDone = 0;
         goldorDeadAt = -1;
         necronDeadAt = -1;
-        necronPulling = false;
-        pullHeld.clear();
+        releasePull();
         java.util.Arrays.fill(dragonHits, 0);
         java.util.Arrays.fill(dragonDead, false);
         java.util.Arrays.fill(dragonSpawnAt, -1);
@@ -1842,6 +1841,7 @@ public final class BossFight {
                 if (held == null) {
                     held = new Vec3(x, pullHoverY, z);
                     pullHeld.put(p.getUUID(), held);
+                    p.setNoGravity(true); // synched: his own client stops falling, so the hold does not jitter
                 }
                 com.killer560.hub.roomsim.SimLaunch.push(p, Vec3.ZERO);
                 if (p.position().distanceToSqr(held) > 0.09) {
@@ -1850,10 +1850,21 @@ public final class BossFight {
             }
         }
         if (release) {
-            necronPulling = false;
             LOGGER.info("[BossSim] Necron lets go at P4 t {} ({} held)", t, pullHeld.size());
-            pullHeld.clear();
+            releasePull();
         }
+    }
+
+    /** Ends the pull: gravity back for everyone held (also on a reset mid-pull). */
+    private static void releasePull() {
+        necronPulling = false;
+        for (java.util.UUID id : pullHeld.keySet()) {
+            ServerPlayer p = server == null ? null : server.getPlayerList().getPlayer(id);
+            if (p != null) {
+                p.setNoGravity(false);
+            }
+        }
+        pullHeld.clear();
     }
 
     private static void pullTeleport(ServerPlayer p, double x, double y, double z) {
