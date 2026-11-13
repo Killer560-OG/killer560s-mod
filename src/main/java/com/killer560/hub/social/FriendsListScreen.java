@@ -195,7 +195,20 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         filteredFrom = all;
         filteredQuery = searchQuery;
         filteredArea = areaFilter;
-        visible = partyFirst(inArea(filter(all, searchQuery), areaFilter), party);
+        visible = partyFirst(onlineFirst(inArea(filter(all, searchQuery), areaFilter)), party);
+    }
+
+    /** Online friends first, then offline, each group by name; runs only when the list or filter changed, so a sync page that
+     *  lands moves a newly online friend up at once. */
+    static List<FriendsListConfig.Friend> onlineFirst(List<FriendsListConfig.Friend> list) {
+        List<FriendsListConfig.Friend> out = new java.util.ArrayList<>(list);
+        out.sort(java.util.Comparator.<FriendsListConfig.Friend>comparingInt(f -> isOnline(f) ? 0 : 1)
+                .thenComparing(f -> f.name == null ? "" : f.name, String.CASE_INSENSITIVE_ORDER));
+        return out;
+    }
+
+    static boolean isOnline(FriendsListConfig.Friend f) {
+        return f.onlineHint != null ? f.onlineHint : f.uuid != null && PlayerLookup.isOnlineNow(f.uuid);
     }
 
     /** Header rows of the party grouping; never real friends (rowAt and the draw code check for them). */

@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * <p>
  * Steps run from the client tick, never a sleep: {@code party list} (its reply is read for a second and a half), then
  * {@code party disband}, then one {@code party invite a b c} a moment later. Every send goes through
- * {@link OutgoingChat} (Hypixel's half-second line gap) and waits until no movement key is held and the player is not
+ * {@link OutgoingChat} (at once, no queue) and waits until no movement key is held and the player is not
  * sprinting, because a command sent mid-walk draws experimental Grim's ChatC. A new world or 60 seconds without finishing
  * drops the job; a job never starts while another runs.
  */
