@@ -107,6 +107,8 @@ public final class InventoryWalkFeature {
     private static final int GIVE_UP_TICKS = 40;
     /** Below this (blocks per tick) he counts as standing still. */
     private static final double STILL_SPEED = 0.003;
+    /** Keyless ticks after which a sprint slide is over and any motion left is not his (a push, a bounce). */
+    private static final int SLIDE_TICKS = 12;
     /** Ticks his keys stay up after held clicks go out, so the click is never in the same tick as movement. */
     private static final int AFTER_CLICK_STILL_TICKS = 3;
     /**
@@ -447,12 +449,16 @@ public final class InventoryWalkFeature {
         // position the server saw last tick must equal this one, and his velocity must be gone. Flying (a dungeon ghost) he
         // is never on the ground and drifts for seconds on air drag: the keyless tick is enough there (his 26.3 log
         // 2026-11-08 21:19:27-32, a ghost's leap clicks were held 40 ticks at 0.00 blocks/s and dropped).
-        if (player.getAbilities().flying) {
+        // Motion that is not his own input is no reason to wait (iwfall-1112, his log 2026-11-12 18:54: a lava bounce and
+        // a fall kept Auto Terminals' clicks held until all were dropped, with his input empty). Airborne, vanilla clicks
+        // too; and once the keys have been held up for SLIDE_TICKS his sprint slide is over, so a push, a knockback or a
+        // bounce cannot hold a click forever.
+        if (player.getAbilities().flying || !player.onGround() || heldClickTicks >= SLIDE_TICKS) {
             return true;
         }
         Vec3 v = player.getDeltaMovement();
         if (Math.hypot(v.x, v.z) > STILL_SPEED || Math.hypot(player.getX() - player.xo, player.getZ() - player.zo) > STILL_SPEED
-                || Math.abs(player.getY() - player.yo) > STILL_SPEED || !player.onGround()) {
+                || Math.abs(player.getY() - player.yo) > STILL_SPEED) {
             return false;
         }
         return true;
