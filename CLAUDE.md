@@ -279,12 +279,36 @@ MultiBreak* only while it is on.
 - A finished, tested main batch is deployed to EVERY instance, his play instance included (he said yes, 2026-10-26; that
   is `26.3` since 2026-11-01). Test or testing jars still never go into it, and it is never booted by us.
 
+- MERGE TRAIN: every branch ships through it (shiptrain-1111, killer560 2026-11-11: "Implement all four of those then
+  those are great changes"; ten branches shipping one at a time behind push.lock, each with a 1-2 h full gate, put the
+  last one 24-36 h away). Agents no longer ship: when a branch is done and its own cases pass, append ONE line to
+  `killer560s-mod-logs/train-ready.txt` (format and `preview.sh` in `killer560s-mod-logs/TRAIN.md`).
+  `km-scripts/train-loop.sh` (one background loop, pid in `killer560s-mod-logs/train/loop.pid`) starts
+  `km-scripts/train.sh` every 2 h when a line is ready, at once for a line marked `urgent` or 2 h old. A train takes
+  push.lock and cuts mod and testkit worktrees from ORIGIN (26.3, master). It merges the lines in order (a conflict drops
+  that line, its reason written back to the line and a `[ ] train-drop` WORKQUEUE line) and builds 26.3 cheat, legit and
+  testing plus 26.2 cheat and legit. Then it runs the TARGETED gate: smoke, 511/513/525/1060 and `-logic-` on the three
+  builds, the listed cases, and a long group only when a line lists it or the merged diff touches its package or shared
+  core (util/, mixins, ActionGate, BeforeMove, HotbarSelect, TurnFirst). Every run goes through clientslot with KM_SHIP=1,
+  and a failure is rerun alone once before it counts. A real failure drops the line that lists the case, else the one
+  whose diff owns it, else the one found by halving (failing on origin too = pre-existing, a WORKQUEUE line, not a
+  block). Only the affected cases rerun. Then gitleaks + verify-artifact, then the push of 26.3+26.2 and testkit master
+  (ls-remote checked, only with no javaw), the deploy (testing jars to the two Untested instances), one #changelog
+  message, one ping, WORKQUEUE `[x]` and a handoff line. If origin moves mid-train the train merges the new tip and
+  reruns only smoke plus the cases owning the touched files: no full re-gate. `km-scripts/nightly.sh` (from the loop,
+  03:00-12:00, once a day) runs the full old gate on origin's tip and files each real failure as `[ ] nightly-<mmdd>
+  <case>`; it never pushes. `km-scripts/preview.sh` puts every ready branch into testing jars on the two Untested
+  instances whenever the ready lines change (an agent may run it for its own branch: `--extra JOB:SHA`); it never
+  touches `26.3`. Logs: `killer560s-mod-logs/train/<id>/train.txt`. Its runs start through `km-scripts/train-run1.sh`,
+  because clientslot.sh makes any caller whose command line contains "ship" a SHIP ticket: a `bash -c` naming
+  ship-smoke6.ps1 put a dry run's six tickets at the front of the queue (2026-11-11). Dry runs and the nightly never set
+  KM_SHIP.
 - Push only when no game is running (`(Get-Process javaw -ErrorAction SilentlyContinue | Measure-Object).Count` is 0).
   With a game running, commit but do not push; a jar that must reach a running instance is staged as `.jar.pending`.
   Testkit clients (`java.exe` with `-Dfabric.addMods=` pointing at a test jar folder) and Gradle daemons do NOT block a
   push (killer560, 2026-11-04: "There shouldn't be any games running besides testing stuff. It should be able to push");
   only a Prism-launched game (javaw) does.
-- Parallel agents work in their own worktrees, commit by file name, and do not push. Cherry-picks onto `release-1019`
+- Parallel agents work in their own worktrees, commit by file name, do not push and do not ship (the train does). Cherry-picks onto `release-1019`
   conflict when the branch was based on an older commit: rebase the agent's branch first.
 - Trap rooms (New Trap, Old Trap) are not functional yet; leave them out of tests until the owner says otherwise.
 - The `/trades` menu is a container titled "Trades"; Auto Sell's default title pattern matches "sell" or "trade", and a
@@ -416,3 +440,4 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
 - Sim starred mobs and blood camp (simblood-1110): Sim Settings "Real Mob Looks" and "Blood Camp" (both default OFF) put starred mobs on BloodRushSpots (spawn-spots.json, 77 rooms) with the type, gear, skin and yaw recorded on Hypixel (record kind SIM_MOB_LOOKS), and run the Watcher camp in the sim Blood room (estimates in docs/SIM.md). Testkit: `ModUnderTest.staticCall(cls, name)` uses getMethod and cannot reach a package-private class; use the typed overload. A Blood Mobs ESP check must not hit a landed mob in the sample that first saw it (the ESP tags it a tick or two later under load; 14 of 16). 131-sim-auto-clear, 131-sim-midas-1020 and 1101-sim-mobfloor ran on legit jars and failed there (Auto Clear is cheat-only); they skip now. 131-sim-midas-1020 and 1101-sim-mobfloor fail on origin too (WORKQUEUE simmidasfix).
 - Shutdown guard (crashguard-1110): another mod's NON-daemon thread (SecretRoutes' HttpClient.send with no timeout, xyz.yourboykyle.secretroutes) kept the JVM alive after Minecraft closed, so vanilla's ClientShutdownWatchdog wrote "Watchdog (Client shutdown from post-main)" on every close, and our crash reporter posted it. `crashreport/ShutdownGuard` (armed by `ShutdownWatchdogMixin`, HEAD of `startShutdownWatchdog`, "post-main" only) looks 11 s later (the watchdog fires at 15 s), logs one WARN naming each non-daemon thread and its mod id, and exits (halt 1.5 s after `System.exit`); a normal close has none and is never touched. `heldBy` adds the holder to such a report's summary. A stack trace hides lambda frames, so a thread started from a lambda shows "no mod frames" (testkit 1110-logic-crashguard-shutdown uses a named class). The real close-and-exit path is not testable in a gametest (it would end the client).
 - Zero Ping Dungeon Breaker was removed (zpbreaker-remove-1111): vanilla already predicts a one-hit break (startDestroyBlock removes a block the held tool breaks in one hit, and the Dungeonbreaker does in a dungeon), so a client zero-ping hook for a manual click was dead code (every try in his 26.3 logs read "zero ping skipped"). The Dungeon Breaker tab is now only "Don't break secrets" (BreakerGuard); old enabled/fatigueOnly/dungeonsOnly keys are ignored on load. Breaker Aura's own Zero Ping stays: the aura sends its digs itself, not through startDestroyBlock, and a Dungeonbreaker on stone bricks is not vanilla-instant (destroyProgress < 1), so its prediction is real work.
+- Proxy Client bypass (proxyloopback-1111): `proxy/ProxyInstall.install` (called by `ChannelInitializerMixin`) puts a one-shot gate handler behind the SOCKS handler; on connect() it removes the proxy handler for localhost, loopback, link-local and private-range (10/8, 172.16/12, 192.168/16, fc00::/7) targets, so a local test server joins directly. Proven with an EmbeddedChannel (8 addresses). A README name of a removed feature (Room Preview, roompreviewdel-1109) fails 1102-ui-search-readme only in a checkout older than that merge; check the README of origin/26.3 first. Run javac for ad-hoc tests with JAVA_HOME's JDK (the PATH one reads Java 25 class files as bad).

@@ -282,6 +282,11 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   the EE3 v3 route's low S2 lever 27,124,127 drew "post-flying" then "pre-flying" on every later place (leverap3-1109).
   `TurnFirst.readyBlock` (every block-click aura: Secret Aura, Lights Device, Simon Says, door opener, auto puzzles, Lever Aura; grimreach-1110 made it the default, no flag) requires that cube-in-range ray too; re-pitching in the click tick for the next eye
   made it worse (both levers flagged). A lever the route never brings that close is not flicked: fix the route.
+  Eye heights are 1.62 / 1.27 / 0.4 (sneaking 1.27 first); only a MISS flags (post-flying flags and arms a buffer,
+  pre-flying flags only misses while it is armed, each hit decays it 0.1), so a clean click order does not matter.
+  Measured (leverbest-1112): along a ray that hits the lever outline, a cube entry up to 4.60 from the real eye is clean
+  and 4.70 flags on both configs; Lever Aura aims at the outline point with the soonest entry (`BlockHits.best`, up to
+  0.17 sooner than the middle) and keeps 4.5. docs/AP3.md "Lever reach" has the table and the route-search rule.
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
   before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at

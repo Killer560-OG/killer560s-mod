@@ -365,14 +365,14 @@ public final class BreakerAuraFeature {
      * unmark it. killer560 (2026-09-23): "I should have a keybind to select blocks. If a block is selected it will
      * be broken... if i press the keybind on a selected block then it unbinds it."
      * <p>
-     * Polled before every other gate in {@link #onClientTick} so picking works with the aura switched off - you
-     * choose the wall first and turn it on afterward - and unbound by default like every other key in this mod.
+     * Does nothing while the aura is switched off (killer560, 2026-11-11: "you cannot add breaker aura blocks if the
+     * setting is off"), so a stray press cannot add blocks; unbound by default like every other key in this mod.
      * It does nothing while a screen is open, so typing cannot mark blocks.
      */
     private static void tickSelectKey(Minecraft client) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
         int key = cfg.getBreakerAuraSelectKey();
-        if (McCompat.screen(client) != null || client.player == null || client.level == null || client.getWindow() == null) {
+        if (!cfg.isBreakerAuraEnabled() || McCompat.screen(client) != null || client.player == null || client.level == null || client.getWindow() == null) {
             selectKeyWasDown = false;
             return;
         }
@@ -651,7 +651,7 @@ public final class BreakerAuraFeature {
         if (!PENDING.isEmpty()) {
             expirePending(client);
         }
-        // Picking comes first: he chooses the wall with the aura off, then turns it on.
+        // Picking comes first (it does nothing while the aura is off).
         if (!cfg.isBreakerAuraRespectEditMode() || !isRouteEditModeActive()) {
             tickSelectKey(client);
         }

@@ -1908,7 +1908,6 @@ final class SettingTooltipsData {
 
         // Party Commands
         d.put("party commands/party commands", "Turns on the Party Commands tab; each command still needs its own toggle.");
-        d.put("party commands/reply delay", "How long after a command arrives its reply or action is sent; stops Hypixel saying you are sending commands too fast.");
         d.put("party commands/warp", "!warp from a teammate warps the party (you must be leader).");
         d.put("party commands/warp + transfer", "!wt warps the party, then transfers it to whoever asked.");
         d.put("party commands/all invite", "!allinvite toggles the party's all-invite setting.");

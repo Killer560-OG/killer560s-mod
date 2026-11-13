@@ -33,7 +33,7 @@ public final class SimRooms {
     }
 
     public static CompletableFuture<RelayCalls.Reply> create(String name, String password, int max, String mode,
-                                                             String host, int port) {
+                                                             String host, int port, int punchPort) {
         JsonObject b = new JsonObject();
         b.addProperty("name", name);
         if (password != null && !password.isEmpty()) b.addProperty("password", password);
@@ -43,16 +43,27 @@ public final class SimRooms {
         b.addProperty("protocol", SimCoop.PROTOCOL);
         b.addProperty("mode", mode);
         b.add("endpoint", endpoint(host, port));
+        if (punchPort > 0) b.addProperty("punchPort", punchPort);
         return call("POST", "/simrooms/create", b);
     }
 
     public static CompletableFuture<RelayCalls.Reply> refresh(String roomId, String secret, int players, String mode,
-                                                              String host, int port) {
+                                                              String host, int port, int punchPort) {
         JsonObject b = owner(roomId, secret);
         b.addProperty("players", players);
         b.addProperty("mode", mode);
         b.add("endpoint", endpoint(host, port));
+        if (punchPort > 0) b.addProperty("punchPort", punchPort);
         return call("POST", "/simrooms/refresh", b);
+    }
+
+    /** TCP hole punch (a guest holding a join ticket): {host, port, key, delayMs}; the relay tells the host at once. */
+    public static CompletableFuture<RelayCalls.Reply> punch(String roomId, String nonce, int port) {
+        JsonObject b = new JsonObject();
+        b.addProperty("roomId", roomId);
+        b.addProperty("nonce", nonce);
+        b.addProperty("port", port);
+        return call("POST", "/simrooms/punch", b);
     }
 
     public static CompletableFuture<RelayCalls.Reply> delete(String roomId, String secret) {

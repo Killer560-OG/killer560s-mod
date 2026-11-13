@@ -24,13 +24,12 @@ import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Creation Cooldown (to-do Doc 2026-11-01, "Look at creation cooldown in skyhanni"): a port of SkyHanni's
  * {@code DungeonCreationCooldown}. Hypixel will not create another dungeon instance for 30 s after you entered one; the
- * clock starts on your own "&lt;you&gt; entered The Catacombs, Floor N!" line (SkyHanni's trigger).
+ * clock starts on any player's "&lt;name&gt; entered The Catacombs, Floor N!" line (Hypixel prints only the creator's line to the party)
  * <ul>
  *   <li>HUD "Creation Cooldown: 12s" while it runs, in a dungeon (only in the green Entrance room with Only In Green
  *       Room, SkyHanni's "Only Show In Entrance Room") and, with Show On All Islands, anywhere else on Skyblock.</li>
@@ -97,11 +96,8 @@ public final class CreationCooldownFeature {
         if (plain == null || !plain.contains("entered")) {
             return;
         }
-        Minecraft client = Minecraft.getInstance();
-        String self = client.player == null ? null : client.player.getGameProfile().name();
         for (String line : plain.split("\n")) {
-            Matcher m = ENTERED.matcher(line.trim());
-            if (m.matches() && self != null && self.equalsIgnoreCase(m.group(1))) {
+            if (ENTERED.matcher(line.trim()).matches()) {
                 start(System.currentTimeMillis());
                 return;
             }
