@@ -23,9 +23,10 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Everything a profile carries besides the flat {@code killer560smod-*.json} setting files: GIFs, crosshair presets,
- * the scoreboard background image, AP3 routes, Breaker Aura configs, inventory layouts, the cringe lines, the sim's
- * .txt settings, and any folder or file a future feature puts beside its settings.
+ * Everything a profile carries besides the flat {@code killer560smod-*.json} setting files: crosshair presets, the
+ * scoreboard background image, the cringe lines, the sim's .txt settings, and any folder or file a future feature puts
+ * beside its settings. Content the player builds (routes, waypoints, layouts, imports) is shared by every profile
+ * instead: {@link #SHARED_NAMES}.
  *
  * <p>killer560 (2026-10-13): "make sure profiles also brings along everything including gifs and whatnot." So the rule
  * is INCLUDE BY DEFAULT: every {@code killer560smod-*} file or folder in a feature folder of {@code config/killer560/}
@@ -94,6 +95,33 @@ public final class ProfileData {
             "armorhud-equipment.json"
     );
 
+    /**
+     * Content the player BUILDS, kept as ONE copy that every profile on the instance shares (profshare-1112, killer560
+     * 2026-11-12: "make things like auto routes ap3 and all those with configs shared between profiles"): a profile never
+     * saves it, and applying one never replaces or deletes it. Which route/config/preset is SELECTED stays a per-profile
+     * setting. Names are after {@link ModPaths#PREFIX}. {@link SharedContent} folds the copies older profiles saved
+     * into the live ones once.
+     */
+    static final Set<String> SHARED_NAMES = Set.of(
+            // Recorded routes and picks: AP3 chains (and its pre-folder file), Auto Routes, Waypoint Routes, Etherwarp
+            // Waypoints, Breaker Aura configs.
+            "ap3", "ap3.json", "autoroutes.json", "waypointroutes-routes.json", "etherwarp-waypoints.json", "breakeraura",
+            // Inventory Sorter layouts. (Crosshair presets stay per profile: a preset is a crosshair's settings, and
+            // testkit 980 proves each profile keeps its own.)
+            "invsort",
+            // Files he imported: map check-mark sprites, fonts, menu click sounds, theme music.
+            "livemap-checkmarks", "fonts", "menu-clicksounds", "menu-thememusic");
+
+    /** Whether a top-level entry is shared content: a {@link #SHARED_NAMES} entry, or a "{@code <name> - <profile>.json}"
+     *  copy {@link SharedContent} kept beside a shared file. */
+    static boolean isShared(String name) {
+        if (name == null || !name.startsWith(ModPaths.PREFIX)) return false;
+        String key = name.substring(ModPaths.PREFIX.length());
+        if (SHARED_NAMES.contains(key)) return true;
+        int dash = key.indexOf(" - ");
+        return dash > 0 && key.endsWith(".json") && SHARED_NAMES.contains(key.substring(0, dash) + ".json");
+    }
+
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */
     private static final String[] EXCLUDED_NAME_PREFIXES = {"bugreport-", "autoroutes.broken", "sessionlog-"};
 
@@ -123,7 +151,7 @@ public final class ProfileData {
         }
         if (!isDirectory && name.endsWith(".json")) return false;
         String key = name.substring(ModPaths.PREFIX.length());
-        if (EXCLUDED_NAMES.contains(key) || ModPaths.isRetired(name)) return false;
+        if (EXCLUDED_NAMES.contains(key) || isShared(name) || ModPaths.isRetired(name)) return false;
         for (String prefix : EXCLUDED_NAME_PREFIXES) {
             if (key.startsWith(prefix)) return false;
         }
@@ -241,12 +269,13 @@ public final class ProfileData {
                 Files.deleteIfExists(stored.get(gone));
             }
         }
-        // Anything in data/ that is not carried (an excluded name from another build, emptied folders) goes too.
+        // Anything in data/ that is not carried (an excluded name from another build, emptied folders) goes too, but an
+        // older save's copy of shared content stays: it is his only record of what that profile once held.
         if (Files.isDirectory(data)) {
             try (var stream = Files.list(data)) {
                 for (Path p : stream.toList()) {
                     String name = p.getFileName().toString();
-                    if (!isDataName(name, Files.isDirectory(p))) {
+                    if (!isDataName(name, Files.isDirectory(p)) && !isShared(name)) {
                         deleteRecursive(p);
                     }
                 }

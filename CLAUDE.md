@@ -155,7 +155,14 @@ profile without the file deletes it). Streamer Mode, Legit GFS, the sim loadout,
 ProfileManager naming the class (`ProfileReloadCases.NAME_ALLOWED` holds the few reasoned exceptions).
 Any other file or folder a feature keeps under `config/killer560/` (named `killer560smod-*`) rides in profiles by default
 (`profiles/ProfileData`, since 2026-10-13): if it is a secret, cache, download, log or history, add it to
-`ProfileData.EXCLUDED_NAMES`; if the feature holds it in memory, add its re-read to `ProfileManager.refreshDerivedState`.
+`ProfileData.EXCLUDED_NAMES`; if the feature holds it in memory, add its re-read to `ProfileManager.refreshDerivedState`. Content the player BUILDS (AP3 routes, Auto Routes, Waypoint Routes, etherwarp waypoints, Breaker Aura configs, Inventory
+Sorter layouts, imported check marks/fonts/click sounds/theme music) is SHARED by every profile on the instance (profshare-1112,
+killer560 2026-11-12): it goes in `ProfileData.SHARED_NAMES`, which no profile saves, replaces or resets (a plain `.json` there
+is not a setting file either, nor a "<name> - <profile>.json" copy beside it); which file is SELECTED stays a per-profile setting,
+and its store re-reads on apply only when the selection changed (`reloadIfSwitched`), never a shared store whose file did not
+change (Auto Routes' reload stopped a running route and discarded a recording on every apply). `profiles/SharedContent` folded
+every profile's old copy in once (marker `shared-content-merged-v1.txt` in the profiles folder; different bytes kept as
+"<name> - <profile>.<ext>", no brackets: the AP3/Breaker/Inventory Sorter stores refuse them). Testkit 1112-ui-profile-shared-routes.
 A plain `killer560smod-*.json` file is a SETTING file to the profile code whatever it holds, so a data `.json` (orders, caches,
 records) goes in `ProfileManager.EXCLUDED_FILES`, or a profile apply copies an old copy in or deletes it; until 2026-11-02 the
 `.json` names in `ProfileData.EXCLUDED_NAMES` did nothing (ProfileData only judges data entries; `isProfileSettingFile` honors them now).
