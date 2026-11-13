@@ -76,7 +76,10 @@ public final class BossSim {
             }
             BossStations.Station term = BossStations.terminalOf(entity);
             if (term == null && entity instanceof net.minecraft.world.entity.decoration.ArmorStand) {
+                // A sim stand (a terminal's name, a label) never takes the held item: vanilla's armor stand click swapped
+                // his Dungeonbreaker onto the invisible stand over a terminal (killer560, 2026-11-11).
                 LOGGER.info("[BossSim] a stand that is no terminal's was clicked at {}", entity.position());
+                return InteractionResult.FAIL;
             }
             if (term != null) {
                 boolean done = BossStations.isDone(term);
