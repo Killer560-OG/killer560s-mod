@@ -348,6 +348,12 @@ public final class BossFight {
 
     /** Begins the fight at {@code from}, with the arena already built. Server thread. */
     static void begin(MinecraftServer s, Start from, boolean masterMode) {
+        begin(s, from, masterMode, false);
+    }
+
+    /** {@code stay}: every reset runs but nobody is teleported (position, look and velocity untouched). */
+    static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay) {
+        stayPut = stay;
         stop("new fight");
         server = s;
         level = s.overworld();
@@ -454,7 +460,12 @@ public final class BossFight {
         return new Vec3(xz[0], BossArena.standY(level, xz[0], xz[1]), xz[1]);
     }
 
+    private static boolean stayPut;
+
     static void teleportAll(Vec3 at, float yaw) {
+        if (stayPut) {
+            return;
+        }
         // A clear standing spot, held until his client has it (simspawn-1104).
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             com.killer560.hub.roomsim.SimArrival.place(p, level, at.x, at.y, at.z, yaw, 0f);

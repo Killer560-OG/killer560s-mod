@@ -45,10 +45,8 @@ import java.util.regex.Pattern;
  *     chat it came from ({@link #isTeammate}). The single exception is Odin's own: a DM'd {@code !invite} invites the
  *     person who sent it, who by definition is not on the team yet - but only when that person is on his friends list
  *     ({@link #isFriend}). Every other command, info replies included, answers only a teammate or a friend.</li>
- * <li><b>A reply delay</b> ({@link PartyCommandsConfig#getReplyDelayMs}, 200 ms by default): every reply and every
- *     party command is scheduled that long after the line that asked for it and sent from the client tick - never from
- *     inside the chat packet's handler. Hypixel answered "You are sending commands too fast" to a command sent in the
- *     same instant (killer560: "Like .2 seconds is all it needs").</li>
+ * <li><b>No reply delay</b> (killer560, 2026-11-12): every reply and every party command goes out from the next client
+ *     tick after the line that asked for it - never from inside the chat packet's handler - with no setting and no wait.</li>
  * <li><b>Real lines only.</b> Hypixel chat comes from Fabric's receive events (server packets only, never a line a mod
  *     drew locally); Mod Chat lines come from the relay, whose sender name is stamped from a Mojang-verified login.</li>
  * <li><b>Everything a party command does is printed locally</b> through {@link ModChat}.</li>
@@ -193,10 +191,10 @@ public final class PartyCommandsFeature {
             return true;
         }
         long received = System.currentTimeMillis();
-        // Everything a command does goes out from the client tick after the reply delay (see the class doc). The
+        // Everything a command does goes out from the next client tick (see the class doc). The
         // world it was asked in must still be the one it answers into.
         ClientLevel level = Minecraft.getInstance().level;
-        schedule(cfg.getReplyDelayMs(), null, () -> Minecraft.getInstance().level == level, () -> {
+        schedule(0, null, () -> Minecraft.getInstance().level == level, () -> {
             try {
                 run(command, word, sender, arg, body, channel, received);
             } catch (RuntimeException e) {

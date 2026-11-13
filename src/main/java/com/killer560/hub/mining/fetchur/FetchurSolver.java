@@ -25,20 +25,20 @@ public final class FetchurSolver {
     /** Skyblocker's line, anchored: Hypixel's NPC prefix starts the line, so another player's chat cannot match. */
     private static final Pattern RIDDLE = Pattern.compile("^\\[NPC] Fetchur: (?:its|theyre) ([a-zA-Z, \\-]{1,60})$");
 
-    /** Riddle -> item, Skyblocker's table with the item names written out. */
+    /** Riddle -> item, Skyblocker's table with the item names written out and the amount he wants (wiki Fetchur page). */
     private static final Map<String, String> ANSWERS = Map.ofEntries(
-            Map.entry("yellow and see through", "Yellow Stained Glass"),
-            Map.entry("circular and sometimes moves", "Compass"),
-            Map.entry("expensive minerals", "Mithril"),
-            Map.entry("useful during celebrations", "Firework Rocket"),
-            Map.entry("hot and gives energy", "Cheap / Decent / Black Coffee"),
-            Map.entry("tall and can be opened", "Any Wooden Door / Iron Door"),
-            Map.entry("brown and fluffy", "Rabbit's Foot"),
-            Map.entry("explosive but more than usual", "Superboom TNT"),
-            Map.entry("wearable and grows", "Pumpkin"),
-            Map.entry("shiny and makes sparks", "Flint and Steel"),
-            Map.entry("green and some dudes trade stuff for it", "Emerald"),
-            Map.entry("red and soft", "Red Wool"));
+            Map.entry("yellow and see through", "20x Yellow Stained Glass"),
+            Map.entry("circular and sometimes moves", "1x Compass"),
+            Map.entry("expensive minerals", "20x Mithril"),
+            Map.entry("useful during celebrations", "1x Firework Rocket"),
+            Map.entry("hot and gives energy", "1x Cheap / Decent / Black Coffee"),
+            Map.entry("tall and can be opened", "1x Any Wooden Door / Iron Door"),
+            Map.entry("brown and fluffy", "3x Rabbit's Foot"),
+            Map.entry("explosive but more than usual", "1x Superboom TNT"),
+            Map.entry("wearable and grows", "1x Pumpkin"),
+            Map.entry("shiny and makes sparks", "1x Flint and Steel"),
+            Map.entry("green and some dudes trade stuff for it", "50x Emerald"),
+            Map.entry("red and soft", "50x Red Wool"));
 
     private static volatile String lastAnswer = null;
 

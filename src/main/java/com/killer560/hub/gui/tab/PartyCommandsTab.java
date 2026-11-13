@@ -2,7 +2,6 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.partycommands.PartyCommandsConfig;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Channel;
 import com.killer560.hub.partycommands.PartyCommandsConfig.Command;
@@ -16,8 +15,7 @@ import java.util.List;
  * Party Commands - exactly three sections since 2026-10-08 (killer560: "The only 3 sets should be the general toggle,
  * which chats can use (kc gc pc ac etc) then the commands you want able to be used"):
  * <ol>
- * <li>the master toggle, with the reply delay under it (his "very slight delay after it actually receives the
- *     command", 200 ms by default);</li>
+ * <li>the master toggle (replies go out at once, 2026-11-12: no reply delay setting);</li>
  * <li><b>Chats</b> - one toggle per {@link Channel} that may trigger a command;</li>
  * <li><b>Commands</b> - every command in one list, one toggle each (party management and the old informational
  *     replies together; the destructive switch, Confirm Invites and the joke command are gone).</li>
@@ -47,8 +45,6 @@ public class PartyCommandsTab extends BaseTab {
         }
         y += 26;
 
-        widgets.add(delaySlider(contentX, y, contentWidth, cfg));
-        y += 26;
 
         // ------------------------------------------------------------ 2. which chats can use them
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Chats", false));
@@ -85,26 +81,5 @@ public class PartyCommandsTab extends BaseTab {
             left = !left;
         }
         return widgets;
-    }
-
-    /** 0-1000 ms in steps of 10. */
-    private static ThemedSliderButton delaySlider(int x, int y, int w, PartyCommandsConfig cfg) {
-        int max = PartyCommandsConfig.MAX_REPLY_DELAY_MS;
-        return new ThemedSliderButton(x, y, w, 18, delayText(cfg), cfg.getReplyDelayMs() / (double) max) {
-            @Override
-            protected void updateMessage() {
-                setMessage(delayText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setReplyDelayMs((int) (Math.round(this.value * max / 10.0) * 10));
-                saveOnRelease(() -> cfg.save());
-            }
-        };
-    }
-
-    private static Component delayText(PartyCommandsConfig cfg) {
-        return Component.literal("Reply Delay: " + cfg.getReplyDelayMs() + " ms");
     }
 }

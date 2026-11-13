@@ -438,8 +438,7 @@ project CLAUDE.md. Compiling lessons
   lines 0.2 s apart left P3SectionTracker one section behind (testkit 1027-ap3-section-s3, 2026-10-27). Space them.
 - **Two party lines in one tick: Hypixel drops the second** with "Woah slow down, you're doing that too fast!" (his 26.3
   log 2026-11-02 19:26:54: "Leaping to X" went, a Posmsg callout for the ring he leapt into was refused, the Cringe line
-  10 ticks later went). Every line the mod sends by itself goes through `util/OutgoingChat` (FIFO, 500 ms apart, at once
-  when idle, a refused line re-sent once); never `sendCommand("pc ...")` or `ServerCommands.toServer("pc ...")` directly.
+  10 ticks later went). Every line the mod sends by itself goes through `util/OutgoingChat`, which since chatnow-1112 (2026-11-12) sends it at once with no queue or gap (the 2026-11-02 refusal is accepted); never `sendCommand("pc ...")` or `ServerCommands.toServer("pc ...")` directly.
   A Spirit Leap's teleport can land before its "You have teleported to" line, so Posmsg holds a ring entered by a jump
   right after a leap menu (or a busy Fast Leap, whose menu is headless: no screen) until that line, at most 1 s.
   Testkit 1102-posmsg-* (posmsgleap-1102).
