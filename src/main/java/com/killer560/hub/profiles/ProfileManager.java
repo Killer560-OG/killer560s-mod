@@ -135,7 +135,7 @@ public final class ProfileManager {
                 // ProfileData's list names a few .json files too (intro.json, sim-map-history.json,
                 // partyfinder-stats-cache.json), but ProfileData only judges data entries and a plain .json is a
                 // setting file to it, so until 2026-11-02 those three still rode in profiles as settings.
-                && !ProfileData.EXCLUDED_NAMES.contains(fileName.substring(ModPaths.PREFIX.length()))
+                && !ProfileData.isExcludedKey(fileName.substring(ModPaths.PREFIX.length()))
                 && !ModPaths.isRetired(fileName);
     }
 
