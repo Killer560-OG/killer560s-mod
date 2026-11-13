@@ -508,6 +508,9 @@ public final class Ap3Feature {
     public static boolean redo() {
         Ap3History.Step step = Ap3History.redo();
         if (step == null) {
+            step = Ap3History.restoreNewestRemoval(); // nothing undone: redo after a delete or clear restores it, like /ar redo
+        }
+        if (step == null) {
             chatBad("Nothing to redo.");
             return false;
         }
