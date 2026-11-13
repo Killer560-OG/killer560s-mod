@@ -112,14 +112,10 @@ public final class ProfileData {
             // Files he imported: map check-mark sprites, fonts, menu click sounds, theme music.
             "livemap-checkmarks", "fonts", "menu-clicksounds", "menu-thememusic");
 
-    /** Whether a top-level entry is shared content: a {@link #SHARED_NAMES} entry, or a "{@code <name> - <profile>.json}"
-     *  copy {@link SharedContent} kept beside a shared file. */
+    /** Whether a top-level entry is shared content (a {@link #SHARED_NAMES} entry). */
     static boolean isShared(String name) {
-        if (name == null || !name.startsWith(ModPaths.PREFIX)) return false;
-        String key = name.substring(ModPaths.PREFIX.length());
-        if (SHARED_NAMES.contains(key)) return true;
-        int dash = key.indexOf(" - ");
-        return dash > 0 && key.endsWith(".json") && SHARED_NAMES.contains(key.substring(0, dash) + ".json");
+        return name != null && name.startsWith(ModPaths.PREFIX)
+                && SHARED_NAMES.contains(name.substring(ModPaths.PREFIX.length()));
     }
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */

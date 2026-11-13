@@ -16,10 +16,10 @@ import java.util.List;
 /**
  * One-time fold of every profile's saved copy of shared content ({@link ProfileData#SHARED_NAMES}: routes, waypoints,
  * layouts, imported files) into the live files (profshare-1112). Until then each profile saved its own copy and applying
- * one replaced the live files, so a route lived only in the profile that was active when he made it. Nothing he ever
- * had may be lost: a file missing live is copied in, a byte-identical one is skipped, and one that differs is kept beside
- * it as "{@code <name> - <profile>.<ext>}" (no brackets: the AP3, Breaker Aura and Inventory Sorter stores
- * only open names of letters, digits, spaces, '_', '-' and '.', and profile names are made of those). Nothing is deleted, and the profiles' copies stay where they are.
+ * one replaced the live files, so a route lived only in the profile that was active when he made it. A file missing live
+ * is copied in; a live file of the same name always wins and nothing is written beside it (killer560 2026-11-13: only his
+ * own files in those folders, no "<name> - <profile>" copies). Nothing is deleted, and the profiles' own copies stay
+ * where they are, so a different older version is still in that profile's folder.
  */
 public final class SharedContent {
 
@@ -86,25 +86,18 @@ public final class SharedContent {
         return copied;
     }
 
-    /** Copies {@code from} to {@code to}, or beside it as "{@code <stem> - <profile><ext>}" when {@code to} holds other
-     *  bytes. Returns 1 when a file was written. */
+    /** Copies {@code from} to {@code to} when nothing is there yet; a live file is never touched. Returns 1 when copied. */
     private static int copyKeeping(Path from, Path to, String profile) {
         try {
-            Path target = to;
-            String fileName = to.getFileName().toString();
-            int dot = fileName.lastIndexOf('.');
-            String stem = dot > 0 ? fileName.substring(0, dot) : fileName;
-            String ext = dot > 0 ? fileName.substring(dot) : "";
-            for (int n = 1; Files.exists(target); n++) {
-                if (sameBytes(from, target)) return 0;
-                target = to.resolveSibling(stem + " - " + profile + (n == 1 ? "" : " " + n) + ext);
+            if (Files.exists(to)) {
+                if (!sameBytes(from, to)) {
+                    LOGGER.info("[Profiles] Shared content: kept the live {}; profile \"{}\"'s different copy stays in its folder",
+                            to.getFileName(), profile);
+                }
+                return 0;
             }
-            Files.createDirectories(target.getParent());
-            Files.copy(from, target, StandardCopyOption.COPY_ATTRIBUTES);
-            if (!target.equals(to)) {
-                LOGGER.info("[Profiles] Shared content: kept profile \"{}\"'s different {} as {}", profile, fileName,
-                        target.getFileName());
-            }
+            Files.createDirectories(to.getParent());
+            Files.copy(from, to, StandardCopyOption.COPY_ATTRIBUTES);
             return 1;
         } catch (IOException e) {
             LOGGER.warn("[Profiles] could not fold {} into {}", from, to, e);
