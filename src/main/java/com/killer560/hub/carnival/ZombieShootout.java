@@ -27,6 +27,8 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -92,7 +94,12 @@ public final class ZombieShootout {
     }
 
     /** Something worth shooting: a zombie or a lit lamp. */
-    public record Target(Zombie zombie, BlockPos lamp, AABB box, int points, long msLeft, int color, String label) {
+    public record Target(Zombie zombie, BlockPos lamp, AABB box, int points, long msLeft, int color, String label,
+                         boolean theirTimer) {
+        public Target(Zombie zombie, BlockPos lamp, AABB box, int points, long msLeft, int color, String label) {
+            this(zombie, lamp, box, points, msLeft, color, label, false);
+        }
+
         public Vec3 aimPoint() {
             return box.getCenter();
         }
@@ -172,7 +179,11 @@ public final class ZombieShootout {
         long now = System.currentTimeMillis();
         List<Target> list = new ArrayList<>();
         Set<Integer> alive = new HashSet<>();
+        List<net.minecraft.world.entity.decoration.ArmorStand> tags = new ArrayList<>();
         for (Entity e : mc.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.decoration.ArmorStand a && a.hasCustomName()) {
+                tags.add(a);
+            }
             if (!(e instanceof Zombie z) || !z.isAlive() || z.distanceToSqr(mc.player) > RANGE * RANGE) {
                 continue;
             }
@@ -184,12 +195,18 @@ public final class ZombieShootout {
             long seen = FIRST_SEEN.computeIfAbsent(z.getId(), k -> now);
             long left = Math.max(0, t.lifetimeMs - (now - seen));
             int pts = t == Tier.LEATHER && z.isBaby() ? t.points * 2 : t.points;
-            list.add(new Target(z, null, z.getBoundingBox(), pts, left, t.color, (z.isBaby() ? "Baby " : "") + t.label));
+            // Hypixel puts its own timer on a name tag over the zombie: that one is read and shown, ours never stacks on it.
+            double theirs = theirTimer(z, tags);
+            list.add(new Target(z, null, z.getBoundingBox(), pts, theirs >= 0 ? (long) (theirs * 1000) : left, t.color,
+                    (z.isBaby() ? "Baby " : "") + t.label, theirs >= 0));
         }
         FIRST_SEEN.keySet().retainAll(alive);
         for (BlockPos p : LAMPS) {
             if (lit(mc.level, p)) {
                 long since = LIT_SINCE.computeIfAbsent(p, k -> now);
+                if (now - since > LAMP_MS + LAMP_STALE_MS) {
+                    continue; // lit far past its 6 s: not the game's lamp (11-11: one at his feet read "0.0s left" for good)
+                }
                 list.add(new Target(null, p, new AABB(p), 100, Math.max(0, LAMP_MS - (now - since)), 0xFFFF5555, "Lamp"));
             } else {
                 LIT_SINCE.remove(p);
@@ -198,6 +215,28 @@ public final class ZombieShootout {
         targets = list;
         best = pickBest(list, null);
         hud = buildHud();
+    }
+
+    /** How long past {@link #LAMP_MS} a lamp may stay lit before it is no longer a target. */
+    static final long LAMP_STALE_MS = 1500;
+    private static final Pattern TAG_SECONDS = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*s\\b");
+
+    /** Seconds on a name tag over {@code z} (an armor stand within 0.7 blocks sideways, from its feet to 2 above its
+     *  head), or -1 when it has none. */
+    static double theirTimer(Zombie z, List<net.minecraft.world.entity.decoration.ArmorStand> tags) {
+        for (net.minecraft.world.entity.decoration.ArmorStand a : tags) {
+            double dx = a.getX() - z.getX();
+            double dz = a.getZ() - z.getZ();
+            if (dx * dx + dz * dz > 0.49 || a.getY() < z.getY() || a.getY() > z.getBoundingBox().maxY + 2.0) {
+                continue;
+            }
+            String name = com.killer560.hub.util.ChatObserver.stripCodes(a.getCustomName().getString());
+            Matcher m = name == null ? null : TAG_SECONDS.matcher(name);
+            if (m != null && m.find()) {
+                return Double.parseDouble(m.group(1));
+            }
+        }
+        return -1;
     }
 
     private static void scanLamps(ClientLevel level, BlockPos at) {
@@ -351,7 +390,7 @@ public final class ZombieShootout {
                 float[] c = WorldRenderUtils.argbToFloats(t.color());
                 WorldRenderUtils.renderOutlineBox(context, t.box().inflate(0.05), c[0], c[1], c[2], 1f, 2.5f);
             }
-            if (cfg.isTimers() && show) {
+            if (cfg.isTimers() && show && !t.theirTimer()) {
                 double secs = t.msLeft() / 1000.0;
                 String col = secs > 3 ? "§a" : secs > 1.5 ? "§e" : "§c";
                 IslandRender.label(context, t.zombie().getX(), t.box().maxY + 0.4, t.zombie().getZ(),
@@ -406,6 +445,22 @@ public final class ZombieShootout {
     public static String bestLabel() {
         Target b = best;
         return b == null ? null : b.label();
+    }
+
+    /** Harness: zombie timers by source now: {Hypixel's own tag (ours hidden), ours drawn}. One per zombie in all. */
+    public static int[] timerSources() {
+        int theirs = 0;
+        int ours = 0;
+        for (Target t : targets) {
+            if (t.zombie() != null) {
+                if (t.theirTimer()) {
+                    theirs++;
+                } else {
+                    ours++;
+                }
+            }
+        }
+        return new int[]{theirs, ours};
     }
 
     /** Harness: lamps watched. */

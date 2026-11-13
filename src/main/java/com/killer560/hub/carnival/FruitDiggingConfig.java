@@ -18,6 +18,8 @@ public final class FruitDiggingConfig extends CarnivalSettings {
         declare("clues", true);
         declare("found", true);
         declare("odds", false);
+        declare("allPercents", false);
+        declare("strategy", 0);
         declare("hud", true);
         declare("remaining", true);
         declare("minesColor", DEFAULT_MINES_COLOR);
@@ -26,6 +28,24 @@ public final class FruitDiggingConfig extends CarnivalSettings {
         declare("preventMisclicks", false);
         declare("preventWrongShovel", false);
         declare("sneakAllows", true);
+    }
+
+    /** Percent Text On Every Square: a small "29% bad" on each undug tile too (default OFF: the tint shows the risk). */
+    public boolean isAllPercents() {
+        return bool("allPercents");
+    }
+
+    public void setAllPercents(boolean v) {
+        put("allPercents", v);
+    }
+
+    /** Strategy (0 Consistent, 1 Leaderboard, 2 Daily Quest): see {@link FruitDiggingSolver.Strategy}. */
+    public int getStrategy() {
+        return clamp(integer("strategy"), 0, FruitDiggingSolver.Strategy.values().length - 1);
+    }
+
+    public void setStrategy(int v) {
+        put("strategy", clamp(v, 0, FruitDiggingSolver.Strategy.values().length - 1));
     }
 
     /** Prevent Misclicks (legit): a dig on any grid tile but the solver's pick is canceled on the client. */

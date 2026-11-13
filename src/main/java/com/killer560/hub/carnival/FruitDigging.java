@@ -148,8 +148,8 @@ public final class FruitDigging {
             why = "Not the best tile: dig " + r.label() + (cfg.isSneakAllows() ? " (sneak to dig anyway)." : ".");
         } else if (cfg.isPreventWrongShovel() && player instanceof net.minecraft.client.player.LocalPlayer lp
                 && !AutoShovelSwap.ready(lp)) {
-            why = "Wrong shovel mode: right click to switch to " + r.shovel()
-                    + (cfg.isSneakAllows() ? " (sneak to dig anyway)." : ".");
+            why = "Wrong shovel mode (held: " + AutoShovelSwap.modeOf(lp.getMainHandItem()) + ", need: " + r.shovel()
+                    + "): right click to switch" + (cfg.isSneakAllows() ? " (sneak to dig anyway)." : ".");
         }
         if (why == null) {
             return false;
@@ -310,6 +310,9 @@ public final class FruitDigging {
                 dirty = true;
             }
         }
+        if (!dirty && solvedStrategy != FruitDiggingConfig.getInstance().getStrategy()) {
+            dirty = true; // the Strategy setting changed: solve again for it
+        }
         if (dirty && tick - solvedTick >= 4) {
             solve();
         }
@@ -339,6 +342,7 @@ public final class FruitDigging {
                 digsUsed++;
                 previousDug = lastDug;
                 lastDug = i;
+                c.from = unknownNeighbors(i);
                 lastDugTick = tick;
                 attacked = -1;
                 LOGGER.info("[Fruit Digging] dug {} ({} of {})", FruitDiggingSolver.label(i), digsUsed,
@@ -348,6 +352,12 @@ public final class FruitDigging {
                 c.mustFruit = true;
             }
         }
+    }
+
+    /** The neighbors of {@code i} that are sand with nothing known under them: what a clue from digging {@code i} counts. */
+    private static int[] unknownNeighbors(int i) {
+        return java.util.Arrays.stream(FruitDiggingSolver.neighbors(i)).filter(nb -> cells[nb].diggable && cells[nb].content == null)
+                .toArray();
     }
 
     private static boolean isNeighbor(int a, int b) {
@@ -489,11 +499,13 @@ public final class FruitDigging {
         long generation = boardGeneration;
         FruitDiggingSolver.Recommendation last = recommendation;
         int keep = last == null ? -1 : last.cell();
+        solvedStrategy = FruitDiggingConfig.getInstance().getStrategy();
+        FruitDiggingSolver.Strategy strategy = FruitDiggingSolver.Strategy.of(solvedStrategy);
         WORKER.execute(() -> {
             try {
                 long t0 = System.nanoTime();
                 FruitDiggingSolver solver = new FruitDiggingSolver(new Random());
-                FruitDiggingSolver.Recommendation r = solver.solve(snapshot, digs, mult, coconut, keep);
+                FruitDiggingSolver.Recommendation r = solver.solve(snapshot, digs, mult, coconut, keep, strategy);
                 if (generation == boardGeneration) {
                     solved = solver;
                     recommendation = r;
@@ -518,6 +530,7 @@ public final class FruitDigging {
                 return t;
             });
     private static volatile boolean solving;
+    private static int solvedStrategy;
     /** Bumped by every reset, so a solve of the last game's board is thrown away. */
     private static volatile long boardGeneration;
     private static volatile FruitDiggingSolver solved;
@@ -556,11 +569,37 @@ public final class FruitDigging {
 
     // ---- drawing -------------------------------------------------------------------------------------------------
 
+    /** World scale of a tile's label and of the best dig's (a name tag is 0.025; the board is read from a few blocks). */
+    private static final float SMALL_LABEL = 0.012f;
+    private static final float BEST_LABEL = 0.016f;
+    private static int labelsDrawn;
+    private static int labelsLast;
+
+    /** Harness: text labels the last frame drew. */
+    public static int labelsLastFrame() {
+        return labelsLast;
+    }
+
+    /** Harness: text labels drawn so far (the testkit diffs it across frames). */
+    public static int labelsDrawn() {
+        return labelsDrawn;
+    }
+
+    /** The shovel line: which mode to use and how to get there from what is held now (null mode: no shovel in hand). */
+    public static String shovelAdvice(String want, String held) {
+        if (want.equals(held)) {
+            return "§a" + want + " shovel: held";
+        }
+        return held == null ? "§eHold your Carnival Shovel, right click until it is " + want
+                : "§eSwitch shovel mode to " + want + ": right click (now " + held + ")";
+    }
+
     private static void render(LevelRenderContext context) {
         FruitDiggingConfig cfg = FruitDiggingConfig.getInstance();
         if (!cfg.isEnabled() || !active() || origin == null) {
             return;
         }
+        int labelsBefore = labelsDrawn;
         for (int i = 0; i < FruitDiggingSolver.CELLS; i++) {
             FruitDiggingSolver.Cell c = cells[i];
             BlockPos p = posOf(i);
@@ -589,11 +628,20 @@ public final class FruitDigging {
                 FruitDiggingSolver sv = solved;
                 double[] b = sv == null ? null : sv.belief(i);
                 if (b != null) {
-                    label.add("§7" + pct(b[Fruit.BOMB.ordinal()] + b[Fruit.RUM.ordinal()]) + "% bad");
+                    double bad = b[Fruit.BOMB.ordinal()] + b[Fruit.RUM.ordinal()];
+                    // Tile Odds: a tint from green to red by risk (full red from 40% bad), never text on its own.
+                    int g = (int) (255 * Math.min(1.0, bad / 0.4));
+                    WorldRenderUtils.renderFilledBox(context, new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1,
+                            p.getY() + 1.01, p.getZ() + 1), g / 255f, (255 - g) / 255f, 0.1f, 0.3f);
+                    if (cfg.isAllPercents()) {
+                        label.add("§7" + pct(bad) + "% bad");
+                    }
                 }
             }
             for (int k = 0; k < label.size(); k++) {
-                IslandRender.label(context, x, y + 0.3 * (label.size() - 1 - k), z, label.get(k), 0xFFFFFF);
+                IslandRender.label(context, x, y + 0.2 * (label.size() - 1 - k), z, label.get(k), 0xFFFFFF, false,
+                        SMALL_LABEL);
+                labelsDrawn++;
             }
         }
         FruitDiggingSolver.Recommendation r = recommendation;
@@ -603,9 +651,11 @@ public final class FruitDigging {
             float[] col = WorldRenderUtils.argbToFloats(cfg.colorFor(r.shovel()));
             WorldRenderUtils.renderFilledBox(context, box, col[0], col[1], col[2], 0.35f);
             WorldRenderUtils.renderOutlineBox(context, box, col[0], col[1], col[2], 1f, 3f);
-            IslandRender.label(context, p.getX() + 0.5, p.getY() + 2.1, p.getZ() + 0.5,
-                    "§aDig here §7(" + r.shovel() + ", " + pct(r.pBomb()) + "% bomb)", 0xFFFFFF);
+            IslandRender.label(context, p.getX() + 0.5, p.getY() + 1.6, p.getZ() + 0.5,
+                    "§aDig here §7(" + r.shovel() + ", " + pct(r.pBomb()) + "% bomb)", 0xFFFFFF, false, BEST_LABEL);
+            labelsDrawn++;
         }
+        labelsLast = labelsDrawn - labelsBefore;
     }
 
     static List<String> lines() {
@@ -626,8 +676,21 @@ public final class FruitDigging {
         FruitDiggingSolver.Recommendation r = recommendation;
         if (r != null) {
             out.add("§aDig: §f" + r.label() + " §7with §f" + r.shovel());
+            net.minecraft.client.player.LocalPlayer me = net.minecraft.client.Minecraft.getInstance().player;
+            if (me != null && lastFruit() != Fruit.RUM) {
+                out.add(shovelAdvice(r.shovel(), AutoShovelSwap.modeOf(me.getMainHandItem())));
+            }
             out.add("§7Bomb §c" + pct(r.pBomb()) + "% §7Rum §6" + pct(r.pRum()) + "% §7(~"
                     + String.format(Locale.US, "%.0f", r.expected()) + " pts)");
+            double[] ev = r.modeEv();
+            if (ev != null && Math.max(Math.max(ev[0], ev[1]), ev[2]) - Math.min(Math.min(ev[0], ev[1]), ev[2]) >= 5) {
+                StringBuilder m = new StringBuilder("§7Next dig: ");
+                for (int i = 0; i < ev.length; i++) {
+                    m.append(i > 0 ? "§7, " : "").append(FruitDiggingSolver.MODES[i].equals(r.shovel()) ? "§a" : "§f")
+                            .append(FruitDiggingSolver.MODES[i]).append(' ').append(Math.round(ev[i]));
+                }
+                out.add(m.toString());
+            }
         }
         if (cfg.isRemaining()) {
             int[] left = remaining();

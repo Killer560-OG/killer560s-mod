@@ -23,6 +23,9 @@ final class SettingTooltipsCarnival {
         d.put("fruit digging solver/best dig", "Boxes the tile to dig next, in the color of the shovel mode to dig it with, with the mode and its bomb odds over it.");
         d.put("fruit digging solver/clue labels", "Over each dug tile, the clue it gave: bombs nearby (Mines), the best fruit nearby (Treasure, \u2264), the worst (Anchor, \u2265).");
         d.put("fruit digging solver/fruit labels", "Over each tile whose content is known, what it holds: yellow if still in the ground, gray once dug.");
+        d.put("fruit digging solver/strategy", "What the solver plays for: Consistent (best average score), Leaderboard (best top scores, riskier) or Daily Quest (reach 3,000 points safely). It picks the tile and the shovel mode by it.");
+        d.put("fruit digging solver/percent on every square", "Writes the bomb percentage on every tile; off, only the recommended tile has a label and the rest are tinted green to red.");
+        d.put("auto accept game", "Automation: can get you banned; keep it off on the main server. After you click a Carnival game NPC, runs the first (green) option once, like \"Aye sure do!\". Never any other option.");
         d.put("fruit digging solver/tile odds", "Over each unknown tile, the chance it holds a bomb or rum.");
         d.put("fruit digging solver/solver hud", "A HUD with digs used, the next dig's multiplier, the tile and shovel mode to use, and its odds (move it in Edit HUD).");
         d.put("fruit digging solver/fruit left", "Adds the fruit still in the ground, per kind, to the HUD.");

@@ -60,6 +60,14 @@ public final class CatchAFish {
     /** Stand id -> wears the Yellow Fish head (a head never changes, so it is decoded once). */
     private static final java.util.Map<Integer, Boolean> YELLOW_BY_ID = new java.util.HashMap<>();
 
+    /** Fish stands that were hooked or flung out of the pond: never a target again (ids, kept only while the entity lives). */
+    private static final java.util.Set<Integer> FLUNG = new java.util.HashSet<>();
+    private static final java.util.Map<Integer, Vec3> LAST_POS = new java.util.HashMap<>();
+    private static final java.util.Map<Integer, Double> POND_Y = new java.util.HashMap<>();
+    /** A caught fish is thrown: it moves this far in one tick, or climbs this far above where it swam. */
+    static final double FLING_JUMP = 1.2;
+    static final double FLING_RISE = 1.5;
+
     private CatchAFish() {
     }
 
@@ -117,8 +125,15 @@ public final class CatchAFish {
             return;
         }
         List<Fish> list = new ArrayList<>();
+        FishingHook myHook = mc.player.fishing;
+        Entity hookedFish = myHook == null ? null : myHook.getHookedIn();
+        java.util.Set<Integer> alive = new java.util.HashSet<>();
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof ArmorStand stand) || stand.distanceToSqr(mc.player) > RANGE * RANGE) {
+                continue;
+            }
+            alive.add(stand.getId());
+            if (isFlung(stand.getId(), stand.position(), hookedFish != null && hookedFish.getId() == stand.getId())) {
                 continue;
             }
             ItemStack head = stand.getItemBySlot(EquipmentSlot.HEAD);
@@ -131,6 +146,9 @@ public final class CatchAFish {
             }
             list.add(new Fish(stand, YELLOW_BY_ID.computeIfAbsent(stand.getId(), k -> isYellow(head))));
         }
+        FLUNG.retainAll(alive);
+        LAST_POS.keySet().retainAll(alive);
+        POND_Y.keySet().retainAll(alive);
         fish = list;
         FishingHook hook = mc.player.fishing;
         hooked = hook != null && hook.getHookedIn() != null;
@@ -139,6 +157,33 @@ public final class CatchAFish {
         }
         best = pickBest(list, mc.player.getEyePosition());
         hud = buildHud();
+    }
+
+    /** Whether the stand {@code id} at {@code pos} is a fish that was hooked or thrown out of the water: hooked now, moved
+     *  more than {@link #FLING_JUMP} in a tick, or risen more than {@link #FLING_RISE} above its first height. Once true it
+     *  stays true for that stand. */
+    static boolean isFlung(int id, Vec3 pos, boolean hookedNow) {
+        Vec3 prev = LAST_POS.put(id, pos);
+        double y0 = POND_Y.computeIfAbsent(id, k -> pos.y);
+        if (hookedNow || (prev != null && prev.distanceTo(pos) > FLING_JUMP) || pos.y - y0 > FLING_RISE) {
+            FLUNG.add(id);
+        }
+        return FLUNG.contains(id);
+    }
+
+    /** Harness: clears the flung memory. */
+    static void forgetFlung() {
+        FLUNG.clear();
+        LAST_POS.clear();
+        POND_Y.clear();
+    }
+
+    /** Whether nothing solid stands between the eye and the fish's center. */
+    static boolean inSight(net.minecraft.client.player.LocalPlayer player, Fish f) {
+        net.minecraft.world.phys.HitResult h = player.level().clip(new net.minecraft.world.level.ClipContext(
+                player.getEyePosition(), f.box().getCenter(), net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+        return h.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK;
     }
 
     /** The fish to go for: the nearest Yellow Fish, else the nearest fish. */
