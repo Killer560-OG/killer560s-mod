@@ -1827,11 +1827,12 @@ public final class BossFight {
      * and one hit is the whole drop. His death throes empty it on their clock.
      */
     private static float necronHealth() {
-        int k = necronPart();
-        if (k < 0 || t >= N_THROES) {
+        // Only his hits move the bar (killer560, 2026-11-11: "necrons phases are going down even without me hitting him"):
+        // a part he skipped no longer drops it on the clock, and the throes empty it only after all three drops.
+        if (necronDone >= NECRON_DRAIN.length && t >= N_THROES) {
             return 0f;
         }
-        return necronDone > k ? NECRON_DRAIN[k][2] : NECRON_DRAIN[k][1];
+        return necronDone == 0 ? 1f : NECRON_DRAIN[necronDone - 1][2];
     }
 
     private static void tickP4() {
@@ -1944,7 +1945,7 @@ public final class BossFight {
     private static void hitNecron() {
         int k = necronPart();
         if (k >= 0 && t < N_THROES && necronDone <= k) {
-            necronDone = k + 1;
+            necronDone++;
             if (bar != null) {
                 bar.setProgress(necronHealth());
             }
@@ -2386,6 +2387,13 @@ public final class BossFight {
         @Override
         public boolean shouldBeSaved() {
             return false;
+        }
+
+        // A name stand whose box dips into the arena lava caught fire and drew a column of flames over the terminal
+        // (killer560, 2026-11-11: "i dont want the thing to have the fire"). Hypixel's stands never burn.
+        @Override
+        public boolean fireImmune() {
+            return true;
         }
     }
 

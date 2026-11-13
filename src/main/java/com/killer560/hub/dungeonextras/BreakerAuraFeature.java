@@ -106,6 +106,7 @@ public final class BreakerAuraFeature {
     private static int spentSinceLore = 0;
     private static String lastSkipReason = null;
     private static boolean wasActive = false;
+    private static ClientLevel editLevel;
 
     // ---- logging only (2026-10-19 logging pass): nothing below changes what the aura does --------------------------
     /** Blocks sent this run, watched for the server's answer: pos -> {session tick sent, zero ping 1/0}. */
@@ -648,6 +649,20 @@ public final class BreakerAuraFeature {
 
     static void onClientTick(Minecraft client) {
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
+        // Edit Mode ends by itself when he leaves the world he turned it on in (killer560, 2026-11-11: "Yes, auto off"),
+        // so a forgotten Edit Mode never leaves the picks drawn while the aura is off.
+        if (cfg.isBreakerAuraEditMode()) {
+            if (editLevel == null) {
+                editLevel = client.level;
+            } else if (client.level != editLevel) {
+                editLevel = null;
+                cfg.setBreakerAuraEditMode(false);
+                cfg.save();
+                LOGGER.info("[BreakerAura] Edit Mode turned off: left the world it was turned on in");
+            }
+        } else {
+            editLevel = null;
+        }
         if (!PENDING.isEmpty()) {
             expirePending(client);
         }
