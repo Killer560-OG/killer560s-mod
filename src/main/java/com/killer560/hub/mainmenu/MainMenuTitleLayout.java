@@ -28,10 +28,12 @@ import com.killer560.hub.compat.McCompat;
  * <pre>
  *   Singleplayer
  *   Multiplayer
- *   Dungeon Sim | Mod Settings
+ *   Dungeon Sim
  *   [other mods' full-width column buttons, dev "Create Test World"]
- *   Mods, What's New
+ *   ------------
+ *   Mod Settings, Mods, What's New
  *   Swap Accounts
+ *   ------------
  *   Options... | Quit Game
  *        Playing as &lt;name&gt;   (dim line, or button tooltip when there's no vertical room)
  * </pre>
@@ -87,7 +89,21 @@ public final class MainMenuTitleLayout {
     private static final int COPYRIGHT_HEIGHT = 4;
     /** Bottom of the logo's "Java Edition" strip: LogoRenderer DEFAULT_HEIGHT_OFFSET 30 + LOGO_HEIGHT 44 - overlap 7
      *  + EDITION_HEIGHT 14 (javap, both versions), plus a 2-unit gap. The column never starts above it. */
-    private static final int LOGO_BOTTOM = 83;
+    private static final int LOGO_BOTTOM = 87;
+    /** The logo's drawn bottom at full size (LogoRenderer offset 30 + 44 - 7 + 14), and the room kept under it for the
+     *  panel's top padding (4) and a 2-unit gap: {@link #LOGO_BOTTOM} is their sum. */
+    private static final int LOGO_DRAWN = 81;
+    private static final int LOGO_CLEAR = LOGO_BOTTOM - LOGO_DRAWN;
+    /** The highest the column starts on a very short window, the logo shrunk to fit above it. */
+    private static final int MIN_START = 30;
+    /** On a short window the logo may shrink to 3/4 (start 67) before the gaps give way; never past these. */
+    private static final int NICE_START = 67;
+    private static final int MIN_BREAK = 30;
+    private static final int SHORT_STEP = 22;
+    /** The logo's size on the laid-out title screen (1 = vanilla); below 1 only when the column needs its room. */
+    private static volatile float logoScale = 1f;
+    /** Where the rule between the play rows and Mod Settings goes (0 when there is none). */
+    private static volatile int sectionRuleY;
 
     private static final String KEY_REALMS = "menu.online";
     private static final String KEY_OPTIONS = "menu.options";
@@ -183,6 +199,19 @@ public final class MainMenuTitleLayout {
     private static volatile int ruleY;
 
     static int ruleY(Screen screen) { return isAppliedTo(screen) ? ruleY : 0; }
+
+    /** From the first column row's top to the Options row's bottom. */
+    private static int span(int rows, int breaks, int step, int gap) {
+        return step * (rows - 1) + (gap - step) * breaks + gap + ROW_HEIGHT;
+    }
+
+    static int sectionRuleY(Screen screen) { return isAppliedTo(screen) ? sectionRuleY : 0; }
+
+    /** The logo's scale on {@code screen}, from its top center (1 unless the themed layout needed the room). */
+    public static float logoScale(Screen screen) { return isAppliedTo(screen) ? logoScale : 1f; }
+
+    /** The logo's drawn bottom on {@code screen}. */
+    public static int logoBottom(Screen screen) { return (int) Math.ceil(LOGO_DRAWN * logoScale(screen)); }
 
     /** Themed-mode Swap Accounts button. Starts at the old top-left bounds with the old long label, so if the
      *  layout never runs (listener missing, or it failed) the button is still where users know it. */
@@ -334,14 +363,7 @@ public final class MainMenuTitleLayout {
                 }
             }
             modSettings.visible = true;
-            // Beside Dungeon Sim, half width each like Options... | Quit Game (killer560, 2026-11-13: "how options and quit
-            // game are separated you should add between dungeon sim and mod settings"); full width when there is no sim row.
-            boolean paired = column.contains(sim);
-            if (paired) {
-                widgets.add(widgets.indexOf(sim) + 1, modSettings);
-            } else {
-                column.add(modSettings);
-            }
+            column.add(modSettings);
 
             // The built-in mod list (killer560, 2026-11-04: "add another button for mods that opens a browser to see all
             // of their mods"), right under Mod Settings; its own switch in the Mods Screen card.
@@ -385,44 +407,43 @@ public final class MainMenuTitleLayout {
             }
 
             int rows = column.size();
+            // Three sections (killer560, 2026-11-13): play rows up to Dungeon Sim, then Mod Settings to Swap Accounts,
+            // then Options | Quit, each break the same divider gap and rule.
+            int split = column.indexOf(modSettings);
+            int breaks = split > 0 ? 1 : 0;
             int base = screen.height / 4 + 48;
-            int start = base - (ROW_STEP / 2) * Math.max(0, rows - VANILLA_ROWS);
+            int start = Math.max(LOGO_BOTTOM, base - (ROW_STEP / 2) * Math.max(0, rows - VANILLA_ROWS));
+            int step = ROW_STEP;
+            int gap = OPTIONS_ROW_GAP;
+            // A short window (854x480 at GUI scale 2 is 240 tall): the rules stay visible, so first the breaks close to
+            // MIN_BREAK and the rows to SHORT_STEP while the logo would drop under 3/4 size, and then the column rises,
+            // the logo shrinking above it so it still clears the panel.
+            int limit = screen.height - COPYRIGHT_HEIGHT - 1;
+            while (limit - span(rows, breaks, step, gap) < Math.min(start, NICE_START)) {
+                if (gap > MIN_BREAK) {
+                    gap--;
+                } else if (step > SHORT_STEP) {
+                    step--;
+                } else {
+                    break;
+                }
+            }
+            start = Math.max(MIN_START, Math.min(start, limit - span(rows, breaks, step, gap)));
+            logoScale = Math.min(1f, (start - LOGO_CLEAR) / (float) LOGO_DRAWN);
             for (int i = 0; i < rows; i++) {
                 AbstractWidget w = column.get(i);
                 w.setX(cx - COLUMN_WIDTH / 2);
-                w.setY(start + ROW_STEP * i);
+                w.setY(start + step * i + (breaks > 0 && i >= split ? gap - step : 0));
                 w.setWidth(COLUMN_WIDTH);
             }
-            int gap = OPTIONS_ROW_GAP;
-            // A short window: Options/Quit would run into the copyright line (testkit 341 at 854x480 with Mod
-            // Menu's classic Mods row: Quit 216-236 over the line at 230). Close the gap to a normal row step
-            // first, then lift the column as far as the logo allows.
-            int overflow = start + ROW_STEP * (rows - 1) + gap + ROW_HEIGHT + 1 - (screen.height - COPYRIGHT_HEIGHT);
-            if (overflow > 0) {
-                int fromGap = Math.min(overflow, OPTIONS_ROW_GAP - ROW_STEP);
-                gap -= fromGap;
-                overflow -= fromGap;
-            }
-            if (overflow > 0 && start > LOGO_BOTTOM) {
-                int lift = Math.min(overflow, start - LOGO_BOTTOM);
-                start -= lift;
-                for (int i = 0; i < rows; i++) {
-                    column.get(i).setY(start + ROW_STEP * i);
-                }
-            }
-            int rowY = start + ROW_STEP * (rows - 1) + gap;
-            if (paired) {
-                sim.setWidth(HALF_WIDTH);
-                modSettings.setX(cx + COLUMN_WIDTH / 2 - HALF_WIDTH);
-                modSettings.setY(sim.getY());
-                modSettings.setWidth(HALF_WIDTH);
-            }
+            int rowY = column.get(rows - 1).getY() + gap;
+            sectionRuleY = breaks > 0 ? (column.get(split - 1).getY() + ROW_HEIGHT + modSettings.getY()) / 2 : 0;
 
             // Other mods' widgets that sat on the old Options row move with it.
             int dy = rowY - oldRowY;
             if (dy != 0) {
                 for (AbstractWidget w : widgets) {
-                    if (w != options && w != quit && w != language && w != accessibility && w != swap && w != modSettings
+                    if (w != options && w != quit && w != language && w != accessibility && w != swap
                             && !mods.contains(w) && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
                         w.setY(w.getY() + dy);
                     }
@@ -448,9 +469,9 @@ public final class MainMenuTitleLayout {
             }
 
             // The frosted panel behind the column and the Options/Quit row (2026-10-15), with a rule between them.
-            int lastBottom = start + ROW_STEP * (rows - 1) + ROW_HEIGHT;
+            int lastBottom = column.get(rows - 1).getY() + ROW_HEIGHT;
             ruleY = (lastBottom + rowY) / 2;
-            int padTop = Math.max(4, Math.min(10, start - LOGO_BOTTOM + 2));
+            int padTop = Math.max(4, Math.min(10, start - LOGO_BOTTOM + 4));
             int padBottom = Math.max(3, Math.min(10, screen.height - COPYRIGHT_HEIGHT - 2 - (rowY + ROW_HEIGHT)));
             int cardTop = start - padTop;
             int cardBottom = rowY + ROW_HEIGHT + padBottom;
