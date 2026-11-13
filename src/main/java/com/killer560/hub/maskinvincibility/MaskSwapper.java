@@ -258,6 +258,10 @@ public final class MaskSwapper {
         // swap will send.
         boolean phoenixViaPets = wanted == Target.PHOENIX
                 && MaskInvincibilityConfig.getInstance().getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.PETS;
+        // The sim has no /stats or /pets menu (its server answers "Unknown or incomplete command"), so a command
+        // route never starts there; the rod route sends no command.
+        if ((wanted != Target.PHOENIX || phoenixViaPets) && (com.killer560.hub.roomsim.SimState.canAct(client)
+                || com.killer560.hub.roomsim.SimState.isGuest(client))) return false;
         long now = System.currentTimeMillis();
         if ((wanted != Target.PHOENIX || phoenixViaPets) && now - lastCommandMs < MIN_COMMAND_GAP_MS) return false;
         target = wanted;
