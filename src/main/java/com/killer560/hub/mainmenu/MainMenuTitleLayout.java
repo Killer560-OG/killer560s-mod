@@ -28,7 +28,9 @@ import com.killer560.hub.compat.McCompat;
  * <pre>
  *   Singleplayer
  *   Multiplayer
+ *   Dungeon Sim | Mod Settings
  *   [other mods' full-width column buttons, dev "Create Test World"]
+ *   Mods, What's New
  *   Swap Accounts
  *   Options... | Quit Game
  *        Playing as &lt;name&gt;   (dim line, or button tooltip when there's no vertical room)
@@ -332,7 +334,14 @@ public final class MainMenuTitleLayout {
                 }
             }
             modSettings.visible = true;
-            column.add(modSettings);
+            // Beside Dungeon Sim, half width each like Options... | Quit Game (killer560, 2026-11-13: "how options and quit
+            // game are separated you should add between dungeon sim and mod settings"); full width when there is no sim row.
+            boolean paired = column.contains(sim);
+            if (paired) {
+                widgets.add(widgets.indexOf(sim) + 1, modSettings);
+            } else {
+                column.add(modSettings);
+            }
 
             // The built-in mod list (killer560, 2026-11-04: "add another button for mods that opens a browser to see all
             // of their mods"), right under Mod Settings; its own switch in the Mods Screen card.
@@ -402,12 +411,18 @@ public final class MainMenuTitleLayout {
                 }
             }
             int rowY = start + ROW_STEP * (rows - 1) + gap;
+            if (paired) {
+                sim.setWidth(HALF_WIDTH);
+                modSettings.setX(cx + COLUMN_WIDTH / 2 - HALF_WIDTH);
+                modSettings.setY(sim.getY());
+                modSettings.setWidth(HALF_WIDTH);
+            }
 
             // Other mods' widgets that sat on the old Options row move with it.
             int dy = rowY - oldRowY;
             if (dy != 0) {
                 for (AbstractWidget w : widgets) {
-                    if (w != options && w != quit && w != language && w != accessibility && w != swap
+                    if (w != options && w != quit && w != language && w != accessibility && w != swap && w != modSettings
                             && !mods.contains(w) && !friends.contains(w) && !column.contains(w) && w.getY() == oldRowY) {
                         w.setY(w.getY() + dy);
                     }
