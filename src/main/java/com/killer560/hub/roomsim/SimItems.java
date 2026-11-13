@@ -878,6 +878,9 @@ public final class SimItems {
             failOnServer("the Dungeonbreaker does not work in puzzle rooms");
             return false;
         }
+        if (SimBreakRules.refuses(level, target)) {
+            return false;
+        }
         if (isSecretBlock(level, target)) {
             // Silent. killer560 (2026-10-04) asked for this chat line to go; the refusal itself stays.
             return false;
