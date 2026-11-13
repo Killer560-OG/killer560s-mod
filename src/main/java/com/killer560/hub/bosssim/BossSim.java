@@ -49,6 +49,8 @@ public final class BossSim {
     private static BossFight.Start pendingStart;
     private static boolean pendingMaster;
     private static boolean building;
+    /** The pending start came from /simboss inside a running fight: reset everything, move nobody (simstartstay-1112). */
+    private static boolean pendingStay;
     private static Object lastLevel;
     private static int outsideTicks;
 
@@ -195,17 +197,23 @@ public final class BossSim {
         boolean master = mode == null ? !"F7".equalsIgnoreCase(SimState.floorLabel()) || start == BossFight.Start.P5
                 : mode.toLowerCase(Locale.ROOT).startsWith("m");
         // After the chat screen has closed, so the loading screen is not closed with it.
-        mc.execute(() -> start(mc, start, master));
+        boolean stay = BossFight.phase() != BossFight.Phase.IDLE;
+        mc.execute(() -> start(mc, start, master, stay));
         return 1;
     }
 
     /** Builds the boss room (in the sim world, opening it if needed) and starts the fight at {@code from}. */
     public static void start(Minecraft client, BossFight.Start from, boolean master) {
+        start(client, from, master, false);
+    }
+
+    private static void start(Minecraft client, BossFight.Start from, boolean master, boolean stay) {
         if (building) {
             return;
         }
         pendingStart = from;
         pendingMaster = master;
+        pendingStay = stay;
         LOGGER.info("[BossSim] start requested at {} ({})", from, master ? "Master Mode" : "Floor 7");
         if (SimState.canAct(client) && client.getSingleplayerServer() != null) {
             // Already in the sim (the floor's portal, or the menu from inside it): build beside the floor without
@@ -227,6 +235,7 @@ public final class BossSim {
         }
         BossFight.Start from = pendingStart;
         boolean master = pendingMaster;
+        boolean stay = pendingStay;
         pendingStart = null;
         building = true;
         server.execute(() -> {
@@ -244,14 +253,16 @@ public final class BossSim {
             long t0 = System.currentTimeMillis();
             // Out of the arena while it goes up (simspawn-1104): from a fresh world he stood at spawn, inside the box
             // being built, and from the floor every write was sent to his client as it landed.
-            com.killer560.hub.roomsim.SimBuilder.holdPlayer(client, server.overworld());
+            if (!stay) {
+                com.killer560.hub.roomsim.SimBuilder.holdPlayer(client, server.overworld());
+            }
             BossArena.build(server.overworld(), () -> {
                 LOGGER.info("[BossSim] arena built from the {} in {} ms", BossArena.source(), System.currentTimeMillis() - t0);
                 kept.forEach((uuid, inv) -> {
                     ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
                     for (int i = 0; sp != null && i < inv.length; i++) sp.getInventory().setItem(i, inv[i]);
                 });
-                BossFight.begin(server, from, master);
+                BossFight.begin(server, from, master, stay);
                 building = false;
                 client.execute(() -> SimWorld.buildFinished(client, "F7 boss"));
             });
