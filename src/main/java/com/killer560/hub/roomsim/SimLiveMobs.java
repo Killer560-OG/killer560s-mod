@@ -16,7 +16,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -197,9 +199,17 @@ public final class SimLiveMobs {
                 List<BlockPos> learned = spots.get(e.getKey());
                 Map<BlockPos, SimMobLooks.Look> lookAt = new HashMap<>();
                 var frame = frames.get(e.getKey());
+                // A spot walled in behind a lever (Redstone Crypt) or sealed off is one Hypixel never spawns a mob at and Auto
+                // Clear cannot reach ("no etherwarp path", a key it cannot pick up): keep only spots a mob can walk to from the
+                // room's first tile, learned or seeded.
+                Set<Long> reach = reachable(level, layout, room, standable(level, e.getValue().get(0)));
                 if (learned != null) {
                     for (BlockPos s : learned) {
                         BlockPos feet = standable(level, s);
+                        if (feet != null && reach != null && !reach.contains(feet.asLong())) {
+                            LOGGER.info("[Sim] {}: learned spawn spot {} is walled in, no mob there", e.getKey(), s);
+                            continue;
+                        }
                         if (feet != null && !got.contains(feet)) {
                             got.add(feet);
                             // Real Mob Looks (simblood-1110): what stood on this spot on Hypixel, if it was recorded.
@@ -227,6 +237,7 @@ public final class SimLiveMobs {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
                                     && level.getFluidState(feet).isEmpty()) {
+                                if (reach != null && !reach.contains(feet.asLong())) break;
                                 boolean far = true;
                                 for (BlockPos o : got) {
                                     far &= o.distSqr(feet) >= 9;
@@ -311,6 +322,33 @@ public final class SimLiveMobs {
             }
         }
         return null;
+    }
+
+    /** Floor cells a mob can walk to inside {@code room} from {@code start} (steps up 1, drops up to 3), or null with no start. */
+    private static Set<Long> reachable(ServerLevel level, DungeonLayout layout, int room, BlockPos start) {
+        if (start == null) return null;
+        Set<Long> seen = new HashSet<>();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        seen.add(start.asLong());
+        queue.add(start);
+        while (!queue.isEmpty() && seen.size() < 60000) {
+            BlockPos p = queue.poll();
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int x = p.getX() + d[0];
+                int z = p.getZ() + d[1];
+                if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) continue;
+                for (int dy = 1; dy >= -3; dy--) {
+                    BlockPos f = new BlockPos(x, p.getY() + dy, z);
+                    if (solid(level, f.below()) && !solid(level, f) && !solid(level, f.above())
+                            && (dy >= 0 || !solid(level, p.offset(d[0], 0, d[1])) && !solid(level, p.offset(d[0], 1, d[1])))
+                            && (dy <= 0 || !solid(level, p.above(2)))) {
+                        if (seen.add(f.asLong())) queue.add(f);
+                        break;
+                    }
+                }
+            }
+        }
+        return seen;
     }
 
     /** The rooms whose mobs stood on learned spawn spots at the last GO, and those spots, for tests. */
