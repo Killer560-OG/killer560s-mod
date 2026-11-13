@@ -78,9 +78,6 @@ public final class ProfileManager {
             "killer560smod-croesus-runs.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.
             "killer560smod-experiments-profit.json",
-            // Shared-store records' old per-instance names (RecordCatalog CARNIVAL, SIM_MOB_LOOKS) - records, not settings.
-            "killer560smod-carnival-history.json",
-            "killer560smod-sim-mob-looks.json",
             // The Bazaar Flipper's profit log (cycles) and today's NPC-sale count for the daily NPC sell limit -
             // run data and a running counter, not settings (2026-10-16).
             "killer560smod-bazaarflip-profit.json",
