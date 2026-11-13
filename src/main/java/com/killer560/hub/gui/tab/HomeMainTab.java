@@ -82,6 +82,14 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 .bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // What's New also opens from here, so it is reachable with the custom title screen off.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("What's New"), btn ->
+                        com.killer560.hub.compat.McCompat.setScreen(net.minecraft.client.Minecraft.getInstance(),
+                                new com.killer560.hub.whatsnew.WhatsNewScreen(com.killer560.hub.compat.McCompat.screen(
+                                        net.minecraft.client.Minecraft.getInstance()))))
+                .bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         // Sweat Mode is the button at the top of Home only (killer560, 2026-10-18), not a row in Mod or HUD.
         y += 4;
 

@@ -158,6 +158,22 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   jump is due or armed), keeping W on the ground so the sprint stays. The bend lasts the click's two ticks; AP3's held keys
   are re-picked at that yaw (`nearestKey8`). On a jump tick AP3 faces the walk whatever turn is out (the sprint-jump boost
   goes along the facing; a lever turn on the platform jump threw him into the lava), and the click turns again after.
+- **Lever reach, measured (leverbest-1112, testkit 1112-boss-lever-reach-probe, GrimAC 2.3.74 default AND experimental,
+  same numbers).** What counts is where the click's look ENTERS the lever's full block, measured from the real eye (feet +
+  1.62 standing, 1.27 sneaking), along a ray that really hits the lever's small outline. Hand flicks from feet west of the
+  low S2 floor lever 27,124,127 along the best such ray: entry 4.40 / 4.45 / 4.48 / 4.50 / 4.52 / 4.55 / 4.60 clean, 4.70
+  two RotationPlace flags (the lever still toggles; the vanilla server only wants the block within 5.5). The outline
+  itself was hit 5.1-5.4 away, so the outline distance and the box distance are not the rule. Aiming at the outline's
+  middle enters the block about 0.05-0.17 later than the best spot. Lever Aura (`BlockHits.best`) aims at the outline point
+  whose ray enters the block soonest and flicks only while that entry is within 4.5 (`blockInteractionRange`), leaving
+  ~0.1 of the measured margin for lag. RULE FOR A ROUTE SEARCH: a lever node is flickable when min over outline-hitting
+  rays from the true eye of the full-block entry distance is <= 4.5 (no Full Block). With Secrets' Full Block lever shape
+  the client's ray hits the cube itself, so eye-to-nearest-cube-point <= 4.5 is enough for a hand click, as long as the
+  look the server has is that ray. His sim flick of 13:14:03 (feet 22.87,124.41,129.36, box 4.47) was a Full Block click:
+  the real outline's best ray enters at 4.575 there (middle aim 4.734), so Lever Aura holds it; a hand click along that
+  ray is clean on Grim (4.575 < 4.60) but no vanilla client can make it without Full Block (outline 5.2+ away, pick range
+  4.5). Freeze State's frozen look 60.10/32.36 with that cube hit drew RotationPlace on both configs: the sim's vanilla
+  server has no look check, so a sim flick proves nothing about Grim.
 - **#34 on main 3011406a (2026-10-27).** (1) The "no stepping down unless the point is lower" rule stranded an align that
   had to cross a stair's low half: his 09:25:55 Fast Align #34 started on the low half, stepped up, then refused every
   press for 50 ticks at rest 0.78 from the point. A press may now cross a lower floor down to start - 0.5 when the fall
