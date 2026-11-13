@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Proxy Client: servers on localhost, your LAN or a private address now connect directly instead of through the SOCKS proxy, so a local test server can be joined with the proxy on.",
-     "Friends List: online friends are listed first, even while a sync is running"
+     "Friends List: online friends are listed first, even while a sync is running",
+     "Sim: /simboss <phase> typed inside a running F7 boss fight resets the fight and arena but no longer moves you"
     ]
    }
   ]
