@@ -45,6 +45,13 @@ public final class BossStartScreen extends Screen {
         }
     }
 
+    /** A profile load replaced the files: Spawn Withers and the mode go back to their defaults, then read the files again. */
+    public static void reload() {
+        withers = null;
+        master = true;
+        loadMode();
+    }
+
     private static void loadMode() {
         try {
             if (java.nio.file.Files.isRegularFile(MODE_FILE)) {

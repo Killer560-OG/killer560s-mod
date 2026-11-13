@@ -135,7 +135,7 @@ public final class ProfileManager {
                 // ProfileData's list names a few .json files too (intro.json, sim-map-history.json,
                 // partyfinder-stats-cache.json), but ProfileData only judges data entries and a plain .json is a
                 // setting file to it, so until 2026-11-02 those three still rode in profiles as settings.
-                && !ProfileData.EXCLUDED_NAMES.contains(fileName.substring(ModPaths.PREFIX.length()))
+                && !ProfileData.isExcludedKey(fileName.substring(ModPaths.PREFIX.length()))
                 // Routes and waypoints every profile shares (profshare-1112): never saved, replaced or reset by one.
                 && !ProfileData.isShared(fileName)
                 && !ModPaths.isRetired(fileName);
@@ -669,6 +669,7 @@ public final class ProfileManager {
                 com.killer560.hub.roomsim.SimMenuPrefs::reload,
                 com.killer560.hub.roomsim.SimCoopConfig::load,
                 com.killer560.hub.roomsim.SimRoomFilters::reloadAll,
+                com.killer560.hub.bosssim.BossStartScreen::reload,
         };
         int failed = 0;
         for (Runnable loader : loaders) {
