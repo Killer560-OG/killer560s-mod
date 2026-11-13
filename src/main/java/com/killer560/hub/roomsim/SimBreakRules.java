@@ -21,7 +21,7 @@ import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 /**
- * What the Dungeon Breaker cannot break in the sim (killer560, 2026-11-12): smooth (polished) granite, pistons, a block with fire on it, and any block a
+ * What the Dungeon Breaker cannot break in the sim (killer560, 2026-11-12): smooth (polished) granite, pistons, dispensers, a block with fire on it, and any block a
  * button, torch, lever, sign, ladder or the like hangs on. Asked by the sim's server-side break and, through
  * {@code BreakerGuard.protects}, by Zero Ping, Breaker Aura and Auto Routes while the sim runs. Hypixel is not touched.
  */
@@ -33,7 +33,7 @@ public final class SimBreakRules {
 
     public static boolean refuses(BlockGetter level, BlockPos pos) {
         Block b = level.getBlockState(pos).getBlock();
-        if (b == Blocks.POLISHED_GRANITE || b instanceof PistonBaseBlock || b instanceof PistonHeadBlock
+        if (b == Blocks.POLISHED_GRANITE || b == Blocks.DISPENSER || b instanceof PistonBaseBlock || b instanceof PistonHeadBlock
                 || b instanceof MovingPistonBlock) {
             return true;
         }
