@@ -263,7 +263,7 @@ public final class BloodRushHelperFeature {
                 com.killer560.hub.hud.HudSeen.markDrawn(id());
             }
             var font = Minecraft.getInstance().font;
-            graphics.text(font, "§6" + lines.get(0), x + 1, y + 1, 0xFFFFAA00, true);
+            graphics.text(font, lines.get(0), x + 1, y + 1, com.killer560.hub.gui.ThemeAccent.onDark(com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00)), true);
             graphics.text(font, "§7" + lines.get(1), x + 1, y + 1 + com.killer560.hub.hud.HudText.ROW, 0xFFAAAAAA, true);
         }
     };
@@ -869,7 +869,7 @@ public final class BloodRushHelperFeature {
                         continue;
                     }
                     String text = (help ? "help " : "") + "R" + r + (who != null ? " " + who : "");
-                    out.add(spot(name, b, help ? 0xFFFFAA00 : cfg.getOthersColor(), label(text, b), false,
+                    out.add(spot(name, b, help ? com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) : cfg.getOthersColor(), label(text, b), false,
                             help ? Look.HELP : Look.THEIRS, 0, r));
                 }
             }
