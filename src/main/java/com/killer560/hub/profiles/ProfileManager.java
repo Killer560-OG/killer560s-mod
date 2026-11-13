@@ -669,6 +669,7 @@ public final class ProfileManager {
                 com.killer560.hub.roomsim.SimMenuPrefs::reload,
                 com.killer560.hub.roomsim.SimCoopConfig::load,
                 com.killer560.hub.roomsim.SimRoomFilters::reloadAll,
+                com.killer560.hub.bosssim.BossStartScreen::reload,
         };
         int failed = 0;
         for (Runnable loader : loaders) {
