@@ -245,7 +245,7 @@ public final class LeverAuraFeature {
      * tick in reach. Never clicks. Always true (nothing went out; the flick is scheduled from this tick).
      */
     private static boolean preTurn(Minecraft client, BlockPos pos, Vec3 eyeNext) {
-        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos, eyeNext);
+        BlockHitResult hit = bestHit(client, pos, eyeNext);
         // Already turned (a slow approach): keep that hold; asking again would read "hits" and give the body back early.
         if (hit != null && !TURN.isTurned() && !TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
                 eyeNext.distanceTo(hit.getLocation()) + 1.0)) {
@@ -258,9 +258,11 @@ public final class LeverAuraFeature {
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
     private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
         // A surface hit from the eye rather than the block's center: a point INSIDE the block is what GrimAC flagged on
-        // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits.
-        BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos,
-                client.player.getEyePosition());
+        // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits. The best spot
+        // on the outline, not its middle (leverbest-1112): the ray that enters the full cube soonest, which is what GrimAC
+        // RotationPlace measures against 4.5.
+        Vec3 eye = client.player.getEyePosition();
+        BlockHitResult hit = bestHit(client, pos, eye);
         if (hit == null) {
             // Skip the tick rather than send a hit no ray could produce; the lever is not marked done, so the next
             // tick tries again once the geometry allows a real hit.
@@ -269,17 +271,27 @@ public final class LeverAuraFeature {
         }
         // A lever the look the server was told about does not reach (behind him) gets the BODY turned to it first,
         // the camera held: Secret Aura's identical click drew GrimAC RotationPlace from behind (testkit 419).
-        if (!TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
-                client.player.getEyePosition().distanceTo(hit.getLocation()) + 1.0)) {
+        double reach = eye.distanceTo(hit.getLocation()) + 1.0;
+        if (!TURN.readyBlock(client.player, client.level, pos, hit.getLocation(), reach)) {
             LOGGER.info("[LeverAura] turning body to lever {} first (reported look does not reach it) tick={}",
                     pos.toShortString(), ActionGate.currentTick());
             return false;
         }
+        // The click is the outline hit along the look the server was told about (the body's), the way a real click is
+        // picked; the aimed point is only the fallback when the turn left the look a rounding short of it.
+        BlockHitResult onLook = client.level.getBlockState(pos).getShape(client.level, pos)
+                .clip(eye, eye.add(com.killer560.hub.util.TurnFirst.look(client.player).scale(reach)), pos);
+        if (onLook != null) {
+            hit = onLook;
+        }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
-        LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} powered={} swing={} tick={}", pos.toShortString(),
-                reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.2f",
-                        client.player.getEyePosition().distanceTo(hit.getLocation())),
+        LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} entry={} box={} powered={} swing={} tick={}",
+                pos.toShortString(), reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.3f",
+                        eye.distanceTo(hit.getLocation())),
+                String.format(java.util.Locale.ROOT, "%.3f", com.killer560.hub.util.BlockHits.entry(
+                        new net.minecraft.world.phys.AABB(pos), eye, hit.getLocation().subtract(eye).normalize())),
+                String.format(java.util.Locale.ROOT, "%.3f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos))),
                 client.level.getBlockState(pos).getBlock() == Blocks.LEVER
                         ? client.level.getBlockState(pos).getValue(net.minecraft.world.level.block.LeverBlock.POWERED) : null,
                 cfg.isSwingHand(), ActionGate.currentTick());
@@ -290,6 +302,24 @@ public final class LeverAuraFeature {
             ModChat.send(CHAT_TAG, ModChat.text("Flicked "), ModChat.value(pos.toShortString()), ModChat.dim(" (" + reason + ")"));
         }
         return true;
+    }
+
+    /**
+     * {@link com.killer560.hub.util.BlockHits#best}, or null (logged, nothing turned) when even the best ray enters the
+     * lever's cube beyond the block interaction range: GrimAC RotationPlace would flag that click, so the body is not
+     * held for it and the next tick asks again from the new eye.
+     */
+    private static BlockHitResult bestHit(Minecraft client, BlockPos pos, Vec3 eye) {
+        BlockHitResult hit = com.killer560.hub.util.BlockHits.best(client.level, pos, eye);
+        if (hit == null) return null;
+        double entry = com.killer560.hub.util.BlockHits.entry(new net.minecraft.world.phys.AABB(pos), eye,
+                hit.getLocation().subtract(eye).normalize());
+        if (entry > client.player.blockInteractionRange()) {
+            logHeld("entry", "lever " + pos.toShortString() + ": best look enters its block at "
+                    + String.format(java.util.Locale.ROOT, "%.3f", entry) + " > " + client.player.blockInteractionRange());
+            return null;
+        }
+        return hit;
     }
 
     /** One cooldown between flicks: the set ms, +-10%. */

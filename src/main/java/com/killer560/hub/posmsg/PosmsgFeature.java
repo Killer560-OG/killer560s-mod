@@ -47,10 +47,9 @@ import java.util.Set;
  * <p>
  * Leaping onto a teammate who stands in a ring (killer560, 2026-11-02: "it tries to send that at the same time as
  * other chat messages. delay it till the leap messages go off"): the line goes through
- * {@link OutgoingChat}, so it waits behind Leap Message's "Leaping to" and Cringe lines and is spaced from them by
- * the gap Hypixel accepts. When the teleport lands BEFORE Hypixel's "You have teleported to X!" line (so Leap
+ * {@link OutgoingChat} and leaves at once (no queue, 2026-11-12). When the teleport lands BEFORE Hypixel's "You have teleported to X!" line (so Leap
  * Message has not asked for its lines yet), a ring entered by that jump within {@link #LEAP_MENU_WINDOW_MS} of a
- * leap menu being open is held until the leap line arrives (then it queues behind the leap lines) or for at most
+ * leap menu being open is held until the leap line arrives (then it goes at once) or for at most
  * {@link #LEAP_HOLD_MAX_MS}; it is never dropped. A ring walked into, or jumped into with no leap menu, goes at once.
  */
 public final class PosmsgFeature {
