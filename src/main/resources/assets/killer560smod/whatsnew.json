@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-12",
+  "summary": "What's New screen on the main menu",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "What's New screen on the main menu"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-11",
   "summary": "Co-op sim, Lever Aura and a round of Grim fixes",
   "sections": [
