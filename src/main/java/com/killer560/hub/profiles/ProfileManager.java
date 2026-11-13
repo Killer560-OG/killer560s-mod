@@ -267,6 +267,8 @@ public final class ProfileManager {
         String name = sanitize(rawName);
         if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         try {
+            // A queued Waypoint Routes save must reach the disk first (its store's reload used to do this before it left the list).
+            com.killer560.hub.routes.AsyncFileWriter.flush();
             Path dir = PROFILES_DIR.resolve(name);
             Files.createDirectories(dir);
             int count = 0;
