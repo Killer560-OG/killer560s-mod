@@ -12,7 +12,8 @@
      "Sim: /simboss <phase> typed inside a running F7 boss fight resets the fight and arena but no longer moves you",
      "The dungeon sim skips mob spots a player cannot walk to (walled in behind a lever or outside the room), so Auto Clear no longer stalls on 'no etherwarp path' in rooms like Redstone Crypt.",
      "Sim F7: terminal stands no longer burn, the Arrows device lights only behind solved arrows, clicking a terminal never takes your held item, and Necron's health drops only when you hit him",
-     "Breaker Aura: Edit Mode now turns itself off when you change worlds (leaving the dungeon) and after a restart, so picked blocks no longer stay drawn with the aura off."
+     "Breaker Aura: Edit Mode now turns itself off when you change worlds (leaving the dungeon) and after a restart, so picked blocks no longer stay drawn with the aura off.",
+     "Party Commands: !killer560 / !k560 / !killer now reply with the Discord invite code instead of a link Hypixel censored to ****, and clicking the already-selected Chat Tab no longer sends a second /chat that drew \"You're already in this channel!\""
     ]
    }
   ]
