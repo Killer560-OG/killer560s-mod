@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-13",
+  "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Proxy Client: servers on localhost, your LAN or a private address now connect directly instead of through the SOCKS proxy, so a local test server can be joined with the proxy on."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-12",
   "summary": "What's New screen on the main menu",
   "sections": [
