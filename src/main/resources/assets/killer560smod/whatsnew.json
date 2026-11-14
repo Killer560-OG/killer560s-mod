@@ -12,7 +12,8 @@
      "Boss sim: the Hyperion no longer teleports you in the boss fight (its blast still hits), and blocking an Ender pearl in the boss no longer shows a title",
      "AP3: your own right click, dig or hotbar swap during a route no longer throws the held walk off or stops AP3 (held one tick and sent)",
      "Sim Terminator: spam left-clicking now shoots every 4 ticks (5.00 shots/s at 100 Attack Speed, like Hypixel); holding right click stays 4.00/s",
-     "Storm Bow: releases a held Last Breath at a set charge tick (default 34.25), with optional Terminator swap and walk; Auto M5: walks to your saved mid, Ragnarock buff, aims at and kills the real Livid (cheat, both off by default)"
+     "Storm Bow: releases a held Last Breath at a set charge tick (default 34.25), with optional Terminator swap and walk; Auto M5: walks to your saved mid, Ragnarock buff, aims at and kills the real Livid (cheat, both off by default)",
+     "Treasure Chest Highlight: a chest that appears beside a block you just dug is now always boxed, even when the chat line is missing, you have moved away, or another player's chest appeared near you first (requeued 11-14)"
     ]
    }
   ]
