@@ -36,6 +36,8 @@ public final class InventoryLayout {
     /** Slot -&gt; exact key ({@link InvSortMatch#exact}) of the very item saved there. Optional: a slot without one (any
      *  layout saved before 2026-11-03) matches any copy of its id. */
     private final Map<Integer, String> slotExact;
+    /** Slot -> how many the slot held when the layout was saved (absent: an older layout, amount unknown). */
+    private final Map<Integer, Integer> slotCounts;
     /** Slots the layout leaves alone (see the class doc). */
     private final Set<Integer> freeSlots;
     /** Storage mode (killer560, 2026-11-01): before sorting, take the layout's missing items out of storage (Ender
@@ -73,6 +75,18 @@ public final class InventoryLayout {
     public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
                            Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
                            String dumpPage, int loadout) {
+        this(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout, Map.of());
+    }
+
+    public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
+                           Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
+                           String dumpPage, int loadout, Map<Integer, Integer> slotCounts) {
+        this.slotCounts = new LinkedHashMap<>();
+        slotCounts.forEach((k, v) -> {
+            if (v != null && v > 0 && v <= 64 && slotIdentities.containsKey(k)) {
+                this.slotCounts.put(k, v);
+            }
+        });
         this.loadout = loadout >= 1 && loadout <= MAX_LOADOUT ? loadout : 0;
         this.name = name;
         this.slotIdentities = new LinkedHashMap<>(slotIdentities);
@@ -100,17 +114,17 @@ public final class InventoryLayout {
 
     /** The same slots under another name. */
     public InventoryLayout renamed(String newName) {
-        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout);
+        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout, slotCounts);
     }
 
     /** The same slots with other storage-mode settings. */
     public InventoryLayout withStorage(boolean fetch, String dump) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout, slotCounts);
     }
 
     /** The same layout selecting Hypixel loadout {@code n} (1..12) when applied; 0 for none. */
     public InventoryLayout withLoadout(int n) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n, slotCounts);
     }
 
     /** The Hypixel loadout applying this layout selects first (1..12), or 0 for none. */
@@ -153,6 +167,11 @@ public final class InventoryLayout {
             out.put(e.getKey(), slotExact.getOrDefault(e.getKey(), e.getValue()));
         }
         return out;
+    }
+
+    /** Slot -> amount held when saved; empty for a layout saved before amounts were kept. */
+    public Map<Integer, Integer> counts() {
+        return java.util.Collections.unmodifiableMap(slotCounts);
     }
 
     /** The exact key, else the id, for {@code slot}; null when the layout does not manage it. */

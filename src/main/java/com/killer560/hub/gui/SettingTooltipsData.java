@@ -3070,6 +3070,7 @@ final class SettingTooltipsData {
         d.put("inventory sorter/open menu key", "Press to capture a key (or mouse button) that opens the layouts menu; Backspace clears it.");
         d.put("inventory sorter/instant (0-tick)", "Cheat build. Sends every click of a sort in one tick without opening your inventory. UNTESTED on Hypixel: clicks with no inventory open are what got a limbo for \"Bad client inventory move\". Off by default.");
         d.put("inventory sorter/dump button on chests", "Cheat build. Shows a Dump Into Chest button above an open chest, Ender Chest page or backpack: it shift-clicks your inventory into it, one click per paced tick. Never the locked last hotbar slot or the SkyBlock Menu.");
+        d.put("inventory sorter/fetch missing from sacks", "Cheat build. After the storage visits, takes what the layout still lacks from your sacks with /gfs: the amount the layout was saved with minus what you now hold, so only the shortfall (storage first, sacks only for the rest). Hypixel Skyblock only.");
         d.put("inventory sorter/dump hotbar", "Dump Into Chest also moves your hotbar. Off by default; the locked bottom-right slot is never moved.");
         d.put("inventory sorter/dump key", "Press to capture a key (or mouse button) that dumps your inventory into the open chest; Backspace clears it.");
         d.put("inventory sorter/ticks between moves", "Client ticks between each click the sorter sends. It always uses the fewest clicks a sort can take.");
