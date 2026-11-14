@@ -68,8 +68,12 @@ public final class LeapMenuFeature {
      *  before the tab list named you, it read whatever class you last edited, not the one you had selected. */
     public static DungeonClass playingClass() {
         Minecraft client = Minecraft.getInstance();
-        DungeonClass fromTab = client.player == null ? null
-                : PartyTracker.detectedClassOf(client.player.getGameProfile().name());
+        String me = client.player == null ? null : client.player.getGameProfile().name();
+        // A pick on your own name comes first (killer560 11-13): it is what you told the Leap Order you play.
+        if (me != null && com.killer560.hub.dungeonclass.ClassOverrides.has(me)) {
+            return PartyTracker.classOf(me);
+        }
+        DungeonClass fromTab = me == null ? null : PartyTracker.detectedClassOf(me);
         if (fromTab != null) {
             return fromTab;
         }
