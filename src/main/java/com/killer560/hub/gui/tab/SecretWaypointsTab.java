@@ -66,6 +66,10 @@ public class SecretWaypointsTab extends BaseTab {
 
         widgets.add(onOffButton("Hide Princes After 1", cfg::isHidePrincesAfterOne, cfg::setHidePrincesAfterOne, cfg::save,
                 null, contentX, y, 220, 18));
+        y += 22;
+
+        widgets.add(onOffButton("Community Routes", cfg::isCommunityRoutes, cfg::setCommunityRoutes, cfg::save,
+                null, contentX, y, 220, 18));
         y += 26;
 
         // Per-type colors (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no
