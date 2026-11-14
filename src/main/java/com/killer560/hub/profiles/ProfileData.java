@@ -58,7 +58,7 @@ public final class ProfileData {
             // /reboot's work folder holds a class file the game launches with java (and a pid file): a profile must
             // never carry or plant one. Downloads: Auto Update's staged jars, the speech model (~70 MB), the room database and the room library
             // (~13 MB), pathfinding island graphs (with fairy-soul progress beside them - his game state, not a setup).
-            "autoupdate-staging", "reboot", "voice-model", "roomdata", "rooms", "pathfinding",
+            "autoupdate-staging", "reboot", "voice-model", "roomdata", "rooms", "pathfinding", "communityroutes.json",
             // A Chromium profile (cookies, logins): huge and holds session data.
             "shorts-profile",
             // Caches and diagnostics: GIF audio converted to WAV, the Pack Disabler's "missing models" list, sim map

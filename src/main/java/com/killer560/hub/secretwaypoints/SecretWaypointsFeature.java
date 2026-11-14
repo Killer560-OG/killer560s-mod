@@ -65,7 +65,9 @@ public final class SecretWaypointsFeature {
         /** killer560, 2026-10-05: crypt and prince waypoints, each behind its own toggle. Found from the room's
          *  blocks by {@link CryptScanner}; the box is the tomb itself. */
         CRYPT,
-        PRINCE
+        PRINCE,
+        /** A step of a community route: an etherwarp, a block to mine or a thing to click. */
+        ROUTE
     }
 
     /** The name shown with Show Names on. */
@@ -81,6 +83,7 @@ public final class SecretWaypointsFeature {
                 case LEVER -> "Lever";
                 case CRYPT -> "Crypt";
                 case PRINCE -> "Prince";
+                case ROUTE -> "Route";
             };
         };
     }
@@ -106,6 +109,8 @@ public final class SecretWaypointsFeature {
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
     private static final List<Waypoint> CACHED = new ArrayList<>();
+    /** Community route paths of the room, replaced whole on a rebuild (the frame may read it later than the tick). */
+    private static volatile List<net.minecraft.world.phys.Vec3[]> routeLines = List.of();
     private static long cacheStampMs = 0L;
     private static double cacheX = Double.NaN;
     private static double cacheZ = Double.NaN;
@@ -486,6 +491,7 @@ public final class SecretWaypointsFeature {
                 LOGGER.info("[SecretWaypoints] no waypoints: {}", why);
             }
             CACHED.clear();
+            routeLines = List.of();
             cacheStampMs = 0L;
             return;
         }
@@ -518,6 +524,7 @@ public final class SecretWaypointsFeature {
 
     private static void rebuild(SecretWaypointsConfig cfg, double px, double pz) {
         CACHED.clear();
+        routeLines = List.of();
         // Only the room you are in (killer560, 2026-09-21: "only show the waypoints for the room I am currently in
         // and remove the render distance option"). Rooms spanning several tiles are listed once per tile, so the
         // name decides and duplicate positions are skipped.
@@ -577,6 +584,7 @@ public final class SecretWaypointsFeature {
             addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.WITHER, "wither", cfg, seen);
             addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, "bat", cfg, seen);
             addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, "key", cfg, seen);
+            addCommunityRoute(entry.name, clayX, clayZ, rotation, cfg);
         }
         if (changed("anyCell:" + currentIdx, anyCell + "|" + rooms.size())) {
             if (!anyCell) {
@@ -1048,6 +1056,68 @@ public final class SecretWaypointsFeature {
         return false;
     }
 
+    private static BlockPos realOf(int[] p, int clayX, int clayZ, int rotation, int shift) {
+        RoomEntry.Pos rel = new RoomEntry.Pos();
+        rel.x = p[0];
+        rel.y = p[1];
+        rel.z = p[2];
+        return RoomDatabase.toRealCoord(rel, clayX, clayZ, rotation).above(shift);
+    }
+
+    private static void routeBox(int[][] spots, int clayX, int clayZ, int rotation, int shift, float r, float g, float b,
+                                 String label) {
+        for (int[] p : spots) {
+            BlockPos real = realOf(p, clayX, clayZ, rotation, shift);
+            CACHED.add(new Waypoint(new AABB(real), real.getX() + 0.5, real.getY() + 0.5, real.getZ() + 0.5,
+                    r, g, b, 0.55f, real, Kind.ROUTE, label));
+        }
+    }
+
+    /**
+     * The next uncollected leg of the room's community route: its path as a line, its etherwarp, mine and click
+     * spots as boxes. A route of his own for the room wins, and the leg ends where its secret is already taken.
+     */
+    private static void addCommunityRoute(String room, int clayX, int clayZ, int rotation, SecretWaypointsConfig cfg) {
+        if (!cfg.isCommunityRoutes() || com.killer560.hub.autoroutes.RouteStore.getInstance().ownRoute(room) != null) return;
+        List<CommunityRoutes.Step> steps = CommunityRoutes.forRoom(room);
+        if (steps == null) return;
+        int shift = com.killer560.hub.roomsim.SimState.isActive() ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
+        for (CommunityRoutes.Step s : steps) {
+            if (s.secret() != null) {
+                BlockPos end = realOf(s.secret(), clayX, clayZ, rotation, shift);
+                boolean taken = false;
+                for (BlockPos c : COLLECTED) taken |= c.distSqr(end) <= 12;
+                if (taken) continue;
+            }
+            List<net.minecraft.world.phys.Vec3> pts = new ArrayList<>();
+            for (int[] p : s.path()) {
+                BlockPos b = realOf(p, clayX, clayZ, rotation, shift);
+                pts.add(new net.minecraft.world.phys.Vec3(b.getX() + 0.5, b.getY() + 0.5, b.getZ() + 0.5));
+            }
+            if (s.secret() != null) {
+                BlockPos b = realOf(s.secret(), clayX, clayZ, rotation, shift);
+                pts.add(new net.minecraft.world.phys.Vec3(b.getX() + 0.5, b.getY() + 0.5, b.getZ() + 0.5));
+            }
+            if (pts.size() > 1) routeLines = java.util.Collections.singletonList(pts.toArray(new net.minecraft.world.phys.Vec3[0]));
+            routeBox(s.etherwarps(), clayX, clayZ, rotation, shift, 0.2f, 0.9f, 1f, "Etherwarp");
+            routeBox(s.mines(), clayX, clayZ, rotation, shift, 1f, 0.55f, 0.1f, "Mine");
+            routeBox(s.interacts(), clayX, clayZ, rotation, shift, 1f, 1f, 0.2f, "Interact");
+            return;
+        }
+    }
+
+    /** Test hook: points in the community route line drawn this frame. */
+    public static int routePointsForTest() {
+        List<net.minecraft.world.phys.Vec3[]> l = routeLines;
+        return l.isEmpty() ? 0 : l.get(0).length;
+    }
+
+    /** Test hook: the first (or last) point of the route line, or null. */
+    public static net.minecraft.world.phys.Vec3 routePointForTest(boolean last) {
+        List<net.minecraft.world.phys.Vec3[]> l = routeLines;
+        return l.isEmpty() ? null : l.get(0)[last ? l.get(0).length - 1 : 0];
+    }
+
     private static void addGroup(List<RoomEntry.Pos> positions, int clayX, int clayZ, int rotation, int argb,
                                  Kind kind, String group, SecretWaypointsConfig cfg, java.util.Set<BlockPos> seen) {
         if (positions == null || positions.isEmpty()) return;
@@ -1148,13 +1218,13 @@ public final class SecretWaypointsFeature {
             // actually reads on screen.
             case LEVER -> new AABB(x + 0.3125, y, z + 0.3125, x + 0.6875, y + 0.375, z + 0.6875);
             // Never reached: crypts and princes are boxed by their whole tomb in addCrypts.
-            case CRYPT, PRINCE -> new AABB(x, y, z, x + 1, y + 1, z + 1);
+            case CRYPT, PRINCE, ROUTE -> new AABB(x, y, z, x + 1, y + 1, z + 1);
         };
     }
 
     /** Something to draw this frame: a snapshot, and Blood Rush Helper is not hiding it. */
     private static boolean drawing() {
-        return !CACHED.isEmpty() && !com.killer560.hub.bloodrush.BloodRushHelperFeature.hidesSecretWaypoints();
+        return (!CACHED.isEmpty() || !routeLines.isEmpty()) && !com.killer560.hub.bloodrush.BloodRushHelperFeature.hidesSecretWaypoints();
     }
 
     /** Test hook: how many waypoints the next frame draws. */
@@ -1168,6 +1238,7 @@ public final class SecretWaypointsFeature {
         SecretWaypointsConfig cfg = SecretWaypointsConfig.getInstance();
         // Everything cached is in your room, so no distance limit is applied any more.
         SecretWaypointsRenderer.draw(context, CACHED, cfg.getStyle(), cfg.isThroughWalls(), SecretWaypointsConfig.MAX_RENDER_DISTANCE);
+        SecretWaypointsRenderer.drawLines(context, routeLines, cfg.isThroughWalls());
         if (cfg.isShowNames()) {
             drawNames(context);
         }
