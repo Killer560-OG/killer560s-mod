@@ -1,21 +1,26 @@
 package com.killer560.hub.zpew;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumMap;
 
-/** Persisted Zero Ping Etherwarp settings - see {@link ZeroPingEtherwarp}. Off by default. */
+/**
+ * Persisted Etherwarp settings - Zero Ping Etherwarp ({@link ZeroPingEtherwarp}) and Multi Warps. Off by default.
+ *
+ * <p>Since zpewunify-1111 (killer560, 2026-11-11: "remove the zero ping stuff from auto routes ... have it all come from
+ * zpew") this is also where Auto Routes' old Zero Ping Chain and Charged Chain live: Zero Ping Etherwarp working for Auto
+ * Routes is the zero-ping chain, Multi Warps working for Auto Routes (or the Interactive Map) is the Charged Chain.
+ * Both lists have the same four sources ({@link ZpewSource.Group}); Multi Warps never needs Zero Ping Etherwarp's switch.
+ */
 public final class ZeroPingEtherwarpConfig {
 
     public static final int MIN_TIMEOUT_MS = 250;
     public static final int MAX_TIMEOUT_MS = 3000;
-    /** Warps Per Tick (cheat build): 1 = off, up to this many etherwarps sent in one client tick per use. */
-    public static final int MAX_WARPS_PER_TICK = 10;
+    /** Warps Per Tick: 1 = off, up to this many etherwarps sent in one client tick per use (20 tested clean, 1027/1111). */
+    public static final int MAX_WARPS_PER_TICK = 20;
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-zpew.json");
 
@@ -28,28 +33,29 @@ public final class ZeroPingEtherwarpConfig {
     private boolean chain = true;
     /** The Etherwarp Overlay highlights from the predicted landing while a warp is pending. */
     private boolean overlayFromPrediction = true;
-    /** Warps Per Tick (cheat build only): each of your own etherwarps becomes this many in the same tick, at the same
-     *  look, each from the last one's predicted landing (see {@link ZeroPingEtherwarp#flushExtraWarps}). 1 = off. */
+    /** Warps Per Tick: each of his own etherwarps becomes this many in the same tick, at the same look. 1 = off. */
     private int warpsPerTick = 1;
-    /** Aimed Warps (cheat build only): several clicks of his inside one tick, each at the look it was clicked at, all go
-     *  out in that tick - one banked Blink Charge tick per extra look (see {@link ZeroPingEtherwarp#aimedBurst}). Off. */
+    /** Aimed Warps: several clicks of his inside one tick, each at its own look, go out in that tick (Blink Charge bank). */
     private boolean aimedWarps = false;
-    /** Multi Warps (cheat build only, killer560 2026-11-01 "Make a toggle for the multi warps"): the switch over Warps Per
-     *  Tick and Aimed Warps. Off, neither applies. A file from before the switch turns it on when either was in use. */
+    /** Multi Warps (killer560 2026-11-01 "Make a toggle for the multi warps"): the switch over everything below it. */
     private boolean multiWarps = false;
     /** Dungeons Only (killer560, 2026-11-01): ZPEW predicts only inside a dungeon (the sim counts). Off by default. */
     private boolean dungeonsOnly = false;
-    /** Works For: which senders' etherwarps are predicted (see {@link ZpewSource}). All on by default - before the list
-     *  existed every etherwarp use was predicted, whoever sent it. Saved as {"worksFor": {"MANUAL": true, ...}}. */
-    private final java.util.EnumMap<ZpewSource, Boolean> worksFor = new java.util.EnumMap<>(ZpewSource.class);
-
-    {
-        for (ZpewSource s : ZpewSource.values()) {
-            worksFor.put(s, true);
-        }
-    }
+    /** Works For: which sources' etherwarps Zero Ping Etherwarp predicts. All on by default. */
+    private final EnumMap<ZpewSource.Group, Boolean> worksFor = all(true);
+    /** Multi Warps For: which sources Multi Warps acts for (Manual: Warps Per Tick and Aimed Warps; Auto Routes and
+     *  Interactive Map: a chain of warps sent in one tick from Blink Charge's bank). All on by default. */
+    private final EnumMap<ZpewSource.Group, Boolean> multiWarpsFor = all(true);
 
     private ZeroPingEtherwarpConfig() {
+    }
+
+    private static EnumMap<ZpewSource.Group, Boolean> all(boolean on) {
+        EnumMap<ZpewSource.Group, Boolean> m = new EnumMap<>(ZpewSource.Group.class);
+        for (ZpewSource.Group g : ZpewSource.Group.values()) {
+            m.put(g, on);
+        }
+        return m;
     }
 
     public static ZeroPingEtherwarpConfig getInstance() {
@@ -61,28 +67,75 @@ public final class ZeroPingEtherwarpConfig {
 
     public static void load() {
         ZeroPingEtherwarpConfig cfg = new ZeroPingEtherwarpConfig();
-        if (Files.exists(CONFIG_PATH)) {
-            try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-                cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", cfg.timeoutMs));
-                cfg.chain = ConfigJson.getBool(obj, "chain", cfg.chain);
-                cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
-                cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
-                cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
-                cfg.multiWarps = ConfigJson.getBool(obj, "multiWarps", cfg.warpsPerTick > 1 || cfg.aimedWarps);
-                cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
-                if (obj.has("worksFor") && obj.get("worksFor").isJsonObject()) {
-                    JsonObject wf = obj.getAsJsonObject("worksFor");
-                    for (ZpewSource s : ZpewSource.values()) {
-                        cfg.worksFor.put(s, ConfigJson.getBool(wf, s.name(), true));
-                    }
-                }
-            } catch (Exception e) {
-                cfg = new ZeroPingEtherwarpConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
+            cfg.setTimeoutMs(ConfigJson.getInt(obj, "timeoutMs", cfg.timeoutMs));
+            cfg.chain = ConfigJson.getBool(obj, "chain", cfg.chain);
+            cfg.overlayFromPrediction = ConfigJson.getBool(obj, "overlayFromPrediction", cfg.overlayFromPrediction);
+            cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
+            cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
+            cfg.multiWarps = ConfigJson.getBool(obj, "multiWarps", cfg.warpsPerTick > 1 || cfg.aimedWarps);
+            cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
+            readGroups(ConfigJson.getObject(obj, "worksFor"), cfg.worksFor);
+            JsonObject mw = ConfigJson.getObject(obj, "multiWarpsFor");
+            if (mw != null) {
+                readGroups(mw, cfg.multiWarpsFor);
+            } else {
+                // A file from before the list (zpewunify-1111): Multi Warps acted for his own warps only (Auto Routes' Charged
+                // Chain was its own switch, carried over by migrateFromRoutes), whatever Works For said.
+                cfg.multiWarpsFor.put(ZpewSource.Group.AUTO_ROUTES, false);
+                cfg.multiWarpsFor.put(ZpewSource.Group.INTERACTIVE_MAP, false);
             }
         }
         instance = cfg;
+    }
+
+    /**
+     * Reads a list saved by group name. A file from before zpewunify-1111 holds one switch per sender (LEFT_CLICK,
+     * AUTO_SECRET, AP3 ...): a group is ON when any of its senders found in the file was ON, and stays ON with none found.
+     */
+    private static void readGroups(JsonObject wf, EnumMap<ZpewSource.Group, Boolean> into) {
+        if (wf == null) return;
+        EnumMap<ZpewSource.Group, Boolean> seen = new EnumMap<>(ZpewSource.Group.class);
+        for (ZpewSource s : ZpewSource.values()) {
+            if (s.group() != null && wf.has(s.name())) {
+                seen.merge(s.group(), ConfigJson.getBool(wf, s.name(), true), Boolean::logicalOr);
+            }
+        }
+        for (ZpewSource.Group g : ZpewSource.Group.values()) {
+            if (wf.has(g.name())) {
+                seen.merge(g, ConfigJson.getBool(wf, g.name(), true), Boolean::logicalOr);
+            }
+            into.put(g, seen.getOrDefault(g, true));
+        }
+    }
+
+    /**
+     * Auto Routes' Zero Ping Chain and Charged Chain switches, read from an old Auto Routes file (zpewunify-1111), carried
+     * over so what he had on keeps working: Zero Ping Chain becomes Zero Ping Etherwarp for Auto Routes (switching ZPEW on
+     * for Auto Routes alone when it was off), Charged Chain becomes Multi Warps for Auto Routes and the Interactive Map
+     * (switching Multi Warps on for those alone when it was off). Saves.
+     */
+    public void migrateFromRoutes(boolean zeroPingChain, boolean chargedChain) {
+        if (zeroPingChain || chargedChain) {
+            if (!enabled) {
+                enabled = true;
+                worksFor.replaceAll((g, on) -> false);
+            }
+            worksFor.put(ZpewSource.Group.AUTO_ROUTES, true);
+        } else {
+            worksFor.put(ZpewSource.Group.AUTO_ROUTES, false);
+        }
+        if (chargedChain) {
+            if (!multiWarps) {
+                multiWarps = true;
+                multiWarpsFor.replaceAll((g, on) -> false);
+            }
+            multiWarpsFor.put(ZpewSource.Group.AUTO_ROUTES, true);
+            multiWarpsFor.put(ZpewSource.Group.INTERACTIVE_MAP, true);
+        }
+        save();
     }
 
     public void save() {
@@ -95,12 +148,15 @@ public final class ZeroPingEtherwarpConfig {
         obj.addProperty("aimedWarps", aimedWarps);
         obj.addProperty("multiWarps", multiWarps);
         obj.addProperty("dungeonsOnly", dungeonsOnly);
-        JsonObject wf = new JsonObject();
-        for (ZpewSource s : ZpewSource.values()) {
-            wf.addProperty(s.name(), worksFor.get(s));
-        }
-        obj.add("worksFor", wf);
+        obj.add("worksFor", write(worksFor));
+        obj.add("multiWarpsFor", write(multiWarpsFor));
         ConfigJson.write(CONFIG_PATH, obj);
+    }
+
+    private static JsonObject write(EnumMap<ZpewSource.Group, Boolean> m) {
+        JsonObject o = new JsonObject();
+        m.forEach((g, on) -> o.addProperty(g.name(), on));
+        return o;
     }
 
     public boolean isEnabled() { return enabled; }
@@ -143,29 +199,51 @@ public final class ZeroPingEtherwarpConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && (!dungeonsOnly || com.killer560.hub.secrets.DungeonState.isInDungeon());
     }
 
-    /** Aimed Warps as it applies: never in a legit build, never with Multi Warps off. */
+    /** Aimed Warps as it applies: never in a legit build, never with Multi Warps off or not working for Manual. */
     public boolean effectiveAimedWarps() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps && aimedWarps;
+        return multiWarpsFor(ZpewSource.MANUAL) && aimedWarps;
     }
 
-    /** Warps Per Tick as it applies: always 1 in a legit build (nothing extra is ever sent there) or with Multi Warps off. */
+    /** Warps Per Tick as it applies: 1 in a legit build or with Multi Warps off (its source is always Manual). */
     public int effectiveWarpsPerTick() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps ? warpsPerTick : 1;
+        return multiWarpsFor(ZpewSource.MANUAL) ? warpsPerTick : 1;
     }
 
-    /** Whether ZPEW predicts this sender's etherwarps: its Works For switch, and a cheat source only in a cheat build. */
+    /** Whether ZPEW predicts this sender's etherwarps: cheat build, its group's Works For switch (none for AP3). */
     public boolean worksFor(ZpewSource source) {
-        if (source.cheatOnly() && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return false;
-        return worksFor.get(source);
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && source.group() != null && worksFor.get(source.group());
     }
 
-    /** The saved switch, whatever the build (the tab and the testkit read this). */
-    public boolean getWorksForSetting(ZpewSource source) { return worksFor.get(source); }
+    /** Whether Multi Warps acts for this sender: cheat build, the Multi Warps switch, its group's switch (none for AP3). Never
+     *  depends on Zero Ping Etherwarp's own switch. */
+    public boolean multiWarpsFor(ZpewSource source) {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps && source.group() != null
+                && multiWarpsFor.get(source.group());
+    }
 
-    public void setWorksFor(ZpewSource source, boolean on) { worksFor.put(source, on); }
+    /** The saved switches, whatever the build (the tab and the testkit read these). */
+    public boolean getWorksForSetting(ZpewSource.Group g) { return worksFor.get(g); }
 
-    /** By name, for the testkit's reflection. */
-    public boolean getWorksForByName(String source) { return getWorksForSetting(ZpewSource.valueOf(source)); }
+    public void setWorksFor(ZpewSource.Group g, boolean on) { worksFor.put(g, on); }
 
-    public void setWorksForByName(String source, boolean on) { setWorksFor(ZpewSource.valueOf(source), on); }
+    public boolean getMultiWarpsForSetting(ZpewSource.Group g) { return multiWarpsFor.get(g); }
+
+    public void setMultiWarpsFor(ZpewSource.Group g, boolean on) { multiWarpsFor.put(g, on); }
+
+    /** By name (a group, or an old per-sender name meaning its group), for the testkit's reflection. AP3 has no switch:
+     *  it reads false and setting it does nothing. */
+    public boolean getWorksForByName(String name) { ZpewSource.Group g = group(name); return g != null && worksFor.get(g); }
+
+    public void setWorksForByName(String name, boolean on) { ZpewSource.Group g = group(name); if (g != null) worksFor.put(g, on); }
+
+    public boolean getMultiWarpsForByName(String name) { ZpewSource.Group g = group(name); return g != null && multiWarpsFor.get(g); }
+
+    public void setMultiWarpsForByName(String name, boolean on) { ZpewSource.Group g = group(name); if (g != null) multiWarpsFor.put(g, on); }
+
+    private static ZpewSource.Group group(String name) {
+        for (ZpewSource.Group g : ZpewSource.Group.values()) {
+            if (g.name().equals(name)) return g;
+        }
+        return ZpewSource.valueOf(name).group();
+    }
 }
