@@ -162,7 +162,7 @@ final class CardBlurbsData {
         d.put("AutoUltTab", "Uses your Ultimate on boss lines.");
         d.put("NoRotateTab", "Leaps keep your look.");
         d.put("BreakerAuraTab", "Breaks picked boss blocks.");
-        d.put("DungeonBreakerTab", "Instant Breaker blocks.");
+        d.put("DungeonBreakerTab", "Breaker secret guard.");
         d.put("FastLeapTab", "Leaps without the menu.");
         d.put("FreezeStateTab", "!! NEVER ON HYPIXEL: BAN !!");
         d.put("GoldorTriggerbotTab", "Clicks wither bosses on aim.");

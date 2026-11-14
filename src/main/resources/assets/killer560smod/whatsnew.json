@@ -16,7 +16,7 @@
      "Party Commands: !killer560 / !k560 / !killer now reply with the Discord invite code instead of a link Hypixel censored to ****, and clicking the already-selected Chat Tab no longer sends a second /chat that drew \"You're already in this channel!\"",
      "none (test fixes; profiles no longer carry sim mob looks / Carnival history records)",
      "Online Count: /online now counts you in a singleplayer world (the sim) or on another server too",
-     "Swap To Drill On Pigeon no longer prints the Swapped to line in chat."
+     "Dungeon Breaker: removed the Zero Ping option (it never acted); Don't break secrets stays"
     ]
    }
   ]
