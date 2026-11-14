@@ -72,7 +72,7 @@ public final class InventorySorterExecutor {
     /** Ticks the loadout swap may take (the menu has 5 s to open, then a click and a close). */
     private static final int LOADOUT_TIMEOUT_TICKS = 240;
 
-    private enum State { IDLE, WAITING_LOBBY, LOADOUT, STORAGE, WAIT_SCREEN, SORTING }
+    private enum State { IDLE, WAITING_LOBBY, LOADOUT, STORAGE, SACKS, WAIT_SCREEN, SORTING }
 
     /** Hypixel will not open a backpack, the Ender Chest or the storage menu for about this long after a warp or server
      *  switch (killer560, 2026-11-03: "it needs to wait to open backpacks and stuff for 4 seconds after a warp"; his own
@@ -97,6 +97,7 @@ public final class InventorySorterExecutor {
     private static State state = State.IDLE;
     private static InventoryLayout targetLayout;
     private static InvSortStorage storage;
+    private static InvSortSacks sacks;
     private static int stateTicks;
     /** Ticks still to wait before the next click. */
     private static int waitTicks;
@@ -130,6 +131,7 @@ public final class InventorySorterExecutor {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
+        InvSortSacks.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("InventorySorterExecutor.tick", InventorySorterExecutor::tick));
         // Escape (which also closes the inventory) and the Emergency Cancel Key stop it (killer560, 2026-11-01).
         com.killer560.hub.macrostop.MacroStop.register("Inventory Sorter", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, InventorySorterExecutor::isRunning,
@@ -193,6 +195,10 @@ public final class InventorySorterExecutor {
         openedByUs = false;
         instantRun = InventorySorterConfig.getInstance().isInstant();
         storage = null;
+        if (sacks != null) {
+            sacks.release();
+        }
+        sacks = null;
         loadoutSent = false;
         loadoutDoneTick = -1;
         if (layout.looseSlots() > 0) {
@@ -219,7 +225,22 @@ public final class InventorySorterExecutor {
         if (layout.usesStorage()) {
             storage = new InvSortStorage(layout);
             storage.plan(client);
-            setState(storage.hasWork() ? State.STORAGE : State.WAIT_SCREEN);
+            if (storage.hasWork()) {
+                setState(State.STORAGE);
+            } else {
+                afterStorage(client);
+            }
+        } else {
+            setState(State.WAIT_SCREEN);
+        }
+    }
+
+    /** Storage is done: what no storage page held is asked of the sacks (Fetch Missing From Sacks), else the sort. */
+    private static void afterStorage(Minecraft client) {
+        if (InventorySorterConfig.getInstance().isFetchSacks() && storage != null && !storage.notFound().isEmpty()
+                && com.killer560.hub.util.SackCommands.available(client)) {
+            sacks = new InvSortSacks(storage.notFound());
+            setState(State.SACKS);
         } else {
             setState(State.WAIT_SCREEN);
         }
@@ -355,6 +376,16 @@ public final class InventorySorterExecutor {
                 } else if (r == InvSortStorage.Result.DONE) {
                     LOGGER.info("[InvSort] Storage done: {} fetched, {} dumped, {} clicks, not found {}",
                             storage.fetched(), storage.dumped(), storage.clicks(), storage.notFound());
+                    afterStorage(client);
+                }
+            }
+            case SACKS -> {
+                boolean mayAct = pacedAndStill();
+                if (state == State.IDLE) {
+                    return;
+                }
+                if (sacks.tick(client, mayAct)) {
+                    LOGGER.info("[InvSort] Sacks done: {} fetched, not found {}", sacks.fetched(), sacks.missing());
                     setState(State.WAIT_SCREEN);
                 }
             }
@@ -641,6 +672,9 @@ public final class InventorySorterExecutor {
         if (storage != null && (storage.fetched() > 0 || storage.dumped() > 0)) {
             storageNote = ", " + storage.fetched() + " taken from storage, " + storage.dumped() + " put away";
         }
+        if (sacks != null && sacks.fetched() > 0) {
+            storageNote += ", " + sacks.fetched() + " item type(s) from sacks";
+        }
         ModChat.send(InventorySorterCommands.FEATURE, ModChat.good("Sorted "), ModChat.value(targetLayout.name()),
                 ModChat.text(" (" + clicksSent + " click" + (clicksSent == 1 ? "" : "s") + storageNote + ")"),
                 unresolved.isEmpty() ? ModChat.text("") : ModChat.dim(" - " + unresolved.size()
@@ -665,9 +699,11 @@ public final class InventorySorterExecutor {
                         : "they could not be put into " + targetLayout.dumpPage()) + ")."));
             }
         }
-        if (storage != null && !storage.notFound().isEmpty()) {
-            ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim("Not in any storage page the Storage Overlay has seen: "
-                    + storage.notFound().keySet()));
+        java.util.Collection<String> gone = sacks != null ? sacks.missing()
+                : storage == null ? java.util.List.of() : storage.notFound().keySet();
+        if (!gone.isEmpty()) {
+            ModChat.send(InventorySorterCommands.FEATURE, ModChat.dim("Not in any storage page the Storage Overlay has seen"
+                    + (sacks != null ? " or in your sacks" : "") + ": " + gone));
         }
         LOGGER.info("[InvSort] Sorted {}: {} clicks ({} hotbar swaps, {} pickups; planned {}, {} replans, {} in one tick at"
                         + " most, {}), {} unresolved", targetLayout.name(), clicksSent, hotbarSwaps, pickupClicks, planned,
