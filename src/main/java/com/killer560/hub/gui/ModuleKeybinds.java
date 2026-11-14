@@ -64,7 +64,7 @@ public final class ModuleKeybinds {
     public static final String STRUCTURE_SCANNER_ID = "StructureScannerTab";
     public static final String STRUCTURE_SCANNER_LABEL = "Scanner Toggle Keybind";
 
-    /** One Carnival feature folded into the Carnival card (carnivalfold-1111): its old card id keeps its bind. Looked up on
+    /** Carnival Games (the old Auto Accept Game, now a row of the Auto Dialogue card): its old card id keeps its bind. Looked up on
      *  each press, since a profile apply reloads the config. */
     private static void carnival(String id, String name, java.util.function.Supplier<? extends com.killer560.hub.carnival.CarnivalSettings> cfg) {
         EXTRAS.put(id, new Extra(name, name + " Toggle Keybind", () -> cfg.get().isEnabledRaw(),
@@ -72,18 +72,8 @@ public final class ModuleKeybinds {
     }
 
     static {
-        carnival("CarnivalTrackerTab", "Carnival Tracker", com.killer560.hub.carnival.CarnivalTrackerConfig::getInstance);
-        carnival("FruitDiggingTab", "Fruit Digging Solver", com.killer560.hub.carnival.FruitDiggingConfig::getInstance);
-        carnival("ZombieShootoutTab", "Zombie Shootout Helper", com.killer560.hub.carnival.ZombieShootoutConfig::getInstance);
-        carnival("CatchAFishTab", "Catch a Fish Helper", com.killer560.hub.carnival.CatchAFishConfig::getInstance);
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            carnival("ZombieTriggerbotTab", "Zombie Shootout Triggerbot", com.killer560.hub.carnival.ShootoutShotConfig::triggerbot);
-            carnival("AutoZombieShootoutTab", "Auto Zombie Shootout", com.killer560.hub.carnival.ShootoutShotConfig::auto);
-            carnival("AutoShovelSwapTab", "Auto Shovel Swap", com.killer560.hub.carnival.AutoFruitConfig::swap);
-            carnival("AutoFruitDiggingTab", "Auto Fruit Digging", com.killer560.hub.carnival.AutoFruitConfig::dig);
-            carnival("FruitDiggingTriggerbotTab", "Fruit Digging Triggerbot", com.killer560.hub.carnival.AutoFruitConfig::trigger);
-            carnival("AutoCatchAFishTab", "Auto Catch a Fish", com.killer560.hub.carnival.AutoCatchAFishConfig::getInstance);
-            carnival("AutoAcceptGameTab", "Auto Accept Game", com.killer560.hub.carnival.AutoAcceptGameConfig::getInstance);
+            carnival("AutoAcceptGameTab", "Carnival Games", com.killer560.hub.carnival.AutoAcceptGameConfig::getInstance);
             // Looked up on each press: a profile apply reloads the config.
             EXTRAS.put(THORN_TRIGGERBOT_ID, new Extra("Thorn Triggerbot", THORN_TRIGGERBOT_LABEL,
                     () -> com.killer560.hub.thorn.ThornConfig.getInstance().isTriggerbotRaw(),

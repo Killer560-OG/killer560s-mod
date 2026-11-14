@@ -15,18 +15,9 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
-            // carnivalfold-1111: the ten Carnival cards are one card now.
-            Map.entry("carnival tracker", "carnival"),
-            Map.entry("fruit digging solver", "carnival"),
-            Map.entry("zombie shootout helper", "carnival"),
-            Map.entry("catch a fish helper", "carnival"),
-            Map.entry("zombie shootout triggerbot", "carnival"),
-            Map.entry("auto zombie shootout", "carnival"),
-            Map.entry("auto shovel swap", "carnival"),
-            Map.entry("auto fruit digging", "carnival"),
-            Map.entry("fruit digging triggerbot", "carnival"),
-            Map.entry("auto catch a fish", "carnival"),
-            Map.entry("auto accept game", "carnival"),
+            Map.entry("auto accept game", "auto dialogue"),
+            Map.entry("carnival accept", "auto dialogue"),
+            Map.entry("carnival games", "auto dialogue"),
             // killer560 (2026-11-10): "the get sent to lobby thing" should come up for lobby / lobbied.
             Map.entry("lobby", "kick rejoin timer"),
             Map.entry("lobbied", "kick rejoin timer"),

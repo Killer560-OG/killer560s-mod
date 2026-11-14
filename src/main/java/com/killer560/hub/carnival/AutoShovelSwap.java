@@ -40,11 +40,12 @@ public final class AutoShovelSwap {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> AutoFruitConfig.swap().isEnabled() && FruitDigging.active());
         int bit = FeatureBits.register(NAME, () -> AutoFruitConfig.swap().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoShovelSwap.tick", bit, AutoShovelSwap::tick));
     }
 
-    /** The dowsing mode a shovel is in ("Mines", "Anchor", "Treasure"), or null when it is not a shovel. Hypixel's one
+    /** The dowsing mode a Carnival Shovel is in ("Mines", "Anchor", "Treasure"), or null when it is not one. Hypixel's one
      *  Carnival Shovel is always an iron-shovel item; its mode shows only in the item MODEL component (hypixel_skyblock
      *  item/uncategorized/carnival_shovel_iron | _gold | _diamond, PackDisabler's dynamicModel), so the base item says
      *  nothing (11-11: it read every mode as Mines and Prevent Wrong Shovel refused a right Anchor dig). */
@@ -70,14 +71,14 @@ public final class AutoShovelSwap {
                 };
             }
         }
-        if (!itemPath.endsWith("_shovel")) {
+        // A Carnival Shovel is one by its model above, or (no model) by a plain name saying so: a vanilla shovel named
+        // anything else (his Aspect of the Void is a diamond shovel) is never one (11-14: "it keeps swapping to my aotv").
+        if (modelPath != null || !itemPath.endsWith("_shovel") || name == null || !name.contains("Carnival Shovel")) {
             return null;
         }
-        if (name != null) {
-            for (String m : new String[]{"Mines", "Anchor", "Treasure"}) {
-                if (name.contains(m)) {
-                    return m;
-                }
+        for (String m : new String[]{"Mines", "Anchor", "Treasure"}) {
+            if (name.contains(m)) {
+                return m;
             }
         }
         return switch (itemPath) {
@@ -100,7 +101,8 @@ public final class AutoShovelSwap {
     private static void tick(Minecraft mc) {
         AutoFruitConfig cfg = AutoFruitConfig.swap();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()) {
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()
+                || CarnivalInput.stopped(NAME)) {
             return;
         }
         step(mc, player, cfg.getDelayMs());

@@ -275,6 +275,15 @@ final class CardBlurbsData {
         d.put("HeldItemTab", "Moves and sizes held items.");
         d.put("ModTagTab", "Marks other mod users.");
         // Carnival (carnival-1110).
-        d.put("CarnivalTab", "Carnival game helpers.");
+        d.put("CarnivalTrackerTab", "Tokens and goals left.");
+        d.put("FruitDiggingTab", "Best tile to dig.");
+        d.put("ZombieShootoutTab", "Timers and best shot.");
+        d.put("CatchAFishTab", "Shows the fish.");
+        d.put("ZombieTriggerbotTab", "Shoots at crosshair.");
+        d.put("AutoZombieShootoutTab", "Aims and shoots.");
+        d.put("AutoShovelSwapTab", "Sets the shovel mode.");
+        d.put("AutoFruitDiggingTab", "Digs the best tile.");
+        d.put("FruitDiggingTriggerbotTab", "Digs on the best tile.");
+        d.put("AutoCatchAFishTab", "Casts and reels.");
     }
 }

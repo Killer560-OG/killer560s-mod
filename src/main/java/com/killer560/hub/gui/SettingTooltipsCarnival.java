@@ -25,7 +25,7 @@ final class SettingTooltipsCarnival {
         d.put("fruit digging solver/fruit labels", "Over each tile whose content is known, what it holds: yellow if still in the ground, gray once dug.");
         d.put("fruit digging solver/strategy", "What the solver plays for: Consistent (best average score), Leaderboard (best top scores, riskier) or Daily Quest (reach 3,000 points safely). It picks the tile and the shovel mode by it.");
         d.put("fruit digging solver/percent on every square", "Writes the bomb percentage on every tile; off, only the recommended tile has a label and the rest are tinted green to red.");
-        d.put("auto accept game", "Automation: can get you banned; keep it off on the main server. After you click a Carnival game NPC, runs the first (green) option once, like \"Aye sure do!\". Never any other option.");
+        d.put("auto dialogue/carnival games", "Automation: can get you banned; keep it off on the main server. After you click a Carnival game NPC, runs the first (green) option once, like \"Aye sure do!\". Never any other option.");
         d.put("fruit digging solver/tile odds", "Over each unknown tile, the chance it holds a bomb or rum.");
         d.put("fruit digging solver/solver hud", "A HUD with digs used, the next dig's multiplier, the tile and shovel mode to use, and its odds (move it in Edit HUD).");
         d.put("fruit digging solver/fruit left", "Adds the fruit still in the ground, per kind, to the HUD.");
@@ -54,7 +54,7 @@ final class SettingTooltipsCarnival {
         d.put("zombie shootout triggerbot/dart tube only", "Automation: can get you banned; keep it off on the main server. Shoots only while you hold the Carnival Dart Tube.");
         d.put("zombie shootout triggerbot/shot delay", "Automation: can get you banned; keep it off on the main server. The least time between two shots (100 to 1000 ms); each gap is rolled up to a quarter longer.");
         d.put("zombie shootout triggerbot/aim delay", "Automation: can get you banned; keep it off on the main server. How long the crosshair must be on a new target before the first shot (0 to 500 ms).");
-        d.put("auto zombie shootout", "Automation: can get you banned; keep it off on the main server. In Zombie Shootout, turns you to the best target in sight and shoots it. Moving the mouse stops it for that game.");
+        d.put("auto zombie shootout", "Automation: can get you banned; keep it off on the main server. In Zombie Shootout, turns you to the best target in sight and shoots it. Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does.");
         d.put("auto zombie shootout/shoot with", "Automation: can get you banned; keep it off on the main server. The key it taps to shoot: Use (right click) or Attack (left click). Left or right click steps through them.");
         d.put("auto zombie shootout/dart tube only", "Automation: can get you banned; keep it off on the main server. Runs only while you hold the Carnival Dart Tube.");
         d.put("auto zombie shootout/shot delay", "Automation: can get you banned; keep it off on the main server. The least time between two shots (100 to 1000 ms); each gap is rolled up to a quarter longer.");
@@ -63,10 +63,10 @@ final class SettingTooltipsCarnival {
         d.put("auto zombie shootout/aim mode", BAN + "Legit turns your view to each target in an eased, visible turn. No Rotate turns only the look the server hears: your screen holds still (Free Camera) while your body turns.");
         d.put("auto shovel swap", "Automation: can get you banned; keep it off on the main server. In Fruit Digging, switches your Carnival Shovel to the mode the solver wants for the next dig.");
         d.put("auto shovel swap/swap delay", "Automation: can get you banned; keep it off on the main server. The least time between two swaps or mode taps (100 to 2000 ms).");
-        d.put("auto fruit digging", "Automation: can get you banned; keep it off on the main server. In Fruit Digging, turns you to the solver's best tile and digs it. It never walks; moving the mouse stops it for that game.");
+        d.put("auto fruit digging", "Automation: can get you banned; keep it off on the main server. In Fruit Digging, turns you to the solver's best tile and digs it. It never walks; Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does.");
         d.put("auto fruit digging/dig delay", "Automation: can get you banned; keep it off on the main server. The least time between one dig landing and the next (100 to 2000 ms).");
         d.put("auto fruit digging/free camera", "Automation: can get you banned; keep it off on the main server. Holds your screen still while your body turns to each tile; your mouse looks around freely.");
-        d.put("auto catch a fish", "Automation: can get you banned; keep it off on the main server. In Catch a Fish, turns you to the best fish, casts, and holds Use to reel in a hooked fish. Moving the mouse stops it for that game.");
+        d.put("auto catch a fish", "Automation: can get you banned; keep it off on the main server. In Catch a Fish, turns you to the best fish, casts, and holds Use to reel in a hooked fish. Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does.");
         d.put("auto catch a fish/cast delay", "Automation: can get you banned; keep it off on the main server. The least time between two casts (100 to 2000 ms).");
         d.put("auto catch a fish/hook wait", "Automation: can get you banned; keep it off on the main server. How long a cast may go without hooking a fish before it is reeled back and cast again (1 to 10 seconds).");
         d.put("auto catch a fish/free camera", "Automation: can get you banned; keep it off on the main server. Holds your screen still while your body turns to each fish; your mouse looks around freely.");

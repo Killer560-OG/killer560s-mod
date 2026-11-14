@@ -67,6 +67,8 @@ public final class FruitDigging {
     private static final Set<Integer> SEEN_TAGS = new HashSet<>();
     /** A dug bomb that went off, and when: its neighbors still standing hold no fruit once its blast has landed. */
     private static final List<int[]> EXPLOSIONS = new ArrayList<>();
+    private static boolean markerLogged;
+    private static volatile String lastDropped;
     private static boolean dirty;
     private static long tick;
     private static long solvedTick = -100;
@@ -182,6 +184,8 @@ public final class FruitDigging {
         attacked = -1;
         SEEN_TAGS.clear();
         EXPLOSIONS.clear();
+        markerLogged = false;
+        lastDropped = null;
         recommendation = null;
         solved = null;
         boardGeneration++;
@@ -302,8 +306,8 @@ public final class FruitDigging {
         for (int[] ex : EXPLOSIONS) {
             if (ex[1] >= 0 && tick - ex[1] >= 10) {
                 for (int nb : FruitDiggingSolver.neighbors(ex[0])) {
-                    if (cells[nb].diggable && cells[nb].content == null) {
-                        cells[nb].notFruit = true;
+                    if (cells[nb].diggable && cells[nb].content == null && !cells[nb].mustFruit) {
+                        cells[nb].notFruit = true; // never over a tile an Anchor marked: what was seen beats the guess
                     }
                 }
                 ex[1] = -1;
@@ -342,6 +346,7 @@ public final class FruitDigging {
                 digsUsed++;
                 previousDug = lastDug;
                 lastDug = i;
+                c.dugAt = digsUsed;
                 c.from = unknownNeighbors(i);
                 lastDugTick = tick;
                 attacked = -1;
@@ -395,6 +400,12 @@ public final class FruitDigging {
                     continue;
                 }
                 SEEN_TAGS.add(item.getId());
+                if (!markerLogged) {
+                    markerLogged = true;
+                    LOGGER.info("[Fruit Digging] marker item id={} hoverName={} components={}",
+                            BuiltInRegistries.ITEM.getKey(item.getItem().getItem()), item.getItem().getHoverName(),
+                            item.getItem().getComponents());
+                }
                 anchorMark(cell, Fruit.byName(ChatObserver.stripCodes(item.getItem().getHoverName().getString())));
             }
         }
@@ -408,10 +419,15 @@ public final class FruitDigging {
         }
         c.content = f;
         c.mustFruit = false;
+        c.notFruit = false;
         dirty = true;
         LOGGER.info("[Fruit Digging] {} held {}", FruitDiggingSolver.label(cell), f.label);
         // A dug bomb goes off unless the dig before it was a Coconut.
         if (f == Fruit.BOMB && cell == lastDug && !(previousDug >= 0 && cells[previousDug].content == Fruit.COCONUT)) {
+            // The blast destroyed the fruit around it before the clue line was read: no Treasure/Anchor/no-fruit clue stays.
+            c.treasure = null;
+            c.anchor = null;
+            c.noFruitNearby = false;
             EXPLOSIONS.add(new int[]{cell, (int) tick});
         }
     }
@@ -419,6 +435,7 @@ public final class FruitDigging {
     /** An Anchor marker over a standing tile: that tile holds the lowest fruit near the last dig. */
     static void anchorMark(int cell, Fruit f) {
         FruitDiggingSolver.Cell c = cells[cell];
+        c.notFruit = false; // a direct sighting beats the bomb-derived "no fruit here"
         if (f != null && f.edible) {
             c.content = f;
             if (lastDug >= 0 && cells[lastDug].anchor == null && !cells[lastDug].noFruitNearby) {
@@ -506,6 +523,11 @@ public final class FruitDigging {
                 long t0 = System.nanoTime();
                 FruitDiggingSolver solver = new FruitDiggingSolver(new Random());
                 FruitDiggingSolver.Recommendation r = solver.solve(snapshot, digs, mult, coconut, keep, strategy);
+                String dropped = solver.dropped();
+                if (dropped != null && !dropped.equals(lastDropped)) {
+                    lastDropped = dropped;
+                    LOGGER.info("[Fruit Digging] no board fit every clue; dropped: {}", dropped);
+                }
                 if (generation == boardGeneration) {
                     solved = solver;
                     recommendation = r;
@@ -574,6 +596,17 @@ public final class FruitDigging {
     private static final float BEST_LABEL = 0.016f;
     private static int labelsDrawn;
     private static int labelsLast;
+    /** Last frame's boxes, for the harness: bit i set = tile i got a Tile Odds tint; the Best Dig tile (or -1) got its own color only. */
+    private static long tintedLast;
+    private static int bestLast = -1;
+
+    public static long tintedLastFrame() {
+        return tintedLast;
+    }
+
+    public static int bestLastFrame() {
+        return bestLast;
+    }
 
     /** Harness: text labels the last frame drew. */
     public static int labelsLastFrame() {
@@ -600,6 +633,10 @@ public final class FruitDigging {
             return;
         }
         int labelsBefore = labelsDrawn;
+        // One box per tile: the Best Dig tile is drawn in its shovel color below, so it gets no Tile Odds tint here.
+        FruitDiggingSolver.Recommendation best = cfg.isBestDig() ? recommendation : null;
+        int bestCell = best != null && cells[best.cell()].diggable ? best.cell() : -1;
+        long tinted = 0;
         for (int i = 0; i < FruitDiggingSolver.CELLS; i++) {
             FruitDiggingSolver.Cell c = cells[i];
             BlockPos p = posOf(i);
@@ -629,10 +666,13 @@ public final class FruitDigging {
                 double[] b = sv == null ? null : sv.belief(i);
                 if (b != null) {
                     double bad = b[Fruit.BOMB.ordinal()] + b[Fruit.RUM.ordinal()];
-                    // Tile Odds: a tint from green to red by risk (full red from 40% bad), never text on its own.
-                    int g = (int) (255 * Math.min(1.0, bad / 0.4));
-                    WorldRenderUtils.renderFilledBox(context, new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1,
-                            p.getY() + 1.01, p.getZ() + 1), g / 255f, (255 - g) / 255f, 0.1f, 0.3f);
+                    if (i != bestCell) {
+                        // Tile Odds: a tint from green to red by risk (full red from 40% bad), never text on its own.
+                        int g = (int) (255 * Math.min(1.0, bad / 0.4));
+                        WorldRenderUtils.renderFilledBox(context, new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1,
+                                p.getY() + 1.01, p.getZ() + 1), g / 255f, (255 - g) / 255f, 0.1f, 0.3f);
+                        tinted |= 1L << i;
+                    }
                     if (cfg.isAllPercents()) {
                         label.add("§7" + pct(bad) + "% bad");
                     }
@@ -644,8 +684,10 @@ public final class FruitDigging {
                 labelsDrawn++;
             }
         }
-        FruitDiggingSolver.Recommendation r = recommendation;
-        if (cfg.isBestDig() && r != null && cells[r.cell()].diggable) {
+        tintedLast = tinted;
+        bestLast = bestCell;
+        FruitDiggingSolver.Recommendation r = best;
+        if (bestCell >= 0) {
             BlockPos p = posOf(r.cell());
             AABB box = new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1, p.getY() + 1.02, p.getZ() + 1);
             float[] col = WorldRenderUtils.argbToFloats(cfg.colorFor(r.shovel()));

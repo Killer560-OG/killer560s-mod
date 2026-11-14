@@ -67,8 +67,8 @@ public final class AutoAcceptGame {
             return;
         }
         if (plain.startsWith(PROMPT)) {
-            // Inline options: the first sibling's command. Otherwise the options come on the next lines.
-            String inline = firstCommand(message.getSiblings());
+            // Inline options: the first run-command anywhere in the line. Otherwise the options come on the next lines.
+            String inline = firstRunCommand(message);
             if (inline != null) {
                 pending = inline;
                 npcAtMs = 0;
@@ -81,11 +81,7 @@ public final class AutoAcceptGame {
             // The first option line after the prompt decides it, picked or not: nothing later is ever taken.
             promptAtMs = 0;
             npcAtMs = 0;
-            String cmd = command(message);
-            if (cmd == null) {
-                cmd = firstCommand(message.getSiblings());
-            }
-            pending = cmd;
+            pending = firstRunCommand(message);
         }
     }
 
@@ -94,8 +90,19 @@ public final class AutoAcceptGame {
                 && !run.command().isBlank() ? run.command() : null;
     }
 
-    private static String firstCommand(java.util.List<Component> parts) {
-        return parts.isEmpty() ? null : command(parts.get(0)); // the first sibling only
+    /** The first run-command click event in {@code c}, depth first (Hypixel's prompt is a plain prefix, an arrow, then the option). */
+    public static String firstRunCommand(Component c) {
+        String own = command(c);
+        if (own != null) {
+            return own;
+        }
+        for (Component sibling : c.getSiblings()) {
+            String found = firstRunCommand(sibling);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     private static void tick(Minecraft mc) {

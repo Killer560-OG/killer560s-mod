@@ -47,6 +47,8 @@ public final class FruitDiggingSolver {
          *  neighbors that are unknown now (older callers); a clue counted at dig time must not lose a tile that was
          *  dug, marked or destroyed since, or its Anchor's marked fruit and its Mines count stop fitting any board. */
         public int[] from;
+        /** Which dig this was (digs used when it was made), 0 when not dug: the oldest clues are dropped first. */
+        public int dugAt;
 
         public Cell copy() {
             Cell c = new Cell();
@@ -59,6 +61,7 @@ public final class FruitDiggingSolver {
             c.mustFruit = mustFruit;
             c.notFruit = notFruit;
             c.from = from;
+            c.dugAt = dugAt;
             return c;
         }
     }
@@ -297,7 +300,12 @@ public final class FruitDiggingSolver {
         while (pool.size() < n) {
             pool.add(Fruit.BOMB);
         }
-        List<Clue> clues = clues(cells, slotOf);
+        java.util.Map<Clue, Integer> owner = new java.util.IdentityHashMap<>();
+        List<Clue> clues = clues(cells, slotOf, owner);
+        dropped = null;
+        if (n > 0) {
+            clues = fitting(clues, owner, cells, pool.toArray(new Fruit[0]));
+        }
         List<List<Clue>> bySlot = new ArrayList<>();
         for (int s = 0; s < n; s++) {
             bySlot.add(new ArrayList<>());
@@ -364,6 +372,46 @@ public final class FruitDiggingSolver {
             belief[slotCells.get(s)] = p;
         }
         return recommend(cells, digsUsed, nextMultiplier, coconut, apples, cherries, keep);
+    }
+
+    private String dropped;
+
+    /** What the last solve had to drop to find any board (null when every clue held): "what (tile)" entries. */
+    public String dropped() {
+        return dropped;
+    }
+
+    /**
+     * {@code clues} when some board fits them; else the clues with the least trusted dropped until one does: a "no
+     * fruit" read off a bomb's blast first, then every clue of a dug bomb, then the oldest dig's, one at a time.
+     */
+    private List<Clue> fitting(List<Clue> clues, java.util.Map<Clue, Integer> owner, Cell[] cells, Fruit[] pool) {
+        if (start(pool.clone(), clues)) {
+            return clues;
+        }
+        List<Clue> kept = new ArrayList<>(clues);
+        List<Clue> gone = new ArrayList<>();
+        List<Clue> order = new ArrayList<>();
+        clues.stream().filter(c -> c instanceof Edible e && !e.must()).forEach(order::add);
+        clues.stream().filter(c -> !order.contains(c) && cells[owner.get(c)].content == Fruit.BOMB).forEach(order::add);
+        clues.stream().filter(c -> !order.contains(c))
+                .sorted(java.util.Comparator.comparingInt(c -> c instanceof Edible ? Integer.MAX_VALUE : cells[owner.get(c)].dugAt))
+                .forEach(order::add);
+        int tier0 = (int) order.stream().filter(c -> c instanceof Edible e && !e.must()).count();
+        int tier1 = (int) order.stream().filter(c -> !(c instanceof Edible) && cells[owner.get(c)].content == Fruit.BOMB).count();
+        int next = 0;
+        for (int tries = 0; tries < 12 && next < order.size(); tries++) {
+            int upTo = tries == 0 && tier0 > 0 ? tier0 : tries <= 1 && tier1 > 0 ? tier0 + tier1 : next + 1;
+            for (; next < upTo; next++) {
+                kept.remove(order.get(next));
+                gone.add(order.get(next));
+            }
+            if (start(pool.clone(), kept)) {
+                break;
+            }
+        }
+        dropped = gone.stream().map(c -> c.getClass().getSimpleName() + " " + label(owner.get(c))).collect(java.util.stream.Collectors.joining(", "));
+        return kept;
     }
 
     private static int[] slotsOf(Clue c) {
@@ -437,7 +485,7 @@ public final class FruitDiggingSolver {
         return bad == 0;
     }
 
-    private static List<Clue> clues(Cell[] cells, int[] slotOf) {
+    private static List<Clue> clues(Cell[] cells, int[] slotOf, java.util.Map<Clue, Integer> owner) {
         List<Clue> out = new ArrayList<>();
         for (int i = 0; i < CELLS; i++) {
             Cell c = cells[i];
@@ -452,25 +500,30 @@ public final class FruitDiggingSolver {
             }
             int[] h = hidden.stream().mapToInt(Integer::intValue).toArray();
             if (c.mines >= 0) {
-                out.add(new BombCount(h, Math.max(0, c.mines - knownBombs)));
+                add(out, owner, i, new BombCount(h, Math.max(0, c.mines - knownBombs)));
             }
             if (c.noFruitNearby) {
-                out.add(new NoFruit(h));
+                add(out, owner, i, new NoFruit(h));
             }
             if (c.treasure != null) {
-                out.add(new Order(h, c.treasure.rank(), c.treasure, knownNeighbor(cells, i, c.treasure), true));
+                add(out, owner, i, new Order(h, c.treasure.rank(), c.treasure, knownNeighbor(cells, i, c.treasure), true));
             }
             if (c.anchor != null) {
-                out.add(new Order(h, c.anchor.rank(), c.anchor, knownNeighbor(cells, i, c.anchor), false));
+                add(out, owner, i, new Order(h, c.anchor.rank(), c.anchor, knownNeighbor(cells, i, c.anchor), false));
             }
             if (slotOf[i] >= 0 && c.mustFruit) {
-                out.add(new Edible(slotOf[i], true));
+                add(out, owner, i, new Edible(slotOf[i], true));
             }
             if (slotOf[i] >= 0 && c.notFruit && c.diggable) {
-                out.add(new Edible(slotOf[i], false));
+                add(out, owner, i, new Edible(slotOf[i], false));
             }
         }
         return out;
+    }
+
+    private static void add(List<Clue> out, java.util.Map<Clue, Integer> owner, int cell, Clue c) {
+        out.add(c);
+        owner.put(c, cell);
     }
 
     private static boolean knownNeighbor(Cell[] cells, int i, Fruit f) {

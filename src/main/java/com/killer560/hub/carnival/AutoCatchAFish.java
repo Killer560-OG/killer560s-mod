@@ -19,8 +19,8 @@ import net.minecraft.world.phys.Vec3;
  * following it as it swims, and taps Use to cast once it is within a few degrees. When your hook has a fish on it, it
  * holds your Use key down - the wiki's "hold Right-Click to reel it until its progress bar fills" - until the fish is
  * off the hook, then aims at the next. A cast that hooks nothing within Hook Wait is reeled back with one tap and cast
- * again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; moving the mouse yourself stops it
- * for the rest of that game. You are held still by the game, and it never moves you. Taps and the hold go through
+ * again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; Only Escape or the Emergency Cancel Key stops it
+ * for the rest of that game; moving the mouse never does. You are held still by the game, and it never moves you. Taps and the hold go through
  * {@link ActionGate} at the start of the tick; a server correction is reported and it carries on. Automation: can get
  * you banned; keep it off on the main server. Off by default.
  *
@@ -34,7 +34,6 @@ public final class AutoCatchAFish {
     private enum State { AIM, WAIT_HOOK, REEL }
 
     private static State state = State.AIM;
-    private static boolean stoppedThisGame;
     private static boolean aiming;
     private static boolean holding;
     private static long stateSince;
@@ -54,9 +53,9 @@ public final class AutoCatchAFish {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> AutoCatchAFishConfig.getInstance().isEnabled() && CatchAFish.active());
         CatchAFish.addWant(() -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
         CarnivalState.onGameStart(g -> {
-            stoppedThisGame = false;
             walkTicks = 0;
             CatchAFish.forgetFlung();
         });
@@ -96,15 +95,9 @@ public final class AutoCatchAFish {
     private static void tick(Minecraft mc) {
         AutoCatchAFishConfig cfg = AutoCatchAFishConfig.getInstance();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !CatchAFish.active() || stoppedThisGame
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !CatchAFish.active() || CarnivalInput.stopped(NAME)
                 || !(player.getMainHandItem().getItem() instanceof FishingRodItem)) {
             idle(mc);
-            return;
-        }
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            stoppedThisGame = true;
-            idle(mc);
-            CarnivalInput.say(NAME, "Stopped for this game: you moved the camera.");
             return;
         }
         CarnivalInput.watchCorrections(NAME);

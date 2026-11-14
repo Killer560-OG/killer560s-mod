@@ -21,8 +21,8 @@ import net.minecraft.world.phys.Vec3;
  * dig it - then waits for the dig to land (the tile stops being sand) before the next, at least Dig Delay apart. With
  * Auto Shovel Swap on it waits (up to two seconds) for the shovel to be in the solver's mode first. It digs only tiles
  * within 4.5 blocks of your eyes (to the block's box) and never walks: stand in the middle of the grid, or step closer
- * when it says the tile is out of reach. Free Camera keeps your screen still while your body turns; moving the mouse
- * yourself stops it for the rest of that game. One tap a tick through {@link ActionGate}; a server correction is
+ * when it says the tile is out of reach. Free Camera keeps your screen still while your body turns; only Escape or the
+ * Emergency Cancel Key stops it, for the rest of that game. One tap a tick through {@link ActionGate}; a server correction is
  * reported and it carries on. Automation: can get you banned; keep it off on the main server. Off by default.
  *
  * <p>Unverified in game: that one left click digs a tile (Mining Fatigue is on during the game).
@@ -31,7 +31,6 @@ public final class AutoFruitDigging {
 
     static final String NAME = "Auto Fruit Digging";
     static final double REACH = 4.5;
-    private static boolean stoppedThisGame;
     private static boolean aiming;
     private static int pending = -1;
     private static int pendingDigs;
@@ -52,8 +51,8 @@ public final class AutoFruitDigging {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> AutoFruitConfig.dig().isEnabled() && FruitDigging.active());
         CarnivalState.onGameStart(g -> {
-            stoppedThisGame = false;
             pending = -1;
             warnedFar = null;
         });
@@ -82,15 +81,9 @@ public final class AutoFruitDigging {
         AutoFruitConfig cfg = AutoFruitConfig.dig();
         LocalPlayer player = mc.player;
         if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()
-                || stoppedThisGame || FruitDigging.gridOrigin() == null
+                || CarnivalInput.stopped(NAME) || FruitDigging.gridOrigin() == null
                 || FruitDigging.digs() >= FruitDiggingSolver.MAX_DIGS) {
             idle();
-            return;
-        }
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            stoppedThisGame = true;
-            idle();
-            CarnivalInput.say(NAME, "Stopped for this game: you moved the camera.");
             return;
         }
         CarnivalInput.watchCorrections(NAME);
@@ -189,6 +182,11 @@ public final class AutoFruitDigging {
     }
 
     /** Harness: the tile ("C4") and shovel mode of the last dig tap. */
+    /** Harness: stopped for this game by Escape or the Emergency Cancel Key. */
+    public static boolean stoppedForTest() {
+        return CarnivalInput.stopped(NAME);
+    }
+
     public static String lastTarget() {
         return lastTarget + "/" + lastMode;
     }

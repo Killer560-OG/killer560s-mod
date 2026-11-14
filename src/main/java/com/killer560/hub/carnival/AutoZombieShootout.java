@@ -15,7 +15,7 @@ import org.slf4j.Logger;
  * to the best target in sight - a lit Redstone Lamp first (Lamps First), then the zombie worth the most and soonest
  * gone (the Zombie Shootout Helper's pick) - through Auto Routes' eased rotation, following it as it walks, and taps Use
  * (or Attack, Shoot With) once the crosshair is on a target, at most once per Shot Delay. Free Camera keeps your screen
- * still while your body turns. Moving the mouse yourself stops it for the rest of that game. You are held still by the
+ * still while your body turns. Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does. You are held still by the
  * game, and it never moves you. Every tap goes through {@link ActionGate} at the start of the tick; a server correction
  * is reported and it carries on. Automation: can get you banned; keep it off on the main server. Off by default.
  *
@@ -27,13 +27,10 @@ public final class AutoZombieShootout {
     static final String NAME = "Auto Zombie Shootout";
     /** The tick the auto may aim again after he took the camera (it never stays stopped: 11-11 it fired once, then stood
      *  down for the whole game). */
-    private static long pausedUntil;
-    private static boolean toldPause;
     /** Targets given up on (never came under the crosshair), by key, until the tick: it moves on to the next one. */
     private static final java.util.Map<Object, Long> SKIP = new java.util.HashMap<>();
     private static Object stuckKey;
     private static long stuckSince;
-    static final int TAKEOVER_PAUSE_TICKS = 60;
     static final int STUCK_TICKS = 30;
     static final int SKIP_TICKS = 80;
     private static boolean running;
@@ -47,10 +44,9 @@ public final class AutoZombieShootout {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> ShootoutShotConfig.auto().isEnabled() && ZombieShootout.active());
         ZombieShootout.addWant(() -> ShootoutShotConfig.auto().isEnabledRaw());
         CarnivalState.onGameStart(g -> {
-            pausedUntil = 0;
-            toldPause = false;
             SKIP.clear();
             stuckKey = null;
         });
@@ -70,25 +66,12 @@ public final class AutoZombieShootout {
     private static void tick(Minecraft mc) {
         ShootoutShotConfig cfg = ShootoutShotConfig.auto();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !ZombieShootout.active()
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !ZombieShootout.active() || CarnivalInput.stopped(NAME)
                 || (cfg.isTubeOnly() && !ZombieTriggerbot.isTube(player.getMainHandItem()))) {
             idle();
             return;
         }
         long now = ActionGate.currentTick();
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            pausedUntil = now + TAKEOVER_PAUSE_TICKS;
-            idle();
-            if (!toldPause) {
-                toldPause = true;
-                CarnivalInput.say(NAME, "Paused: you moved the camera. It carries on after a moment.");
-            }
-            return;
-        }
-        if (now < pausedUntil) {
-            idle();
-            return;
-        }
         SKIP.values().removeIf(until -> until <= now);
         CarnivalInput.watchCorrections(NAME);
         ZombieShootout.Target best = ZombieShootout.pickBest(ZombieShootout.targets(),
