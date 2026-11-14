@@ -1,5 +1,6 @@
 package com.killer560.hub.proxy.mixin;
 
+import com.killer560.hub.proxy.ProxyInstall;
 import com.killer560.hub.proxy.config.ProxyConfig;
 import io.netty.channel.Channel;
 import io.netty.handler.proxy.ProxyHandler;
@@ -35,7 +36,6 @@ public class ChannelInitializerMixin {
         if (!config.isEnabled()) return;
         ProxyHandler handler = config.createHandler();
         if (handler == null) return;
-        // Insert before Minecraft's own handlers so the SOCKS handshake runs first.
-        channel.pipeline().addFirst("killer560smod:socks", handler);
+        ProxyInstall.install(channel, handler);
     }
 }

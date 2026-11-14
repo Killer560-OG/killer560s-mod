@@ -77,6 +77,14 @@ public final class BossDevices {
     private static final ItemFrame[] frames = new ItemFrame[25];
     private static int[] solution;
     private static boolean arrowsDone;
+    /**
+     * The wall behind the frames (x -3): the arena capture froze its sea lanterns wherever they were lit when it was
+     * taken, so the sim owns those 25 blocks and lights one only behind an arrow on its solution (killer560, 2026-11-11:
+     * "lights should only go behind completed arrows not randomly"). {@code wallBase} is the wall's own block, read once.
+     */
+    private static BlockState wallBase;
+    private static final BlockState WALL_LIT = BossBlocks.of("minecraft:sea_lantern");
+    private static final BlockPos.MutableBlockPos WALL_AT = new BlockPos.MutableBlockPos();
 
     private static final int TARGET_Z = 50;
     private static final int TARGET_HITS = 9;
@@ -263,7 +271,28 @@ public final class BossDevices {
         return false;
     }
 
+    /** Lights the wall block behind each arrow on its solution and puts the wall's own block behind every other cell. */
+    private static void arrowWall(ServerLevel level) {
+        if (wallBase == null) {
+            java.util.Map<BlockState, Integer> seen = new java.util.HashMap<>();
+            for (int i = 0; i < 25; i++) {
+                BlockState st = level.getBlockState(new BlockPos(ARROW_X - 1, ARROW_Y + i % 5, ARROW_Z + i / 5));
+                if (st != WALL_LIT && !st.isAir()) {
+                    seen.merge(st, 1, Integer::sum);
+                }
+            }
+            wallBase = seen.entrySet().stream().max(java.util.Map.Entry.comparingByValue())
+                    .map(java.util.Map.Entry::getKey).orElse(BossBlocks.of("minecraft:obsidian"));
+        }
+        for (int i = 0; i < 25; i++) {
+            boolean on = solution[i] >= 0 && frames[i] != null && !frames[i].isRemoved()
+                    && (frames[i].getRotation() & 7) == solution[i];
+            BossBlocks.set(level, WALL_AT.set(ARROW_X - 1, ARROW_Y + i % 5, ARROW_Z + i / 5), on ? WALL_LIT : wallBase);
+        }
+    }
+
     static void stop() {
+        wallBase = null;
         java.util.Arrays.fill(lastBy, null);
         ssOn = false;
         ssGen++;
@@ -301,6 +330,9 @@ public final class BossDevices {
                 lightsDone = true;
                 done(level, 2);
             }
+        }
+        if (solution != null) {
+            arrowWall(level);
         }
         if (!arrowsDone && solution != null) {
             boolean all = true;

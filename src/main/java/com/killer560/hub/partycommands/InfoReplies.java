@@ -27,8 +27,8 @@ final class InfoReplies {
     /** Same tab-list "Area:"/"Dungeon:" line as {@code routes.SkyblockArea}. */
     private static final Pattern AREA_PATTERN = Pattern.compile("^(?:Area|Dungeon):\\s*(.{1,64})$");
 
-    /** This mod's own Discord invite, for "!odin"/"!od"/"!killer560"/"!k560" (same one README.md and HomeMainTab carry). */
-    private static final String DISCORD_INVITE_URL = "https://discord.gg/hkQMF5fE84";
+    /** This mod's own Discord invite CODE (no URL: Hypixel's chat filter turns a link into "****"), for "!odin"/"!od"/"!killer560"/"!k560" (same one README.md and HomeMainTab carry). */
+    private static final String DISCORD_INVITE_CODE = "hkQMF5fE84";
 
     private static final String[] EIGHT_BALL_RESPONSES = {
             "It is certain", "It is decidedly so", "Without a doubt",
@@ -79,7 +79,7 @@ final class InfoReplies {
             case DICE -> String.valueOf(1 + (int) (Math.random() * 6));
             case TPS -> tpsReply();
             case LOCATION -> locationReply(client);
-            case DISCORD -> "killer560's Mod Discord: " + DISCORD_INVITE_URL;
+            case DISCORD -> "killer560's Mod Discord invite code: " + DISCORD_INVITE_CODE;
             default -> null;
         };
     }

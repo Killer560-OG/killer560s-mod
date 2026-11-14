@@ -9,9 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted "0 Ping Dungeon Breaker" settings - see {@link DungeonBreakerFeature}'s class doc for the
- *  real mechanic this is built on. Ships disabled by default, same as every other new feature in this
- *  mod. */
+/** Persisted Dungeon Breaker settings (Don't break secrets). Old keys (enabled, fatigueOnly, dungeonsOnly) are ignored. */
 public final class DungeonBreakerConfig {
 
     private static final Path CONFIG_PATH =
@@ -20,9 +18,6 @@ public final class DungeonBreakerConfig {
     // volatile: BreakerGuard.protects is also asked from AP3's planner thread, which must not see a half-set config.
     private static volatile DungeonBreakerConfig instance;
 
-    private boolean enabled = false;
-    private boolean fatigueOnly = false;
-    private boolean dungeonsOnly = false;
     private boolean noBreakSecrets = false;
 
     private DungeonBreakerConfig() {
@@ -44,9 +39,6 @@ public final class DungeonBreakerConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonBreakerConfig cfg = new DungeonBreakerConfig();
-            cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
-            cfg.fatigueOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "fatigueOnly", cfg.fatigueOnly);
-            cfg.dungeonsOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
             cfg.noBreakSecrets = com.killer560.hub.util.ConfigJson.getBool(obj, "noBreakSecrets", cfg.noBreakSecrets);
             instance = cfg;
         } catch (Exception e) {
@@ -56,41 +48,11 @@ public final class DungeonBreakerConfig {
 
     public void save() {
         JsonObject obj = new JsonObject();
-        obj.addProperty("enabled", enabled);
-        obj.addProperty("fatigueOnly", fatigueOnly);
-        obj.addProperty("dungeonsOnly", dungeonsOnly);
         obj.addProperty("noBreakSecrets", noBreakSecrets);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
-    /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real mechanical edge
-     *  (insta-mining, not just a safety net), same category as Simon Says' Trigger Bot/Auto Solve. */
-    public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public boolean isFatigueOnly() {
-        return fatigueOnly;
-    }
-
-    public void setFatigueOnly(boolean fatigueOnly) {
-        this.fatigueOnly = fatigueOnly;
-    }
-
-    /** Dungeons Only (killer560, 2026-11-04): Zero Ping acts only inside a Catacombs run. */
-    public boolean isDungeonsOnly() {
-        return dungeonsOnly;
-    }
-
-    public void setDungeonsOnly(boolean dungeonsOnly) {
-        this.dungeonsOnly = dungeonsOnly;
-    }
-
-    /** "Don't break secrets": the Dungeon Breaker (Zero Ping, Breaker Aura, breaker nodes) leaves secret blocks alone.
+    /** "Don't break secrets": the Dungeon Breaker (Breaker Aura, breaker nodes, the manual click) leaves secret blocks alone.
      *  See {@link BreakerGuard}. Fairy rooms are always protected and have no setting. */
     public boolean isNoBreakSecrets() {
         return noBreakSecrets;

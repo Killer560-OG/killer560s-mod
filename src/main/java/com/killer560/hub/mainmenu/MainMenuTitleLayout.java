@@ -170,6 +170,13 @@ public final class MainMenuTitleLayout {
         }
     }
 
+    /** "What's New": the update list screen ({@code whatsnew.WhatsNewScreen}), under Mods. */
+    public static final class WhatsNewButton extends Button.Plain {
+        private WhatsNewButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+    }
+
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
@@ -220,7 +227,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim || w instanceof ModSettingsButton || w instanceof ModsButton) continue;
+                if (w == sim || w instanceof ModSettingsButton || w instanceof ModsButton || w instanceof WhatsNewButton) continue;
                 String key = translationKey(w);
                 if (KEY_REALMS.equals(key)) {
                     realms = w;
@@ -257,7 +264,8 @@ public final class MainMenuTitleLayout {
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim || w instanceof ModSettingsButton || w instanceof ModsButton || friends.contains(w)) {
+                        || w == sim || w instanceof ModSettingsButton || w instanceof ModsButton || w instanceof WhatsNewButton
+                        || friends.contains(w)) {
                     continue;
                 }
                 if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
@@ -347,6 +355,21 @@ public final class MainMenuTitleLayout {
             } else if (modsList != null) {
                 removeWidget(screen, widgets, modsList);
             }
+
+            AbstractWidget whatsNew = null;
+            for (AbstractWidget w : widgets) {
+                if (w instanceof WhatsNewButton) {
+                    whatsNew = w;
+                }
+            }
+            if (whatsNew == null) {
+                whatsNew = new WhatsNewButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
+                        Component.literal("What's New"), btn -> McCompat.setScreen(Minecraft.getInstance(),
+                                new com.killer560.hub.whatsnew.WhatsNewScreen(screen)));
+                widgets.add(widgets.indexOf(modSettings) + 1, whatsNew);
+            }
+            whatsNew.visible = true;
+            column.add(whatsNew);
 
             if (swap != null) {
                 column.add(swap);

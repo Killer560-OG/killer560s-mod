@@ -38,11 +38,11 @@ import java.util.regex.Pattern;
  * people using the mod are online, not specific player names just number, and what island they are on ... make it so
  * they share no matter what"; then "i want no specific player data from them just if they are on an island").
  * <p>
- * While the game is connected to Hypixel or sits on the title screen, every {@link #INTERVAL_MS} (and soon after the island changes) one
+ * While the game is in any world or sits on the title screen, every {@link #INTERVAL_MS} (and soon after the island changes) one
  * {@code POST /presence} goes to the relay with EXACTLY two fields: {@code session}, a random id made when the game
  * starts (in memory only, never saved, never derived from the account), and {@code location}, the island or area
  * ("Hub", "Catacombs F7", "Hypixel (not Skyblock)"), or "Main Menu" with no world and no connection (killer560, 2026-11-04: "/online doesnt work
- * if someone is just on the start screen"; singleplayer, other servers and connecting send nothing). Leaving Hypixel sends {@code location: "Offline"} once, so the
+ * if someone is just on the start screen"; a singleplayer world (the sim) sends "Singleplayer", another server "Other Server", connecting sends nothing). Leaving Hypixel sends {@code location: "Offline"} once, so the
  * relay drops the session at once instead of after its TTL. Always on in both builds; there is no setting.
  * <p>
  * Never in a client gametest (the testkit) unless {@code -Dkiller560.test.presence=true}; {@code killer560.net.offline}
@@ -68,6 +68,10 @@ public final class OnlinePresence {
     private static final int MODE_NONE = 0;
     private static final int MODE_HYPIXEL = 1;
     private static final int MODE_MENU = 2;
+    /** In a world that is not Hypixel: the singleplayer sim or any other server (onlinesim-1112). */
+    private static final int MODE_LOCAL = 3;
+    public static final String SINGLEPLAYER = "Singleplayer";
+    public static final String OTHER_SERVER = "Other Server";
 
     private static final Pattern TAB_AREA = Pattern.compile("^(?:Area|Dungeon):\\s*(.{1,40})$");
     private static final Pattern NOT_SAFE = Pattern.compile("[^A-Za-z0-9 '.()\\-]");
@@ -128,7 +132,7 @@ public final class OnlinePresence {
         int nextMode = MODE_NONE;
         if (allowedHere()) {
             if (mc.level != null) {
-                nextMode = mc.player != null && onHypixel(mc.getCurrentServer()) ? MODE_HYPIXEL : MODE_NONE;
+                nextMode = mc.player == null ? MODE_NONE : onHypixel(mc.getCurrentServer()) ? MODE_HYPIXEL : MODE_LOCAL;
             } else if (mc.getConnection() == null) {
                 nextMode = MODE_MENU;
             }
@@ -152,7 +156,8 @@ public final class OnlinePresence {
             return;
         }
         long interval = interval();
-        String location = mode == MODE_MENU ? MAIN_MENU : currentLocation(mc);
+        String location = mode == MODE_MENU ? MAIN_MENU
+                : mode == MODE_LOCAL ? (mc.getSingleplayerServer() != null ? SINGLEPLAYER : OTHER_SERVER) : currentLocation(mc);
         boolean due = now - joinedAt >= Math.min(FIRST_DELAY_MS, interval)
                 && (lastSentAt == 0L || now - lastSentAt >= interval
                 || (!location.equals(lastLocation) && now - lastSentAt >= Math.min(CHANGE_GAP_MS, interval)));
