@@ -550,8 +550,11 @@ public final class BloodRushHelperFeature {
         for (Entity e : scan ? com.killer560.hub.mobesp.MobEspFeature.starredMobs(client) : List.<Entity>of()) {
             Mob m = MOBS.get(e.getId());
             if (m != null) {
-                if (m.entity == null && !m.dead) {
-                    m.entity = e; // back in view: Hypixel keeps a mob's id
+                if (m.entity == null) {
+                    // Back in view, even if its old entity was dropped as a kill while he was near (a teleport re-sends
+                    // it): the scan only finds living mobs, so one it finds is not dead. Hypixel keeps a mob's id.
+                    m.entity = e;
+                    m.dead = false;
                     m.tag = tagOf(client, e);
                     m.tagGoneAt = -1;
                 }
@@ -1171,6 +1174,18 @@ public final class BloodRushHelperFeature {
     /** Mobs waiting to be seen standing before their spot is learned. */
     public static int learningForTest() {
         return LEARNING.size();
+    }
+
+    /** Test hook: each tracked mob of a room as "id dead=.. entity=null|alive|removed first=x,y,z". */
+    public static List<String> mobsForTest(int room) {
+        List<String> out = new ArrayList<>();
+        for (Mob m : MOBS.values()) {
+            if (m.room == room) {
+                out.add(m.id + " dead=" + m.dead + " entity=" + (m.entity == null ? "null" : m.entity.isRemoved() ? "removed" : "alive")
+                        + " first=" + m.first.x + "," + m.first.y + "," + m.first.z);
+            }
+        }
+        return out;
     }
 
     /** "status; blood door open: x; Mort: y; mobs tracked: n". */
