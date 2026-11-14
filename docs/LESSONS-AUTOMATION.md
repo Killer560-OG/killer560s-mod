@@ -262,6 +262,23 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   1109-boss-ee3route (sim, levers t31-33 and t49-51, EE3 at t201-202 three of three) and 1109-boss-ee3route-grim /
   -same-use / -same-swap / -same-dig (hx, Grim default and experimental clean; use and swap share GrimAC ticks with the
   lever click on the wire, a queued dig holds it to another tick).
+- **AP3 fell into the lava at boom #26 about one run in three (ap3holddig-1110).** Read off the per-tick paths: Lever
+  Aura's random dwell (48-55 ms) sometimes takes two ticks, the hand-back then lands on the tick a node changes the walk
+  (202 -> 110.5), and it put back the yaw from before the turn, the OLD walk's: the keys re-picked there were A (no W, no
+  sprint), the step 0.71 instead of 0.87, and the boom triggered 0.2 blocks late. Fix: TurnFirst's hand-back asks the
+  held walk where it faces NOW (`registerHandBack`, AP3's `handBackYaw`; the walk-keyed constraint is null while a Boom
+  is armed, so it cannot be used), which matters on a tick his use pins the look; and AP3's `beforeInputInstall` faces
+  the walk after any foreign turn with no turn out and no use this tick (`snapToWalk`).
+  His held dig (HandDigAim) threw the path three more ways, each found by diffing the DIG run's per-tick path against the
+  SWAP run's: (a) a turn for his dig while the boom aimed kept the aim's keys (D), pushing him 50 degrees off for a tick:
+  `beforeInputInstall` re-picks the aim keys when the body moved since they were written (`aimKeysYaw`); (b) a "least
+  bend" look up to 11 degrees off the walk put 0.15 sideways in one tick: a dig with no walk-keyed look now WAITS
+  (`beforeDig` returns false, the mixin cancels it); (c) the walk-keyed yaws themselves: a jump tick's sprint boost goes
+  along the facing, and W+A / W+D push 2% harder than W alone (input 1.00 against 0.98, velocity 0.307 vs 0.301), so ten
+  ticks of digging on the W+D yaw put him 0.07 ahead and he missed the step. `walkKeyedYaws` now offers only the key set
+  the walk itself uses (W alone, or W+A / W+D with 45 Degree Strafe; W on a jump tick). (d) Once the route reached EE3,
+  his dig during AP3's align #32 (and on a tick his use_item goes) went with the pinned look and drew experimental
+  RotationBreak on every one: a dig whose heard look misses his block now waits while the body is pinned.
 - **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
   checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
   Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact

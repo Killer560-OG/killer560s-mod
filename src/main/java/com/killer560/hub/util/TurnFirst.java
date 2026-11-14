@@ -98,6 +98,12 @@ public final class TurnFirst {
 
     public static void registerOffWalk(java.util.function.Supplier<Float> s) { OFF_WALK.add(s); }
 
+    /** The yaw a held walk faces now for a body that was at {@code from}, NaN when none drives: the hand-back goes there. */
+    private static final java.util.List<java.util.function.UnaryOperator<Float>> HAND_BACK =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void registerHandBack(java.util.function.UnaryOperator<Float> h) { HAND_BACK.add(h); }
+
     private boolean offWalk;
 
     /** Lets this owner's turns bend a held walk for one click when no walk-keyed yaw reaches the target. */
@@ -196,6 +202,19 @@ public final class TurnFirst {
             if (!Float.isNaN(vy)) {
                 toYaw = vy;
                 toPitch = ViewFreeze.viewPitch();
+            }
+        }
+        // A held walk drives (AP3): the yaw from before the turn (or the view's) is the OLD walk's when a node changed
+        // the walk under the turn, and keys re-picked there drop W and the sprint, on a tick his use may share where the
+        // walk cannot re-face (ap3holddig-1110: boom #26 into the lava). Hand back to the yaw the walk faces now instead.
+        for (java.util.function.UnaryOperator<Float> h : HAND_BACK) {
+            Float y = h.apply(toYaw);
+            if (!y.isNaN()) {
+                if (Math.abs(Mth.wrapDegrees(y - toYaw)) > 0.5f) {
+                    LOGGER.info("[TurnFirst] hand-back to the held walk's facing {} (not {})", String.format("%.2f", y), String.format("%.2f", toYaw));
+                }
+                toYaw = y;
+                break;
             }
         }
         float yaw = player.getYRot() + Mth.wrapDegrees(toYaw - player.getYRot());
