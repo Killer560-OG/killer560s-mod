@@ -1,6 +1,5 @@
 package com.killer560.hub.invsort;
 
-import com.killer560.hub.bazaarflip.BazaarStackSizes;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SackCommands;
@@ -46,17 +45,40 @@ final class InvSortSacks {
     private boolean full;
     private int fetched;
 
-    /** @param notFound item id to how many layout slots of it storage could not fill */
-    InvSortSacks(Map<String, Integer> notFound) {
-        for (Map.Entry<String, Integer> e : notFound.entrySet()) {
-            String id = e.getKey() == null ? "" : e.getKey().toUpperCase(Locale.ROOT);
-            if (PLAIN_ID.matcher(id).matches()) {
-                todo.add(new Ask(id, Math.max(1, e.getValue()) * BazaarStackSizes.of(id)));
+    /** @param shortfall item id to how many the layout still lacks after the storage visits (wanted minus held) */
+    InvSortSacks(Map<String, Integer> shortfall) {
+        for (Map.Entry<String, Integer> e : shortfall.entrySet()) {
+            if (PLAIN_ID.matcher(e.getKey()).matches()) {
+                todo.add(new Ask(e.getKey(), e.getValue()));
             } else {
                 missing.add(e.getKey());
             }
         }
         active = this;
+    }
+
+    /**
+     * What the layout still lacks: per item id, the amounts its slots want (the amount saved with the layout, 1 for a
+     * layout saved before amounts were kept) minus what the inventory holds now, storage's items included. Items the
+     * storage covered in full are absent, one it covered partly keeps only the shortfall.
+     */
+    static Map<String, Integer> shortfall(InventoryLayout layout, net.minecraft.world.entity.player.Inventory inv) {
+        Map<String, Integer> out = new java.util.LinkedHashMap<>();
+        Map<String, Integer> wanted = new java.util.LinkedHashMap<>();
+        layout.wants().forEach((slot, key) -> wanted.merge(key, layout.counts().getOrDefault(slot, 1), Integer::sum));
+        for (Map.Entry<String, Integer> w : wanted.entrySet()) {
+            int held = 0;
+            for (int i = 0; i < 36; i++) {
+                var stack = inv.getItem(i);
+                if (!stack.isEmpty() && InvSortMatch.matches(stack, w.getKey())) {
+                    held += stack.getCount();
+                }
+            }
+            if (w.getValue() > held) {
+                out.merge(InvSortMatch.id(w.getKey()).toUpperCase(Locale.ROOT), w.getValue() - held, Integer::sum);
+            }
+        }
+        return out;
     }
 
     static void register() {

@@ -237,9 +237,11 @@ public final class InventorySorterExecutor {
 
     /** Storage is done: what no storage page held is asked of the sacks (Fetch Missing From Sacks), else the sort. */
     private static void afterStorage(Minecraft client) {
-        if (InventorySorterConfig.getInstance().isFetchSacks() && storage != null && !storage.notFound().isEmpty()
-                && com.killer560.hub.util.SackCommands.available(client)) {
-            sacks = new InvSortSacks(storage.notFound());
+        Map<String, Integer> lacking = InventorySorterConfig.getInstance().isFetchSacks() && storage != null
+                && com.killer560.hub.util.SackCommands.available(client)
+                ? InvSortSacks.shortfall(targetLayout, client.player.getInventory()) : Map.of();
+        if (!lacking.isEmpty()) {
+            sacks = new InvSortSacks(lacking);
             setState(State.SACKS);
         } else {
             setState(State.WAIT_SCREEN);
