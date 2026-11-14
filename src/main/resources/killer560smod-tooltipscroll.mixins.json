@@ -5,7 +5,8 @@
 	"package": "com.killer560.hub.tooltipscroll.mixin",
 	"client": [
 		"TooltipScrollContainerMixin",
-		"TooltipScrollGraphicsMixin"
+		"TooltipScrollGraphicsMixin",
+		"TooltipScrollMouseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

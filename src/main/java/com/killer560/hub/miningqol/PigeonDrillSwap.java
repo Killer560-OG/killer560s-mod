@@ -125,7 +125,7 @@ public final class PigeonDrillSwap {
         if (player == null || com.killer560.hub.compat.McCompat.screen(client) != null) return;
         int held = player.getInventory().getSelectedSlot();
         if (held == verifySlot) {
-            ModChat.send("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(verifySlot)) + ".")
+            ModChat.log("Pigeon Drill", Component.literal("Swapped to " + stripped(player.getInventory().getItem(verifySlot)) + ".")
                     .withStyle(ChatFormatting.GRAY));
         } else if (held == verifyFrom && !retried) {
             if (HotbarSelect.swapWouldFlag()) {

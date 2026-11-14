@@ -4,42 +4,16 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * "0 Ping Dungeon Breaker" - killer560's request. Real reference: QUOI's own confirmed, compiling
- * {@code DungeonBreaker.kt} (credited "Kyleen" in that source) - a real Hypixel Skyblock item, the
- * {@code DUNGEONBREAKER} (its real internal Skyblock id), can insta-mine a block while it still has real
- * "Charges" left (read from the item's own real lore, e.g. "Charges: 3/5"), but a normal connection's
- * ping means there's a visible delay between starting to mine and the server confirming the block is
- * actually gone. The "Zero Ping" trick QUOI's own source uses: the moment the real client-side
- * {@code MultiPlayerGameMode#startDestroyBlock} call fires (the one real vanilla method invoked the
- * instant you start breaking a block, which already sends the real mine-start packet itself), locally
- * set that exact block to air immediately - a real, entirely client-side visual prediction (same category
- * of trick vanilla itself already does for normal mining, just applied instantly instead of over real
- * mining time) rather than any packet forgery; the server's own real response still governs whether the
- * block is actually gone.
- * <p>
- * Real safety checks ported directly from that source, not guessed: only applies while genuinely holding
- * a real DUNGEONBREAKER item with charges remaining, and only for the exact block position a real raycast
- * confirms the player is actually looking at right now (never blindly clears an unrelated position).
- * <p>
- * Scope note (2026-09-14): QUOI's own real "Dungeon Breaker" module also bundles a persisted block-route
- * list, a trigger bot, an auto-mining route-runner with FOV/range settings, and configurable render
- * styles for highlighting marked blocks - a substantially larger feature than what killer560 asked for by
- * name ("0 ping dungeon breaker"). Only the real "Zero Ping" insta-mine mechanic itself is implemented
- * here; the route/trigger-bot/auto-mine apparatus is a separate, much larger feature that would need its
- * own explicit request.
+ * The Dungeon Breaker's guard hook: a click on a block {@link BreakerGuard} protects never starts a dig. The charges
+ * are read from the item's lore ("Charges: 3/5"). The old client-side zero ping was removed 2026-11-11: vanilla's
+ * startDestroyBlock already removes a block the held tool breaks in one hit, so it never acted.
  */
 public final class DungeonBreakerFeature {
 
@@ -85,82 +59,6 @@ public final class DungeonBreakerFeature {
                     BreakerGuard.inFairyRoom(pos), com.killer560.hub.util.SessionRecorderSink.tick());
         }
         return blocked;
-    }
-
-    /** Called from {@code DungeonBreakerMixin} right after the real
-     *  {@code MultiPlayerGameMode#startDestroyBlock} call for this exact position - the real mine-start
-     *  packet has already been sent to the server by the time this runs. */
-    public static void onStartDestroyBlock(BlockPos pos) {
-        DungeonBreakerConfig cfg = DungeonBreakerConfig.getInstance();
-        Minecraft client = Minecraft.getInstance();
-        if (!cfg.isEnabled() || client.player == null || client.level == null) {
-            return;
-        }
-        // No sim gate (removed 2026-10-04). This only ever clears the CLIENT's copy of the block - a prediction -
-        // and the sim's Dungeon Breaker is now the integrated server answering the START packet, exactly as
-        // Hypixel's is, so the two cannot both "remove" anything. (In practice the sim's own client-side
-        // AttackBlockCallback consumes every left click at the head of startDestroyBlock, so this TAIL hook does
-        // not run there at all.)
-        String p = pos.toShortString();
-        long tick = com.killer560.hub.util.SessionRecorderSink.tick();
-        if (cfg.isDungeonsOnly() && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
-            logOnce("dungeons " + p, "[Breaker] zero ping skipped: pos={} tick={} - Dungeons Only is on and this is not"
-                    + " a dungeon", p, tick);
-            return;
-        }
-        if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
-            logOnce("fatigue " + p, "[Breaker] zero ping skipped: pos={} tick={} - Fatigue Only is on and there is no"
-                    + " Mining Fatigue", p, tick);
-            return;
-        }
-        int charges = getBreakerCharges(client.player.getMainHandItem());
-        if (charges <= 0) {
-            // Any non-breaker left click lands here; only worth a line when it IS a breaker with no charges.
-            if (DUNGEON_BREAKER_SKYBLOCK_ID.equals(getSkyblockId(client.player.getMainHandItem()))) {
-                logOnce("charges " + p, "[Breaker] zero ping skipped: pos={} tick={} - Dungeon Breaker in hand has 0"
-                        + " charges (or no Charges lore line)", p, tick);
-            }
-            return;
-        }
-        if (BreakerGuard.protects(client.level, pos)) {
-            logOnce("guard " + p, "[Breaker] zero ping skipped: pos={} charges={} tick={} - BreakerGuard protects it", p,
-                    charges, tick);
-            return;
-        }
-        // Never predict air for barrier or bedrock (or anything unbreakable): the server never breaks them, so
-        // clearing the client copy only left a ghost hole (killer560, 2026-10-06, seen in the sim).
-        var target = client.level.getBlockState(pos);
-        if (target.is(Blocks.BARRIER) || target.is(Blocks.BEDROCK)
-                || target.getDestroySpeed(client.level, pos) < 0f) {
-            logOnce("unbreakable " + p, "[Breaker] zero ping skipped: pos={} block={} charges={} tick={} - unbreakable"
-                    + " (barrier/bedrock/negative hardness), the server never breaks it", p,
-                    target.getBlock().getName().getString(), charges, tick);
-            return;
-        }
-        // Obsidian is dug over time on the server, never in one START (see ObsidianDig): predicting air for it left a
-        // ghost hole until the server's next update (killer560, 2026-10-19), so a manual click leaves it to the server.
-        if (ObsidianDig.isObsidian(target)) {
-            logOnce("obsidian " + p, "[Breaker] zero ping skipped: pos={} charges={} tick={} - obsidian is dug over time,"
-                    + " the server's answer decides", p, charges, tick);
-            return;
-        }
-        // Real raycast validation, ported directly from QUOI's own real clip check - only ever clears the
-        // exact position the player is genuinely looking at right now, never trusting the position alone.
-        HitResult clip = client.level.clip(new ClipContext(
-                client.player.getEyePosition(), Vec3.atCenterOf(pos),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
-        if (clip.getType() != HitResult.Type.BLOCK || !(clip instanceof BlockHitResult blockHit)
-                || !blockHit.getBlockPos().equals(pos)) {
-            logOnce("clip " + p, "[Breaker] zero ping skipped: pos={} block={} charges={} tick={} - raycast hit {}"
-                            + " instead of the block", p, target.getBlock().getName().getString(), charges, tick,
-                    clip instanceof BlockHitResult bh ? bh.getBlockPos().toShortString() : clip.getType());
-            return;
-        }
-        double dist = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos));
-        client.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
-        LOGGER.info("[Breaker] zero ping: predicted air at pos={} block={} charges={} boxDist={} tick={} (START already"
-                        + " sent by vanilla; the server's answer decides)", p, target.getBlock().getName().getString(),
-                charges, String.format(java.util.Locale.ROOT, "%.2f", dist), tick);
     }
 
     /** Real charges reading, ported directly from QUOI's own confirmed {@code ItemUtils.getBreakerCharges}

@@ -13,7 +13,8 @@
 		"Ap3ViewPitchMixin",
 		"Ap3ViewYawMixin",
 		"Ap3MouseYawMixin",
-		"Ap3FreezeMixin"
+		"Ap3FreezeMixin",
+		"Ap3HandHoldMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

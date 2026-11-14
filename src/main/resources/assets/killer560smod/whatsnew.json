@@ -1,5 +1,22 @@
 [
  {
+  "date": "2026-11-14",
+  "summary": "Sim F7: after Goldor dies Necron pulls everyone down into hi",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Sim F7: after Goldor dies Necron pulls everyone down into his arena and holds them over his platform until \"Goodbye.\"; P5 dragons now carry Hypixel's 1,000,000,000 health, so the Wither Dragons health readout drops as you hit them, and every arrow of a Terminator volley counts; dragons rise out of their spawn point and then circle their own area instead of flying at random. Wither Dragons' health label now shows the health the server sent.",
+     "Auto Melody no longer skips a whole bounce when a row's pane arrives right on its target after a lookahead click (Lookahead Clicks is a 1-in-5 guess per row; 0 loses nothing)",
+     "Boss sim: the Hyperion no longer teleports you in the boss fight (its blast still hits), and blocking an Ender pearl in the boss no longer shows a title",
+     "AP3: your own right click, dig or hotbar swap during a route no longer throws the held walk off or stops AP3 (held one tick and sent)",
+     "Sim Terminator: spam left-clicking now shoots every 4 ticks (5.00 shots/s at 100 Attack Speed, like Hypixel); holding right click stays 4.00/s"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-13",
   "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
   "sections": [
@@ -10,7 +27,20 @@
      "Proxy Client: servers on localhost, your LAN or a private address now connect directly instead of through the SOCKS proxy, so a local test server can be joined with the proxy on.",
      "Friends List: online friends are listed first, even while a sync is running",
      "Sim: /simboss <phase> typed inside a running F7 boss fight resets the fight and arena but no longer moves you",
-     "The dungeon sim skips mob spots a player cannot walk to (walled in behind a lever or outside the room), so Auto Clear no longer stalls on 'no etherwarp path' in rooms like Redstone Crypt."
+     "The dungeon sim skips mob spots a player cannot walk to (walled in behind a lever or outside the room), so Auto Clear no longer stalls on 'no etherwarp path' in rooms like Redstone Crypt.",
+     "Sim F7: terminal stands no longer burn, the Arrows device lights only behind solved arrows, clicking a terminal never takes your held item, and Necron's health drops only when you hit him",
+     "Breaker Aura: Edit Mode now turns itself off when you change worlds (leaving the dungeon) and after a restart, so picked blocks no longer stay drawn with the aura off.",
+     "Party Commands: !killer560 / !k560 / !killer now reply with the Discord invite code instead of a link Hypixel censored to ****, and clicking the already-selected Chat Tab no longer sends a second /chat that drew \"You're already in this channel!\"",
+     "none (test fixes; profiles no longer carry sim mob looks / Carnival history records)",
+     "Online Count: /online now counts you in a singleplayer world (the sim) or on another server too",
+     "Dungeon Breaker: removed the Zero Ping option (it never acted); Don't break secrets stays",
+     "Swap To Drill On Pigeon no longer prints the Swapped to line in chat.",
+     "AP3: a server teleport that sets your look ends the look glide; Blink Charge teleport hold is capped just under the answer delay (no TimerLimit)",
+     "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim",
+     "Scrollable Tooltips: the mouse wheel now scrolls a tall tooltip on every screen (inventory, creative, menus, Profile Viewer), and the server resending a slot no longer snaps it back to the top",
+     "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons",
+     "Leap Order: a class you pick for yourself now wins over the tab list",
+     "Fast Leap (cheat): Crystal Auto now leaps the moment you pick up an Energy Crystal (your own pickup only, in Phase 1), and a double click right after a leap no longer prints \"Failed to leap! On cooldown\"."
     ]
    }
   ]

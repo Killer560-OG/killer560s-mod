@@ -6,6 +6,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
 import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
@@ -51,6 +52,7 @@ public abstract class Ap3PositionPacketMixin {
             com.killer560.hub.util.ServerCorrections.noteServerRotation(
                     net.minecraft.util.Mth.wrapDegrees(target.yRot() - player.getYRot()), target.xRot() - player.getXRot());
             Ap3Executor.onServerPositionPacket(to.x - at.x, to.y - at.y, to.z - at.z);
+            Ap3Executor.onServerLook(!packet.relatives().contains(Relative.Y_ROT) || packet.change().yRot() != 0f);
         } catch (RuntimeException e) {
             killer560smod$ap3$hookThrew(e);
         }

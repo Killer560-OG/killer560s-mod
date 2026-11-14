@@ -684,7 +684,7 @@ final class SettingTooltipsData {
         d.put("fast mode", "Holds movement and blocks inputs only while the leap menu is open, not the whole leap.");
         d.put("swap back", "Switches back to the hotbar slot you held before the automatic action.");
         d.put("door opener leap", "Fast leap goes to whoever last opened a Wither or Blood door; in Auto mode, leaps as soon as one opens.");
-        d.put("crystal leap", "F7 P1 (crystals): fast leap to this target; in Auto mode, leaps on the 2nd Energy Laser message.");
+        d.put("crystal leap", "F7 P1 (crystals): fast leap to this target; in Auto mode, leaps the moment you pick up an Energy Crystal.");
         d.put("predev leap", "F7 during P1/P2: fast leap to the predev target; in Auto mode, leaps on Storm's 'happy to show you' line.");
         d.put("green pad leap", "F7 P2 green pad: fast leap to its target; in Auto mode, leaps on Storm's 1st crush.");
         d.put("yellow pad leap", "F7 P2 yellow pad: fast leap to its target; in Auto mode, leaps on Storm's 2nd crush.");
@@ -1112,7 +1112,6 @@ final class SettingTooltipsData {
         d.put("beam color", "Color of the custom Mage beam line.");
         d.put("auto dialogue", "Cheat build: clicks the first option in NPC dialogue, skipping anything that costs coins.");
         d.put("breaker aura", "Cheat build: in a boss fight only, breaks the blocks you picked with the Pick Block Key once they are in reach, while you hold a charged Dungeon Breaker.");
-        d.put("zero ping", "Cheat build: blocks you break vanish instantly on your screen.");
         d.put("blocks/cycle", "Cheat build: most blocks Breaker Aura breaks at once (1-5).");
         d.put("cooldown", "Minimum wait between two automatic actions.");
         d.put("pv link on join", "When someone joins your party in a dungeon queue or run, adds a clickable [PV] line under the join message that opens their profile viewer.");
@@ -1391,9 +1390,7 @@ final class SettingTooltipsData {
         d.put("egg esp", "Cheat build only. Boxes the hidden Hoppity's Hunt Chocolate Eggs through walls, gold for Breakfast, blue for Lunch, green for Dinner.");
         d.put("hide found eggs", "Egg ESP leaves out a meal's egg once you have found it, until that meal's next egg spawns.");
         d.put("extra stat counter","Shows chocolate per second, the chocolate you hold, your multiplier, and the best upgrade with how long until you can afford it, above the menu.");
-        d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Zero Ping, Breaker Aura, Auto Routes breaker nodes) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
-        d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
-        d.put("dungeon breaker/dungeons only", "Makes Zero Ping only work inside a Catacombs run (cheat build only).");
+        d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Breaker Aura, Auto Routes breaker nodes, your own click) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
         d.put("highlight frames", "Boxes every Arrow Align frame that still needs clicking.");
         d.put("crouch to override", "While Prevent Misclicks is on, sneaking lets a blocked click go through anyway.");
@@ -2155,7 +2152,6 @@ final class SettingTooltipsData {
         d.put("dungeon alerts/display time", "How long the room alert text stays up, 0.5-3.0 seconds.");
         d.put("dungeon alerts/cleared color", "Color of the Room Cleared alert text.");
         d.put("dungeon alerts/secrets color", "Color of the Secrets Done alert text.");
-        d.put("dungeon breaker/zero ping", "Cheat build only. Blocks mined with a Dungeon Breaker disappear instantly instead of after server confirmation.");
         d.put("secrets/score/timing/trigger", "The in-game event that sends the message on this row.");
         d.put("dungeon queue/highlight", "Colors each party head in Party Finder as joinable or blocked.");
         d.put("dvd/on", "This DVD box is showing. Click to hide it.");
@@ -2183,7 +2179,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/fast leap", "Left-clicking a leap item in a dungeon leaps straight to your target instead of opening the menu (cheat build only).");
         d.put("fast/auto leap/leaps", "One row per leap spot: Off (unused), Fast (your left click with a leap item there leaps) or Auto (it leaps by itself on its trigger). Who each one leaps to is on the Universal and Set Class Targets pages.");
         String[][] leapTriggers = {{"door opener", "whoever last opened a Wither or Blood door. Auto leaps as soon as one opens"},
-                {"crystal", "the Crystal target in F7 P1. Auto leaps on the 2nd Energy Laser message"},
+                {"crystal", "the Crystal target in F7 P1. Auto leaps the moment you pick up an Energy Crystal"},
                 {"predev", "the Predev target in F7 P1/P2. Auto leaps on Storm's 'happy to show you' line"},
                 {"green pad", "the Green Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
                 {"yellow pad", "the Yellow Pad target in F7 P2. Auto leaps on Storm's 2nd crush"},

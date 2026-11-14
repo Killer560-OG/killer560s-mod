@@ -11,7 +11,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Hover tracking + the mouse wheel for Scrollable Tooltips.
+/** Hover tracking + the container-only nudge of a tooltip that fits (tipscroll-1113: scrolling a tall tooltip is TooltipScrollMouseMixin,
+ *  taken before any screen; this late hook leaves the wheel to Storage Overlay and the other mixins that act on it first).
  *  <p>
  *  Verified with javap against minecraft-merged-043a8b3edf-26.1.2.jar:
  *  {@code protected void extractTooltip(GuiGraphicsExtractor, int, int)} (whose own body reads
@@ -34,7 +35,7 @@ public abstract class TooltipScrollContainerMixin {
         try {
             TooltipScrollFeature.onScreen(this);
             Slot slot = this.hoveredSlot;
-            TooltipScrollFeature.setHovered(slot == null || !slot.hasItem() ? null : slot.getItem());
+            TooltipScrollFeature.setHovered(slot, slot == null || !slot.hasItem() ? null : slot.getItem());
         } catch (Throwable ignored) {
             // Tracking only; a failure here just means the scroll offset isn't reset this frame.
         }

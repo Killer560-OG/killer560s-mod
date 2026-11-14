@@ -32,7 +32,7 @@ import com.killer560.hub.compat.McCompat;
  * <li><b>Fast leap</b>: left-clicking while holding a Spirit Leap / Infinileap (in a dungeon, no screen open) is
  * canceled and leaps to the target for where you are ({@link #attemptFastLeap()}), falling back to the P3 stage leap.
  * Rate-limited by "Fast leap click delay".</li>
- * <li><b>Auto</b>: QUOI's triggers - door opened (outside boss), 2nd Energy Laser charge (P1), Storm's lightning line
+ * <li><b>Auto</b>: QUOI's triggers - door opened (outside boss), your own Energy Crystal pickup line (P1), Storm's lightning line
  * (predev), 1st/2nd Storm crush (pads), teammate reaching the PY healer spot, Storm's death line, P3 section complete
  * (or gate blown), Necron's "impressive trick" line (middle), 2nd Necron ARGH (P4), picking up a relic (P5).</li>
  * <li><b>Target</b>: each leap's own pick, a class (first alive teammate of that class, Leap Order's class picks
@@ -56,11 +56,11 @@ public final class FastLeapFeature {
     private static final AABB MIDDLE_BOX = new AABB(47.0, 64.0, 69.0, 62.0, 75.0, 84.0);
 
     private static final Set<String> STORM_CRUSH_MESSAGES = Set.of("[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!");
+    private static final Pattern CRYSTAL_PICKUP_REGEX = Pattern.compile("^(?:\\[[^]]{1,32}] )?([A-Za-z0-9_]{1,16}) picked up an Energy Crystal!$");
     private static final Pattern DOOR_OPEN_REGEX = Pattern.compile("^(?:\\[[^]]{1,32}] )?([A-Za-z0-9_]{1,16}) opened a (?:WITHER|Blood) door!");
 
     private static long lastClick = 0L;
     private static int arghCount = 0;
-    private static int crystalCount = 0;
     private static int oofCount = 0;
     private static boolean pickedUpRelic = false;
     private static boolean leapedHealerPy = false;
@@ -191,7 +191,6 @@ public final class FastLeapFeature {
 
     private static void onWorldChange() {
         arghCount = 0;
-        crystalCount = 0;
         oofCount = 0;
         pickedUpRelic = false;
         leapedHealerPy = false;
@@ -245,10 +244,11 @@ public final class FastLeapFeature {
             }
         }
 
-        if ("The Energy Laser is charging up!".equals(unformatted) && cfg.isLeapAuto(LeapGroup.P1)) {
-            if (++crystalCount == 2 && isInP1()) {
-                leapToConfigured(LeapTarget.P1);
-            }
+        // Crystal leap (killer560, 2026-11-12: "it should leap the second i pick up a crystal"): HIS OWN pickup line only
+        Matcher pickup = CRYSTAL_PICKUP_REGEX.matcher(unformatted);
+        if (pickup.matches() && cfg.isLeapAuto(LeapGroup.P1) && pickup.group(1).equalsIgnoreCase(Teammates.selfName())
+                && isInP1()) {
+            leapToConfigured(LeapTarget.P1);
         }
 
         if ("[BOSS] Storm: I'd be happy to show you what that's like!".equals(unformatted)
@@ -313,6 +313,11 @@ public final class FastLeapFeature {
         }
         long now = System.currentTimeMillis();
         if (now - lastClick < cfg.getClickDelayMs()) {
+            return true;
+        }
+        // One press, one leap (crystalleap-1112): a click landing within the click delay after a leap finished is the
+        // same press arriving late; it only produced "Failed to leap! On cooldown".
+        if (now - LeapManager.lastLeapMs() < cfg.getClickDelayMs()) {
             return true;
         }
         if (i4) {

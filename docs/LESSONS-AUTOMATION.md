@@ -262,6 +262,23 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   1109-boss-ee3route (sim, levers t31-33 and t49-51, EE3 at t201-202 three of three) and 1109-boss-ee3route-grim /
   -same-use / -same-swap / -same-dig (hx, Grim default and experimental clean; use and swap share GrimAC ticks with the
   lever click on the wire, a queued dig holds it to another tick).
+- **AP3 fell into the lava at boom #26 about one run in three (ap3holddig-1110).** Read off the per-tick paths: Lever
+  Aura's random dwell (48-55 ms) sometimes takes two ticks, the hand-back then lands on the tick a node changes the walk
+  (202 -> 110.5), and it put back the yaw from before the turn, the OLD walk's: the keys re-picked there were A (no W, no
+  sprint), the step 0.71 instead of 0.87, and the boom triggered 0.2 blocks late. Fix: TurnFirst's hand-back asks the
+  held walk where it faces NOW (`registerHandBack`, AP3's `handBackYaw`; the walk-keyed constraint is null while a Boom
+  is armed, so it cannot be used), which matters on a tick his use pins the look; and AP3's `beforeInputInstall` faces
+  the walk after any foreign turn with no turn out and no use this tick (`snapToWalk`).
+  His held dig (HandDigAim) threw the path three more ways, each found by diffing the DIG run's per-tick path against the
+  SWAP run's: (a) a turn for his dig while the boom aimed kept the aim's keys (D), pushing him 50 degrees off for a tick:
+  `beforeInputInstall` re-picks the aim keys when the body moved since they were written (`aimKeysYaw`); (b) a "least
+  bend" look up to 11 degrees off the walk put 0.15 sideways in one tick: a dig with no walk-keyed look now WAITS
+  (`beforeDig` returns false, the mixin cancels it); (c) the walk-keyed yaws themselves: a jump tick's sprint boost goes
+  along the facing, and W+A / W+D push 2% harder than W alone (input 1.00 against 0.98, velocity 0.307 vs 0.301), so ten
+  ticks of digging on the W+D yaw put him 0.07 ahead and he missed the step. `walkKeyedYaws` now offers only the key set
+  the walk itself uses (W alone, or W+A / W+D with 45 Degree Strafe; W on a jump tick). (d) Once the route reached EE3,
+  his dig during AP3's align #32 (and on a tick his use_item goes) went with the pinned look and drew experimental
+  RotationBreak on every one: a dig whose heard look misses his block now waits while the body is pinned.
 - **GrimAC 2.3.74 never judges the look or reach of an interact on a NON-LIVING entity** (javap, aafast-1027): `Reach.
   checkReach` returns NONE unless the target is living or an end crystal, so an item frame (Arrow Align) draws neither
   Hitboxes nor Reach whatever the look. An armor stand IS living (Terminal Aura, 415/418). For a living target the interact
@@ -1008,6 +1025,19 @@ NOT fixed: a spike in the middle of a Hold (not Charge) still flags from 900 ms 
 clean to 1100). Hold keeps every packet, pongs included, in order for the whole hold (Post/TransactionOrder), so its newest answer
 is as old as the hold; sending the pongs ahead would show GrimAC the hold as a Timer burst, and releasing the hold on a stall is
 an early release. Needs the owner's call.
+
+A teleport HOLD (a moving teleport's confirm waiting behind the answer to its ping) is the same limit from the other side:
+everything held goes out in one burst, and a 1149 ms hold (33 packets) drew TimerLimit in 1027-ap3-blink-leap-route on 26.2
+(ap3grp-run5) where 1090 ms ones (29-30) were clean. `TP_HOLD_MAX_MS` was 3000 ("cannot happen"); it is `ANSWER_DELAY_MS`
+now, and past it the client tick sends the hold's answer early and flushes (ap3grp2-1110). Holds then read 1051-1096 ms,
+26-30 packets, and the 26.2 group ran clean. The flush logs "teleport hold let go after N ms": read it before a TimerLimit.
+The cap is checked once per client tick, so under load a 26.3 full group still let one run to 1142 ms (TimerLimit); it is
+`ANSWER_DELAY_MS - 100` since, two ticks of margin under the ~1120 ms GrimAC allows.
+
+A LOOK's frozen view outlives AP3: after a stop, `tickView` glides the body 30 degrees a tick under it. Until ap3grp2-1110 a
+server teleport that set his look did not end that glide, so the body turned away from the server's look right after it
+(63-ap3-look-queued walked off its lane: move packets -90, -60, -30, 0, 30, 37.5 after a tp at yaw -90). `onServerLook`
+(Ap3PositionPacketMixin) drops the view when a teleport sets the look (absolute yaw or a relative turn) and nothing of AP3 holds it.
 
 ### Position reminder and BadPacketsV (ship3fix2-1104)
 

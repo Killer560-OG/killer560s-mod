@@ -276,9 +276,11 @@ public final class ChatTabsFeature {
     /** A tab was clicked: show its messages and, with Switch Channel, go to its chat. */
     public static void select(Tab t) {
         ChatTabsConfig cfg = ChatTabsConfig.getInstance();
+        // A second /chat for the channel he is already in only draws Hypixel's red "You're already in this channel!"
+        boolean already = selected == t && t.channel != null;
         selected = t;
         switches++;
-        if (cfg.isSwitchChannel()) {
+        if (cfg.isSwitchChannel() && !already) {
             if (ModChatChannel.isActive()) {
                 // Hypixel's /chat goes below Fabric's ALLOW_COMMAND, where Mod Chat would have seen it and switched off.
                 ModChatChannel.setActive(false);

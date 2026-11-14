@@ -256,3 +256,4 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
 
 **Change Room opens the page used last**: the pause screen's button opens `SimMenuNav.open` (the designer after a
 generated map), Load a Room when the menu was not opened yet this session. Testkit 1018-sim-changeroom-lastpage.
+- Hyperion in the boss fight (simhype-1109, killer560 2026-11-09): while `BossFight.running()` Wither Impact does not teleport (`SimAbilities.witherImpact` skips `dash`); the blast, damage, sound, mana and cooldown are unchanged and centered on the player. Outside the boss it dashes as before.

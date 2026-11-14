@@ -3,6 +3,9 @@ package com.killer560.hub.mainmenu.mixin;
 import com.killer560.hub.mainmenu.MainMenuTheme;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.LogoRenderer;
+import net.minecraft.client.gui.screens.Screen;
+import com.killer560.hub.mainmenu.MainMenuTitleLayout;
 import net.minecraft.client.gui.screens.TitleScreen;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -24,5 +27,25 @@ public abstract class MainMenuTitleScreenMixin {
             Operation<Void> original) {
         if (MainMenuTheme.active()) return;
         original.call(graphics, font, text, x, y, color);
+    }
+
+    /** On a window too short for the themed column (854x480 at GUI scale 2), the logo is drawn smaller from its top
+     *  center so it stays above the panel ({@link MainMenuTitleLayout#logoScale}); otherwise exactly as vanilla. */
+    @WrapOperation(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/LogoRenderer;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IF)V"),
+            require = 0)
+    private void killer560smod$fitLogo(LogoRenderer logo, GuiGraphicsExtractor graphics, int width, float alpha,
+            Operation<Void> original) {
+        float s = MainMenuTitleLayout.logoScale((Screen) (Object) this);
+        if (s >= 1f) {
+            original.call(logo, graphics, width, alpha);
+            return;
+        }
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(width / 2f, 0f);
+        graphics.pose().scale(s, s);
+        graphics.pose().translate(-width / 2f, 0f);
+        original.call(logo, graphics, width, alpha);
+        graphics.pose().popMatrix();
     }
 }

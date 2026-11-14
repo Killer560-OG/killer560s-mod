@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * What a Dungeon Breaker (Zero Ping, Breaker Aura, an Auto Routes breaker node) must never break
+ * What a Dungeon Breaker (Breaker Aura, an Auto Routes breaker node) must never break
  * (killer560, 2026-10-18: "make an option for no breaking secrets and add in the fairy room stuff but not for
  * puzzles"). Two rules, one answer for every caller:
  * <ul>

@@ -383,6 +383,19 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   lookahead only while the pane is on the target. The Hx click event carries the server's lime/target/msSinceStep: judge a
   wrong Melody click by those, never by the client's log. A server catching up after "Can't keep up" burst-ticks steps; no
   client rule covers that.
+- Melody "missing a lot of clicks" (melody-1111, killer560 2026-11-11, his config Lookahead 2 + EDGES, ping 31-88 ms): every
+  LIVE click in his log hit. All 8 "was missed" lines were lookahead clicks, and in every one the row's real target (its
+  later live click) was another column: Hypixel draws a new random target per row, so the lookahead is a 1-in-5 gamble per
+  row (0 of 8 won that day). The real loss was the stale lookahead bit: a lookahead click for row 3 sent while the server was
+  still on row 1 kept the row "clicked" until the pane was seen MOVING there, so when row 3's pane arrived ON its target the
+  live click was held a whole bounce (about 3 s, 21:44:54 and 21:51:23). Hypixel takes only the current row's button, so a
+  lookahead click sent more than a round trip + 100 ms (`MELODY_ROW_SLACK_MS`) before its row first showed reached the
+  server before the row did and cannot have counted: the row is freed on its first frame (`melodyLookaheadBeforeRow`,
+  counter `melodyLookaheadStale`). The miss line now says lookahead or live and the target. Testkit
+  1111-menu-term-melody-gamble (sim boards with set row targets, `targets`, and the server's `missedPasses` count, 50 ms
+  then 120 ms added latency) and 1111-same-melody-click(-unblocked). Old jar: board [5,3,3] took 101 ticks with 1 missed
+  pass (row 3 clicked 40 ticks after row 2); fixed: 63-66 ticks, 0 missed passes over 10 boards, 5 rows freed as stale.
+  At 50 ms the second lookahead usually never goes out (the row shows first), so assert the fix at 120 ms.
 - A migration marker key must end in `Version` (or match testkit 310's marker pattern: seeded, migrated, defaulted, V2,
   a year). 310 flips every other number in a saved file and reloads; it flipped terms-1026's `hoverMelodyFormat` 2 -> 1,
   the load re-ran the migration and `hoverMelodyEnabled` came back ON (found by another agent, 2026-10-27). The keys are

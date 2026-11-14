@@ -383,7 +383,8 @@ public final class LeapRunMemory {
             // their pins were for a role they no longer play, and a pin holds them in that role's spot over the Default
             // Order. Not what was set before this run.
             for (String n : tabChanged) {
-                boolean had = ClassOverrides.clear(n);
+                // Your own pick stays (killer560 11-13): it is what you told the Leap Order you play.
+                boolean had = (self == null || !self.equalsIgnoreCase(n)) && ClassOverrides.clear(n);
                 if (cfg.unpinEverywhere(n) || had) {
                     stale.add(n);
                 }

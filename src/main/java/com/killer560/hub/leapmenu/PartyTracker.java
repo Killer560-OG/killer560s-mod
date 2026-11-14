@@ -375,18 +375,15 @@ public final class PartyTracker {
         return name == null ? null : CLASSES.get(name.toLowerCase(Locale.US));
     }
 
-    /** Your own class from the dungeon tab list, or null outside a dungeon / before the tab list shows it. The tab list
-     *  wins over a class pick on your own name (leaporder-1102): the removed Class Selection Overlay could put one there
-     *  and no run start ever cleared it, so after you switched class every feature kept reading the old one. A pick on
-     *  yourself still applies while the tab list does not know your class. */
+    /** Your own class: a class pick on your own name when you set one (killer560 11-13: "leaporder keeps ignoring my
+     *  custom class selection for myself"), else the dungeon tab list, else null. leaporder-1102 had let the tab list win
+     *  because the removed Class Selection Overlay left stale picks; picks now come only from the Leap Order editor. */
     public static DungeonClass selfClass() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return null;
         }
-        String self = client.player.getGameProfile().name();
-        DungeonClass shown = detectedClassOf(self);
-        return shown != null ? shown : classOf(self);
+        return classOf(client.player.getGameProfile().name());
     }
 
     /** The class you play next as Hypixel last announced it (its class menu, a Party Finder group, the dungeon's

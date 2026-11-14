@@ -82,6 +82,9 @@ public final class ProfileManager {
             // run data and a running counter, not settings (2026-10-16).
             "killer560smod-bazaarflip-profit.json",
             "killer560smod-bazaarflip-npcsold.json",
+            // Shared-store records (RecordCatalog): sim mob looks, Carnival history - records, not settings.
+            "killer560smod-sim-mob-looks.json",
+            "killer560smod-carnival-history.json",
             // an old recording of Hypixel's Auction House menus - a log, not a setting (2026-11-02).
             "killer560smod-ahflip-menudump.txt",
             // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).
