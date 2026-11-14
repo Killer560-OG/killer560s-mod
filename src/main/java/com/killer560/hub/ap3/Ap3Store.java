@@ -90,6 +90,8 @@ public final class Ap3Store {
     public static final double MAX_ABS_COORD = 1024.0;
 
     private static Ap3Store instance;
+    /** The file {@link #load} last read, so a profile apply re-reads only when the selected file changed. */
+    private static Path loadedFile;
 
     private final Map<String, Ap3Chain> chains = new LinkedHashMap<>();
     /** Set when the last load could not parse the file: {@link #save()} refuses to overwrite it until a load succeeds
@@ -123,8 +125,16 @@ public final class Ap3Store {
         return directory().resolve(Ap3Config.getInstance().getChainsFile());
     }
 
+    /** Profile apply: the chains are shared by every profile (profshare-1112), so only a different selected file is
+     *  re-read; the same one is left alone, and a running chain with it. */
+    public static void reloadIfSwitched() {
+        if (!file().equals(loadedFile)) {
+            reload();
+        }
+    }
+
     /** {@code /ap3 reload}: re-read the file, replacing what is in memory. Stops a running chain first rather than
-     *  swapping the node list out from under the executor. Safe from {@code ProfileManager.reloadAllConfigs}. */
+     *  swapping the node list out from under the executor. */
     public static void reload() {
         if (Ap3Executor.isRunning()) {
             Ap3Executor.stop("chains reloaded");
@@ -277,6 +287,7 @@ public final class Ap3Store {
         migrateLegacyFile();
         Ap3Store store = new Ap3Store();
         Path file = file();
+        loadedFile = file;
         String fileName = file.getFileName().toString();
         if (Files.exists(file)) {
             try {
