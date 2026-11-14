@@ -48,6 +48,15 @@ public final class SimAttackSpeed {
     public static final int SHORTBOW_INTERVAL_TICKS =
             (int) Math.ceil(10.0 / (1.0 + ATTACK_SPEED / 100.0));
 
+    /**
+     * Ticks between Terminator shots when LEFT-click spamming, from the wiki's Terminator "Fire Rate" table: 9 ticks
+     * up to 11 Attack Speed, 7 up to 40, 5 up to 66, 4 from 67 (so 4 ticks, 5.00 shots a second, at 100). A left
+     * click shoots faster than the 5-tick shortbow cooldown ({@link #SHORTBOW_INTERVAL_TICKS}), which is what a held
+     * right-click is limited to (vanilla's 4.00 shots a second cap).
+     */
+    public static final int TERMINATOR_CLICK_INTERVAL_TICKS =
+            ATTACK_SPEED <= 11 ? 9 : ATTACK_SPEED <= 40 ? 7 : ATTACK_SPEED <= 66 ? 5 : 4;
+
     private SimAttackSpeed() {
     }
 }

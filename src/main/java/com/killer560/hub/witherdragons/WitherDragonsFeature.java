@@ -285,6 +285,20 @@ public final class WitherDragonsFeature {
         }
     }
 
+    /**
+     * The health the server last SENT: a client EnderDragon's {@code aiStep} calls {@code setHealth(getHealth())} every
+     * tick, which clamps a 1,000,000,000 dragon to its max health one tick after the packet (necronpull-1111: the label
+     * read 200 while the packet said 933,333,312).
+     */
+    private static float packetHealth(EnderDragon e) {
+        for (WitherDragon d : WitherDragon.values()) {
+            if (e.getUUID().equals(d.entityUUID)) {
+                return d.health;
+            }
+        }
+        return e.getHealth();
+    }
+
     /** Odin {@code DragonCheck.dragonUpdate} (synched data id 9 = health), read after vanilla applied it. */
     static void onEntityData(Entity entity) {
         if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) return;
@@ -459,7 +473,7 @@ public final class WitherDragonsFeature {
             float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
             for (EnderDragon e : DRAGON_ENTITIES.values()) {
                 if (e.isRemoved()) continue;
-                float hp = e.getHealth();
+                float hp = packetHealth(e);
                 if (hp > 0f) {
                     Vec3 pos = e.getPosition(partial);
                     renderWorldText(context, formatHealth(hp), pos.x, pos.y, pos.z, 5f);

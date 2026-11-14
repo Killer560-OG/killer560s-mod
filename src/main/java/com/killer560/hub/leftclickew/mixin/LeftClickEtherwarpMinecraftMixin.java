@@ -25,12 +25,15 @@ public abstract class LeftClickEtherwarpMinecraftMixin {
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void killer560smod$leftClickEw(CallbackInfoReturnable<Boolean> cir) {
         // Left Click Opens Secrets first: a click on a secret is that secret's right click, whatever is held.
-        if (com.killer560.hub.leftclicksecrets.LeftClickSecrets.onLeftClick((Minecraft) (Object) this)
+        if (com.killer560.hub.ap3.Ap3Executor.holdsHisHand()
+                || com.killer560.hub.leftclicksecrets.LeftClickSecrets.onLeftClick((Minecraft) (Object) this)
                 || LeftClickEtherwarp.onLeftClick((Minecraft) (Object) this)) {
             cir.setReturnValue(false);
             return;
         }
-        com.killer560.hub.util.HandDigAim.beforeDig((Minecraft) (Object) this); // his dig under a held camera
+        if (!com.killer560.hub.util.HandDigAim.beforeDig((Minecraft) (Object) this)) { // his dig under a held camera
+            cir.setReturnValue(false);
+        }
     }
 
     @Inject(method = "startAttack", at = @At("RETURN"))
@@ -40,14 +43,21 @@ public abstract class LeftClickEtherwarpMinecraftMixin {
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
     private void killer560smod$leftClickEwHeld(boolean leftClick, CallbackInfo ci) {
-        if (com.killer560.hub.leftclicksecrets.LeftClickSecrets.suppressHeld((Minecraft) (Object) this, leftClick)
+        if (leftClick && com.killer560.hub.ap3.Ap3Executor.holdsHisHand() // AP3's held-back act has this tick
+                || com.killer560.hub.leftclicksecrets.LeftClickSecrets.suppressHeld((Minecraft) (Object) this, leftClick)
                 || LeftClickEtherwarp.suppressHeldAttack((Minecraft) (Object) this, leftClick)) {
             ci.cancel();
             return;
         }
-        if (leftClick) {
-            com.killer560.hub.util.HandDigAim.beforeHeldDig((Minecraft) (Object) this);
+        if (leftClick && !com.killer560.hub.util.HandDigAim.beforeHeldDig((Minecraft) (Object) this)) {
+            ci.cancel();
         }
+    }
+
+    /** His held or clicked right click waits while AP3's held-back act has this tick (ap3holddig-1110). */
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$ap3HoldsUse(CallbackInfo ci) {
+        if (com.killer560.hub.ap3.Ap3Executor.holdsHisHand()) ci.cancel();
     }
 
     @Inject(method = "continueAttack", at = @At("RETURN"))
