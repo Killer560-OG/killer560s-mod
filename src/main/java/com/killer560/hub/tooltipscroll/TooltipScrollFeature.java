@@ -98,6 +98,14 @@ public final class TooltipScrollFeature {
      *  line-scroll it ({@link #offset}) or nudge its position instead ({@link #nudgeOffset}, 2026-09-27). The
      *  wheel is consumed either way; this only picks which of the two it drives. */
     private static boolean scrollable;
+    /** Tooltip drawn last frame was wider than the screen (Shift + wheel slides it sideways). */
+    private static boolean wide;
+    /** nanoTime of the last tooltip draw, and a cheap signature (line count + height) of it: a tooltip that was not drawn
+     *  for {@link #LIVE_NANOS}, or changed shape, is a new tooltip and starts un-scrolled. This is what makes every
+     *  surface work (container, inventory, mod menus, Profile Viewer): none of them needs a hover hook. */
+    private static long lastDrawn;
+    private static int lastSig;
+    private static final long LIVE_NANOS = 300_000_000L;
     /** The hovered stack the current {@link #offset} belongs to; weak so a cached stack can never pin an
      *  item (or its whole container) in memory. */
     private static WeakReference<ItemStack> hovered = new WeakReference<>(null);
@@ -171,6 +179,20 @@ public final class TooltipScrollFeature {
         nudgeX = 0;
     }
 
+    /** The container hover, by SLOT: Hypixel resends a menu's slots all the time (new ItemStack objects, same item), and
+     *  the identity compare below reset the scroll every time, so a long tooltip snapped back to the top (tipscroll-1113).
+     *  The same slot keeps its scroll; a changed tooltip is caught by the signature in {@link #pixelOffsetFor}. */
+    public static void setHovered(Object slot, ItemStack stack) {
+        if (slot != null && slot == hoveredSlot && stack != null) {
+            hovered = new WeakReference<>(stack);
+            return;
+        }
+        hoveredSlot = stack == null ? null : slot;
+        setHovered(stack);
+    }
+
+    private static Object hoveredSlot;
+
     public static void setHovered(ItemStack stack) {
         ItemStack previous = hovered.get();
         if (previous == stack) return;
@@ -182,13 +204,26 @@ public final class TooltipScrollFeature {
     }
 
 
-    /** @return true if the scroll was consumed, in which case the container screen must not also act on it. */
+    /** @param nudgeAllowed false from the early MouseHandler hook: only an overflowing tooltip takes the wheel there
+     *  (a fitting one is nudged by the late container hook, so Storage Overlay and the other wheel users keep it).
+     *  @return true if the scroll was consumed, in which case the container screen must not also act on it. */
     public static boolean onMouseScrolled(double scrollY) {
+        return scroll(scrollY, true);
+    }
+
+    /** The early MouseHandler hook: only an overflowing tooltip takes the wheel (see {@code nudgeAllowed}). */
+    public static boolean onWheelEarly(double scrollY) {
+        return scroll(scrollY, false);
+    }
+
+    private static boolean scroll(double scrollY, boolean nudgeAllowed) {
         scrollHookSeen = true;
         TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
         // killer560, 2026-10-18: "if I am holding shift and scroll it will go left and right". Shift turns the wheel into a
         // sideways move of the whole tooltip (wheel up = left, the same sign as the nudge above), and never scrolls the lines.
-        if (cfg.isEnabled() && hovered.get() != null && scrollY != 0.0 && shiftHeld()) {
+        boolean live = System.nanoTime() - lastDrawn < LIVE_NANOS;
+        boolean container = nudgeAllowed && hovered.get() != null;
+        if (cfg.isEnabled() && live && (container || wide || scrollable) && scrollY != 0.0 && shiftHeld()) {
             int direction = scrollY > 0 ? -1 : 1;
             if (cfg.isInvert()) {
                 direction = -direction;
@@ -199,7 +234,7 @@ public final class TooltipScrollFeature {
         // Not enabled or nothing hovered: hand the wheel straight back so it keeps doing whatever it
         // normally does (hotbar slot, another mod's scrollable list, bundles). Unlike before 2026-09-27 this
         // no longer bails out just because the tooltip fits - see the nudge branch below.
-        if (!cfg.isEnabled() || hovered.get() == null || scrollY == 0.0) return false;
+        if (!cfg.isEnabled() || !live || scrollY == 0.0 || !(container || scrollable)) return false;
 
         if (scrollable) {
             // Wheel up shows earlier lines, matching every other scroll surface in the game.
@@ -240,7 +275,7 @@ public final class TooltipScrollFeature {
     public static int horizontalOffset() {
         // Only while the feature is on and a container slot is hovered: nudgeX otherwise lingered after closing the
         // inventory (or turning the feature off) and shifted every later tooltip, widgets on other screens included.
-        return nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled() ? 0 : nudgeX;
+        return nudgeX == 0 || (hovered.get() == null && !wide) || !TooltipScrollConfig.getInstance().isEnabled() ? 0 : nudgeX;
     }
 
 
@@ -256,13 +291,28 @@ public final class TooltipScrollFeature {
         // Unlike before 2026-09-27 a single-component tooltip is no longer skipped here - it can never
         // overflow, but killer560 asked for even a fitting tooltip to be nudgeable, and a one-line tooltip is
         // exactly that case.
-        if (!cfg.isEnabled() || font == null || components == null || components.isEmpty() || hovered.get() == null) {
+        if (!cfg.isEnabled() || font == null || components == null || components.isEmpty()) {
             scrollable = false;
             maxOffset = 0;
             return 0;
         }
 
         int n = components.size();
+        long now = System.nanoTime();
+        int w = 0;
+        for (int i = 0; i < n; i++) {
+            w = Math.max(w, components.get(i).getWidth(font));
+        }
+        int sigHeight = prefixHeight(font, components, n);
+        int sig = n * 31 + sigHeight + w * 7;
+        if (now - lastDrawn >= LIVE_NANOS || sig != lastSig) {
+            offset = 0;
+            nudgeOffset = 0;
+            nudgeX = 0;
+        }
+        lastDrawn = now;
+        lastSig = sig;
+        wide = w + 24 > graphics.guiWidth();
         // Prefix height of components[0, i) = the real, rendered vertical extent: each component's own height
         // plus the 2px separator vanilla inserts before every component after the first. Read straight off
         // GuiGraphicsExtractor#tooltip's actual drawing loop with javap -c - deliberately NOT the same
@@ -271,7 +321,7 @@ public final class TooltipScrollFeature {
         // background anymore - it translates the whole already-correctly-rendered picture as one rigid
         // block - so what matters here is how tall the actual drawn TEXT is, which is this formula, not
         // vanilla's internal box-sizing shortcut.
-        int total = prefixHeight(font, components, n);
+        int total = sigHeight;
 
         int available = graphics.guiHeight() - VERTICAL_CHROME;
         // Recomputed every render so a nudge picked up on one screen (e.g. a tiny GUI scale) can never clamp
