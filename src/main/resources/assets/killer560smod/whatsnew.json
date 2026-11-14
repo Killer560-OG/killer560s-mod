@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-14",
+  "summary": "Sim F7: after Goldor dies Necron pulls everyone down into hi",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Sim F7: after Goldor dies Necron pulls everyone down into his arena and holds them over his platform until \"Goodbye.\"; P5 dragons now carry Hypixel's 1,000,000,000 health, so the Wither Dragons health readout drops as you hit them, and every arrow of a Terminator volley counts; dragons rise out of their spawn point and then circle their own area instead of flying at random. Wither Dragons' health label now shows the health the server sent."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-13",
   "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
   "sections": [
@@ -23,7 +36,7 @@
      "Scrollable Tooltips: the mouse wheel now scrolls a tall tooltip on every screen (inventory, creative, menus, Profile Viewer), and the server resending a slot no longer snaps it back to the top",
      "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons",
      "Leap Order: a class you pick for yourself now wins over the tab list",
-     "Auto Melody no longer skips a whole bounce when a row's pane arrives right on its target after a lookahead click (Lookahead Clicks is a 1-in-5 guess per row; 0 loses nothing)"
+     "Fast Leap (cheat): Crystal Auto now leaps the moment you pick up an Energy Crystal (your own pickup only, in Phase 1), and a double click right after a leap no longer prints \"Failed to leap! On cooldown\"."
     ]
    }
   ]
