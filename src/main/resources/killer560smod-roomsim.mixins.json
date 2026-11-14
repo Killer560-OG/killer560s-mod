@@ -6,6 +6,7 @@
 	"client": [
 		"SimFovMixin",
 		"SimNoKnockbackMixin",
+		"SimLivingHealthAccessor",
 		"SimPlayerInfoPacketAccessor",
 		"SimStaticWaterMixin",
 		"SimStillFireMixin",
