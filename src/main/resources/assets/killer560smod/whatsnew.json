@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-14",
+  "summary": "Sim Terminator: spam left-clicking now shoots every 4 ticks ",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Sim Terminator: spam left-clicking now shoots every 4 ticks (5.00 shots/s at 100 Attack Speed, like Hypixel); holding right click stays 4.00/s"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-13",
   "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
   "sections": [
