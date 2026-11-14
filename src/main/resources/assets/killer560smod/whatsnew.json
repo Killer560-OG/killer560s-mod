@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-14",
+  "summary": "Storm Bow: releases a held Last Breath at a set charge tick ",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Storm Bow: releases a held Last Breath at a set charge tick (default 34.25), with optional Terminator swap and walk; Auto M5: walks to your saved mid, Ragnarock buff, aims at and kills the real Livid (cheat, both off by default)"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-13",
   "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
   "sections": [
