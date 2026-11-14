@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Sim F7: after Goldor dies Necron pulls everyone down into his arena and holds them over his platform until \"Goodbye.\"; P5 dragons now carry Hypixel's 1,000,000,000 health, so the Wither Dragons health readout drops as you hit them, and every arrow of a Terminator volley counts; dragons rise out of their spawn point and then circle their own area instead of flying at random. Wither Dragons' health label now shows the health the server sent.",
-     "AP3: your own right click, dig or hotbar swap during a route no longer throws the held walk off or stops AP3 (held one tick and sent)"
+     "Auto Melody no longer skips a whole bounce when a row's pane arrives right on its target after a lookahead click (Lookahead Clicks is a 1-in-5 guess per row; 0 loses nothing)",
+     "Boss sim: the Hyperion no longer teleports you in the boss fight (its blast still hits), and blocking an Ender pearl in the boss no longer shows a title"
     ]
    }
   ]
