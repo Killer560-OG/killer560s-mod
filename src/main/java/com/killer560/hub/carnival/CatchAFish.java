@@ -52,10 +52,12 @@ public final class CatchAFish {
         }
     }
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-carnival");
     private static List<Fish> fish = List.of();
     private static Fish best;
     private static long lastHookedMs;
     private static boolean hooked;
+    private static Bar hookedBar;
     private static List<String> hud = List.of();
     /** Stand id -> wears the Yellow Fish head (a head never changes, so it is decoded once). */
     private static final java.util.Map<Integer, Boolean> YELLOW_BY_ID = new java.util.HashMap<>();
@@ -93,6 +95,8 @@ public final class CatchAFish {
 
     public static void register() {
         CarnivalState.register();
+        CarnivalState.onGameEnd(CatchAFish::logFlags);
+        CarnivalState.onGameStart(g -> forgetFlung());
         CarnivalState.addDemand(CatchAFish::wanted);
         int bit = FeatureBits.register("Catch a Fish Helper", CatchAFish::wanted);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("CatchAFish.tick", bit, CatchAFish::tick));
@@ -128,11 +132,16 @@ public final class CatchAFish {
         FishingHook myHook = mc.player.fishing;
         Entity hookedFish = myHook == null ? null : myHook.getHookedIn();
         java.util.Set<Integer> alive = new java.util.HashSet<>();
+        List<ArmorStand> tags = new ArrayList<>();
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof ArmorStand stand) || stand.distanceToSqr(mc.player) > RANGE * RANGE) {
                 continue;
             }
             alive.add(stand.getId());
+            Lead.sample(stand.getId(), stand.position());
+            if (stand.hasCustomName() && stand.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
+                tags.add(stand);
+            }
             if (isFlung(stand.getId(), stand.position(), hookedFish != null && hookedFish.getId() == stand.getId())) {
                 continue;
             }
@@ -149,14 +158,43 @@ public final class CatchAFish {
         FLUNG.retainAll(alive);
         LAST_POS.keySet().retainAll(alive);
         POND_Y.keySet().retainAll(alive);
+        BACK.keySet().retainAll(alive);
+        Lead.retain(alive);
         fish = list;
+        readBars(list, tags);
         FishingHook hook = mc.player.fishing;
         hooked = hook != null && hook.getHookedIn() != null;
+        hookedBar = hooked ? BARS.get(hook.getHookedIn().getId()) : null;
         if (hooked) {
             lastHookedMs = System.currentTimeMillis();
         }
         best = pickBest(list, mc.player.getEyePosition());
         hud = buildHud();
+    }
+
+    /** Matches each fish to the name tag standing over it and parses it as a bar; the first tag seen a game is logged raw. */
+    private static void readBars(List<Fish> list, List<ArmorStand> tags) {
+        BARS.clear();
+        for (Fish f : list) {
+            Vec3 p = f.stand().position();
+            for (ArmorStand t : tags) {
+                double dy = t.getY() - p.y;
+                double dx = t.getX() - p.x;
+                double dz = t.getZ() - p.z;
+                if (dy > -0.5 && dy < 3 && dx * dx + dz * dz < 2.25) {
+                    String text = t.getCustomName().getString();
+                    if (!barLogged) {
+                        barLogged = true;
+                        LOGGER.info("[CatchAFish] name tag over a fish: '{}'", text);
+                    }
+                    Bar b = parseBar(text);
+                    if (b != null) {
+                        BARS.put(f.stand().getId(), b);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /** Whether the stand {@code id} at {@code pos} is a fish that was hooked or thrown out of the water: hooked now, moved
@@ -165,17 +203,135 @@ public final class CatchAFish {
     static boolean isFlung(int id, Vec3 pos, boolean hookedNow) {
         Vec3 prev = LAST_POS.put(id, pos);
         double y0 = POND_Y.computeIfAbsent(id, k -> pos.y);
-        if (hookedNow || (prev != null && prev.distanceTo(pos) > FLING_JUMP) || pos.y - y0 > FLING_RISE) {
-            FLUNG.add(id);
+        boolean jump = prev != null && prev.distanceTo(pos) > FLING_JUMP;
+        boolean rise = pos.y - y0 > FLING_RISE;
+        if (hookedNow || jump || rise) {
+            if (FLUNG.add(id)) {
+                flagged[hookedNow ? 0 : jump ? 1 : 2]++;
+            }
+            BACK.remove(id);
+        } else if (FLUNG.contains(id)) {
+            // Not permanent: a stand seen back at the height it swam at, standing still, for 10 ticks swims again
+            // (a thrown fish respawns at the pond; one flagged by a one-tick jump stays a target otherwise lost for the game).
+            boolean still = prev != null && prev.distanceTo(pos) < 0.2;
+            int n = still && Math.abs(pos.y - y0) < 0.5 ? BACK.merge(id, 1, Integer::sum) : 0;
+            if (n >= UNFLING_TICKS) {
+                FLUNG.remove(id);
+                BACK.remove(id);
+                flagged[3]++;
+            } else if (n == 0) {
+                BACK.remove(id);
+            }
         }
         return FLUNG.contains(id);
     }
 
+    private static final java.util.Map<Integer, Integer> BACK = new java.util.HashMap<>();
+    static final int UNFLING_TICKS = 10;
+    /** This game's flags by reason: hooked, jumped, rose, and cleared again. */
+    private static final int[] flagged = new int[4];
+
     /** Harness: clears the flung memory. */
-    static void forgetFlung() {
+    public static void forgetFlung() {
         FLUNG.clear();
         LAST_POS.clear();
         POND_Y.clear();
+        BACK.clear();
+        BARS.clear();
+        java.util.Arrays.fill(flagged, 0);
+        barLogged = false;
+        Lead.clear();
+    }
+
+    /** Harness: a name tag read as a bar: {fraction or -1, seconds left or -1}, null when it is not a bar. */
+    public static double[] barForTest(String tag) {
+        Bar b = parseBar(tag);
+        return b == null ? null : new double[]{b.fraction(), b.secondsLeft()};
+    }
+
+    /** Harness: {@link #isFlung} for a stand at a position. */
+    public static boolean flungForTest(int id, double x, double y, double z, boolean hooked) {
+        return isFlung(id, new Vec3(x, y, z), hooked);
+    }
+
+    /** Harness: flags this game, as hooked/jumped/rose/cleared. */
+    public static int[] flaggedForTest() {
+        return flagged.clone();
+    }
+
+    /** One INFO line a game on why stands were flagged (the owner's log shows whether the rule is too strict). */
+    private static void logFlags(CarnivalState.Game g, int score, long ms) {
+        if (g == CarnivalState.Game.CATCH_A_FISH) {
+            LOGGER.info("[CatchAFish] stands flagged this game: hooked {}, jumped {}, rose {}; cleared again {}", flagged[0],
+                    flagged[1], flagged[2], flagged[3]);
+        }
+    }
+
+    // ---- fish bars and the will-it-catch check -------------------------------------------------------------------
+
+    /** What a fish's name tag says: progress as 0..1 and the seconds left, -1 where the tag does not say. */
+    record Bar(double fraction, double secondsLeft) {
+    }
+
+    private static final java.util.Map<Integer, Bar> BARS = new java.util.HashMap<>();
+    private static boolean barLogged;
+    private static final java.util.regex.Pattern PERCENT = java.util.regex.Pattern.compile("(\\d{1,3})\\s?%");
+    private static final java.util.regex.Pattern SECONDS = java.util.regex.Pattern.compile("(\\d{1,2}(?:\\.\\d)?)\\s?s\\b");
+    private static final String ON = "█▮■▰|#=", OFF = "░▯□▱-.";
+
+    /** Reads a name tag as a progress bar: a percent, a seconds figure, or filled over empty bar glyphs; null if none. */
+    static Bar parseBar(String tag) {
+        if (tag == null || tag.length() > 80) {
+            return null;
+        }
+        double frac = -1;
+        double secs = -1;
+        java.util.regex.Matcher m = PERCENT.matcher(tag);
+        if (m.find()) {
+            frac = Math.min(100, Integer.parseInt(m.group(1))) / 100.0;
+        }
+        m = SECONDS.matcher(tag);
+        if (m.find()) {
+            secs = Double.parseDouble(m.group(1));
+        }
+        if (frac < 0) {
+            int on = 0;
+            int off = 0;
+            for (char c : tag.toCharArray()) {
+                on += ON.indexOf(c) >= 0 ? 1 : 0;
+                off += OFF.indexOf(c) >= 0 ? 1 : 0;
+            }
+            if (on + off >= 4) {
+                frac = on / (double) (on + off);
+            }
+        }
+        return frac < 0 && secs < 0 ? null : new Bar(frac, secs);
+    }
+
+    /** The bar over a fish (a named stand within 1.5 blocks sideways and up to 3 above it), or null. */
+    static Bar barOf(int fishId) {
+        return BARS.get(fishId);
+    }
+
+    /** Whether the bobber will get a fish: one is on it, or a fish's path (its smoothed speed) comes within a block of it in
+     *  the next 3 seconds. */
+    static boolean willCatch(FishingHook hook, List<Fish> fishes) {
+        if (hook.getHookedIn() != null) {
+            return true;
+        }
+        Vec3 h = hook.position();
+        for (Fish f : fishes) {
+            Vec3 p = f.stand().position();
+            Vec3 v = Lead.velocity(f.stand().getId());
+            for (int t = 0; t <= 60; t += 3) {
+                double dx = p.x + v.x * t - h.x;
+                double dz = p.z + v.z * t - h.z;
+                if (dx * dx + dz * dz < 1.0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Whether nothing solid stands between the eye and the fish's center. */
@@ -252,7 +408,10 @@ public final class CatchAFish {
             out.add("§7Catch Streak: §f" + CarnivalState.streak());
         }
         if (hooked) {
-            out.add("§a§lHOOKED §7- hold Use to reel");
+            Bar b = hookedBar;
+            out.add("§a§lHOOKED §7- hold Use to reel" + (b == null ? "" : (b.fraction() >= 0
+                    ? " §7(bar §f" + Math.round(b.fraction() * 100) + "%§7)" : "")
+                    + (b.secondsLeft() >= 0 ? " §7(§f" + b.secondsLeft() + "s§7 left)" : "")));
         } else if (lastHookedMs > 0) {
             long left = STREAK_MS - (System.currentTimeMillis() - lastHookedMs);
             if (left > 0) {

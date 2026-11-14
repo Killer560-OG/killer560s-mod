@@ -19,7 +19,8 @@ import org.slf4j.Logger;
  * game, and it never moves you. Every tap goes through {@link ActionGate} at the start of the tick; a server correction
  * is reported and it carries on. Automation: can get you banned; keep it off on the main server. Off by default.
  *
- * <p>Unverified in game: whether the dart is instant or a projectile that needs leading (it aims at the box center).
+ * <p>It leads a walking zombie: it aims at the zombie's box center plus its smoothed speed times the dart's flight time
+ * ({@link Lead}), scaled by Lead Adjust. Unverified in game: the dart speed it assumes.
  */
 public final class AutoZombieShootout {
 
@@ -87,8 +88,13 @@ public final class AutoZombieShootout {
             running = true;
             LOGGER.info("[{}] aiming", NAME);
         }
-        CarnivalInput.aim(NAME, player, best.aimPoint(), best.zombie() != null, cfg.isFreeCamera());
+        // A walking zombie is led (its darts are not instant): aim where it will be and shoot when the look is there.
+        net.minecraft.world.phys.Vec3 aim = best.leadPoint(player.getEyePosition(), cfg.getLeadPct());
+        CarnivalInput.aim(NAME, player, aim, best.zombie() != null, cfg.isFreeCamera());
         ZombieShootout.Target hit = ZombieShootout.targetUnderCrosshair(player, ZombieTriggerbot.RANGE);
+        if (best.zombie() != null && aim.distanceToSqr(best.aimPoint()) > 0.0025) {
+            hit = CarnivalInput.error(player, aim) <= 2f ? best : null;
+        }
         // Aimed at a target that never comes under the crosshair: give it up for a while and take the next one.
         Object bestKey = key(best);
         if (hit != null || !bestKey.equals(stuckKey)) {

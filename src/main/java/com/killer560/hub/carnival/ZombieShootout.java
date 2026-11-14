@@ -100,6 +100,11 @@ public final class ZombieShootout {
             this(zombie, lamp, box, points, msLeft, color, label, false);
         }
 
+        /** Where to aim: a walking zombie is led by Lead Adjust percent of its estimated travel; a lamp never moves. */
+        public Vec3 leadPoint(Vec3 eye, int pct) {
+            return zombie == null ? aimPoint() : Lead.ahead(zombie.getId(), aimPoint(), eye, pct);
+        }
+
         public Vec3 aimPoint() {
             return box.getCenter();
         }
@@ -153,6 +158,7 @@ public final class ZombieShootout {
         CarnivalState.onGameStart(g -> {
             if (g == CarnivalState.Game.ZOMBIE_SHOOTOUT) {
                 FIRST_SEEN.clear();
+                Lead.clear();
                 LIT_SINCE.clear();
                 lampsScanned = false;
             }
@@ -192,6 +198,7 @@ public final class ZombieShootout {
                 continue;
             }
             alive.add(z.getId());
+            Lead.sample(z.getId(), z.position());
             long seen = FIRST_SEEN.computeIfAbsent(z.getId(), k -> now);
             long left = Math.max(0, t.lifetimeMs - (now - seen));
             int pts = t == Tier.LEATHER && z.isBaby() ? t.points * 2 : t.points;
@@ -201,6 +208,7 @@ public final class ZombieShootout {
                     (z.isBaby() ? "Baby " : "") + t.label, theirs >= 0));
         }
         FIRST_SEEN.keySet().retainAll(alive);
+        Lead.retain(alive);
         for (BlockPos p : LAMPS) {
             if (lit(mc.level, p)) {
                 long since = LIT_SINCE.computeIfAbsent(p, k -> now);

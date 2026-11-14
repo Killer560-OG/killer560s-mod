@@ -18,8 +18,8 @@ import net.minecraft.world.phys.Vec3;
  * Auto Routes' eased rotation to the Catch a Fish Helper's pick (the nearest Yellow Fish, else the nearest fish),
  * following it as it swims, and taps Use to cast once it is within a few degrees. When your hook has a fish on it, it
  * holds your Use key down - the wiki's "hold Right-Click to reel it until its progress bar fills" - until the fish is
- * off the hook, then aims at the next. A cast that hooks nothing within Hook Wait is reeled back with one tap and cast
- * again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; Only Escape or the Emergency Cancel Key stops it
+ * off the hook, then aims at the next. It aims ahead of a swimming fish (Lead Adjust), and a cast that cannot get a fish
+ * (none swims within a block of the bobber in the next 3 seconds) is reeled back with one tap and cast again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; Only Escape or the Emergency Cancel Key stops it
  * for the rest of that game; moving the mouse never does. You are held still by the game, and it never moves you. Taps and the hold go through
  * {@link ActionGate} at the start of the tick; a server correction is reported and it carries on. Automation: can get
  * you banned; keep it off on the main server. Off by default.
@@ -46,6 +46,9 @@ public final class AutoCatchAFish {
     private static boolean sneaking;
     private static int walkTicks;
     static final int WALK_MAX_TICKS = 160;
+    /** The bobber must lie still this long before a cast is judged, and no cast waits longer than this. */
+    static final int SETTLE_TICKS = 15;
+    static final int MAX_WAIT_TICKS = 600;
     private static int walks;
 
     private AutoCatchAFish() {
@@ -57,7 +60,6 @@ public final class AutoCatchAFish {
         CatchAFish.addWant(() -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
         CarnivalState.onGameStart(g -> {
             walkTicks = 0;
-            CatchAFish.forgetFlung();
         });
         int bit = FeatureBits.register(NAME, () -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCatchAFish.tick", bit, AutoCatchAFish::tick));
@@ -124,7 +126,7 @@ public final class AutoCatchAFish {
                     }
                     return;
                 }
-                Vec3 at = target.box().getCenter();
+                Vec3 at = Lead.ahead(target.stand().getId(), target.box().getCenter(), player.getEyePosition(), cfg.getLeadPct());
                 aiming = true;
                 CarnivalInput.aim(NAME, player, at, true, cfg.isFreeCamera());
                 if (now >= nextCastTick && CarnivalInput.error(player, at) <= 3f && CarnivalInput.tap(mc.options.keyUse)) {
@@ -146,10 +148,14 @@ public final class AutoCatchAFish {
                     return;
                 }
                 if (target != null) {
-                    CarnivalInput.aim(NAME, player, target.box().getCenter(), true, cfg.isFreeCamera());
+                    CarnivalInput.aim(NAME, player, Lead.ahead(target.stand().getId(), target.box().getCenter(),
+                            player.getEyePosition(), cfg.getLeadPct()), true, cfg.isFreeCamera());
                 }
-                if (now - stateSince >= cfg.getHookWaitS() * 20L && CarnivalInput.tap(mc.options.keyUse)) {
-                    ModChat.log(NAME, ModChat.text("No fish on the hook; reeling back."));
+                // No wait timer: once the bobber has settled, it is reeled back only when no fish can reach it.
+                boolean settled = now - stateSince >= SETTLE_TICKS && hook.getDeltaMovement().lengthSqr() < 0.01;
+                if ((settled && !CatchAFish.willCatch(hook, CatchAFish.fish()) || now - stateSince > MAX_WAIT_TICKS)
+                        && CarnivalInput.tap(mc.options.keyUse)) {
+                    ModChat.log(NAME, ModChat.text("No fish can reach the hook; reeling back."));
                     to(State.AIM, now);
                 }
             }

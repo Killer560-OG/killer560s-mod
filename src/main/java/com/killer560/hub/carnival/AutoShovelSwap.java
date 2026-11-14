@@ -73,7 +73,7 @@ public final class AutoShovelSwap {
         }
         // A Carnival Shovel is one by its model above, or (no model) by a plain name saying so: a vanilla shovel named
         // anything else (his Aspect of the Void is a diamond shovel) is never one (11-14: "it keeps swapping to my aotv").
-        if (modelPath != null || !itemPath.endsWith("_shovel") || name == null || !name.contains("Carnival Shovel")) {
+        if ((modelPath != null && !modelPath.equals(itemPath)) || !itemPath.endsWith("_shovel") || name == null || !name.contains("Carnival Shovel")) {
             return null;
         }
         for (String m : new String[]{"Mines", "Anchor", "Treasure"}) {
