@@ -109,10 +109,15 @@ They are the same rules as before; only where they live changed.
   `ChatComponent.setVisibleMessageFilter` (Chat Tabs), not a ChatScreen redirect: docs/LESSONS-MINECRAFT.md "Chat and commands".
 - Forwarding a self-registered client command name to the server recurses through Fabric's command API and
   StackOverflows. Send below the dispatcher via `util/ServerCommands.toServer`.
-- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (or
-  `TranslateFeature.sendGenerated`, which reserves its place there), never straight to `sendCommand`/`toServer`: Hypixel
-  refuses a second line in the same tick ("Woah slow down, you're doing that too fast!"), which lost a Posmsg callout after
-  every leap (2026-11-02). The queue spaces lines 500 ms apart and sends at once when idle (docs/LESSONS.md).
+- A chat line the mod sends by itself (`pc`, `ac`, `msg` ...) goes through `util/OutgoingChat.command` (plain chat:
+  `OutgoingChat.chat`), never straight to `sendCommand`/`toServer`, and it leaves THE MOMENT it is requested: no queue, no gap
+  between lines, no wait for an echo, no yielding to Chat Keybinds (killer560, 2026-11-12: "do away with the timing stuff. just
+  have it all send when i should send it"; chatnow-1112 removed the 250 ms gap, the one-party-line-in-flight rule, the
+  refused-line resend, Translate's reserved places and Party Commands' Reply Delay setting; an old `replyDelayMs` key in a file
+  is ignored). Two rules stay: nothing while not connected, and nothing mod-originated while a terminal GUI is open ("nothing
+  goes off in a terminal", same day): the line is held (at most 16) and goes on the first tick no terminal is open, or is dropped
+  if then over 30 s old. His own commands never wait. Hypixel may answer "Woah slow down" to two lines in one tick (2026-11-02):
+  that is accepted. Testkit 1112-hx-chatnow-burst / -terminal.
 - When sweeping for features that tick on the wrong event, resolve the **called classes**, not per-file: a
   feature is often ticked from a lambda in another class entirely (`CheatUtils` ticks Secret Aura, Auto Ult and
   Chocolate Factory; `PathfindingFeature` ticks the soul runner and pearl hopper). A per-file grep missed seven
@@ -450,3 +455,5 @@ They are the same rules as before; only where they live changed.
   (coopfree-1111), so the co-op TCP hole punch (`roomsim/SimPunch`) never listens: both sides `bind` their port and `connect`
   to the other for 6 s, 5 ms after each refused try (simultaneous open; a refused connect returns in ~1 ms on loopback, so 50 ms between tries lost about 1 punch in 5 across two processes and failed 1111-mp-punch; killer560s-mod-logs/coopfree/Q4.java). Bind a fresh
   `Socket` per try; a failed connect leaves the old one unusable.
+- A mixin class may hold NO non-private static method: `public static install(...)` in `ChannelInitializerMixin` gave `InvalidMixinException ... non-private static method` and every client failed to connect (small-1111, train t1112-0813), while its EmbeddedChannel test passed because that never loads the mixin. Put shared helpers in a plain class (`proxy/ProxyInstall`) and keep only the injector in the mixin. A mixin change needs a real client boot (testkit smoke, with the feature on) on every Minecraft version before it is ready; a unit test of the code is not that.
+- Never add a netty `ProxyHandler` and remove it later: its handlerAdded puts the SOCKS codec (Socks5InitialResponseDecoder and its encoder) in the pipeline and removing only the handler leaves them eating the stream, so the join hung (small-1111, found with a connect-result log). `ProxyInstall` adds the handler only when connect() meets a public address.

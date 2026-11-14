@@ -20,7 +20,7 @@ import java.util.Locale;
  * be the general toggle, which chats can use (kc gc pc ac etc) then the commands you want able to be used. The
  * messages need to have a very slight delay after it actually receives the command..."</i> So this file now holds
  * exactly: {@link #isEnabled the master toggle}, one toggle per {@link Channel}, one toggle per {@link Command}
- * (party management and the old informational "Chat Commands" replies in ONE list), and {@link #getReplyDelayMs}.
+ * (party management and the old informational "Chat Commands" replies in ONE list).
  * <p>
  * <b>Migration (file version 2).</b> A version-1 file - or none at all beside an old
  * {@code killer560smod-chatcommands.json} - is read once and rewritten:
@@ -105,7 +105,7 @@ public final class PartyCommandsConfig {
         DICE("Dice", Kind.INFO, true, "dice"),
         TPS("TPS", Kind.INFO, true, "tps"),
         LOCATION("Location", Kind.INFO, true, "location"),
-        DISCORD("Discord", Kind.INFO, true, "odin", "od", "killer560", "k560");
+        DISCORD("Discord", Kind.INFO, true, "odin", "od", "killer", "killer560", "k560");
 
         private final String label;
         private final Kind kind;
@@ -143,8 +143,6 @@ public final class PartyCommandsConfig {
             Command.TPS, Command.LOCATION, Command.DISCORD);
 
     static final int VERSION = 2;
-    public static final int DEFAULT_REPLY_DELAY_MS = 200;
-    public static final int MAX_REPLY_DELAY_MS = 1000;
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-partycommands.json");
     /** The retired Chat Commands file; read by the version-1 migration, never written. */
@@ -153,7 +151,6 @@ public final class PartyCommandsConfig {
     private static PartyCommandsConfig instance;
 
     private boolean enabled = false;
-    private int replyDelayMs = DEFAULT_REPLY_DELAY_MS;
     private final EnumMap<Channel, Boolean> channels = new EnumMap<>(Channel.class);
     private final EnumMap<Command, Boolean> commands = new EnumMap<>(Command.class);
 
@@ -181,7 +178,6 @@ public final class PartyCommandsConfig {
         boolean current = obj != null && obj.has("version");
         if (current) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.replyDelayMs = clampDelay(ConfigJson.getInt(obj, "replyDelayMs", DEFAULT_REPLY_DELAY_MS));
             for (Channel ch : Channel.values()) {
                 cfg.channels.put(ch, ConfigJson.getBool(obj, ch.key(), ch.defaultOn));
             }
@@ -221,7 +217,6 @@ public final class PartyCommandsConfig {
         cfg.channels.put(Channel.COOP, oldChat == null || ConfigJson.getBool(oldChat, "coopEnabled", true));
         cfg.channels.put(Channel.ALL, false);
         cfg.channels.put(Channel.MOD_CHAT, true);
-        cfg.replyDelayMs = DEFAULT_REPLY_DELAY_MS;
     }
 
     private static JsonObject read(Path path) {
@@ -237,7 +232,6 @@ public final class PartyCommandsConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("version", VERSION);
         obj.addProperty("enabled", enabled);
-        obj.addProperty("replyDelayMs", replyDelayMs);
         for (Channel ch : Channel.values()) {
             obj.addProperty(ch.key(), channels.getOrDefault(ch, ch.defaultOn));
         }
@@ -276,9 +270,6 @@ public final class PartyCommandsConfig {
 
     /** How long after a command arrives its reply or action is sent (default 200 ms). Hypixel answers "You are
      *  sending commands too fast" to a command sent in the same instant as the chat line that asked for it. */
-    public int getReplyDelayMs() { return replyDelayMs; }
 
-    public void setReplyDelayMs(int replyDelayMs) { this.replyDelayMs = clampDelay(replyDelayMs); }
 
-    private static int clampDelay(int ms) { return Math.max(0, Math.min(MAX_REPLY_DELAY_MS, ms)); }
 }

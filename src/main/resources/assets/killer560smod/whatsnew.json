@@ -1,0 +1,343 @@
+[
+ {
+  "date": "2026-11-13",
+  "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Proxy Client: servers on localhost, your LAN or a private address now connect directly instead of through the SOCKS proxy, so a local test server can be joined with the proxy on.",
+     "Friends List: online friends are listed first, even while a sync is running",
+     "Sim: /simboss <phase> typed inside a running F7 boss fight resets the fight and arena but no longer moves you",
+     "The dungeon sim skips mob spots a player cannot walk to (walled in behind a lever or outside the room), so Auto Clear no longer stalls on 'no etherwarp path' in rooms like Redstone Crypt.",
+     "Sim F7: terminal stands no longer burn, the Arrows device lights only behind solved arrows, clicking a terminal never takes your held item, and Necron's health drops only when you hit him",
+     "Breaker Aura: Edit Mode now turns itself off when you change worlds (leaving the dungeon) and after a restart, so picked blocks no longer stay drawn with the aura off.",
+     "Party Commands: !killer560 / !k560 / !killer now reply with the Discord invite code instead of a link Hypixel censored to ****, and clicking the already-selected Chat Tab no longer sends a second /chat that drew \"You're already in this channel!\"",
+     "none (test fixes; profiles no longer carry sim mob looks / Carnival history records)",
+     "Online Count: /online now counts you in a singleplayer world (the sim) or on another server too",
+     "Dungeon Breaker: removed the Zero Ping option (it never acted); Don't break secrets stays"
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-12",
+  "summary": "What's New screen on the main menu",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "What's New screen on the main menu"
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-11",
+  "summary": "Co-op sim, Lever Aura and a round of Grim fixes",
+  "sections": [
+   {
+    "title": "Dungeons",
+    "blurb": "Sim, map and party fixes.",
+    "items": [
+     "Dungeon Sim: real starred mobs at Blood Rush spots and the Watcher blood camp.",
+     "Sim blood camp keeps its chunks loaded, so the trips no longer stall.",
+     "Sim mini bosses fire their death event, so King Midas clears the room.",
+     "Blood Rush: 22 bundled spots outside their room were dropped.",
+     "Party Tracker keeps a teammate who left out of the dungeon tab until the run ends.",
+     "Friends List shows party friends first under an In Party header."
+    ]
+   },
+   {
+    "title": "Automation",
+    "blurb": "Cheat build only.",
+    "items": [
+     {
+      "text": "AP3: stopwatch nodes wait for an align and fire the tick it ends.",
+      "cheat": true
+     },
+     {
+      "text": "Interactive Map gets Charged Chain and Blink The Chain.",
+      "cheat": true
+     },
+     {
+      "text": "Lever Aura keeps W and sprint through its off-walk turns.",
+      "cheat": true
+     },
+     {
+      "text": "Inventory Walk: new Lag Back Walk setting (off by default).",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "Fixes",
+    "blurb": "Smaller bug fixes.",
+    "items": [
+     "Fewer anticheat flags while you move: Auto Close Chest and mod chat wait until you stand still.",
+     "Profile Viewer lays out its page tabs after the panel width is known.",
+     "Co-op sim: a joiner lands at the end of the server tick."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-10",
+  "summary": "Co-op sim rooms, Carnival and Profile Viewer",
+  "sections": [
+   {
+    "title": "Dungeons",
+    "blurb": "Sim and party.",
+    "items": [
+     "Co-op sim: rooms join through a relay tunnel when the host is unreachable.",
+     "Co-op sim: Max Players slider, start portion picker and Move everyone to.",
+     "Fast and Auto Leap target pages show one row per leap.",
+     "Protect Starred: starred items that are not locked can go into trades.",
+     "Profile Viewer: class levels past 50 and a Master Mode divider."
+    ]
+   },
+   {
+    "title": "Automation",
+    "blurb": "Cheat build only.",
+    "items": [
+     {
+      "text": "Breaker Aura: Zero Ping, Legit Multi Break and Burst Multi Break rows.",
+      "cheat": true
+     },
+     {
+      "text": "Blink and Breaker Aura: a paused shot freezes you until the wall is gone.",
+      "cheat": true
+     },
+     {
+      "text": "AP3 Edge Jump jumps on the grounded tick nearer the edge.",
+      "cheat": true
+     },
+     {
+      "text": "Swap To Drill On Pigeon also works on a block-targeted use.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "More",
+    "blurb": "New features and settings.",
+    "items": [
+     "Carnival solvers: Fruit Digging Triggerbot, Prevent Misclicks and Shootout Aim Mode.",
+     "Hide Skill XP Text: the Health and Mana Bars switch also strips the skill XP gain.",
+     "Crash guard: the game exits cleanly when another mod's thread holds it open."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-09",
+  "summary": "Co-op sim, Carry Tracker and sound effects",
+  "sections": [
+   {
+    "title": "Dungeons",
+    "blurb": "New dungeon tools.",
+    "items": [
+     "Carry Tracker: HUD, per-client runs, /carry command and a stop alert.",
+     "Reparty: Invite Delay slider and Auto Rejoin.",
+     "Boss sim: Spawn Withers switch.",
+     "Co-op sim: sim invites, Create, Join and a room list.",
+     "Auto Kick uses the floor of the Party Finder listing you joined."
+    ]
+   },
+   {
+    "title": "Automation",
+    "blurb": "Cheat build only.",
+    "items": [
+     {
+      "text": "Lever Aura flips S2 levers beside an AP3 run.",
+      "cheat": true
+     },
+     {
+      "text": "AP3: Wait For Crystal holds a node until End Crystals appear.",
+      "cheat": true
+     },
+     {
+      "text": "Auto Superboom finds tomb blocks with a cached window scan.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "More",
+    "blurb": "Other changes.",
+    "items": [
+     "Collection Tracker: Only Recent switch and a Recent Window slider.",
+     "Mage Beam fades evenly and no longer draws a screen-wide wedge.",
+     "Many card blurbs were shortened to fit their cards."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-08",
+  "summary": "New terminal and dungeon alert features",
+  "sections": [
+   {
+    "title": "Dungeons",
+    "blurb": "Terminals and alerts.",
+    "items": [
+     "Terminal Sounds, Terminal Click Path and Terminal Breakdown.",
+     "Puzzle HUD, Reparty and a Watcher Helper speed title.",
+     "Rare Room, Rare Drop, Duplicate Class, Wither King Statue Box and Dimensional Slash alerts."
+    ]
+   },
+   {
+    "title": "Automation",
+    "blurb": "Cheat build only.",
+    "items": [
+     {
+      "text": "Click Order and Queue Terms for terminals.",
+      "cheat": true
+     },
+     {
+      "text": "Inventory Walk: Hide Keys In Server Menus.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "More",
+    "blurb": "Menus and looks.",
+    "items": [
+     "Profile Viewer: NEU Classic pages for Museum, Mining, Bestiary, Crimson Isle, Rift and Garden.",
+     "Light menu themes lift accent text to a readable contrast.",
+     "Spotify Lyrics strips video-title tails like Official Audio."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-05",
+  "summary": "Structure Scanner and more sim items",
+  "sections": [
+   {
+    "title": "Dungeons",
+    "blurb": "Sim and map.",
+    "items": [
+     "The sim counts as a dungeon for every gated feature.",
+     "Sim: Bonzo's Staff, Jerry-chine Gun and Spring Boots, P5 dragons and Maxor crystals.",
+     "Dungeon Map: no more question mark rooms; inferred rooms get their own color.",
+     "Inventory Sorter loadout picker shows your equipped loadout."
+    ]
+   },
+   {
+    "title": "Mining",
+    "blurb": "Crystal Hollows.",
+    "items": [
+     "Structure Scanner moved into the Crystal Hollows Map tab.",
+     "Jungle Pickaxe Alert in the Crystal Hollows.",
+     {
+      "text": "Powder Chest Triggerbot: Min and Max CPS and Swap Back When Mining.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "More",
+    "blurb": "Other changes.",
+    "items": [
+     "Mod Menu owns the Mods button when it is installed.",
+     "The pause menu shows Mods and Server Links side by side.",
+     "World export and island recording were removed."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-04",
+  "summary": "Theme match, Collection Tracker and Profile Viewer styles",
+  "sections": [
+   {
+    "title": "Menu",
+    "blurb": "Looks and themes.",
+    "items": [
+     "Borders, HUD labels and chat prefixes follow your menu theme.",
+     "Profile Viewer styles: Default, NEU Classic and SkyBlockPV.",
+     "Big theme pictures and music download on demand instead of ship in the jar."
+    ]
+   },
+   {
+    "title": "Mining",
+    "blurb": "Mining tools.",
+    "items": [
+     "Collection Tracker HUD with amount, tier, progress and rate.",
+     "Deployables: lantern range circle and timer HUD.",
+     "Powder Tracker counts powder from the tab's totals.",
+     {
+      "text": "Powder Chest Triggerbot clicks claimed Crystal Hollows chests.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "Fixes",
+    "blurb": "Smaller bug fixes.",
+    "items": [
+     "Est. Item Value defaults to Full Price.",
+     "Peek Chat opens no screen, so you keep moving.",
+     "Chat Hider: Hide Already Looted Chests."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-03",
+  "summary": "Mining groups and powder grinding",
+  "sections": [
+   {
+    "title": "Mining",
+    "blurb": "Powder grinding.",
+    "items": [
+     "Treasure Chest Highlight and Alert, Powder Tracker, 2x Powder Alert and Chest Loot Compact.",
+     "Mining menu groups: Commissions and Mithril, Powder Mining, General.",
+     "Commission HUD reads the open Commissions menu.",
+     {
+      "text": "Lockpick Helper and Swap To Drill On Pigeon.",
+      "cheat": true
+     }
+    ]
+   },
+   {
+    "title": "Dungeons",
+    "blurb": "Terminals and alerts.",
+    "items": [
+     "Auto Terminals: First Click Delay setting.",
+     "Mask Invincibility: Proc Title.",
+     "Score Calculator 270 and 300 popups work with the calculator off."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-02",
+  "summary": "Inventory Sorter, Kicked To Hub and Pack Disabler",
+  "sections": [
+   {
+    "title": "Items",
+    "blurb": "Inventory tools.",
+    "items": [
+     "Inventory Sorter: exact item matching, Free slots in layouts and a bigger /invsort menu.",
+     "Item Protection: Show Star switch.",
+     "Auto Sell logs a visit that sold nothing instead of chatting."
+    ]
+   },
+   {
+    "title": "More",
+    "blurb": "Other changes.",
+    "items": [
+     "Kicked To Hub: restart and kick alerts and a warp back to the island.",
+     "Menu search finds a card by its chat commands and README names.",
+     "Pack Disabler item table refreshed for Hypixel's pack 97.",
+     "Fast and Auto Leap: one switch per leap."
+    ]
+   }
+  ]
+ }
+]

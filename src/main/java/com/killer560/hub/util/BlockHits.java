@@ -3,6 +3,7 @@ package com.killer560.hub.util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -48,6 +49,109 @@ public final class BlockHits {
         }
         Vec3 end = eye.add(dir.normalize().scale(eye.distanceTo(centre) + 1.5));
         return shape.clip(eye, end, pos);
+    }
+
+    /**
+     * The real outline hit whose ray enters the block's FULL cube soonest from {@code eye}, the nearer hit breaking a tie;
+     * null when the block has no outline (leverbest-1112). GrimAC 2.3.74's RotationPlace judges a block click by the look
+     * meeting the whole cube within 4.5 (docs/AP3.md, "Lever reach"), not by the shape the hit lies on, so a floor lever is
+     * clickable from about 0.17 further than an aim at its middle: its outline is a few pixels in a corner of the cube, and
+     * a ray grazing the outline's near top edge crosses the cube's face much nearer the eye. Searched over a grid of points
+     * on the outline faces that face the eye, then refined twice around the best one (about 450 clips; callers ask only
+     * while a click is due).
+     */
+    public static BlockHitResult best(BlockGetter level, BlockPos pos, Vec3 eye) {
+        VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
+        if (shape.isEmpty()) return null;
+        AABB o = shape.bounds().move(pos);
+        if (o.contains(eye)) return surface(level, pos, eye);
+        AABB cube = new AABB(pos);
+        Pick pick = new Pick();
+        for (Direction d : Direction.values()) {
+            double plane = face(o, d);
+            double eyeAxis = d.getAxis().choose(eye.x, eye.y, eye.z);
+            if (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? eyeAxis <= plane : eyeAxis >= plane) continue;
+            double step = 1.0 / 12;
+            for (int i = 0; i <= 12; i++) {
+                for (int j = 0; j <= 12; j++) {
+                    pick.consider(shape, pos, cube, eye, onFace(o, d, i * step, j * step), d);
+                }
+            }
+        }
+        for (double step = 1.0 / 48; step > 1.0 / 2000 && pick.hit != null; step /= 6) {
+            Direction d = pick.face;
+            double u0 = pick.u, v0 = pick.v;
+            for (int i = -4; i <= 4; i++) {
+                for (int j = -4; j <= 4; j++) {
+                    pick.consider(shape, pos, cube, eye, onFace(o, d, u0 + i * step, v0 + j * step), d);
+                }
+            }
+        }
+        return pick.hit;
+    }
+
+    /** Distance from {@code eye} to where the ray {@code dir} (unit) enters {@code box}: 0 inside, +inf when it misses. */
+    public static double entry(AABB box, Vec3 eye, Vec3 dir) {
+        if (box.contains(eye)) return 0.0;
+        return box.clip(eye, eye.add(dir.scale(64.0))).map(eye::distanceTo).orElse(Double.POSITIVE_INFINITY);
+    }
+
+    private static double face(AABB o, Direction d) {
+        return switch (d) {
+            case UP -> o.maxY; case DOWN -> o.minY; case EAST -> o.maxX;
+            case WEST -> o.minX; case SOUTH -> o.maxZ; case NORTH -> o.minZ;
+        };
+    }
+
+    /** The point at fractions (u, v) of face {@code d} of {@code o}, kept 0.01 of the face inside its edges. */
+    private static Vec3 onFace(AABB o, Direction d, double u, double v) {
+        u = Math.max(0.0, Math.min(1.0, u));
+        v = Math.max(0.0, Math.min(1.0, v));
+        double f = face(o, d);
+        return switch (d.getAxis()) {
+            case X -> new Vec3(f, lerpIn(o.minY, o.maxY, u), lerpIn(o.minZ, o.maxZ, v));
+            case Y -> new Vec3(lerpIn(o.minX, o.maxX, u), f, lerpIn(o.minZ, o.maxZ, v));
+            case Z -> new Vec3(lerpIn(o.minX, o.maxX, u), lerpIn(o.minY, o.maxY, v), f);
+        };
+    }
+
+    private static double lerpIn(double lo, double hi, double t) {
+        double in = Math.min(0.01, (hi - lo) / 4);
+        return lo + in + (hi - lo - 2 * in) * t;
+    }
+
+    /** The best ray so far for {@link #best}. */
+    private static final class Pick {
+        BlockHitResult hit;
+        Direction face;
+        double u, v, entry = Double.POSITIVE_INFINITY, dist = Double.POSITIVE_INFINITY;
+
+        void consider(VoxelShape shape, BlockPos pos, AABB cube, Vec3 eye, Vec3 at, Direction d) {
+            Vec3 dir = at.subtract(eye);
+            double len = dir.length();
+            if (len < 1.0E-6) return;
+            dir = dir.scale(1.0 / len);
+            BlockHitResult h = shape.clip(eye, eye.add(dir.scale(len + 0.05)), pos);
+            if (h == null) return;
+            double e = entry(cube, eye, dir);
+            double hd = h.getLocation().distanceTo(eye);
+            if (e < entry - 1.0E-6 || (e < entry + 1.0E-6 && hd < dist)) {
+                hit = h;
+                entry = e;
+                dist = hd;
+                face = d;
+                AABB o = shape.bounds().move(pos);
+                u = frac(d.getAxis() == Direction.Axis.X ? at.y : at.x, d.getAxis() == Direction.Axis.X ? o.minY : o.minX,
+                        d.getAxis() == Direction.Axis.X ? o.maxY : o.maxX);
+                v = frac(d.getAxis() == Direction.Axis.Z ? at.y : at.z, d.getAxis() == Direction.Axis.Z ? o.minY : o.minZ,
+                        d.getAxis() == Direction.Axis.Z ? o.maxY : o.maxZ);
+            }
+        }
+
+        private static double frac(double x, double lo, double hi) {
+            double in = Math.min(0.01, (hi - lo) / 4);
+            return hi - lo - 2 * in <= 0 ? 0.5 : (x - lo - in) / (hi - lo - 2 * in);
+        }
     }
 
     /**

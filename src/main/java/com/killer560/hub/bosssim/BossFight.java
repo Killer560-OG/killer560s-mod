@@ -348,6 +348,12 @@ public final class BossFight {
 
     /** Begins the fight at {@code from}, with the arena already built. Server thread. */
     static void begin(MinecraftServer s, Start from, boolean masterMode) {
+        begin(s, from, masterMode, false);
+    }
+
+    /** {@code stay}: every reset runs but nobody is teleported (position, look and velocity untouched). */
+    static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay) {
+        stayPut = stay;
         stop("new fight");
         server = s;
         level = s.overworld();
@@ -454,7 +460,12 @@ public final class BossFight {
         return new Vec3(xz[0], BossArena.standY(level, xz[0], xz[1]), xz[1]);
     }
 
+    private static boolean stayPut;
+
     static void teleportAll(Vec3 at, float yaw) {
+        if (stayPut) {
+            return;
+        }
         // A clear standing spot, held until his client has it (simspawn-1104).
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             com.killer560.hub.roomsim.SimArrival.place(p, level, at.x, at.y, at.z, yaw, 0f);
@@ -1816,11 +1827,12 @@ public final class BossFight {
      * and one hit is the whole drop. His death throes empty it on their clock.
      */
     private static float necronHealth() {
-        int k = necronPart();
-        if (k < 0 || t >= N_THROES) {
+        // Only his hits move the bar (killer560, 2026-11-11: "necrons phases are going down even without me hitting him"):
+        // a part he skipped no longer drops it on the clock, and the throes empty it only after all three drops.
+        if (necronDone >= NECRON_DRAIN.length && t >= N_THROES) {
             return 0f;
         }
-        return necronDone > k ? NECRON_DRAIN[k][2] : NECRON_DRAIN[k][1];
+        return necronDone == 0 ? 1f : NECRON_DRAIN[necronDone - 1][2];
     }
 
     private static void tickP4() {
@@ -1933,7 +1945,7 @@ public final class BossFight {
     private static void hitNecron() {
         int k = necronPart();
         if (k >= 0 && t < N_THROES && necronDone <= k) {
-            necronDone = k + 1;
+            necronDone++;
             if (bar != null) {
                 bar.setProgress(necronHealth());
             }
@@ -2375,6 +2387,13 @@ public final class BossFight {
         @Override
         public boolean shouldBeSaved() {
             return false;
+        }
+
+        // A name stand whose box dips into the arena lava caught fire and drew a column of flames over the terminal
+        // (killer560, 2026-11-11: "i dont want the thing to have the fire"). Hypixel's stands never burn.
+        @Override
+        public boolean fireImmune() {
+            return true;
         }
     }
 
