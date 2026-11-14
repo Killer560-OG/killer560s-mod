@@ -14,7 +14,8 @@
      "Sim Terminator: spam left-clicking now shoots every 4 ticks (5.00 shots/s at 100 Attack Speed, like Hypixel); holding right click stays 4.00/s",
      "Storm Bow: releases a held Last Breath at a set charge tick (default 34.25), with optional Terminator swap and walk; Auto M5: walks to your saved mid, Ragnarock buff, aims at and kills the real Livid (cheat, both off by default)",
      "Treasure Chest Highlight: a chest that appears beside a block you just dug is now always boxed, even when the chat line is missing, you have moved away, or another player's chest appeared near you first (requeued 11-14)",
-     "Internal test fixes for Blink and Auto Path Pilot test cases (no change for players)"
+     "Internal test fixes for Blink and Auto Path Pilot test cases (no change for players)",
+     "Fewer anticheat flags while you move: Auto Close Chest waits until you stand still before it closes the chest (chat and commands are never delayed) (requeued as stillhold-1113 on 11-14) (requeued 11-14 after hung lane) (requeued 11-14 pm)"
     ]
    }
   ]
