@@ -22,7 +22,8 @@
      "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim",
      "Scrollable Tooltips: the mouse wheel now scrolls a tall tooltip on every screen (inventory, creative, menus, Profile Viewer), and the server resending a slot no longer snaps it back to the top",
      "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons",
-     "Leap Order: a class you pick for yourself now wins over the tab list"
+     "Leap Order: a class you pick for yourself now wins over the tab list",
+     "Fast Leap (cheat): Crystal Auto now leaps the moment you pick up an Energy Crystal (your own pickup only, in Phase 1), and a double click right after a leap no longer prints \"Failed to leap! On cooldown\"."
     ]
    }
   ]
