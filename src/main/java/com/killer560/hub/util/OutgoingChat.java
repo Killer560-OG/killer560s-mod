@@ -42,7 +42,10 @@ public final class OutgoingChat {
     public static synchronized void register() {
         if (registered) return;
         registered = true;
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("OutgoingChat", client -> flush()));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("OutgoingChat", client -> {
+            StillHold.tick(client);
+            flush();
+        }));
     }
 
     /**
