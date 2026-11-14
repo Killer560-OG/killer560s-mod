@@ -55,9 +55,6 @@ public final class ProfileManager {
 
     private static final Set<String> EXCLUDED_FILES = Set.of(
             "killer560smod-session-login.json",
-            // Shared-store records (RecordCatalog), data not settings.
-            "killer560smod-carnival-history.json",
-            "killer560smod-sim-mob-looks.json",
             // Mining history (chport-1104): Lobby Tracker's lobby visits, Nucleus Run Profit's runs, Profit Per Hour's
             // session - records, not settings (their settings are the *-settings.json / config files).
             "killer560smod-mining-lobbies.json",
