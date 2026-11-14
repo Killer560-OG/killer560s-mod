@@ -118,7 +118,7 @@ public final class LividSolverFeature {
                 com.killer560.hub.util.FeatureBits.register("Livid Solver render", () -> LividSolverConfig.getInstance().isEnabledRaw()), LividSolverFeature::onWorldRender));
     }
 
-    private static boolean onFloor5() {
+    static boolean onFloor5() {
         String floor = DungeonState.getFloor();
         return "F5".equals(floor) || "M5".equals(floor);
     }
@@ -328,6 +328,17 @@ public final class LividSolverFeature {
     }
 
     /** For the testkit: Ice Spray titles shown since the client started. */
+    /** Ticks of Livid's opening invulnerability left (0 before his welcome line and once it is over). */
+    public static int invulnTicks() {
+        return invulnTicks;
+    }
+
+    /** The real Livid's entity once the solver found it, else null. */
+    public static Entity realLivid() {
+        Entity e = lividEntity;
+        return e == null || e.isRemoved() ? null : e;
+    }
+
     public static int iceSprayAlerts() {
         return iceSprayAlerts;
     }

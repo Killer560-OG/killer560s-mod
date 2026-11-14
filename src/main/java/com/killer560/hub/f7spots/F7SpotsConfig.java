@@ -77,6 +77,16 @@ public final class F7SpotsConfig {
     private boolean aimAllSituations = false;
     private boolean aimArrowStack = false;
     private boolean aimDevonianLb = false;
+    // Storm Bow (cheat build, stormm5-1111): releases a held Last Breath at its charge tick. Default OFF.
+    public static final float MIN_RELEASE_TICKS = 20f;
+    public static final float MAX_RELEASE_TICKS = 40f;
+    public static final float DEFAULT_RELEASE_TICKS = 34.25f;
+    public static final int MAX_WALK_TICKS = 40;
+    private boolean stormBow = false;
+    private boolean stormBowTerminator = false;
+    private boolean stormBowWalk = false;
+    private float stormBowReleaseTicks = DEFAULT_RELEASE_TICKS;
+    private int stormBowWalkTicks = 10;
     private float aimSize = 0.5f;
     private int aimColor = DEFAULT_AIM_COLOR;
     private final List<AimSpot> aimSpotList = new ArrayList<>();
@@ -107,7 +117,10 @@ public final class F7SpotsConfig {
             .add("aimAllClasses", false, c -> c.aimAllClasses, (c, v) -> c.aimAllClasses = v)
             .add("aimAllSituations", false, c -> c.aimAllSituations, (c, v) -> c.aimAllSituations = v)
             .add("aimArrowStack", false, c -> c.aimArrowStack, (c, v) -> c.aimArrowStack = v)
-            .add("aimDevonianLb", false, c -> c.aimDevonianLb, (c, v) -> c.aimDevonianLb = v);
+            .add("aimDevonianLb", false, c -> c.aimDevonianLb, (c, v) -> c.aimDevonianLb = v)
+            .add("stormBow", false, c -> c.stormBow, (c, v) -> c.stormBow = v)
+            .add("stormBowTerminator", false, c -> c.stormBowTerminator, (c, v) -> c.stormBowTerminator = v)
+            .add("stormBowWalk", false, c -> c.stormBowWalk, (c, v) -> c.stormBowWalk = v);
 
     private static void load0() {
         F7SpotsConfig cfg = new F7SpotsConfig();
@@ -127,6 +140,8 @@ public final class F7SpotsConfig {
             cfg.walkWaypoints = ConfigJson.getBool(obj, "walkWaypoints", false);
             BOOLS.load(cfg, obj);
             cfg.setWalkBeamHeight(ConfigJson.getFloat(obj, "walkBeamHeight", 8f));
+            cfg.setStormBowReleaseTicks(ConfigJson.getFloat(obj, "stormBowReleaseTicks", DEFAULT_RELEASE_TICKS));
+            cfg.setStormBowWalkTicks(ConfigJson.getInt(obj, "stormBowWalkTicks", 10));
             cfg.walkColor = ConfigJson.getInt(obj, "walkColor", DEFAULT_WALK_COLOR);
 
             cfg.aimSpots = ConfigJson.getBool(obj, "aimSpots", false);
@@ -187,6 +202,8 @@ public final class F7SpotsConfig {
         obj.addProperty("walkWaypoints", walkWaypoints);
         BOOLS.save(this, obj);
         obj.addProperty("walkBeamHeight", walkBeamHeight);
+        obj.addProperty("stormBowReleaseTicks", stormBowReleaseTicks);
+        obj.addProperty("stormBowWalkTicks", stormBowWalkTicks);
         obj.addProperty("walkColor", walkColor);
 
         obj.addProperty("aimSpots", aimSpots);
@@ -286,6 +303,22 @@ public final class F7SpotsConfig {
     /** Devonian's Last Breath waypoints for the five P5 dragons, see {@link AimSpots#DEVONIAN_LB}. */
     public boolean isAimDevonianLb() { return aimDevonianLb; }
     public void setAimDevonianLb(boolean v) { aimDevonianLb = v; }
+
+    // ---- Storm Bow (cheat build) ----
+    public boolean isStormBow() { return stormBow && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && SkyblockGate.allows(); }
+    public boolean getStormBowRaw() { return stormBow; }
+    public void setStormBow(boolean v) { stormBow = v; com.killer560.hub.util.FeatureBits.changed(); }
+    public boolean isStormBowTerminator() { return stormBowTerminator; }
+    public void setStormBowTerminator(boolean v) { stormBowTerminator = v; }
+    public boolean isStormBowWalk() { return stormBowWalk; }
+    public void setStormBowWalk(boolean v) { stormBowWalk = v; }
+    public float getStormBowReleaseTicks() { return stormBowReleaseTicks; }
+    /** Kept on a quarter-tick grid inside {@link #MIN_RELEASE_TICKS}..{@link #MAX_RELEASE_TICKS}. */
+    public void setStormBowReleaseTicks(float v) {
+        stormBowReleaseTicks = Math.max(MIN_RELEASE_TICKS, Math.min(MAX_RELEASE_TICKS, Math.round(v * 4f) / 4f));
+    }
+    public int getStormBowWalkTicks() { return stormBowWalkTicks; }
+    public void setStormBowWalkTicks(int v) { stormBowWalkTicks = Math.max(1, Math.min(MAX_WALK_TICKS, v)); }
 
     public float getAimSize() { return aimSize; }
     public void setAimSize(float v) {
