@@ -2,6 +2,10 @@ package com.killer560.hub.roomsim;
 
 import com.killer560.hub.util.ModChat;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
+
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.ChatFormatting;
@@ -32,6 +36,27 @@ public final class SimPartyChat {
 
     public static void register() {
         ClientSendMessageEvents.ALLOW_COMMAND.register(SimPartyChat::allow);
+        // The chat box colors a command red unless the client dispatcher parses it; these roots only exist in the sim
+        // (requires), so on Hypixel the server's own tree is used. Each answers through handle (party chat) or is
+        // swallowed like the other channels, with text taken greedily.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> {
+            for (String name : SIM_CHAT_ROOTS) {
+                dispatcher.register(ClientCommands.literal(name)
+                        .requires(src -> SimState.canAct(Minecraft.getInstance()) || SimState.isGuest(Minecraft.getInstance()))
+                        .executes(ctx -> run(ctx.getInput()))
+                        .then(ClientCommands.argument("text", StringArgumentType.greedyString())
+                                .executes(ctx -> run(ctx.getInput()))));
+            }
+        });
+    }
+
+    /** Typed chat roots the sim answers (party chat) or swallows (the other channels, whispers, /party, /p). */
+    static final java.util.List<String> SIM_CHAT_ROOTS = java.util.List.of("pc", "pchat", "ac", "achat", "gc", "gchat",
+            "oc", "ochat", "cc", "cchat", "msg", "w", "r", "tell", "whisper", "shout", "p", "party");
+
+    private static int run(String input) {
+        handle(input);
+        return 1;
     }
 
     /** False (not sent) for a party chat command in the sim; the command comes without its slash. */
