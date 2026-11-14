@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-14",
+  "summary": "Sim F7: after Goldor dies Necron pulls everyone down into hi",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Sim F7: after Goldor dies Necron pulls everyone down into his arena and holds them over his platform until \"Goodbye.\"; P5 dragons now carry Hypixel's 1,000,000,000 health, so the Wither Dragons health readout drops as you hit them, and every arrow of a Terminator volley counts; dragons rise out of their spawn point and then circle their own area instead of flying at random. Wither Dragons' health label now shows the health the server sent."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-13",
   "summary": "Proxy Client: servers on localhost, your LAN or a private ad",
   "sections": [
