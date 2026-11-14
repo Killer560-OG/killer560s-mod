@@ -38,10 +38,15 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Facts (killer560s-mod-logs/powder-grind-1103.md: SkyHanni PowderTracker, Skyblocker CrystalsChestHighlighter, the
  * wiki's Treasure Chest page): the server sends "You uncovered a treasure chest!" and puts a {@code minecraft:chest} next to
- * the mined block; the chest lasts one minute; no despawn line exists. A chest is claimed when a chest block appears within
- * 10 blocks of the player within 3 s of the uncovered line (either order: the block change and the line are matched both
- * ways, Skyblocker's rule plus the reverse). Any other chest (a player's chest, a lobby chest) is never highlighted. A
- * claimed chest leaves when its block stops being a chest (opened and gone), after its minute plus 5 s, or on a world change.
+ * the mined block; the chest lasts one minute; no despawn line exists. HIS OWN DIGS are the key evidence (chestmiss-1113):
+ * in his 11-10 log 355 of the 357 chests the bot opened sat within 2 blocks (338 within 1, Chebyshev) of a block he had sent a
+ * dig for, so a chest block that appears within {@link #DIG_REACH} of a dig he sent in the last {@link #DIG_MS} is claimed
+ * at once, line or no line (a line hidden or reworded by another mod, a line that never came); the line only confirms.
+ * Without such a dig a chest is claimed when it appears within 10 blocks within 3 s of the uncovered line (either order);
+ * while he is digging such a far chest waits {@link #FALLBACK_TICKS} first, so another player's chest beside him no longer
+ * takes his line before his own chest arrives. A claimed chest leaves when its block stops being a chest (opened and gone),
+ * after its minute plus 5 s, or on a world change. A chest seen but never claimed, and a line that found no chest, are
+ * logged once each at WARN through a logger kept in a release ({@link #DIAG}), so a player's log says why.
  *
  * <p>Draw-only: nothing here sends a packet.
  */
@@ -93,6 +98,24 @@ public final class TreasureChests {
     private static int openedCredits = 0;
     private static long openedAt = 0L;
     private static int opened = 0;
+    /** His digs as SENT (send tap), on blocks that were not chests, newest last, at most {@link #MAX_DIGS}. */
+    private static final ArrayDeque<Click> DIGS = new ArrayDeque<>();
+    private static final int MAX_DIGS = 32;
+    static final long DIG_MS = 5_000L;
+    static final int DIG_REACH = 2;
+    /** Spots of chests he opened or that answered as looted: a resend there is never claimed again by a dig. */
+    private static final ArrayDeque<Click> DONE = new ArrayDeque<>();
+    /** Chests claimed by a dig before their line: the next line(s) are theirs, not another chest's. */
+    private static int lineCredits = 0;
+    private static long creditAt = 0L;
+    /** How long a line waits for a chest beside his digs before it takes a far one, while he is digging. */
+    static final long FALLBACK_TICKS = 10L;
+    /** Wall clock of the last uncovered line: the line itself says he is in the Crystal Hollows when the island read lapses. */
+    private static long lastLineMs = -1L;
+    private static final org.slf4j.Logger DIAG = com.killer560.hub.util.ModLog.keptWhen("killer560smod-powderchest", () -> true);
+    private static long diagAtMs = 0L;
+    private static int diagnostics = 0;
+    private static String lastDiagnostic = null;
 
     /**
      * He right-clicked a block: remember it when it is a chest, highlighted or not. The loot block belongs to the chest he
@@ -109,6 +132,59 @@ public final class TreasureChests {
         long ms = System.currentTimeMillis();
         if (CLICKS.size() >= MAX_CLICKS) CLICKS.pollFirst();
         CLICKS.addLast(new Click(key, ms));
+    }
+
+    /** A START/STOP_DESTROY_BLOCK he sent (send tap, client thread): where his own chests will appear. */
+    public static void onDigSent(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (pos == null || client.level == null || !featuresOn() || client.level.getBlockState(pos).is(Blocks.CHEST)) return;
+        if (DIGS.size() >= MAX_DIGS) DIGS.pollFirst();
+        DIGS.addLast(new Click(pos.immutable(), System.currentTimeMillis()));
+    }
+
+    /** Blocks (Chebyshev) from {@code pos} to the nearest dig of the last {@link #DIG_MS}, or -1 with none. */
+    private static int digDistance(BlockPos pos) {
+        long since = System.currentTimeMillis() - DIG_MS;
+        int best = -1;
+        for (Click d : DIGS) {
+            if (d.ms() < since) continue;
+            BlockPos q = d.pos();
+            int dist = Math.max(Math.abs(q.getX() - pos.getX()), Math.max(Math.abs(q.getY() - pos.getY()),
+                    Math.abs(q.getZ() - pos.getZ())));
+            if (best < 0 || dist < best) best = dist;
+        }
+        return best;
+    }
+
+    private static boolean digging() {
+        Click last = DIGS.peekLast();
+        return last != null && System.currentTimeMillis() - last.ms() <= DIG_MS;
+    }
+
+    private static void done(BlockPos pos) {
+        if (DONE.size() >= MAX_CLICKS) DONE.pollFirst();
+        DONE.addLast(new Click(pos, System.currentTimeMillis()));
+    }
+
+    private static boolean wasDone(BlockPos pos) {
+        long since = System.currentTimeMillis() - USED_MS;
+        for (Click k : DONE) if (k.ms() >= since && k.pos().equals(pos)) return true;
+        return false;
+    }
+
+    private static boolean lineRecently() {
+        return lastLineMs >= 0 && System.currentTimeMillis() - lastLineMs <= PowderMining.RECENT_MS;
+    }
+
+    /** One WARN line (kept in a release), at most one every 5 s; every call is counted. */
+    private static void diag(String text) {
+        diagnostics++;
+        lastDiagnostic = text;
+        long ms = System.currentTimeMillis();
+        if (ms - diagAtMs < 5_000L) return;
+        diagAtMs = ms;
+        DIAG.warn("[TreasureChests] {} (island '{}', tab area '{}')", text, MiningState.island(),
+                com.killer560.hub.pathfinding.IslandDetector.islandName());
     }
 
     /**
@@ -143,6 +219,7 @@ public final class TreasureChests {
     /** {@code pos} answered: its clicks are done, and a highlighted chest there is collected. */
     private static void collected(BlockPos pos) {
         CLICKS.removeIf(k -> k.pos().equals(pos));
+        done(pos);
         if (CHESTS.remove(pos) != null) {
             MISSING.remove(pos);
             hide(pos);
@@ -202,7 +279,8 @@ public final class TreasureChests {
     }
 
     static boolean tracking() {
-        return featuresOn() && MiningState.crystalHollows();
+        // An island read that lapsed (no Area line: empty, not another island) still counts while he digs.
+        return featuresOn() && (MiningState.crystalHollows() || lineRecently() || (digging() && MiningState.island().isEmpty()));
     }
 
     private static boolean featuresOn() {
@@ -220,14 +298,31 @@ public final class TreasureChests {
             return;
         }
         BlockPos key = pos.immutable();
-        if (CHESTS.containsKey(key) || key.distSqr(client.player.blockPosition()) > CLAIM_RANGE_SQ) return;
+        if (CHESTS.containsKey(key)) return;
         long now = PerTickServerClock.now();
+        boolean lineWaits = pendingLines > 0 && now - pendingAt <= MATCH_TICKS;
+        int dig = digDistance(key);
+        if (dig >= 0 && dig <= DIG_REACH && !wasDone(key)) {
+            // Beside a block he just dug: his, whether or not its line came (or ever comes).
+            if (lineWaits) {
+                pendingLines--;
+            } else {
+                lineCredits = Math.min(lineCredits + 1, MAX_PENDING);
+                creditAt = now;
+            }
+            claim(key, now);
+            return;
+        }
+        if (key.distSqr(client.player.blockPosition()) > CLAIM_RANGE_SQ) {
+            if (lineWaits) diag("a chest at " + key.toShortString() + " is over 10 blocks away and no dig of his is near it");
+            return;
+        }
         MISSING.remove(key);
-        if (pendingLines > 0 && now - pendingAt <= MATCH_TICKS) {
+        if (lineWaits && !digging()) {
             pendingLines--;
             claim(key, now);
         } else {
-            UNCLAIMED.put(key, now);
+            UNCLAIMED.put(key, now); // while he digs, his line waits FALLBACK_TICKS for a chest beside his digs first
         }
     }
 
@@ -248,7 +343,13 @@ public final class TreasureChests {
     /** "You uncovered a treasure chest!" (whole line, from {@link PowderChat}). */
     static void onUncovered() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !MiningState.crystalHollows()) return;
+        if (client.player == null) return;
+        // Only the Crystal Hollows sends this line, so it is proof of the island even when the island read lapses (a tab
+        // list without its Area line): it used to be dropped here, and no chest was tracked at all.
+        if (!MiningState.crystalHollows() && !lineRecently()) {
+            diag("an uncovered line came while the island read is not the Crystal Hollows: tracking from the line");
+        }
+        lastLineMs = System.currentTimeMillis();
         PowderMining.markChest();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         if (cfg.isChestAlert()) {
@@ -265,19 +366,25 @@ public final class TreasureChests {
         PowderTracker.onUncovered();
         if (!tracking()) return;
         long now = PerTickServerClock.now();
-        BlockPos best = null; // lines and chests come in the server's order: the oldest unclaimed chest owns this line
-        for (Map.Entry<BlockPos, Long> e : UNCLAIMED.entrySet()) {
-            if (now - e.getValue() <= MATCH_TICKS) {
-                best = e.getKey();
-                break;
-            }
+        if (lineCredits > 0 && now - creditAt <= MATCH_TICKS) {
+            lineCredits--; // a chest beside his digs came first: this is its line
+            return;
         }
-        if (best != null) {
+        lineCredits = 0;
+        BlockPos best = oldestUnclaimed(now); // lines and chests come in the server's order: the oldest unclaimed owns it
+        if (best != null && !digging()) {
             claim(best, UNCLAIMED.get(best));
         } else {
             pendingLines = Math.min(pendingLines + 1, MAX_PENDING);
             pendingAt = now;
         }
+    }
+
+    private static BlockPos oldestUnclaimed(long now) {
+        for (Map.Entry<BlockPos, Long> e : UNCLAIMED.entrySet()) {
+            if (now - e.getValue() <= MATCH_TICKS) return e.getKey();
+        }
+        return null;
     }
 
     private static void claim(BlockPos pos, long at) {
@@ -294,6 +401,7 @@ public final class TreasureChests {
      */
     public static void onChestOpened(BlockPos pos) {
         CLICKS.removeIf(k -> k.pos().equals(pos)); // the lid answered them
+        done(pos);
         if (CHESTS.remove(pos) != null) {
             MISSING.remove(pos);
             hide(pos);
@@ -363,7 +471,8 @@ public final class TreasureChests {
             lootDebt = 0;
             return;
         }
-        if (!MiningState.crystalHollows()) return; // an island read lapse keeps the chests: only the world going ends them
+        // An island read lapse keeps the chests (only the world going ends them); a recent line counts as the island.
+        if (!MiningState.crystalHollows() && !lineRecently()) return;
         long now = PerTickServerClock.now();
         for (Iterator<Map.Entry<BlockPos, Long>> it = CHESTS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<BlockPos, Long> e = it.next();
@@ -373,18 +482,43 @@ public final class TreasureChests {
                 MISSING.remove(key);
             } else if (MISSING.putIfAbsent(key, now) == null && clicked(key)) {
                 hide(key); // he clicked it and it went: opened (the resend that may follow stays hidden)
+                done(key);
             }
             if (now - e.getValue() > LIFETIME_TICKS + GRACE_TICKS || (!chest && now - MISSING.get(key) > GONE_TICKS)) {
                 MISSING.remove(key);
                 it.remove();
             }
         }
-        UNCLAIMED.values().removeIf(t -> now - t > MATCH_TICKS);
+        if (pendingLines > 0 && now - pendingAt >= FALLBACK_TICKS && now - pendingAt <= MATCH_TICKS) {
+            BlockPos far = oldestUnclaimed(now); // no chest came beside his digs: the line takes the oldest near one
+            if (far != null) {
+                pendingLines--;
+                claim(far, UNCLAIMED.get(far));
+            }
+        }
+        if (!UNCLAIMED.isEmpty()) {
+            for (Iterator<Map.Entry<BlockPos, Long>> it = UNCLAIMED.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<BlockPos, Long> e = it.next();
+                if (now - e.getValue() <= MATCH_TICKS) continue;
+                it.remove();
+                int dig = digDistance(e.getKey());
+                diag("a chest at " + e.getKey().toShortString() + " was not claimed: no uncovered line within 3 s and "
+                        + (dig < 0 ? "no dig of his in the last 5 s" : "his nearest dig " + dig + " blocks away")
+                        + " (another player's, or its line was lost)");
+            }
+        }
+        if (lineCredits > 0 && now - creditAt > MATCH_TICKS) {
+            diag(lineCredits + " chest(s) beside his digs got no uncovered line within 3 s (kept: the line was hidden or "
+                    + "reworded before this mod saw it, or the chest is another player's)");
+            lineCredits = 0;
+        }
         long wall = System.currentTimeMillis();
         while (lootDebt > 0 && wall - lootDebtAt >= LOOT_WAIT_MS) {
             settleLoot();
         }
         if (pendingLines > 0 && now - pendingAt > MATCH_TICKS) {
+            diag(pendingLines + " uncovered line(s) found no chest within 3 s ("
+                    + (digging() ? "digging" : "no dig of his in the last 5 s") + ")");
             pendingLines = 0;
         }
         throughWallsNow = PowderMiningConfig.getInstance().isTreasureChestEsp();
@@ -399,6 +533,10 @@ public final class TreasureChests {
         lootDebt = 0;
         openedCredits = 0;
         CLICKS.clear();
+        DIGS.clear();
+        DONE.clear();
+        lineCredits = 0;
+        lastLineMs = -1L;
     }
 
     /** The chest's box (a chest is 14/16 wide and tall, centered). */
@@ -629,6 +767,17 @@ public final class TreasureChests {
     public static void useForTest(int x, int y, int z) {
         onUseBlock(new BlockPos(x, y, z));
     }
+
+    /** A dig as if sent at x y z (the send tap's call). */
+    public static void digForTest(int x, int y, int z) {
+        onDigSent(new BlockPos(x, y, z));
+    }
+
+    public static int digCount() { return DIGS.size(); }
+
+    public static int diagnostics() { return diagnostics; }
+
+    public static String lastDiagnostic() { return lastDiagnostic; }
 
     public static int count() {
         return CHESTS.size();

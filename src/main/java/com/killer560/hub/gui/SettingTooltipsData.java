@@ -1629,6 +1629,11 @@ final class SettingTooltipsData {
         d.put("new waypoint floor", "Which floor the next added waypoint is tagged with; Auto uses your current floor.");
         d.put("add waypoint here", "Saves the block you're standing on as a waypoint.");
         d.put("remove last waypoint", "Deletes the most recently added waypoint.");
+        d.put("f7 spots/storm bow", "Cheat build: releases a charging Last Breath at the set charge tick.");
+        d.put("f7 spots/release at tick", "Charge tick the Last Breath is released at (20-40, default 34.25: the 35th tick of the draw).");
+        d.put("f7 spots/swap to terminator", "After the release, puts the Terminator in your hand.");
+        d.put("f7 spots/walk after release", "After the release, holds walk forward for a few ticks.");
+        d.put("f7 spots/walk ticks", "How many ticks Walk After Release holds forward.");
         d.put("aim spots", "Draws crosshair markers at your saved Last Breath aim spots; press Add Aim Spot Here to save one.");
         d.put("aim spot color", "Color of the aim-spot crosshair markers.");
         d.put("aim spot labels", "Shows each aim spot's name next to its marker.");
@@ -2489,6 +2494,16 @@ final class SettingTooltipsData {
         d.put("livid solver/highlight color", "Livid Solver, Custom color mode: the color of the box drawn around Livid.");
         d.put("tracer color", "Livid Solver, Custom color mode: the color of the line from you to Livid.");
         d.put("tracer thickness", "How thick the line from you to Livid is drawn, in units from 1 to 10.");
+        d.put("livid solver/auto m5", "Cheat build: from Livid's first line, walks to mid, swaps loadout, casts the Ragnarock and fights the real Livid.");
+        d.put("livid solver/walk to mid", "Auto M5 walks to your saved mid spot by keys when the fight starts.");
+        d.put("livid solver/set mid here", "Saves the block you stand on as Auto M5's mid spot.");
+        d.put("livid solver/armor swap", "Auto M5 selects the chosen /loadouts loadout after the walk.");
+        d.put("livid solver/loadout", "Which /loadouts loadout (1-12) Auto M5 selects.");
+        d.put("livid solver/ragnarock buff", "Casts the Ragnarock so its 3 s channel ends as Livid's invulnerability does, then swaps back.");
+        d.put("livid solver/auto aim", "Turns your view to the real Livid with a smooth, human-paced aim.");
+        d.put("livid solver/aim at head", "Aims at Livid's head instead of the middle of its body.");
+        d.put("livid solver/smoothing", "How slowly the aim turns: 1 is quickest, 10 slowest.");
+        d.put("livid solver/auto kill", "Hits the real Livid when your crosshair is on it, in reach and your weapon is charged.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
         // Chat Keybinds holds Command Shortcuts too since 2026-10-08 (one tab, sub-tab "Chat Keybinds"): every entry for
         // either feature is scoped "chat keybinds/..." - the old "command shortcuts/..." keys were orphaned by the move.
