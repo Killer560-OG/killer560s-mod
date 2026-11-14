@@ -19,7 +19,8 @@
      "Dungeon Breaker: removed the Zero Ping option (it never acted); Don't break secrets stays",
      "Swap To Drill On Pigeon no longer prints the Swapped to line in chat.",
      "AP3: a server teleport that sets your look ends the look glide; Blink Charge teleport hold is capped just under the answer delay (no TimerLimit)",
-     "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim"
+     "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim",
+     "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons"
     ]
    }
   ]
