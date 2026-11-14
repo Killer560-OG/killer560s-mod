@@ -76,6 +76,8 @@ public final class BreakerAuraStore {
     public static final long MAX_Y = 2048L;
 
     private static BreakerAuraStore instance;
+    /** The file {@link #load} last read, so a profile apply re-reads only when the selected file changed. */
+    private static Path loadedFile;
 
     private final LinkedHashSet<String> picked = new LinkedHashSet<>();
     /** Set when the last load could not parse the file: {@link #save()} refuses to overwrite it until a load
@@ -116,6 +118,14 @@ public final class BreakerAuraStore {
     /** {@code /breakeraura reload}: re-read the file, replacing what is in memory. */
     public static void reload() {
         load();
+    }
+
+    /** Profile apply: the configs are shared by every profile (profshare-1112), so only a different selected file is
+     *  re-read. */
+    public static void reloadIfSwitched() {
+        if (!file().equals(loadedFile)) {
+            load();
+        }
     }
 
     /** Every config file in the folder by name ({@code *.json}, the broken backups left out), sorted, and always
@@ -325,6 +335,7 @@ public final class BreakerAuraStore {
         migrateLegacyPicks();
         BreakerAuraStore store = new BreakerAuraStore();
         Path file = file();
+        loadedFile = file;
         String fileName = file.getFileName().toString();
         if (!Files.exists(file)) {
             LOGGER.info("[BreakerStore] load: file={} not on disk yet, starting with 0 picks (written on the first save)",
