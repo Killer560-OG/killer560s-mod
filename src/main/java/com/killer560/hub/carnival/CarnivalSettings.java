@@ -10,7 +10,7 @@ import com.killer560.hub.islands.IslandConfig;
 abstract class CarnivalSettings {
 
     private final IslandConfig cfg;
-    private boolean clamped;
+    private transient boolean clamped; // load state, not a setting (testkit 617 skips transient fields)
 
     CarnivalSettings(String name) {
         cfg = IslandConfig.of("carnival", name);

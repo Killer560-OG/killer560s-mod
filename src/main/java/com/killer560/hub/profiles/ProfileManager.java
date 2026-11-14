@@ -139,6 +139,8 @@ public final class ProfileManager {
                 // partyfinder-stats-cache.json), but ProfileData only judges data entries and a plain .json is a
                 // setting file to it, so until 2026-11-02 those three still rode in profiles as settings.
                 && !ProfileData.EXCLUDED_NAMES.contains(fileName.substring(ModPaths.PREFIX.length()))
+                // Routes and waypoints every profile shares (profshare-1112): never saved, replaced or reset by one.
+                && !ProfileData.isShared(fileName)
                 && !ModPaths.isRetired(fileName);
     }
 
@@ -265,6 +267,8 @@ public final class ProfileManager {
         String name = sanitize(rawName);
         if (name.isEmpty()) return new Result(false, "§cProfile name can't be empty.");
         try {
+            // A queued Waypoint Routes save must reach the disk first (its store's reload used to do this before it left the list).
+            com.killer560.hub.routes.AsyncFileWriter.flush();
             Path dir = PROFILES_DIR.resolve(name);
             Files.createDirectories(dir);
             int count = 0;
@@ -522,9 +526,9 @@ public final class ProfileManager {
                 com.killer560.hub.dvd.DvdConfig::load,
                 com.killer560.hub.emotes.ChatEmoteConfig::load,
                 com.killer560.hub.etherwarp.EtherwarpWaypointsConfig::load,
-                // Real saved waypoint data (2026-09-27, room-relative rewrite), not just a setting - same
-                // reason com.killer560.hub.routes.RouteStore::load is in this list for Waypoint Routes.
-                com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
+                // Not here on purpose (profshare-1112): the stores of shared content (ProfileData.SHARED_NAMES) - Etherwarp
+                // Waypoints, Waypoint Routes, Auto Routes, Inventory Sorter layouts. A profile never changes their files, and
+                // re-reading them would only drop an unsaved edit, stop a running route or discard a recording.
                 com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
                 com.killer560.hub.autosuperboom.AutoSuperboomConfig::load,
                 com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
@@ -596,7 +600,6 @@ public final class ProfileManager {
                 com.killer560.hub.revertmasterstars.RevertMasterStarsConfig::load,
                 com.killer560.hub.reforge.ReforgeHelperConfig::load,
                 com.killer560.hub.rngmeter.RngMeterConfig::load,
-                com.killer560.hub.routes.RouteStore::load,
                 com.killer560.hub.routes.WaypointRoutesConfig::load,
                 com.killer560.hub.screenshotcopy.ScreenshotCopyConfig::load,
                 com.killer560.hub.secrets.SecretsConfig::load,
@@ -620,9 +623,8 @@ public final class ProfileManager {
                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
                 com.killer560.hub.witherdragons.RelicHelpersConfig::load,
                 com.killer560.hub.autoroutes.AutoRoutesConfig::load,
-                com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.ap3.Ap3Config::load,
-                com.killer560.hub.ap3.Ap3Store::reload,
+                com.killer560.hub.ap3.Ap3Store::reloadIfSwitched,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
                 com.killer560.hub.milestone.MilestoneConfig::load,
                 com.killer560.hub.itemhighlight.DungeonItemHighlightConfig::load,
@@ -696,8 +698,8 @@ public final class ProfileManager {
                 com.killer560.hub.menuthemes.ThemeBackgroundPlayer::release,
                 // Data a profile carries (ProfileData) that a feature holds in memory: re-read it from disk.
                 com.killer560.hub.cringe.CringeLines::load,
-                com.killer560.hub.dungeonextras.BreakerAuraStore::reload,
-                com.killer560.hub.invsort.InventoryLayoutStore::reload,
+                // Shared content: re-read only when the profile selects another file (profshare-1112).
+                com.killer560.hub.dungeonextras.BreakerAuraStore::reloadIfSwitched,
                 com.killer560.hub.scoreboard.ScoreboardBackgroundImage::reload,
                 // The Dungeon Map's own checkmark sprites (killer560smod-livemap-checkmarks).
                 com.killer560.hub.livemap.MapMarks::reloadUserSprites,
@@ -729,21 +731,16 @@ public final class ProfileManager {
 
     // Blank profile
 
-    /** Files a blank profile carries over from the live ones instead of resetting: his recorded routes, waypoints and
-     *  class overrides are data, not settings, and a blank profile that wiped them on Load would cost real work. Auto
-     *  Trap's file holds its captured routes beside its switch; the switch is turned off. */
+    /** Files a blank profile carries over from the live ones instead of resetting: class overrides and the leap menu are
+     *  data, not settings, and a blank profile that wiped them on Load would cost real work (his routes and waypoints are
+     *  shared content, {@link ProfileData#SHARED_NAMES}, which no profile touches). Auto Trap's file holds its captured
+     *  routes beside its switch; the switch is turned off. */
     private static final Set<String> BLANK_KEEPS_LIVE = Set.of(
-            "killer560smod-waypointroutes-routes.json",
-            "killer560smod-autoroutes.json",
-            "killer560smod-etherwarp-waypoints.json",
             "killer560smod-leapmenu.json",
             "killer560smod-classoverrides.json",
             "killer560smod-autotrap.json",
             // Where his HUD elements sit and how big they are: a layout, not a switch (HudConfig is left as it is).
             "killer560smod-hud.json");
-
-    /** Data entries (ProfileData) a blank profile carries over: route recordings, not settings. */
-    private static final Set<String> BLANK_KEEPS_DATA = Set.of("killer560smod-ap3", "killer560smod-breakeraura");
 
     /**
      * "New Blank Profile": creates (but does not switch to) a profile in which every setting switch of every config is
@@ -794,9 +791,8 @@ public final class ProfileManager {
             off = BlankProfile.switchEverythingOff();
             result = saveCurrentAsProfile(name);
             if (result.success()) {
-                // Starts empty for the data too (no GIFs, presets, layouts...), except his recorded AP3 routes and
-                // Breaker Aura picks, kept for the same reason BLANK_KEEPS_LIVE keeps his Auto Routes.
-                ProfileData.keepOnly(PROFILES_DIR.resolve(name), BLANK_KEEPS_DATA);
+                // Starts empty for the data too (no presets, cringe lines...); shared routes and layouts are not in it.
+                ProfileData.keepOnly(PROFILES_DIR.resolve(name), Set.of());
             }
         } catch (Throwable t) {
             LOGGER.warn("[Profiles] blank profile failed", t);
@@ -1297,6 +1293,25 @@ public final class ProfileManager {
     /** Starts the auto-save / import poll. Call once from client init. */
     public static synchronized void startBackgroundTasks() {
         if (autoSaveExecutor != null) return;
+        // Once per instance (a marker file after): every profile's old copy of shared content joins the live files, and
+        // the stores that may already hold the old live copy read again.
+        if (SharedContent.mergeOnce(PROFILES_DIR) > 0) {
+            runOnClientThread(() -> {
+                for (Runnable r : new Runnable[]{com.killer560.hub.ap3.Ap3Store::reload,
+                        com.killer560.hub.dungeonextras.BreakerAuraStore::reload,
+                        com.killer560.hub.invsort.InventoryLayoutStore::reload,
+                        com.killer560.hub.autoroutes.RouteStore::reload,
+                        com.killer560.hub.routes.RouteStore::load,
+                        com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
+                        com.killer560.hub.livemap.MapMarks::reloadUserSprites}) {
+                    try {
+                        r.run();
+                    } catch (Throwable t) {
+                        LOGGER.warn("[Profiles] a store failed to re-read after the shared-content merge", t);
+                    }
+                }
+            });
+        }
         autoSaveExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "killer560smod-profiles-autosave");
             t.setDaemon(true);
