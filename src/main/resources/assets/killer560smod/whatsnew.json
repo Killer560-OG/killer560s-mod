@@ -15,7 +15,10 @@
      "Breaker Aura: Edit Mode now turns itself off when you change worlds (leaving the dungeon) and after a restart, so picked blocks no longer stay drawn with the aura off.",
      "Party Commands: !killer560 / !k560 / !killer now reply with the Discord invite code instead of a link Hypixel censored to ****, and clicking the already-selected Chat Tab no longer sends a second /chat that drew \"You're already in this channel!\"",
      "none (test fixes; profiles no longer carry sim mob looks / Carnival history records)",
-     "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim"
+     "Online Count: /online now counts you in a singleplayer world (the sim) or on another server too",
+     "Dungeon Breaker: removed the Zero Ping option (it never acted); Don't break secrets stays",
+     "Swap To Drill On Pigeon no longer prints the Swapped to line in chat.",
+     "AP3: a server teleport that sets your look ends the look glide; Blink Charge teleport hold is capped just under the answer delay (no TimerLimit)"
     ]
    }
   ]
