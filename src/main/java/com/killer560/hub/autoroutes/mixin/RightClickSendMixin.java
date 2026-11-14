@@ -34,6 +34,12 @@ public abstract class RightClickSendMixin {
                 com.killer560.hub.util.PlaceRotationGuard.onPacketSent(packet);
                 // GrimAC MultiBreak: one block dug per server tick (util/DigWindow).
                 com.killer560.hub.util.DigWindow.onPacketSent(packet);
+                if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket a
+                        && (a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
+                        || a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK)) {
+                    // His digs: a powder chest appears at or beside the block he broke (TreasureChests, chestmiss-1113).
+                    com.killer560.hub.powdermining.TreasureChests.onDigSent(a.getPos());
+                }
             }
             if (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
                     || packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
