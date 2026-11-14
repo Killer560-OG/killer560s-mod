@@ -77,11 +77,20 @@ public final class PuzzlerSolver {
         return t;
     }
 
+    /** "Puzzler gave you 5,375 Mithril Powder for solving the puzzle!" */
+    private static final java.util.regex.Pattern SOLVED =
+            java.util.regex.Pattern.compile("^Puzzler gave you [\\d,]{1,12} Mithril Powder for solving the puzzle!$");
+
     private static void onChat(Component message) {
         if (!CFG.isEnabled() || !MiningIsland.dwarvenMines()) {
             return;
         }
         String plain = ChatObserver.strip(message);
+        if (SOLVED.matcher(plain).matches()) {
+            // The reward line means the puzzle is done: drop the box at once instead of waiting out the timeout.
+            target = null;
+            return;
+        }
         if (!plain.startsWith("[NPC] Puzzler: ")) {
             return;
         }
