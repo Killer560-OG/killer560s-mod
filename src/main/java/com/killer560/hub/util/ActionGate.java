@@ -184,6 +184,12 @@ public final class ActionGate {
         GOLDOR_TRIGGER(Kind.WORLD),
         /** Terminator Auto Clicker's left click (cheat build, featH-1109). */
         TERMINATOR_CLICK(Kind.WORLD),
+        /** Storm Bow (cheat build, stormm5-1111): the Last Breath release at its charge tick, then the Terminator swap. */
+        STORM_BOW(Kind.WORLD, "stormbow"),
+        STORM_BOW_HOTBAR(Kind.HOTBAR, "stormbow"),
+        /** Auto M5 (cheat build, stormm5-1111): the Ragnarock cast with its swaps, and the hits on the real Livid. */
+        M5_HOTBAR(Kind.HOTBAR, "m5"),
+        M5_WORLD(Kind.WORLD, "m5"),
         /** The Carnival cheat block (carnival-1110): the Shootout's shots, Fruit Digging's digs and mode taps, Catch a
          *  Fish's cast and reel (WORLD), and Auto Shovel Swap's hotbar change (HOTBAR). One flow: the swap and the dig
          *  after it are one sequence. Sent only from {@code carnival.CarnivalInput}. */
@@ -395,6 +401,20 @@ public final class ActionGate {
     public static boolean hisClickQueued(net.minecraft.client.KeyMapping key) {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
                 && key instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k && k.killer560smod$getClickCount() > 0;
+    }
+
+    /** His attack or a hotbar key goes out in this tick's handleKeybinds, after us: vanilla sends neither after a use or
+     *  a release in one tick, so an act of ours that is one waits a tick (Storm Bow, Auto M5). */
+    public static boolean hisAttackOrSwapQueued(Minecraft client) {
+        if (hisClickQueued(client.options.keyAttack)) {
+            return true;
+        }
+        for (net.minecraft.client.KeyMapping k : client.options.keyHotbarSlots) {
+            if (hisClickQueued(k)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

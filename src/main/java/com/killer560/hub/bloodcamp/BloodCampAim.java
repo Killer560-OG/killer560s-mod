@@ -44,7 +44,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * Safety rules: yaw is only ever {@code current + wrapDegrees(...)} - the running value is never wrapped or clamped;
  * pitch stays within -90..90; nothing here touches position or sends a packet.
  */
-final class BloodCampAim {
+public final class BloodCampAim {
 
     /** Most a turn moves in one tick, degrees - a fast but ordinary flick (Auto Puzzles' HumanLook uses 28 / 14). */
     static final float YAW_CAP = 26f;
@@ -57,6 +57,11 @@ final class BloodCampAim {
     private static final float RETARGET_DEGREES = 6f;
     /** Below this movement (degrees) a body change is our own rounding, not his mouse. */
     private static final float MOUSE_EPSILON = 0.001f;
+
+    /** Multiplies the planned turn time (Auto M5's Smoothing; Blood Camp keeps 1). The per-tick caps still bound a fast one. */
+    private double slowness = 1.0;
+
+    public void setSlowness(double v) { slowness = Math.max(0.3, Math.min(4.0, v)); }
 
     private Object key;
     private Vec3 point;
@@ -114,7 +119,7 @@ final class BloodCampAim {
     private boolean fromIdle;
 
     /** Every client tick (START), whatever the aura is doing. {@code point} null = nothing to aim at. */
-    void tick(Minecraft client, Object newKey, Vec3 newPoint, boolean freecamMode) {
+    public void tick(Minecraft client, Object newKey, Vec3 newPoint, boolean freecamMode) {
         LocalPlayer player = client.player;
         ticks++;
         if (player == null) {
@@ -225,7 +230,7 @@ final class BloodCampAim {
     }
 
     /** Every render frame: the same motion at the frame's time, so it is smooth on screen rather than 20 steps a second. */
-    void frame(Minecraft client) {
+    public void frame(Minecraft client) {
         LocalPlayer player = client.player;
         if (player == null || (point == null && !handingBack)) {
             return;
@@ -237,7 +242,7 @@ final class BloodCampAim {
         apply(client, now(client));
     }
 
-    boolean isTurning() {
+    public boolean isTurning() {
         return point != null;
     }
 
@@ -246,7 +251,7 @@ final class BloodCampAim {
     }
 
     /** World change, feature off, or he left the Blood Room: let go of everything (camera given back under the view). */
-    void reset(LocalPlayer player) {
+    public void reset(LocalPlayer player) {
         if (point != null || ownsHold || handingBack) {
             BloodCampFeature.LOGGER.info("[BloodCampAim] reset: target={} ownsCamera={} handingBack={}", key, ownsHold,
                     handingBack);
@@ -440,7 +445,7 @@ final class BloodCampAim {
         e0Yaw = Mth.wrapDegrees(player.getYRot() - tgt[0]);
         e0Pitch = player.getXRot() - tgt[1];
         float d = (float) Math.hypot(e0Yaw, e0Pitch);
-        double fitts = (2.5 + 1.6 * (Math.log(1.0 + d / 2.5) / Math.log(2.0))) * (0.85 + 0.3 * r.nextDouble());
+        double fitts = (2.5 + 1.6 * (Math.log(1.0 + d / 2.5) / Math.log(2.0))) * (0.85 + 0.3 * r.nextDouble()) * slowness;
         // Stretch so the bell's peak (1.875 x average speed) stays under the per-tick caps, with a margin.
         double minYaw = 1.875 * Math.abs(e0Yaw) / (YAW_CAP * 0.85);
         double minPitch = 1.875 * Math.abs(e0Pitch) / (PITCH_CAP * 0.85);

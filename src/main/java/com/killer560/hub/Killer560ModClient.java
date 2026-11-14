@@ -433,6 +433,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.TeleportMazeSolverFeature.register();
         com.killer560.hub.puzzlesolvers.IcePathSolverFeature.register();
         com.killer560.hub.boss.LividSolverFeature.register();
+        com.killer560.hub.boss.AutoM5Feature.register();
         HudElementRegistry.register(new com.killer560.hub.boss.LividSolverFeature.InvulnTimerHudElement());
         com.killer560.hub.quiver.QuiverDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.quiver.QuiverDisplayFeature.QuiverHudElement());
