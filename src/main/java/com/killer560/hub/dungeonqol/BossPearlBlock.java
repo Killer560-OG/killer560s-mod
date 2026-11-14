@@ -1,6 +1,5 @@
 package com.killer560.hub.dungeonqol;
 
-import com.killer560.hub.notify.ModOverlayMessage;
 import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Items;
@@ -11,8 +10,6 @@ import net.minecraft.world.item.Items;
  *  (Walk With Pearls, Auto Gfs, AP3) call {@code MultiPlayerGameMode.useItem} and never pass here; Auto Routes and Auto
  *  Clear holding the use key do, and are let through. */
 public final class BossPearlBlock {
-
-    private static long lastNote;
 
     private BossPearlBlock() {
     }
@@ -26,11 +23,6 @@ public final class BossPearlBlock {
         if (!pearl || com.killer560.hub.autoroutes.RouteExecutor.isRunning()
                 || com.killer560.hub.autoclear.AutoClearFeature.isBusy()) {
             return false;
-        }
-        long now = System.currentTimeMillis();
-        if (now - lastNote >= 1000) {
-            lastNote = now;
-            ModOverlayMessage.show("§c[Killer560's Mod] Ender pearl blocked in the boss", 1500);
         }
         return true;
     }

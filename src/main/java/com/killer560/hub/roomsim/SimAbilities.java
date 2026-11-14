@@ -495,7 +495,8 @@ public final class SimAbilities {
         // teleports nowhere and still implodes where he stands - the usual way a mimic is killed the moment its chest
         // opens (Auto Routes' Kill Mimic does exactly that). Before 2026-10-05 the sim skipped the blast whenever
         // nothing along the look fitted, so a downward hype did nothing at all.
-        dash(sp, WITHER_IMPACT_RANGE);
+        // killer560 (2026-11-09): in the boss fight the Hyperion does not teleport, it still blasts where he stands.
+        if (!com.killer560.hub.bosssim.BossFight.running()) dash(sp, WITHER_IMPACT_RANGE);
         witherBlast(sp);
         return true;
     }
