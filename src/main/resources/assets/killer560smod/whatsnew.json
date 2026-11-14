@@ -21,7 +21,8 @@
      "AP3: a server teleport that sets your look ends the look glide; Blink Charge teleport hold is capped just under the answer delay (no TimerLimit)",
      "Dungeon sim: typing /pc, /ac, /msg and the other chat commands no longer shows red or an unknown-command error, and Mask Swapper no longer sends /stats in the sim",
      "Scrollable Tooltips: the mouse wheel now scrolls a tall tooltip on every screen (inventory, creative, menus, Profile Viewer), and the server resending a slot no longer snaps it back to the top",
-     "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons"
+     "What's New has a new look: date chips across the top and one box with the whole update; the main menu is split into three sections, and on small windows the logo shrinks instead of covering the buttons",
+     "Leap Order: a class you pick for yourself now wins over the tab list"
     ]
    }
   ]
