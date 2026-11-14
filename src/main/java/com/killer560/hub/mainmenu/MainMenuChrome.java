@@ -95,14 +95,18 @@ public final class MainMenuChrome {
             r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, f(MenuStyle.SHADE, a));
             // Accent hairline across the top, brightest in the middle.
             accentLine(r, x + 1, x + w - 1, y + 1, a);
-            // A thin rule between the column and the Options/Quit row.
-            int ruleY = MainMenuTitleLayout.ruleY(screen);
-            if (ruleY > y && ruleY < y + h) {
-                r.fill(x + 10, ruleY, x + w - 10, ruleY + 1, f(MenuStyle.alpha(MenuStyle.BLACK, 0x90), a));
-                r.fill(x + 10, ruleY + 1, x + w - 10, ruleY + 2, f(MenuStyle.HILITE_SOFT, a));
-            }
+            // Thin rules between the column's sections and above the Options/Quit row.
+            rule(r, x, y, w, h, MainMenuTitleLayout.sectionRuleY(screen), a);
+            rule(r, x, y, w, h, MainMenuTitleLayout.ruleY(screen), a);
         }
         r.submit();
+    }
+
+    private static void rule(GuiRects r, int x, int y, int w, int h, int ruleY, float a) {
+        if (ruleY > y && ruleY < y + h) {
+            r.fill(x + 10, ruleY, x + w - 10, ruleY + 1, f(MenuStyle.alpha(MenuStyle.BLACK, 0x90), a));
+            r.fill(x + 10, ruleY + 1, x + w - 10, ruleY + 2, f(MenuStyle.HILITE_SOFT, a));
+        }
     }
 
     private static void accentLine(GuiRects r, int x0, int x1, int y, float a) {
