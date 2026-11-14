@@ -97,6 +97,10 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
+        widgets.add(onOffButton("Fetch Missing From Sacks", cfg::isFetchSacks, cfg::setFetchSacks, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 18));
+        y += 22;
+
         // Dump Into Chest (killer560, 2026-11-04).
         widgets.add(onOffButton("Dump Button On Chests", cfg::isDumpButton, cfg::setDumpButton, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 18));
