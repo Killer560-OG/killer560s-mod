@@ -66,6 +66,7 @@ final class CardBlurbsData {
         d.put("HomeMainTab", "Update notice, HUD keys and scale.");
         d.put("SlotTextTab", "Levels and tiers on item slots.");
         d.put("CompactorPreviewTab", "Shows compactor contents.");
+        d.put("AccessoryAdvisorTab", "Next accessory to buy.");
         d.put("LightsDeviceTab", "F7 lights aura and trigger.");
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
