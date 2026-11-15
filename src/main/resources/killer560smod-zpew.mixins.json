@@ -9,6 +9,7 @@
 		"ZpewMinecraftAccessor",
 		"ZpewPositionMixin",
 		"ZpewSendMixin",
+		"ZpewStartUseMixin",
 		"ZpewUseItemMixin",
 		"ZpewWireMixin"
 	],

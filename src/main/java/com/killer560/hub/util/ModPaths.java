@@ -119,6 +119,7 @@ public final class ModPaths {
         t.put("autoclear", "dungeons/autoclear");
         // Auto Secret, and its insta-clear evidence (killer560smod-autosecret/insta-clear.json).
         t.put("autosecret", "dungeons/autosecret");
+        t.put("communityroutes", "dungeons/secrets");
         // Auto Trap's trap routes (killer560smod-autotrap.json).
         t.put("autotrap", "dungeons/autotrap");
         t.put("blink", "dungeons/blink");

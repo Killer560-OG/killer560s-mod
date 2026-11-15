@@ -2076,6 +2076,14 @@ public final class TerminalSolverFeature {
         return result;
     }
 
+    /** Hypixel marks a picked item by making it glint. An item that glints by itself (Enchanted Book, Enchanted Golden
+     *  Apple, End Crystal, Bottle o' Enchanting) counts as picked only once it carries enchantments: skipping every
+     *  glinting item left a Starts With 'E' board with no highlights at all (killer560 11-13). */
+    static boolean selected(ItemStack item) {
+        if (!item.hasFoil()) return false;
+        return !item.getItem().getDefaultInstance().hasFoil() || item.isEnchanted();
+    }
+
     /** "What starts with: '<letter>'?" - select every item whose (color-code-stripped) name starts
      *  with the given letter, ignoring case. Real items already selected/correct glint (are enchanted)
      *  in Hypixel's own UI - excluded here the same way Odin's StartsWithHandler does, with a Golden
@@ -2088,7 +2096,7 @@ public final class TerminalSolverFeature {
         for (int i = 0; i < items.size(); i++) {
             ItemStack item = items.get(i);
             if (item.isEmpty()) continue;
-            if (item.hasFoil() && item.getItem() != Items.GOLDEN_APPLE) continue;
+            if (selected(item)) continue;
             String name = stripColor(item.getHoverName().getString());
             if (name.isEmpty()) continue;
             if (name.regionMatches(true, 0, letter, 0, letter.length())) {
@@ -2118,7 +2126,7 @@ public final class TerminalSolverFeature {
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         for (int i = 0; i < items.size(); i++) {
             ItemStack item = items.get(i);
-            if (item.isEmpty() || item.hasFoil() || item.getItem() == McItems.BLACK_STAINED_GLASS_PANE) continue;
+            if (item.isEmpty() || selected(item) || item.getItem() == McItems.BLACK_STAINED_GLASS_PANE) continue;
             String name = stripColor(item.getHoverName().getString()).toLowerCase(Locale.ROOT);
             for (String prefix : prefixes) {
                 if (name.startsWith(prefix)) {

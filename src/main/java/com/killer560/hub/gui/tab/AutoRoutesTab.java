@@ -168,18 +168,11 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // killer560, 2026-10-05: after he clicks a trapped chest, kill the mimic - Off / Hyperion / Spirit Sceptre.
         w.add(SettingsButtonWidget.cycleEnum(() -> killMimicText(cfg), cfg::getKillMimic, cfg::setKillMimic, cfg::save).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += 24;
-        // killer560, 2026-10-25: zero ping etherwarp "for auto routes and such" - consecutive warps from the predicted landing.
-        toggleCell(w, contentX, y[0], half, "Zero Ping Chain", cfg::getZeroPingChainSetting, cfg::setZeroPingChain, null);
-        // ... and Blink holds the whole chain, so the server makes every warp of it in one tick (needs Blink on).
-        toggleCell(w, contentX + half + GAP, y[0], right, "Blink The Chain", cfg::getBlinkChainSetting, cfg::setBlinkChain,
-                null);
-        y[0] += 24;
-        // killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes" - a chain spends Blink Charge's bank.
-        toggleCell(w, contentX, y[0], half, "Charged Chain", cfg::getChargedChainSetting, cfg::setChargedChain, null);
+        // Zero Ping Chain, Blink The Chain and Charged Chain left this tab (zpewunify-1111, killer560 2026-11-11: "have it
+        // all come from zpew"): the Etherwarp tab's Works For / Multi Warps For Auto Routes drive the chain now.
         // killer560, 2026-10-26: paths are planned with Transmission Tuners; off by default, on for a player without them.
-        toggleCell(w, contentX + half + GAP, y[0], right, "Replan For My Range", cfg::isReplanForRange,
+        toggleCell(w, contentX, y[0], half, "Replan For My Range", cfg::isReplanForRange,
                 cfg::setReplanForRange, null);
-        y[0] += 24;
         // killer560, 2026-10-16: "kill mimic also needs a timeout slider" - how long the Spirit Sceptre keeps at it.
         slider(w, contentX + half + GAP, y[0], right,
                 () -> String.format(Locale.US, "Mimic Timeout: %.1fs", cfg.getMimicTimeoutTicks() / 20.0),

@@ -256,3 +256,15 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   move (velocity plus the ground push) already clears the edge, so the jump starts on whichever grounded tick is nearer
   the edge. With strafe off the route still jumps on the coyote tick. AP3 boxes are tested only at end-of-tick
   positions, so a 1x1 box at a run is hit by luck; give a route's run boxes at least the move length.
+- Held walks that drop or reach an align (leverjump-strafe-1111, EE3 route with 45 Degree Strafe ON): Strafe reaches each
+  edge a hair sooner, so its falls landed on a platform's corner or beside it. Now (a) on a jump tick toward a lower next
+  node the facing (up to 60 degrees off the walk; the 0.2 sprint boost is the only big push) and in the air the push (up to
+  30) is chosen by simulating vanilla's fall and scoring how many of 25 footprint points land on a real collision floor at
+  that node's height (`bestSteer`/`fallScore`; the platform is not the node's box); (b) on the ground he walks AT the next
+  node when he stands a full step below his own node's level (fell onto a stair's low half) and it is a step up, or when the
+  next node is an align point (the walk into it, from wherever he landed); (c) the edge-jump tests treat a floor up to 0.5
+  below as ground (`EDGE_DROP`), so a stair half step is not an edge. Do not aim at the next node on every level stretch or
+  whenever the floor thins: both broke the route start (wall at t41, lever unpowered). The step aim with a 0.05 gate fired on
+  node 19's ordinary stair climb and moved Strafe OFF's node 24 jump 0.2 blocks, short of node 25: any steer must leave the
+  recorded line alone when he is on it. Testkit 500-boss-session:,1109-boss-ee3route-grim with KM_EE3_STRAFE45=1/0, default
+  and experimental Grim.

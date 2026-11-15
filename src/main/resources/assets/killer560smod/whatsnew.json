@@ -18,7 +18,9 @@
      "Fewer anticheat flags while you move: Auto Close Chest waits until you stand still before it closes the chest (chat and commands are never delayed) (requeued as stillhold-1113 on 11-14) (requeued 11-14 after hung lane) (requeued 11-14 pm)",
      "Profiles: AP3 routes, Auto Routes, waypoints, Breaker Aura and Inventory Sorter layouts and imported fonts and sounds are now shared by every profile on the instance, so loading another profile never loses a route; each profile still keeps which route file it uses",
      "Inventory Sorter (cheat): items a layout needs that storage did not supply are taken from your sacks with /gfs, only the shortfall (Fetch Missing From Sacks, on by default) (requeued 11-14)",
-     "Carnival: Auto Dialogue works anywhere and answers Carnival NPCs through a Carnival Games row, Carnival is its own section in Misc, the autos stop only on Escape or the Emergency Cancel Key, Fruit Digging draws one box per tile, Auto Shovel Swap no longer grabs your AOTV, Auto Accept Game fix, and Zombie Shootout and Catch a Fish now lead their targets (Lead Adjust), read the fish bar and no longer need Hook Wait"
+     "AP3: routes that drop to a lower floor or walk into an align now land on the floor with 45 Degree Strafe on (the EE3 route no longer falls into the lava)",
+     "Secret Waypoints: Community Routes draws premade per-room routes (path line, etherwarp, mine and click boxes) from a local route folder or a cached public download; nothing is shipped in the jar",
+     "Terminal Solver: Starts With now highlights items that glint on their own (Enchanted Book, Enchanted Golden Apple, End Crystal), so an E board no longer looks solved with nothing marked. (requeued 11-14; tk fixes 354's golden apple check)"
     ]
    }
   ]

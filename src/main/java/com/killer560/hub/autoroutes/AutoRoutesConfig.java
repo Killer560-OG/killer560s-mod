@@ -109,17 +109,6 @@ public final class AutoRoutesConfig {
      *  while the map itself is open." ON: the Interactive Map's SCREEN counts as no screen (nodes fire, a route keeps
      *  running); its own warps still stop routes as before. Off by default. */
     private boolean runWhileMapOpen = false;
-    /** Zero Ping Chain (killer560, 2026-10-25: zero ping etherwarp "for auto routes and such"): consecutive etherwarp
-     *  nodes go one a tick, each aimed from the PREDICTED landing of the one before, instead of waiting a round trip for
-     *  every landing. Obvious mode, path-less routes; every landing is still checked when the server's teleport comes.
-     *  Off by default. */
-    private boolean zeroPingChain = false;
-    /** Blink The Chain: with Zero Ping Chain, Blink holds a whole chain's packets and releases them in one burst, so the
-     *  server makes every warp of it in one server tick ("multiple etherwarps per tick"). Needs Blink switched on. */
-    private boolean blinkChain = false;
-    /** Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): with Zero Ping Chain and
-     *  Blink charging, a chain spends Blink's banked ticks to fire all its warps inside one real tick. */
-    private boolean chargedChain = false;
     /** Replan For My Range (killer560, 2026-10-26): saved path warps longer than this player's etherwarp reaches are
      *  planned again for his range. Off: everyone flies the saved warps as planned (planned with Transmission Tuners). */
     private boolean replanForRange = false;
@@ -229,14 +218,21 @@ public final class AutoRoutesConfig {
 
     private static void load0() {
         AutoRoutesConfig cfg = new AutoRoutesConfig();
+        boolean migrateChain = false;
+        boolean zpc = false;
+        boolean charged = false;
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
                 cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
-                cfg.zeroPingChain = ConfigJson.getBool(o, "zeroPingChain", cfg.zeroPingChain);
-                cfg.blinkChain = ConfigJson.getBool(o, "blinkChain", cfg.blinkChain);
-                cfg.chargedChain = ConfigJson.getBool(o, "chargedChain", cfg.chargedChain);
+                // Zero Ping Chain, Blink The Chain and Charged Chain left this tab (zpewunify-1111): the first and last
+                // move to the Etherwarp tab's Works For / Multi Warps For Auto Routes, Blink The Chain is gone.
+                migrateChain = o.has("zeroPingChain") || o.has("chargedChain") || o.has("blinkChain");
+                if (migrateChain) {
+                    zpc = ConfigJson.getBool(o, "zeroPingChain", false);
+                    charged = zpc && ConfigJson.getBool(o, "chargedChain", false);
+                }
                 cfg.replanForRange = ConfigJson.getBool(o, "replanForRange", cfg.replanForRange);
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
@@ -283,15 +279,16 @@ public final class AutoRoutesConfig {
             }
         }
         instance = cfg;
+        if (migrateChain) {
+            com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().migrateFromRoutes(zpc, charged);
+            cfg.save(); // drops the old keys, so this runs once
+        }
     }
 
     public void save() {
         JsonObject o = new JsonObject();
         o.addProperty("enabled", enabled);
         o.addProperty("legitMode", legitMode);
-        o.addProperty("zeroPingChain", zeroPingChain);
-        o.addProperty("blinkChain", blinkChain);
-        o.addProperty("chargedChain", chargedChain);
         o.addProperty("replanForRange", replanForRange);
         o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
         o.addProperty("runWhileMapOpen", runWhileMapOpen);
@@ -351,32 +348,25 @@ public final class AutoRoutesConfig {
     public static boolean legitModeSelectable() { return com.killer560.hub.BuildVariant.TESTING; }
     public void setLegitMode(boolean v) { legitMode = v; }
 
-    /** Zero Ping Chain: cheat build, obvious mode only. */
+    /**
+     * Zero Ping Chain (killer560, 2026-10-25: zero ping etherwarp "for auto routes and such"): consecutive etherwarp nodes
+     * go one a tick, each aimed from the PREDICTED landing of the one before, instead of waiting a round trip for every
+     * landing. Obvious mode only. Driven by the Etherwarp tab since zpewunify-1111: Zero Ping Etherwarp on (and active
+     * here) and working for Auto Routes - or the Charged Chain, which fires its warps through the same chain.
+     */
     public boolean isZeroPingChain() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && zeroPingChain && !isLegitMode();
+        com.killer560.hub.zpew.ZeroPingEtherwarpConfig z = com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance();
+        return !isLegitMode() && (z.isActiveHere() && z.worksFor(com.killer560.hub.zpew.ZpewSource.AUTO_ROUTES)
+                || isChargedChain());
     }
 
-    public boolean getZeroPingChainSetting() { return zeroPingChain; }
-
-    public void setZeroPingChain(boolean v) { zeroPingChain = v; }
-
-    /** Blink The Chain: only with Zero Ping Chain on. */
-    public boolean isBlinkChain() {
-        return isZeroPingChain() && blinkChain;
-    }
-
-    public boolean getBlinkChainSetting() { return blinkChain; }
-
-    public void setBlinkChain(boolean v) { blinkChain = v; }
-
-    /** Charged Chain: only with Zero Ping Chain on. */
+    /** Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): with Blink charging, a chain
+     *  spends Blink's banked ticks to fire all its warps inside one real tick. The Etherwarp tab's Multi Warps for Auto
+     *  Routes since zpewunify-1111; it never needs Zero Ping Etherwarp's switch. */
     public boolean isChargedChain() {
-        return isZeroPingChain() && chargedChain;
+        return !isLegitMode() && com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance()
+                .multiWarpsFor(com.killer560.hub.zpew.ZpewSource.AUTO_ROUTES);
     }
-
-    public boolean getChargedChainSetting() { return chargedChain; }
-
-    public void setChargedChain(boolean v) { chargedChain = v; }
 
     public boolean isReplanForRange() {
         return replanForRange;
