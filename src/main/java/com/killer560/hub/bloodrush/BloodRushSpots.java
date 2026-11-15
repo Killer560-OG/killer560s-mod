@@ -98,7 +98,9 @@ public final class BloodRushSpots {
         List<int[]> got = rooms().get(room);
         if (got != null) {
             for (int[] s : got) {
-                out.add(s.clone());
+                if (inside(room, s[0], s[2])) {
+                    out.add(s.clone());
+                }
             }
         }
         List<int[]> shipped = bundled().get(room);
@@ -117,6 +119,27 @@ public final class BloodRushSpots {
             }
         }
         return out;
+    }
+
+    /**
+     * Whether a room-relative block lies in the room's footprint (1xN rooms run along +x, 31 blocks a tile, 32 apart; the
+     * same rule as tools/bloodrush/build-spots.py). A spot learned while the map had the room or its rotation wrong lands
+     * outside it and would draw a box in another room. True while the room database does not know the room.
+     */
+    static boolean inside(String room, int x, int z) {
+        com.killer560.hub.roomdatabase.RoomEntry e = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
+        if (e == null || e.shape == null) {
+            return true;
+        }
+        int mx = 30;
+        int mz = 30;
+        if (e.shape.equals("2x2") || e.shape.equals("L")) {
+            mx = 62;
+            mz = 62;
+        } else if (e.shape.startsWith("1x") && e.shape.length() == 3 && Character.isDigit(e.shape.charAt(2))) {
+            mx = 32 * (e.shape.charAt(2) - '0') - 2;
+        }
+        return x >= 0 && z >= 0 && x <= mx && z <= mz;
     }
 
     static int version() {
@@ -162,6 +185,9 @@ public final class BloodRushSpots {
             return false;
         }
         BlockPos rel = RouteCoords.toRelativeBlock(frame, feet);
+        if (!inside(room, rel.getX(), rel.getZ())) {
+            return false;
+        }
         List<int[]> list = rooms().computeIfAbsent(room, k -> new ArrayList<>());
         for (int[] s : list) {
             if (Math.abs(s[0] - rel.getX()) <= MERGE && Math.abs(s[1] - rel.getY()) <= MERGE
