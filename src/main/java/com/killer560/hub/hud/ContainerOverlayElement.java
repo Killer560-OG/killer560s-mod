@@ -34,6 +34,10 @@ public final class ContainerOverlayElement implements HudElement {
     /** The preview's size {w, h} until the content has drawn once (fonts are not loaded when features register). */
     private volatile java.util.function.Supplier<int[]> previewSize;
     private volatile boolean drawn;
+    private boolean clamp;
+    private int drawnX;
+    private int drawnY;
+    private float drawnScale = 1f;
 
     private ContainerOverlayElement(String id, String name, int defaultW, int defaultH, int autoX, int autoY,
                                     BooleanSupplier enabled, Drawer preview) {
@@ -69,12 +73,23 @@ public final class ContainerOverlayElement implements HudElement {
         HudSeen.markDrawn(id);
         int[] pos = HudElementRegistry.resolvePosition(this).clone();
         float scale = HudElementRegistry.resolveScale(this);
+        if (clamp) {
+            net.minecraft.client.gui.screens.Screen s = com.killer560.hub.compat.McCompat.screen(
+                    net.minecraft.client.Minecraft.getInstance());
+            if (s != null) {
+                pos[0] = Math.max(0, Math.min(pos[0], s.width - Math.round(this.width * scale)));
+                pos[1] = Math.max(0, Math.min(pos[1], s.height - Math.round(this.height * scale)));
+            }
+        }
         // Laid out above the Inventory Search bar's fixed bottom-middle spot when it would reach it (killer560, 2026-11-02).
         pos[1] = (int) com.killer560.hub.inventorysearch.InventorySearchFeature.keepAbove(
                 com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance()), pos[0], pos[1],
                 (this.width + 3) * scale, (this.height + 3) * scale);
         // Over a real menu: no slot under the panel hovers or takes a click (ContainerCover). 3 px of margin: some
         // panels (Chocolate Factory's line) fill a little past their box.
+        this.drawnX = pos[0];
+        this.drawnY = pos[1];
+        this.drawnScale = scale;
         com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("hud." + id,
                 pos[0] - 3 * scale, pos[1] - 3 * scale, pos[0] + (this.width + 3) * scale, pos[1] + (this.height + 3) * scale);
         graphics.pose().pushMatrix();
@@ -105,6 +120,25 @@ public final class ContainerOverlayElement implements HudElement {
     @Override
     public int defaultY() {
         return autoY;
+    }
+
+    /** Keeps the whole box on screen when drawn (a saved spot from a bigger window cannot hang off an edge). */
+    public ContainerOverlayElement clampOnScreen() {
+        this.clamp = true;
+        return this;
+    }
+
+    /** Where the last {@link #draw} put the box (screen px) and at what scale; a feature hit-tests clicks with these. */
+    public int drawnX() {
+        return drawnX;
+    }
+
+    public int drawnY() {
+        return drawnY;
+    }
+
+    public float drawnScale() {
+        return drawnScale;
     }
 
     /** Sets how big the preview is until the live content has drawn. */

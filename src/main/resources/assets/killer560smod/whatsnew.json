@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Sim: the Dungeon Breaker can no longer break smooth granite, pistons, dispensers, or blocks with a torch, button or fire on them",
-     "Dungeon sim: every sim setting (boss Spawn Withers and mode, loadout, filters, speed, co-op) is yours alone and no profile saves or changes it (built on profshare-1112)"
+     "Dungeon sim: every sim setting (boss Spawn Withers and mode, loadout, filters, speed, co-op) is yours alone and no profile saves or changes it (built on profshare-1112)",
+     "Accessory Advisor: drag the panel anywhere (Reset Position in its tab), a mode button on the panel, and click an accessory's name to copy it"
     ]
    }
   ]

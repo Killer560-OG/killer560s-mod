@@ -4,7 +4,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryMenu;
 import com.killer560.hub.compat.McInput;
-import com.killer560.hub.containercover.ContainerCover;
+import com.killer560.hub.hud.ContainerOverlayElement;
+import com.killer560.hub.hud.HudConfig;
+import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.util.ModChat;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemeAccent;
@@ -105,7 +110,25 @@ public final class AccessoryAdvisor {
     private static List<String> lines = List.of();
     private static int panelWidth;
     private static AccessoryRanker.Result lastResult;
-    private static int titleX0, titleY0, titleX1, titleY1;
+    // Hit boxes in the panel's own units (x, y from its top-left), built with the list: the mode button, one box per name.
+    private static int btnX0 = 100;
+    private static int btnW = 70;
+    private static String modeLabel = AccessoryAdvisorConfig.Mode.BEST_OVERALL.label;
+    private static int[] rowY = new int[0];
+    private static int[] rowX0 = new int[0];
+    private static int[] rowX1 = new int[0];
+    private static List<String> rowPlain = List.of();
+    private static final List<String> SAMPLE = List.of("Next Accessory", "§7Open the Accessory Bag to see the list");
+    private static final List<Component> TIP_COPY = List.of(Component.literal("Click to copy"));
+    private static final List<Component> TIP_MODE = List.of(Component.literal("Click: next mode. Right click: previous."));
+    private static final List<Component> TIP_DRAG = List.of(Component.literal("Drag to move"));
+    private static final int OUT = -1, BODY = -2, HEADER = -3, BUTTON = -4;
+    private static final String ELEMENT_ID = "accessory_advisor_panel";
+    private static ContainerOverlayElement element;
+    private static boolean dragging;
+    private static boolean pressTaken;
+    private static int grabDX, grabDY;
+    private static int hover = OUT;
     private static long lastTouchMs;
     private static int readStateId = Integer.MIN_VALUE;
     private static AbstractContainerMenu readMenu;
@@ -114,7 +137,74 @@ public final class AccessoryAdvisor {
     }
 
     public static void register() {
+        // Movable like every container panel: its place is a HUD element (Edit HUD), and the header drags it in the bag too.
+        element = ContainerOverlayElement.register(ELEMENT_ID, "Accessory Advisor", 190, 60, 10, 30,
+                () -> AccessoryAdvisorConfig.getInstance().isEnabled(), CONTENT)
+                .previewSize(() -> new int[]{panelWidth > 0 ? panelWidth : 190, panelHeight()}).clampOnScreen();
         ScreenEvents.AFTER_INIT.register(AccessoryAdvisor::onScreenInit);
+    }
+
+    /** Puts the panel back beside the bag (forgets a dragged or Edit HUD spot). */
+    public static void resetPosition() {
+        HudConfig.getInstance().clearPosition(ELEMENT_ID);
+        HudConfig.getInstance().save();
+    }
+
+    private static int panelHeight() {
+        return (lines.isEmpty() ? SAMPLE : lines).size() * LINE + PAD * 2;
+    }
+
+    /** What a click at the screen point (mx, my) lands on: a row index, BUTTON, HEADER, BODY or OUT. */
+    private static int hit(double mx, double my) {
+        if (element == null) {
+            return OUT;
+        }
+        float s = element.drawnScale();
+        double lx = (mx - element.drawnX()) / s;
+        double ly = (my - element.drawnY()) / s;
+        if (lx < 0 || ly < 0 || lx >= (panelWidth > 0 ? panelWidth : 190) || ly >= panelHeight()) {
+            return OUT;
+        }
+        if (ly < PAD + LINE) {
+            return lx >= btnX0 && lx < btnX0 + btnW ? BUTTON : HEADER;
+        }
+        for (int i = 0; i < rowY.length; i++) {
+            if (ly >= rowY[i] && ly < rowY[i] + LINE && lx >= rowX0[i] && lx < rowX1[i]) {
+                return i;
+            }
+        }
+        return BODY;
+    }
+
+    private static void copyName(int row) {
+        Minecraft client = Minecraft.getInstance();
+        String name = rowPlain.get(row);
+        client.keyboardHandler.setClipboard(name);
+        if (client.player != null) {
+            client.player.sendSystemMessage(ModChat.line("Accessory Advisor", ModChat.text("Copied " + name + " to the clipboard!")));
+        }
+    }
+
+    private static final ContainerOverlayElement.Drawer CONTENT = AccessoryAdvisor::drawPanel;
+
+    private static void drawPanel(GuiGraphicsExtractor g, int x, int y) {
+        Font font = Minecraft.getInstance().font;
+        List<String> ls = lines.isEmpty() ? SAMPLE : lines;
+        int w = panelWidth > 0 ? panelWidth : 190;
+        int h = ls.size() * LINE + PAD * 2;
+        g.fill(x, y, x + w, y + h, 0xC0101010);
+        int border = ThemeAccent.accent(0xFFCC6600);
+        g.outline(x, y, w, h, border);
+        int titleColor = ThemeAccent.onDark(ThemeAccent.light(0xFFFFAA00));
+        for (int i = 0; i < ls.size(); i++) {
+            g.text(font, ls.get(i), x + PAD, y + PAD + i * LINE, i == 0 ? titleColor : 0xFFFFFFFF, true);
+        }
+        g.fill(x + btnX0, y + 2, x + btnX0 + btnW, y + PAD + LINE - 1, hover == BUTTON ? 0xFF3C3C3C : 0xFF222222);
+        g.outline(x + btnX0, y + 2, btnW, PAD + LINE - 3, border);
+        g.text(font, modeLabel, x + btnX0 + 4, y + PAD, 0xFFFFFFFF, false);
+        if (hover >= 0 && hover < rowY.length) {
+            g.fill(x + rowX0[hover], y + rowY[hover] + LINE - 2, x + rowX1[hover], y + rowY[hover] + LINE - 1, titleColor);
+        }
     }
 
     /** Page and page count of an Accessory Bag title ({1, 1} for a bag with one page), or null for any other menu. */
@@ -133,24 +223,47 @@ public final class AccessoryAdvisor {
         }
         ScreenEvents.afterExtract(screen).register((s, g, mouseX, mouseY, partialTick) -> {
             try {
-                render(client, container, g);
+                render(client, container, g, mouseX, mouseY);
             } catch (RuntimeException e) {
                 LOGGER.error("[AccessoryAdvisor] render failed", e);
             }
         });
+        dragging = false;
+        pressTaken = false;
+        // A press on the panel never reaches the slots under it: the button steps the mode, a name copies, the header drags.
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
-            if (!AccessoryAdvisorConfig.getInstance().isEnabled() || event.x() < titleX0 || event.x() >= titleX1
-                    || event.y() < titleY0 || event.y() >= titleY1) {
+            int h = AccessoryAdvisorConfig.getInstance().isEnabled() ? hit(event.x(), event.y()) : OUT;
+            if (h == OUT) {
                 return true;
             }
-            AccessoryAdvisorConfig cfg = AccessoryAdvisorConfig.getInstance();
-            cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), McInput.button(event) == 1 ? -1 : 1));
-            cfg.save();
+            pressTaken = true;
+            boolean right = McInput.button(event) == 1;
+            if (h == BUTTON) {
+                AccessoryAdvisorConfig cfg = AccessoryAdvisorConfig.getInstance();
+                cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), right ? -1 : 1));
+                cfg.save();
+            } else if (h >= 0 && !right) {
+                copyName(h);
+            } else if (h == HEADER && !right) {
+                dragging = true;
+                grabDX = (int) event.x() - element.drawnX();
+                grabDY = (int) event.y() - element.drawnY();
+            }
             return false;
+        });
+        ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> {
+            boolean mine = pressTaken;
+            pressTaken = false;
+            if (dragging) {
+                dragging = false;
+                HudConfig.getInstance().save();
+            }
+            return !mine;
         });
     }
 
-    private static void render(Minecraft client, AbstractContainerScreen<?> screen, GuiGraphicsExtractor g) {
+    private static void render(Minecraft client, AbstractContainerScreen<?> screen, GuiGraphicsExtractor g, int mouseX,
+                               int mouseY) {
         AccessoryAdvisorConfig cfg = AccessoryAdvisorConfig.getInstance();
         if (!cfg.isEnabled()) {
             return;
@@ -178,27 +291,23 @@ public final class AccessoryAdvisor {
         AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
         int left = acc.killer560smod$getLeftPos();
         int top = acc.killer560smod$getTopPos();
-        int h = lines.size() * LINE + PAD * 2;
         int x = left + 176 + 4;
         if (x + panelWidth > screen.width) {
             x = Math.max(0, left - panelWidth - 4);
         }
-        g.nextStratum();
-        g.fill(x, top, x + panelWidth, top + h, 0xC0101010);
-        int border = ThemeAccent.accent(0xFFCC6600);
-        g.fill(x, top, x + panelWidth, top + 1, border);
-        g.fill(x, top + h - 1, x + panelWidth, top + h, border);
-        g.fill(x, top, x + 1, top + h, border);
-        g.fill(x + panelWidth - 1, top, x + panelWidth, top + h, border);
-        int titleColor = ThemeAccent.onDark(ThemeAccent.light(0xFFFFAA00));
-        for (int i = 0; i < lines.size(); i++) {
-            g.text(client.font, lines.get(i), x + PAD, top + PAD + i * LINE, i == 0 ? titleColor : 0xFFFFFFFF, true);
+        if (dragging) {
+            int nx = Math.max(0, Math.min(mouseX - grabDX, screen.width - Math.round(panelWidth * element.drawnScale())));
+            int ny = Math.max(0, Math.min(mouseY - grabDY, screen.height - Math.round(panelHeight() * element.drawnScale())));
+            int[] saved = HudElementRegistry.toSaved(nx, ny);
+            HudConfig.getInstance().setPosition(ELEMENT_ID, saved[0], saved[1]);
         }
-        titleX0 = x;
-        titleY0 = top;
-        titleX1 = x + panelWidth;
-        titleY1 = top + PAD + LINE;
-        ContainerCover.coverRect(screen, "accadvisor", x, top, x + panelWidth, top + h);
+        hover = dragging ? HEADER : hit(mouseX, mouseY);
+        g.nextStratum();
+        element.draw(g, x, top, panelWidth, panelHeight(), CONTENT);
+        if (!dragging && hover != OUT && hover != BODY) {
+            g.setTooltipForNextFrame(client.font, hover >= 0 ? TIP_COPY : hover == BUTTON ? TIP_MODE : TIP_DRAG,
+                    java.util.Optional.empty(), mouseX, mouseY);
+        }
     }
 
     private static Bag bag() {
@@ -259,7 +368,9 @@ public final class AccessoryAdvisor {
 
     private static void build(Font font, AccessoryAdvisorConfig cfg, Bag bag) {
         List<String> out = new ArrayList<>();
-        out.add("Next Accessory: " + cfg.getMode().label);
+        out.add("Next Accessory");
+        modeLabel = cfg.getMode().label;
+        List<String> plain = new ArrayList<>();
         Map<String, AccessoryRanker.Acc> cat = catalog();
         Map<String, String> owned = bag.owned();
         int ownedMp = 0;
@@ -273,6 +384,7 @@ public final class AccessoryAdvisor {
         if (cat.isEmpty()) {
             out.add("§7Loading the accessory list...");
             lastResult = null;
+            rowY = rowX0 = rowX1 = new int[0];
         } else {
             out.add("§7" + owned.size() + " owned, " + ownedMp + " MP" + (familiesLoaded ? "" : " §8(families loading)"));
             if (bag.pages.size() < bag.pageCount) {
@@ -285,7 +397,14 @@ public final class AccessoryAdvisor {
                 out.add(PriceData.pricesFetchedAt() == 0 ? "§7Loading prices..." : "§7Nothing to buy in this mode.");
             }
             int n = 1;
+            rowX0 = new int[res.rows().size()];
+            rowX1 = new int[rowX0.length];
+            rowY = new int[rowX0.length];
             for (AccessoryRanker.Row r : res.rows()) {
+                rowY[n - 1] = PAD + out.size() * LINE;
+                rowX0[n - 1] = PAD + font.width("§7" + n + ". ");
+                rowX1[n - 1] = rowX0[n - 1] + font.width(r.name());
+                plain.add(ChatFormatting.stripFormatting(r.name()));
                 out.add("§7" + (n++) + ". " + (r.upgrade() ? "§b" : "§a") + r.name() + " §d+" + r.mpGain() + " MP §6"
                         + ChocolateFactoryMenu.compact(Math.round(r.price())) + " §7(" + ChocolateFactoryMenu.compact(
                         Math.round(r.coinsPerMp())) + "/MP)");
@@ -294,13 +413,15 @@ public final class AccessoryAdvisor {
                 out.add("§8" + res.unpriced() + " more have no price");
             }
         }
-        out.add("§8Click the title to change mode");
-        int w = 0;
+        out.add("§8Drag the title to move, click a name to copy");
+        int w = font.width(out.get(0)) + 8 + (btnW = font.width(modeLabel) + 8);
         for (String s : out) {
             w = Math.max(w, font.width(s));
         }
         lines = List.copyOf(out);
+        rowPlain = List.copyOf(plain);
         panelWidth = w + PAD * 2;
+        btnX0 = panelWidth - PAD - btnW;
     }
 
     /** Fetches the upgrade families once (retried after a minute on failure), off the render thread. */
@@ -409,5 +530,42 @@ public final class AccessoryAdvisor {
         lastResult = null;
         lines = List.of();
         testCatalog = null;
+        rowY = rowX0 = rowX1 = new int[0];
+        rowPlain = List.of();
+        dragging = pressTaken = false;
+    }
+
+    /** The panel's box as last drawn: {x, y, w, h} in screen px (null before it drew). */
+    public static int[] panelRectForTest() {
+        float s = element.drawnScale();
+        return lines.isEmpty() ? null : new int[]{element.drawnX(), element.drawnY(), Math.round(panelWidth * s),
+                Math.round(panelHeight() * s)};
+    }
+
+    /** The mode button's screen center {x, y}. */
+    public static int[] buttonCenterForTest() {
+        float s = element.drawnScale();
+        return new int[]{element.drawnX() + Math.round((btnX0 + btnW / 2f) * s), element.drawnY() + Math.round(6 * s)};
+    }
+
+    /** The screen center {x, y} of name row {@code i} (-1: none), and the header's drag point left of the button. */
+    public static int[] rowCenterForTest(int i) {
+        if (i >= rowY.length) {
+            return null;
+        }
+        float s = element.drawnScale();
+        return new int[]{element.drawnX() + Math.round((rowX0[i] + rowX1[i]) / 2f * s), element.drawnY() + Math.round((rowY[i] + 4) * s)};
+    }
+
+    public static int[] headerPointForTest() {
+        return new int[]{element.drawnX() + 3, element.drawnY() + 6};
+    }
+
+    public static int hoverForTest() {
+        return hover;
+    }
+
+    public static List<String> rowNamesForTest() {
+        return rowPlain;
     }
 }

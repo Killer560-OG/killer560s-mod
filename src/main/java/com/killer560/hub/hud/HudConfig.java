@@ -181,6 +181,11 @@ public final class HudConfig {
         positions.put(id, new int[]{x, y});
     }
 
+    /** Forgets a saved position: the element goes back to its default spot. */
+    public void clearPosition(String id) {
+        positions.remove(id);
+    }
+
     public float getScale(String id, float defaultScale) {
         // Same trap as getPosition above, fourteen lines up: getOrDefault takes an Object, so defaultScale is
         // boxed BEFORE the call and thrown away again whenever the id has a saved scale. Float.valueOf has no

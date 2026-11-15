@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.accadvisor.AccessoryAdvisor;
 import com.killer560.hub.accadvisor.AccessoryAdvisorConfig;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -42,6 +43,10 @@ public class AccessoryAdvisorTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(Component.literal("Rows: " + cfg.getRows()));
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Reset Position"), btn -> AccessoryAdvisor.resetPosition())
+                .bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
 }
