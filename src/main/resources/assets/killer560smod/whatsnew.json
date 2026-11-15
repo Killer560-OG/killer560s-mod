@@ -22,7 +22,9 @@
      "Secret Waypoints: Community Routes draws premade per-room routes (path line, etherwarp, mine and click boxes) from a local route folder or a cached public download; nothing is shipped in the jar",
      "Terminal Solver: Starts With now highlights items that glint on their own (Enchanted Book, Enchanted Golden Apple, End Crystal), so an E board no longer looks solved with nothing marked. (requeued 11-14; tk fixes 354's golden apple check)",
      "Carnival: Auto Dialogue works anywhere and answers Carnival NPCs through a Carnival Games row, Carnival is its own section in Misc, the autos stop only on Escape or the Emergency Cancel Key, Fruit Digging draws one box per tile, Auto Shovel Swap no longer grabs your AOTV, Auto Accept Game fix, and Zombie Shootout and Catch a Fish now lead their targets (Lead Adjust), read the fish bar and no longer need Hook Wait",
-     "Sim: the Dungeon Breaker can no longer break smooth granite, pistons, dispensers, or blocks with a torch, button or fire on them (requeued 11-13 after an infra stall) (requeued 11-14 pm, fastpush)"
+     "Blood Rush Helper: the built-in spawn boxes now cover 80 of the 124 mob rooms (8 more rooms, 671 spots), and learned spots outside a room are ignored (requeued after trainfix 11-14) (requeued 11-14 pm)",
+     "AP3: /ap3 redo right after a delete or clear puts it back, like /ar redo (requeued 11-14 pm)",
+     "Accessory Bag advisor: suggests the next accessory to get (best overall, upgrade only, buy new, cheapest, cheapest per Magical Power)"
     ]
    }
   ]

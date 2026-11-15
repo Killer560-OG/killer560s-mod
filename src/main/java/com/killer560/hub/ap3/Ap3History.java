@@ -52,6 +52,8 @@ final class Ap3History {
 
     private static final Deque<Entry> undo = new ArrayDeque<>();
     private static final Deque<Entry> redo = new ArrayDeque<>();
+    /** Inverses made by {@link #restoreNewestRemoval}; bounded by the stack size (cleared with it). */
+    private static final java.util.Set<Entry> restoreMarks = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     private Ap3History() {
     }
@@ -82,10 +84,35 @@ final class Ap3History {
         push(redo, new Removed(chain, node, index));
     }
 
+    /**
+     * {@code /ap3 redo} with nothing undone (killer560, 2026-11-12: "if i use the delete command and then a redo it
+     * should redo that delete"): puts back the newest deleted or cleared thing still in the undo list, looking past
+     * earlier restores of this kind. Its inverse goes on the undo stack, so {@code /ap3 undo} deletes it again.
+     */
+    static Step restoreNewestRemoval() {
+        for (Entry e : new java.util.ArrayList<>(undo)) {
+            if (restoreMarks.contains(e)) {
+                continue;
+            }
+            if (!(e instanceof Removed) && !(e instanceof Cleared)) {
+                return null;
+            }
+            undo.removeFirstOccurrence(e);
+            Applied a = apply(e, false);
+            if (a != null) {
+                push(undo, a.inverse());
+                restoreMarks.add(a.inverse());
+                return a.step();
+            }
+        }
+        return null;
+    }
+
     /** {@code /ap3 reload} or a config switch swapped every chain object. */
     static void reset() {
         undo.clear();
         redo.clear();
+        restoreMarks.clear();
     }
 
     private static void record(Entry e) {
@@ -93,6 +120,9 @@ final class Ap3History {
             return;
         }
         redo.clear();
+        if (undo.isEmpty()) {
+            restoreMarks.clear();
+        }
         push(undo, e);
     }
 
