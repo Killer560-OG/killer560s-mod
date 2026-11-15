@@ -26,6 +26,7 @@ public final class MiningQolFeatures {
         AttackHoldProbe.register();
         PowderGhast.register();
         CommissionClaim.register();
+        CommissionMenuHighlight.register();
         PigeonDrillSwap.register();
         HudElementRegistry.register(new PowderGhast.Timer());
         HudElementRegistry.register(new CommissionHud.Element());

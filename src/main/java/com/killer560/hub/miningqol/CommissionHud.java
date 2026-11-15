@@ -6,6 +6,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.pathfinding.IslandGraph;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
@@ -57,14 +58,25 @@ public final class CommissionHud {
             new Spot("Emissary", 0xFFFFFFFF, new BlockPos(-37, 200, -131)),
             new Spot("Emissary", 0xFFFFFFFF, new BlockPos(89, 198, -92)));
 
-    /** The Emissaries' spots (Commission Route's claim line goes to the nearest). */
+    /** The Dwarven Base Camp Emissary (Lissandra; the Glacite Tunnels graph's "mines_emissary" node). */
+    private static final Spot BASE_CAMP_EMISSARY = new Spot("Emissary", 0xFFFFFFFF, new BlockPos(2, 122, 236));
+
+    private static List<Spot> emissarySpots() {
+        return MiningState.glaciteTunnels() ? List.of(BASE_CAMP_EMISSARY) : EMISSARIES;
+    }
+
+    /** The Emissaries' spots on the island he is on (Commission Route's claim line goes to the nearest). */
     static List<BlockPos> emissaryPositions() {
         List<BlockPos> out = new ArrayList<>();
-        for (Spot s : EMISSARIES) {
+        for (Spot s : emissarySpots()) {
             out.add(s.pos());
         }
         return out;
     }
+
+    private static final int UMBER_COLOR = 0xFF8B5A2B;
+    private static final int TUNGSTEN_COLOR = 0xFFAAAAAA;
+    private static final int GLACITE_COLOR = 0xFF55FFFF;
 
     private record Gem(String name, int color, BlockPos[] spots) {
     }
@@ -84,6 +96,7 @@ public final class CommissionHud {
     private static volatile List<String> hudLines = List.of();
     private static volatile List<Spot> waypoints = List.of();
     private static int lastVersion = -1;
+    private static int lastMapVersion = -1;
     private static boolean lastWaypoints;
     private static boolean lastEmissaries;
     private static boolean lastColor;
@@ -104,11 +117,14 @@ public final class CommissionHud {
         }
         int v = MiningState.version();
         int pv = CommissionProgress.version() * 2 + (cfg.isCommissionInterpolate() ? 1 : 0);
-        if (v == lastVersion && pv == lastProgress && lastWaypoints == cfg.isCommissionWaypoints()
+        // The area map's version moves when the graph arrives or he crosses between the Mines and the Tunnels.
+        int mv = MinesAreaMap.version();
+        if (v == lastVersion && pv == lastProgress && mv == lastMapVersion && lastWaypoints == cfg.isCommissionWaypoints()
                 && lastEmissaries == cfg.isCommissionEmissaries() && lastColor == cfg.isCommissionColorProgress()) {
             return;
         }
         lastVersion = v;
+        lastMapVersion = mv;
         lastProgress = pv;
         lastWaypoints = cfg.isCommissionWaypoints();
         lastEmissaries = cfg.isCommissionEmissaries();
@@ -142,26 +158,41 @@ public final class CommissionHud {
 
     private static List<Spot> buildWaypoints(List<MiningState.Commission> coms, boolean places, boolean emissaries) {
         List<Spot> out = new ArrayList<>();
+        boolean tunnels = MiningState.glaciteTunnels();
+        IslandGraph graph = MinesAreaMap.graph();
+        if (graph != null && !"GLACITE_TUNNELS".equals(graph.island)) graph = null;
         if (places) {
             for (MiningState.Commission c : coms) {
                 if (c.done()) continue;
-                for (Spot area : AREAS) {
-                    if (c.name().startsWith(area.label() + " ")) {
-                        boolean ti = c.name().endsWith("Titanium");
-                        out.add(new Spot(c.name(), ti ? TITANIUM_COLOR : MITHRIL_COLOR, area.pos()));
+                if (!tunnels) {
+                    for (Spot area : AREAS) {
+                        if (c.name().startsWith(area.label() + " ")) {
+                            boolean ti = c.name().endsWith("Titanium");
+                            out.add(new Spot(c.name(), ti ? TITANIUM_COLOR : MITHRIL_COLOR, area.pos()));
+                        }
                     }
+                    continue;
                 }
+                CommissionKinds.Info info = CommissionKinds.of(c.name());
+                if (info == null || info.ore() == null) continue;
                 for (Gem g : GEMS) {
-                    if (c.name().startsWith(g.name() + " ")) {
+                    if (info.ore().equals(g.name() + " Gemstone")) {
                         for (BlockPos p : g.spots()) {
                             out.add(new Spot(g.name(), g.color(), p));
                         }
                     }
                 }
+                int color = info.ore().equals("Umber") ? UMBER_COLOR : info.ore().equals("Tungsten") ? TUNGSTEN_COLOR
+                        : info.ore().equals("Glacite") ? GLACITE_COLOR : 0;
+                if (color != 0) {
+                    for (BlockPos p : CommissionKinds.spots(graph, info.ore())) {
+                        out.add(new Spot(info.ore(), color, p));
+                    }
+                }
             }
         }
         if (emissaries && MiningState.anyDone(coms)) {
-            out.addAll(EMISSARIES);
+            out.addAll(emissarySpots());
         }
         return List.copyOf(out);
     }

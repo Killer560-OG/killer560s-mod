@@ -11,7 +11,8 @@
      "Dungeon sim: every sim setting (boss Spawn Withers and mode, loadout, filters, speed, co-op) is yours alone and no profile saves or changes it (built on profshare-1112)",
      "Accessory Advisor: drag the panel anywhere (Reset Position in its tab), a mode button on the panel, and click an accessory's name to copy it",
      "Enchants tab: new Hide Enchant Descriptions switch removes the description lines under each enchant name in item tooltips (enchanted books keep theirs unless Also On Enchanted Books is on); the enchant color settings now live in the same Enchants tab",
-     "Boss sim: starting or resetting a section or phase refills your Dungeon Breaker to full charges."
+     "Boss sim: starting or resetting a section or phase refills your Dungeon Breaker to full charges.",
+     "Glacite Tunnels commissions: the commission route, waypoints and progress now cover the Tunnels' commissions; right-click a commission in the menu to route to it"
     ]
    }
   ]

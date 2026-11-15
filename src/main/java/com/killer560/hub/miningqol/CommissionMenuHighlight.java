@@ -1,6 +1,10 @@
 package com.killer560.hub.miningqol;
 
+import com.killer560.hub.compat.McInput;
 import com.killer560.hub.croesus.DungeonChestValuer;
+import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
@@ -45,6 +49,25 @@ public final class CommissionMenuHighlight {
             }
         }
         return false;
+    }
+
+    /** Right click on a commission in the menu routes to it ({@link CommissionRoute#select}); the click is eaten only then. */
+    public static void register() {
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (screen instanceof AbstractContainerScreen<?> container && isMenu(container)) {
+                ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> McInput.button(event) != 1
+                        || !rightClick(((AbstractContainerScreenAccessor) container).killer560smod$getHoveredSlot()));
+            }
+        });
+    }
+
+    /** Whether the right click on {@code slot} chose a route (the commission named by its item). */
+    public static boolean rightClick(Slot slot) {
+        if (slot == null || slot.container instanceof net.minecraft.world.entity.player.Inventory || slot.getItem().isEmpty()
+                || !MiningQolConfig.getInstance().isCommissionRoute()) {
+            return false;
+        }
+        return CommissionRoute.select(DungeonChestValuer.strip(slot.getItem().getHoverName().getString()));
     }
 
     public static boolean isMenu(AbstractContainerScreen<?> screen) { return TITLE.equals(screen.getTitle().getString()); }

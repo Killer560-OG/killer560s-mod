@@ -135,6 +135,8 @@ public final class MiningQolConfig {
     private CommissionRouteMode commissionRouteMode = CommissionRouteMode.WALK;
     /** Route to the nearest Emissary when a commission completes (killer560, 2026-11-03); off pulses the Royal Pigeon slot. */
     private boolean commissionRouteEmissary = true;
+    /** Auto Route To Commission: in the Glacite Tunnels the line goes to the first open routable commission by itself (default off). */
+    private boolean commissionAutoRoute = false;
     /** Pulse the Royal Pigeon's hotbar slot while a claim is due (killer560, 2026-11-03), apart from the route switches. */
     private boolean commissionPigeon = true;
     /** Swap To Drill On Pigeon (killer560, 2026-11-03), cheat-only. */
@@ -237,6 +239,7 @@ public final class MiningQolConfig {
                 cfg.commissionRouteColor = intOr(o, "commissionRouteColor", cfg.commissionRouteColor);
                 cfg.commissionRouteEmissary = ConfigJson.getBool(o, "commissionRouteEmissary", cfg.commissionRouteEmissary);
                 cfg.commissionPigeon = ConfigJson.getBool(o, "commissionPigeon", cfg.commissionPigeon);
+                cfg.commissionAutoRoute = ConfigJson.getBool(o, "commissionAutoRoute", cfg.commissionAutoRoute);
                 cfg.commissionRouteMode = ConfigJson.getEnum(o, "commissionRouteMode", CommissionRouteMode.class,
                         CommissionRouteMode.WALK);
                 cfg.pigeonDrill = ConfigJson.getBool(o, "pigeonDrill", cfg.pigeonDrill);
@@ -336,6 +339,7 @@ public final class MiningQolConfig {
         o.addProperty("commissionRouteColor", commissionRouteColor);
         o.addProperty("commissionRouteEmissary", commissionRouteEmissary);
         o.addProperty("commissionPigeon", commissionPigeon);
+        o.addProperty("commissionAutoRoute", commissionAutoRoute);
         o.addProperty("commissionRouteMode", commissionRouteMode.name());
         o.addProperty("pigeonDrill", pigeonDrill);
         o.addProperty("pigeonDrillMode", pigeonDrillMode.name());
@@ -525,6 +529,14 @@ public final class MiningQolConfig {
 
     public void setCommissionPigeon(boolean v) {
         commissionPigeon = v;
+    }
+
+    public boolean isCommissionAutoRoute() {
+        return commissionAutoRoute;
+    }
+
+    public void setCommissionAutoRoute(boolean v) {
+        commissionAutoRoute = v;
     }
 
     public boolean isCommissionRouteEmissary() {

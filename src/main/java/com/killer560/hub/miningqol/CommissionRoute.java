@@ -96,6 +96,7 @@ public final class CommissionRoute {
 
     private static void clear() {
         cur = null;
+        if (!MiningState.dwarvenMines()) selected = null;
         lastTried = "";
         targetArea = null;
         publish();
@@ -197,20 +198,27 @@ public final class CommissionRoute {
             clear();
             return;
         }
+        // The graph of the island he is on, never the other one's (the map lags a tick or two after he crosses).
+        boolean tunnels = MiningState.glaciteTunnels();
         IslandGraph g = MinesAreaMap.graph();
         boolean claim = CommissionClaim.routeToEmissary();
-        String area = claim ? EMISSARY : targetArea(MiningState.commissions());
-        if (g == null || g.nodes.length == 0 || area == null) {
+        Target t = claim || g == null ? null : target(tunnels, g, cfg.isCommissionAutoRoute());
+        String area = claim ? EMISSARY : t == null ? null : t.area();
+        if (g == null || g.nodes.length == 0 || area == null || !g.island.equals(tunnels ? TUNNELS : MINES)) {
             clear();
             return;
         }
         Vec3 pos = client.player.position();
         BlockPos feet = client.player.blockPosition();
-        String ore = claim ? null : OreNodes.oreFor(MiningState.commissions(), area);
         int[] oreGoals = new int[0];
-        if (ore != null) {
-            OreNodes.tick(client.level, g, area, ore, MinesAreaMap.nodesInArea(area), pos.x, pos.y, pos.z);
-            oreGoals = OreNodes.goals();
+        if (!claim && tunnels) {
+            oreGoals = CommissionKinds.oreNodes(g, t.ore());
+        } else if (!claim) {
+            String ore = OreNodes.oreFor(MiningState.commissions(), area);
+            if (ore != null) {
+                OreNodes.tick(client.level, g, area, ore, MinesAreaMap.nodesInArea(area), pos.x, pos.y, pos.z);
+                oreGoals = OreNodes.goals();
+            }
         }
         if (claim) {
             for (BlockPos e : CommissionClaim.emissaries()) {
@@ -267,6 +275,84 @@ public final class CommissionRoute {
         }
         publish();
     }
+
+    private static final String MINES = "DWARVEN_MINES";
+    private static final String TUNNELS = "GLACITE_TUNNELS";
+
+    /** Where the line goes: a Dwarven area ({@code ore} null), or in the Tunnels the ore's name (area = ore = the graph's node name). */
+    private record Target(String area, String ore) {
+    }
+
+    private static volatile String selected = null;
+    private static String targetKey = "";
+    private static Target target = null;
+
+    /**
+     * What the line goes to: the commission he picked in the Commissions menu if it is open and routable here, else (Mines)
+     * the first open area commission as always, or (Tunnels) with Auto Route To Commission on, the first open collector whose
+     * ore the Tunnels graph has nodes for. Recomputed only when the commissions, map, island, choice or switch change.
+     */
+    private static Target target(boolean tunnels, IslandGraph g, boolean auto) {
+        List<MiningState.Commission> coms = MiningState.commissions();
+        String key = MiningState.version() + "|" + MinesAreaMap.version() + "|" + tunnels + "|" + selected + "|" + auto;
+        if (key.equals(targetKey)) return target;
+        Target out = null;
+        String sel = selected;
+        if (sel != null) {
+            boolean open = false;
+            for (MiningState.Commission c : coms) {
+                if (!c.done() && c.name().equals(sel)) {
+                    open = true;
+                    out = targetOf(sel, tunnels, g);
+                }
+            }
+            if (!open) selected = null;
+        }
+        if (out == null && !tunnels) {
+            String a = targetArea(coms);
+            out = a == null ? null : new Target(a, null);
+        }
+        for (MiningState.Commission c : coms) {
+            if (out != null || !tunnels || !auto) break;
+            out = c.done() ? null : targetOf(c.name(), true, g);
+        }
+        targetKey = key;
+        target = out;
+        return out;
+    }
+
+    private static Target targetOf(String name, boolean tunnels, IslandGraph g) {
+        if (!tunnels) {
+            for (String a : MiningState.COMMISSION_AREAS) {
+                if (name.startsWith(a + " ")) return new Target(a, null);
+            }
+            return null;
+        }
+        CommissionKinds.Info i = CommissionKinds.of(name);
+        return i != null && i.ore() != null && CommissionKinds.oreNodes(g, i.ore()).length > 0 ? new Target(i.ore(), i.ore()) : null;
+    }
+
+    /**
+     * Right click on a commission in the Commissions menu: route to it. True (and chosen) when it is open and has a
+     * route on the island he is on; false otherwise, so the click goes through.
+     */
+    public static boolean select(String commissionName) {
+        IslandGraph g = MinesAreaMap.graph();
+        boolean tunnels = MiningState.glaciteTunnels();
+        if (commissionName == null || g == null || !g.island.equals(tunnels ? TUNNELS : MINES)) return false;
+        for (MiningState.Commission c : MiningState.commissions()) {
+            if (!c.done() && c.name().equalsIgnoreCase(commissionName.trim()) && targetOf(c.name(), tunnels, g) != null) {
+                selected = c.name();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The commission picked in the menu, or null. */
+    public static String selected() { return selected; }
+
+    public static void clearSelectedForTest() { selected = null; }
 
     /** He is at an ore node within this many blocks sideways (and {@link #ORE_ARRIVED_Y} up or down): the line goes. */
     private static final double ORE_ARRIVED = 4.0;

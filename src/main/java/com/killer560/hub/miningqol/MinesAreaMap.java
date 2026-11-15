@@ -36,7 +36,8 @@ public final class MinesAreaMap {
     private static final int CELL = 16;
     private static final int MAX_SECTIONS = 4096;
 
-    private static final String ISLAND = "DWARVEN_MINES";
+    private static final String MINES = "DWARVEN_MINES";
+    private static final String TUNNELS = "GLACITE_TUNNELS";
 
     /** One built map. */
     private static final class Map3 {
@@ -61,28 +62,43 @@ public final class MinesAreaMap {
     }
 
     private static volatile Map3 map = null;
-    private static volatile IslandGraph testGraph = null;
+    private static final Map<String, IslandGraph> testGraphs = new ConcurrentHashMap<>();
+    /** The map built for each of the two islands (kept so crossing back does not rebuild or lose its section caches). */
+    private static final Map<String, Map3> built = new ConcurrentHashMap<>();
     private static volatile int version = 0;
 
     private MinesAreaMap() {
     }
 
-    /** Client tick: (re)builds the map when the Dwarven Mines graph arrives or changes. */
+    /** The graph island of where he stands: the Glacite Tunnels (with Base Camp) or the Dwarven Mines, else null. */
+    private static String island() {
+        return !MiningState.dwarvenMines() ? null : MiningState.glaciteTunnels() ? TUNNELS : MINES;
+    }
+
+    /** Client tick: (re)builds the map when the graph of the island he is on arrives, changes or he crosses to the other. */
     static void tick() {
-        IslandGraph g = testGraph;
-        if (g == null) {
-            if (!MiningState.dwarvenMines()) return;
-            g = GraphRepository.get(ISLAND);
+        String isl = island();
+        IslandGraph g;
+        if (!testGraphs.isEmpty()) {
+            g = isl == null ? null : testGraphs.get(isl);
+            if (g != null && (map == null || map.graph != g)) {
+                set(build(g));
+            }
+            return;
         }
+        if (isl == null) return;
+        g = GraphRepository.get(isl);
         Map3 m = map;
         if (g == null) {
-            if (m != null && testGraph == null && !GraphRepository.isLoaded(ISLAND)) {
+            if (m != null && !GraphRepository.isLoaded(m.graph.island)) {
                 set(null);
             }
             return;
         }
         if (m == null || m.graph != g) {
-            set(build(g));
+            Map3 kept = built.get(isl);
+            set(kept != null && kept.graph == g ? kept : build(g));
+            built.put(isl, map);
         }
     }
 
@@ -271,15 +287,24 @@ public final class MinesAreaMap {
     }
 
 
-    /** Uses this SkyHanni-format graph JSON instead of the downloaded one (null: back to the real graph). */
-    public static void useGraphJsonForTest(String json) {
-        testGraph = json == null ? null : IslandGraph.parse(ISLAND, json);
-        set(testGraph == null ? null : build(testGraph));
+    /** Uses this island-graph JSON for the Dwarven Mines instead of the downloaded one (null: back to the real graphs). */
+    public static void useGraphJsonForTest(String json) { useGraphJsonForTest(MINES, json); }
+
+    /** The same for {@code island} (DWARVEN_MINES or GLACITE_TUNNELS); the map follows the island he stands on. */
+    public static void useGraphJsonForTest(String island, String json) {
+        if (json == null) {
+            clearTestGraphForTest();
+            return;
+        }
+        IslandGraph g = IslandGraph.parse(island, json);
+        testGraphs.put(island, g);
+        set(build(g));
     }
 
-    /** Back to the downloaded graph (the next tick rebuilds from it). */
+    /** Back to the downloaded graphs (the next tick rebuilds from them). */
     public static void clearTestGraphForTest() {
-        testGraph = null;
+        testGraphs.clear();
+        built.clear();
         set(null);
     }
 
