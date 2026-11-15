@@ -14,7 +14,8 @@
      "Boss sim: starting or resetting a section or phase refills your Dungeon Breaker to full charges.",
      "Glacite Tunnels commissions: the commission route, waypoints and progress now cover the Tunnels' commissions; right-click a commission in the menu to route to it",
      "Commission Block Colors (off by default): the ores your open collector commission needs stand out and other ores are dimmed, in the Glacite Tunnels, Dwarven Mines and Crystal Hollows",
-     "Swap To Drill On Pigeon (cheat): picks the drill by the powder the finished commission gives (Mithril, Gemstone or Glacite) and its real powder bonus; new Rank Drills By setting (Powder Bonus or Compact Level)"
+     "Swap To Drill On Pigeon (cheat): picks the drill by the powder the finished commission gives (Mithril, Gemstone or Glacite) and its real powder bonus; new Rank Drills By setting (Powder Bonus or Compact Level)",
+     "Dungeon Sim: a left click on a terminal opens it just like a right click"
     ]
    }
   ]

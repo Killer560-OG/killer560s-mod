@@ -57,6 +57,26 @@ public final class BossSim {
     private BossSim() {
     }
 
+    /** A click (right or left) on a terminal's stand: Hypixel answers one tick later with the window or a refusal. */
+    private static void clickTerminal(ServerPlayer sp, BossStations.Station term, InteractionHand hand) {
+        boolean done = BossStations.isDone(term);
+        boolean live = term.section() == BossFight.section();
+        LOGGER.info("[BossSim] S{} {} clicked ({}, {})", term.section(), term.label(), hand,
+                done ? "already done" : live ? "opening" : "not this section");
+        if (hand == InteractionHand.MAIN_HAND) {
+            // Hypixel answers a stand click one tick later: the window, or one of its two refusals.
+            BossFight.later(1, "terminal open", () -> {
+                if (done) {
+                    sp.sendSystemMessage(BossChat.legacy("§cThis Terminal has already been completed!"));
+                } else if (!live) {
+                    sp.sendSystemMessage(BossChat.legacy("§cThis Terminal doesn't seem to be responsive at the moment."));
+                } else if (!BossStations.isDone(term)) {
+                    BossTerminals.open(sp, term);
+                }
+            });
+        }
+    }
+
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(BossSim::serverTick);
         ServerLifecycleEvents.SERVER_STOPPING.register(BossFight::serverStopping);
@@ -82,22 +102,7 @@ public final class BossSim {
                 return InteractionResult.FAIL;
             }
             if (term != null) {
-                boolean done = BossStations.isDone(term);
-                boolean live = term.section() == BossFight.section();
-                LOGGER.info("[BossSim] S{} {} clicked ({}, {})", term.section(), term.label(), hand,
-                        done ? "already done" : live ? "opening" : "not this section");
-                if (hand == InteractionHand.MAIN_HAND) {
-                    // Hypixel answers a stand click one tick later: the window, or one of its two refusals.
-                    BossFight.later(1, "terminal open", () -> {
-                        if (done) {
-                            sp.sendSystemMessage(BossChat.legacy("§cThis Terminal has already been completed!"));
-                        } else if (!live) {
-                            sp.sendSystemMessage(BossChat.legacy("§cThis Terminal doesn't seem to be responsive at the moment."));
-                        } else if (!BossStations.isDone(term)) {
-                            BossTerminals.open(sp, term);
-                        }
-                    });
-                }
+                clickTerminal(sp, term, hand);
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
@@ -106,7 +111,13 @@ public final class BossSim {
             if (level.isClientSide() || !(player instanceof ServerPlayer sp) || !serverOk(sp)) {
                 return InteractionResult.PASS;
             }
-            if (BossDevices.isArrowFrame(entity) || BossStations.terminalOf(entity) != null) {
+            if (BossDevices.isArrowFrame(entity)) {
+                return InteractionResult.FAIL;
+            }
+            BossStations.Station hit0 = BossStations.terminalOf(entity);
+            if (hit0 != null) {
+                // A left click opens a terminal like a right click (killer560, 2026-11-14); never an attack.
+                clickTerminal(sp, hit0, hand);
                 return InteractionResult.FAIL;
             }
             if (entity instanceof EndCrystal) {
