@@ -15,7 +15,9 @@
      "Storm Bow: releases a held Last Breath at a set charge tick (default 34.25), with optional Terminator swap and walk; Auto M5: walks to your saved mid, Ragnarock buff, aims at and kills the real Livid (cheat, both off by default)",
      "Treasure Chest Highlight: a chest that appears beside a block you just dug is now always boxed, even when the chat line is missing, you have moved away, or another player's chest appeared near you first (requeued 11-14)",
      "Internal test fixes for Blink and Auto Path Pilot test cases (no change for players)",
-     "AP3: routes that drop to a lower floor or walk into an align now land on the floor with 45 Degree Strafe on (the EE3 route no longer falls into the lava)"
+     "Fewer anticheat flags while you move: Auto Close Chest waits until you stand still before it closes the chest (chat and commands are never delayed) (requeued as stillhold-1113 on 11-14) (requeued 11-14 after hung lane) (requeued 11-14 pm)",
+     "Profiles: AP3 routes, Auto Routes, waypoints, Breaker Aura and Inventory Sorter layouts and imported fonts and sounds are now shared by every profile on the instance, so loading another profile never loses a route; each profile still keeps which route file it uses",
+     "Inventory Sorter (cheat): items a layout needs that storage did not supply are taken from your sacks with /gfs, only the shortfall (Fetch Missing From Sacks, on by default) (requeued 11-14)"
     ]
    }
   ]
