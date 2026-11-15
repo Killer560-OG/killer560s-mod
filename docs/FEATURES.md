@@ -284,6 +284,8 @@ The detailed version of the feature list in the README. Keep this file up to dat
 
 **AP3 - automated F7/M7 Phase 3 (cheat build only)**
 
+The mod ships optimized routes as built-in presets, starting with "S1 to SS optimized" (the S1 to SS route, aligned and checked against GrimAC). Each is copied into the AP3 folder the first time the mod starts, so it appears in the route list like any file you made; it never replaces a file of the same name, and one you delete is not added again.
+
 AP3 walks, aligns, leaps, uses items and times you through the F7/M7 Goldor phase (P3, sections S1-S4) along a route of *nodes* you place yourself. It only ever presses real keys - W/A/S/D, sneak, sprint, jump - and turns your real view, exactly like a player would; it never writes your position or velocity. When the server corrects your position it posts a chat line and plays the Correction Alarm, and AP3 carries on from where the server put you (since 2026-10-06; the old Stop On Server Corrections switch and the two-in-ten-seconds auto-disable are gone). Use it on your own risk - it is automation and against Hypixel's rules.
 
 *How it runs*

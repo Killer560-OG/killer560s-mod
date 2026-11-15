@@ -9,7 +9,8 @@
     "items": [
      "Sim: the Dungeon Breaker can no longer break smooth granite, pistons, dispensers, or blocks with a torch, button or fire on them (requeued 11-13 after an infra stall) (requeued 11-14 pm, fastpush)",
      "Dungeon sim: every sim setting (boss Spawn Withers and mode, loadout, filters, speed, co-op) is yours alone and no profile saves or changes it (built on profshare-1112) (requeued 11-14)",
-     "Scrollable Tooltips: a tooltip taller than the screen now starts at its top and scrolls both ways in the normal direction"
+     "Scrollable Tooltips: a tooltip taller than the screen now starts at its top and scrolls both ways in the normal direction",
+     "AP3 (cheat): ships the optimized S1 to SS route as a built-in preset, added to your AP3 routes once"
     ]
    }
   ]

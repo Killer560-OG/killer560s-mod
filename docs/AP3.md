@@ -256,6 +256,10 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   move (velocity plus the ground push) already clears the edge, so the jump starts on whichever grounded tick is nearer
   the edge. With strafe off the route still jumps on the coyote tick. AP3 boxes are tested only at end-of-tick
   positions, so a 1x1 box at a run is hit by luck; give a route's run boxes at least the move length.
+
+## Built-in routes
+
+A route bundled with the mod is a JSON in `src/main/resources/assets/killer560smod/ap3-routes/` plus one line (its file name) in `index.txt` there. `Ap3Store.seedBuiltinRoutes` copies each into the AP3 folder once per name: it never overwrites a player file, and the names it has handled are kept in `seeded.txt` in that folder, so a deleted route stays deleted. File names must pass `validateConfigName` (no parentheses, 40 characters), so "S1 to SS optimized.json".
 - Held walks that drop or reach an align (leverjump-strafe-1111, EE3 route with 45 Degree Strafe ON): Strafe reaches each
   edge a hair sooner, so its falls landed on a platform's corner or beside it. Now (a) on a jump tick toward a lower next
   node the facing (up to 60 degrees off the walk; the 0.2 sprint boost is the only big push) and in the air the push (up to

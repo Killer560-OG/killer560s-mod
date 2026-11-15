@@ -117,6 +117,7 @@ public final class Ap3Store {
             Files.createDirectories(dir);
         } catch (Exception ignored) {
         }
+        seedBuiltinRoutes();
         return dir;
     }
 
@@ -266,6 +267,52 @@ public final class Ap3Store {
                 + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / jump / ss. Edit, then /ap3 reload.");
         root.add("chains", new JsonObject());
         return root;
+    }
+
+    private static boolean seeded;
+
+    /** Built-in routes (resource {@code ap3-routes/index.txt}, one file name per line) are copied into the folder once
+     *  each: never over a file of that name, and a deleted one stays deleted (names are remembered in seeded.txt). */
+    private static void seedBuiltinRoutes() {
+        if (seeded) {
+            return;
+        }
+        seeded = true;
+        try {
+            Path dir = directory();
+            Path memo = dir.resolve("seeded.txt");
+            List<String> done = Files.isRegularFile(memo) ? new ArrayList<>(Files.readAllLines(memo, StandardCharsets.UTF_8)) : new ArrayList<>();
+            String base = "/assets/killer560smod/ap3-routes/";
+            byte[] idx;
+            try (var in = Ap3Store.class.getResourceAsStream(base + "index.txt")) {
+                if (in == null) {
+                    return;
+                }
+                idx = in.readAllBytes();
+            }
+            boolean changed = false;
+            for (String name : new String(idx, StandardCharsets.UTF_8).split("\\R")) {
+                name = name.strip();
+                if (name.isEmpty() || done.contains(name) || validateConfigName(name) != null) {
+                    continue;
+                }
+                Path target = dir.resolve(name);
+                if (!Files.exists(target)) {
+                    try (var in = Ap3Store.class.getResourceAsStream(base + name)) {
+                        if (in != null) {
+                            Files.copy(in, target);
+                        }
+                    }
+                }
+                done.add(name);
+                changed = true;
+            }
+            if (changed) {
+                Files.write(memo, done, StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[AP3] Could not add the built-in routes", e);
+        }
     }
 
     /** The pre-folder file, copied in as {@code default.json} once so nothing he recorded is lost by the move. The
