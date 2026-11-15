@@ -147,6 +147,16 @@ public final class SecretWaypointsRenderer {
         return drawn;
     }
 
+    /** Community route paths: one strip per path. {@code lines} is never changed after it is handed over. */
+    static void drawLines(LevelRenderContext context, List<Vec3[]> lines, boolean throughWalls) {
+        if (lines.isEmpty()) return;
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.lines(throughWalls), (pose, buffer) -> {
+            for (Vec3[] strip : lines) {
+                lineStrip(pose, buffer, strip, 1f, 1f, 0.2f, 1f, 2f);
+            }
+        });
+    }
+
     /** Test hook (util/EspDepthTestHook): one fill drawn exactly as a waypoint fill is, through walls or depth-tested. */
     public static void drawForTest(LevelRenderContext context, net.minecraft.world.phys.AABB box, boolean throughWalls) {
         McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.fill(throughWalls),

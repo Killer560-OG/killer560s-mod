@@ -74,6 +74,8 @@ public final class SecretWaypointsConfig {
      *  what he asked for. */
     private boolean hideCryptsAfterFive = true;
     private boolean hidePrincesAfterOne = true;
+    /** Premade per-room routes (see {@link CommunityRoutes}); on by default, shown while Secret Waypoints is on. */
+    private boolean communityRoutes = true;
 
     private SecretWaypointsConfig() {
     }
@@ -112,6 +114,7 @@ public final class SecretWaypointsConfig {
             cfg.princeColor = ConfigJson.getInt(obj, "princeColor", cfg.princeColor);
             cfg.hideCryptsAfterFive = ConfigJson.getBool(obj, "hideCryptsAfterFive", true);
             cfg.hidePrincesAfterOne = ConfigJson.getBool(obj, "hidePrincesAfterOne", true);
+            cfg.communityRoutes = ConfigJson.getBool(obj, "communityRoutes", true);
             if (!obj.has("noammDefaultsV1")) {
                 // One-time: older files saved the old colors and the Full Block size as plain values, so they are
                 // moved onto the new defaults once (colors match NoammAddons, boxes sized to the object).
@@ -162,6 +165,7 @@ public final class SecretWaypointsConfig {
         obj.addProperty("princeColor", princeColor);
         obj.addProperty("hideCryptsAfterFive", hideCryptsAfterFive);
         obj.addProperty("hidePrincesAfterOne", hidePrincesAfterOne);
+        obj.addProperty("communityRoutes", communityRoutes);
         ConfigJson.write(CONFIG_PATH, obj);
         // Everything on this page feeds the cached waypoint snapshot; rebuild it on the next tick.
         SecretWaypointsFeature.invalidateCache();
@@ -239,4 +243,8 @@ public final class SecretWaypointsConfig {
     public boolean isHidePrincesAfterOne() { return hidePrincesAfterOne; }
 
     public void setHidePrincesAfterOne(boolean v) { hidePrincesAfterOne = v; }
+
+    public boolean isCommunityRoutes() { return communityRoutes; }
+
+    public void setCommunityRoutes(boolean v) { communityRoutes = v; }
 }

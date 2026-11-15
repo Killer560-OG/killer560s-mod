@@ -49,11 +49,12 @@ import java.util.Locale;
  * answer after the timeout is dropped the same way.
  *
  * <p><b>Works For</b> (2026-10-27): every sender of an etherwarp marks its use with {@link #sending} around the send, and
- * a use is predicted only when its {@link ZpewSource}'s switch is on (an unmarked use is {@link ZpewSource#MANUAL}). The
- * master switch still turns all of it off.
+ * a use is predicted only when its {@link ZpewSource.Group}'s switch is on (an unmarked use is {@link ZpewSource#MANUAL};
+ * AP3's are never predicted). The master switch still turns all of it off.
  *
  * <p><b>Warps Per Tick</b> (cheat build only, 2026-10-27; killer560: "did you find a way to get multiple ether warps done in a
- * single tick?"): the one thing here that SENDS. With it above 1, each of his own predicted warps (right click or Left
+ * single tick?"): the one thing here that SENDS. Part of Multi Warps, which works with the camera off (zpewunify-1111):
+ * then each use is still cast here, without moving the camera, so the extras chain from it. With it above 1, each of his own predicted warps (right click or Left
  * Click Etherwarp) is followed in the same tick by N - 1 more use packets at the same look, each cast by the server from
  * the last one's landing ({@link #flushExtraWarps}). Default 1: nothing extra, and in a legit build always 1.
  *
@@ -67,8 +68,10 @@ public final class ZeroPingEtherwarp {
     /** A server teleport within this of the predicted landing is the warp we predicted. */
     public static final double MATCH_BLOCKS = 1.0;
 
+    /** {@code camera}: Zero Ping Etherwarp draws from it. A prediction without it is kept only so Multi Warps can cast its
+     *  extra warps from the landing before (Zero Ping Etherwarp off, or not working for that source). */
     private record Prediction(long sentMs, long sentTick, Vec3 from, Vec3 landing, BlockPos block, float yaw, float pitch,
-                              ZpewSource source) {
+                              ZpewSource source, boolean camera) {
     }
 
     /** The sender marking the use packets it sends right now (render thread only), or null: the player's own click. */
@@ -107,6 +110,8 @@ public final class ZeroPingEtherwarp {
     private static long owedTick = -1;
     /** True while {@link #flushExtraWarps} sends: the tap chains them from the last landing and owes nothing for them. */
     private static boolean extraSending;
+    /** True inside {@code Minecraft.startUseItem} (ZpewStartUseMixin): his click's extras wait for its end. */
+    public static boolean inClick;
     private static long extraSent;
     private static long extraStopped;
     /** Etherwarp uses seen in the current client tick, and the most ever seen in one tick. */
@@ -189,6 +194,11 @@ public final class ZeroPingEtherwarp {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && ZeroPingEtherwarpConfig.getInstance().isActiveHere();
     }
 
+    /** Uses are watched at all: Zero Ping Etherwarp is on here, or Multi Warps is (which works without it, zpewunify-1111). */
+    private static boolean tracks() {
+        return on() || com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && ZeroPingEtherwarpConfig.getInstance().isMultiWarps();
+    }
+
     /**
      * Marks every use packet sent until {@link #done} as {@code source}'s. Call it around the send, in a try/finally:
      * {@code ZpewSource prev = ZeroPingEtherwarp.sending(ZpewSource.AUTO_ROUTES); try { ...send... } finally {
@@ -205,7 +215,7 @@ public final class ZeroPingEtherwarp {
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
     public static void onPacketSent(Packet<?> packet) {
-        if (!on()) return;
+        if (!tracks()) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || !mc.isSameThread()) return;
@@ -230,9 +240,15 @@ public final class ZeroPingEtherwarp {
         maxUsesInOneTick = Math.max(maxUsesInOneTick, usesThisTick);
         ZpewSource source = current == null ? ZpewSource.MANUAL : current;
         SEEN[source.ordinal()]++;
-        if (!ZeroPingEtherwarpConfig.getInstance().worksFor(source)) {
+        ZeroPingEtherwarpConfig zc = ZeroPingEtherwarpConfig.getInstance();
+        boolean camera = on() && zc.worksFor(source);
+        // Multi Warps casts its extras from this landing, with or without the camera (Zero Ping Etherwarp may be off).
+        boolean multi = extraSending || source.group() == ZpewSource.Group.MANUAL && zc.effectiveWarpsPerTick() > 1;
+        if (!camera && !multi) {
             SKIPPED[source.ordinal()]++;
-            LOGGER.info("[ZPEW] etherwarp use by {} - not predicted (Works For: {} is off)", source.label(), source.label());
+            LOGGER.info("[ZPEW] etherwarp use by {} - not predicted ({})", source.label(), source.group() == null
+                    ? "no Works For switch covers it" : on() ? "Works For: " + source.group().label() + " is off"
+                    : "Zero Ping Etherwarp is off");
             return;
         }
         boolean sneaking = player.getLastSentInput().shift();
@@ -261,20 +277,22 @@ public final class ZeroPingEtherwarp {
         Vec3 landing = new Vec3(shot.pos().getX() + 0.5, standY + 0.05, shot.pos().getZ() + 0.5);
         int depth;
         synchronized (PENDING) {
-            PENDING.addLast(new Prediction(System.currentTimeMillis(), clientTick, from, landing, shot.pos(), yaw, pitch, source));
+            PENDING.addLast(new Prediction(System.currentTimeMillis(), clientTick, from, landing, shot.pos(), yaw, pitch, source,
+                    camera));
             depth = PENDING.size();
         }
         predictions++;
-        PREDICTED[source.ordinal()]++;
+        if (camera) {
+            PREDICTED[source.ordinal()]++;
+        }
         maxChained = Math.max(maxChained, depth);
-        LOGGER.info(String.format(Locale.ROOT, "[ZPEW] predicted #%d (%s): from %s%s yaw %.2f pitch %.2f -> block %s, land %s "
-                        + "(%.1f blocks); %d pending, tick %d", predictions, source.label(), fmt(from), chained ? " (chained)" : "",
+        LOGGER.info(String.format(Locale.ROOT, "[ZPEW] predicted #%d (%s%s): from %s%s yaw %.2f pitch %.2f -> block %s, land %s "
+                        + "(%.1f blocks); %d pending, tick %d", predictions, source.label(), camera ? "" : ", no camera", fmt(from), chained ? " (chained)" : "",
                 Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing), depth,
                 clientTick));
         // Warps Per Tick: his own warp (a right click or Left Click Etherwarp) owes N - 1 more, this tick, at this look.
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending
-                && (source == ZpewSource.MANUAL || source == ZpewSource.LEFT_CLICK)) {
-            int n = ZeroPingEtherwarpConfig.getInstance().effectiveWarpsPerTick();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending && source.group() == ZpewSource.Group.MANUAL) {
+            int n = zc.effectiveWarpsPerTick();
             if (n > 1) {
                 owed = n - 1;
                 owedHand = McPackets.useItemHand(use);
@@ -296,12 +314,20 @@ public final class ZeroPingEtherwarp {
      * sent and ends the burst (the server would do nothing with it but spend his mana).
      */
     public static void flushExtraWarps() {
+        try {
+            sendExtraWarps();
+        } catch (Throwable t) {
+            LOGGER.error("[ZPEW] Warps Per Tick threw - the first warp still went", t);
+        }
+    }
+
+    private static void sendExtraWarps() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || owed <= 0 || extraSending) return;
         int n = owed;
         owed = 0;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (owedTick != clientTick || !on() || player == null || mc.level == null || !mc.isSameThread()
+        if (owedTick != clientTick || !tracks() || player == null || mc.level == null || !mc.isSameThread()
                 || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
             return;
         }
@@ -400,7 +426,7 @@ public final class ZeroPingEtherwarp {
      * past the bank are dropped rather than sent at a look he did not click at.
      */
     static void aimedBurst(Minecraft mc) {
-        if (CLICKS.size() < 2 || !on() || !ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()) return;
+        if (CLICKS.size() < 2 || !tracks() || !ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()) return;
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || com.killer560.hub.compat.McCompat.screen(mc) != null
                 || !(mc.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)
@@ -408,8 +434,7 @@ public final class ZeroPingEtherwarp {
             return;
         }
         InteractionHand hand = InteractionHand.MAIN_HAND;
-        if (etherwarpRange(player.getItemInHand(hand)) <= 0 || !player.getLastSentInput().shift()
-                || !ZeroPingEtherwarpConfig.getInstance().worksFor(ZpewSource.MANUAL)) {
+        if (etherwarpRange(player.getItemInHand(hand)) <= 0 || !player.getLastSentInput().shift()) {
             return;
         }
         boolean differ = false;
@@ -472,7 +497,7 @@ public final class ZeroPingEtherwarp {
             key.killer560smod$setClickCount(0);
         }
         LocalPlayer player = mc.player;
-        boolean stillOk = player != null && mc.level != null && on()
+        boolean stillOk = player != null && mc.level != null && tracks()
                 && !com.killer560.hub.macrostop.MacroStop.emergencyHeld()
                 && !com.killer560.hub.streamer.StreamerMode.disablesCheats()
                 && ZeroPingEtherwarpConfig.getInstance().effectiveAimedWarps()
@@ -580,8 +605,10 @@ public final class ZeroPingEtherwarp {
                 HIT[head.source().ordinal()]++;
                 lastErrorBlocks = err;
                 lastLatencyMs = latency;
-                lastMatchedLanding = to;
-                lastMatchedNanos = System.nanoTime();
+                if (head.camera()) { // only a camera warp is Smooth Teleport's to skip (claims)
+                    lastMatchedLanding = to;
+                    lastMatchedNanos = System.nanoTime();
+                }
                 LOGGER.info(String.format(Locale.ROOT, "[ZPEW] server landed him at %s, predicted %s: hit, %.3f blocks off, "
                         + "%d ms after the use, %d tick(s); %d still pending", fmt(to), fmt(head.landing()), err, latency,
                         clientTick - head.sentTick(), left));
@@ -601,7 +628,7 @@ public final class ZeroPingEtherwarp {
         if (!on() || to == null) return false;
         synchronized (PENDING) {
             Prediction head = PENDING.peekFirst();
-            if (head != null && head.landing().distanceTo(to) <= MATCH_BLOCKS) return true;
+            if (head != null && head.camera() && head.landing().distanceTo(to) <= MATCH_BLOCKS) return true;
         }
         Vec3 m = lastMatchedLanding;
         return m != null && System.nanoTime() - lastMatchedNanos < 200_000_000L && m.distanceTo(to) <= 0.01;
@@ -612,10 +639,10 @@ public final class ZeroPingEtherwarp {
         int timeout = ZeroPingEtherwarpConfig.getInstance().getTimeoutMs();
         synchronized (PENDING) {
             Prediction head = PENDING.peekFirst();
-            if (head != null && (now - head.sentMs() > timeout || !on())) {
+            if (head != null && (now - head.sentMs() > timeout || !tracks())) {
                 int dropped = PENDING.size();
                 PENDING.clear();
-                if (on()) {
+                if (tracks()) {
                     timeouts++;
                     LOGGER.warn("[ZPEW] no teleport {} ms after the use predicted to land at {} - {} prediction(s) dropped, "
                             + "camera back on him", now - head.sentMs(), fmt(head.landing()), dropped);
@@ -637,7 +664,7 @@ public final class ZeroPingEtherwarp {
         synchronized (PENDING) {
             last = PENDING.peekLast();
         }
-        if (last == null) return vanilla;
+        if (last == null || !last.camera()) return vanilla;
         cameraFrames++;
         // The eye at the predicted landing, at his current eye height (sneaking or not).
         Vec3 landing = last.landing();
@@ -649,7 +676,7 @@ public final class ZeroPingEtherwarp {
         if (!on() || !ZeroPingEtherwarpConfig.getInstance().isOverlayFromPrediction()) return null;
         synchronized (PENDING) {
             Prediction last = PENDING.peekLast();
-            return last == null ? null : last.landing();
+            return last == null || !last.camera() ? null : last.landing();
         }
     }
 
