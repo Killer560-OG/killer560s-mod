@@ -1522,7 +1522,6 @@ final class SettingTooltipsData {
         d.put("jungle pickaxe alert", "In the Crystal Hollows, shows a red alert while you break blocks holding the Jungle Pickaxe outside the Jungle zone. The pickaxe is for the Jungle Temple.");
         d.put("jungle alert sound", "Plays a two-tone beep once each time the Jungle Pickaxe alert appears.");
         // Dungeon Extras
-        d.put("outside dungeons", "Lets Auto Dialogue answer NPCs anywhere in Skyblock, not just dungeons (cheat build only).");
         // Custom Scoreboard (new options)
         d.put("exact skyblock minutes", "Makes the SkyBlock time tick every minute instead of every 10 minutes.");
         d.put("custom title off skyblock", "Uses your custom title instead of the server's scoreboard title off Skyblock.");

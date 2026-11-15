@@ -79,6 +79,9 @@ public final class CarnivalState {
     private static Object level;
 
     private static boolean sidebarHeader;
+    /** The stripped sidebar lines were logged once for this world (the first Carnival header or game line). */
+    private static boolean sidebarLogged;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-carnival");
     private static Game sidebarGame = Game.NONE;
     private static Game chatGame = Game.NONE;
     private static long chatGameAtMs;
@@ -178,6 +181,7 @@ public final class CarnivalState {
     private static void tick(Minecraft client) {
         if (client.level != level) {
             level = client.level;
+            sidebarLogged = false;
             chatGame = Game.NONE;
             sidebarGame = Game.NONE;
             setGame(Game.NONE);
@@ -242,6 +246,11 @@ public final class CarnivalState {
             } else if ((m = SB_TIME.matcher(line)).matches()) {
                 time = m.group(1).trim();
             }
+        }
+        if ((header || named != Game.NONE) && !sidebarLogged) {
+            sidebarLogged = true;
+            LOGGER.info("[Carnival] sidebar lines at the first Carnival line: {}", lines.stream()
+                    .map(l -> String.valueOf(ChatObserver.stripCodes(l)).trim()).filter(l -> !l.isEmpty()).toList());
         }
         sidebarHeader = header;
         sidebarGame = named != Game.NONE ? named : byStat;

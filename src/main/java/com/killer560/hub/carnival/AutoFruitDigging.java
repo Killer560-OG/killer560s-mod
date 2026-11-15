@@ -21,8 +21,8 @@ import net.minecraft.world.phys.Vec3;
  * dig it - then waits for the dig to land (the tile stops being sand) before the next, at least Dig Delay apart. With
  * Auto Shovel Swap on it waits (up to two seconds) for the shovel to be in the solver's mode first. It digs only tiles
  * within 4.5 blocks of your eyes (to the block's box) and never walks: stand in the middle of the grid, or step closer
- * when it says the tile is out of reach. Free Camera keeps your screen still while your body turns; moving the mouse
- * yourself stops it for the rest of that game. One tap a tick through {@link ActionGate}; a server correction is
+ * when it says the tile is out of reach. Free Camera keeps your screen still while your body turns; only Escape or the
+ * Emergency Cancel Key stops it, for the rest of that game. One tap a tick through {@link ActionGate}; a server correction is
  * reported and it carries on. Automation: can get you banned; keep it off on the main server. Off by default.
  *
  * <p>Unverified in game: that one left click digs a tile (Mining Fatigue is on during the game).
@@ -31,7 +31,6 @@ public final class AutoFruitDigging {
 
     static final String NAME = "Auto Fruit Digging";
     static final double REACH = 4.5;
-    private static boolean stoppedThisGame;
     private static boolean aiming;
     private static int pending = -1;
     private static int pendingDigs;
@@ -43,14 +42,17 @@ public final class AutoFruitDigging {
     private static int digs;
     private static String lastTarget;
     private static String lastMode;
+    /** Attack held down on the tile until the sand breaks (vanilla's own hold builds the dig progress). */
+    private static boolean holding;
+    static final int HOLD_MAX_TICKS = 100;
 
     private AutoFruitDigging() {
     }
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> AutoFruitConfig.dig().isEnabled() && FruitDigging.active());
         CarnivalState.onGameStart(g -> {
-            stoppedThisGame = false;
             pending = -1;
             warnedFar = null;
         });
@@ -59,7 +61,16 @@ public final class AutoFruitDigging {
                 AutoFruitDigging::tick));
     }
 
+    private static void letGo() {
+        if (holding) {
+            holding = false;
+            Minecraft mc = Minecraft.getInstance();
+            mc.options.keyAttack.setDown(com.killer560.hub.islands.Islands.physical(mc, mc.options.keyAttack));
+        }
+    }
+
     private static void idle() {
+        letGo();
         if (aiming) {
             aiming = false;
             CarnivalInput.release(NAME);
@@ -70,15 +81,9 @@ public final class AutoFruitDigging {
         AutoFruitConfig cfg = AutoFruitConfig.dig();
         LocalPlayer player = mc.player;
         if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()
-                || stoppedThisGame || FruitDigging.gridOrigin() == null
+                || CarnivalInput.stopped(NAME) || FruitDigging.gridOrigin() == null
                 || FruitDigging.digs() >= FruitDiggingSolver.MAX_DIGS) {
             idle();
-            return;
-        }
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            stoppedThisGame = true;
-            idle();
-            CarnivalInput.say(NAME, "Stopped for this game: you moved the camera.");
             return;
         }
         CarnivalInput.watchCorrections(NAME);
@@ -87,18 +92,32 @@ public final class AutoFruitDigging {
         if (pending >= 0) {
             boolean landed = !FruitDigging.cell(pending).diggable || FruitDigging.digs() > pendingDigs;
             if (landed) {
+                letGo();
                 pending = -1;
                 tries = 0;
                 nextTick = now + ActionGate.delayTicks(cfg.getDelayMs());
-            } else if (now - pendingSince < 30) {
+            } else if (holding && now - pendingSince < HOLD_MAX_TICKS) {
+                // Keep holding while the look still strikes the tile; a look that drifted off lets go and tries again.
+                HitResult h = mc.hitResult;
+                if (h instanceof BlockHitResult b && b.getBlockPos().equals(FruitDigging.posOf(pending))
+                        && com.killer560.hub.util.DigAim.heardLookStrikes(player, FruitDigging.posOf(pending))) {
+                    mc.options.keyAttack.setDown(true);
+                    return;
+                }
+                letGo();
+                pending = -1;
+                return;
+            } else if (now - pendingSince < 30 && !holding) {
                 return;
             } else if (++tries >= 3) {
+                letGo();
                 ModChat.log(NAME, ModChat.text("Tile " + FruitDiggingSolver.label(pending)
                         + " did not dig after 3 tries; waiting for the next pick."));
                 pending = -1;
                 idle();
                 return;
             } else {
+                letGo();
                 pending = -1;
             }
         }
@@ -124,11 +143,13 @@ public final class AutoFruitDigging {
         if (now < nextTick) {
             return;
         }
-        if (AutoFruitConfig.swap().isEnabled() && !AutoShovelSwap.ready(player)) {
+        // Its own shovel swap (no separate switch needed): done on ticks that are not digs, before the dig.
+        if (!AutoShovelSwap.ready(player)) {
             if (swapWaitSince < 0) {
                 swapWaitSince = now;
             }
             if (now - swapWaitSince < 40) {
+                AutoShovelSwap.step(mc, player, cfg.getDelayMs());
                 return;
             }
         }
@@ -139,7 +160,16 @@ public final class AutoFruitDigging {
                 || !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
             return;
         }
-        if (CarnivalInput.tap(mc.options.keyAttack)) {
+        // The dig starts through vanilla's own hold of Attack (startDestroyBlock, then continueDestroyBlock each tick), so
+        // the sequence and progress are a real player's; one start a tick through the gate.
+        if (ActionGate.hisClickQueued(mc.options.keyAttack) || ActionGate.hisUseGoesThisTick(mc)
+                || !ActionGate.tryAct(ActionGate.Actor.CARNIVAL_WORLD)) {
+            return;
+        }
+        CarnivalInput.countTap();
+        holding = true;
+        mc.options.keyAttack.setDown(true);
+        {
             digs++;
             pending = r.cell();
             lastTarget = r.label();
@@ -152,6 +182,11 @@ public final class AutoFruitDigging {
     }
 
     /** Harness: the tile ("C4") and shovel mode of the last dig tap. */
+    /** Harness: stopped for this game by Escape or the Emergency Cancel Key. */
+    public static boolean stoppedForTest() {
+        return CarnivalInput.stopped(NAME);
+    }
+
     public static String lastTarget() {
         return lastTarget + "/" + lastMode;
     }

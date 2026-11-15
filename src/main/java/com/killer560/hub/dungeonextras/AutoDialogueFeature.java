@@ -89,8 +89,8 @@ public final class AutoDialogueFeature {
         if (!cfg.isAutoDialogueEnabled() || !plain.startsWith(OPTION_PREFIX) || plain.contains(FACTION_CHOICE)) {
             return;
         }
-        // Bug fix (2026-09-15): the QUOI reference runs anywhere; limited to dungeons unless the user opts out.
-        if (!cfg.isAutoDialogueOutsideDungeons() && !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+        // Carnival NPCs belong to the "Carnival Games" row (AutoAcceptGame); this feature never answers them.
+        if (nowMs - lastNpcAtMs <= NPC_CONTEXT_MS && lastNpcName != null && lastNpcName.startsWith("Carnival ")) {
             return;
         }
         List<Component> siblings = message.getSiblings();
@@ -140,8 +140,7 @@ public final class AutoDialogueFeature {
             return;
         }
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
-        if (client.player == null || client.getConnection() == null || !cfg.isAutoDialogueEnabled()
-                || (!cfg.isAutoDialogueOutsideDungeons() && !com.killer560.hub.secrets.DungeonState.isInDungeon())) {
+        if (client.player == null || client.getConnection() == null || !cfg.isAutoDialogueEnabled()) {
             pendingCommand = null;
             return;
         }

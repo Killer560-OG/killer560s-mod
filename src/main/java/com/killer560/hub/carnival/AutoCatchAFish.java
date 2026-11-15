@@ -18,9 +18,9 @@ import net.minecraft.world.phys.Vec3;
  * Auto Routes' eased rotation to the Catch a Fish Helper's pick (the nearest Yellow Fish, else the nearest fish),
  * following it as it swims, and taps Use to cast once it is within a few degrees. When your hook has a fish on it, it
  * holds your Use key down - the wiki's "hold Right-Click to reel it until its progress bar fills" - until the fish is
- * off the hook, then aims at the next. A cast that hooks nothing within Hook Wait is reeled back with one tap and cast
- * again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; moving the mouse yourself stops it
- * for the rest of that game. You are held still by the game, and it never moves you. Taps and the hold go through
+ * off the hook, then aims at the next. It aims ahead of a swimming fish (Lead Adjust), and a cast that cannot get a fish
+ * (none swims within a block of the bobber in the next 3 seconds) is reeled back with one tap and cast again. Casts are at least Cast Delay apart. Free Camera keeps your screen still; Only Escape or the Emergency Cancel Key stops it
+ * for the rest of that game; moving the mouse never does. You are held still by the game, and it never moves you. Taps and the hold go through
  * {@link ActionGate} at the start of the tick; a server correction is reported and it carries on. Automation: can get
  * you banned; keep it off on the main server. Off by default.
  *
@@ -34,7 +34,6 @@ public final class AutoCatchAFish {
     private enum State { AIM, WAIT_HOOK, REEL }
 
     private static State state = State.AIM;
-    private static boolean stoppedThisGame;
     private static boolean aiming;
     private static boolean holding;
     private static long stateSince;
@@ -42,19 +41,38 @@ public final class AutoCatchAFish {
     private static long lastHookedTick;
     private static int casts;
     private static int reels;
+    /** Walking to the pond's edge on keys (Sneak + Forward), the sneak kept while fishing so it cannot step in. */
+    private static boolean walking;
+    private static boolean sneaking;
+    private static int walkTicks;
+    static final int WALK_MAX_TICKS = 160;
+    /** The bobber must lie still this long before a cast is judged, and no cast waits longer than this. */
+    static final int SETTLE_TICKS = 15;
+    static final int MAX_WAIT_TICKS = 600;
+    private static int walks;
 
     private AutoCatchAFish() {
     }
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> AutoCatchAFishConfig.getInstance().isEnabled() && CatchAFish.active());
         CatchAFish.addWant(() -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
-        CarnivalState.onGameStart(g -> stoppedThisGame = false);
+        CarnivalState.onGameStart(g -> {
+            walkTicks = 0;
+        });
         int bit = FeatureBits.register(NAME, () -> AutoCatchAFishConfig.getInstance().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoCatchAFish.tick", bit, AutoCatchAFish::tick));
     }
 
     private static void release(Minecraft mc) {
+        if (walking || sneaking) {
+            walking = false;
+            sneaking = false;
+            // Hand the keys back as they really are.
+            mc.options.keyUp.setDown(Islands.physical(mc, mc.options.keyUp));
+            mc.options.keyShift.setDown(Islands.physical(mc, mc.options.keyShift));
+        }
         if (holding) {
             holding = false;
             // Hand the key back as it really is: down only if he is holding the button himself.
@@ -79,15 +97,9 @@ public final class AutoCatchAFish {
     private static void tick(Minecraft mc) {
         AutoCatchAFishConfig cfg = AutoCatchAFishConfig.getInstance();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !CatchAFish.active() || stoppedThisGame
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !CatchAFish.active() || CarnivalInput.stopped(NAME)
                 || !(player.getMainHandItem().getItem() instanceof FishingRodItem)) {
             idle(mc);
-            return;
-        }
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            stoppedThisGame = true;
-            idle(mc);
-            CarnivalInput.say(NAME, "Stopped for this game: you moved the camera.");
             return;
         }
         CarnivalInput.watchCorrections(NAME);
@@ -104,6 +116,9 @@ public final class AutoCatchAFish {
                     to(hooked ? State.REEL : State.WAIT_HOOK, now);
                     return;
                 }
+                if (walkToEdge(mc, player, cfg)) {
+                    return;
+                }
                 if (target == null) {
                     if (aiming) {
                         aiming = false;
@@ -111,7 +126,7 @@ public final class AutoCatchAFish {
                     }
                     return;
                 }
-                Vec3 at = target.box().getCenter();
+                Vec3 at = Lead.ahead(target.stand().getId(), target.box().getCenter(), player.getEyePosition(), cfg.getLeadPct());
                 aiming = true;
                 CarnivalInput.aim(NAME, player, at, true, cfg.isFreeCamera());
                 if (now >= nextCastTick && CarnivalInput.error(player, at) <= 3f && CarnivalInput.tap(mc.options.keyUse)) {
@@ -133,10 +148,14 @@ public final class AutoCatchAFish {
                     return;
                 }
                 if (target != null) {
-                    CarnivalInput.aim(NAME, player, target.box().getCenter(), true, cfg.isFreeCamera());
+                    CarnivalInput.aim(NAME, player, Lead.ahead(target.stand().getId(), target.box().getCenter(),
+                            player.getEyePosition(), cfg.getLeadPct()), true, cfg.isFreeCamera());
                 }
-                if (now - stateSince >= cfg.getHookWaitS() * 20L && CarnivalInput.tap(mc.options.keyUse)) {
-                    ModChat.log(NAME, ModChat.text("No fish on the hook; reeling back."));
+                // No wait timer: once the bobber has settled, it is reeled back only when no fish can reach it.
+                boolean settled = now - stateSince >= SETTLE_TICKS && hook.getDeltaMovement().lengthSqr() < 0.01;
+                if ((settled && !CatchAFish.willCatch(hook, CatchAFish.fish()) || now - stateSince > MAX_WAIT_TICKS)
+                        && CarnivalInput.tap(mc.options.keyUse)) {
+                    ModChat.log(NAME, ModChat.text("No fish can reach the hook; reeling back."));
                     to(State.AIM, now);
                 }
             }
@@ -158,6 +177,83 @@ public final class AutoCatchAFish {
                 }
             }
         }
+    }
+
+    /** The middle of the fish in view (the pond), or null with none. */
+    static Vec3 pond(java.util.List<CatchAFish.Fish> fish) {
+        if (fish.isEmpty()) {
+            return null;
+        }
+        double x = 0;
+        double z = 0;
+        for (CatchAFish.Fish f : fish) {
+            x += f.stand().getX();
+            z += f.stand().getZ();
+        }
+        return new Vec3(x / fish.size(), fish.get(0).stand().getY(), z / fish.size());
+    }
+
+    /** Whether the floor one step ahead of {@code player} toward {@code dir} (horizontal) is missing or water: the edge. */
+    static boolean edgeAhead(net.minecraft.client.multiplayer.ClientLevel level, LocalPlayer player, Vec3 dir) {
+        double len = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+        if (len < 1e-3) {
+            return true;
+        }
+        net.minecraft.core.BlockPos ahead = net.minecraft.core.BlockPos.containing(player.getX() + dir.x / len * 0.8,
+                player.getY() - 0.5, player.getZ() + dir.z / len * 0.8);
+        return level.getBlockState(ahead).getCollisionShape(level, ahead).isEmpty();
+    }
+
+    /**
+     * Walks to the pond's edge crouched, on key presses only (Sneak held, Forward held while the view faces the pond's
+     * middle): while a fish in the pond is out of sight, until all are in view, the floor ahead ends (the edge) or the
+     * pond is under 2.5 blocks away; at most {@link #WALK_MAX_TICKS} ticks a game, so it never freezes. The sneak stays
+     * held afterward. True while it is walking (the caller does not cast then).
+     */
+    private static boolean walkToEdge(Minecraft mc, LocalPlayer player, AutoCatchAFishConfig cfg) {
+        Vec3 pond = pond(CatchAFish.fish());
+        boolean seesAll = true;
+        for (CatchAFish.Fish f : CatchAFish.fish()) {
+            seesAll &= CatchAFish.inSight(player, f);
+        }
+        Vec3 dir = pond == null ? Vec3.ZERO : pond.subtract(player.position());
+        boolean done = pond == null || seesAll || walkTicks >= WALK_MAX_TICKS || dir.horizontalDistanceSqr() < 6.25
+                || edgeAhead(mc.level, player, dir);
+        if (done) {
+            if (sneaking) {
+                mc.options.keyShift.setDown(true);
+            }
+            if (walking) {
+                walking = false;
+                mc.options.keyUp.setDown(Islands.physical(mc, mc.options.keyUp));
+                CarnivalInput.release(NAME);
+                aiming = false;
+                ModChat.log(NAME, ModChat.text("At the pond's edge."));
+            }
+            return false;
+        }
+        if (!walking) {
+            walking = true;
+            walks++;
+            ModChat.log(NAME, ModChat.text("Walking to the pond's edge, crouched."));
+        }
+        sneaking = true;
+        walkTicks++;
+        aiming = true;
+        CarnivalInput.aim(NAME, player, new Vec3(pond.x, player.getEyeY(), pond.z), false, cfg.isFreeCamera());
+        mc.options.keyShift.setDown(true);
+        mc.options.keyUp.setDown(true);
+        return true;
+    }
+
+    /** Harness: walks to the edge started. */
+    public static int walks() {
+        return walks;
+    }
+
+    /** Harness: whether it is walking now. */
+    public static boolean walking() {
+        return walking;
     }
 
     /** Harness: casts made. */
