@@ -15,6 +15,10 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            Map.entry("custom enchant colors", "enchants"),
+            Map.entry("enchant colors", "enchants"),
+            Map.entry("hide enchant descriptions", "enchants"),
+            Map.entry("enchant lore", "enchants"),
             Map.entry("auto accept game", "auto dialogue"),
             Map.entry("carnival accept", "auto dialogue"),
             Map.entry("carnival games", "auto dialogue"),

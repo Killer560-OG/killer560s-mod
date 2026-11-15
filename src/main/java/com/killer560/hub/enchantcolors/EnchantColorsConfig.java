@@ -71,6 +71,9 @@ public final class EnchantColorsConfig {
      *  called Perfect, which is exactly the old "clamped to the table's top color" behavior killer560 was
      *  pointing at, kept available on purpose rather than silently wrong. */
     private boolean trueMaxDetection = true;
+    /** Hide Enchant Descriptions (its own feature in the same file); Enchanted Books keep theirs unless hideOnBooks. */
+    private boolean hideDescriptions = false;
+    private boolean hideOnBooks = false;
 
     private EnchantColorsConfig() {
     }
@@ -108,6 +111,8 @@ public final class EnchantColorsConfig {
             cfg.ultimateColor = ConfigJson.getInt(obj, "ultimateColor", EnchantColorsDefaults.ULTIMATE);
             cfg.ultimateBold = ConfigJson.getBool(obj, "ultimateBold", true);
             cfg.trueMaxDetection = ConfigJson.getBool(obj, "trueMaxDetection", true);
+            cfg.hideDescriptions = ConfigJson.getBool(obj, "hideDescriptions", false);
+            cfg.hideOnBooks = ConfigJson.getBool(obj, "hideOnBooks", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new EnchantColorsConfig();
@@ -132,6 +137,8 @@ public final class EnchantColorsConfig {
         obj.addProperty("ultimateColor", ultimateColor);
         obj.addProperty("ultimateBold", ultimateBold);
         obj.addProperty("trueMaxDetection", trueMaxDetection);
+        obj.addProperty("hideDescriptions", hideDescriptions);
+        obj.addProperty("hideOnBooks", hideOnBooks);
         ConfigJson.write(CONFIG_PATH, obj);
         // Every rendered tooltip is cached by lore identity, so an edit has to invalidate it or the new
         // color wouldn't show until you hovered something else (SkyHanni hits the same problem and solves
@@ -262,5 +269,27 @@ public final class EnchantColorsConfig {
 
     public void setTrueMaxDetection(boolean trueMaxDetection) {
         this.trueMaxDetection = trueMaxDetection;
+    }
+
+    /** Hide Enchant Descriptions: the real value, for the settings screen. */
+    public boolean isHideDescriptionsRaw() {
+        return hideDescriptions;
+    }
+
+    /** Whether descriptions are hidden now (honors "Skyblock Only"). */
+    public boolean isHideDescriptions() {
+        return hideDescriptions && SkyblockGate.allows();
+    }
+
+    public void setHideDescriptions(boolean on) {
+        this.hideDescriptions = on;
+    }
+
+    public boolean isHideOnBooks() {
+        return hideOnBooks;
+    }
+
+    public void setHideOnBooks(boolean on) {
+        this.hideOnBooks = on;
     }
 }

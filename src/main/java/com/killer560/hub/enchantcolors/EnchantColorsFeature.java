@@ -178,7 +178,8 @@ public final class EnchantColorsFeature {
     public static List<Component> recolor(ItemStack stack, List<Component> lines) {
         renderHookSeen = true;
         EnchantColorsConfig cfg = EnchantColorsConfig.getInstance();
-        if (!cfg.isEnabled() || stack == null || stack.isEmpty() || lines == null || lines.isEmpty()) {
+        if (!(cfg.isEnabled() || cfg.isHideDescriptions()) || stack == null || stack.isEmpty() || lines == null
+                || lines.isEmpty()) {
             return lines;
         }
         if (clearRequested) {
@@ -190,7 +191,9 @@ public final class EnchantColorsFeature {
         if (data == null) {
             return lines;
         }
-        PERFECT_CHROMA.speed(cfg.getChromaSpeed()).size(cfg.getChromaSize());
+        if (cfg.isEnabled()) {
+            PERFECT_CHROMA.speed(cfg.getChromaSpeed()).size(cfg.getChromaSize());
+        }
         CacheEntry cached = CACHE.get(stack);
         // A chroma Perfect segment carries PERFECT_CHROMA's color and is colored per glyph as it is drawn (see
         // that field), so a cached result animates by itself: until 2026-10-13 it was rebuilt every 100 ms instead.
@@ -214,6 +217,7 @@ public final class EnchantColorsFeature {
 
     /** @return the recolored lines, or null when nothing on this item needed recoloring. */
     private static List<Component> apply(EnchantColorsConfig cfg, CustomData data, List<Component> lines) {
+        final List<Component> origLines = lines;
         CompoundTag tag = data.copyTag();
         // Hypixel's ExtraAttributes arrives as the item's custom-data root (same place ItemRarityFeature
         // reads "id" and "petInfo" from, and DungeonChestValuer reads "enchantments" from). No enchantments
@@ -251,6 +255,13 @@ public final class EnchantColorsFeature {
             }
         }
 
+        // Hide Enchant Descriptions first; an Enchanted Book keeps its description unless "Also On Enchanted Books".
+        boolean hide = cfg.isHideDescriptions() && (cfg.isHideOnBooks() || !"ENCHANTED_BOOK".equals(tag.getStringOr("id", "")));
+        List<Component> base = hide ? stripDescriptions(lines, levels) : lines;
+        if (!cfg.isEnabled()) {
+            return base == lines ? null : base;
+        }
+        lines = base;
         List<Component> out = null;
         for (int i = 0; i < lines.size(); i++) {
             Component line = lines.get(i);
@@ -267,7 +278,54 @@ public final class EnchantColorsFeature {
             }
             out.set(i, rebuilt);
         }
-        return out;
+        return out != null ? out : (base == origLines ? null : base);
+    }
+
+    /** A blank line (only codes and spaces) ends an enchant block. */
+    private static final Pattern BLANK = Pattern.compile("^(?:§.|\s)*$");
+    /** A description line opens gray (optionally behind style codes such as the italic Hypixel lore carries). */
+    private static final Pattern GRAY_START = Pattern.compile("^(?:§[^78])*§[78]");
+
+    /** Drops the gray description lines that follow an expanded-layout enchant name line (exactly one enchant on the
+     *  line, known from the item's data, not the comma layout), up to the next blank line or enchant line. A line that
+     *  is not gray ends the run and is kept, so nothing outside an enchant's own text is ever removed.
+     *  @return {@code lines} itself when nothing was removed. */
+    private static List<Component> stripDescriptions(List<Component> lines, Map<String, Integer> levels) {
+        List<Component> out = null;
+        boolean skipping = false;
+        boolean compact = false;
+        for (int i = 0; i < lines.size(); i++) {
+            String legacy = LegacyText.toLegacy(lines.get(i));
+            boolean drop = false;
+            if (BLANK.matcher(legacy).matches()) {
+                skipping = false;
+                compact = false;
+            } else if (ENCHANT_LINE.matcher(legacy).matches()) {
+                skipping = !compact && singleKnown(legacy, levels);
+                compact = legacy.endsWith(",") || legacy.endsWith(", ") || legacy.contains(", ");
+            } else if (skipping) {
+                drop = GRAY_START.matcher(legacy).find();
+                skipping = drop;
+            } else {
+                compact = false;
+            }
+            if (drop && out == null) {
+                out = new ArrayList<>(lines.subList(0, i));
+            }
+            if (!drop && out != null) {
+                out.add(lines.get(i));
+            }
+        }
+        return out == null ? lines : out;
+    }
+
+    /** The line holds exactly one enchant (plus an optional counter) and the item's data has it. */
+    private static boolean singleKnown(String legacy, Map<String, Integer> levels) {
+        Matcher m = ENCHANT.matcher(legacy);
+        if (!m.find() || !levels.containsKey(normalize(m.group("enchant")))) {
+            return false;
+        }
+        return !m.find();
     }
 
     private static void putName(Map<String, Integer> levels, Map<String, Boolean> isUltimate, String name,

@@ -211,7 +211,7 @@ final class CardBlurbsData {
         d.put("VoiceToTextTab", "Speech to party chat.");
         d.put("AuctionHouseTab", "Custom Auction House.");
         d.put("BazaarTab", "Custom Bazaar and themed menus.");
-        d.put("EnchantColorsTab", "Colors enchant names.");
+        d.put("EnchantColorsTab", "Hide lore, color names.");
         d.put("InventoryHudTab", "Inventory as a HUD.");
         d.put("ArmorHudTab", "Worn armor and equipment HUD.");
         d.put("InventorySearchTab", "Ctrl+F finds slots.");

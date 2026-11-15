@@ -31,7 +31,13 @@ import com.killer560.hub.compat.McCompat;
 public class EnchantColorsTab extends BaseTab {
 
     public EnchantColorsTab() {
-        super("Enchant Colors");
+        super("Enchants");
+    }
+
+    /** Two features side by side (Hide Enchant Descriptions, Enchant Colors), each with its own switch. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Hide Enchant Descriptions", "Enchant Colors");
     }
 
     @Override
@@ -41,8 +47,22 @@ public class EnchantColorsTab extends BaseTab {
         Minecraft mc = Minecraft.getInstance();
         int y = contentY;
 
-        if (masterClosed(widgets, "Enchant Colors", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
-                contentX, y, contentWidth)) {
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Hide Enchant Descriptions", false));
+        y += 16;
+        widgets.add(onOffButton("Hide Enchant Descriptions", cfg::isHideDescriptionsRaw, cfg::setHideDescriptions,
+                cfg::save, requestRebuild, contentX, y, contentWidth, 20));
+        y += 24;
+        if (cfg.isHideDescriptionsRaw() || isSearchScan()) {
+            widgets.add(onOffButton("Also On Enchanted Books", cfg::isHideOnBooks, cfg::setHideOnBooks, cfg::save,
+                    null, contentX, y, contentWidth, 18));
+            y += 26;
+        }
+
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Enchant Colors", false));
+        y += 16;
+        widgets.add(onOffButton("Enchant Colors", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 20));
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         y += 26;
