@@ -35,8 +35,7 @@ public final class SimAttackSpeed {
     public static final int ATTACK_SPEED = 100;
 
     /** Ticks between melee swings: {@code round(10 / (1 + AS/100))}. Five at 100 Attack Speed. */
-    public static final int BASE_ATTACK_INTERVAL_TICKS =
-            (int) Math.round(10.0 / (1.0 + ATTACK_SPEED / 100.0));
+    public static final int BASE_ATTACK_INTERVAL_TICKS = melee(ATTACK_SPEED);
 
     /**
      * Ticks between shortbow shots: {@code ceil(10 / (1 + AS/100))}. Five at 100 Attack Speed, i.e. 4.00
@@ -45,8 +44,7 @@ public final class SimAttackSpeed {
      * <p>The wiki notes that holding right-click caps at 4.00 shots a second in vanilla anyway unless the use
      * key is bound to the keyboard, so at this Attack Speed the two happen to agree.
      */
-    public static final int SHORTBOW_INTERVAL_TICKS =
-            (int) Math.ceil(10.0 / (1.0 + ATTACK_SPEED / 100.0));
+    public static final int SHORTBOW_INTERVAL_TICKS = shortbow(ATTACK_SPEED);
 
     /**
      * Ticks between Terminator shots when LEFT-click spamming, from the wiki's Terminator "Fire Rate" table: 9 ticks
@@ -54,8 +52,31 @@ public final class SimAttackSpeed {
      * click shoots faster than the 5-tick shortbow cooldown ({@link #SHORTBOW_INTERVAL_TICKS}), which is what a held
      * right-click is limited to (vanilla's 4.00 shots a second cap).
      */
-    public static final int TERMINATOR_CLICK_INTERVAL_TICKS =
-            ATTACK_SPEED <= 11 ? 9 : ATTACK_SPEED <= 40 ? 7 : ATTACK_SPEED <= 66 ? 5 : 4;
+    public static final int TERMINATOR_CLICK_INTERVAL_TICKS = terminatorClick(ATTACK_SPEED);
+
+    /**
+     * The Attack Speed the sim really uses: {@link #ATTACK_SPEED} (the normal cap), or the cap Thermodynamic Armor's
+     * Newton's Demise raises it to (+50) when that armor is selected ({@link SimArmor}); the player is assumed to sit
+     * at the cap.
+     */
+    public static int attackSpeed() {
+        return SimArmor.current() == SimArmor.THERMODYNAMIC ? ATTACK_SPEED + SimArmor.NEWTONS_DEMISE_CAP_BONUS : ATTACK_SPEED;
+    }
+
+    /** {@link #BASE_ATTACK_INTERVAL_TICKS} at the live Attack Speed. */
+    public static int meleeInterval() { return melee(attackSpeed()); }
+
+    /** {@link #SHORTBOW_INTERVAL_TICKS} at the live Attack Speed. */
+    public static int shortbowInterval() { return shortbow(attackSpeed()); }
+
+    /** {@link #TERMINATOR_CLICK_INTERVAL_TICKS} at the live Attack Speed. */
+    public static int terminatorClickInterval() { return terminatorClick(attackSpeed()); }
+
+    private static int melee(int as) { return (int) Math.round(10.0 / (1.0 + as / 100.0)); }
+
+    private static int shortbow(int as) { return (int) Math.ceil(10.0 / (1.0 + as / 100.0)); }
+
+    private static int terminatorClick(int as) { return as <= 11 ? 9 : as <= 40 ? 7 : as <= 66 ? 5 : 4; }
 
     private SimAttackSpeed() {
     }

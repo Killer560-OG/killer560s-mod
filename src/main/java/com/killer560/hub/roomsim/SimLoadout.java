@@ -51,6 +51,7 @@ public final class SimLoadout {
     /** Skyblock id per slot, or null for an empty slot. */
     private static String[] slots = new String[SLOTS];
     private static boolean applyOnLoad = true;
+    private static SimArmor armor = SimArmor.NONE;
     private static boolean loaded;
 
     private SimLoadout() {
@@ -162,6 +163,7 @@ public final class SimLoadout {
         if (applyOnLoad && hasAnything()) {
             apply(client);
         }
+        applyArmor(client);
     }
 
     private static boolean hasAnything() {
@@ -189,11 +191,39 @@ public final class SimLoadout {
         ModChat.send("Sim", ModChat.dim("/simloadout save | apply | clear | auto | slot <0-35> <ID>"));
     }
 
+    /** The armor set the sim wears (Sim Settings "Sim Armor"), saved in the loadout file. */
+    public static synchronized SimArmor armor() {
+        load();
+        return armor;
+    }
+
+    /** Selects the set, saves it and puts it on (or takes it off) at once when a sim is running. */
+    public static synchronized void setArmor(SimArmor set) {
+        load();
+        armor = set;
+        persist();
+        applyArmor(Minecraft.getInstance());
+    }
+
+    /** Puts the selected set on the sim player; a no-op outside a sim. */
+    static void applyArmor(Minecraft client) {
+        if (client.player == null || !SimState.canAct(client)) return;
+        var server = client.getSingleplayerServer();
+        if (server == null) return;
+        var uuid = client.player.getUUID();
+        SimArmor set = armor;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
+            if (sp != null) SimArmor.wear(sp, set);
+        });
+    }
+
     /** Reads the file again, defaults first (a profile applied: ProfileManager.reloadAllConfigs, 2026-11-02). */
     public static synchronized void reload() {
         loaded = false;
         slots = new String[SLOTS];
         applyOnLoad = true;
+        armor = SimArmor.NONE;
         load();
     }
 
@@ -205,6 +235,13 @@ public final class SimLoadout {
             JsonObject o = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8))
                     .getAsJsonObject();
             applyOnLoad = !o.has("applyOnLoad") || o.get("applyOnLoad").getAsBoolean();
+            if (o.has("armor")) {
+                try {
+                    armor = SimArmor.valueOf(o.get("armor").getAsString());
+                } catch (IllegalArgumentException ignored) {
+                    armor = SimArmor.NONE;
+                }
+            }
             JsonArray arr = o.getAsJsonArray("slots");
             for (int i = 0; arr != null && i < arr.size() && i < SLOTS; i++) {
                 slots[i] = arr.get(i).isJsonNull() ? null : arr.get(i).getAsString();
@@ -219,6 +256,7 @@ public final class SimLoadout {
             Files.createDirectories(FILE.getParent());
             JsonObject o = new JsonObject();
             o.addProperty("applyOnLoad", applyOnLoad);
+            o.addProperty("armor", armor.name());
             JsonArray arr = new JsonArray();
             for (String s : slots) {
                 if (s == null) {

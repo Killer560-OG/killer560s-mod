@@ -85,7 +85,7 @@ public final class SimClass {
         wasAttacking = attacking;
         redrawLingeringBeam(client);
         SimTerminator.tick();
-        if (!pressed || tickCounter - lastBeamTick < BEAM_COOLDOWN_TICKS) return;
+        if (!pressed || tickCounter - lastBeamTick < SimAttackSpeed.meleeInterval()) return;
         // THE TERMINATOR FIRES ON LEFT CLICK TOO, and the beam must not also go off.
         //
         // killer560 (2026-09-30): "it needs to function like a shortbow. So on left or right click it shoots

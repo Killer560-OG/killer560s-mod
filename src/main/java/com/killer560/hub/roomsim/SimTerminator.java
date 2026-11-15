@@ -226,7 +226,7 @@ public final class SimTerminator {
     /** As above; a left click may shoot every {@link SimAttackSpeed#TERMINATOR_CLICK_INTERVAL_TICKS}, a right click every shortbow cooldown. */
     static boolean readyToFire(UUID guest, boolean leftClick) {
         int last = guest == null ? lastShotTick : GUEST_LAST_SHOT.getOrDefault(guest, -1000);
-        if (tickCounter - last < (leftClick ? SimAttackSpeed.TERMINATOR_CLICK_INTERVAL_TICKS : SHOT_COOLDOWN_TICKS)) return false;
+        if (tickCounter - last < (leftClick ? SimAttackSpeed.terminatorClickInterval() : SimAttackSpeed.shortbowInterval())) return false;
         if (guest == null) lastShotTick = tickCounter; else GUEST_LAST_SHOT.put(guest, tickCounter);
         return true;
     }
@@ -292,8 +292,12 @@ public final class SimTerminator {
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);
             if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
-            for (int i = 0; i < ARROWS_PER_SHOT; i++) {
-                double offset = (i - (ARROWS_PER_SHOT - 1) / 2.0) * SPREAD_DEGREES;
+            final int arrows = ARROWS_PER_SHOT + SimArmor.extraArrows();
+            final double dmg = DAMAGE * SimArmor.damageMultiplier();
+            final float speed = (float) (ARROW_VELOCITY * SimArmor.arrowSpeedMultiplier());
+            final double[] damages = new double[arrows];
+            for (int i = 0; i < arrows; i++) {
+                double offset = (i - (arrows - 1) / 2.0) * SPREAD_DEGREES;
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
                 TerminatorArrow arrow = new TerminatorArrow(level, sp);
                 // From where he stood when the server answered the use (vanilla's owner eye - 0.1), not where he stands
@@ -303,16 +307,25 @@ public final class SimTerminator {
                 arrow.setPos(eyeAt.x, eyeAt.y - 0.1, eyeAt.z);
                 arrow.shotYaw = yaw + (float) offset;
                 arrow.shot = shot;
-                arrow.lane = i - (ARROWS_PER_SHOT - 1) / 2;
-                arrow.shoot(dir.x, dir.y, dir.z, ARROW_VELOCITY, ARROW_INACCURACY);
+                arrow.lane = i - (arrows - 1) / 2;
+                // Terror's Hydra Strike: the two outermost arrows are the extras, at a share of the arrow damage.
+                damages[i] = Math.abs(arrow.lane) > (ARROWS_PER_SHOT - 1) / 2 ? dmg * SimArmor.HYDRA_EXTRA_ARROW_DAMAGE : dmg;
+                arrow.setBaseDamage(damages[i]);
+                arrow.shoot(dir.x, dir.y, dir.z, speed, ARROW_INACCURACY);
                 if (level.addFreshEntity(arrow)) {
                     arrowsFired++;
                 }
             }
+            lastShotDamages = damages;
             level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.ARROW_SHOOT,
                     SoundSource.PLAYERS, 1.0f, 1.0f);
         });
     }
+
+    private static volatile double[] lastShotDamages = new double[0];
+
+    /** Base damage of each arrow of the last ordinary shot, lane order left to right, for tests. */
+    public static double[] lastShotDamagesForTest() { return lastShotDamages.clone(); }
 
     /**
      * One of this weapon's arrows landed on something.

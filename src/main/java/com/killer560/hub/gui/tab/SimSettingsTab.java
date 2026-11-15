@@ -107,6 +107,11 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
             prefs.save();
         }, () -> { }, null, contentX, y, contentWidth, 18));
         y += 22;
+        // Sim Armor (simarmor-1115): the set the sim player wears, four pieces, bonuses always at max.
+        w.add(SettingsButtonWidget.cycleEnum(() -> Component.literal("Sim Armor: " + com.killer560.hub.roomsim.SimLoadout.armor().label),
+                com.killer560.hub.roomsim.SimLoadout::armor, com.killer560.hub.roomsim.SimLoadout::setArmor, () -> { })
+                .bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         // Receive Sim Invites (coopsim phase 3): ON keeps the relay socket a room owner's invite arrives through.
         var coop = com.killer560.hub.roomsim.SimCoopConfig.get();
         w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
