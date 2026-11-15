@@ -294,6 +294,7 @@ public final class ModPaths {
         t.put("itemrarity", "interface/itemrarity");
         t.put("slottext", "interface/slottext");
         t.put("compactorpreview", "interface/compactorpreview");
+        t.put("accadvisor", "skyblock/accadvisor");
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
         t.put("darkmode", "interface/darkmode");
