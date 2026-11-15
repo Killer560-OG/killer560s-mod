@@ -509,6 +509,7 @@ public final class ProfileManager {
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,
                 com.killer560.hub.miningqol.MiningQolConfig::load,
+                com.killer560.hub.commissioncolors.CommissionColorsConfig::load,
                 com.killer560.hub.powdermining.PowderMiningConfig::load,
                 com.killer560.hub.doorkeys.DoorKeysConfig::load,
                 com.killer560.hub.witherdoors.WitherDoorsConfig::load,

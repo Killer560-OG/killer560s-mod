@@ -36,7 +36,8 @@ public class MiningQolTab extends FolderTab {
     static final class CommissionsMithrilGroup extends FolderTab {
         CommissionsMithrilGroup() {
             super("Commissions and Mithril", List.of(new MiningCommissionHudTab(), new MiningCommissionRouteTab(),
-                    new MiningMithrilStoneTab(), new MiningTitaniumTab(), new MiningRaffleTab()));
+                    new MiningMithrilStoneTab(), new MiningTitaniumTab(), new MiningRaffleTab(),
+                    new MiningCommissionColorsTab()));
         }
     }
 

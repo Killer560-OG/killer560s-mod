@@ -57,6 +57,7 @@ public final class MiningQolFeatures {
             MiningHighlights.tick(client);
             RaffleLog.tick(client);
             MithrilStone.tick(client);
+            com.killer560.hub.commissioncolors.CommissionColors.tick(client);
             DarkStone.tick(client);
             CommissionClaim.tick(client);
             CommissionRoute.tick(client);

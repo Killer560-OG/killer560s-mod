@@ -24,6 +24,7 @@ final class CardBlurbsData {
         d.put("MiningResumeBreakTab", "Keeps digging after a menu.");
         d.put("MiningPigeonDrillTab", "Holds a drill when you claim.");
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
+        d.put("MiningCommissionColorsTab", "Shows ores you need.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
         d.put("TreasureChestHighlightTab", "Boxes your chests.");
         d.put("TreasureChestAlertTab", "Chest spawn sound.");

@@ -264,6 +264,10 @@ final class SettingTooltipsData {
         d.put("crystal hollows walls/crystal nucleus color", "The color of the Crystal Nucleus walls.");
         d.put("crystal hollows walls/crystal nucleus opacity", "How solid the Crystal Nucleus walls are, 5 to 100 percent.");
         d.put("crystal hollows walls/crystal nucleus near only", "The Crystal Nucleus walls show only within this distance of you, clipped to a cube around you; Always draws the whole wall.");
+        d.put("commission block colors", "While a collector commission is open, the ores it needs stand out and the other ores are dimmed. Only the drawing changes.");
+        d.put("commission block colors/highlight wanted blocks", "Draws the blocks your open commissions need in the highlight color (ore as wool, gemstones as stained glass).");
+        d.put("commission block colors/highlight color", "The color the needed blocks are drawn in; the nearest of the 16 dye colors is used. Default is the menu theme.");
+        d.put("commission block colors/dim other ores", "Draws every other ore as stone and every other gemstone as gray glass while a commission is open.");
         d.put("raffle ticket highlight", "During the Dwarven Mines Raffle, boxes each raffle ticket on the ground.");
         d.put("raffle ticket highlight/ticket color", "The color of the ticket boxes.");
         d.put("raffle ticket highlight/through walls", "Cheat build: draws the ticket boxes through blocks.");

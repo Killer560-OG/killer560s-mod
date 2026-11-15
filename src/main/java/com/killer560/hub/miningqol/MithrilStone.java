@@ -61,7 +61,9 @@ public final class MithrilStone {
         }
         BlockState red = MiningHighlights.carpetReplace(state, x, y, z);
         if (red != null) return red;
-        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) return null;
+        if (!enabled || state == null || !MITHRIL.contains(state.getBlock()) || !stoneAt(x, y, z)) {
+            return com.killer560.hub.commissioncolors.CommissionColors.replace(state, x, y, z);
+        }
         swapped.incrementAndGet();
         if (recordForTest) {
             SWAPPED_AT.add(BlockPosKey.of(x, y, z));
@@ -110,7 +112,7 @@ public final class MithrilStone {
     }
 
     /** Marks every section within render distance for a rebuild (on the client thread). */
-    private static void remesh(Minecraft client) {
+    public static void remesh(Minecraft client) {
         ClientLevel level = client.level;
         if (level == null || client.player == null) return;
         int r = client.options.getEffectiveRenderDistance() + 1;
