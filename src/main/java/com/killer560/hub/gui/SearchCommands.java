@@ -110,6 +110,8 @@ public final class SearchCommands {
     public static final Map<String, String> NO_CARD = Map.ofEntries(
             Map.entry("killer560", "opens this menu"),
             Map.entry("k560tested", "testing build: marks a tab tested"),
+            Map.entry("bugreport", "builds the bug report zip; no setting"),
+            Map.entry("logreport", "same as bugreport"),
             Map.entry("reboot", "restarts the game; no setting"));
 
     private static final String ROOT = "com.killer560.hub.";

@@ -16,7 +16,8 @@
      "Commission Block Colors (off by default): the ores your open collector commission needs stand out and other ores are dimmed, in the Glacite Tunnels, Dwarven Mines and Crystal Hollows",
      "Swap To Drill On Pigeon (cheat): picks the drill by the powder the finished commission gives (Mithril, Gemstone or Glacite) and its real powder bonus; new Rank Drills By setting (Powder Bonus or Compact Level)",
      "Dungeon Sim: a left click on a terminal opens it just like a right click",
-     "Mod Chat Lobby mode no longer sends a command to find your lobby; it reads the server id Hypixel already shows on the scoreboard"
+     "Mod Chat Lobby mode no longer sends a command to find your lobby; it reads the server id Hypixel already shows on the scoreboard",
+     "Bug Report: /bugreport and /logreport now build the report zip too."
     ]
    }
   ]
