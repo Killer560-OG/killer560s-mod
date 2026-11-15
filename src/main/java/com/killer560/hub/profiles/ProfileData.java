@@ -119,7 +119,9 @@ public final class ProfileData {
     }
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */
-    private static final String[] EXCLUDED_NAME_PREFIXES = {"bugreport-", "autoroutes.broken", "sessionlog-"};
+    private static final String[] EXCLUDED_NAME_PREFIXES = {"bugreport-", "autoroutes.broken", "sessionlog-",
+            // Every dungeon sim file (boss, loadout, menu, coop, filters, speed, keys...): his own sim setup, the same in every profile.
+            "sim-"};
 
     /** Paths inside an included folder that are left out: the custom scoreboard's scraped bits/powder cache. */
     private static final Set<String> EXCLUDED_INNER = Set.of("killer560smod-customscoreboard/data.json");
@@ -138,6 +140,15 @@ public final class ProfileData {
                 || n.endsWith(".bak") || n.endsWith(".part");
     }
 
+    /** Whether a name (prefix stripped) is on the never-carried lists, by name or by prefix. */
+    static boolean isExcludedKey(String key) {
+        if (EXCLUDED_NAMES.contains(key)) return true;
+        for (String prefix : EXCLUDED_NAME_PREFIXES) {
+            if (key.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
     /** Whether a top-level entry name (a file or folder directly in a feature folder) is profile data. Setting files
      *  ({@code killer560smod-*.json} plain files) are NOT data - {@link ProfileManager} handles them. */
     static boolean isDataName(String name, boolean isDirectory) {
@@ -147,11 +158,8 @@ public final class ProfileData {
         }
         if (!isDirectory && name.endsWith(".json")) return false;
         String key = name.substring(ModPaths.PREFIX.length());
-        if (EXCLUDED_NAMES.contains(key) || isShared(name) || ModPaths.isRetired(name)) return false;
-        for (String prefix : EXCLUDED_NAME_PREFIXES) {
-            if (key.startsWith(prefix)) return false;
-        }
-        return !isExcludedFileName(name);
+        if (isShared(name) || ModPaths.isRetired(name)) return false;
+        return !isExcludedKey(key) && !isExcludedFileName(name);
     }
 
     /** Whether {@code rel} ("entry" or "entry/sub/file", forward slashes) may be carried. */
