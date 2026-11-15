@@ -854,6 +854,7 @@ final class SettingTooltipsData {
         d.put("auto routes/mode", "Testing builds only (released jars run Obvious): Legit turns your camera like a human for each etherwarp; Obvious skips the camera turn.");
         d.put("start from start node only", "ON: a route only starts when you land on its start node.");
         d.put("auto routes/replan for my range", "Saved path warps are planned with Transmission Tuners. On: any warp longer than your etherwarp reaches is planned again for your range.");
+        d.put("auto routes/master mode", "In a Master Mode floor, each crypt, Mimic and Prince kill step uses its weapon once and the route moves on, dead or not. Skip Kills (shown while One Try is on) skips those steps with no use at all. Other floors are unchanged.");
         d.put("auto routes/kill mimic", "After you click a trapped chest, kills the mimic straight down: the Hyperion once, the Spirit Sceptre until it dies (5 s at most).");
         // Auto Clear (cheat build; its rows are built by autoclear.AutoClearSettings inside the shared Auto Clear tab).
         d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key.");

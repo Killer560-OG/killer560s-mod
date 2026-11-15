@@ -112,6 +112,9 @@ public final class AutoRoutesConfig {
     /** Replan For My Range (killer560, 2026-10-26): saved path warps longer than this player's etherwarp reaches are
      *  planned again for his range. Off: everyone flies the saved warps as planned (planned with Transmission Tuners). */
     private boolean replanForRange = false;
+    /** Master Mode: One Try (killer560, 2026-11-15) - in a Master Mode floor each crypt / Mimic / Prince kill step makes one use and moves on; Skip Kills (kept while One Try is off, no effect then) skips them. */
+    private boolean masterOneTry = false;
+    private boolean masterSkipKills = false;
     private KillMimic killMimic = KillMimic.OFF;
     private CryptWeapon cryptWeapon = CryptWeapon.HYPERION;
     /** How long a crypt node keeps attacking before the route moves on without a kill (killer560, 2026-10-05: "in
@@ -237,6 +240,8 @@ public final class AutoRoutesConfig {
                 cfg.startFromStartNodeOnly = ConfigJson.getBool(o, "startFromStartNodeOnly", cfg.startFromStartNodeOnly);
                 cfg.runWhileMapOpen = ConfigJson.getBool(o, "runWhileMapOpen", cfg.runWhileMapOpen);
                 cfg.killMimic = ConfigJson.getEnum(o, "killMimic", KillMimic.class, cfg.killMimic);
+                cfg.masterOneTry = ConfigJson.getBool(o, "masterOneTry", cfg.masterOneTry);
+                cfg.masterSkipKills = ConfigJson.getBool(o, "masterSkipKills", cfg.masterSkipKills);
                 cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
                 cfg.setCryptAttackTicks(ConfigJson.getInt(o, "cryptAttackTicks", cfg.cryptAttackTicks));
                 cfg.batWeapon = ConfigJson.getEnum(o, "batWeapon", CryptWeapon.class, cfg.batWeapon);
@@ -293,6 +298,8 @@ public final class AutoRoutesConfig {
         o.addProperty("startFromStartNodeOnly", startFromStartNodeOnly);
         o.addProperty("runWhileMapOpen", runWhileMapOpen);
         o.addProperty("killMimic", killMimic.name());
+        o.addProperty("masterOneTry", masterOneTry);
+        o.addProperty("masterSkipKills", masterSkipKills);
         o.addProperty("cryptWeapon", cryptWeapon.name());
         o.addProperty("cryptAttackTicks", cryptAttackTicks);
         o.addProperty("batWeapon", batWeapon.name());
@@ -382,6 +389,18 @@ public final class AutoRoutesConfig {
     public void setStartFromStartNodeOnly(boolean v) { startFromStartNodeOnly = v; }
     public boolean isRunWhileMapOpen() { return runWhileMapOpen; }
     public void setRunWhileMapOpen(boolean v) { runWhileMapOpen = v; }
+    public boolean isMasterOneTry() { return masterOneTry; }
+    public void setMasterOneTry(boolean v) { masterOneTry = v; }
+    public boolean isMasterSkipKills() { return masterSkipKills; }
+    public void setMasterSkipKills(boolean v) { masterSkipKills = v; }
+    /** One Try is on and the run is a Master Mode floor (read off DungeonState, no scan). */
+    public boolean masterOneTryNow() { return masterOneTry && isMasterFloor(); }
+    /** Skip Kills applies: One Try on, Skip Kills on, Master Mode floor. */
+    public boolean masterSkipNow() { return masterOneTry && masterSkipKills && isMasterFloor(); }
+    private static boolean isMasterFloor() {
+        String f = com.killer560.hub.secrets.DungeonState.getFloor();
+        return f != null && f.startsWith("M");
+    }
 
     public boolean isUniformColor() { return uniformColor; }
     public void setUniformColor(boolean v) { uniformColor = v; }

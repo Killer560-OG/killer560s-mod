@@ -97,6 +97,10 @@ public final class MimicKiller {
                     com.killer560.hub.secrets.DungeonState.isInDungeon());
             return;
         }
+        if (cfg.masterSkipNow()) {
+            LOGGER.info("[Mimic] trapped chest at {} not acted on: Master Mode, Skip Kills on", chest.toShortString());
+            return;
+        }
         int slot = ItemIdentity.findHotbarSlot(player, m.itemId());
         if (slot < 0) {
             LOGGER.info("[Mimic] trapped chest at {} not acted on: no {} in the hotbar", chest.toShortString(), m.label());
@@ -236,6 +240,10 @@ public final class MimicKiller {
                 if (mode == AutoRoutesConfig.KillMimic.HYPERION) {
                     // Once: Wither Impact straight down implodes where he stands.
                     finish(client, player, "wither impact used");
+                    return;
+                }
+                if (AutoRoutesConfig.getInstance().masterOneTryNow()) {
+                    finish(client, player, "Master Mode, One Try: one use sent");
                     return;
                 }
                 state = State.USING;

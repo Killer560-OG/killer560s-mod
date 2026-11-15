@@ -4523,6 +4523,11 @@ public final class RouteExecutor {
             finishAction();
             return;
         }
+        if (step == Step.PREP && !bat && AutoRoutesConfig.getInstance().masterSkipNow()) {
+            LOGGER.info("[AutoRoutes] Node #{} CRYPT: Master Mode, Skip Kills on - no attack, moving on", route.indexOf(node) + 1);
+            finishAction();
+            return;
+        }
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlot(player, weapon.itemId());
             if (slot < 0) {
@@ -4632,6 +4637,15 @@ public final class RouteExecutor {
             // crypt as well. If there are two or more that spawned have it do 2 bats at each before moving on." A Spirit
             // Sceptre crypt node goes on until every crypt mob it has seen is dead or has had its CRYPT_SHOTS_EACH aimed
             // uses (and their bats have landed) - not merely until the kill count, which would leave the others alive.
+            // Master Mode: One Try - the first use is out (it goes on the firing tick), the route goes on, dead or not.
+            if (!bat && AwaitEvents.weaponUses() - batUseBase >= 1 && AutoRoutesConfig.getInstance().masterOneTryNow()) {
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: Master Mode, One Try - {} use(s) sent, {} kill(s) counted - moving on",
+                        route.indexOf(node) + 1, AwaitEvents.weaponUses() - batUseBase, kills(false));
+                releaseUse(client);
+                restoreCryptSlot(client, player);
+                finishAction();
+                return;
+            }
             boolean sceptreCrypt = !bat && weapon == AutoRoutesConfig.CryptWeapon.SPIRIT_SCEPTRE;
             CryptSeek seek = sceptreCrypt ? cryptSeekState(client, player, goal) : CryptSeek.NONE;
             if (seek == CryptSeek.DONE) {

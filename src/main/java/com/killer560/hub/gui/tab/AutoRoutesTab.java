@@ -200,6 +200,12 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 v -> cfg.setBatAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
                         + v * (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS))));
         y[0] += 24;
+        // killer560, 2026-11-15: in a Master Mode floor a crypt / Mimic / Prince kill step makes one use and moves on; Skip Kills skips it.
+        toggleCell(w, contentX, y[0], half, "Master Mode: One Try", cfg::isMasterOneTry, cfg::setMasterOneTry, requestRebuild);
+        if (cfg.isMasterOneTry() || scanningForSearch) {
+            toggleCell(w, contentX + half + GAP, y[0], right, "Master Mode: Skip Kills", cfg::isMasterSkipKills, cfg::setMasterSkipKills, null);
+        }
+        y[0] += 24;
         // killer560, 2026-10-06: a pace for chained etherwarps, 1-20 a second - a spacing, not a per-second budget.
         int warpSpan = AutoRoutesConfig.MAX_WARPS_PER_SECOND - AutoRoutesConfig.MIN_WARPS_PER_SECOND;
         slider(w, contentX, y[0], contentWidth,
