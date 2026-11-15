@@ -1,64 +1,43 @@
 package com.killer560.hub.relay;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.scoreboard.ScoreboardData;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Hypixel's own per-instance id (the {@code mini312M} / {@code dungeon123} style name), read from
- * {@code /locraw}'s JSON chat reply so every Mod Chat client on the same Hypixel instance derives the
- * identical {@code lobby:<hash>} room name without coordinating - the Lobby half of {@link RelayRoom.Mode},
- * hashed the same way {@link RelayRoom} hashes a party.
+ * Hypixel's own per-instance id (the {@code mini312M} / {@code mega12A} style name) read off the scoreboard
+ * sidebar's gray date line ("11/15/26 m312M"), which Hypixel sends every client, so every Mod Chat client on the
+ * same instance derives the identical {@code lobby:<hash>} room name without coordinating - the Lobby half of
+ * {@link RelayRoom.Mode}, hashed the same way {@link RelayRoom} hashes a party. The mod sends nothing to learn it
+ * (a server must never be able to tell the mod is installed). The sidebar writes the id short (m = mini, M = mega,
+ * L = lobby); {@link #expand} turns it into the long form the old command reply used, so a player on an older jar
+ * lands in the same room.
  * <p>
- * killer560 (2026-09-20): <i>"Do not have a global option only have a lobby option or a party option."</i>
- * Lobby needs an id every client on the instance computes identically. Per the implementation brief, checked
- * first, before writing this: no HypixelModAPI dependency anywhere in {@code build.gradle}, and nothing
- * already in this repo reads {@code locraw} / a server id / the scoreboard for this purpose (his separately
- * installed HypixelModAPI mod is not a dependency of this jar and exposes nothing to it - see the mod list on
- * his machine, not this repo). So this asks Hypixel itself the plain way: send the command, read the JSON
- * line it answers with back in chat, the same as any player typing {@code /locraw} would get.
- * <p>
- * <b>Not on p3sim.</b> It isn't Hypixel, so there is no real per-instance id to ask for - {@link #lobbyRoom()}
- * stays {@code null} there rather than hash whatever p3sim happens to answer with. Guessing would risk either
- * putting two different p3sim sessions in one room or splitting one session across several - the exact class
- * of mistake {@link RelayRoom}'s class doc warns about.
+ * <b>Not on p3sim.</b> It isn't Hypixel, so there is no real per-instance id - {@link #lobbyRoom()} stays
+ * {@code null} there rather than guess.
  */
 public final class HypixelLocation {
 
-    /** Only used to RETRY when we have no answer yet - never as a polling interval. An earlier version of
-     *  this class re-sent {@code /locraw} every 15s for as long as Lobby mode was on: 240 commands an hour,
-     *  which is automation, not "a command a player might type". We now ask once per join and then stay
-     *  quiet until the answer is invalidated by an actual world/server change. */
-    private static final long RETRY_INTERVAL_MS = 10_000L;
-    /** Give up asking after this many tries on one join, rather than retrying forever on a server that never
-     *  answers (p3sim is already excluded, but any non-Hypixel server would otherwise be asked indefinitely). */
-    private static final int MAX_ATTEMPTS_PER_JOIN = 3;
+    private static final Pattern DATE_ID = Pattern.compile("^\\d{1,2}/\\d{1,2}/\\d{2,4} ([A-Za-z]+[0-9][0-9A-Za-z]*)$");
+    /** Any section-sign code (Hypixel also uses ones vanilla has no name for). */
+    private static final Pattern CODES = Pattern.compile("§.");
+    /** Sidebar read at most once a second. */
+    private static final long READ_INTERVAL_MS = 1_000L;
 
     private static volatile String serverId;
-    private static long lastSentAtMs;
-    private static int attemptsThisJoin;
-    /** Identity of the level we last asked about. Hypixel moves you between instances (hub -> dungeon) with
-     *  a server transfer that does not always re-fire JOIN, and a stale id would quietly put you in the wrong
-     *  room, so the level object changing is treated as "somewhere new" in its own right. Compared by
-     *  reference on purpose - a new ClientLevel means a new place. */
+    private static long lastReadAtMs;
+    /** The level we last read for; a new ClientLevel means somewhere new, so the old id is dropped (by reference). */
     private static Object lastLevel;
-    private static boolean rewriterRegistered;
 
     private HypixelLocation() {
     }
 
     public static void register() {
-        // A previous instance's id must never survive into a new join - see the class doc on p3sim for the
-        // same "don't guess wide" reasoning. This also covers a Hypixel backend switch (hub <-> instance),
-        // which re-fires JOIN on the same connection the same way the repo's other per-instance state
-        // already relies on (see e.g. LagDisplayFeature/SplitLagClock's own JOIN/DISCONNECT resets).
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
     }
@@ -66,41 +45,40 @@ public final class HypixelLocation {
     private static void reset() {
         serverId = null;
         lastLevel = null;
-        // Next tick() asks immediately instead of waiting out the rest of the old interval.
-        lastSentAtMs = 0L;
-        attemptsThisJoin = 0;
+        lastReadAtMs = 0L;
     }
 
-    /** Called from {@code ModChatFeature}'s own tick. Sends a fresh {@code /locraw} when Lobby mode is
-     *  selected and enabled and the last answer is stale enough to be worth refreshing; never sends
-     *  otherwise (Party mode never touches this at all). */
+    /** Called from {@code ModChatFeature}'s own tick; reads the sidebar when a lobby room could use it (never sends). */
     public static void tick(Minecraft client, boolean lobbyModeNeeded) {
         if (!lobbyModeNeeded || client.player == null || client.getConnection() == null || isP3Sim(client)
-                || com.killer560.hub.roomsim.SimState.isGuest(client)) return; // a co-op guest is on the host's private server, no Hypixel to ask
-        // Not in a local world. getConnection() is NOT null in singleplayer - the integrated server is reached
-        // over a connection like any other - so that check alone let this type "/locraw" into the dungeon sim
-        // and into an Ashfall practice room, where the answer is Minecraft's own "Unknown or incomplete
-        // command" in his chat (seen 2026-09-28). Harmless but it is my mod talking nonsense to a world that
-        // has no Hypixel in it, and it happened on every world join.
-        if (client.getSingleplayerServer() != null) return;
+                || com.killer560.hub.roomsim.SimState.isGuest(client) || client.getSingleplayerServer() != null) return;
         if (client.level != lastLevel) {
             lastLevel = client.level;
             serverId = null;
-            lastSentAtMs = 0L;
-            attemptsThisJoin = 0;
+            lastReadAtMs = 0L;
         }
-        // Already know where we are: ask nothing. A world or server change calls reset() and only then does
-        // this start asking again - that is the whole throttle, and it is why this cannot turn into a
-        // command every N seconds no matter how long he leaves Lobby mode on.
-        if (serverId != null || attemptsThisJoin >= MAX_ATTEMPTS_PER_JOIN) return;
         long now = System.currentTimeMillis();
-        if (now - lastSentAtMs < RETRY_INTERVAL_MS) return;
-        // A command typed mid-walk draws experimental Grim's ChatC (found by the Inventory Walk gate, 2026-11-06): wait until he stands still.
-        if (!com.killer560.hub.util.OutgoingChat.standingStill()) return;
-        lastSentAtMs = now;
-        attemptsThisJoin++;
-        ensureRewriter();
-        client.player.connection.sendCommand("locraw");
+        if (now - lastReadAtMs < READ_INTERVAL_MS) return;
+        lastReadAtMs = now;
+        for (String line : ScoreboardData.sidebarNow(client)) {
+            Matcher m = DATE_ID.matcher(CODES.matcher(line).replaceAll("").trim());
+            if (m.matches()) {
+                serverId = expand(m.group(1));
+                return;
+            }
+        }
+    }
+
+    /** m312M -> mini312m, M12A -> mega12a, L12 -> lobby12 (lower case, as the old command reply was stored). */
+    static String expand(String id) {
+        String rest = id.substring(1);
+        String head = switch (id.charAt(0)) {
+            case 'm' -> "mini";
+            case 'M' -> "mega";
+            case 'L' -> "lobby";
+            default -> id.substring(0, 1);
+        };
+        return (head + rest).toLowerCase(Locale.ROOT);
     }
 
     /** @return {@code lobby:<hash>} once Hypixel has answered, else {@code null} - see the class doc. */
@@ -129,38 +107,5 @@ public final class HypixelLocation {
     public static boolean isP3Sim(Minecraft client) {
         ServerData server = client.getCurrentServer();
         return server != null && server.ip != null && server.ip.toLowerCase(Locale.ROOT).contains("p3sim");
-    }
-
-    private static synchronized void ensureRewriter() {
-        if (rewriterRegistered) return;
-        rewriterRegistered = true;
-        // /locraw's raw JSON is not for humans - hide it once recognized, the same "clean up the noise" habit
-        // this mod already applies to other server lines. Only lines carrying BOTH keys /locraw always answers
-        // with are touched, so an unrelated JSON-shaped chat line is left alone.
-        ChatObserver.addRewriter((message, plain) -> {
-            String id = parseServerId(plain);
-            if (id == null) return null;
-            serverId = id;
-            return Component.empty();
-        });
-    }
-
-    private static String parseServerId(String plain) {
-        String trimmed = plain == null ? "" : plain.trim();
-        if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
-            return null; // cheap rejection before trying to parse every chat line as JSON
-        }
-        try {
-            JsonElement parsed = JsonParser.parseString(trimmed);
-            if (!parsed.isJsonObject()) return null;
-            JsonObject obj = parsed.getAsJsonObject();
-            if (!obj.has("server") || !obj.has("gametype")) {
-                return null; // /locraw's exact shape, not just any JSON-looking chat line
-            }
-            String server = obj.get("server").getAsString();
-            return server == null || server.isBlank() ? null : server.toLowerCase(Locale.ROOT);
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

@@ -99,8 +99,8 @@ public final class ModChatFeature {
         }
         chatHeld = held;
         lastMode = mode;
-        // Only asks Hypixel for its instance id when a lobby room could use the answer: Lobby mode, or Song Tag's
-        // lobby link below. Party mode with Song Tag off never sends /locraw at all.
+        // Only reads the sidebar id when a lobby room could use it: Lobby mode, or Song Tag's
+        // lobby link below. Nothing is ever sent for it.
         HypixelLocation.tick(client, on && (mode == RelayRoom.Mode.LOBBY || songsOn));
         // null (never a wider fallback room) when the chosen mode's room can't be computed yet - RelayClient
         // goes NO_ROOM and stays disconnected instead of guessing. See RelayRoom's class doc.

@@ -178,7 +178,7 @@ public final class ChDiscovery {
      * Drops everything if we have moved to a different lobby.
      *
      * <p>Called from every entry point rather than from a world-change event, because the id arrives
-     * asynchronously - Hypixel answers {@code locraw} some time after the join - so "which lobby is this"
+     * asynchronously - the sidebar id shows some time after the join - so "which lobby is this"
      * can change while we are already standing in the new one. Checking on use means the first find after a
      * swap lands in the right place even though nothing told us the moment it happened.
      */
