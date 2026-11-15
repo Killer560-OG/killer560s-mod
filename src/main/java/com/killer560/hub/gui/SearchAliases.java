@@ -15,6 +15,9 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            Map.entry("auto accept game", "auto dialogue"),
+            Map.entry("carnival accept", "auto dialogue"),
+            Map.entry("carnival games", "auto dialogue"),
             // killer560 (2026-11-10): "the get sent to lobby thing" should come up for lobby / lobbied.
             Map.entry("lobby", "kick rejoin timer"),
             Map.entry("lobbied", "kick rejoin timer"),
@@ -91,6 +94,7 @@ public final class SearchAliases {
             Map.entry("pv style", "profile viewer"),
             Map.entry("pv theme", "profile viewer"),
             // README names (2026-11-02) that are not a card's name: the card they live in.
+            Map.entry("community routes", "secret waypoints"),
             Map.entry("goldor frenzy", "tick timers"),
             Map.entry("frenzy timer", "tick timers"),
             Map.entry("sweat mode", "mod & hud"),

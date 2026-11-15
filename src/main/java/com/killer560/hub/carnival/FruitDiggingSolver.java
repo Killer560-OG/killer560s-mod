@@ -43,6 +43,12 @@ public final class FruitDiggingSolver {
         public boolean mustFruit;
         /** The tile is known to hold no fruit (it stood beside a bomb that went off). */
         public boolean notFruit;
+        /** The neighbors that were still unknown when this tile was dug: the tiles its clue counts. Null reads the
+         *  neighbors that are unknown now (older callers); a clue counted at dig time must not lose a tile that was
+         *  dug, marked or destroyed since, or its Anchor's marked fruit and its Mines count stop fitting any board. */
+        public int[] from;
+        /** Which dig this was (digs used when it was made), 0 when not dug: the oldest clues are dropped first. */
+        public int dugAt;
 
         public Cell copy() {
             Cell c = new Cell();
@@ -54,12 +60,51 @@ public final class FruitDiggingSolver {
             c.noFruitNearby = noFruitNearby;
             c.mustFruit = mustFruit;
             c.notFruit = notFruit;
+            c.from = from;
+            c.dugAt = dugAt;
             return c;
         }
     }
 
-    /** The solver's answer. */
-    public record Recommendation(int cell, String shovel, double expected, double pBomb, double pRum, int samples) {
+    /** How the next dig is chosen (the Fruit Digging "Strategy" setting). The shovel mode never changes the dug tile's own
+     *  points, only the clue it gives, so every strategy picks the mode whose clue pays the most on the next dig. */
+    public enum Strategy {
+        /** Most expected points per game: the plain pick (default). */
+        CONSISTENT("Consistent", 1.0, 0.0, false),
+        /** A very high score: bomb and Rum risk costs half, tiles that can pay big get a bonus, and the mode is the one
+         *  whose best 20% of outcomes pay the most. */
+        LEADERBOARD("Leaderboard", 0.5, 0.35, true),
+        /** The Carnival goal "Reach 3,000 score in a single game": risk costs double, the mode is the safest earner. */
+        DAILY("Daily Quest", 2.0, 0.0, false);
+
+        public final String label;
+        final double risk;
+        final double spread;
+        final boolean upside;
+
+        Strategy(String label, double risk, double spread, boolean upside) {
+            this.label = label;
+            this.risk = risk;
+            this.spread = spread;
+            this.upside = upside;
+        }
+
+        public static Strategy of(int i) {
+            return values()[Math.floorMod(i, values().length)];
+        }
+    }
+
+    /** The shovel modes the lookahead compares, in {@link Recommendation#modeEv} order. */
+    public static final String[] MODES = {"Mines", "Anchor", "Treasure"};
+
+    /** The solver's answer. {@code modeEv} is, per mode in {@link #MODES} order, the expected points of the best dig that
+     *  follows this one when this dig is made in that mode (null when there were no samples). */
+    public record Recommendation(int cell, String shovel, double expected, double pBomb, double pRum, int samples,
+                                 double[] modeEv) {
+        public Recommendation(int cell, String shovel, double expected, double pBomb, double pRum, int samples) {
+            this(cell, shovel, expected, pBomb, pRum, samples, null);
+        }
+
         public int row() {
             return cell / SIZE;
         }
@@ -102,7 +147,6 @@ public final class FruitDiggingSolver {
         return NEIGHBORS[cell];
     }
 
-    private static final double RISK_WEIGHT = 1.0;
     private static final double DESTRUCTION_WEIGHT = 0.10;
     private static final double SETUP_WEIGHT = 0.5;
     private static final double INFO_WEIGHT = 15.0;
@@ -117,6 +161,10 @@ public final class FruitDiggingSolver {
     /** Per tile, per content ordinal: the probability from the last {@link #solve} (null for a known tile). */
     private double[][] belief = new double[CELLS][];
     private int samples;
+    /** Every 20th thinned sample of the last {@link #solve} (about 600), for the mode lookahead, and the tile-to-slot map. */
+    private final List<Fruit[]> kept = new ArrayList<>();
+    private int[] slotOfCell = new int[CELLS];
+    private Strategy strategy = Strategy.CONSISTENT;
 
     public FruitDiggingSolver(Random random) {
         this.random = random;
@@ -205,6 +253,14 @@ public final class FruitDiggingSolver {
      * between them on every solve tells the player nothing.
      */
     public Recommendation solve(Cell[] cells, int digsUsed, double nextMultiplier, boolean coconut, int keep) {
+        return solve(cells, digsUsed, nextMultiplier, coconut, keep, Strategy.CONSISTENT);
+    }
+
+    /** {@link #solve(Cell[], int, double, boolean, int)} choosing the tile and the shovel mode for {@code strategy}. */
+    public Recommendation solve(Cell[] cells, int digsUsed, double nextMultiplier, boolean coconut, int keep,
+                                Strategy strategy) {
+        this.strategy = strategy;
+        kept.clear();
         // The unknown tiles (on the board or destroyed) are the slots the remaining contents are dealt into.
         int[] slotOf = new int[CELLS];
         List<Integer> slotCells = new ArrayList<>();
@@ -244,7 +300,12 @@ public final class FruitDiggingSolver {
         while (pool.size() < n) {
             pool.add(Fruit.BOMB);
         }
-        List<Clue> clues = clues(cells, slotOf);
+        java.util.Map<Clue, Integer> owner = new java.util.IdentityHashMap<>();
+        List<Clue> clues = clues(cells, slotOf, owner);
+        dropped = null;
+        if (n > 0) {
+            clues = fitting(clues, owner, cells, pool.toArray(new Fruit[0]));
+        }
         List<List<Clue>> bySlot = new ArrayList<>();
         for (int s = 0; s < n; s++) {
             bySlot.add(new ArrayList<>());
@@ -257,6 +318,7 @@ public final class FruitDiggingSolver {
             }
         }
 
+        slotOfCell = slotOf;
         double[][] counts = new double[n][Fruit.values().length];
         samples = 0;
         if (n > 0) {
@@ -281,7 +343,9 @@ public final class FruitDiggingSolver {
                         for (int s = 0; s < n; s++) {
                             counts[s][deal[s].ordinal()]++;
                         }
-                        samples++;
+                        if (samples++ % 20 == 0) {
+                            kept.add(deal.clone());
+                        }
                     }
                 }
             }
@@ -308,6 +372,46 @@ public final class FruitDiggingSolver {
             belief[slotCells.get(s)] = p;
         }
         return recommend(cells, digsUsed, nextMultiplier, coconut, apples, cherries, keep);
+    }
+
+    private String dropped;
+
+    /** What the last solve had to drop to find any board (null when every clue held): "what (tile)" entries. */
+    public String dropped() {
+        return dropped;
+    }
+
+    /**
+     * {@code clues} when some board fits them; else the clues with the least trusted dropped until one does: a "no
+     * fruit" read off a bomb's blast first, then every clue of a dug bomb, then the oldest dig's, one at a time.
+     */
+    private List<Clue> fitting(List<Clue> clues, java.util.Map<Clue, Integer> owner, Cell[] cells, Fruit[] pool) {
+        if (start(pool.clone(), clues)) {
+            return clues;
+        }
+        List<Clue> kept = new ArrayList<>(clues);
+        List<Clue> gone = new ArrayList<>();
+        List<Clue> order = new ArrayList<>();
+        clues.stream().filter(c -> c instanceof Edible e && !e.must()).forEach(order::add);
+        clues.stream().filter(c -> !order.contains(c) && cells[owner.get(c)].content == Fruit.BOMB).forEach(order::add);
+        clues.stream().filter(c -> !order.contains(c))
+                .sorted(java.util.Comparator.comparingInt(c -> c instanceof Edible ? Integer.MAX_VALUE : cells[owner.get(c)].dugAt))
+                .forEach(order::add);
+        int tier0 = (int) order.stream().filter(c -> c instanceof Edible e && !e.must()).count();
+        int tier1 = (int) order.stream().filter(c -> !(c instanceof Edible) && cells[owner.get(c)].content == Fruit.BOMB).count();
+        int next = 0;
+        for (int tries = 0; tries < 12 && next < order.size(); tries++) {
+            int upTo = tries == 0 && tier0 > 0 ? tier0 : tries <= 1 && tier1 > 0 ? tier0 + tier1 : next + 1;
+            for (; next < upTo; next++) {
+                kept.remove(order.get(next));
+                gone.add(order.get(next));
+            }
+            if (start(pool.clone(), kept)) {
+                break;
+            }
+        }
+        dropped = gone.stream().map(c -> c.getClass().getSimpleName() + " " + label(owner.get(c))).collect(java.util.stream.Collectors.joining(", "));
+        return kept;
     }
 
     private static int[] slotsOf(Clue c) {
@@ -381,42 +485,51 @@ public final class FruitDiggingSolver {
         return bad == 0;
     }
 
-    private static List<Clue> clues(Cell[] cells, int[] slotOf) {
+    private static List<Clue> clues(Cell[] cells, int[] slotOf, java.util.Map<Clue, Integer> owner) {
         List<Clue> out = new ArrayList<>();
         for (int i = 0; i < CELLS; i++) {
             Cell c = cells[i];
             List<Integer> hidden = new ArrayList<>();
-            for (int nb : NEIGHBORS[i]) {
-                if (cells[nb].diggable && slotOf[nb] >= 0) {
+            int knownBombs = 0;
+            for (int nb : c.from != null ? c.from : NEIGHBORS[i]) {
+                if (slotOf[nb] >= 0 && (c.from != null || cells[nb].diggable)) {
                     hidden.add(slotOf[nb]);
+                } else if (c.from != null && cells[nb].content == Fruit.BOMB) {
+                    knownBombs++;
                 }
             }
             int[] h = hidden.stream().mapToInt(Integer::intValue).toArray();
             if (c.mines >= 0) {
-                out.add(new BombCount(h, c.mines));
+                add(out, owner, i, new BombCount(h, Math.max(0, c.mines - knownBombs)));
             }
             if (c.noFruitNearby) {
-                out.add(new NoFruit(h));
+                add(out, owner, i, new NoFruit(h));
             }
             if (c.treasure != null) {
-                out.add(new Order(h, c.treasure.rank(), c.treasure, knownNeighbor(cells, i, c.treasure), true));
+                add(out, owner, i, new Order(h, c.treasure.rank(), c.treasure, knownNeighbor(cells, i, c.treasure), true));
             }
             if (c.anchor != null) {
-                out.add(new Order(h, c.anchor.rank(), c.anchor, knownNeighbor(cells, i, c.anchor), false));
+                add(out, owner, i, new Order(h, c.anchor.rank(), c.anchor, knownNeighbor(cells, i, c.anchor), false));
             }
             if (slotOf[i] >= 0 && c.mustFruit) {
-                out.add(new Edible(slotOf[i], true));
+                add(out, owner, i, new Edible(slotOf[i], true));
             }
             if (slotOf[i] >= 0 && c.notFruit && c.diggable) {
-                out.add(new Edible(slotOf[i], false));
+                add(out, owner, i, new Edible(slotOf[i], false));
             }
         }
         return out;
     }
 
+    private static void add(List<Clue> out, java.util.Map<Clue, Integer> owner, int cell, Clue c) {
+        out.add(c);
+        owner.put(c, cell);
+    }
+
     private static boolean knownNeighbor(Cell[] cells, int i, Fruit f) {
-        for (int nb : NEIGHBORS[i]) {
-            if (cells[nb].diggable && cells[nb].content == f) {
+        boolean stamped = cells[i].from != null;
+        for (int nb : stamped ? cells[i].from : NEIGHBORS[i]) {
+            if ((stamped || cells[nb].diggable) && cells[nb].content == f) {
                 return true;
             }
         }
@@ -492,7 +605,10 @@ public final class FruitDiggingSolver {
             double pb = p(cells, c, Fruit.BOMB);
             double pr = p(cells, c, Fruit.RUM);
             double score = expected(cells, c, mult, apples, cherries);
-            score -= (pb + pr) * opportunity * RISK_WEIGHT;
+            score -= (pb + pr) * opportunity * strategy.risk;
+            if (strategy.spread > 0) {
+                score += strategy.spread * spread(cells, c, apples, cherries);
+            }
             if (!coconut) {
                 score -= pb * DESTRUCTION_WEIGHT * fruitValueAround(cells, c, apples, cherries, false);
             }
@@ -532,9 +648,133 @@ public final class FruitDiggingSolver {
                 best = absorber;
             }
         }
-        double nearbyFruit = fruitValueAround(cells, best, apples, cherries, true);
-        String shovel = nearbyFruit >= 0.25 ? "Anchor" : "Mines";
-        return new Recommendation(best, shovel, expected(cells, best, mult, apples, cherries), p(cells, best, Fruit.BOMB),
-                p(cells, best, Fruit.RUM), samples);
+        double[] ev = modeEv(cells, best, apples, cherries, opportunity);
+        int mode = 0;
+        if (ev != null) {
+            for (int m = 1; m < ev.length; m++) {
+                if (ev[m] > ev[mode]) {
+                    mode = m;
+                }
+            }
+        } else {
+            mode = fruitValueAround(cells, best, apples, cherries, true) >= 0.25 ? 1 : 0;
+        }
+        return new Recommendation(best, MODES[mode], expected(cells, best, mult, apples, cherries), p(cells, best, Fruit.BOMB),
+                p(cells, best, Fruit.RUM), samples, ev);
+    }
+
+    /** Standard deviation of a tile's points (a bomb or rum pays 0): how much it can swing a game. */
+    private double spread(Cell[] cells, int cell, int apples, int cherries) {
+        double e = 0;
+        double e2 = 0;
+        for (Fruit f : Fruit.values()) {
+            double pr = p(cells, cell, f);
+            double v = f.edible ? f.value(apples, cherries) : 0;
+            e += pr * v;
+            e2 += pr * v * v;
+        }
+        return Math.sqrt(Math.max(0, e2 - e * e));
+    }
+
+    /**
+     * What each shovel mode is worth for a dig of {@code tile}: over the kept sample boards, the clue that mode would give
+     * (Mines the bomb count among the tile's unknown neighbors, Treasure the best fruit among them, Anchor the lowest and
+     * where it lies), the best next tile given that clue (its mean points over the boards that give the same clue, a bomb
+     * or rum costing {@code opportunity}), and so the points of the dig that follows. For {@link Strategy#upside} the mean
+     * of the best 20% of boards instead of the mean. Null with no samples.
+     */
+    private double[] modeEv(Cell[] cells, int tile, int apples, int cherries, double opportunity) {
+        int boards = kept.size();
+        if (boards < 20 || slotOfCell[tile] < 0) {
+            return null;
+        }
+        List<Integer> hidden = new ArrayList<>();
+        for (int nb : NEIGHBORS[tile]) {
+            if (cells[nb].diggable && slotOfCell[nb] >= 0) {
+                hidden.add(slotOfCell[nb]);
+            }
+        }
+        List<Integer> cand = new ArrayList<>();
+        for (int c = 0; c < CELLS; c++) {
+            if (c != tile && cells[c].diggable) {
+                cand.add(c);
+            }
+        }
+        double[] out = new double[MODES.length];
+        for (int m = 0; m < MODES.length; m++) {
+            java.util.Map<Integer, List<Integer>> groups = new java.util.HashMap<>();
+            for (int b = 0; b < boards; b++) {
+                groups.computeIfAbsent(clueKey(kept.get(b), slotOfCell[tile], hidden, m), k -> new ArrayList<>()).add(b);
+            }
+            double[] value = new double[boards];
+            for (List<Integer> g : groups.values()) {
+                int pick = -1;
+                double best = Double.NEGATIVE_INFINITY;
+                for (int c : cand) {
+                    double sum = 0;
+                    for (int b : g) {
+                        sum += nextScore(cells, c, kept.get(b), apples, cherries, opportunity);
+                    }
+                    if (sum / g.size() > best) {
+                        best = sum / g.size();
+                        pick = c;
+                    }
+                }
+                // The group's pick, scored on each board's own fruit: that spread is what the upside strategy reads.
+                for (int b : g) {
+                    value[b] = pick < 0 ? 0 : nextScore(cells, pick, kept.get(b), apples, cherries, opportunity);
+                }
+            }
+            double s = 0;
+            if (strategy.upside) {
+                java.util.Arrays.sort(value);
+                int top = Math.max(1, boards / 5);
+                for (int i = boards - top; i < boards; i++) {
+                    s += value[i];
+                }
+                out[m] = s / top;
+            } else {
+                for (double v : value) {
+                    s += v;
+                }
+                out[m] = s / boards;
+            }
+        }
+        return out;
+    }
+
+    private double nextScore(Cell[] cells, int c, Fruit[] board, int apples, int cherries, double opportunity) {
+        Fruit f = slotOfCell[c] >= 0 ? board[slotOfCell[c]] : cells[c].content;
+        if (f == null) {
+            return 0;
+        }
+        return f.edible ? f.value(apples, cherries) : -opportunity;
+    }
+
+    /** The clue a mode gives on {@code board} for a dig of slot {@code tileSlot}, as one int (equal clue, equal key). */
+    private static int clueKey(Fruit[] board, int tileSlot, List<Integer> hidden, int mode) {
+        if (!board[tileSlot].edible) {
+            return -1; // a bomb or rum gives no clue in any mode
+        }
+        int bombs = 0;
+        int best = -1;
+        int bestRank = 0;
+        for (int s : hidden) {
+            Fruit f = board[s];
+            if (f == Fruit.BOMB) {
+                bombs++;
+            } else if (f.edible) {
+                boolean better = best < 0 || (mode == 2 ? f.rank() > bestRank : f.rank() < bestRank);
+                if (better) {
+                    best = s;
+                    bestRank = f.rank();
+                }
+            }
+        }
+        return switch (mode) {
+            case 0 -> bombs;
+            case 1 -> best < 0 ? 100000 : best * 16 + board[best].ordinal() + 1;
+            default -> best < 0 ? 100000 : board[best].ordinal() + 1;
+        };
     }
 }

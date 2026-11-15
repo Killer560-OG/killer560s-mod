@@ -64,8 +64,16 @@ public final class ModuleKeybinds {
     public static final String STRUCTURE_SCANNER_ID = "StructureScannerTab";
     public static final String STRUCTURE_SCANNER_LABEL = "Scanner Toggle Keybind";
 
+    /** Carnival Games (the old Auto Accept Game, now a row of the Auto Dialogue card): its old card id keeps its bind. Looked up on
+     *  each press, since a profile apply reloads the config. */
+    private static void carnival(String id, String name, java.util.function.Supplier<? extends com.killer560.hub.carnival.CarnivalSettings> cfg) {
+        EXTRAS.put(id, new Extra(name, name + " Toggle Keybind", () -> cfg.get().isEnabledRaw(),
+                v -> cfg.get().setEnabled(v), () -> cfg.get().save()));
+    }
+
     static {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            carnival("AutoAcceptGameTab", "Carnival Games", com.killer560.hub.carnival.AutoAcceptGameConfig::getInstance);
             // Looked up on each press: a profile apply reloads the config.
             EXTRAS.put(THORN_TRIGGERBOT_ID, new Extra("Thorn Triggerbot", THORN_TRIGGERBOT_LABEL,
                     () -> com.killer560.hub.thorn.ThornConfig.getInstance().isTriggerbotRaw(),
