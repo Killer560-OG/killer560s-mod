@@ -17,7 +17,8 @@
      "Internal test fixes for Blink and Auto Path Pilot test cases (no change for players)",
      "Fewer anticheat flags while you move: Auto Close Chest waits until you stand still before it closes the chest (chat and commands are never delayed) (requeued as stillhold-1113 on 11-14) (requeued 11-14 after hung lane) (requeued 11-14 pm)",
      "Profiles: AP3 routes, Auto Routes, waypoints, Breaker Aura and Inventory Sorter layouts and imported fonts and sounds are now shared by every profile on the instance, so loading another profile never loses a route; each profile still keeps which route file it uses",
-     "Inventory Sorter (cheat): items a layout needs that storage did not supply are taken from your sacks with /gfs, only the shortfall (Fetch Missing From Sacks, on by default) (requeued 11-14)"
+     "Inventory Sorter (cheat): items a layout needs that storage did not supply are taken from your sacks with /gfs, only the shortfall (Fetch Missing From Sacks, on by default) (requeued 11-14)",
+     "Blood Rush Helper: the built-in spawn boxes now cover 80 of the 124 mob rooms (8 more rooms, 671 spots), and learned spots outside a room are ignored (requeued after trainfix 11-14) (requeued 11-14 pm)"
     ]
    }
   ]
