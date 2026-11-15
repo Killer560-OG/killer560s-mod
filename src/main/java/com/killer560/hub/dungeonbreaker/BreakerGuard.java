@@ -42,6 +42,10 @@ public final class BreakerGuard {
             logVerdict(pos, "inside a Fairy room");
             return true;
         }
+        if (com.killer560.hub.roomsim.SimState.isActive() && com.killer560.hub.roomsim.SimBreakRules.refuses(level, pos)) {
+            logVerdict(pos, "sim rule: smooth granite, piston, dispenser, fire or a block something hangs on");
+            return true;
+        }
         boolean secret = DungeonBreakerConfig.getInstance().isNoBreakSecrets() && isSecretBlock(level, pos);
         if (secret) {
             logVerdict(pos, "secret block (" + level.getBlockState(pos).getBlock().getName().getString()
