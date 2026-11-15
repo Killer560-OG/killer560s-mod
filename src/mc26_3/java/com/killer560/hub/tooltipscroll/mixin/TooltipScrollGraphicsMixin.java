@@ -49,7 +49,7 @@ public abstract class TooltipScrollGraphicsMixin {
         GuiGraphicsExtractor self = (GuiGraphicsExtractor) (Object) this;
         int pixelOffset;
         try {
-            pixelOffset = TooltipScrollFeature.pixelOffsetFor(self, font, components);
+            pixelOffset = TooltipScrollFeature.pixelOffsetFor(self, font, components, x, y, positioner);
         } catch (Throwable ignored) {
             // Measurement only; a failure here just means this frame's tooltip isn't translated.
             pixelOffset = 0;

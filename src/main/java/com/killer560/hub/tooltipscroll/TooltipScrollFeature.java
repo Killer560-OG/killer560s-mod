@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil;
 import net.minecraft.world.item.ItemStack;
 
@@ -74,7 +75,7 @@ import com.killer560.hub.compat.McCompat;
  *       already fits has nothing to line-scroll, but the wheel now moves the WHOLE tooltip's screen position
  *       instead via {@link #nudgeOffset} - the same translate-the-whole-box mechanism {@link #pixelOffsetFor}
  *       already uses for overflow, just driven directly by the wheel rather than by how much content is
- *       hidden. Resets with the hovered item, same as {@link #offset}.</li>
+ *       hidden. Resets with the hovered item, same as {@link #scrollPx}.</li>
  *   <li>The modifier-key gate ({@code TooltipScrollConfig.requireModifier}/{@code modifierKey}) is gone -
  *       see that class's own doc. The wheel now always acts on a hovered tooltip.</li>
  * </ul>
@@ -85,17 +86,18 @@ public final class TooltipScrollFeature {
      *  padding plus the screen-edge margin both tooltip positioners keep (MenuTooltipPositioner MARGIN = 5,
      *  private, so it is repeated here rather than referenced). Read off the 26.1.2 jar with javap. */
     private static final int VERTICAL_CHROME = TooltipRenderUtil.PADDING_TOP + TooltipRenderUtil.PADDING_BOTTOM + 5 + 5;
+    /** Gap kept between a scrolled tooltip's text and the screen edge: the background padding plus its 1 px border. */
+    private static final int EDGE = TooltipRenderUtil.PADDING_TOP + 1;
 
-    /** Number of leading tooltip lines currently scrolled past (translated off the top). */
-    private static int offset;
-    /** Largest {@link #offset} that still shows genuinely new content at the bottom - recomputed every time
-     *  a tooltip is drawn. Capping here (rather than letting the wheel translate arbitrarily far) is what
-     *  guarantees the tooltip can never be scrolled entirely off screen with no way back: at {@code
-     *  maxOffset} the last line's bottom edge lands exactly at the bottom of the available space, never past
-     *  it, so at least the tail of the tooltip is always reachable. */
-    private static int maxOffset;
+    /** Pixels a tooltip taller than the screen has been moved UP from its start, where its first line sits at the top
+     *  of the screen (tipscroll3-1114). Vanilla's DefaultTooltipPositioner puts such a tooltip with its BOTTOM at the screen
+     *  bottom, so the old line offset (0 = vanilla's place, only ever moving further up) started with the top cut off and
+     *  could never bring it down. 0..{@link #maxScroll}, exactly the content's overflow. */
+    private static int scrollPx;
+    /** Overflow of the tooltip drawn last: at {@code maxScroll} its last line sits at the bottom of the screen. */
+    private static int maxScroll;
     /** Whether the tooltip drawn last frame was taller than the screen - i.e. whether the wheel should
-     *  line-scroll it ({@link #offset}) or nudge its position instead ({@link #nudgeOffset}, 2026-09-27). The
+     *  line-scroll it ({@link #scrollPx}) or nudge its position instead ({@link #nudgeOffset}, 2026-09-27). The
      *  wheel is consumed either way; this only picks which of the two it drives. */
     private static boolean scrollable;
     /** Tooltip drawn last frame was wider than the screen (Shift + wheel slides it sideways). */
@@ -106,16 +108,16 @@ public final class TooltipScrollFeature {
     private static long lastDrawn;
     private static int lastSig;
     private static final long LIVE_NANOS = 300_000_000L;
-    /** The hovered stack the current {@link #offset} belongs to; weak so a cached stack can never pin an
+    /** The hovered stack the current {@link #scrollPx} belongs to; weak so a cached stack can never pin an
      *  item (or its whole container) in memory. */
     private static WeakReference<ItemStack> hovered = new WeakReference<>(null);
 
     /** killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then just
      *  move the position of the actual tooltip itself up or down." Pixels the whole tooltip is nudged by
-     *  when it does NOT overflow - independent of {@link #offset}, which only ever moves while {@link
+     *  when it does NOT overflow - independent of {@link #scrollPx}, which only ever moves while {@link
      *  #scrollable} is true. Positive nudges the tooltip UP the screen (see {@link #onMouseScrolled}), same
      *  sign convention {@link #pixelOffsetFor} already uses for the translate. Reset to 0 whenever the
-     *  hovered item changes, same as {@link #offset}. */
+     *  hovered item changes, same as {@link #scrollPx}. */
     private static int nudgeOffset;
     /** How far {@link #nudgeOffset} is allowed to push the tooltip in either direction, recomputed every
      *  render from the actual available space so a nudge can never be clamped so far it leaves nothing of
@@ -172,8 +174,8 @@ public final class TooltipScrollFeature {
     public static void onScreen(Object screen) {
         if (lastScreen.get() == screen) return;
         lastScreen = new WeakReference<>(screen);
-        offset = 0;
-        maxOffset = 0;
+        scrollPx = 0;
+        maxScroll = 0;
         scrollable = false;
         nudgeOffset = 0;
         nudgeX = 0;
@@ -197,8 +199,8 @@ public final class TooltipScrollFeature {
         ItemStack previous = hovered.get();
         if (previous == stack) return;
         hovered = new WeakReference<>(stack);
-        offset = 0;
-        maxOffset = 0;
+        scrollPx = 0;
+        maxScroll = 0;
         scrollable = false;
         nudgeOffset = 0;
     }
@@ -236,25 +238,15 @@ public final class TooltipScrollFeature {
         // no longer bails out just because the tooltip fits - see the nudge branch below.
         if (!cfg.isEnabled() || !live || scrollY == 0.0 || !(container || scrollable)) return false;
 
+        // Wheel up moves the tooltip UP the screen, a tall one and one that fits alike (killer560, 2026-11-14: the tall
+        // case ran the other way, "it also inverts the scrolling direction in that case"); Invert flips both.
+        int step = (scrollY > 0 ? 1 : -1) * (cfg.isInvert() ? -1 : 1) * cfg.getLinesPerScroll() * NUDGE_PX_PER_LINE;
         if (scrollable) {
-            // Wheel up shows earlier lines, matching every other scroll surface in the game.
-            int direction = scrollY > 0 ? -1 : 1;
-            if (cfg.isInvert()) {
-                direction = -direction;
-            }
-            offset = clamp(offset + direction * cfg.getLinesPerScroll(), 0, maxOffset);
+            scrollPx = clamp(scrollPx + step, 0, maxScroll);
         } else {
             // killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then
-            // just move the position of the actual tooltip itself up or down." Wheel up nudges the tooltip UP
-            // the screen - the same physical direction as the wheel motion - which is the opposite sign from
-            // the line-scroll branch above (there, "up" reveals earlier CONTENT by scrolling the view down
-            // through it; here there is no content to reveal, only a box to relocate).
-            int direction = scrollY > 0 ? 1 : -1;
-            if (cfg.isInvert()) {
-                direction = -direction;
-            }
-            nudgeOffset = clamp(nudgeOffset + direction * cfg.getLinesPerScroll() * NUDGE_PX_PER_LINE,
-                    -maxNudge, maxNudge);
+            // just move the position of the actual tooltip itself up or down."
+            nudgeOffset = clamp(nudgeOffset + step, -maxNudge, maxNudge);
         }
         // Consumed even when already clamped at an end, so the wheel can't "fall through" to the container
         // the moment you hit the top/bottom of a long tooltip or the limit of a nudge.
@@ -282,10 +274,13 @@ public final class TooltipScrollFeature {
     /**
      * How many pixels {@link com.killer560.hub.tooltipscroll.mixin.TooltipScrollGraphicsMixin} should
      * translate the ENTIRE tooltip render up by (0 = don't touch it - feature off or nothing hovered, in
-     * which case the mixin must not push/pop at all). When the tooltip overflows this is the line-scroll
-     * {@link #offset}; when it fits, it's the manual {@link #nudgeOffset} instead - see that field's doc.
+     * which case the mixin must not push/pop at all). When the tooltip is taller than the screen this comes from
+     * {@link #scrollPx}, measured from where the tooltip's own positioner puts it; when it fits, it's the manual
+     * {@link #nudgeOffset} instead - see that field's doc. {@code x}, {@code y} and {@code positioner} are the
+     * arguments vanilla's {@code tooltip} call got.
      */
-    public static int pixelOffsetFor(GuiGraphicsExtractor graphics, Font font, List<ClientTooltipComponent> components) {
+    public static int pixelOffsetFor(GuiGraphicsExtractor graphics, Font font, List<ClientTooltipComponent> components,
+                                     int x, int y, ClientTooltipPositioner positioner) {
         renderHookSeen = true;
         TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
         // Unlike before 2026-09-27 a single-component tooltip is no longer skipped here - it can never
@@ -293,86 +288,61 @@ public final class TooltipScrollFeature {
         // exactly that case.
         if (!cfg.isEnabled() || font == null || components == null || components.isEmpty()) {
             scrollable = false;
-            maxOffset = 0;
+            maxScroll = 0;
             return 0;
         }
 
         int n = components.size();
         long now = System.nanoTime();
         int w = 0;
+        int sum = 0;
         for (int i = 0; i < n; i++) {
-            w = Math.max(w, components.get(i).getWidth(font));
+            ClientTooltipComponent c = components.get(i);
+            w = Math.max(w, c.getWidth(font));
+            sum += c.getHeight(font);
         }
-        int sigHeight = prefixHeight(font, components, n);
-        int sig = n * 31 + sigHeight + w * 7;
+        int sig = n * 31 + sum + w * 7;
         if (now - lastDrawn >= LIVE_NANOS || sig != lastSig) {
-            offset = 0;
+            scrollPx = 0;
             nudgeOffset = 0;
             nudgeX = 0;
         }
         lastDrawn = now;
         lastSig = sig;
-        wide = w + 24 > graphics.guiWidth();
-        // Prefix height of components[0, i) = the real, rendered vertical extent: each component's own height
-        // plus the 2px separator vanilla inserts before every component after the first. Read straight off
-        // GuiGraphicsExtractor#tooltip's actual drawing loop with javap -c - deliberately NOT the same
-        // arithmetic vanilla uses to size/position its background box (which sums getHeight() alone, with no
-        // separator, plus a -2 special case for a lone component). This mod never resizes or repositions the
-        // background anymore - it translates the whole already-correctly-rendered picture as one rigid
-        // block - so what matters here is how tall the actual drawn TEXT is, which is this formula, not
-        // vanilla's internal box-sizing shortcut.
-        int total = sigHeight;
-
-        int available = graphics.guiHeight() - VERTICAL_CHROME;
+        int guiW = graphics.guiWidth();
+        int guiH = graphics.guiHeight();
+        wide = w + 24 > guiW;
         // Recomputed every render so a nudge picked up on one screen (e.g. a tiny GUI scale) can never clamp
         // to a bound that was actually measured somewhere else. Floored rather than left at 0 so a scroll
         // that arrives between renders (there always was at least one by the time a scroll can fire) still
         // has some room to work with.
-        maxNudge = Math.max(40, available);
-        maxNudgeX = Math.max(40, graphics.guiWidth());
-        int overflow = total - available;
-        if (available < 10 || overflow <= 0) {
+        maxNudge = Math.max(40, guiH - VERTICAL_CHROME);
+        maxNudgeX = Math.max(40, guiW);
+        // Read off GuiGraphicsExtractor#tooltip with javap (26.3): the box height handed to the positioner is the sum of
+        // the heights (-2 for a lone line), and the text runs 2 px further (the gap under the title).
+        int boxH = n == 1 ? sum - 2 : sum;
+        int drawnH = n == 1 ? sum : sum + 2;
+        if (drawnH + 2 * EDGE <= guiH) {
             scrollable = false;
-            maxOffset = 0;
-            offset = 0;
+            maxScroll = 0;
+            scrollPx = 0;
             // killer560, 2026-09-27: "if it cannot be scrolled because everything is already on screen, then
-            // just move the position of the actual tooltip itself up or down." Nothing to line-scroll, so the
+            // just move the position of the actual tooltip itself up or down." Nothing to scroll, so the
             // wheel-driven nudge (see onMouseScrolled) is what gets rendered instead of a flat "don't touch it".
             nudgeOffset = clamp(nudgeOffset, -maxNudge, maxNudge);
             return nudgeOffset;
         }
         scrollable = true;
-        // Can't both overflow and be manually nudged - once a tooltip overflows it goes back to a clean,
-        // un-nudged line-scroll position rather than compounding the two behaviors.
+        // Can't both overflow and be manually nudged - once a tooltip overflows it goes back to a clean scroll position.
         nudgeOffset = 0;
-
-        // Smallest line count whose prefix height already covers the overflow: translating by exactly that
-        // many pixels puts the last line's bottom edge at (or just past) the bottom of the available space,
-        // never further - see the maxOffset field doc for why that is the "can always get back" guarantee.
-        int max = n;
-        int running = 0;
-        for (int i = 0; i <= n; i++) {
-            if (i > 0) {
-                running += components.get(i - 1).getHeight(font) + (i == 1 ? 0 : 2);
-            }
-            if (running >= overflow) {
-                max = i;
-                break;
-            }
-        }
-        maxOffset = max;
-        offset = clamp(offset, 0, maxOffset);
-        return prefixHeight(font, components, offset);
-    }
-
-    /** Rendered height of the first {@code count} components, with the 2px separator before each after the first.
-     *  Allocation-free: this runs every frame while a tooltip is hovered (the old version built two int arrays). */
-    private static int prefixHeight(Font font, List<ClientTooltipComponent> components, int count) {
-        int sum = 0;
-        for (int i = 0; i < count; i++) {
-            sum += components.get(i).getHeight(font) + (i == 0 ? 0 : 2);
-        }
-        return sum;
+        // Where vanilla draws the first line: DefaultTooltipPositioner puts a too-tall tooltip's BOTTOM at the screen
+        // bottom (top = guiH - boxH - 3, above the screen). Only a tooltip taller than the screen gets here, so asking the
+        // positioner (which allocates its answer, as vanilla's own call does) costs nothing for ordinary tooltips.
+        int top = positioner == null ? guiH - boxH - 3 : positioner.positionTooltip(guiW, guiH, x, y, w, boxH).y();
+        int down = EDGE - top;                         // moves the first line to the top of the screen
+        maxScroll = down - (guiH - EDGE - top - drawnH); // from there up until the last line sits at the bottom
+        scrollPx = clamp(scrollPx, 0, maxScroll);
+        return scrollPx - down;
     }
 
     private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
