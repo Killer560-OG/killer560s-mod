@@ -51,7 +51,7 @@ public class MiningQolTab extends FolderTab {
     /** Fetchur, Puzzler, the Glacite Tunnels' Cold and the Fossil Excavator (from staging-mining-3, 2026-11-04). */
     static final class DwarvenGlaciteGroup extends FolderTab {
         DwarvenGlaciteGroup() {
-            super("Dwarven Mines and Glacite", List.of(new FetchurSolverTab(), new PuzzlerSolverTab(),
+            super("Dwarven Mines and Glacite", List.of(new FetchurSolverTab(), new PuzzlerSolverTab(), new MineshaftTab(),
                     new ColdOverlayTab(), new FossilSolverTab()));
         }
     }

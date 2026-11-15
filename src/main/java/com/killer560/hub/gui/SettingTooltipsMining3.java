@@ -10,6 +10,17 @@ final class SettingTooltipsMining3 {
     }
 
     static void register(Map<String, String> d) {
+        d.put("glacite mineshafts", "Display features for the Glacite Mineshafts. Each part has its own switch and all start off. Nothing here moves you or clicks for you.");
+        d.put("glacite mineshafts/mineshaft detection", "Tells you when a Mineshaft portal spawns for you (a title, a sound and a chat line) and which kind of Mineshaft you entered.");
+        d.put("glacite mineshafts/share type in party chat", "When you enter a Mineshaft, tells your party its type. Needs a party.");
+        d.put("glacite mineshafts/mineshaft waypoints", "Inside a Mineshaft, labels where you arrived (the way out) and any ladders the game has loaded near you.");
+        d.put("glacite mineshafts/corpse locator", "Boxes and names each Frozen Corpse (Lapis, Umber, Tungsten, Vanguard) the game shows you. A corpse is marked looted once its loot message arrives.");
+        d.put("glacite mineshafts/share corpses in party chat", "When you stand next to a corpse, tells your party its coordinates and type. Needs a party.");
+        d.put("glacite mineshafts/profit per corpse", "After you loot a corpse, prints what the loot is worth at current prices. Items with no known price are left out and counted.");
+        d.put("glacite mineshafts/cold and time hud", "A movable HUD inside a Mineshaft showing its type, the time since you entered and your Cold.");
+        d.put("glacite mineshafts/cold warning", "Shows a title and plays a sound when your Cold reaches the warning level, and turns the HUD's Cold line red.");
+        d.put("glacite mineshafts/cold warning at", "The Cold level that triggers the warning.");
+        d.put("glacite mineshafts/suspicious scrap button", "In the Fossil Excavator, shows a button that takes one Suspicious Scrap from your sacks when you have none.");
         d.put("cold overlay", "In the Glacite Tunnels and Mineshafts, draws frost over your screen that thickens as the sidebar's Cold rises, the way powder snow looks. A campfire clears it. Draws only.");
         d.put("cold overlay/strength", "How strong the frost is at 100 Cold; it fades in from 0 Cold.");
 

@@ -133,7 +133,7 @@ public final class IslandConfig {
         } else if (def instanceof String && value instanceof String) {
             values.put(key, value);
         }
-        if ("enabled".equals(key)) {
+        if (def instanceof Boolean) { // any switch: a FeatureBits gate may read it
             com.killer560.hub.util.FeatureBits.changed();
         }
     }

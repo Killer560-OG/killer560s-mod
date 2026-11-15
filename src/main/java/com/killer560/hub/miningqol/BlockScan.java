@@ -16,7 +16,7 @@ import java.util.function.Predicate;
  * {@code dy} blocks above and below it, reading only the chunk sections whose palette may hold a wanted block ({@code
  * maybeHas}, the way Secret Waypoints' lever scan and MidasAltar do: the palette answers for a whole section at once).
  */
-final class BlockScan {
+public final class BlockScan {
 
     private BlockScan() {
     }
@@ -25,7 +25,7 @@ final class BlockScan {
      * Positions inside the box whose state passes {@code palette} and then {@code exact} (which may look at neighbors),
      * at most {@code max} of them, nearest chunks not preferred (callers keep the cap well above a real count).
      */
-    static List<BlockPos> scan(Level level, BlockPos center, int radius, int dy, Predicate<BlockState> palette,
+    public static List<BlockPos> scan(Level level, BlockPos center, int radius, int dy, Predicate<BlockState> palette,
                                BiPredicate<BlockPos, BlockState> exact, int max) {
         List<BlockPos> out = new ArrayList<>();
         if (level == null || center == null) return out;

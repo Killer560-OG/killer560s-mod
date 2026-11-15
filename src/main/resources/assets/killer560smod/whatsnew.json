@@ -17,7 +17,8 @@
      "Swap To Drill On Pigeon (cheat): picks the drill by the powder the finished commission gives (Mithril, Gemstone or Glacite) and its real powder bonus; new Rank Drills By setting (Powder Bonus or Compact Level)",
      "Dungeon Sim: a left click on a terminal opens it just like a right click",
      "Mod Chat Lobby mode no longer sends a command to find your lobby; it reads the server id Hypixel already shows on the scoreboard",
-     "Bug Report: /bugreport and /logreport now build the report zip too."
+     "Bug Report: /bugreport and /logreport now build the report zip too.",
+     "Glacite Mineshafts (all off by default): Mineshaft alert, entrance and ladder waypoints, corpse locator with loot value, and a cold / time-in-shaft HUD"
     ]
    }
   ]
