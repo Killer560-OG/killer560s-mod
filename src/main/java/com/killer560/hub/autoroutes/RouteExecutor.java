@@ -202,8 +202,7 @@ public final class RouteExecutor {
     private static final java.util.ArrayDeque<InFlight> inFlight = new java.util.ArrayDeque<>();
     /** Where the server will have him once every warp in flight lands - the newest's landing - or null with none. */
     private static Vec3 zpFeet;
-    /** At most this many warps in flight at once: within Blink's 22-tick hold, so Blink The Chain is never stopped by it
-     *  (8 held up a blinked chain until Blink's own limit released it, testkit 62-argrim-1025-zpchain, 2026-10-25). */
+    /** At most this many warps in flight at once (a Charged Chain spends up to Blink's 21 held ticks on one). */
     private static final int MAX_IN_FLIGHT = 21;
     /** Counters, for the testkit and the log. */
     private static int zpChained;
@@ -233,10 +232,6 @@ public final class RouteExecutor {
     }
 
     private static void clearZeroPing(String why) {
-        if (blinkChainOwned) {
-            blinkChainOwned = false;
-            com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain cleared: " + why);
-        }
         if (!inFlight.isEmpty() || zpFeet != null) {
             LOGGER.info("[AutoRoutes] Zero Ping Chain cleared ({}): {} warp(s) were still in flight, predicted feet {}", why,
                     inFlight.size(), fmt(zpFeet));
@@ -3734,10 +3729,7 @@ public final class RouteExecutor {
             if (useWaitsForHeldClose(node, "Etherwarp (" + what + ")")) {
                 return false;
             }
-            boolean chainNext = hopIndex < 0 && bareEtherwarpNext(node) != null;
-            blinkChainBefore(node, chainNext);
             useHeldItem(client, player, warpYaw, warpPitch, false);
-            blinkChainAfter(node, chainNext);
             warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             int seqAfter = com.killer560.hub.util.RightClick.lastUseSequence();
             warpUseSeq = seqAfter != seqBefore ? seqAfter : -1;
@@ -6488,11 +6480,6 @@ public final class RouteExecutor {
             return false;
         }
         if (inFlight.size() >= MAX_IN_FLIGHT) {
-            if (blinkChainOwned) {
-                // Nothing in flight can be confirmed while Blink holds it: let the server catch up now.
-                blinkChainOwned = false;
-                com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain: " + MAX_IN_FLIGHT + " warps in flight");
-            }
             logHold("zpmax:" + traceIndex(node), "Zero Ping Chain ({}): {} warps in flight - waiting for the server's "
                     + "landings", nodeTag(node), inFlight.size());
             return false;
@@ -6616,38 +6603,6 @@ public final class RouteExecutor {
         }
         RouteNode next = ordered.get(n);
         return next.type == RouteNode.Type.ETHERWARP && !next.awaitEnabled && route.stackOf(next).size() == 1 ? next : null;
-    }
-
-    /** Blink The Chain: the hold starts just before the first warp of a chain is sent (so its use is in the burst). */
-    private static boolean blinkChainOwned;
-
-    private static void blinkChainBefore(RouteNode node, boolean chainNext) {
-        AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
-        if (!cfg.isBlinkChain() || !chainNext || blinkChainOwned || !route.path().isEmpty() || !stackQueue.isEmpty()) {
-            return;
-        }
-        if (cfg.isChargedChain() && com.killer560.hub.blink.BlinkCharge.isActive()) {
-            return; // Charged Chain spends the bank instead of holding
-        }
-        if (com.killer560.hub.blink.BlinkFeature.isHolding()) {
-            return; // his own hold: it is his to release
-        }
-        com.killer560.hub.blink.BlinkFeature.begin("Auto Routes chain");
-        blinkChainOwned = com.killer560.hub.blink.BlinkFeature.isHolding();
-        LOGGER.info("[AutoRoutes] Blink The Chain: {} - hold {} before the chain's first warp", nodeTag(node),
-                blinkChainOwned ? "started" : "not started (Blink is off)");
-    }
-
-    /** ... and is released right after the chain's last warp is sent: every warp of it reaches the server at once. */
-    private static void blinkChainAfter(RouteNode node, boolean chainNext) {
-        if (!blinkChainOwned || chainNext && com.killer560.hub.blink.BlinkFeature.isHolding()) {
-            return;
-        }
-        blinkChainOwned = false;
-        int ticks = com.killer560.hub.blink.BlinkFeature.heldTicks();
-        com.killer560.hub.blink.BlinkFeature.end("Auto Routes chain sent");
-        LOGGER.info("[AutoRoutes] Blink The Chain: {} was the chain's last warp - released {} held tick(s) in one burst",
-                nodeTag(node), ticks);
     }
 
     /** Every tick: a warp in flight the server never answered is a correction (reported, chain dropped, never fought). */

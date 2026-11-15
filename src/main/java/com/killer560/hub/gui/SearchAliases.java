@@ -91,6 +91,7 @@ public final class SearchAliases {
             Map.entry("pv style", "profile viewer"),
             Map.entry("pv theme", "profile viewer"),
             // README names (2026-11-02) that are not a card's name: the card they live in.
+            Map.entry("community routes", "secret waypoints"),
             Map.entry("goldor frenzy", "tick timers"),
             Map.entry("frenzy timer", "tick timers"),
             Map.entry("sweat mode", "mod & hud"),
