@@ -166,7 +166,7 @@ public abstract class BlinkPacketListenerMixin {
         var level = Minecraft.getInstance().level;
         var e = packet == null || level == null ? null : packet.getEntity(level);
         if (e != null) {
-            killer560smod$blink$hold(e.getId(), e, () -> self.handleMoveEntity(packet), ci);
+            killer560smod$blink$hold(e.getId(), e, killer560smod$blink$live(self, () -> self.handleMoveEntity(packet)), ci);
         }
     }
 
@@ -178,7 +178,7 @@ public abstract class BlinkPacketListenerMixin {
             return;
         }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
-        killer560smod$blink$hold(packet.id(), null, () -> self.handleTeleportEntity(packet), ci);
+        killer560smod$blink$hold(packet.id(), null, killer560smod$blink$live(self, () -> self.handleTeleportEntity(packet)), ci);
     }
 
     @Inject(method = "handleEntityPositionSync", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
@@ -189,7 +189,17 @@ public abstract class BlinkPacketListenerMixin {
             return;
         }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
-        killer560smod$blink$hold(packet.id(), null, () -> self.handleEntityPositionSync(packet), ci);
+        killer560smod$blink$hold(packet.id(), null, killer560smod$blink$live(self, () -> self.handleEntityPositionSync(packet)), ci);
+    }
+
+    /** A held entity change applies only on the live connection: one held across a world change would hit a dead listener (level null). */
+    @Unique
+    private static Runnable killer560smod$blink$live(ClientPacketListener self, Runnable apply) {
+        return () -> {
+            if (Minecraft.getInstance().getConnection() == self && Minecraft.getInstance().level != null) {
+                apply.run();
+            }
+        };
     }
 
     @Unique
