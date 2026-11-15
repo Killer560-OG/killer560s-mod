@@ -276,15 +276,15 @@ final class CardBlurbsData {
         d.put("HeldItemTab", "Moves and sizes held items.");
         d.put("ModTagTab", "Marks other mod users.");
         // Carnival (carnival-1110).
-        d.put("CarnivalTrackerTab", "Tokens, scores and goals left.");
-        d.put("FruitDiggingTab", "Which tile to dig, and with what.");
-        d.put("ZombieShootoutTab", "Zombie timers and the best shot.");
-        d.put("CatchAFishTab", "Shows the yellow fish to catch.");
-        d.put("ZombieTriggerbotTab", "Shoots what your crosshair is on.");
-        d.put("AutoZombieShootoutTab", "Aims and shoots in the Shootout.");
-        d.put("AutoShovelSwapTab", "Puts the shovel in the right mode.");
-        d.put("AutoFruitDiggingTab", "Digs the solver's best tile.");
-        d.put("AutoCatchAFishTab", "Casts at and reels in the fish.");
-        d.put("FruitDiggingTriggerbotTab", "Digs the tile you aim at.");
+        d.put("CarnivalTrackerTab", "Tokens and goals left.");
+        d.put("FruitDiggingTab", "Best tile to dig.");
+        d.put("ZombieShootoutTab", "Timers and best shot.");
+        d.put("CatchAFishTab", "Shows the fish.");
+        d.put("ZombieTriggerbotTab", "Shoots at crosshair.");
+        d.put("AutoZombieShootoutTab", "Aims and shoots.");
+        d.put("AutoShovelSwapTab", "Sets the shovel mode.");
+        d.put("AutoFruitDiggingTab", "Digs the best tile.");
+        d.put("FruitDiggingTriggerbotTab", "Digs on the best tile.");
+        d.put("AutoCatchAFishTab", "Casts and reels.");
     }
 }

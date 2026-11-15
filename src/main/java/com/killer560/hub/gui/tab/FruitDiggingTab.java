@@ -13,6 +13,11 @@ public class FruitDiggingTab extends BaseTab {
         super("Fruit Digging Solver");
     }
 
+    private static net.minecraft.network.chat.Component strategy(FruitDiggingConfig cfg) {
+        return net.minecraft.network.chat.Component.literal("Strategy: "
+                + com.killer560.hub.carnival.FruitDiggingSolver.Strategy.of(cfg.getStrategy()).label);
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -25,12 +30,20 @@ public class FruitDiggingTab extends BaseTab {
         }
         int half = (contentWidth - 4) / 2;
         int colB = contentX + half + 4;
+        w.add(com.killer560.hub.gui.SettingsButtonWidget.cycling(strategy(cfg), (btn, dir) -> {
+            cfg.setStrategy(com.killer560.hub.gui.SettingsButtonWidget.step(cfg.getStrategy(), dir,
+                    com.killer560.hub.carnival.FruitDiggingSolver.Strategy.values().length));
+            save.run();
+            btn.setMessage(strategy(cfg));
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         IslandRows.toggle(w, contentX, y, half, "Best Dig", cfg::isBestDig, cfg::setBestDig, save);
         y = IslandRows.toggle(w, colB, y, half, "Clue Labels", cfg::isClues, cfg::setClues, save);
         IslandRows.toggle(w, contentX, y, half, "Fruit Labels", cfg::isFound, cfg::setFound, save);
         y = IslandRows.toggle(w, colB, y, half, "Tile Odds", cfg::isOdds, cfg::setOdds, save);
-        IslandRows.toggle(w, contentX, y, half, "Solver HUD", cfg::isHud, cfg::setHud, save);
-        y = IslandRows.toggle(w, colB, y, half, "Fruit Left", cfg::isRemaining, cfg::setRemaining, save);
+        IslandRows.toggle(w, contentX, y, half, "Percent On Every Square", cfg::isAllPercents, cfg::setAllPercents, save);
+        y = IslandRows.toggle(w, colB, y, half, "Solver HUD", cfg::isHud, cfg::setHud, save);
+        y = IslandRows.toggle(w, contentX, y, half, "Fruit Left", cfg::isRemaining, cfg::setRemaining, save);
         y = IslandRows.header(w, contentX, y + 2, contentWidth, "Best Dig Color per Shovel Mode");
         IslandRows.color(w, contentX, y, half, "Mines Color", cfg::getMinesColor, cfg::setMinesColor,
                 FruitDiggingConfig.DEFAULT_MINES_COLOR, save);

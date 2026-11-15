@@ -33,6 +33,7 @@ public final class FruitDiggingTriggerbot {
     }
 
     public static void register() {
+        CarnivalInput.stopRule(NAME, () -> AutoFruitConfig.trigger().isEnabled() && FruitDigging.active());
         int bit = FeatureBits.register(NAME, () -> AutoFruitConfig.trigger().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("FruitDiggingTriggerbot.tick", bit,
                 FruitDiggingTriggerbot::tick));
@@ -41,7 +42,7 @@ public final class FruitDiggingTriggerbot {
     private static void tick(Minecraft mc) {
         AutoFruitConfig cfg = AutoFruitConfig.trigger();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active()
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !FruitDigging.active() || CarnivalInput.stopped(NAME)
                 || FruitDigging.gridOrigin() == null || FruitDigging.digs() >= FruitDiggingSolver.MAX_DIGS) {
             onCell = -1;
             return;

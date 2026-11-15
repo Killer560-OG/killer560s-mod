@@ -39,6 +39,7 @@ public final class ZombieTriggerbot {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule("Zombie Shootout Triggerbot", () -> ShootoutShotConfig.triggerbot().isEnabled() && ZombieShootout.active());
         ZombieShootout.addWant(() -> ShootoutShotConfig.triggerbot().isEnabledRaw());
         int bit = FeatureBits.register("Zombie Shootout Triggerbot", () -> ShootoutShotConfig.triggerbot().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ZombieTriggerbot.tick", bit,
@@ -69,6 +70,7 @@ public final class ZombieTriggerbot {
         ShootoutShotConfig cfg = ShootoutShotConfig.triggerbot();
         LocalPlayer player = mc.player;
         if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !ZombieShootout.active()
+                || CarnivalInput.stopped("Zombie Shootout Triggerbot")
                 || (cfg.isTubeOnly() && !isTube(player.getMainHandItem()))) {
             aimed = null;
             return;
