@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-15",
+  "summary": "Sim: the Dungeon Breaker can no longer break smooth granite,",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Sim: the Dungeon Breaker can no longer break smooth granite, pistons, dispensers, or blocks with a torch, button or fire on them (requeued 11-13 after an infra stall) (requeued 11-14 pm, fastpush)"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-14",
   "summary": "Sim F7: after Goldor dies Necron pulls everyone down into hi",
   "sections": [
