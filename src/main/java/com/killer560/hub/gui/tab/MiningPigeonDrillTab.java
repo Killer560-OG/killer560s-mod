@@ -30,6 +30,9 @@ public class MiningPigeonDrillTab extends BaseTab {
         MiningQolRows.cycle(w, contentX, y, contentWidth, "Drill Choice", () -> cfg.getPigeonDrillMode().label(),
                 cfg::stepPigeonDrillMode, cfg::save);
         y += MiningQolRows.STEP;
+        MiningQolRows.cycle(w, contentX, y, contentWidth, "Rank Drills By", () -> cfg.getPigeonDrillRank().label(),
+                cfg::stepPigeonDrillRank, cfg::save);
+        y += MiningQolRows.STEP;
         MiningQolRows.cycle(w, contentX, y, contentWidth, "Specific Drill",
                 () -> cfg.getPigeonDrillName().isEmpty() ? "none" : cfg.getPigeonDrillName(), dir -> {
                     List<String> names = PigeonDrillSwap.hotbarDrillNames();

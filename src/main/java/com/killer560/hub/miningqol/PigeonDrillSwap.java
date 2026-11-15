@@ -35,6 +35,11 @@ import java.util.regex.Pattern;
  * naming the wanted powder (Mithril or Gemstone Powder), then the lowest slot. Auto wants Gemstone Powder in the Crystal
  * Hollows and Mithril Powder anywhere else.
  *
+ * <p>drillswap-1114 (killer560: "swap to whatever drill gives the highest bonus ... not just the highest tier drill"): Rank
+ * Drills By Powder Bonus (default) ranks by the drill's own unconditional "+N% <Powder> Powder" lore, Compact Level keeps
+ * the old order. Auto reads the powder of the DONE commissions about to be claimed ({@link #claimPowder}), falling back to
+ * the area. The wiki does not say a held drill changes a claim's powder; the owner's wish is what this follows.
+ *
  * <p>Never touches slot 8, never moves an item, never clicks. Takes {@link ActionGate.Actor#PIGEON_DRILL}, and waits out
  * {@link HotbarSelect#swapWouldFlag()} (a held-slot change right after the use packet in one tick is Grim's PacketOrderE).
  */
@@ -42,7 +47,15 @@ public final class PigeonDrillSwap {
 
     private static final int PENDING_TICKS = 12;
     private static final Pattern ROMAN = Pattern.compile("\\bCompact ([IVXLC]{1,6})\\b");
-    private static final Pattern NUMBER = Pattern.compile("([0-9][0-9,.]{0,9})");
+    private static final Pattern PERCENT = Pattern.compile("\\+(\\d{1,3}(?:\\.\\d)?)%");
+    private static final Pattern CONDITIONAL = Pattern.compile("\\b(?:when|near|while|during|if)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern BONUS_HEADER = Pattern.compile("^[A-Za-z' ]{3,30} Bonus$");
+    /** A powder type named on a line ("Mithril, Gemstone and Glacite Powder" names all three). */
+    private static final Pattern OTHER_POWDER = Pattern.compile("mithril|gemstone|glacite");
+    /** Commission names that give another powder than the area's (inferred from the names; the wiki lists none). */
+    private static final Pattern GLACITE_NAME = Pattern.compile("glacite", Pattern.CASE_INSENSITIVE);
+    private static final Pattern GEMSTONE_NAME = Pattern.compile("gemstone|amber|amethyst|jade|jasper|opal|ruby|sapphire|topaz",
+            Pattern.CASE_INSENSITIVE);
 
     private static int pendingTicks = 0;
     private static int swaps = 0;
@@ -100,7 +113,8 @@ public final class PigeonDrillSwap {
         }
         pendingTicks = 0;
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        int slot = pick(player, cfg.getPigeonDrillMode(), cfg.getPigeonDrillName(), MiningState.crystalHollows());
+        int slot = pick(player, cfg.getPigeonDrillMode(), cfg.getPigeonDrillRank(), cfg.getPigeonDrillName(),
+                powderFor(cfg.getPigeonDrillMode()));
         if (slot < 0) {
             ModChat.send("Pigeon Drill", Component.literal("No drill in your hotbar to swap to.").withStyle(ChatFormatting.GRAY));
             return;
@@ -138,14 +152,49 @@ public final class PigeonDrillSwap {
         }
     }
 
-    /** The hotbar slot (0-7) of the drill to hold for a claim, or -1. */
-    public static int pick(LocalPlayer player, MiningQolConfig.PigeonDrillMode mode, String name, boolean crystalHollows) {
-        String powder = switch (mode) {
+    /** "mithril", "gemstone" or "glacite": a fixed Drill Choice, or for Auto the powder of the finished commissions. */
+    static String powderFor(MiningQolConfig.PigeonDrillMode mode) {
+        return switch (mode) {
             case MITHRIL -> "mithril";
             case GEMSTONE -> "gemstone";
-            case AUTO -> crystalHollows ? "gemstone" : "mithril";
+            case GLACITE -> "glacite";
+            case AUTO -> claimPowder(MiningState.commissions(), areaPowder());
             case SPECIFIC -> "";
         };
+    }
+
+    /** The powder the area gives when nothing finer can be read. */
+    public static String areaPowder() {
+        return MiningState.crystalHollows() ? "gemstone" : MiningState.glaciteTunnels() || MiningState.mineshaft() ? "glacite" : "mithril";
+    }
+
+    /** The powder of one commission by its name (a Glacite or gemstone word), else {@code area}. */
+    static String commissionPowder(String name, String area) {
+        if (GLACITE_NAME.matcher(name).find()) return "glacite";
+        return GEMSTONE_NAME.matcher(name).find() ? "gemstone" : area;
+    }
+
+    /** The powder with the most DONE commissions (a tie: the area's); the area's powder when none is done. */
+    public static String claimPowder(List<MiningState.Commission> coms, String area) {
+        int mithril = 0, gemstone = 0, glacite = 0;
+        for (MiningState.Commission c : coms) {
+            if (!c.done()) continue;
+            switch (commissionPowder(c.name(), area)) {
+                case "mithril" -> mithril++;
+                case "gemstone" -> gemstone++;
+                default -> glacite++;
+            }
+        }
+        int top = Math.max(mithril, Math.max(gemstone, glacite));
+        if (top == 0) return area;
+        int areaCount = area.equals("mithril") ? mithril : area.equals("gemstone") ? gemstone : glacite;
+        if (areaCount == top) return area;
+        return mithril == top ? "mithril" : gemstone == top ? "gemstone" : "glacite";
+    }
+
+    /** The hotbar slot (0-7) of the drill to hold for a claim, or -1. {@code powder} is "mithril", "gemstone" or "glacite" (ignored for Specific Drill). */
+    public static int pick(LocalPlayer player, MiningQolConfig.PigeonDrillMode mode, MiningQolConfig.PigeonDrillRank rank,
+                           String name, String powder) {
         String want = name == null ? "" : name.toLowerCase(Locale.ROOT).trim();
         int best = -1;
         long bestScore = Long.MIN_VALUE;
@@ -160,7 +209,7 @@ public final class PigeonDrillSwap {
                 }
                 score = 0;
             } else {
-                score = score(loreLines(s), powder);
+                score = score(loreLines(s), powder, rank);
             }
             if (score > bestScore) {
                 bestScore = score;
@@ -176,27 +225,51 @@ public final class PigeonDrillSwap {
         return id != null && (id.contains("DRILL") || id.contains("GAUNTLET"));
     }
 
-    /** Compact level x 1,000,000, plus the largest number on a lore line naming {@code powder} ("mithril" / "gemstone"). */
-    static long score(List<String> lore, String powder) {
+    /** Powder Bonus: the bonus in tenths of a percent x 1000 plus Compact; Compact Level: Compact x 1,000,000 plus the bonus. */
+    static long score(List<String> lore, String powder, MiningQolConfig.PigeonDrillRank rank) {
         long compact = 0;
-        long powderStat = 0;
         for (String line : lore) {
             Matcher r = line.length() <= 80 ? ROMAN.matcher(line) : null;
             if (r != null && r.find()) {
                 compact = Math.max(compact, roman(r.group(1)));
             }
-            if (!powder.isEmpty() && line.length() <= 120 && line.toLowerCase(Locale.ROOT).contains(powder + " powder")) {
-                Matcher n = NUMBER.matcher(line);
-                while (n.find()) {
-                    try {
-                        powderStat = Math.max(powderStat, (long) Double.parseDouble(n.group(1).replace(",", "")));
-                    } catch (NumberFormatException ignored) {
-                        // not a number
-                    }
-                }
+        }
+        long bonus = bonusTenths(lore, powder);
+        return rank == MiningQolConfig.PigeonDrillRank.COMPACT ? compact * 1_000_000L + bonus : bonus * 1000L + Math.min(compact, 999);
+    }
+
+    /**
+     * The drill's unconditional {@code powder} bonus in tenths of a percent: every "Grants +N% ... Powder" line, plus the
+     * "+N% ... Powder" in the description lines of an "Upgrade Module:" entry. A line with when / near / while, and anything
+     * under a "... Bonus" header (Stellar Bonus) up to the next blank line, is conditional and left out.
+     */
+    public static long bonusTenths(List<String> lore, String powder) {
+        if (powder.isEmpty()) return 0;
+        long sum = 0;
+        boolean conditional = false;
+        int module = 0;
+        for (String line : lore) {
+            String t = line.trim();
+            if (t.isEmpty()) {
+                conditional = false;
+                module = 0;
+                continue;
+            }
+            if (BONUS_HEADER.matcher(t).matches()) {
+                conditional = true;
+                module = 0;
+                continue;
+            }
+            boolean moduleLine = module > 0 && t.indexOf(':') < 0;
+            module = t.startsWith("Upgrade Module:") ? 3 : moduleLine ? module - 1 : 0;
+            if (conditional || t.length() > 120 || CONDITIONAL.matcher(t).find() || !(moduleLine || t.startsWith("Grants"))) continue;
+            Matcher p = PERCENT.matcher(t);
+            String l = t.toLowerCase(Locale.ROOT);
+            if (p.find() && l.contains("powder") && (l.contains(powder) || !OTHER_POWDER.matcher(l).find())) {
+                sum += Math.round(Double.parseDouble(p.group(1)) * 10);
             }
         }
-        return compact * 1_000_000L + Math.min(powderStat, 999_999L);
+        return sum;
     }
 
     static int roman(String s) {

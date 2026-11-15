@@ -59,11 +59,28 @@ public final class MiningQolConfig {
         AUTO("Auto"),
         MITHRIL("Mithril Powder"),
         GEMSTONE("Gemstone Powder"),
+        GLACITE("Glacite Powder"),
         SPECIFIC("Specific Drill");
 
         private final String label;
 
         PigeonDrillMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /** What ranks the hotbar drills for Swap To Drill On Pigeon (drillswap-1114). */
+    public enum PigeonDrillRank {
+        POWDER("Powder Bonus"),
+        COMPACT("Compact Level");
+
+        private final String label;
+
+        PigeonDrillRank(String label) {
             this.label = label;
         }
 
@@ -142,6 +159,7 @@ public final class MiningQolConfig {
     /** Swap To Drill On Pigeon (killer560, 2026-11-03), cheat-only. */
     private boolean pigeonDrill = false;
     private PigeonDrillMode pigeonDrillMode = PigeonDrillMode.AUTO;
+    private PigeonDrillRank pigeonDrillRank = PigeonDrillRank.POWDER;
     /** For {@link PigeonDrillMode#SPECIFIC}: part of the drill's name or Skyblock id. */
     private String pigeonDrillName = "";
     // Pickobulus Estimate
@@ -244,6 +262,7 @@ public final class MiningQolConfig {
                         CommissionRouteMode.WALK);
                 cfg.pigeonDrill = ConfigJson.getBool(o, "pigeonDrill", cfg.pigeonDrill);
                 cfg.pigeonDrillMode = ConfigJson.getEnum(o, "pigeonDrillMode", PigeonDrillMode.class, PigeonDrillMode.AUTO);
+                cfg.pigeonDrillRank = ConfigJson.getEnum(o, "pigeonDrillRank", PigeonDrillRank.class, PigeonDrillRank.POWDER);
                 cfg.pigeonDrillName = ConfigJson.getString(o, "pigeonDrillName", cfg.pigeonDrillName);
                 cfg.pickobulus = ConfigJson.getBool(o, "pickobulus", cfg.pickobulus);
                 cfg.pickobulusColor = intOr(o, "pickobulusColor", cfg.pickobulusColor);
@@ -343,6 +362,7 @@ public final class MiningQolConfig {
         o.addProperty("commissionRouteMode", commissionRouteMode.name());
         o.addProperty("pigeonDrill", pigeonDrill);
         o.addProperty("pigeonDrillMode", pigeonDrillMode.name());
+        o.addProperty("pigeonDrillRank", pigeonDrillRank.name());
         o.addProperty("pigeonDrillName", pigeonDrillName);
         o.addProperty("pickobulus", pickobulus);
         o.addProperty("pickobulusColor", pickobulusColor);
@@ -513,6 +533,19 @@ public final class MiningQolConfig {
     public void stepPigeonDrillMode(int dir) {
         PigeonDrillMode[] all = PigeonDrillMode.values();
         pigeonDrillMode = all[Math.floorMod(pigeonDrillMode.ordinal() + dir, all.length)];
+    }
+
+    public PigeonDrillRank getPigeonDrillRank() {
+        return pigeonDrillRank;
+    }
+
+    public void setPigeonDrillRank(PigeonDrillRank v) {
+        pigeonDrillRank = v == null ? PigeonDrillRank.POWDER : v;
+    }
+
+    public void stepPigeonDrillRank(int dir) {
+        PigeonDrillRank[] all = PigeonDrillRank.values();
+        pigeonDrillRank = all[Math.floorMod(pigeonDrillRank.ordinal() + dir, all.length)];
     }
 
     public String getPigeonDrillName() {
