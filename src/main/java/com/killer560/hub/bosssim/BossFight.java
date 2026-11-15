@@ -359,6 +359,7 @@ public final class BossFight {
     static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay) {
         stayPut = stay;
         stop("new fight");
+        com.killer560.hub.roomsim.SimBreakerState.refill();
         server = s;
         level = s.overworld();
         master = masterMode;

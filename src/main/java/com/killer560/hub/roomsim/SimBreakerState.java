@@ -76,6 +76,12 @@ public final class SimBreakerState {
         PENDING.clear();
     }
 
+    /** A boss-sim section or phase reset: back to max charges (killer560 11-13); blocks waiting to regrow stay. The lore follows next tick. */
+    public static synchronized void refill() {
+        charges = MAX_CHARGES;
+        rechargeCounter = 0;
+    }
+
     public static synchronized int charges() { return charges; }
 
     /**
