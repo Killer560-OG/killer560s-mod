@@ -20,7 +20,8 @@
      "Bug Report: /bugreport and /logreport now build the report zip too.",
      "Glacite Mineshafts (all off by default): Mineshaft alert, entrance and ladder waypoints, corpse locator with loot value, and a cold / time-in-shaft HUD",
      "Auto Routes: Master Mode One Try makes crypt, Mimic and Prince kill steps use one ability and move on in a Master Mode floor, and Skip Kills skips them.",
-     "Dungeon sim: new Sim Armor setting wears four pieces of Terror (Hydra Strike always at 10 stacks, two extra arrows plus damage and arrow speed bonuses) or Thermodynamic (Attack Speed at the raised cap), saved with the loadout"
+     "Dungeon sim: new Sim Armor setting wears four pieces of Terror (Hydra Strike always at 10 stacks, two extra arrows plus damage and arrow speed bonuses) or Thermodynamic (Attack Speed at the raised cap), saved with the loadout",
+     "Treasure Chest Alert now only sounds and shows in the Crystal Hollows."
     ]
    }
   ]

@@ -343,7 +343,7 @@ public final class TreasureChests {
     /** "You uncovered a treasure chest!" (whole line, from {@link PowderChat}). */
     static void onUncovered() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return;
+        if (client.player == null || !MiningState.island().isEmpty() && !MiningState.crystalHollows()) return; // another island (mineshaft, Dwarven): nothing
         // Only the Crystal Hollows sends this line, so it is proof of the island even when the island read lapses (a tab
         // list without its Area line): it used to be dropped here, and no chest was tracked at all.
         if (!MiningState.crystalHollows() && !lineRecently()) {
@@ -352,7 +352,7 @@ public final class TreasureChests {
         lastLineMs = System.currentTimeMillis();
         PowderMining.markChest();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (cfg.isChestAlert()) {
+        if (cfg.isChestAlert() && MiningState.crystalHollows()) { // the alert is Crystal Hollows only
             alerts++;
             if (cfg.isChestAlertTitle()) {
                 McCompat.setTimes(client, 2, 25, 5);
