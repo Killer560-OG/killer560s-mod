@@ -15,17 +15,25 @@ import org.slf4j.Logger;
  * to the best target in sight - a lit Redstone Lamp first (Lamps First), then the zombie worth the most and soonest
  * gone (the Zombie Shootout Helper's pick) - through Auto Routes' eased rotation, following it as it walks, and taps Use
  * (or Attack, Shoot With) once the crosshair is on a target, at most once per Shot Delay. Free Camera keeps your screen
- * still while your body turns. Moving the mouse yourself stops it for the rest of that game. You are held still by the
+ * still while your body turns. Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does. You are held still by the
  * game, and it never moves you. Every tap goes through {@link ActionGate} at the start of the tick; a server correction
  * is reported and it carries on. Automation: can get you banned; keep it off on the main server. Off by default.
  *
- * <p>Unverified in game: whether the dart is instant or a projectile that needs leading (it aims at the box center).
+ * <p>It leads a walking zombie: it aims at the zombie's box center plus its smoothed speed times the dart's flight time
+ * ({@link Lead}), scaled by Lead Adjust. Unverified in game: the dart speed it assumes.
  */
 public final class AutoZombieShootout {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-carnival");
     static final String NAME = "Auto Zombie Shootout";
-    private static boolean stoppedThisGame;
+    /** The tick the auto may aim again after he took the camera (it never stays stopped: 11-11 it fired once, then stood
+     *  down for the whole game). */
+    /** Targets given up on (never came under the crosshair), by key, until the tick: it moves on to the next one. */
+    private static final java.util.Map<Object, Long> SKIP = new java.util.HashMap<>();
+    private static Object stuckKey;
+    private static long stuckSince;
+    static final int STUCK_TICKS = 30;
+    static final int SKIP_TICKS = 80;
     private static boolean running;
     private static Object aimed;
     private static long aimedAtTick;
@@ -37,8 +45,12 @@ public final class AutoZombieShootout {
 
     public static void register() {
         CarnivalInput.register();
+        CarnivalInput.stopRule(NAME, () -> ShootoutShotConfig.auto().isEnabled() && ZombieShootout.active());
         ZombieShootout.addWant(() -> ShootoutShotConfig.auto().isEnabledRaw());
-        CarnivalState.onGameStart(g -> stoppedThisGame = false);
+        CarnivalState.onGameStart(g -> {
+            SKIP.clear();
+            stuckKey = null;
+        });
         int bit = FeatureBits.register(NAME, () -> ShootoutShotConfig.auto().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoZombieShootout.tick", bit,
                 AutoZombieShootout::tick));
@@ -55,22 +67,18 @@ public final class AutoZombieShootout {
     private static void tick(Minecraft mc) {
         ShootoutShotConfig cfg = ShootoutShotConfig.auto();
         LocalPlayer player = mc.player;
-        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !ZombieShootout.active()
-                || stoppedThisGame || (cfg.isTubeOnly() && !ZombieTriggerbot.isTube(player.getMainHandItem()))) {
+        if (!cfg.isEnabled() || player == null || McCompat.screen(mc) != null || !ZombieShootout.active() || CarnivalInput.stopped(NAME)
+                || (cfg.isTubeOnly() && !ZombieTriggerbot.isTube(player.getMainHandItem()))) {
             idle();
             return;
         }
-        if (CarnivalInput.userTookOver(NAME, player)) {
-            stoppedThisGame = true;
-            idle();
-            CarnivalInput.say(NAME, "Stopped for this game: you moved the camera.");
-            return;
-        }
+        long now = ActionGate.currentTick();
+        SKIP.values().removeIf(until -> until <= now);
         CarnivalInput.watchCorrections(NAME);
         ZombieShootout.Target best = ZombieShootout.pickBest(ZombieShootout.targets(),
-                t -> (cfg.isLampsFirst() || t.lamp() == null) && ZombieShootout.inSight(player, t));
+                t -> (cfg.isLampsFirst() || t.lamp() == null) && usable(player, t));
         if (best == null && !cfg.isLampsFirst()) {
-            best = ZombieShootout.pickBest(ZombieShootout.targets(), t -> ZombieShootout.inSight(player, t));
+            best = ZombieShootout.pickBest(ZombieShootout.targets(), t -> usable(player, t));
         }
         if (best == null) {
             idle();
@@ -80,14 +88,28 @@ public final class AutoZombieShootout {
             running = true;
             LOGGER.info("[{}] aiming", NAME);
         }
-        CarnivalInput.aim(NAME, player, best.aimPoint(), best.zombie() != null, cfg.isFreeCamera());
+        // A walking zombie is led (its darts are not instant): aim where it will be and shoot when the look is there.
+        net.minecraft.world.phys.Vec3 aim = best.leadPoint(player.getEyePosition(), cfg.getLeadPct());
+        CarnivalInput.aim(NAME, player, aim, best.zombie() != null, cfg.isFreeCamera());
         ZombieShootout.Target hit = ZombieShootout.targetUnderCrosshair(player, ZombieTriggerbot.RANGE);
-        long now = ActionGate.currentTick();
+        if (best.zombie() != null && aim.distanceToSqr(best.aimPoint()) > 0.0025) {
+            hit = CarnivalInput.error(player, aim) <= 2f ? best : null;
+        }
+        // Aimed at a target that never comes under the crosshair: give it up for a while and take the next one.
+        Object bestKey = key(best);
+        if (hit != null || !bestKey.equals(stuckKey)) {
+            stuckKey = bestKey;
+            stuckSince = now;
+        } else if (now - stuckSince >= STUCK_TICKS) {
+            SKIP.put(bestKey, now + SKIP_TICKS);
+            LOGGER.info("[{}] gave up on {} (never under the crosshair)", NAME, best.label());
+            stuckKey = null;
+        }
         if (hit == null) {
             aimed = null;
             return;
         }
-        Object key = hit.zombie() != null ? (Object) hit.zombie().getId() : hit.lamp();
+        Object key = key(hit);
         if (!key.equals(aimed)) {
             aimed = key;
             aimedAtTick = now + ActionGate.delayTicks(cfg.getAimDelayMs());
@@ -101,6 +123,25 @@ public final class AutoZombieShootout {
             com.killer560.hub.util.ModChat.log(NAME, com.killer560.hub.util.ModChat.text("Shot at " + hit.label()
                     + " (" + hit.points() + " points)."));
         }
+    }
+
+    private static Object key(ZombieShootout.Target t) {
+        return t.zombie() != null ? (Object) t.zombie().getId() : t.lamp();
+    }
+
+    /** A target the auto may shoot: in sight, not given up on, and not a lamp it would have to look nearly straight down
+     *  at (one under his feet). */
+    private static boolean usable(LocalPlayer player, ZombieShootout.Target t) {
+        if (SKIP.containsKey(key(t)) || !ZombieShootout.inSight(player, t)) {
+            return false;
+        }
+        return t.lamp() == null || !tooSteep(player, t.aimPoint());
+    }
+
+    /** Whether {@code point} is more than 75 degrees below the eye (a floor lamp he stands on). */
+    static boolean tooSteep(LocalPlayer player, net.minecraft.world.phys.Vec3 point) {
+        net.minecraft.world.phys.Vec3 d = point.subtract(player.getEyePosition());
+        return d.y < 0 && -d.y > Math.sqrt(d.x * d.x + d.z * d.z) * 3.73;
     }
 
     /** Harness: shots fired. */

@@ -29,6 +29,7 @@ public final class CarnivalFeatures {
             AutoFruitDigging.register();
             FruitDiggingTriggerbot.register();
             AutoCatchAFish.register();
+            AutoAcceptGame.register();
             // carnival-cheat-register-end
         }
     }

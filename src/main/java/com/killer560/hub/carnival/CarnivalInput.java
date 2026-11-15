@@ -111,9 +111,24 @@ final class CarnivalInput {
         }
     }
 
-    /** Whether the player turned the mouse while {@code owner} was aiming. */
-    static boolean userTookOver(String owner, LocalPlayer player) {
-        return owner.equals(aimOwner) && RouteRotation.userMovedCamera(player);
+    private static final java.util.Set<String> STOPPED = new java.util.HashSet<>();
+
+    /** Whether {@code name} was stopped (Escape or the Emergency Cancel Key) for the rest of this game. */
+    static boolean stopped(String name) {
+        return STOPPED.contains(name);
+    }
+
+    /**
+     * Registers {@code name} with MacroStop as a click macro: only Escape or the Emergency Cancel Key stop it, for the
+     * rest of the game (one chat line); a new game re-arms it. Moving the mouse never stops it.
+     */
+    static void stopRule(String name, java.util.function.BooleanSupplier acting) {
+        com.killer560.hub.macrostop.MacroStop.register(name, com.killer560.hub.macrostop.MacroStop.Kind.CLICK,
+                () -> acting.getAsBoolean() && !STOPPED.contains(name), why -> {
+                    STOPPED.add(name);
+                    say(name, "Stopped for this game: you pressed " + why + ".");
+                });
+        CarnivalState.onGameStart(g -> STOPPED.remove(name));
     }
 
     /**
@@ -130,6 +145,11 @@ final class CarnivalInput {
         Islands.tap(key);
         taps++;
         return true;
+    }
+
+    /** A dig the caller holds Attack for counts as one tap (harness counter). */
+    static void countTap() {
+        taps++;
     }
 
     /** Selects hotbar {@code slot} through the gate, as a number key would. */

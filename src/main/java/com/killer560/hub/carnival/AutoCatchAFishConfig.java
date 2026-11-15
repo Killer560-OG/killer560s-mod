@@ -7,15 +7,14 @@ public final class AutoCatchAFishConfig extends CarnivalSettings {
 
     public static final int MIN_DELAY_MS = 100;
     public static final int MAX_DELAY_MS = 2000;
-    public static final int MIN_WAIT_S = 1;
-    public static final int MAX_WAIT_S = 10;
+    public static final int MAX_LEAD_PCT = 200;
     private static final AutoCatchAFishConfig INSTANCE = new AutoCatchAFishConfig();
 
     private AutoCatchAFishConfig() {
         super("autocatch");
         declare("enabled", false);
         declare("castDelayMs", 300);
-        declare("hookWaitS", 3);
+        declare("leadPct", 100);
         declare("freeCamera", false);
     }
 
@@ -31,7 +30,7 @@ public final class AutoCatchAFishConfig extends CarnivalSettings {
     @Override
     protected void clampAll() {
         setCastDelayMs(getCastDelayMs());
-        setHookWaitS(getHookWaitS());
+        setLeadPct(getLeadPct());
     }
 
     public int getCastDelayMs() {
@@ -42,13 +41,13 @@ public final class AutoCatchAFishConfig extends CarnivalSettings {
         put("castDelayMs", clamp(v, MIN_DELAY_MS, MAX_DELAY_MS));
     }
 
-    /** How long a cast may sit without hooking a fish before it is reeled back and cast again. */
-    public int getHookWaitS() {
-        return integer("hookWaitS");
+    /** Lead Adjust, percent: how far ahead of a swimming fish it aims (0 = at it, 100 = the estimate). */
+    public int getLeadPct() {
+        return integer("leadPct");
     }
 
-    public void setHookWaitS(int v) {
-        put("hookWaitS", clamp(v, MIN_WAIT_S, MAX_WAIT_S));
+    public void setLeadPct(int v) {
+        put("leadPct", clamp(v, 0, MAX_LEAD_PCT));
     }
 
     public boolean isFreeCamera() {

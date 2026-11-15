@@ -33,8 +33,8 @@ public class AutoCatchAFishTab extends BaseTab {
         int colB = contentX + half + 4;
         IslandRows.slider(w, contentX, y, half, AutoCatchAFishConfig.MIN_DELAY_MS, AutoCatchAFishConfig.MAX_DELAY_MS, 10,
                 cfg::getCastDelayMs, cfg::setCastDelayMs, v -> "Cast Delay: " + v + "ms", save);
-        y = IslandRows.slider(w, colB, y, half, AutoCatchAFishConfig.MIN_WAIT_S, AutoCatchAFishConfig.MAX_WAIT_S, 1,
-                cfg::getHookWaitS, cfg::setHookWaitS, v -> "Hook Wait: " + v + "s", save);
+        y = IslandRows.slider(w, colB, y, half, 0, AutoCatchAFishConfig.MAX_LEAD_PCT, 5,
+                cfg::getLeadPct, cfg::setLeadPct, v -> "Lead Adjust: " + v + "%", save);
         IslandRows.toggle(w, contentX, y, half, "Free Camera", cfg::isFreeCamera, cfg::setFreeCamera, save);
         return w;
     }

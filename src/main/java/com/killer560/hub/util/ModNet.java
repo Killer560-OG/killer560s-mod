@@ -46,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
  *   <li>{@code microsoft} - login.microsoftonline.com: the account switcher's token step</li>
  *   <li>{@code xboxlive} - user.auth.xboxlive.com and xsts.auth.xboxlive.com: the account switcher's Xbox steps</li>
  *   <li>{@code github-raw} - raw.githubusercontent.com: NEU/meowdding repo files, SkyHanni graph</li>
+ *   <li>{@code community-routes} - raw.githubusercontent.com: the premade secret route file (Community Routes)</li>
  *   <li>{@code jsdelivr} - cdn.jsdelivr.net: SkyHanni graph fallback</li>
  *   <li>{@code coflnet} - sky.coflnet.com: lowest-BIN prices</li>
  *   <li>{@code hysky} - hysky.de: Skyblocker's public lowest-BIN and average-BIN lists (Price Tooltip; read on
