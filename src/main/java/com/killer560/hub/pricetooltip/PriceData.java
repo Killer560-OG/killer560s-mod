@@ -77,9 +77,13 @@ public final class PriceData {
     public record GemSlot(String type, List<Cost> costs) {
     }
 
-    /** Facts about one item id from the items resource. */
+    /** An accessory's display name and base rarity (Hypixel leaves {@code tier} out for COMMON). */
+    public record Accessory(String name, String tier) {
+    }
+
+    /** Facts about one item id from the items resource; {@code accessory} is null for anything not an accessory. */
     public record ItemInfo(Double npcPrice, String museumCategory, List<String> museumSets,
-                           List<List<Cost>> upgradeCosts, List<GemSlot> gemSlots) {
+                           List<List<Cost>> upgradeCosts, List<GemSlot> gemSlots, Accessory accessory) {
     }
 
     private static volatile Map<String, ItemInfo> items = Map.of();
@@ -120,6 +124,9 @@ public final class PriceData {
     public static long generation() { return GENERATION.get(); }
 
     public static ItemInfo item(String id) { return id == null ? null : items.get(id); }
+
+    /** Every item the items resource knows (id -> facts); replaced whole on a refresh, never changed in place. */
+    public static Map<String, ItemInfo> items() { return items; }
 
     public static Double bazaarBuy(String id) { return id == null ? null : bazaarBuy.get(id); }
 
@@ -328,8 +335,10 @@ public final class PriceData {
                 }
                 slots = List.copyOf(list);
             }
-            if (npc == null && museumCat == null && upgrades.isEmpty() && slots.isEmpty()) continue;
-            out.put(id, new ItemInfo(npc, museumCat, sets, upgrades, slots));
+            Accessory acc = "ACCESSORY".equals(str(it, "category"))
+                    ? new Accessory(str(it, "name"), str(it, "tier") == null ? "COMMON" : str(it, "tier")) : null;
+            if (npc == null && museumCat == null && upgrades.isEmpty() && slots.isEmpty() && acc == null) continue;
+            out.put(id, new ItemInfo(npc, museumCat, sets, upgrades, slots, acc));
         }
         return Collections.unmodifiableMap(out);
     }
@@ -469,6 +478,11 @@ public final class PriceData {
         if (info.npcPrice() != null) {
             o.addProperty("npc_sell_price", info.npcPrice());
         }
+        if (info.accessory() != null) {
+            o.addProperty("category", "ACCESSORY");
+            o.addProperty("name", info.accessory().name());
+            o.addProperty("tier", info.accessory().tier());
+        }
         if (info.museumCategory() != null) {
             JsonObject md = new JsonObject();
             md.addProperty("category", info.museumCategory());
@@ -535,7 +549,9 @@ public final class PriceData {
                 JsonObject wrap = JsonParser.parseString(Files.readString(itemsFile, StandardCharsets.UTF_8)).getAsJsonObject();
                 if (wrap.has("items") && wrap.get("items").isJsonArray()) {
                     items = parseItems(wrap.getAsJsonArray("items"));
-                    itemsFetchedAt = (long) num(wrap.get("fetchedAt"));
+                    // A cache written before accessories were kept (accadvisor-1113) is refetched on the next pass.
+                    boolean hasAccessories = items.values().stream().anyMatch(i -> i.accessory() != null);
+                    itemsFetchedAt = hasAccessories ? (long) num(wrap.get("fetchedAt")) : 0;
                 }
             }
             Path pricesFile = CACHE_DIR.resolve("prices.json");

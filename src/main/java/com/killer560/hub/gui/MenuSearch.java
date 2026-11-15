@@ -60,6 +60,7 @@ public final class MenuSearch {
             {"timer", "countdown", "clock", "split", "stopwatch"},
             {"chat", "message", "msg"},
             {"auction", "ah"},
+            {"accessory", "accessories", "talisman", "talismans", "mp", "magical power"},
             {"bazaar", "bz"},
             {"teleport", "tp", "warp"},
             {"etherwarp", "ew", "aotv"},
