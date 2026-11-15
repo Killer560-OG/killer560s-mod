@@ -6,6 +6,7 @@ import com.killer560.hub.cheatutils.WitherEspFeature;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ViewAim;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -74,6 +75,7 @@ public final class GoldorTriggerbotFeature {
             return;
         }
         GoldorTriggerbotConfig.getInstance();
+        ViewAim.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("GoldorTriggerbotFeature.tick", GoldorTriggerbotFeature::tick));
         LOGGER.debug("[GoldorTriggerbot] Registered (default OFF)");
     }
@@ -82,24 +84,26 @@ public final class GoldorTriggerbotFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             clearAim();
+            ViewAim.release(AIM_OWNER);
         }
         GoldorTriggerbotConfig cfg = GoldorTriggerbotConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            clearAim();
-            return;
-        }
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || client.gameMode == null) {
+        boolean bot = cfg.isEnabled();
+        if ((!bot && !cfg.isAimbotOn()) || player == null || client.level == null || client.gameMode == null
+                || gated(client, player, cfg)) {
             clearAim();
+            ViewAim.release(AIM_OWNER);
             return;
         }
-
-        if (gated(client, player, cfg)) {
-            clearAim();
-            return;
-        }
-
         long now = ActionGate.currentTick();
+        Entity aimed = aimbot(client, player, cfg, now);
+        // The triggerbot's own phases, or the aimbot's boss with Auto Hit on.
+        boolean clicks = (bot && (cfg.isAllWithers() || Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)
+                || Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3))) || (aimed != null && cfg.isAimAutoHit());
+        if (!clicks) {
+            clearAim();
+            return;
+        }
         Entity target = aimedAtBoss(client, player, GoldorTriggerbotConfig.AIM_DISTANCE, 1.0f);
         if (target == null) {
             clearAim();
@@ -139,8 +143,11 @@ public final class GoldorTriggerbotFeature {
         // The one-interaction-per-tick gate, checked after the interval has elapsed and before anything is sent
         // or rolled: a denied tick must leave the aim and the due time exactly where they are.
         // His right click goes after us this tick: an attack before it is PacketOrderJ (1105-same-witherbot-use).
+        // His own left click queued this tick (Hold Left Click, a press on the boss) goes alone: one attack a tick.
         boolean attack = cfg.getClickType() == GoldorTriggerbotConfig.ClickType.ATTACK;
-        if ((attack && melee && ActionGate.hisUseGoesThisTick(client)) || !ActionGate.tryAct(GATE_ACTOR)) {
+        if ((attack && melee && ActionGate.hisUseGoesThisTick(client))
+                || ActionGate.hisClickQueued(attack ? client.options.keyAttack : client.options.keyUse)
+                || !ActionGate.tryAct(GATE_ACTOR)) {
             return;
         }
         if (attack) {
@@ -164,7 +171,7 @@ public final class GoldorTriggerbotFeature {
         nextClickDueTick = Math.max(nextClickDueTick, now - 1) + rollIntervalMs(cfg) / 50.0;
     }
 
-    /** True while any condition keeps the triggerbot from acting. */
+    /** True while any condition keeps both the triggerbot and the aimbot from acting (each adds its own phase rule). */
     private static boolean gated(Minecraft client, LocalPlayer player, GoldorTriggerbotConfig cfg) {
         // Any screen, not just a container: with a menu up the mouse is not steering the crosshair, so
         // "aimed at Goldor" is a stale reading of where you were looking. The gate refuses container
@@ -173,11 +180,66 @@ public final class GoldorTriggerbotFeature {
                 || McCompat.screen(client) != null
                 || player.isDeadOrDying()
                 || !WitherEspFeature.isWitherBossActive(client)
-                || !classAllowed(cfg)
-                // Chat-driven phase OR the y-band one, so joining mid-run (no Goldor line seen) still works, and so
-                // does p3sim, where the phase lines arrive exactly as they do on Hypixel.
-                || (!cfg.isAllWithers()
-                && !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3) && !Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3));
+                || !classAllowed(cfg);
+    }
+
+    /**
+     * Wither Aimbot (witheraim-1111): while the boss of a picked phase is up (Maxor P1 .. Necron P4; the chat phase, else
+     * the height band, so joining mid-run works), and with Hold Left Click only while he holds attack, turns the view
+     * onto the nearest real boss wither's body through {@link ViewAim} (eased per frame, running yaw, pitch within
+     * -90..90). His mouse wins: a turn of his own releases the aim for {@link #TAKEOVER_TICKS}. Returns the boss being
+     * aimed at, or null.
+     */
+    private static Entity aimbot(Minecraft client, LocalPlayer player, GoldorTriggerbotConfig cfg, long now) {
+        Floor7Tracker.Phase phase = Floor7Tracker.getPhase();
+        if (phase == Floor7Tracker.Phase.UNKNOWN) {
+            phase = Floor7Tracker.getPhaseAt();
+        }
+        int boss = phase.ordinal() - Floor7Tracker.Phase.P1.ordinal();
+        if (!cfg.isAimbotOn() || !cfg.isAimAt(boss) || (cfg.isAimHoldLeftClick() && !client.options.keyAttack.isDown())
+                || now < aimPausedUntil) {
+            ViewAim.release(AIM_OWNER);
+            return null;
+        }
+        if (ViewAim.userTookOver(AIM_OWNER, player)) {
+            ViewAim.release(AIM_OWNER);
+            aimPausedUntil = now + TAKEOVER_TICKS;
+            return null;
+        }
+        Entity target = null;
+        double best = AIM_RANGE_SQ;
+        for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof WitherBoss && WitherEspFeature.isRealWither(e)) {
+                double d = e.distanceToSqr(player);
+                if (d < best) {
+                    best = d;
+                    target = e;
+                }
+            }
+        }
+        if (target == null) {
+            ViewAim.release(AIM_OWNER);
+            return null;
+        }
+        ViewAim.aim(AIM_OWNER, player, target.getBoundingBox().getCenter(), true, false);
+        if (!ViewAim.aiming(AIM_OWNER)) {
+            return null; // a route, AP3, a Carnival auto or the Emergency Cancel Key has the view
+        }
+        aimTurns++;
+        return target;
+    }
+
+    private static final String AIM_OWNER = "Wither Aimbot";
+    /** How long his own mouse turn holds the aimbot off. */
+    private static final int TAKEOVER_TICKS = 10;
+    /** Further than any boss is drawn in the F7 arena. */
+    private static final double AIM_RANGE_SQ = 128.0 * 128.0;
+    private static long aimPausedUntil;
+    private static int aimTurns;
+
+    /** Ticks the aimbot aimed this session - for the testkit. */
+    public static int aimTicks() {
+        return aimTurns;
     }
 
     /**

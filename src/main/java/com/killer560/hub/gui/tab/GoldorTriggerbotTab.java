@@ -29,6 +29,11 @@ public class GoldorTriggerbotTab extends BaseTab {
     }
 
     @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Wither Boss Triggerbot", "Wither Aimbot");
+    }
+
+    @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         GoldorTriggerbotConfig cfg = GoldorTriggerbotConfig.getInstance();
@@ -39,11 +44,42 @@ public class GoldorTriggerbotTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Boss Triggerbot", true));
         y += 16;
 
-        if (masterClosed(widgets, "Wither Boss Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
-                contentX, y, contentWidth)) {
+        // Two features side by side, each with its own switch (masterToggles): the triggerbot and the Wither Aimbot.
+        // The rate, click type and classes below serve both, so they show while either is on.
+        widgets.add(onOffButton("Wither Boss Triggerbot", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 20));
+        y += 24;
+        boolean scan = isSearchScan();
+        if (cfg.isEnabledRaw() || scan) {
+            widgets.add(onOffButton("All Wither Bosses", cfg::isAllWithers, cfg::setAllWithers, cfg::save,
+                    null, contentX, y, contentWidth, 20));
+            y += 24;
+        }
+
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Wither Aimbot", true));
+        y += 16;
+        widgets.add(onOffButton("Wither Aimbot", cfg::isAimbot, cfg::setAimbot, cfg::save, requestRebuild,
+                contentX, y, contentWidth, 20));
+        y += 24;
+        if (cfg.isAimbot() || scan) {
+            widgets.add(onOffButton("Auto Hit", cfg::isAimAutoHit, cfg::setAimAutoHit, cfg::save, null,
+                    contentX, y, halfW, 20));
+            widgets.add(onOffButton("Hold Left Click", cfg::isAimHoldLeftClick, cfg::setAimHoldLeftClick, cfg::save, null,
+                    contentX + halfW + GAP, y, rightW, 20));
+            y += 24;
+            int bossW = (contentWidth - GAP * 3) / 4;
+            for (int i = 0; i < GoldorTriggerbotConfig.BOSSES.length; i++) {
+                int boss = i;
+                widgets.add(onOffButton(GoldorTriggerbotConfig.BOSSES[i], () -> cfg.isAimAt(boss), v -> cfg.setAimAt(boss, v),
+                        cfg::save, null, contentX + i * (bossW + GAP), y, bossW, 20));
+            }
+            y += 24;
+        }
+        if (!cfg.isEnabledRaw() && !cfg.isAimbot() && !scan) {
             return widgets;
         }
-        y += 24;
+        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Clicks", true));
+        y += 16;
 
         widgets.add(new RangeSliderWidget(contentX, y, contentWidth, ROW,
                 GoldorTriggerbotConfig.MIN_CPS, GoldorTriggerbotConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
@@ -68,10 +104,6 @@ public class GoldorTriggerbotTab extends BaseTab {
         widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Aim Delay", "ms", 0, GoldorTriggerbotConfig.MAX_AIM_DELAY_MS,
                 25, 0, cfg::getAimDelayMs, v -> cfg.setAimDelayMs((int) v), cfg::save));
         y += ROW + GAP;
-
-        widgets.add(onOffButton("All Wither Bosses", cfg::isAllWithers, cfg::setAllWithers, cfg::save,
-                null, contentX, y, contentWidth, 20));
-        y += 24;
 
         // Classes it works on (your class from the dungeon tab list); all on = every class, and an unknown class too.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Classes", true));

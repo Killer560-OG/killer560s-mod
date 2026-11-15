@@ -38,7 +38,8 @@
      "Carnival: Auto Dialogue works anywhere and answers Carnival NPCs through a Carnival Games row, Carnival is its own section in Misc, the autos stop only on Escape or the Emergency Cancel Key, Fruit Digging draws one box per tile, Auto Shovel Swap no longer grabs your AOTV, Auto Accept Game fix, and Zombie Shootout and Catch a Fish now lead their targets (Lead Adjust), read the fish bar and no longer need Hook Wait",
      "Blood Rush Helper: the built-in spawn boxes now cover 80 of the 124 mob rooms (8 more rooms, 671 spots), and learned spots outside a room are ignored (requeued after trainfix 11-14) (requeued 11-14 pm)",
      "AP3: /ap3 redo right after a delete or clear puts it back, like /ar redo (requeued 11-14 pm)",
-     "Accessory Bag advisor: suggests the next accessory to get (best overall, upgrade only, buy new, cheapest, cheapest per Magical Power)"
+     "Accessory Bag advisor: suggests the next accessory to get (best overall, upgrade only, buy new, cheapest, cheapest per Magical Power)",
+     "Wither Aimbot (cheat, off by default): in the Wither Boss Triggerbot tab, turns smoothly onto the boss wither you pick per boss, with Auto Hit and Hold Left Click options"
     ]
    }
   ]

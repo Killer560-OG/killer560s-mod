@@ -54,7 +54,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         ZeroPingEtherwarpConfig cfg = ZeroPingEtherwarpConfig.getInstance();
         int y = contentY;
-        w.add(SectionHeaders.row(contentX, y, contentWidth, ZPEW, true));
+        w.add(SectionHeaders.row(contentX, y, contentWidth, ZPEW, false));
         y += 16;
         w.add(onOffButton(ZPEW, cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, ROW));
         y += ROW + 6;

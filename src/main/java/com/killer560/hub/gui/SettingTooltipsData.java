@@ -2805,6 +2805,13 @@ final class SettingTooltipsData {
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");
         d.put("wither boss triggerbot/aim delay", "How long your crosshair must stay on the boss before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("wither boss triggerbot/all wither bosses", "Works on every wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not only Goldor in P3.");
+        d.put("wither boss triggerbot/wither aimbot", "Cheat build: in the F7/M7 boss, smoothly turns your view onto the boss wither of the phases picked below, from any range. Moving your mouse pauses it for half a second. Off by default.");
+        d.put("wither boss triggerbot/auto hit", "The aimbot also clicks the boss while your crosshair is on him, at the CPS and Click Type set below. Off: it only aims.");
+        d.put("wither boss triggerbot/hold left click", "The aimbot only turns while you hold your attack key; let go and your view is yours again.");
+        d.put("wither boss triggerbot/maxor", "The aimbot works on Maxor (Phase 1).");
+        d.put("wither boss triggerbot/storm", "The aimbot works on Storm (Phase 2).");
+        d.put("wither boss triggerbot/goldor", "The aimbot works on Goldor (Phase 3).");
+        d.put("wither boss triggerbot/necron", "The aimbot works on Necron (Phase 4).");
         d.put("wither boss triggerbot/mage", "Works while you are playing Mage. With every class on it also works when your class is unknown.");
         d.put("wither boss triggerbot/tank", "Works while you are playing Tank.");
         d.put("wither boss triggerbot/healer", "Works while you are playing Healer.");
