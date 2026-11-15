@@ -1007,6 +1007,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   first. Hx's chest menu always re-sends after a click, which hid this: testkit `menu.terminal` `dropClicks` / `menu.terminal.drop` answer
   nothing, cases 298/299-menu-term-resync-*. His 19:22 log had no failing terminal in it (Rubix 1.68 s, Starts With 25 s, no resend lines).
 
+### Warps Per Tick and the off hand (zpewunify-1111)
+
+Vanilla `Minecraft.startUseItem` tries the MAIN hand, then the OFF hand after a main-hand use that passes, and sends a
+`use_item_on` for it. Warps Per Tick sent its extra `use_item`s when `MultiPlayerGameMode.useItem` returned, i.e. before
+that off-hand packet, so a tick read use_item x N then use_item_on, and experimental GrimAC PacketOrderN (a block place
+after a use in one tick) flagged at 20 per tick. The extras now go at the RETURN of `startUseItem` (`ZpewStartUseMixin`;
+`ZeroPingEtherwarp.inClick` keeps the useItem hook out of a click). 20 per tick is clean on default and experimental Grim
+(testkit 1027-zpewmt, 1111-zpew-wpt20-same-swap: SHARED with his scroll). A dig never shares a tick with a use: vanilla's
+startUseItem returns while destroying, so a same-tick DIG case sends 0 uses (not a mod fault).
+
 ### Lag spikes and TimerLimit (blinklag-1104)
 
 Why a lag spike flags TimerLimit, read off GrimAC 2.3.74 (`TimerLimit.limitFallBehind`, javap of ac_grim_grimac_common):

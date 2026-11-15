@@ -178,6 +178,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 grid[slot] = inv.getItem(found).copy();
             } else {
                 grid[slot] = placeholder(layout.iconAt(slot), layout.identityAt(slot));
+                grid[slot].setCount(layout.counts().getOrDefault(slot, 1));
                 missing[slot] = true;
                 exactAt[slot] = layout.exactKeys().get(slot);
             }
@@ -389,6 +390,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         Map<Integer, String> slots = new LinkedHashMap<>();
         Map<Integer, String> icons = new LinkedHashMap<>();
         Map<Integer, String> exact = new LinkedHashMap<>();
+        Map<Integer, Integer> counts = new LinkedHashMap<>();
         Set<Integer> freeSlots = new TreeSet<>();
         for (int i = 0; i < 36; i++) {
             if (free[i]) {
@@ -404,13 +406,14 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 continue;
             }
             slots.put(i, identity);
+            counts.put(i, stack.getCount());
             icons.put(i, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
             String key = missing[i] ? exactAt[i] : InvSortMatch.exact(stack);
             if (key != null) {
                 exact.put(i, key);
             }
         }
-        return new InventoryLayout(name, slots, icons, exact, freeSlots, false, null);
+        return new InventoryLayout(name, slots, icons, exact, freeSlots, false, null, 0, counts);
     }
 
     private static String identityOfPlaceholder(ItemStack stack) {
