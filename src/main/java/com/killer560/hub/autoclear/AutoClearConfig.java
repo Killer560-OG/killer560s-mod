@@ -86,6 +86,8 @@ public final class AutoClearConfig {
     private boolean predictiveBats = true;
     /** What follows a bat that kills its mob in one hit (killer560, 2026-10-20). */
     private OneTap oneTap = OneTap.AT_ONCE;
+    /** Only wither doors toward Blood: no rooms, mobs or secrets; stops once the Blood door is open (killer560, 2026-11-15). */
+    private boolean doorOnly = false;
 
     private AutoClearConfig() {
     }
@@ -111,6 +113,7 @@ public final class AutoClearConfig {
             cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
             cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
             cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
+            cfg.doorOnly = ConfigJson.getBool(o, "doorOnly", cfg.doorOnly);
             // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
             // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
         }
@@ -129,6 +132,7 @@ public final class AutoClearConfig {
         o.addProperty("walkWhenFaster", walkWhenFaster);
         o.addProperty("predictiveBats", predictiveBats);
         o.addProperty("oneTap", oneTap.name());
+        o.addProperty("doorOnly", doorOnly);
         ConfigJson.write(CONFIG_PATH, o);
     }
 
@@ -161,6 +165,9 @@ public final class AutoClearConfig {
 
     public boolean isPredictiveBats() { return predictiveBats; }
     public void setPredictiveBats(boolean v) { predictiveBats = v; }
+
+    public boolean isDoorOnly() { return doorOnly; }
+    public void setDoorOnly(boolean v) { doorOnly = v; }
 
     public OneTap getOneTap() { return oneTap; }
     public void setOneTap(OneTap v) { oneTap = v == null ? OneTap.AT_ONCE : v; }

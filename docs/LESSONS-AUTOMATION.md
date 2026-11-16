@@ -1108,6 +1108,14 @@ everything held goes out in one burst, and a 1149 ms hold (33 packets) drew Time
 (ap3grp-run5) where 1090 ms ones (29-30) were clean. `TP_HOLD_MAX_MS` was 3000 ("cannot happen"); it is `ANSWER_DELAY_MS`
 now, and past it the client tick sends the hold's answer early and flushes (ap3grp2-1110). Holds then read 1051-1096 ms,
 26-30 packets, and the 26.2 group ran clean. The flush logs "teleport hold let go after N ms": read it before a TimerLimit.
+
+Before blaming a feature for TimerLimit, line its flag times up with the feature's own start line (acdooronly-proof2-1116):
+the one flagged Door Only same-attack run (experimental Grim, 1 of 5, 11-15 22:51) logged TimerLimit x5-x8 at 22:51:33-34,
+while "[AutoClear] started: Door Only" came at 22:51:35, and x1-x4 fell before the case's mark: the session's dungeon setup
+on a loaded PC stalled the server (the door clicks then waited over 5 ticks for an answer, "answered false"), the same
+class as the harness LagSpike control. Door Only sends no movement packet of its own (walking keys and `useItemOn` only),
+and its attack-tick yield (PacketOrderI/MultiActionsF, 8b5fbd17c) keeps his attack and its click APART: the same-attack
+case now judges `Expect.APART` (both on the wire, never one tick), and SHARED stays 0 by design.
 The cap is checked once per client tick, so under load a 26.3 full group still let one run to 1142 ms (TimerLimit); it is
 `ANSWER_DELAY_MS - 100` since, two ticks of margin under the ~1120 ms GrimAC allows.
 

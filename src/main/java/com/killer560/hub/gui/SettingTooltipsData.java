@@ -865,6 +865,7 @@ final class SettingTooltipsData {
         d.put("predictive bats", "ON aims a Spirit Sceptre bat where a moving mob will be when the bat reaches it; OFF aims at the mob as it stands.");
         d.put("one-tap warp", "When one bat is sure to kill its mob, At Once moves on as the bat leaves, After Impact moves on when it should land, Off stays on the mob.");
         d.put("pick up wither keys", "ON: a Wither Key dropped during a clear (within 40 blocks) is fetched before Auto Clear goes on, so the wither door can be opened.");
+        d.put("door only", "ON: Auto Clear clears no rooms and gets no secrets. It goes to each wither door on the way to Blood, waits there and clicks it whenever a key is held, and stops once the Blood door is open.");
         d.put("hyperion hops", "ON reaches near mobs with Wither Impact hops (each hop that lands in reach also kills) and far ones by etherwarp; needs a Hyperion in the hotbar.");
         d.put("mob timeout", "How long one starred mob is attacked without dying before Auto Clear skips it.");
         d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Backspace clears it.");

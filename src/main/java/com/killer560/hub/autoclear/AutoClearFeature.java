@@ -275,7 +275,41 @@ public final class AutoClearFeature {
         singleRoom = null;
         onDone = null;
         onGiveUp = null;
-        begin(AutoClearConfig.getInstance().getMode().label());
+        boolean only = AutoClearConfig.getInstance().isDoorOnly();
+        Minecraft mc = Minecraft.getInstance();
+        if (only && doorOnlyDone.get() == mc.level && mc.level != null) {
+            say(ModChat.dim("The Blood door is already open"));
+            return;
+        }
+        begin(only ? "Door Only" : AutoClearConfig.getInstance().getMode().label());
+        doorOnly = only;
+    }
+
+    /** Door Only (killer560, 2026-11-15): no rooms, mobs or secrets; wither doors toward Blood, then it ends for the run. */
+    private static boolean doorOnly = false;
+    private static java.lang.ref.WeakReference<Object> doorOnlyDone = new java.lang.ref.WeakReference<>(null);
+
+    /** The testkit's Grim server has no dungeon map: the door cell Door Only goes for (-1 = the map's next door). */
+    private static volatile int forcedDoor = -1;
+
+    public static void forceDoorForTest(int door) {
+        forcedDoor = door;
+    }
+
+    private static void doorOnlyStep(Minecraft client, DungeonLayout layout) {
+        int blood = layout.bloodDoor();
+        if (blood >= 0 && !layout.isLocked(blood)
+                && com.killer560.hub.chunkcache.ChunkCacheManager.isLoadedOrCached(client.level, DungeonLayout.doorBlock(blood))) {
+            doorOnlyDone = new java.lang.ref.WeakReference<>(client.level);
+            finish("the Blood door is open");
+            return;
+        }
+        int door = forcedDoor >= 0 ? forcedDoor : com.killer560.hub.livemap.autoclear.BloodRush.nextDoor(layout);
+        if (door < 0) {
+            action = "waiting for a locked door on the map";
+            return;
+        }
+        openDoor(layout, door, "Blood");
     }
 
     private static void begin(String what) {
@@ -297,6 +331,7 @@ public final class AutoClearFeature {
         skippedRooms.clear();
         skippedMobs.clear();
         doorTarget = -1;
+        doorOnly = false;
         keyId = -1;
         keyTrip = false;
         keyAnyRange = false;
@@ -668,6 +703,10 @@ public final class AutoClearFeature {
         bodyWanted = false;
         DungeonLayout layout = DungeonLayout.capture();
         AutoClearConfig cfg = AutoClearConfig.getInstance();
+        if (doorOnly) {
+            doorOnlyStep(client, layout);
+            return;
+        }
 
         // ---- a dropped Wither Key first: the door it opens is the way on (before "room cleared" - the key often
         // drops from the room's last mob, and a single-room clear would hand back with it lying there) ----
@@ -1584,6 +1623,12 @@ public final class AutoClearFeature {
         return Math.max(n, ItemIdentity.findHotbarSlotById(player, "WITHER_KEY") >= 0 ? 1 : 0);
     }
 
+    /** Keys for a door: the team's blood key for the blood door (not an item; 1 also when no Keys line has said, a click
+     *  without it is only refused), else the wither keys. */
+    private static int doorKeys(LocalPlayer player, boolean blood) {
+        return blood ? (com.killer560.hub.doorkeys.DungeonKeys.bloodKey() != 0 ? 1 : 0) : witherKeyCount(player);
+    }
+
     /** Whether a click from an eye at {@code eye} reaches the door block {@code target} (its box, as the server
      *  measures). */
     private static boolean doorInReach(LocalPlayer player, Vec3 eye, BlockPos target) {
@@ -1632,7 +1677,11 @@ public final class AutoClearFeature {
             doorStartTick = ClearExecutor.clientTick();
             LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
         }
+        final boolean blood = door == layout.bloodDoor();
         BlockPos target = doorClickBlock(client, door);
+        if (target == null && doorOnly && layout.isLocked(door)) {
+            target = DungeonLayout.doorBlock(door).above();   // a door rooms away is not loaded yet: go toward it
+        }
         if (target == null) {
             action = "waiting for the wither door to finish opening";
             return;
@@ -1651,7 +1700,7 @@ public final class AutoClearFeature {
         boolean arrived = doorTripDone == door;
         if (!inReach && !arrived) {
             // The approach is in the room in front of the door - the one its key drops in. Nobody in it yet: in on foot.
-            for (KeyRooms.Guard g : KeyRooms.guards(layout)) {
+            for (KeyRooms.Guard g : doorOnly ? List.<KeyRooms.Guard>of() : KeyRooms.guards(layout)) {
                 if (g.door() == door && keyRoomEntry(client, player, layout, g.room())) {
                     return;
                 }
@@ -1685,14 +1734,14 @@ public final class AutoClearFeature {
             }
             return;
         }
-        boolean key = witherKeyCount(player) > 0;
+        boolean key = doorKeys(player, blood) > 0;
         if (key) {
             keyAnyRange = false;
         }
         long now = ClearExecutor.clientTick();
         if (doorClicks > 0) {
             // The door still stands (target != null above): it is open only when its blocks go.
-            if (!doorAccepted && witherKeyCount(player) < doorKeysAtClick) {
+            if (!doorAccepted && doorKeys(player, blood) < doorKeysAtClick) {
                 doorAccepted = true;
                 LOGGER.info("[AutoClear] wither door {}: the server took the key {} ticks after the trip began - opening",
                         door, now - doorStartTick);
@@ -1700,6 +1749,10 @@ public final class AutoClearFeature {
             if (now - doorLastClickTick < DOOR_RETRY_TICKS) {
                 action = doorAccepted ? "opening the wither door" : "waiting for the server's answer to the door click";
                 return;
+            }
+            if (doorOnly && doorClicks >= DOOR_MAX_CLICKS && now - doorLastClickTick > 100) {
+                doorClicks = 0;   // Door Only keeps trying: another round of clicks after 5 s
+                doorShutSaid = false;
             }
             if (doorClicks >= DOOR_MAX_CLICKS) {
                 action = "waiting at the wither door - it stayed shut";
@@ -1726,7 +1779,7 @@ public final class AutoClearFeature {
                         DOOR_MAX_CLICKS);
             }
         }
-        if (!key && !keyAnyRange && !witherKeyInView(client)) {
+        if (!doorOnly && !blood && !key && !keyAnyRange && !witherKeyInView(client)) {
             // A key left earlier (no way to it then) may be reachable now that more doors are open: once more each.
             for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
                 if (!k.blood() && keysTried.contains(k.id()) && keysRetried.add(k.id())) {
@@ -1736,16 +1789,24 @@ public final class AutoClearFeature {
                 }
             }
         }
-        if (!key && !keyAnyRange && witherKeyInView(client)) {
+        if (!doorOnly && !blood && !key && !keyAnyRange && witherKeyInView(client)) {
             keyAnyRange = true;
             LOGGER.info("[AutoClear] at wither door {} with no key, and a Wither Key lies in view - going for it", door);
             return;
         }
+        if (!inReach && doorOnly) {
+            // Door Only stands AT the door: a finished trip that left him out of reach is asked again every 2 s.
+            action = "waiting for the door to come into reach";
+            if (now % 40 == 0) {
+                doorTripDone = -1;
+            }
+            return;
+        }
         if (!key) {
-            action = "waiting at the wither door - no Wither Key";
+            action = "waiting at the " + (blood ? "blood" : "wither") + " door - no key";
             if (!saidNoKey) {
                 saidNoKey = true;
-                say(ModChat.bad("Waiting at the wither door"), ModChat.dim(" - nobody has the Wither Key yet"));
+                ModChat.log(CHAT, ModChat.text("Waiting at the " + (blood ? "blood" : "wither") + " door - nobody has the key yet"));
                 LOGGER.info("[AutoClear] at wither door {} with no key - waiting", door);
             }
             return;
@@ -1759,7 +1820,7 @@ public final class AutoClearFeature {
             return;
         }
         // The key's slot and the body's turn on the same tick (WitherDoorOpener's AIM step), the click on the next.
-        int keySlot = ItemIdentity.findHotbarSlotById(player, "WITHER_KEY");
+        int keySlot = blood ? -1 : ItemIdentity.findHotbarSlotById(player, "WITHER_KEY");
         boolean swapped = false;
         if (keySlot >= 0 && player.getInventory().getSelectedSlot() != keySlot) {
             select(client, player, keySlot);
@@ -1800,7 +1861,12 @@ public final class AutoClearFeature {
                     now - doorBorderSinceTick, door);
             doorBorderSinceTick = -1;
         }
-        int keysNow = witherKeyCount(player);
+        if (com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)) {
+            // His attack goes out after ours in this tick's handleKeybinds: vanilla sends none after a use (PacketOrderI).
+            action = "letting his attack go first";
+            return;
+        }
+        int keysNow = doorKeys(player, blood);
         if (client.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit)
                 == net.minecraft.world.InteractionResult.FAIL) {
             // Refused before sending (outside the border past the hold): not a sent click, but a try, so the cap holds.

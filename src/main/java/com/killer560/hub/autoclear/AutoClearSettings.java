@@ -83,6 +83,7 @@ public final class AutoClearSettings {
         y[0] += 24;
 
         widgets.add(SettingsButtonWidget.cycleEnum(() -> oneTapText(cfg), cfg::getOneTap, cfg::setOneTap, cfg::save).bounds(x, y[0], half, 20).build());
+        toggleCell(widgets, x + half + GAP, y[0], right, "Door Only", cfg::isDoorOnly, cfg::setDoorOnly, null);
         y[0] += 24;
 
         int span = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
