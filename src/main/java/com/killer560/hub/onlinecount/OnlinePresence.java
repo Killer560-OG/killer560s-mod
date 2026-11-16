@@ -234,7 +234,28 @@ public final class OnlinePresence {
         return ModNet.url("presence-relay", RelayEndpoint.normalise(RelayEndpoint.DEFAULT_BASE_URL) + "/presence");
     }
 
+    /** Every distinct location sent this session, logged once with its raw text so a new island is easy to spot. */
+    private static final java.util.Set<String> SEEN = new java.util.HashSet<>();
+
+    /** The relay's counts ({"total":n,"byLocation":[[island,n],...]}) for the /online screen, read off the render thread;
+     *  {@code done} gets the JSON, or null when the relay cannot be reached (it runs on the IO thread). */
+    static void fetchCounts(java.util.function.Consumer<String> done) {
+        IO.execute(() -> {
+            String json = null;
+            try {
+                HttpRequest req = HttpRequest.newBuilder(URI.create(url())).timeout(Duration.ofSeconds(10)).GET().build();
+                HttpResponse<String> res = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
+                if (res.statusCode() == 200) json = res.body();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Throwable ignored) {
+            }
+            done.accept(json);
+        });
+    }
+
     private static void send(String location) {
+        if (SEEN.size() < 64 && SEEN.add(location)) LOGGER.info("[OnlineCount] location \"{}\"", location);
         String body = body(location);
         synchronized (SENT) {
             SENT.add(System.currentTimeMillis() + " " + body);

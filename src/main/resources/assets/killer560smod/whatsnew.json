@@ -16,7 +16,8 @@
      "Auto Routes: a route that comes back to an earlier tile fires the nodes in order; path arrivals still stack with their own tile's nodes",
      "AP3 (cheat): crystals:<n> (or cr:<n>) waits for that many Maxor crystal phases to be complete (each 2/2 line), and the node editor row is After Crystal Phases",
      "AP3: the Term Aura node no longer clicks the terminal a second time when the terminal window is slow to open, and your own left click waits while the body is turned to the terminal",
-     "Blink (cheat): with Charge on, a block you or Breaker Aura break shows and is walkable as soon as the server's break comes back, keeping the bank; Breaker Aura waits a tick for your right click."
+     "Blink (cheat): with Charge on, a block you or Breaker Aura break shows and is walkable as soon as the server's break comes back, keeping the bank; Breaker Aura waits a tick for your right click.",
+     "/online now opens a screen with the same counts as the Discord /online; island sub-areas count under their island"
     ]
    }
   ]

@@ -679,6 +679,14 @@ public class Killer560ModClient implements ClientModInitializer {
                                             return 1;
                                         })))));
 
+        // /online: the Discord /online counts (players per island) in a screen.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("online").executes(context -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.execute(() -> client.setScreenAndShow(new com.killer560.hub.onlinecount.OnlineScreen(McCompat.screen(client))));
+                    return 1;
+                })));
+
         // Termism: killer560's own terminal-practice request (2026-09-09) - "/termism or... through the
         // settings" - this is the command half, TermismTab (Dungeon folder) is the settings half.
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
