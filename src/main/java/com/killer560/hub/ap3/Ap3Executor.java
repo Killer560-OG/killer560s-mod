@@ -6116,7 +6116,8 @@ public final class Ap3Executor {
      *  change in that packet is GrimAC BadPacketsJ (ap3holddig-1110: 12 in a run with a use every tick). */
     private static boolean useWentThisTick() {
         String o = com.killer560.hub.util.HotbarSelect.orderConflict();
-        return o != null && o.startsWith("use_item");
+        // A Lever Aura turn-only flick (activated lever) counts as its click would, so both lever states walk the same.
+        return o != null && o.startsWith("use_item") || com.killer560.hub.leveraura.LeverAuraFeature.turnOnlyThisTick();
     }
 
     /**

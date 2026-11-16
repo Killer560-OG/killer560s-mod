@@ -158,6 +158,11 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   jump is due or armed), keeping W on the ground so the sprint stays. The bend lasts the click's two ticks; AP3's held keys
   are re-picked at that yaw (`nearestKey8`). On a jump tick AP3 faces the walk whatever turn is out (the sprint-jump boost
   goes along the facing; a lever turn on the platform jump threw him into the lava), and the click turns again after.
+- **An already activated lever still turns the body while AP3 runs (ap3leverturn-1115).** A route is planned with both S2
+  levers off, so its keys include each lever's turn; on a retry with the lever already on, no turn meant WD+sprint instead
+  of SD and the walk drifted off the route. Lever Aura now gives an activated lever on a running AP3 route the same flick
+  (gate, cooldown, TurnFirst turn and hand-back) with no use_block, and AP3 reads that tick as a flick tick
+  (`LeverAuraFeature.turnOnlyThisTick`). Testkit 1115-ap3-leverturn-states / -same-use compare both lever states on the wire.
 - **Lever reach, measured (leverbest-1112, testkit 1112-boss-lever-reach-probe, GrimAC 2.3.74 default AND experimental,
   same numbers).** What counts is where the click's look ENTERS the lever's full block, measured from the real eye (feet +
   1.62 standing, 1.27 sneaking), along a ray that really hits the lever's small outline. Hand flicks from feet west of the

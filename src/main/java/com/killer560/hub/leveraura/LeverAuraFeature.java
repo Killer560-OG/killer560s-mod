@@ -62,6 +62,18 @@ public final class LeverAuraFeature {
     private static long turnStartTick = -1L;
     private static int lastGeneration = Integer.MIN_VALUE;
     private static int lastSection = 1;
+    /** Turn-only flicks done (activated levers on a running AP3 route); read by the testkit. */
+    private static int turnOnlyCount;
+    private static long turnOnlyTick = -1L;
+
+    public static int turnOnlyCountForTest() {
+        return turnOnlyCount;
+    }
+
+    /** True in the tick a turn-only flick stood in for a click, so AP3 treats that tick as it does a flick's use tick. */
+    public static boolean turnOnlyThisTick() {
+        return turnOnlyTick == ActionGate.currentTick();
+    }
 
     private LeverAuraFeature() {
     }
@@ -161,6 +173,7 @@ public final class LeverAuraFeature {
         BlockPos target = null;
         String reason = null;
         boolean approach = false;
+        boolean targetTurnOnly = false;
 
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
         if (sectionWanted) {
@@ -181,21 +194,32 @@ public final class LeverAuraFeature {
                     continue;
                 }
                 long key = pos.asLong();
-                if ((s2Open ? clickedS2 : clickedEarly).contains(key) || !hasNotActivatedStand(client, pos)) {
-                    if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
-                        logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
-                    } else {
-                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
-                    }
+                boolean turnOnly = false;
+                if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
+                    logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
                     continue;
                 }
-                logLever(pos, next ? "approach" : "eligible", next ? "in range next tick: turn first" : reasonFor(s2Open), d);
+                if (!hasNotActivatedStand(client, pos)) {
+                    // An AP3 route is planned with this lever's turn (its keys are re-picked at the turned yaw), so while
+                    // one runs an activated lever still gets the same turn at the same tick, only no click (ap3leverturn-1115:
+                    // without it every retry walked on different keys and missed the route).
+                    if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !com.killer560.hub.ap3.Ap3Executor.isRunning()) {
+                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
+                        continue;
+                    }
+                    logLever(pos, "activatedTurn", "already activated, AP3 route running: same turn, no click", d);
+                    turnOnly = true;
+                }
+                if (!turnOnly) {
+                    logLever(pos, next ? "approach" : "eligible", next ? "in range next tick: turn first" : reasonFor(s2Open), d);
+                }
                 // One in reach now goes before one only due next tick.
                 double rank = next ? 1e9 + d : d;
                 if (rank < best) {
                     best = rank;
                     target = pos;
                     approach = next;
+                    targetTurnOnly = turnOnly;
                     reason = s2Open ? "S2 section lever" : "S2 section lever (early)";
                 }
             }
@@ -223,7 +247,7 @@ public final class LeverAuraFeature {
             return;
         }
         if (approach ? preTurn(client, target, eyeNext)
-                : !click(client, cfg, target, reason, s2Open)) {
+                : !click(client, cfg, target, reason, s2Open, targetTurnOnly)) {
             // The body was turned to it this tick (or no hit yet): the flick goes next tick.
             if (turnStartTick < 0) {
                 turnStartTick = tick;
@@ -255,8 +279,10 @@ public final class LeverAuraFeature {
         return true;
     }
 
-    /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
-    private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
+    /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). {@code turnOnly}: an
+     *  activated lever on a running AP3 route, which gets every step of a flick (turn, hold, cooldown) but the click. */
+    private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open,
+                                 boolean turnOnly) {
         // A surface hit from the eye rather than the block's center: a point INSIDE the block is what GrimAC flagged on
         // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits. The best spot
         // on the outline, not its middle (leverbest-1112): the ray that enters the full cube soonest, which is what GrimAC
@@ -285,6 +311,13 @@ public final class LeverAuraFeature {
             hit = onLook;
         }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
+        if (turnOnly) {
+            turnOnlyCount++;
+            turnOnlyTick = ActionGate.currentTick();
+            LOGGER.info("[LeverAura] turn kept, click left out: lever {} already activated (AP3 route running) tick={}",
+                    pos.toShortString(), ActionGate.currentTick());
+            return true;
+        }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} entry={} box={} powered={} swing={} tick={}",
                 pos.toShortString(), reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.3f",
