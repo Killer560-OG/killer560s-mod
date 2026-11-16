@@ -269,7 +269,7 @@ public final class CollectionTracker {
 
     private static void maybeFetchApi(Minecraft client) {
         long now = System.currentTimeMillis();
-        if (apiInFlight || now - apiAt < API_REFRESH_MS || now - apiTriedAt < API_RETRY_MS) return;
+        if (!ProfileViewerApi.quietOk() || apiInFlight || now - apiAt < API_REFRESH_MS || now - apiTriedAt < API_RETRY_MS) return;
         apiTriedAt = now;
         UUID self;
         try {
@@ -280,7 +280,7 @@ public final class CollectionTracker {
         if (self == null) return;
         apiInFlight = true;
         try {
-            ProfileViewerApi.fetchProfiles(self, false)
+            ProfileViewerApi.fetchProfiles(self, false, true)
                     .thenCompose(r -> profileCollections(r.profiles()))
                     .whenComplete((cols, err) -> {
                         apiInFlight = false;

@@ -1,6 +1,9 @@
 package com.killer560.hub.profileviewer.api;
 
+import com.killer560.hub.relay.RelayCalls;
 import com.killer560.hub.util.ModNet;
+import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.util.MojangBudget;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -61,6 +64,7 @@ public final class ProfileViewerApi {
     public static final long CACHE_MS = 5 * 60 * 1000L;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final String BACKEND = ModNet.url("pv-backend", "https://skyblock-pv.thatgravyboat.tech");
+    private static final String HYPIXEL_V2 = "https://api.hypixel.net/v2/";
     private static final String HYPIXEL_PROFILES = ModNet.url("hypixel", "https://api.hypixel.net/v2/skyblock/profiles?uuid=");
     private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
 
@@ -144,6 +148,7 @@ public final class ProfileViewerApi {
 
     private static volatile String backendToken;
     private static volatile long backendTokenAt;
+    private static volatile boolean tokenLoaded;
     /** The /authenticate request in flight, shared by every caller that needs a token meanwhile. */
     private static CompletableFuture<String> tokenInFlight;
 
@@ -287,6 +292,11 @@ public final class ProfileViewerApi {
     }
 
     public static CompletableFuture<ProfilesResult> fetchProfiles(UUID uuid, boolean bypassCache) {
+        return fetchProfiles(uuid, bypassCache, false);
+    }
+
+    /** @param quiet a background reader: never sign in to the SkyBlockPV backend (a Mojang join) for it. */
+    public static CompletableFuture<ProfilesResult> fetchProfiles(UUID uuid, boolean bypassCache, boolean quiet) {
         if (!bypassCache) {
             ProfilesResult cached = getCached(uuid);
             if (cached != null) return CompletableFuture.completedFuture(cached);
@@ -296,7 +306,7 @@ public final class ProfileViewerApi {
         if (existing != null) return existing;
         CompletableFuture<Raw> raw;
         try {
-            raw = fetchWithFallback(uuid);
+            raw = fetchWithFallback(uuid, quiet);
         } catch (Throwable t) {
             raw = CompletableFuture.failedFuture(t);
         }
@@ -346,7 +356,7 @@ public final class ProfileViewerApi {
         // banned for serving thousands of clients rather than with anyone extracting it. No mainstream
         // Skyblock mod does this: other implementations need no key at all, and other implementations keep
         // theirs on a proxy. The keyless SkyBlockPV BACKEND covers everyone who hasn't supplied a key.
-        USER_KEY, BACKEND
+        USER_KEY, RELAY, BACKEND
     }
 
 
@@ -387,6 +397,10 @@ public final class ProfileViewerApi {
     }
 
     public static CompletableFuture<AuxResult> fetchAux(AuxKind kind, String rawId, boolean bypassCache) {
+        return fetchAux(kind, rawId, bypassCache, false);
+    }
+
+    public static CompletableFuture<AuxResult> fetchAux(AuxKind kind, String rawId, boolean bypassCache, boolean quiet) {
         if (rawId == null || !AUX_ID.matcher(rawId).matches() || parseUuid(rawId) == null) {
             return CompletableFuture.failedFuture(new ApiException("Invalid id."));
         }
@@ -402,8 +416,9 @@ public final class ProfileViewerApi {
         if (existing != null) return existing;
         CompletableFuture<Raw> raw;
         try {
-            raw = runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
+            raw = runAttempts(attemptOrder(quiet), 0, new ArrayList<>(), attempt -> switch (attempt) {
                 case USER_KEY -> hypixelGet(kind.hypixel + id, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)", true);
+                case RELAY -> relayGet(kind.hypixel.substring(HYPIXEL_V2.length()) + id, true);
                 case BACKEND -> backendGet(kind.backend + id, true, true);
             });
         } catch (Throwable t) {
@@ -431,20 +446,32 @@ public final class ProfileViewerApi {
         return promise;
     }
 
-    private static List<Attempt> attemptOrder() {
+    private static List<Attempt> attemptOrder(boolean quiet) {
         ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
         String userKey = cfg.getApiKey();
         List<Attempt> order = new ArrayList<>();
         switch (cfg.getSource()) {
-            // Source=HYPIXEL with no key of your own can only mean the keyless backend now.
-            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BACKEND : Attempt.USER_KEY);
+            // Source=HYPIXEL: Hypixel's own data only (your key, then the relay's shared key); the backend only without a key.
+            case HYPIXEL -> {
+                if (!userKey.isEmpty()) {
+                    order.add(Attempt.USER_KEY);
+                }
+                order.add(Attempt.RELAY);
+                if (userKey.isEmpty()) {
+                    order.add(Attempt.BACKEND);
+                }
+            }
             case BACKEND -> order.add(Attempt.BACKEND);
             default -> {
                 if (!userKey.isEmpty()) {
                     order.add(Attempt.USER_KEY);
                 }
+                order.add(Attempt.RELAY);
                 order.add(Attempt.BACKEND);
             }
+        }
+        if (quiet && validToken() == null) {
+            order.remove(Attempt.BACKEND);
         }
         return order;
     }
@@ -456,6 +483,7 @@ public final class ProfileViewerApi {
     private static String label(Attempt attempt) {
         return switch (attempt) {
             case USER_KEY -> "Your API key";
+            case RELAY -> "Shared Hypixel key";
             case BACKEND -> "SkyBlockPV backend";
         };
     }
@@ -494,15 +522,36 @@ public final class ProfileViewerApi {
         });
     }
 
-    private static CompletableFuture<Raw> fetchWithFallback(UUID uuid) {
-        return runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
+    private static CompletableFuture<Raw> fetchWithFallback(UUID uuid, boolean quiet) {
+        return runAttempts(attemptOrder(quiet), 0, new ArrayList<>(), attempt -> switch (attempt) {
             case USER_KEY -> hypixel(uuid, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)");
+            case RELAY -> relayGet("skyblock/profiles?uuid=" + dashless(uuid), false);
             case BACKEND -> backend(uuid, true);
         });
     }
 
     private static CompletableFuture<Raw> hypixel(UUID uuid, String key, String label) {
         return hypixelGet(HYPIXEL_PROFILES + dashless(uuid), key, label, false);
+    }
+
+    /**
+     * One Hypixel v2 read through the relay's shared key (bearer token, no Mojang join). {@code route} is the v2 path
+     * with the id as its one query value; the relay answers Hypixel's own JSON, and 429 / 503 / no login fall through
+     * to the next source.
+     */
+    private static CompletableFuture<Raw> relayGet(String route, boolean notFoundIsEmpty) {
+        int q = route.indexOf('?');
+        String path = "/hypixel/" + route.substring(0, q) + "?id=" + route.substring(route.indexOf('=') + 1);
+        return RelayCalls.call("profileviewer-relay", "GET", path, null).thenApply(r -> {
+            if (r.status() == 404 && notFoundIsEmpty) return new Raw(null, "Shared Hypixel key");
+            if (r.status() == 429) {
+                throw new RateLimitedException("The shared Hypixel key is busy - try again shortly.", 30_000L);
+            }
+            if (!r.ok() || (r.body().has("success") && !r.body().get("success").getAsBoolean())) {
+                throw new ApiException("relay: " + r.error());
+            }
+            return new Raw(r.body(), "Shared Hypixel key");
+        });
     }
 
     /** @param notFoundIsEmpty treat 404 as "no data" (garden/museum for a profile that never had one). */
@@ -589,15 +638,52 @@ public final class ProfileViewerApi {
 
     /** Mojang session handshake -> 24h backend token (reused for 23h). */
     private static CompletableFuture<String> backendToken() {
-        String token = backendToken;
-        if (token != null && System.currentTimeMillis() - backendTokenAt < 23L * 60 * 60 * 1000) {
-            return CompletableFuture.completedFuture(token);
-        }
+        String token = validToken();
+        if (token != null) return CompletableFuture.completedFuture(token);
         synchronized (ProfileViewerApi.class) {
             if (tokenInFlight != null && !tokenInFlight.isDone()) return tokenInFlight;
+            if (!MojangBudget.mayCallSessionServer()) {
+                return CompletableFuture.failedFuture(new ApiException("sign-in postponed (Mojang is busy), try again shortly."));
+            }
             CompletableFuture<String> f = fetchBackendToken();
             tokenInFlight = f;
             return f;
+        }
+    }
+
+    private static final java.nio.file.Path TOKEN_FILE = ModPaths.config("killer560smod-profileviewer-token.txt");
+
+    /** The token in memory or, after a restart, the one saved on disk (name, time, token); null when none is fresh. */
+    private static String validToken() {
+        String token = backendToken;
+        if (token == null && !tokenLoaded) {
+            tokenLoaded = true;
+            try {
+                java.util.List<String> l = java.nio.file.Files.readAllLines(TOKEN_FILE, StandardCharsets.UTF_8);
+                if (l.size() >= 3 && l.get(0).equals(Minecraft.getInstance().getUser().getName())) {
+                    backendTokenAt = Long.parseLong(l.get(1).trim());
+                    backendToken = token = l.get(2).trim();
+                }
+            } catch (Exception ignored) {
+                // no saved token
+            }
+        }
+        return token != null && !token.isEmpty() && System.currentTimeMillis() - backendTokenAt < 23L * 60 * 60 * 1000 ? token : null;
+    }
+
+    /** Whether a background caller may ask for data now without a Mojang join: the relay's shared key (any source but the
+     *  backend only), your own key, or a still-fresh backend token. */
+    public static boolean quietOk() {
+        ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
+        return cfg.getSource() != ProfileViewerConfig.Source.BACKEND || !cfg.getApiKey().isEmpty() || validToken() != null;
+    }
+
+    private static void saveToken(String name, String token) {
+        try {
+            java.nio.file.Files.createDirectories(TOKEN_FILE.getParent());
+            java.nio.file.Files.writeString(TOKEN_FILE, name + "\n" + backendTokenAt + "\n" + token + "\n", StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            // memory copy still works
         }
     }
 
@@ -606,9 +692,11 @@ public final class ProfileViewerApi {
             Minecraft mc = Minecraft.getInstance();
             User user = mc.getUser();
             String serverId = UUID.randomUUID().toString().replace("-", "");
+            ModNet.noteSessionJoin("profileviewer");
             try {
                 mc.services().sessionService().joinServer(user.getProfileId(), user.getAccessToken(), serverId);
             } catch (Exception e) {
+                MojangBudget.noteIf429(e);
                 // Never log the exception detail - some authlib messages include request context. Ask the
                 // backend anyway and let it decide: as of 2026-10-07 its /authenticate check is switched off and
                 // it hands every caller a guest token (checked by hand: any username, an unjoined server id, a
@@ -631,6 +719,7 @@ public final class ProfileViewerApi {
             }
             backendToken = body;
             backendTokenAt = System.currentTimeMillis();
+            saveToken(Minecraft.getInstance().getUser().getName(), body);
             LOGGER.info("[ProfileViewer] authenticated with SkyBlockPV backend");
             return body;
         });

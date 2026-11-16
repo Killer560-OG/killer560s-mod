@@ -88,6 +88,9 @@ final class DevonianAdapter extends SocketAdapter {
         if (name == null || uuid == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("no identity yet"));
         }
+        if (!com.killer560.hub.util.MojangBudget.mayCallSessionServer()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Mojang busy"));
+        }
         markAuthenticating();
         String r = UUID.randomUUID().toString(); // spec 1.2 step 2: fresh per attempt, canonical form
         String serverId = DevonianCodec.serverIdHash(r);
@@ -98,9 +101,11 @@ final class DevonianAdapter extends SocketAdapter {
             if (user == null || !uuid.equals(user.getProfileId()) || !name.equals(user.getName())) {
                 throw new BridgeAuthException("signed-in account changed", false);
             }
+            com.killer560.hub.util.ModNet.noteSessionJoin("bridge");
             try {
                 mc.services().sessionService().joinServer(user.getProfileId(), user.getAccessToken(), serverId);
             } catch (Exception e) {
+                com.killer560.hub.util.MojangBudget.noteIf429(e);
                 // Never log the exception detail - some authlib messages include request context.
                 throw new BridgeAuthException("Mojang session check failed (offline account or expired login)", false);
             }

@@ -267,12 +267,17 @@ public final class PlayerNames {
 
     private static UUID fetchUuidFrom(String url) {
         try {
+            if (!com.killer560.hub.util.MojangBudget.mayCallSessionServer()) return null;
             throttle();
             HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
                     .header("User-Agent", "Killer560sMod-PlayerNames/1.0")
                     .GET().build();
             HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 429) {
+                com.killer560.hub.util.MojangBudget.note429(0);
+                return null;
+            }
             if (resp.statusCode() == 404) {
                 return null; // no such account - not an error worth logging
             }
@@ -291,12 +296,17 @@ public final class PlayerNames {
 
     private static String fetchNameForUuid(UUID id) {
         try {
+            if (!com.killer560.hub.util.MojangBudget.mayCallSessionServer()) return null;
             throttle();
             HttpRequest req = HttpRequest.newBuilder(URI.create(SESSION_PROFILE + id.toString().replace("-", "")))
                     .timeout(REQUEST_TIMEOUT)
                     .header("User-Agent", "Killer560sMod-PlayerNames/1.0")
                     .GET().build();
             HttpResponse<String> resp = ModNet.send(HTTP, req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 429) {
+                com.killer560.hub.util.MojangBudget.note429(0);
+                return null;
+            }
             if (resp.statusCode() / 100 != 2) {
                 if (resp.statusCode() != 404) {
                     LOGGER.info("[PlayerNames] name refresh failed: HTTP {} ({})", resp.statusCode(), id);

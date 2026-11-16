@@ -67,7 +67,7 @@ public final class ProfileData {
             "gifs", "menu-themebackgrounds", "gifs-cache", "packdisabler-missing.txt", "mapdumps", "measurements.txt", "sim-world.txt",
             // The sim's F7 boss room capture (dev capture): a few MB of Hypixel's blocks, re-captured in a boss.
             "sim-bossarena.bin", "sim-bossarena-p2.bin", "sim-bossarena-p3.bin", "sim-bossarena-p4.bin", "sim-bossarena-p5.bin",
-            "spotify-setup-guide.txt",
+            "spotify-setup-guide.txt", "profileviewer-token.txt",
             // The Party Finder's cache of other players' dungeon stats (re-fetched on view).
             "partyfinder-stats-cache.json",
             "loadout-cache.json",

@@ -113,6 +113,14 @@ public final class ModNet {
         }
     }
 
+    /** Records a non-HTTP Mojang call (the session join) in the same log, e.g. "session-join://mojang". */
+    public static void noteSessionJoin(String who) {
+        synchronized (ATTEMPTS) {
+            if (ATTEMPTS.size() >= ATTEMPT_LOG) ATTEMPTS.removeFirst();
+            ATTEMPTS.addLast("session-join://" + who);
+        }
+    }
+
     public static void clearAttemptsForTest() {
         synchronized (ATTEMPTS) {
             ATTEMPTS.clear();

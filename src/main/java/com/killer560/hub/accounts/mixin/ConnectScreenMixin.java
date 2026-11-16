@@ -25,6 +25,7 @@ public class ConnectScreenMixin {
     @Inject(method = "startConnecting", at = @At("HEAD"))
     private static void killer560smod$onStartConnecting(Screen parent, Minecraft minecraft, ServerAddress serverAddress,
             ServerData serverData, boolean quickPlay, TransferState transferState, CallbackInfo ci) {
+        com.killer560.hub.util.MojangBudget.noteConnect();
         String host = serverAddress == null ? null : serverAddress.getHost();
         com.killer560.hub.banreport.BanReportFeature.noteConnect(host);
         if (host != null && host.toLowerCase(Locale.US).contains("hypixel.net")) {

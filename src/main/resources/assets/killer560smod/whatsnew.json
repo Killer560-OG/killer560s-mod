@@ -19,7 +19,8 @@
      "Blink (cheat): with Charge on, a block you or Breaker Aura break shows and is walkable as soon as the server's break comes back, keeping the bank; Breaker Aura waits a tick for your right click.",
      "/online now opens a screen with the same counts as the Discord /online; island sub-areas count under their island",
      "Auto Routes: an etherwarp no longer waits an extra tick when Secret Aura hands the look back after clicking a lever or chest",
-     "Auto Clear: Door Only (cheat) goes to each wither door on the way to Blood, clicks it while a key is held, stops when Blood is open"
+     "Auto Clear: Door Only (cheat) goes to each wither door on the way to Blood, clicks it while a key is held, stops when Blood is open",
+     "Fixed the first Hypixel join after launch failing with \"Status: 429\": the mod no longer uses Mojang's login budget in the background, and Profile Viewer, Collection Tracker and the museum reader now use the relay's shared Hypixel key, so no API key and no SkyBlockPV login is needed."
     ]
    }
   ]

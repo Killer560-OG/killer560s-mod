@@ -52,7 +52,7 @@ public final class MuseumDonations {
 
     private static void maybeFetch() {
         long now = System.currentTimeMillis();
-        if (now - fetchedAt < REFRESH_MS || now - attemptAt < RETRY_MS || !inFlight.compareAndSet(false, true)) return;
+        if (!ProfileViewerApi.quietOk() || now - fetchedAt < REFRESH_MS || now - attemptAt < RETRY_MS || !inFlight.compareAndSet(false, true)) return;
         attemptAt = now;
         UUID self;
         try {
@@ -66,7 +66,7 @@ public final class MuseumDonations {
             return;
         }
         try {
-            ProfileViewerApi.fetchProfiles(self, false).thenCompose(result -> {
+            ProfileViewerApi.fetchProfiles(self, false, true).thenCompose(result -> {
                 SbProfile selected = null;
                 for (SbProfile p : result.profiles()) {
                     if (p.selected) {
@@ -78,7 +78,7 @@ public final class MuseumDonations {
                     selected = result.profiles().get(0);
                 }
                 if (selected == null) throw new IllegalStateException("no profile");
-                return ProfileViewerApi.fetchAux(ProfileViewerApi.AuxKind.MUSEUM, selected.profileId, false);
+                return ProfileViewerApi.fetchAux(ProfileViewerApi.AuxKind.MUSEUM, selected.profileId, false, true);
             }).whenComplete((res, err) -> {
                 try {
                     if (err != null) {
