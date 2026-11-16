@@ -7,7 +7,7 @@ The detailed version of the feature list in the README. Keep this file up to dat
 **Chat**
 - Translate — auto-translates your chat messages into another language before sending
 - Auto Correct — fixes common typos before you send
-- Command Auto Correct — optional: fixes typos in command names you type ("/wardorbe" → "/wardrobe") against the server's real command list, never touching arguments
+- Command Auto Correct — optional: fixes typos in command names you type ("/wardorbe" → "/wardrobe"; two swapped letters like "/zb" → "/bz" work even on 2-letter commands; a mistyped /warp destination like "/warp bsae" → "/warp base" is fixed too; also extra, missing, wrong or doubled letters, all caps, a double slash "//bz", and a missing space "/warpbase") against the server's real command list. A command that is already valid is never changed, a typo equally close to two commands is left alone, and no other argument is touched. It also catches the "Unknown command" reply to a line you just typed and resends it corrected
 - Chat Emotes — shortcuts that turn into fun chat emotes
 - Click Translate — click a chat message to see it translated
 - Copy Chat — with chat open, hold Shift or Ctrl and Left-Click a message to copy the whole message (every wrapped line of it), or Right-Click to copy only the line you clicked. Text is copied without color codes, a message stacked by Chat Hider is copied without its (xN), and a chat line confirms the copy. A plain click does exactly what it does without the mod

@@ -537,6 +537,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.invsort.InvSortDump.register();
         com.killer560.hub.invsort.InventorySorterCommands.register();
         com.killer560.hub.autosell.AutoSellFeature.register();
+        com.killer560.hub.autocorrect.AutoCorrectFeature.register();
         com.killer560.hub.autosell.AutoSellCommands.register();
         com.killer560.hub.autosell.AutoSellToggleKey.register();
         com.killer560.hub.terminals.FakeCursor.register();
