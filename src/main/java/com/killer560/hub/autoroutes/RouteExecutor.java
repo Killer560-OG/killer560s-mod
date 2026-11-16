@@ -194,6 +194,13 @@ public final class RouteExecutor {
     private static int warpCentreTicks;
     /** PATH: the saved hop being flown, or -1 before the first. */
     private static int hopIndex = -1;
+    /** PATH: the hops this flight flies when the rest of the pair was planned again from where he stood
+     *  ({@link #replanHops}); null = the pair's saved ones. Never saved. */
+    private static List<RouteNode.PathHop> liveHops;
+    /** {@link #replanHops}: 1 while the planner works, then 0; replans asked this pair; a stamp that drops late answers. */
+    private static int replanPending;
+    private static int replansThisPair;
+    private static int replanStamp;
     // ---- Zero Ping Chain (AutoRoutesConfig.isZeroPingChain) ----
     /** An etherwarp sent and taken as landed on its PREDICTED landing; the server's teleport for it has not come yet. */
     private record InFlight(RouteNode node, Vec3 landing, BlockPos target, long sentAt) {
@@ -2162,6 +2169,10 @@ public final class RouteExecutor {
         breakerWaitTicks = 0;
         breakerWaitSaid = false;
         hopIndex = -1;
+        liveHops = null;
+        replanPending = 0;
+        replansThisPair = 0;
+        replanStamp++;
         if (trapWalk) {
             Ap3TrapWalk.cancel("another node fired");
         }
@@ -3165,12 +3176,13 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Node #{} PATH: flying {} saved warp(s) to #{}", route.indexOf(node) + 1,
                     node.pathHops.size(), route.indexOf(dest) + 1);
             pathOffBlock = 0;
+            liveHops = null;
             loadHop(node, 0);
         }
         if (!tickWarp(client, player, node)) {
             return;
         }
-        if (hopIndex + 1 < node.pathHops.size()) {
+        if (hopIndex + 1 < hops(node).size()) {
             // The next hop goes on THIS tick (killer560, 2026-10-06: "in theory I should be able to teleport 20 times a
             // second if there is no waiting"): tickWarp only returns true once the server's position packet has put him
             // on the landing, so the next warp already aims from where the server has him. It used to sit out the
@@ -3180,7 +3192,7 @@ public final class RouteExecutor {
             return;
         }
         // "landed" is any landing within LANDING_TOLERANCE of the planned feet; checkLandingBlock judged each by its block.
-        LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed, {}", route.indexOf(node) + 1, node.pathHops.size(),
+        LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed, {}", route.indexOf(node) + 1, hops(node).size(),
                 pathOffBlock == 0 ? "each on its planned block" : pathOffBlock + " of them OFF the planned block");
         finishAction();
         noteLanding(node);
@@ -3307,10 +3319,84 @@ public final class RouteExecutor {
         wantSprint = d.sprint() && !player.isInWater();
     }
 
+    /** The hops this flight of {@code node}'s pair flies: the saved ones, or the rest planned again from here. */
+    private static List<RouteNode.PathHop> hops(RouteNode node) {
+        return liveHops != null ? liveHops : node.pathHops;
+    }
+
+    /** Ticks a path hop holds when no look lands before the rest of the pair is planned again. */
+    private static final int REPLAN_AFTER = 3;
+    /** The same for a missing landing block: a second, so a block the server is still sending gets its wait first. */
+    private static final int REPLAN_AFTER_LANDING = 20;
+    /** Replans per pair flight: past these the hold is the old one (his left click). */
+    private static final int MAX_REPLANS = 2;
+    /** Path hops flown round a hold by planning the rest of the pair again - read by the testkit. */
+    private static int hopReplans;
+
+    public static int hopReplans() {
+        return hopReplans;
+    }
+
+    /**
+     * A saved path hop that cannot go from here - no look from his spot lands on its block (one now stands in its line),
+     * or its landing block is gone - held with no limit until his left click: 41 ticks stepping onto a spot he already
+     * stood on and then 2-6 s more in his 2026-11-15 run (Slime #9 hop 2, Withermancer #4 hop 1; acslow-1115). The hops
+     * are the planner's, not his (his nodes are the pair's two ends), so after {@link #REPLAN_AFTER} ticks ({@link #REPLAN_AFTER_LANDING} for a missing block) the rest of the
+     * pair is planned again from where he stands ({@link RoutePathPlanner#planFrom}) and flown at once; the send-time
+     * checks (aimLandsOnTarget, the landing block) still judge every new hop. Nothing is sent while it plans.
+     *
+     * @return true while held for the replan (or on the tick its hops were loaded); false = hold as before
+     */
+    private static boolean replanHops(LocalPlayer player, RouteNode node, String why, int heldTicks, int after) {
+        if (hopIndex < 0 || heldTicks < after || route == null || frame == null) {
+            return false;
+        }
+        if (replanPending == 1) {
+            logHold("replan:" + traceIndex(node), "Etherwarp (path hop {}): planning the rest of the pair again from here",
+                    hopIndex + 1);
+            return true;
+        }
+        if (replansThisPair >= MAX_REPLANS) {
+            return false;
+        }
+        Vec3 eyeAt = player.position();
+        if (warpTarget != null && !RoutePathPlanner.reaches(eyeAt.x, eyeAt.y + TeleportUtils.eyeHeight(true), eyeAt.z,
+                warpTarget, com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 0.5)) {
+            // Beyond his item's reach: that is Replan For My Range's call (off by default), not a block in the way.
+            return false;
+        }
+        replansThisPair++;
+        replanPending = 1;
+        int stamp = ++replanStamp;
+        int at = hopIndex;
+        Vec3 from = feet(player);
+        LOGGER.info("[AutoRoutes] Etherwarp (path hop {}): {} for {} tick(s) - planning the rest of node #{}'s pair again "
+                + "from {} ({}/{})", at + 1, why, heldTicks, route.indexOf(node) + 1, fmt(from), replansThisPair, MAX_REPLANS);
+        RoutePathPlanner.planFrom(route, frame, node, from, found -> {
+            if (stamp != replanStamp || !running || activeNode != node || hopIndex != at) {
+                return;
+            }
+            replanPending = 0;
+            if (found == null) {
+                LOGGER.info("[AutoRoutes] Etherwarp (path hop {}): no way from here to the pair's end - held as before",
+                        at + 1);
+                return;
+            }
+            List<RouteNode.PathHop> next = new ArrayList<>(hops(node).subList(0, at));
+            next.addAll(found);
+            liveHops = next;
+            hopReplans++;
+            LOGGER.info("[AutoRoutes] Etherwarp (path hop {}): flying {} new warp(s) from here instead (not saved)", at + 1,
+                    found.size());
+            loadHop(node, at);
+        });
+        return true;
+    }
+
     /** Points the warp step at saved hop {@code i} of {@code node}. */
     private static void loadHop(RouteNode node, int i) {
         hopIndex = i;
-        RouteNode.PathHop h = node.pathHops.get(i);
+        RouteNode.PathHop h = hops(node).get(i);
         warpYaw = RouteCoords.toRealYaw(frame, h.yaw());
         warpPitch = h.pitch();
         warpLanding = RouteCoords.toReal(frame, h.lx(), h.ly(), h.lz());
@@ -3356,11 +3442,11 @@ public final class RouteExecutor {
         RouteNode node = activeNode;
         if (!running || node == null || node.type != RouteNode.Type.PATH || step != Step.CONFIRM || player == null
                 || target == null || warpLanding == null || node.pathHops == null || hopIndex < 0
-                || hopIndex + 1 >= node.pathHops.size() || AutoRoutesConfig.getInstance().isLegitMode()
+                || hopIndex + 1 >= hops(node).size() || AutoRoutesConfig.getInstance().isLegitMode()
                 || !com.killer560.hub.util.RightClick.unpaired() || target.distanceTo(warpLanding) > LANDING_TOLERANCE) {
             return;
         }
-        RouteNode.PathHop h = node.pathHops.get(hopIndex + 1);
+        RouteNode.PathHop h = hops(node).get(hopIndex + 1);
         float yaw = RouteCoords.toRealYaw(frame, h.yaw());
         float pitch = h.pitch();
         Vec3 origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
@@ -3466,8 +3552,14 @@ public final class RouteExecutor {
         // The saved look belongs to the spot's EYE too: on a landing tick he stands 0.05 over it, and the saved look fired
         // from there went over a slab lip at the sim's -26, 259, -128 and was refused (1015-sim-pathland, Quartz Knight). He
         // drops onto the spot the next tick by himself (gravity, not a wait), so "on it" includes the height.
+        // A hop's spot is the last hop's LANDING, 0.05 over the floor he settles on: on the floor under it is on it too
+        // (acslow-1115: the height test alone never passed there, and every such step ran its 40 ticks at 0.00 off).
+        double dy = warpSpot.y - pos.y;
         boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004
-                && Math.abs(pos.y - warpSpot.y) < REAIM_EPSILON;
+                && (Math.abs(dy) < REAIM_EPSILON || (dy > 0 && dy <= LANDING_LIFT + REAIM_EPSILON));
+        if (warpCentreTicks == CENTRE_DONE) {
+            return false;   // back on it or timed out on an earlier tick: said once, the send-time checks hold or send it
+        }
         if (settled || warpCentreTicks > CENTRE_TIMEOUT) {
             clearMovement();
             LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled
@@ -3481,6 +3573,7 @@ public final class RouteExecutor {
             warpYaw = warpSavedYaw;
             warpPitch = warpSavedPitch;
             warpAimFrom = pos;
+            warpCentreTicks = CENTRE_DONE;
             return false;
         }
         if (warpCentreTicks == 0) {
@@ -3508,6 +3601,12 @@ public final class RouteExecutor {
     private static final double CENTRE_TOLERANCE = 0.12;
     /** Ticks to spend stepping back onto a warp's spot before firing the saved look regardless. */
     private static final int CENTRE_TIMEOUT = 40;
+    /** {@link #warpCentreTicks} once this warp's step back is over (on its spot, or timed out): it is not tried again. */
+    private static final int CENTRE_DONE = Integer.MAX_VALUE;
+    /** How far a landing stands over the floor (the planner's {@code y + 1.05} landing on a full block). */
+    private static final double LANDING_LIFT = 0.05;
+    /** A path hop this far (blocks, horizontally) off its spot is planned again from where he stands, not stepped back to. */
+    private static final double STEP_BACK_MAX = 1.0;
     /** The warp's saved look in world terms (a node's recorded one, a hop's planned one), for {@link #stepOntoWarpSpot}. */
     private static float warpSavedYaw;
     private static float warpSavedPitch;
@@ -3556,7 +3655,7 @@ public final class RouteExecutor {
             warpSpentFromSlot = -1;
             LOGGER.info("[AutoRoutes] Etherwarp PREP ({}{}): slot {} {}, sneak {} at the server, look {} / {}, target {}, "
                             + "landing {}, pace next at {} (now {})", nodeTag(node),
-                    hopIndex >= 0 ? " hop " + (hopIndex + 1) + "/" + node.pathHops.size() : "", slot + 1,
+                    hopIndex >= 0 ? " hop " + (hopIndex + 1) + "/" + hops(node).size() : "", slot + 1,
                     ItemIdentity.skyblockId(player.getInventory().getItem(slot)),
                     player.getLastSentInput().shift() ? "already" : "not yet",
                     String.format(Locale.ROOT, "%.2f", warpYaw), String.format(Locale.ROOT, "%.2f", warpPitch),
@@ -3626,7 +3725,9 @@ public final class RouteExecutor {
             }
             if (!warpForced && (!landingBlockThere(client) || pickStillStanding(client, player, node))) {
                 // Held with no time limit of its own (a pick, up to 60 s for a missing block): his left click goes off.
-                if (!running || activeNode != node || !takeSkipClick(client)) {
+                if (!running || activeNode != node || (blockWaitTicks > 0 && replanHops(player, node, "landing block "
+                        + warpTarget.toShortString() + " missing", blockWaitTicks, REPLAN_AFTER_LANDING))
+                        || !takeSkipClick(client)) {
                     return false;
                 }
                 forceWarpPastHold(node, blockWaitTicks > 0 ? "landing block " + warpTarget.toShortString() + " missing"
@@ -3650,7 +3751,9 @@ public final class RouteExecutor {
             // camera to it first (aimReady's settle, or its timeout).
             String what = hopIndex >= 0 ? "path hop " + (hopIndex + 1) : "node #" + (route.indexOf(node) + 1);
             int aim = reaimIfMoved(player, what);
-            if (aim == AIM_NO_RAY && warpSpot != null && zpFeet == null && stepOntoWarpSpot(player, what)) {
+            if (aim == AIM_NO_RAY && warpSpot != null && zpFeet == null
+                    && (hopIndex < 0 || Math.hypot(warpSpot.x - player.getX(), warpSpot.z - player.getZ()) <= STEP_BACK_MAX)
+                    && stepOntoWarpSpot(player, what)) {
                 return false;
             }
             if (aim != AIM_OK && AutoRoutesConfig.getInstance().isLegitMode()) {
@@ -3698,7 +3801,8 @@ public final class RouteExecutor {
                 // planned block from where he stands, and none that does could be found: nothing is sent (sneak held). The
                 // same test runs every tick, so it goes the tick a look lands (he settles, a block moves); his left click
                 // sends it as it is. Before turnFirst, so a look replaced here is the one the server is told.
-                if (!running || activeNode != node || !takeSkipClick(client)) {
+                if (!running || activeNode != node || replanHops(player, node, "no look from here lands on "
+                        + warpTarget.toShortString(), warpAimHoldTicks, REPLAN_AFTER) || !takeSkipClick(client)) {
                     return false;
                 }
                 forceWarpPastHold(node, "no look from here lands on " + warpTarget.toShortString(), warpAimHoldTicks);
@@ -3740,7 +3844,7 @@ public final class RouteExecutor {
                     warpEaten, warpRetries, MAX_REFUSED_RETRIES, refusedRetryTicks(), serverLagTicks());
             RouteTrace.sent(traceIndex(node), traceWhat(node), actionOrigin, warpTarget, blockName(warpTarget), warpYaw,
                     warpPitch);
-            logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
+            logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + hops(node).size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
                     + "look - a block click was unpaired)" : "")
@@ -3765,9 +3869,9 @@ public final class RouteExecutor {
             if (!landedNow && zeroPingChainNow(player, node)) {
                 return true;
             }
-            if (!landedNow && stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < node.pathHops.size()
+            if (!landedNow && stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < hops(node).size()
                     && !AutoRoutesConfig.getInstance().isLegitMode() && com.killer560.hub.util.RightClick.unpaired()) {
-                RouteNode.PathHop next = node.pathHops.get(hopIndex + 1);
+                RouteNode.PathHop next = hops(node).get(hopIndex + 1);
                 float nextYaw = RouteCoords.toRealYaw(frame, next.yaw());
                 if (!com.killer560.hub.util.RightClick.heard(player, nextYaw, next.pitch())) {
                     logHold("prehop:" + traceIndex(node), "path hop {} in flight - body turned to hop {}'s look early "
@@ -4118,7 +4222,7 @@ public final class RouteExecutor {
             under = under.below();
         }
         String what = hopIndex >= 0 ? "path #" + (route.indexOf(node) + 1) + " warp " + (hopIndex + 1) + "/"
-                + node.pathHops.size() : "etherwarp #" + (route.indexOf(node) + 1);
+                + hops(node).size() : "etherwarp #" + (route.indexOf(node) + 1);
         LOGGER.warn("[AutoRoutes] Etherwarp ({}): landed OFF its planned block - planned {} ({}, feet {}), landed at {} on {}"
                         + " ({}), {} blocks from the planned feet; aimed {} / {} from {}", what, warpTarget.toShortString(),
                 client.level.getBlockState(warpTarget).getBlock().getName().getString(),
@@ -4133,7 +4237,7 @@ public final class RouteExecutor {
     /** "ETHERWARP", or "PATH hop 2/5" while a path pair flies. */
     private static String traceWhat(RouteNode node) {
         if (node.type == RouteNode.Type.PATH && hopIndex >= 0 && node.pathHops != null) {
-            return "PATH hop " + (hopIndex + 1) + "/" + node.pathHops.size();
+            return "PATH hop " + (hopIndex + 1) + "/" + hops(node).size();
         }
         return node.type.name();
     }

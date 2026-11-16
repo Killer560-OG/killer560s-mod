@@ -81,18 +81,19 @@ public final class RoutePathPlanner {
             if (t == null) {
                 continue;
             }
-            double ex = h.ox();
-            double ey = h.oy() + eyeHeight;
-            double ez = h.oz();
-            // To the nearest point of the target block, which is what the warp's ray has to reach.
-            double dx = Math.max(Math.max(t.getX() - ex, 0.0), ex - (t.getX() + 1.0));
-            double dy = Math.max(Math.max(t.getY() - ey, 0.0), ey - (t.getY() + 1.0));
-            double dz = Math.max(Math.max(t.getZ() - ez, 0.0), ez - (t.getZ() + 1.0));
-            if (dx * dx + dy * dy + dz * dz > range * range) {
+            if (!reaches(h.ox(), h.oy() + eyeHeight, h.oz(), t, range)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /** Whether the nearest point of block {@code t} (what the warp's ray has to reach) is within {@code range} of the eye. */
+    static boolean reaches(double ex, double ey, double ez, BlockPos t, double range) {
+        double dx = Math.max(Math.max(t.getX() - ex, 0.0), ex - (t.getX() + 1.0));
+        double dy = Math.max(Math.max(t.getY() - ey, 0.0), ey - (t.getY() + 1.0));
+        double dz = Math.max(Math.max(t.getZ() - ez, 0.0), ez - (t.getZ() + 1.0));
+        return dx * dx + dy * dy + dz * dz <= range * range;
     }
 
     private static boolean near(double a, double b) {
@@ -192,11 +193,8 @@ public final class RoutePathPlanner {
             return;
         }
         Vec3 from = RouteCoords.toReal(frame, src.relativePos());
-        Vec3 destReal = RouteCoords.toReal(frame, dest.relativePos());
-        BlockPos below = BlockPos.containing(destReal.x, destReal.y - 0.5, destReal.z);
-        // The block he placed the node on is the goal even when it is a bottom slab (his choice, killer560 2026-10-09);
-        // anything picked for him instead (nearestEtherwarpable) is never one.
-        BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+        BlockPos below = blockUnder(frame, dest);
+        BlockPos goal = goalFor(frame, dest);
         if (goal == null) {
             String why = "no etherwarpable block at or near path #" + b;
             LOGGER.info("[RoutePlan] path #{} -> #{} not planned: nothing etherwarpable at or near {}", a, b,
@@ -272,6 +270,59 @@ public final class RoutePathPlanner {
                     AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": " + why + ".");
                 }
                 done.accept(why);
+            });
+        });
+    }
+
+    private static BlockPos blockUnder(RouteCoords.Frame frame, RouteNode dest) {
+        Vec3 d = RouteCoords.toReal(frame, dest.relativePos());
+        return BlockPos.containing(d.x, d.y - 0.5, d.z);
+    }
+
+    /** The block a pair's warps end on: the one he placed {@code dest} on even when it is a bottom slab (his choice,
+     *  killer560 2026-10-09); anything picked for him instead (nearestEtherwarpable) is never one. */
+    private static BlockPos goalFor(RouteCoords.Frame frame, RouteNode dest) {
+        BlockPos below = blockUnder(frame, dest);
+        return TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+    }
+
+    /**
+     * The rest of {@code src}'s pair planned again from {@code from} (where he stands), for one flight only: a saved hop
+     * that cannot go from its spot any more (a block now in its line, its landing block gone) is flown round instead of
+     * held (acslow-1115). Nothing is saved and no proof is handed over: the saved pair stays as he planned it. Same
+     * search, config, range and breaker blocks as {@link #plan}, with the plan's proof budget. {@code done} runs on the
+     * client thread with the hops, or null when there is no way from here.
+     */
+    public static void planFrom(Route route, RouteCoords.Frame frame, RouteNode src, Vec3 from,
+                                Consumer<List<RouteNode.PathHop>> done) {
+        Minecraft client = Minecraft.getInstance();
+        RouteNode dest = route == null ? null : route.pathDestination(src);
+        BlockPos goal = dest == null || frame == null || client.level == null ? null : goalFor(frame, dest);
+        if (goal == null) {
+            done.accept(null);
+            return;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        EtherwarpPathfinder.PathConfig cfg = ClearExecutor.pathConfig();
+        double range = ClearExecutor.hopRange();
+        java.util.Set<Long> air = breakerAir(route, frame, src);
+        ClearExecutor.onPlanner(() -> {
+            List<EtherwarpPathfinder.Node> path = null;
+            try {
+                path = EtherwarpPathfinder.findOptimalPath(from, goal, cfg, range, layout,
+                        EtherwarpPathfinder.PATH_EXACT_NANOS, air);
+            } catch (Throwable e) {
+                LOGGER.warn("[AutoRoutes] Path search from here failed: {}", e.toString());
+            }
+            EtherwarpPathfinder.Prover prover = EtherwarpPathfinder.lastProver;
+            if (prover != null) {
+                prover.cancel();   // one flight: the found plan goes now, unproved
+            }
+            List<EtherwarpPathfinder.Node> result = path;
+            client.execute(() -> {
+                List<RouteNode.PathHop> hops = new ArrayList<>();
+                done.accept(result == null || result.isEmpty()
+                        || buildHops(frame, result, range, goal, !air.isEmpty(), hops) != null ? null : hops);
             });
         });
     }
@@ -452,6 +503,30 @@ public final class RoutePathPlanner {
             return "the path needs " + path.size() + " warps, more than " + RouteStore.MAX_PATH_HOPS;
         }
         List<RouteNode.PathHop> hops = new ArrayList<>();
+        String bad = buildHops(frame, path, range, goal, airy, hops);
+        if (bad != null) {
+            return bad;
+        }
+        if (route.indexOf(src) < 0) {
+            return "the path node was deleted while it was planned";
+        }
+        src.pathHops.clear();
+        src.pathHops.addAll(hops);
+        src.planFromX = fx;
+        src.planFromY = fy;
+        src.planFromZ = fz;
+        src.planToX = tx;
+        src.planToY = ty;
+        src.planToZ = tz;
+        src.planBreakers = breakerStamp(route, src);
+        src.roundToSaved();
+        RouteStore.getInstance().save();
+        return null;
+    }
+
+    /** The planner's nodes as room-relative hops into {@code hops}; null, or why a warp does not reach a block. */
+    private static String buildHops(RouteCoords.Frame frame, List<EtherwarpPathfinder.Node> path, double range,
+                                    BlockPos goal, boolean airy, List<RouteNode.PathHop> hops) {
         for (int i = 0; i < path.size(); i++) {
             EtherwarpPathfinder.Node n = path.get(i);
             BlockPos target = i + 1 < path.size() ? path.get(i + 1).pos : goal;
@@ -469,20 +544,6 @@ public final class RoutePathPlanner {
             hops.add(new RouteNode.PathHop(o.x, o.y, o.z, RouteCoords.toRelativeYaw(frame, n.yaw), n.pitch, t,
                     l.x, l.y, l.z));
         }
-        if (route.indexOf(src) < 0) {
-            return "the path node was deleted while it was planned";
-        }
-        src.pathHops.clear();
-        src.pathHops.addAll(hops);
-        src.planFromX = fx;
-        src.planFromY = fy;
-        src.planFromZ = fz;
-        src.planToX = tx;
-        src.planToY = ty;
-        src.planToZ = tz;
-        src.planBreakers = breakerStamp(route, src);
-        src.roundToSaved();
-        RouteStore.getInstance().save();
         return null;
     }
 
