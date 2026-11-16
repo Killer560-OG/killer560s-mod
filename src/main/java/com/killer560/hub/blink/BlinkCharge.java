@@ -1219,6 +1219,11 @@ public final class BlinkCharge {
         return chainConfirms;
     }
 
+    /** Teleport batches sent with their confirm (testkit reads it by reflection). */
+    public static long teleportBatches() {
+        return tpBatches;
+    }
+
     public static long teleportHolds() {
         return tpHolds;
     }
@@ -1859,6 +1864,25 @@ public final class BlinkCharge {
                 stash = null;
             }
         }
+        runTick(first, player, connection);
+        spentTicks++;
+        return true;
+    }
+
+    /**
+     * Multi Warp Mode Tick Split (mwtick-1111, killer560 2026-11-11): {@link #spendTick}, only while Charge has a bank GrimAC
+     * covers. Never a tick past the bank: an unbanked tick runs his clock 50 ms ahead of the server's and GrimAC Timer
+     * (2.3.74: +50 ms per tick packet, at most 120 ms of slack, never paid back while he sends a tick a tick) flags it,
+     * and its cancelled move costs the next use's look (BadPacketsJ). Owner: nothing that flags ships. Render thread.
+     *
+     * @return false when there is no covered bank (nothing was run)
+     */
+    public static boolean splitTick(Runnable first) {
+        return active && shotCovered() && spendTick(first);
+    }
+
+    /** One whole client tick by hand: {@code first} (its use), his movement tick and its move, the tick-end. */
+    private static void runTick(Runnable first, LocalPlayer player, Connection c) {
         passing = true;
         try {
             first.run();
@@ -1866,13 +1890,11 @@ public final class BlinkCharge {
             player.tickCount++;
             player.tick();
             com.killer560.hub.compat.McCompat.sendPlayerChanges(player);
-            reportLookOnWire(player);
-            connection.send(ServerboundClientTickEndPacket.INSTANCE);
+            reportLookOnWire(player, c);
+            player.connection.send(ServerboundClientTickEndPacket.INSTANCE); // through the send taps, as vanilla sends it
         } finally {
             passing = false;
         }
-        spentTicks++;
-        return true;
     }
 
     /** The look of the last move with a rotation that really went on the wire ({@link #onWire}); NaN before one. */
@@ -1928,7 +1950,7 @@ public final class BlinkCharge {
      * then the tick-end alone, one BadPacketsJ per burst whenever the setup turn had been banked. Sent only when the wire
      * look differs, so it is never a repeated look (AimDuplicateLook).
      */
-    private static void reportLookOnWire(LocalPlayer player) {
+    private static void reportLookOnWire(LocalPlayer player, Connection connection) {
         float yaw = player.getYRot();
         float pitch = player.getXRot();
         if (Float.isNaN(wireYaw) || (yaw == wireYaw && pitch == wirePitch)) {

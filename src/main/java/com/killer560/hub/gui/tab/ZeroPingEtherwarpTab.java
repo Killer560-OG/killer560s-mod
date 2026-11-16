@@ -106,6 +106,14 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                         btn.setMessage(warpsPerTickText(cfg));
                     }).bounds(contentX, y, contentWidth, ROW).build());
             y += ROW + 4;
+            // Multi Warp Mode (mwtick-1111, killer560 2026-11-11: "make an option for the burst or to multiwarp"): Burst or
+            // Tick Split, for every source under Multi Warps For.
+            w.add(SettingsButtonWidget.cycling(multiWarpModeText(cfg), (btn, dir) -> {
+                        cfg.setTickSplit(!cfg.isTickSplit());
+                        cfg.save();
+                        btn.setMessage(multiWarpModeText(cfg));
+                    }).bounds(contentX, y, contentWidth, ROW).build());
+            y += ROW + 4;
             w.add(onOffButton("Aimed Warps", cfg::isAimedWarps, cfg::setAimedWarps, cfg::save, null,
                     contentX, y, contentWidth, ROW));
             y += ROW + 6;
@@ -123,6 +131,10 @@ public class ZeroPingEtherwarpTab extends BaseTab {
         y += 16;
         w.add(onOffButton(LEFT_CLICK, lce::isEnabled, lce::setEnabled, lce::save, null, contentX, y, contentWidth, ROW));
         return w;
+    }
+
+    private static Component multiWarpModeText(ZeroPingEtherwarpConfig cfg) {
+        return Component.literal("Multi Warp Mode: " + (cfg.isTickSplit() ? "Tick Split" : "Burst"));
     }
 
     private static Component warpsPerTickText(ZeroPingEtherwarpConfig cfg) {

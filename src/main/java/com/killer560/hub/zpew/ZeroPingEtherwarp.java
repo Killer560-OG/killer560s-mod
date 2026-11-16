@@ -112,8 +112,15 @@ public final class ZeroPingEtherwarp {
     private static boolean extraSending;
     /** True inside {@code Minecraft.startUseItem} (ZpewStartUseMixin): his click's extras wait for its end. */
     public static boolean inClick;
+    /** The client tick whose extras left a use_item open (its tick end is the real tick's own). */
+    private static long openUseTick = -1;
+    /** His clicks held back a tick by {@link #beforeClick}, and true while {@link #replayClicks} sends them. */
+    private static int deferredClicks;
+    private static boolean replaying;
     private static long extraSent;
     private static long extraStopped;
+    /** Tick Split bursts whose bank ran out, so the rest went as Burst (testkit). */
+    private static long splitShort;
     /** Etherwarp uses seen in the current client tick, and the most ever seen in one tick. */
     private static long usesTick = -1;
     private static int usesThisTick;
@@ -142,6 +149,7 @@ public final class ZeroPingEtherwarp {
             if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) return;
             try {
                 BODY.tick(client.player, false);
+                replayClicks(client);
                 pollClicks();
                 aimedPending(client);
                 if (pendingLooks == null) {
@@ -158,6 +166,7 @@ public final class ZeroPingEtherwarp {
             expire();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            deferredClicks = 0;
             synchronized (PENDING) {
                 PENDING.clear();
             }
@@ -291,7 +300,8 @@ public final class ZeroPingEtherwarp {
                 Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing), depth,
                 clientTick));
         // Warps Per Tick: his own warp (a right click or Left Click Etherwarp) owes N - 1 more, this tick, at this look.
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending && source.group() == ZpewSource.Group.MANUAL) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending
+                && source.group() == ZpewSource.Group.MANUAL) {
             int n = zc.effectiveWarpsPerTick();
             if (n > 1) {
                 owed = n - 1;
@@ -304,6 +314,67 @@ public final class ZeroPingEtherwarp {
     }
 
     /**
+     * How many warps an Auto Routes / Interactive Map chain may send in one real tick (Multi Warps): Warps Per Tick, or
+     * Blink Charge's covered bank when that is more (banked ticks are real time, so they cost no GrimAC Timer).
+     */
+    public static int chainMax() {
+        int bank = com.killer560.hub.blink.BlinkCharge.isActive() && com.killer560.hub.blink.BlinkCharge.shotCovered()
+                ? com.killer560.hub.blink.BlinkCharge.banked() : 0;
+        return Math.max(ZeroPingEtherwarpConfig.getInstance().getWarpsPerTick(), bank);
+    }
+
+    /**
+     * At the head of his click: extras earlier in this tick left a use_item open, and this click's block use would follow it
+     * in one tick (experimental GrimAC 2.3.74 PacketOrderN: every use_item clears {@code placing}, so a use_item_on after
+     * the extras flags). A covered Blink bank closes that tick first; with none the click waits for the next tick.
+     *
+     * @return true when the click must not run now (ZpewStartUseMixin cancels it; {@link #replayClicks} sends it)
+     */
+    public static boolean beforeClick() {
+        if (openUseTick != clientTick || replaying) {
+            return false;
+        }
+        openUseTick = -1;
+        if (com.killer560.hub.blink.BlinkCharge.splitTick(() -> { })) {
+            return false;
+        }
+        deferredClicks++;
+        return true;
+    }
+
+    /**
+     * Next tick's start: his clicks {@link #beforeClick} held back, each a whole click (with its own extras). The crosshair
+     * still holds the block from before the warps, and the server has not seen him land yet, so the click goes without its
+     * block use (GrimAC FarPlace / RotationPlace); an etherwarp is its use_item alone.
+     */
+    private static void replayClicks(Minecraft client) {
+        int n = deferredClicks;
+        deferredClicks = 0;
+        if (n == 0 || client.player == null || com.killer560.hub.compat.McCompat.screen(client) != null) {
+            return;
+        }
+        net.minecraft.world.phys.HitResult hit = client.hitResult;
+        if (hit instanceof net.minecraft.world.phys.BlockHitResult bh && etherwarpRange(client.player.getMainHandItem()) > 0) {
+            client.hitResult = net.minecraft.world.phys.BlockHitResult.miss(bh.getLocation(), bh.getDirection(), bh.getBlockPos());
+        }
+        replaying = true;
+        try {
+            for (int i = 0; i < n; i++) {
+                ((com.killer560.hub.leftclickew.mixin.LeftClickUseInvoker) client).killer560smod$startUseItem();
+            }
+        } finally {
+            replaying = false;
+            client.hitResult = hit;
+        }
+    }
+
+    /** One warp's whole tick ({@code first} sends its use): {@code BlinkCharge.splitTick} in Tick Split, else a banked tick. */
+    public static boolean warpTick(Runnable first) {
+        return ZeroPingEtherwarpConfig.getInstance().effectiveTickSplit() ? com.killer560.hub.blink.BlinkCharge.splitTick(first)
+                : com.killer560.hub.blink.BlinkCharge.spendTick(first);
+    }
+
+    /**
      * Warps Per Tick (cheat build; {@code mixin/ZpewUseItemMixin}, when his use's {@code useItem} returns): sends the extra
      * warps his last use owes, right now, in the same client tick - each a {@code use_item} with the SAME yaw and pitch as
      * his own, through vanilla's sequenced send. The server casts each from where the one before put him, so they walk on
@@ -312,6 +383,9 @@ public final class ZeroPingEtherwarp {
      * client also sends after two clicks in one tick ({@code Minecraft.handleKeybinds}: {@code while (keyUse.consumeClick())
      * startUseItem()}). Each extra is cast here first from the last predicted landing; one that would land nowhere is not
      * sent and ends the burst (the server would do nothing with it but spend his mana).
+     * Multi Warp Mode Tick Split (mwtick-1111): each extra first closes the tick of the use before it ({@link #warpTick}:
+     * his move at that look, the tick-end), so every warp sits in a tick of its own; the last one
+     * goes with this real tick's own move and tick-end.
      */
     public static void flushExtraWarps() {
         try {
@@ -332,6 +406,7 @@ public final class ZeroPingEtherwarp {
             return;
         }
         if (held("Warps Per Tick: " + n + " extra warp(s)")) return;
+        boolean split = ZeroPingEtherwarpConfig.getInstance().effectiveTickSplit();
         int sent = 0;
         String stop = null;
         extraSending = true;
@@ -365,6 +440,10 @@ public final class ZeroPingEtherwarp {
                 final InteractionHand hand = owedHand;
                 final float yaw = owedYaw;
                 final float pitch = owedPitch;
+                if (split && !warpTick(() -> { })) {
+                    split = false; // the bank ran out: the rest go as Burst, in this tick at his look
+                    splitShort++;
+                }
                 invoker.killer560smod$invokeStartPrediction(mc.level,
                         sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
                 sent++;
@@ -380,8 +459,12 @@ public final class ZeroPingEtherwarp {
         if (stop != null) {
             extraStopped++;
         }
+        if (sent > 0) {
+            openUseTick = clientTick;
+        }
         LOGGER.info(String.format(Locale.ROOT, "[ZPEW] Warps Per Tick: %d extra warp(s) sent in tick %d at yaw %.2f pitch %.2f "
-                        + "(%d owed)%s; %d etherwarp use(s) this tick", sent, clientTick, Mth.wrapDegrees(owedYaw), owedPitch, n,
+                        + "(%d owed, %s)%s; %d etherwarp use(s) this tick", sent, clientTick, Mth.wrapDegrees(owedYaw), owedPitch, n,
+                split ? "Tick Split" : "Burst",
                 stop == null ? "" : " - stopped: " + stop, usesThisTick));
     }
 
@@ -550,7 +633,7 @@ public final class ZeroPingEtherwarp {
                             sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
                 };
                 if (i < n - 1) {
-                    if (!com.killer560.hub.blink.BlinkCharge.spendTick(use)) {
+                    if (!warpTick(use)) {
                         dropped += n - i;
                         break;
                     }
@@ -568,8 +651,8 @@ public final class ZeroPingEtherwarp {
         aimedWarpsSent += sent;
         aimedDropped += dropped;
         lastAimedBurst = sent;
-        LOGGER.info("[ZPEW] Aimed Warps: {} warp(s), each at its own look, sent in tick {} ({} banked Blink tick(s) spent, "
-                        + "{} left){}", sent, clientTick, Math.max(0, sent - 1), com.killer560.hub.blink.BlinkCharge.banked(),
+        LOGGER.info("[ZPEW] Aimed Warps: {} warp(s), each at its own look, sent in tick {} ({} extra tick(s), {} banked left){}",
+                sent, clientTick, Math.max(0, sent - 1), com.killer560.hub.blink.BlinkCharge.banked(),
                 dropped > 0 ? "; " + dropped + " press(es) past the bank dropped" : "");
     }
 

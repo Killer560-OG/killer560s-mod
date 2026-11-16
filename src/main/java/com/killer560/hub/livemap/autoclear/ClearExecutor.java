@@ -1720,22 +1720,25 @@ public final class ClearExecutor {
      * Pathfinding trips, else Interactive Map; zpewunify-1111). From the path's first hop, before this tick sends any use
      * (by its second hop the first confirm has backed the bank again, so it could never spend it). With Blink charging
      * and its bank covered, every hop left goes now, one banked tick each (each its own whole tick on the wire: the use,
-     * his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends.
+     * his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends (never past it: GrimAC
+     * Timer, mwtick-1111).
      */
     private static void chainInOneTick(Minecraft client) {
-        if (nodes == null || nodes.isEmpty() || !com.killer560.hub.blink.BlinkCharge.isActive()
-                || !com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().multiWarpsFor(hopSource())
-                || !com.killer560.hub.blink.BlinkCharge.shotCovered()) {
+        if (nodes == null || nodes.isEmpty()
+                || !com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().multiWarpsFor(hopSource())) {
             return;
         }
+        int max = com.killer560.hub.zpew.ZeroPingEtherwarp.chainMax();
+        int spent = 0;
         int fired = 0;
         int idle = 0;
         int bank0 = com.killer560.hub.blink.BlinkCharge.banked();
-        while (nodes != null && !nodes.isEmpty() && issued.size() - confirmed < BURST_LEAD) {
+        while (nodes != null && !nodes.isEmpty() && issued.size() - confirmed < BURST_LEAD && spent < max && max > 1) {
             int uses = com.killer560.hub.util.RightClick.itemUsesSent();
-            if (!com.killer560.hub.blink.BlinkCharge.spendTick(() -> spentHop(client))) {
+            if (!com.killer560.hub.blink.BlinkCharge.splitTick(() -> spentHop(client))) {
                 break;
             }
+            spent++;
             if (com.killer560.hub.util.RightClick.itemUsesSent() == uses) {
                 // The first hop's sneak reaches the server on this spent tick, its use goes on the next; two in a row
                 // means the hop waits on something else (a click, mana, the item): the rest of the bank stays.
@@ -1749,7 +1752,7 @@ public final class ClearExecutor {
         }
         if (fired > 0) {
             chargedChainWarps += fired;
-            LOGGER.info("[Path] Charged Chain: {} warp(s) sent in one tick from Blink's bank ({} -> {} banked), {} left",
+            LOGGER.info("[Path] Charged Chain: {} warp(s) sent in one tick ({} -> {} banked), {} left",
                     fired, bank0, com.killer560.hub.blink.BlinkCharge.banked(), nodes == null ? 0 : nodes.size());
         }
     }

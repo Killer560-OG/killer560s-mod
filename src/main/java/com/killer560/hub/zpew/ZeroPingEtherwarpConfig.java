@@ -39,6 +39,9 @@ public final class ZeroPingEtherwarpConfig {
     private boolean aimedWarps = false;
     /** Multi Warps (killer560 2026-11-01 "Make a toggle for the multi warps"): the switch over everything below it. */
     private boolean multiWarps = false;
+    /** Multi Warp Mode (mwtick-1111): false = Burst (the warps in one tick), true = Tick Split (each warp in a banked tick of its
+     *  own while Blink Charge has a bank, then Burst; never a tick past the bank). Burst by default. */
+    private boolean tickSplit = false;
     /** Dungeons Only (killer560, 2026-11-01): ZPEW predicts only inside a dungeon (the sim counts). Off by default. */
     private boolean dungeonsOnly = false;
     /** Works For: which sources' etherwarps Zero Ping Etherwarp predicts. All on by default. */
@@ -76,6 +79,7 @@ public final class ZeroPingEtherwarpConfig {
             cfg.setWarpsPerTick(ConfigJson.getInt(obj, "warpsPerTick", cfg.warpsPerTick));
             cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
             cfg.multiWarps = ConfigJson.getBool(obj, "multiWarps", cfg.warpsPerTick > 1 || cfg.aimedWarps);
+            cfg.tickSplit = ConfigJson.getBool(obj, "multiWarpTickSplit", false);
             cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
             readGroups(ConfigJson.getObject(obj, "worksFor"), cfg.worksFor);
             JsonObject mw = ConfigJson.getObject(obj, "multiWarpsFor");
@@ -147,6 +151,7 @@ public final class ZeroPingEtherwarpConfig {
         obj.addProperty("warpsPerTick", warpsPerTick);
         obj.addProperty("aimedWarps", aimedWarps);
         obj.addProperty("multiWarps", multiWarps);
+        obj.addProperty("multiWarpTickSplit", tickSplit);
         obj.addProperty("dungeonsOnly", dungeonsOnly);
         obj.add("worksFor", write(worksFor));
         obj.add("multiWarpsFor", write(multiWarpsFor));
@@ -189,6 +194,16 @@ public final class ZeroPingEtherwarpConfig {
     public boolean isMultiWarps() { return multiWarps; }
 
     public void setMultiWarps(boolean multiWarps) { this.multiWarps = multiWarps; }
+
+    /** The saved Multi Warp Mode (true = Tick Split), whatever the build. */
+    public boolean isTickSplit() { return tickSplit; }
+
+    public void setTickSplit(boolean tickSplit) { this.tickSplit = tickSplit; }
+
+    /** Multi Warp Mode as it applies: Tick Split only in a cheat build (a legit build folds it to Burst). */
+    public boolean effectiveTickSplit() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && tickSplit;
+    }
 
     public boolean isDungeonsOnly() { return dungeonsOnly; }
 

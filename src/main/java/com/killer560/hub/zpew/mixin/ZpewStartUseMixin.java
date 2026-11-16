@@ -16,8 +16,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Minecraft.class)
 public abstract class ZpewStartUseMixin {
 
-    @Inject(method = "startUseItem", at = @At("HEAD"))
+    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void killer560smod$zpewClickStart(CallbackInfo ci) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && ZeroPingEtherwarp.beforeClick()) {
+            ci.cancel(); // replayed next tick (PacketOrderN)
+            return;
+        }
         ZeroPingEtherwarp.inClick = true;
     }
 

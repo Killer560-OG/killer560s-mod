@@ -1017,6 +1017,41 @@ after a use in one tick) flagged at 20 per tick. The extras now go at the RETURN
 (testkit 1027-zpewmt, 1111-zpew-wpt20-same-swap: SHARED with his scroll). A dig never shares a tick with a use: vanilla's
 startUseItem returns while destroying, so a same-tick DIG case sends 0 uses (not a mod fault).
 
+### Split ticks: many warps in one real tick at different looks (mwtick-1111)
+
+GrimAC judges a use's look against the next tick packet, so warps at DIFFERENT looks need a tick each. `BlinkCharge.splitTick`
+is `spendTick` (a whole tick by hand: tick, `McCompat.sendPlayerChanges`, the look report, tick end) while Charge has a bank
+GrimAC covers, and nothing past it: Multi Warp Mode Tick Split puts each Warps Per Tick extra in a banked tick of its own and
+falls back to Burst for the rest (`ZeroPingEtherwarp.splitShort`); the Auto Routes and Interactive Map chains and Aimed Warps
+spend the bank the same way in both modes. Owner, 2026-11-11: nothing that flags ships ("why would you push it if it
+flags?"), so the first version's unbanked ticks were removed.
+Why no tick past the bank can be clean (GrimAC 2.3.74 `Timer`, javap of ac_grim_grimac_common): every tick packet adds 50 ms
+to `timerBalanceRealTime`, a packet whose balance passes `System.nanoTime()` is flagged AND cancelled, and the balance is
+only ever raised to `lastMovementPlayerClock - drift` (drift 120 ms). So the slack is at most 120 ms plus his ping, about two
+extra ticks once, and it is never paid back while he sends a tick each tick: only ticks he does NOT send (Blink Charge's
+withheld ones, the bank) buy it back. Measured on 26.3 cheat, Warps Per Tick 20 with no bank: Timer 29-62 and TimerLimit
+1-6 lines per case, default and experimental alike; with a covered bank 0. The measuring jars with 1 and 2 unbanked split
+ticks per real tick are in killer560s-mod-logs/mwtick/jarsF1, jarsF2 (results in the handoff line).
+A cancelled tick also costs the NEXT use its look: Timer cancels the move before anything else reads it, so a turning
+route warp in an unbanked tick drew BadPacketsJ (6 on the 12-node square). Sending the look ahead of the use (look, use,
+tick end) is no way out: a use after the tick's move is PacketOrderO (tried, ffc37882a, reverted).
+Only looks that change go on the wire: a same-look split reads `U T | U T | ...` with no move packets (vanilla's
+sendPosition already skips an unchanged look; `reportLookOnWire` adds one only when the wire look differs).
+A hand-run tick's `client_tick_end` must go through `player.connection.send`, not straight on the `Connection`: the send taps
+(`RightClickSendMixin`: HotbarSelect, PlaceRotationGuard, DigWindow) sit on the listener, so a tick end that skipped them
+never cleared `HotbarSelect.orderConflict`, and the route held each node behind a PacketOrderE "use_item already went out
+this server tick" that GrimAC had already closed: the route chain fired 2-3 warps a burst with empty ticks between.
+Warps Per Tick's extras leave a `use_item` open in the real tick, so his second click there put its block use
+(`use_item_on`) after it: experimental GrimAC PacketOrderN (2.3.74 javap: every `use_item` clears `placing`, one with no
+placement before it sets `usingWithoutPlacing`, and a block placement then flags until the tick packet; 6 lines in
+1111-mwtick-wpt-double, Burst mode the same). `ZeroPingEtherwarp.beforeClick` (cancellable HEAD of `startUseItem`) closes
+that tick with one covered banked tick first; with no bank it holds the click and `replayClicks` sends it at the next
+tick's start as a whole click with its own extras. The replay first swaps `mc.hitResult` for a miss when he holds an
+etherwarp item: the crosshair still names the block from before the warps and the server has not seen him land, so its
+`use_item_on` drew experimental FarPlace x2 + RotationPlace x2 (run11); the warp is the `use_item` alone.
+A test that teleports him and fires 3 ticks later can catch the bank uncovered (the teleport is still in `tpSegs`): Tick
+Split then goes as Burst by design, so the bank case waits for `shotCovered()` before it fires.
+
 ### Lag spikes and TimerLimit (blinklag-1104)
 
 Why a lag spike flags TimerLimit, read off GrimAC 2.3.74 (`TimerLimit.limitFallBehind`, javap of ac_grim_grimac_common):
@@ -1101,6 +1136,8 @@ many ticks went between ("N sent between them for a position in time").
 - Shovel modes in Fruit Digging are read from the item name, else from its look (iron = Mines, diamond = Anchor, golden =
   Treasure), not yet checked against Hypixel; `AutoShovelSwap.mode` is the one place to fix if they differ.
 - Under ViewFreeze (Free Camera), `LocalPlayer.getViewYRot/getViewXRot` and so `getViewVector` answer the HELD view (Ap3ViewYawMixin), so a crosshair test that must follow the body (No Rotate never shot, gate 1 of carnival-1110) uses `Vec3.directionFromRotation(player.getXRot(), player.getYRot())`. Testkit: a `/tp` yaw is wrapped by the server, so the client must take the same wrapped value (CarnivalSuite.stand) or GrimAC flags AimModulo360; under SameTick DIG the auto's dig and his are the same packet, so a dig is the auto's only in a client tick `CarnivalInput.taps()` rose.
+
+- Testkit getters are read by reflection (`staticCall`), so the unused-method pass cannot see them: it removed `BlinkCharge.teleportBatches()` and every 62-argrim-1111-mwtick-map case failed "Could not call static ...teleportBatches()" on c263 and c262 (mwtickfix-1114); a method a testkit case calls stays, and a counter only some builds carry is read tolerantly (`chargeNumOr0`).
 - **A container close waits for stillness (flaghunt-1110 group C, `util/StillHold`); chat and commands are NEVER held (stillhold-1113).** One hold at the head of `Connection.send` (`StillHoldMixin`) keeps a `ServerboundContainerClosePacket` until the server's last input and sprint are still (`InventoryWalkFeature.serverHasStillInput`; GrimAC MultiActionsD, default config too). Auto Close Chest answers a chest opened on the run with a close and never opens a screen, so vanilla's key release never happens (testkit 1110-c-autoclosechest-moving-*). The first version also held every mod chat line and command (experimental ChatC) and lines came out seconds late while he ran: against chatnow-1112 ("just have it all send when i should send it"), removed. Experimental ChatC may cancel a line sent while moving; that is accepted, not fixed by delaying. One close leaves per 10 ticks, 32 held at most.
 
 ## Wither Aimbot (witheraim-1111)
